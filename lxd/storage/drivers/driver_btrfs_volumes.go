@@ -119,34 +119,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !*srcBackup.OptimizedStorage {
-		postHook, revertHook, err := genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// genericVFSBackupUnpack returns a nil postHook when volume's type is VolumeTypeCustom which
-		// doesn't need any post hook processing after DB record creation.
-		if postHook != nil {
-			// Define a post hook function that can be run once the backup config has been restored.
-			// This will setup the quota using the restored config.
-			postHookWrapper := func(vol Volume) error {
-				err := postHook(vol)
-				if err != nil {
-					return err
-				}
-
-				err = d.createVolumeFromBackupInstancePostHookResize(d, vol, op)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			}
-
-			return postHookWrapper, revertHook, nil
-		}
-
-		return nil, revertHook, nil
+		return genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
 	}
 
 	if d.HasVolume(vol) {
