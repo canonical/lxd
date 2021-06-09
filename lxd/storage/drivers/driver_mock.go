@@ -117,7 +117,7 @@ func (d *mock) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	}
 
 	if _, changed := changedConfig["size"]; changed {
-		err := d.SetVolumeQuota(vol, changedConfig["size"], nil)
+		err := d.SetVolumeQuota(vol, changedConfig["size"], false, nil)
 		if err != nil {
 			return err
 		}
