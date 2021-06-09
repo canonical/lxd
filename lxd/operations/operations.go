@@ -183,14 +183,26 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		ctx := r.Context()
 		requestor := api.EventLifecycleRequestor{}
 
-		username, ok := ctx.Value("username").(string)
+		// Normal requestor.
+		val, ok := ctx.Value("username").(string)
 		if ok {
-			requestor.Username = username
+			requestor.Username = val
 		}
 
-		protocol, ok := ctx.Value("protocol").(string)
+		val, ok = ctx.Value("protocol").(string)
 		if ok {
-			requestor.Protocol = protocol
+			requestor.Protocol = val
+		}
+
+		// Forwarded requestor override.
+		val, ok = ctx.Value("forwarded_username").(string)
+		if ok {
+			requestor.Username = val
+		}
+
+		val, ok = ctx.Value("forwarded_protocol").(string)
+		if ok {
+			requestor.Protocol = val
 		}
 
 		op.requestor = &requestor
