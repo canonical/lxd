@@ -632,7 +632,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err = d.SetVolumeQuota(vol, vol.config["size"], nil)
+	err = d.SetVolumeQuota(vol, vol.config["size"], false, nil)
 	if err != nil {
 		return err
 	}
