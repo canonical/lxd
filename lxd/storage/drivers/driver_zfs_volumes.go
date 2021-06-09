@@ -248,7 +248,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, func(), error) {
+func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !*srcBackup.OptimizedStorage {
 		return genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
