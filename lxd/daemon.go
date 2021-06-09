@@ -496,6 +496,14 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			ctx = context.WithValue(ctx, "protocol", protocol)
 			ctx = context.WithValue(ctx, "access", userAccess)
 
+			// Add forwarded requestor data.
+			if protocol == "cluster" {
+				// Add authentication/authorization context data.
+				ctx = context.WithValue(ctx, "forwarded_address", r.Header.Get("X-LXD-cluster-address"))
+				ctx = context.WithValue(ctx, "forwarded_username", r.Header.Get("X-LXD-cluster-username"))
+				ctx = context.WithValue(ctx, "forwarded_protocol", r.Header.Get("X-LXD-cluster-protocol"))
+			}
+
 			r = r.WithContext(ctx)
 		} else if untrustedOk && r.Header.Get("X-LXD-authenticated") == "" {
 			logger.Debug(fmt.Sprintf("Allowing untrusted %s", r.Method), log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
