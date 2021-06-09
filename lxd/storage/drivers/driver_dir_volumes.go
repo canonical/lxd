@@ -117,11 +117,6 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			}
 			revert.Add(revertQuota)
 
-			err = d.createVolumeFromBackupInstancePostHookResize(d, vol, op)
-			if err != nil {
-				return err
-			}
-
 			revert.Success()
 			return nil
 		}
