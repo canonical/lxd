@@ -101,7 +101,7 @@ func (er stdinMirror) Read(p []byte) (int, error) {
 func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

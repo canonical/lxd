@@ -8,6 +8,7 @@ import (
 const busFunctionGroupNone = ""           // Add a non multi-function port.
 const busFunctionGroupGeneric = "generic" // Add multi-function port to generic group (used for internal devices).
 const busFunctionGroup9p = "9p"           // Add multi-function port to 9p group (used for 9p shares).
+const busDevicePortPrefix = "qemu_pcie"   // Prefix used for name of PCIe ports.
 
 type qemuBusEntry struct {
 	bridgeDev int // Device number on the root bridge.
@@ -116,14 +117,16 @@ func (a *qemuBus) allocate(multiFunctionGroup string) (string, string, bool) {
 
 	if a.name == "pcie" {
 		if p.fn == 0 {
+			portName := fmt.Sprintf("%s%d", busDevicePortPrefix, a.portNum)
 			qemuPCIe.Execute(a.sb, map[string]interface{}{
-				"index": a.portNum,
-				"addr":  fmt.Sprintf("%x.%d", p.bridgeDev, p.bridgeFn),
+				"portName": portName,
+				"index":    a.portNum,
+				"addr":     fmt.Sprintf("%x.%d", p.bridgeDev, p.bridgeFn),
 
 				// First root port added on a bridge bus address needs multi-function enabled.
 				"multifunction": p.bridgeFn == 0,
 			})
-			p.dev = fmt.Sprintf("qemu_pcie%d", a.portNum)
+			p.dev = portName
 			a.portNum++
 		}
 

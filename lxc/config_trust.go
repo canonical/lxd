@@ -62,6 +62,7 @@ type cmdConfigTrustAdd struct {
 	config      *cmdConfig
 	configTrust *cmdConfigTrust
 
+	flagName       string
 	flagProjects   string
 	flagRestricted bool
 }
@@ -75,6 +76,7 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 
 	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
 	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to")+"``")
+	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Alternative certificate name")+"``")
 
 	cmd.RunE = c.Run
 
@@ -82,7 +84,7 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -101,13 +103,26 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	// Add trust relationship
+	// Load the certificate.
 	fname := args[len(args)-1]
-	x509Cert, err := shared.ReadCert(shared.HostPathFollow(fname))
+	if fname == "-" {
+		fname = "/dev/stdin"
+	} else {
+		fname = shared.HostPathFollow(fname)
+	}
+
+	var name string
+	if c.flagName != "" {
+		name = c.flagName
+	} else {
+		name, _ = shared.SplitExt(fname)
+	}
+
+	// Add trust relationship.
+	x509Cert, err := shared.ReadCert(fname)
 	if err != nil {
 		return err
 	}
-	name, _ := shared.SplitExt(fname)
 
 	cert := api.CertificatesPost{}
 	cert.Certificate = base64.StdEncoding.EncodeToString(x509Cert.Raw)
@@ -149,7 +164,7 @@ func (c *cmdConfigTrustEdit) helpTemplate() string {
 }
 
 func (c *cmdConfigTrustEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -254,7 +269,7 @@ func (c *cmdConfigTrustList) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -333,7 +348,7 @@ func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -376,7 +391,7 @@ func (c *cmdConfigTrustShow) Command() *cobra.Command {
 }
 
 func (c *cmdConfigTrustShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err

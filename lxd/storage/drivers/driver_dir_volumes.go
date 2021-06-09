@@ -97,17 +97,15 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		return nil, nil, err
 	}
 
-	// genericVFSBackupUnpack returns a nil postHook when volume's type is VolumeTypeCustom and doesn't need
-	// any post hook processing after DB record creation.
+	// genericVFSBackupUnpack returns a nil postHook when volume's type is VolumeTypeCustom which
+	// doesn't need any post hook processing after DB record creation.
 	if postHook != nil {
 		// Define a post hook function that can be run once the backup config has been restored.
 		// This will setup the quota using the restored config.
 		postHookWrapper := func(vol Volume) error {
-			if postHook != nil {
-				err := postHook(vol)
-				if err != nil {
-					return err
-				}
+			err := postHook(vol)
+			if err != nil {
+				return err
 			}
 
 			revert := revert.New()
@@ -118,6 +116,11 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 				return err
 			}
 			revert.Add(revertQuota)
+
+			err = d.createVolumeFromBackupInstancePostHookResize(d, vol, op)
+			if err != nil {
+				return err
+			}
 
 			revert.Success()
 			return nil
@@ -256,7 +259,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 	return size, nil
 }
 
-// SetVolumeQuota sets the quota on the volume.
+// SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
 func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
 	// Convert to bytes.

@@ -40,7 +40,9 @@ var ValidDevices func(state *state.State, cluster *db.Cluster, projectName strin
 var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
 
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
-var Create func(s *state.State, args db.InstanceArgs) (Instance, error)
+// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
+// revert's Fail() or Success() function as needed.
+var Create func(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error)
 
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
@@ -231,7 +233,7 @@ func lxcParseRawLXC(line string) (string, string, error) {
 		return "", "", nil
 	}
 
-	// Skip whitespace {"\t", " "}
+	// Skip space {"\t", " "}
 	line = strings.TrimLeft(line, "\t ")
 
 	// Ignore comments
@@ -914,8 +916,10 @@ func ValidName(instanceName string, isSnapshot bool) error {
 	return nil
 }
 
-// CreateInternal creates an instance record and storage volume record in the database.
-func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
+// CreateInternal creates an instance record and storage volume record in the database and sets up devices.
+// Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
+// revert's Fail() or Success() function as needed.
+func CreateInternal(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error) {
 	// Set default values.
 	if args.Project == "" {
 		args.Project = project.Default
@@ -1101,13 +1105,10 @@ func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 		return nil, err
 	}
 
-	revert := revert.New()
-	defer revert.Fail()
-
 	revert.Add(func() { s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
-	inst, err := Create(s, args)
+	inst, err := Create(s, args, revert)
 	if err != nil {
 		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
 		return nil, errors.Wrap(err, "Failed initialising instance")
@@ -1116,7 +1117,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs) (Instance, error) {
 	// Wipe any existing log for this instance name.
 	os.RemoveAll(inst.LogPath())
 
-	revert.Success()
 	return inst, nil
 }
 

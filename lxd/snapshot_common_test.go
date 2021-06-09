@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/revert"
 )
 
 func (suite *containerTestSuite) TestSnapshotScheduling() {
@@ -17,7 +18,7 @@ func (suite *containerTestSuite) TestSnapshotScheduling() {
 		Name:      "hal9000",
 	}
 
-	c, err := instance.CreateInternal(suite.d.State(), args)
+	c, err := instance.CreateInternal(suite.d.State(), args, revert.New())
 	suite.Req.Nil(err)
 	suite.Equal(true, snapshotIsScheduledNow("* * * * *",
 		int64(c.ID())),

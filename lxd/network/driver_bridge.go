@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
@@ -30,6 +31,7 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -482,6 +484,12 @@ func (n *bridge) isRunning() bool {
 func (n *bridge) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
+	// Delete all warnings regarding this network
+	err := warnings.DeleteWarningsByLocalNodeAndProjectAndEntity(n.state.Cluster, n.project, dbCluster.TypeNetwork, int(n.id))
+	if err != nil {
+		n.logger.Warn("Failed to delete warnings", log.Ctx{"err": err})
+	}
+
 	if n.isRunning() {
 		err := n.Stop()
 		if err != nil {
@@ -490,7 +498,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 	}
 
 	// Delete apparmor profiles.
-	err := apparmor.NetworkDelete(n.state, n)
+	err = apparmor.NetworkDelete(n.state, n)
 	if err != nil {
 		return err
 	}
@@ -1015,6 +1023,16 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		if subnetSize > 64 {
 			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
+
+			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningLargerIPv6PrefixThanSupported, "")
+			if err != nil {
+				n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			}
+		} else {
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningLargerIPv6PrefixThanSupported, dbCluster.TypeNetwork, int(n.id))
+			if err != nil {
+				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+			}
 		}
 
 		// Update the dnsmasq config.
@@ -1512,8 +1530,18 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Apply AppArmor confinement.
 		if n.config["raw.dnsmasq"] == "" {
 			p.SetApparmor(apparmor.DnsmasqProfileName(n))
+
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningAppArmorDisabledDueToRawDnsmasq, dbCluster.TypeNetwork, int(n.id))
+			if err != nil {
+				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+			}
 		} else {
 			n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", log.Ctx{"name": n.name})
+
+			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningAppArmorDisabledDueToRawDnsmasq, "")
+			if err != nil {
+				n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			}
 		}
 
 		// Start dnsmasq.
@@ -1964,7 +1992,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 }
 
 func (n *bridge) fanAddress(underlay *net.IPNet, overlay *net.IPNet) (string, string, string, error) {
-	// Sanity checks
+	// Quick checks.
 	underlaySize, _ := underlay.Mask.Size()
 	if underlaySize != 16 && underlaySize != 24 {
 		return "", "", "", fmt.Errorf("Only /16 or /24 underlays are supported at this time")

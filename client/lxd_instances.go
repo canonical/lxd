@@ -390,7 +390,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 	// Process the copy arguments
 	if args != nil {
-		// Sanity checks
+		// Quick checks.
 		if args.InstanceOnly {
 			if !r.HasExtension("container_only_migration") {
 				return nil, fmt.Errorf("The target server is missing the required \"container_only_migration\" API extension")
@@ -618,7 +618,7 @@ func (r *ProtocolLXD) RenameInstance(name string, instance api.InstancePost) (Op
 		return nil, err
 	}
 
-	// Sanity check
+	// Quick check.
 	if instance.Migration {
 		return nil, fmt.Errorf("Can't ask for a migration through RenameInstance")
 	}
@@ -699,7 +699,7 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 		return nil, fmt.Errorf("The server is missing the required \"instance_pool_move\" API extension")
 	}
 
-	// Sanity check
+	// Quick check.
 	if !instance.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstance")
 	}
@@ -1205,7 +1205,7 @@ func (r *ProtocolLXD) CopyInstanceSnapshot(source InstanceServer, instanceName s
 
 	// Process the copy arguments
 	if args != nil {
-		// Sanity checks
+		// Quick checks.
 		if shared.StringInSlice(args.Mode, []string{"push", "relay"}) {
 			if !r.HasExtension("container_push") {
 				return nil, fmt.Errorf("The target server is missing the required \"container_push\" API extension")
@@ -1402,7 +1402,7 @@ func (r *ProtocolLXD) RenameInstanceSnapshot(instanceName string, name string, i
 		return nil, err
 	}
 
-	// Sanity check
+	// Quick check.
 	if instance.Migration {
 		return nil, fmt.Errorf("Can't ask for a migration through RenameInstanceSnapshot")
 	}
@@ -1473,7 +1473,7 @@ func (r *ProtocolLXD) MigrateInstanceSnapshot(instanceName string, name string, 
 		return nil, err
 	}
 
-	// Sanity check
+	// Quick check.
 	if !instance.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstanceSnapshot")
 	}
@@ -2252,7 +2252,7 @@ func (r *ProtocolLXD) GetInstanceBackupFile(instanceName string, name string, re
 }
 
 func (r *ProtocolLXD) proxyMigration(targetOp *operation, targetSecrets map[string]string, source InstanceServer, sourceOp *operation, sourceSecrets map[string]string) error {
-	// Sanity checks
+	// Quick checks.
 	for n := range targetSecrets {
 		_, ok := sourceSecrets[n]
 		if !ok {

@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -164,37 +165,37 @@ func (s *migrationSourceWs) checkForPreDumpSupport() (bool, int) {
 
 	// CRIU says it can actually do pre-dump. Let's set it to true
 	// unless the user wants something else.
-	use_pre_dumps := true
+	usePreDumps := true
 
 	// What does the configuration say about pre-copy
 	tmp := s.instance.ExpandedConfig()["migration.incremental.memory"]
 
 	if tmp != "" {
-		use_pre_dumps = shared.IsTrue(tmp)
+		usePreDumps = shared.IsTrue(tmp)
 	}
 
-	var max_iterations int
+	var maxIterations int
 
 	// migration.incremental.memory.iterations is the value after which the
 	// container will be definitely migrated, even if the remaining number
 	// of memory pages is below the defined threshold.
 	tmp = s.instance.ExpandedConfig()["migration.incremental.memory.iterations"]
 	if tmp != "" {
-		max_iterations, _ = strconv.Atoi(tmp)
+		maxIterations, _ = strconv.Atoi(tmp)
 	} else {
 		// default to 10
-		max_iterations = 10
+		maxIterations = 10
 	}
-	if max_iterations > 999 {
+	if maxIterations > 999 {
 		// the pre-dump directory is hardcoded to a string
 		// with maximal 3 digits. 999 pre-dumps makes no
 		// sense at all, but let's make sure the number
 		// is not higher than this.
-		max_iterations = 999
+		maxIterations = 999
 	}
-	logger.Debugf("Using maximal %d iterations for pre-dumping", max_iterations)
+	logger.Debugf("Using maximal %d iterations for pre-dumping", maxIterations)
 
-	return use_pre_dumps, max_iterations
+	return usePreDumps, maxIterations
 }
 
 // The function readCriuStatsDump() reads the CRIU 'stats-dump' file
@@ -283,19 +284,19 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 	// Read the CRIU's 'stats-dump' file
 	dumpPath := shared.AddSlash(args.checkpointDir)
 	dumpPath += shared.AddSlash(args.dumpDir)
-	written, skipped_parent, err := readCriuStatsDump(dumpPath)
+	written, skippedParent, err := readCriuStatsDump(dumpPath)
 	if err != nil {
 		return final, err
 	}
 
 	logger.Debugf("CRIU pages written %d", written)
-	logger.Debugf("CRIU pages skipped %d", skipped_parent)
+	logger.Debugf("CRIU pages skipped %d", skippedParent)
 
-	total_pages := written + skipped_parent
+	totalPages := written + skippedParent
 
-	percentage_skipped := int(100 - ((100 * written) / total_pages))
+	percentageSkipped := int(100 - ((100 * written) / totalPages))
 
-	logger.Debugf("CRIU pages skipped percentage %d%%", percentage_skipped)
+	logger.Debugf("CRIU pages skipped percentage %d%%", percentageSkipped)
 
 	// threshold is the percentage of memory pages that needs
 	// to be pre-copied for the pre-copy migration to stop.
@@ -308,8 +309,8 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 		threshold = 70
 	}
 
-	if percentage_skipped > threshold {
-		logger.Debugf("Memory pages skipped (%d%%) due to pre-copy is larger than threshold (%d%%)", percentage_skipped, threshold)
+	if percentageSkipped > threshold {
+		logger.Debugf("Memory pages skipped (%d%%) due to pre-copy is larger than threshold (%d%%)", percentageSkipped, threshold)
 		logger.Debugf("This was the last pre-dump; next dump is the final dump")
 		final = true
 	}
@@ -524,7 +525,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			// callback that lets us know when the dump is done. (Unfortunately, we
 			// can't pass arguments, just an executable path, so we write a custom
 			// action script with the real command we want to run.)
-			// This script then hangs until the migration operation either finishes
+			// This script then blocks until the migration operation either finishes
 			// successfully or fails, and exits 1 or 0, which causes criu to either
 			// leave the container running or kill it as we asked.
 			dumpDone := make(chan bool, 1)
@@ -774,7 +775,7 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	return &sink, nil
 }
 
-func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) error {
+func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateOp *operations.Operation) error {
 	var err error
 
 	if c.push {
@@ -920,7 +921,7 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 				_, err := instance.LoadByProjectAndName(state, args.Instance.Project(), snapArgs.Name)
 				if err != nil {
 					// Create the snapshot as it doesn't seem to exist.
-					_, err := instance.CreateInternal(state, snapArgs)
+					_, err := instance.CreateInternal(state, snapArgs, revert)
 					if err != nil {
 						return errors.Wrapf(err, "Failed creating instance snapshot record %q", snapArgs.Name)
 					}
@@ -928,7 +929,18 @@ func (c *migrationSink) Do(state *state.State, migrateOp *operations.Operation) 
 			}
 		}
 
-		return pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		err = pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		if err != nil {
+			return err
+		}
+
+		// Only delete entire instance on error if the pool volume creation has succeeded to avoid
+		// deleting an existing conflicting volume.
+		if !volTargetArgs.Refresh {
+			revert.Add(func() { args.Instance.Delete(true) })
+		}
+
+		return nil
 	}
 
 	// Add CRIU info to response.

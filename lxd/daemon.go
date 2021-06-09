@@ -754,6 +754,7 @@ func (d *Daemon) init() error {
 		"seccomp_allow_deny_syntax",
 		"devpts_fd",
 		"seccomp_proxy_send_notify_fd",
+		"idmapped_mounts_v2",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
@@ -1166,6 +1167,8 @@ func (d *Daemon) init() error {
 		rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey = config.RBACServer()
 		d.gateway.HeartbeatOfflineThreshold = config.OfflineThreshold()
 
+		d.endpoints.NetworkUpdateTrustedProxy(config.HTTPSTrustedProxy())
+
 		return nil
 	})
 	if err != nil {
@@ -1220,6 +1223,8 @@ func (d *Daemon) init() error {
 		// Connect to MAAS
 		if maasAPIURL != "" {
 			go func() {
+				warningAdded := false
+
 				for {
 					err = d.setupMAASController(maasAPIURL, maasAPIKey, maasMachine)
 					if err == nil {
@@ -1228,7 +1233,19 @@ func (d *Daemon) init() error {
 					}
 
 					logger.Warn("Unable to connect to MAAS, trying again in a minute", log.Ctx{"url": maasAPIURL, "err": err})
+
+					if !warningAdded {
+						d.cluster.UpsertWarningLocalNode("", -1, -1, db.WarningUnableToConnectToMAAS, err.Error())
+
+						warningAdded = true
+					}
+
 					time.Sleep(time.Minute)
+				}
+
+				// Resolve any previously created warning once connected
+				if warningAdded {
+					warnings.ResolveWarningsByLocalNodeAndType(d.cluster, db.WarningUnableToConnectToMAAS)
 				}
 			}()
 		}

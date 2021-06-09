@@ -149,7 +149,7 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -314,14 +314,18 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			digest := shared.CertFingerprint(certificate)
 
 			fmt.Printf(i18n.G("Certificate fingerprint: %s")+"\n", digest)
-			fmt.Printf(i18n.G("ok (y/n)?") + " ")
+			fmt.Printf(i18n.G("ok (y/n/[fingerprint])?") + " ")
 			line, err := shared.ReadStdin()
 			if err != nil {
 				return err
 			}
 
-			if len(line) < 1 || strings.ToLower(string(line[0])) != i18n.G("y") {
-				return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
+			if string(line) != digest {
+				if len(line) < 1 || strings.ToLower(string(line[0])) == i18n.G("n") {
+					return fmt.Errorf(i18n.G("Server certificate NACKed by user"))
+				} else if strings.ToLower(string(line[0])) != i18n.G("y") {
+					return fmt.Errorf(i18n.G("Please type 'y', 'n' or the fingerprint:"))
+				}
 			}
 		}
 
@@ -491,7 +495,7 @@ func (c *cmdRemoteGetDefault) Command() *cobra.Command {
 func (c *cmdRemoteGetDefault) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 0)
 	if exit {
 		return err
@@ -528,7 +532,7 @@ func (c *cmdRemoteList) Command() *cobra.Command {
 func (c *cmdRemoteList) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 0)
 	if exit {
 		return err
@@ -613,7 +617,7 @@ func (c *cmdRemoteRename) Command() *cobra.Command {
 func (c *cmdRemoteRename) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -683,7 +687,7 @@ func (c *cmdRemoteRemove) Command() *cobra.Command {
 func (c *cmdRemoteRemove) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -737,7 +741,7 @@ func (c *cmdRemoteSwitch) Command() *cobra.Command {
 func (c *cmdRemoteSwitch) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -775,7 +779,7 @@ func (c *cmdRemoteSetURL) Command() *cobra.Command {
 func (c *cmdRemoteSetURL) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err

@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -24,6 +25,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -266,10 +268,6 @@ func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) stri
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *disk) validateEnvironment() error {
-	if shared.IsTrue(d.config["shift"]) && !d.state.OS.Shiftfs {
-		return fmt.Errorf("shiftfs is required by disk entry but isn't supported on system")
-	}
-
 	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
 		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
 	}
@@ -698,11 +696,23 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
 							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", log.Ctx{"err": errUnsupported})
+
+							if errUnsupported == ErrMissingVirtiofsd {
+								d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
+							} else {
+								// Resolve previous warning
+								warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
+							}
+
 							return nil
 						}
 
 						return err
 					}
+
+					// Resolve previous warning
+					warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
+
 					revert.Add(func() { DiskVMVirtiofsdStop(sockPath, pidPath) })
 
 					// Add the socket path to the mount options to indicate to the qemu driver

@@ -359,6 +359,15 @@ func GetStorage() (*api.ResourcesStorage, error) {
 				return nil, errors.Wrapf(err, "Failed to retrieve disk information from %q", filepath.Join("/dev", entryName))
 			}
 
+			// If no RPM set and drive is rotational, set to RPM to 1
+			diskRotationalPath := filepath.Join("/sys/class/block/", entryName, "queue/rotational")
+			if disk.RPM == 0 && sysfsExists(diskRotationalPath) {
+				diskRotational, err := readUint(diskRotationalPath)
+				if err == nil {
+					disk.RPM = diskRotational
+				}
+			}
+
 			// Add to list
 			storage.Disks = append(storage.Disks, disk)
 		}

@@ -677,25 +677,6 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			}
 		}
 
-		// Apply quota config from root device if its set. Should be done after driver's post hook if set
-		// so that any volume initialisation has been completed first.
-		if rootDiskConf["size"] != "" {
-			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": rootDiskConf["size"]})
-			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], op)
-			if err != nil {
-				// The restored volume can end up being larger than the root disk config's size
-				// property due to the block boundary rounding some storage drivers use. As such
-				// if the restored volume is larger than the config's size and it cannot be shrunk
-				// to the equivalent size on the target storage driver, don't fail as the backup
-				// has still been restored successfully.
-				if errors.Cause(err) == drivers.ErrCannotBeShrunk {
-					logger.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
-				} else {
-					return errors.Wrapf(err, "Failed applying volume quota to root disk")
-				}
-			}
-		}
-
 		return nil
 	}
 
@@ -3441,7 +3422,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 	logger.Debug("RestoreCustomVolume started")
 	defer logger.Debug("RestoreCustomVolume finished")
 
-	// Sanity checks.
+	// Quick checks.
 	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume cannot be snapshot")
 	}

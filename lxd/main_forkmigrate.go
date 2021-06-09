@@ -32,7 +32,7 @@ func (c *cmdForkmigrate) Command() *cobra.Command {
 }
 
 func (c *cmdForkmigrate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	if len(args) != 5 {
 		cmd.Help()
 

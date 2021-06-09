@@ -24,7 +24,7 @@ func TestGroup_Add(t *testing.T) {
 func TestGroup_StopUngracefully(t *testing.T) {
 	group := &task.Group{}
 
-	// Create a task function that hangs.
+	// Create a task function that blocks.
 	ok := make(chan struct{})
 	defer close(ok)
 	f := func(context.Context) {

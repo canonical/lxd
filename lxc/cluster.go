@@ -63,6 +63,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	cmdClusterListTokens := cmdClusterListTokens{global: c.global, cluster: c}
 	cmd.AddCommand(cmdClusterListTokens.Command())
 
+	// Revoke tokens
+	cmdClusterRevokeToken := cmdClusterRevokeToken{global: c.global, cluster: c}
+	cmd.AddCommand(cmdClusterRevokeToken.Command())
+
 	return cmd
 }
 
@@ -89,7 +93,7 @@ func (c *cmdClusterList) Command() *cobra.Command {
 }
 
 func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -169,7 +173,7 @@ func (c *cmdClusterShow) Command() *cobra.Command {
 }
 
 func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -219,7 +223,7 @@ func (c *cmdClusterRename) Command() *cobra.Command {
 }
 
 func (c *cmdClusterRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -298,7 +302,7 @@ Are you really sure you want to force removing %s? (yes/no): `), name)
 }
 
 func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -359,7 +363,7 @@ func (c *cmdClusterEnable) Command() *cobra.Command {
 }
 
 func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
@@ -446,7 +450,7 @@ func (c *cmdClusterEdit) helpTemplate() string {
 }
 
 func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -587,7 +591,7 @@ func (c *cmdClusterAdd) Command() *cobra.Command {
 }
 
 func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -650,7 +654,7 @@ func (c *cmdClusterListTokens) Command() *cobra.Command {
 }
 
 func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -727,4 +731,82 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, displayTokens)
+}
+
+// Revoke Tokens.
+type cmdClusterRevokeToken struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterRevokeToken) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("revoke-token", i18n.G("[<remote>:]<token>"))
+	cmd.Short = i18n.G("Revoke cluster member join token")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+
+	cmd.RunE = c.Run
+	return cmd
+}
+
+func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Check if clustered.
+	cluster, _, err := resource.server.GetCluster()
+	if err != nil {
+		return err
+	}
+
+	if !cluster.Enabled {
+		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+	}
+
+	// Get the cluster member join tokens. Use default project as join tokens are created in default project.
+	ops, err := resource.server.UseProject("default").GetOperations()
+	if err != nil {
+		return err
+	}
+
+	for _, op := range ops {
+		if op.Class != api.OperationClassToken {
+			continue
+		}
+
+		if op.StatusCode != api.Running {
+			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
+		}
+
+		joinToken, err := clusterJoinTokenOperationToAPI(&op)
+		if err != nil {
+			continue // Operation is not a valid cluster member join token operation.
+		}
+
+		if joinToken.ServerName == resource.name {
+			// Delete the operation
+			err = resource.server.DeleteOperation(op.ID)
+			if err != nil {
+				return err
+			}
+
+			if !c.global.flagQuiet {
+				fmt.Printf(i18n.G("Cluster join token for %s:%s deleted")+"\n", resource.remote, resource.name)
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf(i18n.G("No cluster join token for member %s on remote: %s"), resource.name, resource.remote)
 }

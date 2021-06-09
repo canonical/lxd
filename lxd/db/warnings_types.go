@@ -37,6 +37,14 @@ const (
 	WarningClusterTimeSkew
 	// WarningAppArmorNotAvailable represents the AppArmor not available warning
 	WarningAppArmorNotAvailable
+	//WarningMissingVirtiofsd represents the missing virtiofsd warning
+	WarningMissingVirtiofsd
+	// WarningUnableToConnectToMAAS represents the unable to connect to MAAS warning
+	WarningUnableToConnectToMAAS
+	// WarningAppArmorDisabledDueToRawDnsmasq represents the disabled AppArmor due to raw.dnsmasq warning
+	WarningAppArmorDisabledDueToRawDnsmasq
+	// WarningLargerIPv6PrefixThanSupported represents the larger IPv6 prefix than supported warning
+	WarningLargerIPv6PrefixThanSupported
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -56,6 +64,10 @@ var WarningTypeNames = map[WarningType]string{
 	WarningMissingCGroupMemorySwapAccounting:      "Couldn't find the CGroup memory swap accounting",
 	WarningClusterTimeSkew:                        "Time skew detected between leader and local",
 	WarningAppArmorNotAvailable:                   "AppArmor support has been disabled",
+	WarningMissingVirtiofsd:                       "Missing virtiofsd",
+	WarningUnableToConnectToMAAS:                  "Unable to connect to MAAS",
+	WarningAppArmorDisabledDueToRawDnsmasq:        "Skipping AppArmor for dnsmasq due to raw.dnsmasq being set",
+	WarningLargerIPv6PrefixThanSupported:          "IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -99,6 +111,14 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningClusterTimeSkew:
 		return WarningSeverityLow
 	case WarningAppArmorNotAvailable:
+		return WarningSeverityLow
+	case WarningMissingVirtiofsd:
+		return WarningSeverityLow
+	case WarningUnableToConnectToMAAS:
+		return WarningSeverityLow
+	case WarningAppArmorDisabledDueToRawDnsmasq:
+		return WarningSeverityLow
+	case WarningLargerIPv6PrefixThanSupported:
 		return WarningSeverityLow
 	}
 

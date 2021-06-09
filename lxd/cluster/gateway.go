@@ -1081,7 +1081,7 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 	// Go doesn't currently expose the underlying TCP connection of a TLS
 	// connection, but we need it in order to gracefully stop proxying with
-	// ReadClose(). We use some reflect/unsafe black magic to extract the
+	// ReadClose(). We use some reflect/unsafe magic to extract the
 	// private remote.conn field, which is indeed the underlying TCP
 	// connection.
 	field := reflect.ValueOf(remote.(*tls.Conn)).Elem().FieldByName("conn")

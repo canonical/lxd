@@ -94,7 +94,7 @@ func (c *cmdNetworkACLList) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkACLList) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
 	if exit {
 		return err
@@ -162,7 +162,7 @@ func (c *cmdNetworkACLShow) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkACLShow) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -215,7 +215,7 @@ func (c *cmdNetworkACLGet) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkACLGet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -265,7 +265,7 @@ func (c *cmdNetworkACLCreate) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkACLCreate) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
@@ -352,7 +352,7 @@ For backward compatibility, a single configuration key may still be set with:
 }
 
 func (c *cmdNetworkACLSet) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -407,7 +407,7 @@ func (c *cmdNetworkACLUnset) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkACLUnset) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -462,7 +462,7 @@ func (c *cmdNetworkACLEdit) helpTemplate() string {
 }
 
 func (c *cmdNetworkACLEdit) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -565,7 +565,7 @@ func (c *cmdNetworkACLRename) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkACLRename) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
 	if exit {
 		return err
@@ -614,7 +614,7 @@ func (c *cmdNetworkACLDelete) Command() *cobra.Command {
 }
 
 func (c *cmdNetworkACLDelete) Run(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
 	if exit {
 		return err
@@ -734,7 +734,7 @@ func (c *cmdNetworkACLRule) parseConfigToRule(config map[string]string) (*api.Ne
 }
 
 func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err
@@ -769,7 +769,7 @@ func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	rule.Normalise() // Strip whitespace.
+	rule.Normalise() // Strip space.
 
 	// Default to enabled if not specified.
 	if rule.State == "" {
@@ -801,7 +801,7 @@ func (c *cmdNetworkACLRule) CommandRemove() *cobra.Command {
 }
 
 func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
-	// Sanity checks.
+	// Quick checks.
 	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
 	if exit {
 		return err

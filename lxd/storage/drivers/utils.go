@@ -360,7 +360,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, unsupported
 			return false, nil
 		}
 
-		// Only perform pre-resize sanity checks if we are not in "unsafe" mode.
+		// Only perform pre-resize checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
 		if !vol.allowUnsafeResize {
 			// Reject if would try and resize a volume type that is not supported.
@@ -512,7 +512,9 @@ func filesystemTypeCanBeShrunk(fsType string) bool {
 // shrinkFileSystem shrinks a filesystem if it is supported.
 // EXT4 volumes will be unmounted temporarily if needed.
 // BTRFS volumes will be mounted temporarily if needed.
-func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64) error {
+// Accepts a force argument that indicates whether to skip some safety checks when resizing the volume.
+// This should only be used if the volume will be deleted on resize error.
+func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64, force bool) error {
 	if fsType == "" {
 		fsType = DefaultFilesystem
 	}
@@ -548,7 +550,17 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64)
 				}
 			}
 
-			_, err = shared.RunCommand("resize2fs", devPath, strSize)
+			var args []string
+			if force {
+				// Enable force mode if requested. Should only be done if volume will be deleted
+				// on error as this can result in corrupting the filesystem if fails during resize.
+				// This is useful because sometimes the pre-checks performed by resize2fs are not
+				// accurate and would prevent a successful filesystem shrink.
+				args = append(args, "-f")
+			}
+
+			args = append(args, devPath, strSize)
+			_, err = shared.RunCommand("resize2fs", args...)
 			if err != nil {
 				return err
 			}

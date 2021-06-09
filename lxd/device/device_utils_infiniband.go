@@ -78,11 +78,11 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 
 	// Add IsSM device if defined.
 	if ibDev.Infiniband.IsSMName != "" {
-		dummyDevice := deviceConfig.Device{
+		device := deviceConfig.Device{
 			"source": fmt.Sprintf("/dev/infiniband/%s", ibDev.Infiniband.IsSMName),
 		}
 
-		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, dummyDevice, false, runConf)
+		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, device, false, runConf)
 		if err != nil {
 			return err
 		}
@@ -90,11 +90,11 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 
 	// Add MAD device if defined.
 	if ibDev.Infiniband.MADName != "" {
-		dummyDevice := deviceConfig.Device{
+		device := deviceConfig.Device{
 			"source": fmt.Sprintf("/dev/infiniband/%s", ibDev.Infiniband.MADName),
 		}
 
-		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, dummyDevice, false, runConf)
+		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, device, false, runConf)
 		if err != nil {
 			return err
 		}
@@ -102,11 +102,11 @@ func infinibandAddDevices(s *state.State, devicesPath string, deviceName string,
 
 	// Add Verb device if defined.
 	if ibDev.Infiniband.VerbName != "" {
-		dummyDevice := deviceConfig.Device{
+		device := deviceConfig.Device{
 			"source": fmt.Sprintf("/dev/infiniband/%s", ibDev.Infiniband.VerbName),
 		}
 
-		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, dummyDevice, false, runConf)
+		err := unixDeviceSetup(s, devicesPath, IBDevPrefix, deviceName, device, false, runConf)
 		if err != nil {
 			return err
 		}

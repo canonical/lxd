@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -18,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -246,7 +248,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 
 // VolatileSet sets one or more volatile config keys.
 func (d *common) VolatileSet(changes map[string]string) error {
-	// Sanity check.
+	// Quick check.
 	for key := range changes {
 		if !strings.HasPrefix(key, shared.ConfigVolatilePrefix) {
 			return fmt.Errorf("Only volatile keys can be modified with VolatileSet")
@@ -514,12 +516,10 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 // runHooks executes the callback functions returned from a function.
 func (d *common) runHooks(hooks []func() error) error {
 	// Run any post start hooks.
-	if len(hooks) > 0 {
-		for _, hook := range hooks {
-			err := hook()
-			if err != nil {
-				return err
-			}
+	for _, hook := range hooks {
+		err := hook()
+		if err != nil {
+			return err
 		}
 	}
 
@@ -547,11 +547,10 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	}
 
 	// Create the snapshot.
-	snap, err := instance.CreateInternal(d.state, args)
+	snap, err := instance.CreateInternal(d.state, args, revert)
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating instance snapshot record %q", name)
 	}
-	revert.Add(func() { snap.Delete(true) })
 
 	pool, err := storagePools.GetPoolByInstance(d.state, snap)
 	if err != nil {
@@ -562,6 +561,8 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	if err != nil {
 		return errors.Wrap(err, "Create instance snapshot")
 	}
+
+	revert.Add(func() { snap.Delete(true) })
 
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
@@ -676,4 +677,175 @@ func (d *common) startupSnapshot(inst instance.Instance) error {
 	}
 
 	return inst.Snapshot(name, expiry, false)
+}
+
+// Internal MAAS handling.
+func (d *common) maasUpdate(inst instance.Instance, oldDevices map[string]map[string]string) error {
+	// Check if MAAS is configured
+	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
+		return nil
+	}
+
+	// Check if there's something that uses MAAS
+	interfaces, err := d.maasInterfaces(inst, d.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	var oldInterfaces []maas.ContainerInterface
+	if oldDevices != nil {
+		oldInterfaces, err = d.maasInterfaces(inst, oldDevices)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(interfaces) == 0 && len(oldInterfaces) == 0 {
+		return nil
+	}
+
+	// See if we're connected to MAAS
+	if d.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+	}
+
+	exists, err := d.state.MAAS.DefinedContainer(d)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		if len(interfaces) == 0 && len(oldInterfaces) > 0 {
+			return d.state.MAAS.DeleteContainer(d)
+		}
+
+		return d.state.MAAS.UpdateContainer(d, interfaces)
+	}
+
+	return d.state.MAAS.CreateContainer(d, interfaces)
+}
+
+func (d *common) maasInterfaces(inst instance.Instance, devices map[string]map[string]string) ([]maas.ContainerInterface, error) {
+	interfaces := []maas.ContainerInterface{}
+	for k, m := range devices {
+		if m["type"] != "nic" {
+			continue
+		}
+
+		if m["maas.subnet.ipv4"] == "" && m["maas.subnet.ipv6"] == "" {
+			continue
+		}
+
+		m, err := inst.FillNetworkDevice(k, m)
+		if err != nil {
+			return nil, err
+		}
+
+		subnets := []maas.ContainerInterfaceSubnet{}
+
+		// IPv4
+		if m["maas.subnet.ipv4"] != "" {
+			subnet := maas.ContainerInterfaceSubnet{
+				Name:    m["maas.subnet.ipv4"],
+				Address: m["ipv4.address"],
+			}
+
+			subnets = append(subnets, subnet)
+		}
+
+		// IPv6
+		if m["maas.subnet.ipv6"] != "" {
+			subnet := maas.ContainerInterfaceSubnet{
+				Name:    m["maas.subnet.ipv6"],
+				Address: m["ipv6.address"],
+			}
+
+			subnets = append(subnets, subnet)
+		}
+
+		iface := maas.ContainerInterface{
+			Name:       m["name"],
+			MACAddress: m["hwaddr"],
+			Subnets:    subnets,
+		}
+
+		interfaces = append(interfaces, iface)
+	}
+
+	return interfaces, nil
+}
+
+func (d *common) maasRename(inst instance.Instance, newName string) error {
+	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
+		return nil
+	}
+
+	interfaces, err := d.maasInterfaces(inst, d.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if len(interfaces) == 0 {
+		return nil
+	}
+
+	if d.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+	}
+
+	exists, err := d.state.MAAS.DefinedContainer(d)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return d.maasUpdate(inst, nil)
+	}
+
+	return d.state.MAAS.RenameContainer(d, newName)
+}
+
+func (d *common) maasDelete(inst instance.Instance) error {
+	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
+	if err != nil {
+		return err
+	}
+
+	if maasURL == "" {
+		return nil
+	}
+
+	interfaces, err := d.maasInterfaces(inst, d.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if len(interfaces) == 0 {
+		return nil
+	}
+
+	if d.state.MAAS == nil {
+		return fmt.Errorf("Can't perform the operation because MAAS is currently unavailable")
+	}
+
+	exists, err := d.state.MAAS.DefinedContainer(d)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	return d.state.MAAS.DeleteContainer(d)
 }
