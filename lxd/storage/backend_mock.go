@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
@@ -96,7 +97,7 @@ func (b *mockBackend) CreateInstance(inst instance.Instance, op *operations.Oper
 	return nil
 }
 
-func (b *mockBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
+func (b *mockBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error) {
 	return nil, nil, nil
 }
 

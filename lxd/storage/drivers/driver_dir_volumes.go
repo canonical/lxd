@@ -69,9 +69,9 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			return err
 		}
 
-		// Ignore ErrCannotBeShrunk when setting size this just means the filler has needed to increase
-		// the volume size beyond the default block volume size.
-		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
+		// Ignore ErrCannotBeShrunk when setting size this just means the filler run above has needed to
+		// increase the volume size beyond the default block volume size.
+		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, false)
 		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
 			return err
 		}
@@ -90,7 +90,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup restores a backup tarball onto the storage device.
-func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Run the generic backup unpacker
 	postHook, revertHook, err := genericVFSBackupUnpack(d.withoutGetVolID(), vol, srcBackup.Snapshots, srcData, op)
 	if err != nil {
@@ -116,11 +116,6 @@ func (d *dir) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 				return err
 			}
 			revert.Add(revertQuota)
-
-			err = d.createVolumeFromBackupInstancePostHookResize(d, vol, op)
-			if err != nil {
-				return err
-			}
 
 			revert.Success()
 			return nil
@@ -220,7 +215,7 @@ func (d *dir) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 func (d *dir) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, nil)
+		err := d.SetVolumeQuota(vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
@@ -261,7 +256,7 @@ func (d *dir) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota applies a size limit on volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
-func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -280,7 +275,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 			return err
 		}
 
-		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
+		resized, err := ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, allowUnsafeResize)
 		if err != nil {
 			return err
 		}
@@ -288,7 +283,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		// Move the GPT alt header to end of disk if needed and resize has taken place (not needed in
 		// unsafe resize mode as it is expected the caller will do all necessary post resize actions
 		// themselves).
-		if vol.IsVMBlock() && resized && !vol.allowUnsafeResize {
+		if vol.IsVMBlock() && resized && !allowUnsafeResize {
 			err = d.moveGPTAltHeader(rootBlockPath)
 			if err != nil {
 				return err

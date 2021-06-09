@@ -1,8 +1,12 @@
 package revert
 
+// Hook is a function that can be added to the revert via the Add() function.
+// These will be run in the reverse order that they were added if the reverter's Fail() function is called.
+type Hook func()
+
 // Reverter is a helper type to manage revert functions.
 type Reverter struct {
-	revertFuncs []func()
+	revertFuncs []Hook
 }
 
 // New returns a new Reverter.
@@ -11,7 +15,7 @@ func New() *Reverter {
 }
 
 // Add adds a revert function to the list to be run when Revert() is called.
-func (r *Reverter) Add(f func()) {
+func (r *Reverter) Add(f Hook) {
 	r.revertFuncs = append(r.revertFuncs, f)
 }
 
@@ -37,7 +41,7 @@ func (r *Reverter) Success() {
 // execute the previously deferred reverter.Fail() function.
 func (r *Reverter) Clone() *Reverter {
 	rNew := New()
-	rNew.revertFuncs = append(make([]func(), 0, len(r.revertFuncs)), r.revertFuncs...)
+	rNew.revertFuncs = append(make([]Hook, 0, len(r.revertFuncs)), r.revertFuncs...)
 
 	return rNew
 }

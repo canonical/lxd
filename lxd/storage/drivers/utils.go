@@ -339,9 +339,9 @@ func roundVolumeBlockFileSizeBytes(sizeBytes int64) int64 {
 // ensureVolumeBlockFile creates new block file or enlarges the raw block file for a volume to the specified size.
 // Returns true if resize took place, false if not. Requested size is rounded to nearest block size using
 // roundVolumeBlockFileSizeBytes() before decision whether to resize is taken. Accepts unsupportedResizeTypes
-// list that indicates which volume types it should not attempt to resize (when vol.allowUnsafeResize=false) and
+// list that indicates which volume types it should not attempt to resize (when allowUnsafeResize=false) and
 // instead return ErrNotSupported.
-func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, unsupportedResizeTypes ...VolumeType) (bool, error) {
+func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafeResize bool, unsupportedResizeTypes ...VolumeType) (bool, error) {
 	if sizeBytes <= 0 {
 		return false, fmt.Errorf("Size cannot be zero")
 	}
@@ -362,7 +362,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, unsupported
 
 		// Only perform pre-resize checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
-		if !vol.allowUnsafeResize {
+		if !allowUnsafeResize {
 			// Reject if would try and resize a volume type that is not supported.
 			// This needs to come before the ErrCannotBeShrunk check below so that any resize attempt
 			// is blocked with ErrNotSupported error.

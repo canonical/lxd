@@ -136,7 +136,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 		if err != nil {
 			return err
 		}
@@ -248,37 +248,10 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !*srcBackup.OptimizedStorage {
-		postHook, revertHook, err := genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// genericVFSBackupUnpack returns a nil postHook when volume's type is VolumeTypeCustom which
-		// doesn't need any post hook processing after DB record creation.
-		if postHook != nil {
-			// Define a post hook function that can be run once the backup config has been restored.
-			// This will setup the quota using the restored config.
-			postHookWrapper := func(vol Volume) error {
-				err := postHook(vol)
-				if err != nil {
-					return err
-				}
-
-				err = d.createVolumeFromBackupInstancePostHookResize(d, vol, op)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			}
-
-			return postHookWrapper, revertHook, nil
-		}
-
-		return nil, revertHook, nil
+		return genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
 	}
 
 	if d.HasVolume(vol) {
@@ -434,7 +407,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		}
 	}
 
-	var postHook func(vol Volume) error
+	var postHook VolumePostHook
 
 	// Only mount instance filesystem volumes for backup.yaml access.
 	if vol.volType != VolumeTypeCustom && vol.contentType != ContentTypeBlock {
@@ -662,7 +635,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err := d.SetVolumeQuota(vol, vol.config["size"], nil)
+	err := d.SetVolumeQuota(vol, vol.config["size"], false, op)
 	if err != nil {
 		return err
 	}
@@ -768,7 +741,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		}
 
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 		if err != nil {
 			return err
 		}
@@ -853,7 +826,7 @@ func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	for k, v := range changedConfig {
 		if k == "size" {
-			return d.SetVolumeQuota(vol, v, nil)
+			return d.SetVolumeQuota(vol, v, false, nil)
 		}
 
 		if k == "zfs.use_refquota" {
@@ -878,14 +851,14 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 			// Set new quota by temporarily modifying the volume config.
 			vol.config["zfs.use_refquota"] = v
-			err := d.SetVolumeQuota(vol, size, nil)
+			err := d.SetVolumeQuota(vol, size, false, nil)
 			vol.config["zfs.use_refquota"] = cur
 			if err != nil {
 				return err
 			}
 
 			// Unset old quota.
-			err = d.SetVolumeQuota(vol, "", nil)
+			err = d.SetVolumeQuota(vol, "", false, nil)
 			if err != nil {
 				return err
 			}
@@ -937,7 +910,7 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 
 // SetVolumeQuota sets the quota on the volume.
 // Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
-func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
@@ -971,13 +944,13 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 		// Block image volumes cannot be resized because they have a readonly snapshot that doesn't get
 		// updated when the volume's size is changed, and this is what instances are created from.
 		// During initial volume fill allowUnsafeResize is enabled because snapshot hasn't been taken yet.
-		if !vol.allowUnsafeResize && vol.volType == VolumeTypeImage {
+		if !allowUnsafeResize && vol.volType == VolumeTypeImage {
 			return ErrNotSupported
 		}
 
 		// Only perform pre-resize checks if we are not in "unsafe" mode.
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
-		if !vol.allowUnsafeResize {
+		if !allowUnsafeResize {
 			if sizeBytes < oldVolSizeBytes {
 				return errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
 			}
@@ -994,7 +967,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) 
 
 		// Move the VM GPT alt header to end of disk if needed (not needed in unsafe resize mode as
 		// it is expected the caller will do all necessary post resize actions themselves).
-		if vol.IsVMBlock() && !vol.allowUnsafeResize {
+		if vol.IsVMBlock() && !allowUnsafeResize {
 			err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 				devPath, err := d.GetVolumeDiskPath(vol)
 				if err != nil {

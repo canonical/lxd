@@ -572,7 +572,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 // it is necessary to return two functions; a post hook that can be run once the instance has been
 // created in the database to run any storage layer finalisations, and a revert hook that can be
 // run if the instance database load process fails that will remove anything created thus far.
-func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, func(), error) {
+func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error) {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
 	logger.Debug("CreateInstanceFromBackup started")
 	defer logger.Debug("CreateInstanceFromBackup finished")
@@ -674,6 +674,41 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			err = volPostHook(vol)
 			if err != nil {
 				return err
+			}
+		}
+
+		// Apply quota config from root device if its set. Should be done after driver's post hook if set
+		// so that any volume initialisation has been completed first.
+		if rootDiskConf["size"] != "" {
+			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": rootDiskConf["size"]})
+
+			allowUnsafeResize := false
+
+			if vol.Type() == drivers.VolumeTypeContainer {
+				// Enable allowUnsafeResize for container imports so that filesystem resize
+				// safety checks are avoided in order to allow more imports to succeed when
+				// otherwise the pre-resize estimated checks of resize2fs would prevent
+				// import. If there is truly insufficient size to complete the import the
+				// resize will still fail, but its OK as we will then delete the volume
+				// rather than leaving it in a corrupted state. We don't need to do this
+				// for non-container volumes (nor should we) because block volumes won't
+				// error if we shrink them too much, and custom volumes can be created at
+				// the correct size immediately and don't need a post-import resize step.
+				allowUnsafeResize = true
+			}
+
+			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], allowUnsafeResize, op)
+			if err != nil {
+				// The restored volume can end up being larger than the root disk config's size
+				// property due to the block boundary rounding some storage drivers use. As such
+				// if the restored volume is larger than the config's size and it cannot be shrunk
+				// to the equivalent size on the target storage driver, don't fail as the backup
+				// has still been restored successfully.
+				if errors.Cause(err) == drivers.ErrCannotBeShrunk {
+					logger.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
+				} else {
+					return errors.Wrapf(err, "Failed applying volume quota to root disk")
+				}
 			}
 		}
 
@@ -1022,8 +1057,8 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 // imageFiller returns a function that can be used as a filler function with CreateVolume().
 // The function returned will unpack the specified image archive into the specified mount path
 // provided, and for VM images, a raw root block path is required to unpack the qcow2 image into.
-func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string) (int64, error) {
-	return func(vol drivers.Volume, rootBlockPath string) (int64, error) {
+func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
+	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
 		var tracker *ioprogress.ProgressTracker
 		if op != nil { // Not passed when being done as part of pre-migration setup.
 			metadata := make(map[string]interface{})
@@ -1034,7 +1069,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 				}}
 		}
 		imageFile := shared.VarPath("images", fingerprint)
-		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, tracker)
+		return ImageUnpack(imageFile, vol, rootBlockPath, b.driver.Info().BlockBacking, b.state.OS.RunningInUserNS, allowUnsafeResize, tracker)
 	}
 }
 
@@ -1703,7 +1738,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 	// Apply the main volume quota.
 	// There's no need to pass config as it's not needed when setting quotas.
 	vol := b.newVolume(volType, contentVolume, volStorageName, nil)
-	err = b.driver.SetVolumeQuota(vol, size, op)
+	err = b.driver.SetVolumeQuota(vol, size, false, op)
 	if err != nil {
 		return err
 	}
@@ -1715,7 +1750,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 		}
 
 		fsVol := vol.NewVMBlockFilesystemVolume()
-		err := b.driver.SetVolumeQuota(fsVol, vmStateSize, op)
+		err := b.driver.SetVolumeQuota(fsVol, vmStateSize, false, op)
 		if err != nil {
 			return err
 		}
@@ -2279,7 +2314,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 			// Try applying the current size policy to the existing volume. If it is the same the
 			// driver should make no changes, and if not then attempt to resize it to the new policy.
 			logger.Debug("Setting image volume size", "size", imgVol.ConfigSize())
-			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), op)
+			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), false, op)
 			if errors.Cause(err) == drivers.ErrCannotBeShrunk || errors.Cause(err) == drivers.ErrNotSupported {
 				// If the driver cannot resize the existing image volume to the new policy size
 				// then delete the image volume and try to recreate using the new policy settings.

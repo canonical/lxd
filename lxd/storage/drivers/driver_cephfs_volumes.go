@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
@@ -45,7 +46,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 	}()
 
 	// Apply the volume quota if specified.
-	err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+	err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 	if err != nil {
 		return err
 	}
@@ -61,7 +62,7 @@ func (d *cephfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.O
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *cephfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *cephfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	return nil, nil, ErrNotImplemented
 }
 
@@ -126,7 +127,7 @@ func (d *cephfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots b
 		}
 
 		// Apply the volume quota if specified.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 		if err != nil {
 			return err
 		}
@@ -215,7 +216,7 @@ func (d *cephfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, 
 
 		if vol.contentType == ContentTypeFS {
 			// Apply the size limit.
-			err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+			err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 			if err != nil {
 				return err
 			}
@@ -292,7 +293,7 @@ func (d *cephfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 func (d *cephfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, nil)
+		err := d.SetVolumeQuota(vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
@@ -322,7 +323,7 @@ func (d *cephfs) GetVolumeUsage(vol Volume) (int64, error) {
 }
 
 // SetVolumeQuota applies a size limit on volume.
-func (d *cephfs) SetVolumeQuota(vol Volume, size string, op *operations.Operation) error {
+func (d *cephfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// If size not specified in volume config, then use pool's default volume.size setting.
 	if size == "" || size == "0" {
 		size = d.config["volume.size"]

@@ -6,6 +6,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
@@ -55,7 +56,7 @@ type Driver interface {
 	RenameVolume(vol Volume, newName string, op *operations.Operation) error
 	UpdateVolume(vol Volume, changedConfig map[string]string) error
 	GetVolumeUsage(vol Volume) (int64, error)
-	SetVolumeQuota(vol Volume, size string, op *operations.Operation) error
+	SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error
 	GetVolumeDiskPath(vol Volume) (string, error)
 
 	// MountVolume mounts a storage volume (if not mounted) and increments reference counter.
@@ -86,5 +87,5 @@ type Driver interface {
 
 	// Backup.
 	BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots []string, op *operations.Operation) error
-	CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error)
+	CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error)
 }
