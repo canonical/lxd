@@ -620,7 +620,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 // created and a revert function that can be used to undo the actions this function performs should something
 // subsequently fail. For VolumeTypeCustom volumes, a nil post hook is returned as it is expected that the DB
 // record be created before the volume is unpacked due to differences in the archive format that allows this.
-func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, func(), error) {
 	// Define function to unpack a volume from a backup tarball file.
 	unpackVolume := func(r io.ReadSeeker, tarArgs []string, unpacker []string, srcPrefix string, mountPath string) error {
 		volTypeName := "container"
@@ -814,7 +814,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
 	revert.Success()
 
-	var postHook func(vol Volume) error
+	var postHook VolumePostHook
 	if vol.volType != VolumeTypeCustom {
 		// Leave volume mounted (as is needed during backup.yaml generation during latter parts of the
 		// backup restoration process). Create a post hook function that will be called at the end of the
