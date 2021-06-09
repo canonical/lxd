@@ -287,7 +287,7 @@ func (d *ceph) getVolumeSize(volumeName string) (int64, error) {
 }
 
 // CreateVolumeFromBackup re-creates a volume from its exported state.
-func (d *ceph) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(vol Volume) error, func(), error) {
+func (d *ceph) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, func(), error) {
 	return genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
 }
 
