@@ -6,6 +6,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net"
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
@@ -62,6 +64,28 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 
 	if notify {
 		args.UserAgent = request.UserAgentNotifier
+	}
+
+	if r != nil {
+		proxy := func(req *http.Request) (*url.URL, error) {
+			ctx := r.Context()
+
+			val, ok := ctx.Value("username").(string)
+			if ok {
+				req.Header.Add("X-LXD-cluster-username", val)
+			}
+
+			val, ok = ctx.Value("protocol").(string)
+			if ok {
+				req.Header.Add("X-LXD-cluster-protocol", val)
+			}
+
+			req.Header.Add("X-LXD-cluster-address", r.RemoteAddr)
+
+			return shared.ProxyFromEnvironment(req)
+		}
+
+		args.Proxy = proxy
 	}
 
 	url := fmt.Sprintf("https://%s", address)
