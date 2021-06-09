@@ -681,7 +681,23 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		// so that any volume initialisation has been completed first.
 		if rootDiskConf["size"] != "" {
 			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": rootDiskConf["size"]})
-			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], false, op)
+
+			allowUnsafeResize := false
+
+			if vol.Type() == drivers.VolumeTypeContainer {
+				// Enable allowUnsafeResize for container imports so that filesystem resize
+				// safety checks are avoided in order to allow more imports to succeed when
+				// otherwise the pre-resize estimated checks of resize2fs would prevent
+				// import. If there is truly insufficient size to complete the import the
+				// resize will still fail, but its OK as we will then delete the volume
+				// rather than leaving it in a corrupted state. We don't need to do this
+				// for non-container volumes (nor should we) because block volumes won't
+				// error if we shrink them too much, and custom volumes can be created at
+				// the correct size immediately and don't need a post-import resize step.
+				allowUnsafeResize = true
+			}
+
+			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], allowUnsafeResize, op)
 			if err != nil {
 				// The restored volume can end up being larger than the root disk config's size
 				// property due to the block boundary rounding some storage drivers use. As such
