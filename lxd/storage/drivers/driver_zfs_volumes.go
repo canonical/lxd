@@ -136,7 +136,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		}
 
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 		if err != nil {
 			return err
 		}
@@ -635,7 +635,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err := d.SetVolumeQuota(vol, vol.config["size"], nil)
+	err := d.SetVolumeQuota(vol, vol.config["size"], false, op)
 	if err != nil {
 		return err
 	}
@@ -741,7 +741,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		}
 
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 		if err != nil {
 			return err
 		}
@@ -826,7 +826,7 @@ func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	for k, v := range changedConfig {
 		if k == "size" {
-			return d.SetVolumeQuota(vol, v, nil)
+			return d.SetVolumeQuota(vol, v, false, nil)
 		}
 
 		if k == "zfs.use_refquota" {
@@ -851,14 +851,14 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 
 			// Set new quota by temporarily modifying the volume config.
 			vol.config["zfs.use_refquota"] = v
-			err := d.SetVolumeQuota(vol, size, nil)
+			err := d.SetVolumeQuota(vol, size, false, nil)
 			vol.config["zfs.use_refquota"] = cur
 			if err != nil {
 				return err
 			}
 
 			// Unset old quota.
-			err = d.SetVolumeQuota(vol, "", nil)
+			err = d.SetVolumeQuota(vol, "", false, nil)
 			if err != nil {
 				return err
 			}
