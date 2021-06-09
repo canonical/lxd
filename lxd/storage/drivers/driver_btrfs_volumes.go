@@ -73,11 +73,12 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		// created from, and that doesn't get updated when the original volumes size is changed.
 		// However during initial volume fill we allow growing of image volumes because the snapshot hasn't
 		// been taken yet. This is why no unsupported volume types are passed to ensureVolumeBlockFile.
-		// This is important, as combined with not setting allowUnsafeResize on the volume it still
-		// prevents us from accidentally shrinking the filled volume if it is larger than vol.ConfigSize().
+		// This is important, as combined with not enabling allowUnsafeResize it still prevents us from
+		// accidentally shrinking the filled volume if it is larger than vol.ConfigSize().
 		// In that situation ensureVolumeBlockFile returns ErrCannotBeShrunk, but we ignore it as this just
-		// means the filler has needed to increase the volume size beyond the default block volume size.
-		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes)
+		// means the filler run above has needed to increase the volume size beyond the default block
+		// volume size.
+		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, false)
 		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
 			return err
 		}
