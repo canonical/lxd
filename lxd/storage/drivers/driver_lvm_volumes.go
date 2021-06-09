@@ -303,7 +303,7 @@ func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 func (d *lvm) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, nil)
+		err := d.SetVolumeQuota(vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
