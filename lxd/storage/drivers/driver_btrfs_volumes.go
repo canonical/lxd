@@ -92,7 +92,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		}
 	} else if vol.contentType == ContentTypeFS {
 		// Set initial quota for filesystem volumes.
-		err := d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		err := d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 		if err != nil {
 			return err
 		}
@@ -370,7 +370,7 @@ func (d *btrfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bo
 
 	// Resize volume to the size specified. Only uses volume "size" property and does not use pool/defaults
 	// to give the caller more control over the size being used.
-	err = d.SetVolumeQuota(vol, vol.config["size"], nil)
+	err = d.SetVolumeQuota(vol, vol.config["size"], false, op)
 	if err != nil {
 		return err
 	}
@@ -557,7 +557,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 
 	if vol.contentType == ContentTypeFS {
 		// Apply the size limit.
-		err = d.SetVolumeQuota(vol, vol.ConfigSize(), op)
+		err = d.SetVolumeQuota(vol, vol.ConfigSize(), false, op)
 		if err != nil {
 			return err
 		}
@@ -621,7 +621,7 @@ func (d *btrfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 func (d *btrfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 	newSize, sizeChanged := changedConfig["size"]
 	if sizeChanged {
-		err := d.SetVolumeQuota(vol, newSize, nil)
+		err := d.SetVolumeQuota(vol, newSize, false, nil)
 		if err != nil {
 			return err
 		}
