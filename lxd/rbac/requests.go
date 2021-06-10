@@ -3,12 +3,13 @@ package rbac
 import (
 	"net/http"
 
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/shared"
 )
 
 // UserIsAdmin checks whether the requestor is a global admin.
 func UserIsAdmin(r *http.Request) bool {
-	val := r.Context().Value("access")
+	val := r.Context().Value(request.CtxAccess)
 	if val == nil {
 		return false
 	}
@@ -19,7 +20,7 @@ func UserIsAdmin(r *http.Request) bool {
 
 // UserHasPermission checks whether the requestor has a specific permission on a project.
 func UserHasPermission(r *http.Request, project string, permission string) bool {
-	val := r.Context().Value("access")
+	val := r.Context().Value(request.CtxAccess)
 	if val == nil {
 		return false
 	}
