@@ -729,6 +729,15 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	return "", fmt.Errorf("RAFT cluster is unavailable")
 }
 
+// NetworkUpdateCert sets a new network certificate for the gateway
+// Use with Endpoints.NetworkUpdateCert() to fully update the API endpoint
+func (g *Gateway) NetworkUpdateCert(cert *shared.CertInfo) {
+	g.lock.Lock()
+	defer g.lock.Unlock()
+
+	g.networkCert = cert
+}
+
 // Initialize the gateway, creating a new raft factory and gRPC server (if this
 // node is a database node), and a gRPC dialer.
 // @bootstrap should only be true when turning a non-clustered LXD instance into
