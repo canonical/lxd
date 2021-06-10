@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/events"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -183,14 +184,26 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 		ctx := r.Context()
 		requestor := api.EventLifecycleRequestor{}
 
-		username, ok := ctx.Value("username").(string)
+		// Normal requestor.
+		val, ok := ctx.Value(request.CtxUsername).(string)
 		if ok {
-			requestor.Username = username
+			requestor.Username = val
 		}
 
-		protocol, ok := ctx.Value("protocol").(string)
+		val, ok = ctx.Value(request.CtxProtocol).(string)
 		if ok {
-			requestor.Protocol = protocol
+			requestor.Protocol = val
+		}
+
+		// Forwarded requestor override.
+		val, ok = ctx.Value(request.CtxForwardedUsername).(string)
+		if ok {
+			requestor.Username = val
+		}
+
+		val, ok = ctx.Value(request.CtxForwardedProtocol).(string)
+		if ok {
+			requestor.Protocol = val
 		}
 
 		op.requestor = &requestor

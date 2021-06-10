@@ -824,11 +824,6 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 		req.Header.Set("X-LXD-name", args.Name)
 	}
 
-	// Set the user agent.
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request.
 	resp, err := r.do(req)
 	if err != nil {

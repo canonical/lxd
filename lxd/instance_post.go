@@ -454,14 +454,14 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 
 	run := func(op *operations.Operation) error {
 		// Connect to the source host, i.e. ourselves (the node the instance is running on).
-		source, err := cluster.Connect(sourceAddress, d.endpoints.NetworkCert(), d.serverCert(), true)
+		source, err := cluster.Connect(sourceAddress, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to source server")
 		}
 		source = source.UseProject(inst.Project())
 
 		// Connect to the destination host, i.e. the node to migrate the container to.
-		dest, err := cluster.Connect(targetAddress, d.endpoints.NetworkCert(), d.serverCert(), false)
+		dest, err := cluster.Connect(targetAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to destination server")
 		}
@@ -629,7 +629,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		// Create the container mount point on the target node
-		client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, newName, d.endpoints.NetworkCert(), d.serverCert(), instanceType)
+		client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, newName, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
