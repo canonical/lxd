@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -62,9 +63,9 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 }
 
 // instanceImageTransfer transfers an image from another cluster node.
-func instanceImageTransfer(d *Daemon, projectName string, hash string, nodeAddress string) error {
+func instanceImageTransfer(d *Daemon, r *http.Request, projectName string, hash string, nodeAddress string) error {
 	logger.Debugf("Transferring image %q from node %q", hash, nodeAddress)
-	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), false)
+	client, err := cluster.Connect(nodeAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 	if err != nil {
 		return err
 	}
@@ -80,7 +81,7 @@ func instanceImageTransfer(d *Daemon, projectName string, hash string, nodeAddre
 }
 
 // instanceCreateFromImage creates an instance from a rootfs image.
-func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *operations.Operation) (instance.Instance, error) {
+func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, hash string, op *operations.Operation) (instance.Instance, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -118,7 +119,7 @@ func instanceCreateFromImage(d *Daemon, args db.InstanceArgs, hash string, op *o
 		unlock := d.imageDownloadLock(img.Fingerprint)
 
 		// The image is available from another node, let's try to import it.
-		err = instanceImageTransfer(d, args.Project, img.Fingerprint, nodeAddress)
+		err = instanceImageTransfer(d, r, args.Project, img.Fingerprint, nodeAddress)
 		if err != nil {
 			unlock()
 			return nil, errors.Wrapf(err, "Failed transferring image %q from %q", img.Fingerprint, nodeAddress)

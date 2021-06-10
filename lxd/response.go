@@ -10,8 +10,8 @@ import (
 
 // forwardedResponseIfTargetIsRemote redirects a request to the request has a
 // targetNode parameter pointing to a node which is not the local one.
-func forwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) response.Response {
-	targetNode := queryParam(request, "target")
+func forwardedResponseIfTargetIsRemote(d *Daemon, r *http.Request) response.Response {
+	targetNode := queryParam(r, "target")
 	if targetNode == "" {
 		return nil
 	}
@@ -25,11 +25,11 @@ func forwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) respons
 
 	if address != "" {
 		// Forward the response.
-		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), false)
+		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 		if err != nil {
 			return response.SmartError(err)
 		}
-		return response.ForwardedResponse(client, request)
+		return response.ForwardedResponse(client, r)
 	}
 
 	return nil
@@ -39,7 +39,7 @@ func forwardedResponseIfTargetIsRemote(d *Daemon, request *http.Request) respons
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
 func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instancetype.Type) (response.Response, error) {
-	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, d.endpoints.NetworkCert(), d.serverCert(), instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func forwardedResponseIfVolumeIsRemote(d *Daemon, r *http.Request, poolName stri
 		return nil
 	}
 
-	client, err := cluster.ConnectIfVolumeIsRemote(d.State(), poolName, projectName, volumeName, volumeType, d.endpoints.NetworkCert(), d.serverCert())
+	client, err := cluster.ConnectIfVolumeIsRemote(d.State(), poolName, projectName, volumeName, volumeType, d.endpoints.NetworkCert(), d.serverCert(), r)
 	if err != nil {
 		return response.SmartError(err)
 	}

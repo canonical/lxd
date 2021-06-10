@@ -200,11 +200,6 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 		req.Header.Set("X-LXD-name", args.Name)
 	}
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -921,11 +916,6 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 		return nil, nil, err
 	}
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -1016,11 +1006,6 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 	req, err := http.NewRequest("POST", requestURL, args.Content)
 	if err != nil {
 		return err
-	}
-
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
 	}
 
 	// Set the various headers
@@ -1612,11 +1597,6 @@ func (r *ProtocolLXD) GetInstanceLogfile(name string, filename string) (io.ReadC
 		return nil, err
 	}
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -1737,11 +1717,6 @@ func (r *ProtocolLXD) GetInstanceTemplateFile(instanceName string, templateName 
 		return nil, err
 	}
 
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
-
 	// Send the request
 	resp, err := r.do(req)
 	if err != nil {
@@ -1782,11 +1757,6 @@ func (r *ProtocolLXD) CreateInstanceTemplateFile(instanceName string, templateNa
 		return err
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
-
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
 
 	// Send the request
 	resp, err := r.do(req)
@@ -2009,11 +1979,6 @@ func (r *ProtocolLXD) GetInstanceConsoleLog(instanceName string, args *InstanceC
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
-	}
-
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
 	}
 
 	// Send the request
