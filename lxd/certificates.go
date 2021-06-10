@@ -232,9 +232,7 @@ func updateCertificateCache(d *Daemon) {
 }
 
 // updateCertificateCacheFromLocal loads trusted server certificates from local database into memory.
-// If no local trusted server certificates available and is clustered, then loads network certificate into trusted
-// certificates cache.
-func updateCertificateCacheFromLocal(d *Daemon, networkCert *shared.CertInfo) error {
+func updateCertificateCacheFromLocal(d *Daemon) error {
 	logger.Debug("Refreshing local trusted certificate cache")
 
 	newCerts := map[int]map[string]x509.Certificate{}
