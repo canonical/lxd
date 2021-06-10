@@ -258,17 +258,6 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		return nil, nil, fmt.Errorf("Cannot restore volume, already exists on target")
 	}
 
-	// Restore VM config volumes first.
-	if vol.IsVMBlock() {
-		fsVol := vol.NewVMBlockFilesystemVolume()
-
-		// The revert and post hooks define below will also apply to what is done here.
-		_, _, err := d.CreateVolumeFromBackup(fsVol, srcBackup, srcData, op)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -289,7 +278,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 	revert.Add(revertHook)
 
 	// Define function to unpack a volume from a backup tarball file.
-	unpackVolume := func(r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
+	unpackVolume := func(v Volume, r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
 		d.Logger().Debug("Unpacking optimized volume", log.Ctx{"source": srcFile, "target": target})
 		tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
 		if err != nil {
@@ -308,7 +297,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 			if hdr.Name == srcFile {
 				// Extract the backup.
-				if vol.ContentType() == ContentTypeBlock {
+				if v.ContentType() == ContentTypeBlock {
 					err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-F", target)
 				} else {
 					err = shared.RunCommandWithFds(tr, nil, "zfs", "receive", "-x", "mountpoint", "-F", target)
@@ -326,101 +315,111 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 		return fmt.Errorf("Could not find %q", srcFile)
 	}
 
-	// Find the compression algorithm used for backup source data.
-	srcData.Seek(0, 0)
-	_, _, unpacker, err := shared.DetectCompressionFile(srcData)
-	if err != nil {
-		return nil, nil, err
+	var postHook VolumePostHook
+
+	// Create a list of actual volumes to unpack.
+	var vols []Volume
+	if vol.IsVMBlock() {
+		vols = append(vols, vol.NewVMBlockFilesystemVolume())
 	}
 
-	if len(srcBackup.Snapshots) > 0 {
-		// Create new snapshots directory.
-		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
+	vols = append(vols, vol)
+
+	for _, v := range vols {
+		// Find the compression algorithm used for backup source data.
+		srcData.Seek(0, 0)
+		_, _, unpacker, err := shared.DetectCompressionFile(srcData)
 		if err != nil {
 			return nil, nil, err
 		}
-	}
 
-	// Restore backups from oldest to newest.
-	for _, snapName := range srcBackup.Snapshots {
-		prefix := "snapshots"
-		fileName := fmt.Sprintf("%s.bin", snapName)
-		if vol.volType == VolumeTypeVM {
-			prefix = "virtual-machine-snapshots"
-			if vol.contentType == ContentTypeFS {
-				fileName = fmt.Sprintf("%s-config.bin", snapName)
-			}
-		} else if vol.volType == VolumeTypeCustom {
-			prefix = "volume-snapshots"
-		}
-
-		srcFile := fmt.Sprintf("backup/%s/%s", prefix, fileName)
-		dstSnapshot := fmt.Sprintf("%s@snapshot-%s", d.dataset(vol, false), snapName)
-		err = unpackVolume(srcData, unpacker, srcFile, dstSnapshot)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	// Extract main volume.
-	fileName := "container.bin"
-	if vol.volType == VolumeTypeVM {
-		if vol.contentType == ContentTypeFS {
-			fileName = "virtual-machine-config.bin"
-		} else {
-			fileName = "virtual-machine.bin"
-		}
-	} else if vol.volType == VolumeTypeCustom {
-		fileName = "volume.bin"
-	}
-
-	err = unpackVolume(srcData, unpacker, fmt.Sprintf("backup/%s", fileName), d.dataset(vol, false))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Strip internal snapshots.
-	entries, err := d.getDatasets(d.dataset(vol, false))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Filter only the snapshots.
-	for _, entry := range entries {
-		if strings.HasPrefix(entry, "@snapshot-") {
-			continue
-		}
-
-		if strings.HasPrefix(entry, "@") {
-			_, err := shared.RunCommand("zfs", "destroy", fmt.Sprintf("%s%s", d.dataset(vol, false), entry))
+		if len(srcBackup.Snapshots) > 0 {
+			// Create new snapshots directory.
+			err := createParentSnapshotDirIfMissing(d.name, v.volType, v.name)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
-	}
 
-	// Re-apply the base mount options.
-	if vol.contentType == ContentTypeFS {
-		err := d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("mountpoint=%s", vol.MountPath()), "canmount=noauto")
+		// Restore backups from oldest to newest.
+		for _, snapName := range srcBackup.Snapshots {
+			prefix := "snapshots"
+			fileName := fmt.Sprintf("%s.bin", snapName)
+			if v.volType == VolumeTypeVM {
+				prefix = "virtual-machine-snapshots"
+				if v.contentType == ContentTypeFS {
+					fileName = fmt.Sprintf("%s-config.bin", snapName)
+				}
+			} else if v.volType == VolumeTypeCustom {
+				prefix = "volume-snapshots"
+			}
+
+			srcFile := fmt.Sprintf("backup/%s/%s", prefix, fileName)
+			dstSnapshot := fmt.Sprintf("%s@snapshot-%s", d.dataset(v, false), snapName)
+			err = unpackVolume(v, srcData, unpacker, srcFile, dstSnapshot)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		// Extract main volume.
+		fileName := "container.bin"
+		if v.volType == VolumeTypeVM {
+			if v.contentType == ContentTypeFS {
+				fileName = "virtual-machine-config.bin"
+			} else {
+				fileName = "virtual-machine.bin"
+			}
+		} else if v.volType == VolumeTypeCustom {
+			fileName = "volume.bin"
+		}
+
+		err = unpackVolume(v, srcData, unpacker, fmt.Sprintf("backup/%s", fileName), d.dataset(v, false))
 		if err != nil {
 			return nil, nil, err
 		}
-	}
 
-	var postHook VolumePostHook
-
-	// Only mount instance filesystem volumes for backup.yaml access.
-	if vol.volType != VolumeTypeCustom && vol.contentType != ContentTypeBlock {
-		// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
-		err = d.MountVolume(vol, op)
+		// Strip internal snapshots.
+		entries, err := d.getDatasets(d.dataset(v, false))
 		if err != nil {
 			return nil, nil, err
 		}
-		revert.Add(func() { d.UnmountVolume(vol, false, op) })
 
-		postHook = func(vol Volume) error {
-			_, err := d.UnmountVolume(vol, false, op)
-			return err
+		// Filter only the snapshots.
+		for _, entry := range entries {
+			if strings.HasPrefix(entry, "@snapshot-") {
+				continue
+			}
+
+			if strings.HasPrefix(entry, "@") {
+				_, err := shared.RunCommand("zfs", "destroy", fmt.Sprintf("%s%s", d.dataset(v, false), entry))
+				if err != nil {
+					return nil, nil, err
+				}
+			}
+		}
+
+		// Re-apply the base mount options.
+		if v.contentType == ContentTypeFS {
+			err := d.setDatasetProperties(d.dataset(v, false), fmt.Sprintf("mountpoint=%s", v.MountPath()), "canmount=noauto")
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		// Only mount instance filesystem volumes for backup.yaml access.
+		if v.volType != VolumeTypeCustom && v.contentType != ContentTypeBlock {
+			// The import requires a mounted volume, so mount it and have it unmounted as a post hook.
+			err = d.MountVolume(v, op)
+			if err != nil {
+				return nil, nil, err
+			}
+			revert.Add(func() { d.UnmountVolume(v, false, op) })
+
+			postHook = func(postVol Volume) error {
+				_, err := d.UnmountVolume(postVol, false, op)
+				return err
+			}
 		}
 	}
 
