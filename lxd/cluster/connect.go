@@ -13,9 +13,10 @@ import (
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/lxd/cluster/request"
+	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -63,24 +64,24 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 	}
 
 	if notify {
-		args.UserAgent = request.UserAgentNotifier
+		args.UserAgent = clusterRequest.UserAgentNotifier
 	}
 
 	if r != nil {
 		proxy := func(req *http.Request) (*url.URL, error) {
 			ctx := r.Context()
 
-			val, ok := ctx.Value("username").(string)
+			val, ok := ctx.Value(request.CtxUsername).(string)
 			if ok {
-				req.Header.Add("X-LXD-cluster-username", val)
+				req.Header.Add(request.HeaderForwardedUsername, val)
 			}
 
-			val, ok = ctx.Value("protocol").(string)
+			val, ok = ctx.Value(request.CtxProtocol).(string)
 			if ok {
-				req.Header.Add("X-LXD-cluster-protocol", val)
+				req.Header.Add(request.HeaderForwardedProtocol, val)
 			}
 
-			req.Header.Add("X-LXD-cluster-address", r.RemoteAddr)
+			req.Header.Add(request.HeaderForwardedAddress, r.RemoteAddr)
 
 			return shared.ProxyFromEnvironment(req)
 		}
