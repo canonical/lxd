@@ -895,7 +895,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Load cached local trusted certificates before starting listener and cluster database.
-	err = updateCertificateCacheFromLocal(d, networkCert)
+	err = updateCertificateCacheFromLocal(d)
 	if err != nil {
 		return err
 	}
