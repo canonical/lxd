@@ -38,6 +38,7 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/warnings"
 
@@ -523,16 +524,16 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			// Add authentication/authorization context data.
-			ctx := context.WithValue(r.Context(), "username", username)
-			ctx = context.WithValue(ctx, "protocol", protocol)
-			ctx = context.WithValue(ctx, "access", userAccess)
+			ctx := context.WithValue(r.Context(), request.CtxUsername, username)
+			ctx = context.WithValue(ctx, request.CtxProtocol, protocol)
+			ctx = context.WithValue(ctx, request.CtxAccess, userAccess)
 
 			// Add forwarded requestor data.
 			if protocol == "cluster" {
 				// Add authentication/authorization context data.
-				ctx = context.WithValue(ctx, "forwarded_address", r.Header.Get("X-LXD-cluster-address"))
-				ctx = context.WithValue(ctx, "forwarded_username", r.Header.Get("X-LXD-cluster-username"))
-				ctx = context.WithValue(ctx, "forwarded_protocol", r.Header.Get("X-LXD-cluster-protocol"))
+				ctx = context.WithValue(ctx, request.CtxForwardedAddress, r.Header.Get(request.HeaderForwardedAddress))
+				ctx = context.WithValue(ctx, request.CtxForwardedUsername, r.Header.Get(request.HeaderForwardedUsername))
+				ctx = context.WithValue(ctx, request.CtxForwardedProtocol, r.Header.Get(request.HeaderForwardedProtocol))
 			}
 
 			r = r.WithContext(ctx)
