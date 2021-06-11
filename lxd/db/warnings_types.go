@@ -47,6 +47,8 @@ const (
 	WarningLargerIPv6PrefixThanSupported
 	// WarningProxyBridgeNetfilterNotEnabled represents the proxy bridge netfilter not enable warning
 	WarningProxyBridgeNetfilterNotEnabled
+	// WarningNetworkStartupFailure represents the network startup failure warning
+	WarningNetworkStartupFailure
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -71,6 +73,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningAppArmorDisabledDueToRawDnsmasq:        "Skipping AppArmor for dnsmasq due to raw.dnsmasq being set",
 	WarningLargerIPv6PrefixThanSupported:          "IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq",
 	WarningProxyBridgeNetfilterNotEnabled:         "Proxy bridge netfilter not enabled",
+	WarningNetworkStartupFailure:                  "Failed to start network",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -124,6 +127,8 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningLargerIPv6PrefixThanSupported:
 		return WarningSeverityLow
 	case WarningProxyBridgeNetfilterNotEnabled:
+		return WarningSeverityLow
+	case WarningNetworkStartupFailure:
 		return WarningSeverityLow
 	}
 
