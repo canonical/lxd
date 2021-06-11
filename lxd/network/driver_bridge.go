@@ -550,7 +550,20 @@ func (n *bridge) Rename(newName string) error {
 func (n *bridge) Start() error {
 	n.logger.Debug("Start")
 
-	return n.setup(nil)
+	err := n.setup(nil)
+	if err != nil {
+		err := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
+		if err != nil {
+			n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+		}
+	} else {
+		err := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
+		if err != nil {
+			n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+		}
+	}
+
+	return err
 }
 
 // setup restarts the network.
