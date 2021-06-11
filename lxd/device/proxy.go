@@ -14,13 +14,17 @@ import (
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/validate"
@@ -410,8 +414,20 @@ func (d *proxy) setupNAT() error {
 
 	err = d.checkBridgeNetfilterEnabled(ipFamily)
 	if err != nil {
-		logger.Warnf("Proxy bridge netfilter not enabled: %v. Instances using the bridge will not be able to connect to the proxy's listen IP", err)
+		msg := fmt.Sprintf("%v. Instances using the bridge will not be able to connect to the proxy's listen IP", err)
+
+		logger.Warnf("Proxy bridge netfilter not enabled: %s", msg)
+
+		err := d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, msg)
+		if err != nil {
+			logger.Warn("Failed to create warning", log.Ctx{"err": err})
+		}
 	} else {
+		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+		if err != nil {
+			logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+		}
+
 		if hostName == "" {
 			return fmt.Errorf("Proxy cannot find bridge port host_name to enable hairpin mode")
 		}
@@ -566,8 +582,13 @@ func (d *proxy) killProxyProc(pidPath string) error {
 }
 
 func (d *proxy) Remove() error {
+	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+	if err != nil {
+		logger.Warn("Failed to delete warning", log.Ctx{"err": err})
+	}
+
 	// Delete apparmor profile.
-	err := apparmor.ForkproxyDelete(d.state, d.inst, d)
+	err = apparmor.ForkproxyDelete(d.state, d.inst, d)
 	if err != nil {
 		return err
 	}
