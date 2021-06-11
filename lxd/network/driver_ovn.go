@@ -15,6 +15,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/ip"
@@ -24,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -2163,6 +2165,23 @@ func (n *ovn) Rename(newName string) error {
 
 // Start starts adds the local OVS chassis ID to the OVN chass group and starts the local OVS uplink port.
 func (n *ovn) Start() error {
+	err := n.start()
+	if err != nil {
+		err := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
+		if err != nil {
+			n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+		}
+	} else {
+		err := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
+		if err != nil {
+			n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+		}
+	}
+
+	return err
+}
+
+func (n *ovn) start() error {
 	n.logger.Debug("Start")
 
 	var err error
