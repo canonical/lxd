@@ -207,3 +207,18 @@ type ClusterMemberPut struct {
 	// API extension: clustering_description
 	Description string `json:"description" yaml:"description"`
 }
+
+// ClusterCertificatePut represents the certificate and key pair for all members in a LXD Cluster
+//
+// swagger:model
+//
+// API extension: clustering_update_certs
+type ClusterCertificatePut struct {
+	// The new certificate (X509 PEM encoded) for the cluster
+	// Example: X509 PEM certificate
+	ClusterCertificate string `json:"cluster_certificate" yaml:"cluster_certificate"`
+
+	// The new certificate key (X509 PEM encoded) for the cluster
+	// Example: X509 PEM certificate key
+	ClusterCertificateKey string `json:"cluster_certificate_key" yaml:"cluster_certificate_key"`
+}
