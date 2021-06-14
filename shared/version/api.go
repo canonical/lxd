@@ -225,6 +225,7 @@ var APIExtensions = []string{
 	"clustering_join_token",
 	"clustering_description",
 	"server_trusted_proxy",
+	"clustering_update_cert",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

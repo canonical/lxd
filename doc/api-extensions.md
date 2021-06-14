@@ -1118,3 +1118,7 @@ This introduces support for `core.https_trusted_proxy` which has LXD
 parse a HAProxy style connection header on such connections and if
 present, will rewrite the request's source address to that provided by
 the proxy server.
+
+## clustering\_update\_cert
+Adds `PUT /1.0/cluster/certificate` endpoint for updating the cluster
+certificate across the whole cluster
