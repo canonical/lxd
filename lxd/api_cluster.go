@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -54,6 +56,12 @@ var clusterNodeCmd = APIEndpoint{
 	Patch:  APIEndpointAction{Handler: clusterNodePatch},
 	Put:    APIEndpointAction{Handler: clusterNodePut},
 	Post:   APIEndpointAction{Handler: clusterNodePost},
+}
+
+var clusterCertificateCmd = APIEndpoint{
+	Path: "cluster/certificate",
+
+	Put: APIEndpointAction{Handler: clusterCertificatePut},
 }
 
 var internalClusterAcceptCmd = APIEndpoint{
@@ -1611,6 +1619,103 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		logger.Warn("Failed to sync images")
 	}
+
+	return response.EmptySyncResponse
+}
+
+// swagger:operation PUT /1.0/cluster/certificate cluster clustering_update_cert
+//
+// Update the certificate for the cluster
+//
+// Replaces existing cluster certificate and reloads LXD on each cluster
+// member.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster certificate replace request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterCertificatePut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
+	req := api.ClusterCertificatePut{}
+
+	// Parse the request
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	certBytes := []byte(req.ClusterCertificate)
+	keyBytes := []byte(req.ClusterCertificateKey)
+
+	certBlock, _ := pem.Decode(certBytes)
+	if certBlock == nil {
+		return response.BadRequest(fmt.Errorf("Certificate must be base64 encoded PEM certificate: %v", err))
+	}
+
+	keyBlock, _ := pem.Decode(keyBytes)
+	if keyBlock == nil {
+		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %v", err))
+	}
+
+	// First node forwards request to all other cluster nodes
+	if !isClusterNotification(r) {
+		servers, err := d.gateway.NodeStore().Get(context.Background())
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		localAddress, err := node.ClusterAddress(d.db)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, server := range servers {
+			if server.Address == localAddress {
+				continue
+			}
+
+			client, err := cluster.Connect(server.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			err = client.UpdateClusterCertificate(req, "")
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+	}
+
+	err = util.WriteCert(d.os.VarDir, "cluster", certBytes, keyBytes, nil)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Get the new cluster certificate struct
+	cert, err := util.LoadClusterCert(d.os.VarDir)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	// Update the certificate on the network endpoint and gateway
+	d.endpoints.NetworkUpdateCert(cert)
+	d.gateway.NetworkUpdateCert(cert)
 
 	return response.EmptySyncResponse
 }
