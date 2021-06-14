@@ -385,7 +385,10 @@ func (d Xtables) instanceDeviceIPTablesComment(projectName string, instanceName 
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
+// If the parent bridge is managed by LXD then parentManaged argument should be true so that the rules added can
+// use the iptablesChainACLFilterPrefix chain. If not they are added to the main filter chains directly (which only
+// works for unmanaged bridges because those don't support ACLs).
+func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP, parentManaged bool) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4, IPv6)
@@ -396,7 +399,7 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 		}
 	}
 
-	rules, err := d.generateFilterIptablesRules(parentName, hostName, hwAddr, IPv6)
+	rules, err := d.generateFilterIptablesRules(parentName, hostName, hwAddr, IPv6, parentManaged)
 	if err != nil {
 		return err
 	}
