@@ -100,6 +100,7 @@ tarball is downloaded and extracted, set the `GOPATH` as follows:
 ```bash
 cd lxd-3.18
 export GOPATH=$(pwd)/_dist
+export GOBIN=$GOPATH/bin
 ```
 
 ### Starting the Build
