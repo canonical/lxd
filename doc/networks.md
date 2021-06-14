@@ -134,10 +134,10 @@ with `lxc network get lxdbr0 dns.domain` (if unset, the domain
 is `lxd` as shown in the table above).  Then notify resolved:
 
 ```
-systemd-resolve --interface lxdbr0 --set-domain '~lxd' --set-dns 1.2.3.4
+systemd-resolve --interface lxdbr0 --set-domain '~lxd' --set-dns n.n.n.n
 ```
 
-Replace `lxdbr0` with the actual bridge name, and `1.2.3.4` with
+Replace `lxdbr0` with the actual bridge name, and `n.n.n.n` with
 the actual address of the nameserver (without the subnet netmask).
 
 Also replace `lxd` with the domain name.  Note the `~` before the
