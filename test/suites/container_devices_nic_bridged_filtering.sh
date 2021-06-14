@@ -9,6 +9,9 @@ test_container_devices_nic_bridged_filtering() {
     false
   fi
 
+  # Record how many nics we started with.
+  startNicCount=$(find /sys/class/net | wc -l)
+
   ctPrefix="nt$$"
   brName="lxdt$$"
 
@@ -28,9 +31,6 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
   lxc network set "${brName}" ipv6.address 2001:db8::1/64
   [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
-
-  # Record how many nics we started with.
-  startNicCount=$(find /sys/class/net | wc -l)
 
   # Create profile for new containers.
   lxc profile copy default "${ctPrefix}"
@@ -545,6 +545,9 @@ test_container_devices_nic_bridged_filtering() {
 
   # Test MAC filtering on unmanaged bridge.
   ip link add "${brName}2" type bridge
+  ip a add 192.0.2.1/24 dev "${brName}2"
+  ip a add 2001:db8::1/64 dev "${brName}2"
+  ip link set "${brName}2" up
 
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}A" eth0 nic \
@@ -603,6 +606,28 @@ test_container_devices_nic_bridged_filtering() {
     done
   fi
 
+  # Enable IP filtering and check container won't start without manual IP assigned in LXD config.
+  lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering=true security.ipv6_filtering=true
+  ! lxc start "${ctPrefix}A" || false
+  lxc config device set "${ctPrefix}A" eth0 ipv4.address=192.0.2.2
+  ! lxc start "${ctPrefix}A" || false
+  lxc config device set "${ctPrefix}A" eth0 ipv6.address=2001:db8::2
+  lxc start "${ctPrefix}A"
+  lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
+
+  # Check basic connectivity without any filtering.
+  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W1 2001:db8::1
+
+  # Check fraudulent IPs are blocked.
+  lxc exec "${ctPrefix}A" -- ip a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 192.0.2.3/24 dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 2001:db8::3/64 dev eth0
+
+  ! lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -c2 -W1 2001:db8::1 || false
+
   lxc delete -f "${ctPrefix}A"
   ip link delete "${brName}2"
 
@@ -657,14 +682,14 @@ test_container_devices_nic_bridged_filtering() {
     done
   fi
 
+  # Cleanup.
+  lxc profile delete "${ctPrefix}"
+  lxc network delete "${brName}"
+
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
   if [ "$startNicCount" != "$endNicCount" ]; then
     echo "leftover NICS detected"
     false
   fi
-
-  # Cleanup.
-  lxc profile delete "${ctPrefix}"
-  lxc network delete "${brName}"
 }
