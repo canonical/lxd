@@ -381,7 +381,7 @@ func (d Nftables) instanceDeviceLabel(projectName, instanceName, deviceName stri
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
+func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP, _ bool) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	mac, err := net.ParseMAC(hwAddr)
