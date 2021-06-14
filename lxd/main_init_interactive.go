@@ -318,7 +318,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 			config.Cluster.MemberConfig = cluster.MemberConfig
 		} else {
 			// Password authentication
-			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=yes]: ", "no") {
+			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=no]: ", "no") {
 				config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
 			}
 		}
