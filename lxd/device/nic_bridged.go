@@ -678,7 +678,7 @@ func (d *nicBridged) setFilters() (err error) {
 		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
 	}
 
-	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6, n != nil)
 	if err != nil {
 		return err
 	}
