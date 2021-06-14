@@ -67,6 +67,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	cmdClusterRevokeToken := cmdClusterRevokeToken{global: c.global, cluster: c}
 	cmd.AddCommand(cmdClusterRevokeToken.Command())
 
+	// Update certificate
+	cmdClusterUpdateCertificate := cmdClusterUpdateCertificate{global: c.global, cluster: c}
+	cmd.AddCommand(cmdClusterUpdateCertificate.Command())
+
 	return cmd
 }
 
@@ -809,4 +813,100 @@ func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return fmt.Errorf(i18n.G("No cluster join token for member %s on remote: %s"), resource.name, resource.remote)
+}
+
+// Update Certificatess
+type cmdClusterUpdateCertificate struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterUpdateCertificate) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("update-certificate", i18n.G("[<remote>:] <cert.crt> <cert.key>"))
+	cmd.Aliases = []string{"update-cert"}
+	cmd.Short = i18n.G("Update cluster certificate")
+	cmd.Long = cli.FormatSection(i18n.G("Description"),
+		i18n.G("Update cluster certificate with PEM certificate and key read from input files."))
+
+	cmd.RunE = c.Run
+	return cmd
+}
+
+func (c *cmdClusterUpdateCertificate) Run(cmd *cobra.Command, args []string) error {
+	conf := c.global.conf
+
+	exit, err := c.global.CheckArgs(cmd, args, 2, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	remote := ""
+	certFile := args[0]
+	keyFile := args[1]
+	if len(args) == 3 {
+		remote = args[0]
+		certFile = args[1]
+		keyFile = args[2]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Check if clustered.
+	cluster, _, err := resource.server.GetCluster()
+	if err != nil {
+		return err
+	}
+
+	if !cluster.Enabled {
+		return fmt.Errorf(i18n.G("LXD server isn't part of a cluster"))
+	}
+
+	if !shared.PathExists(certFile) {
+		return fmt.Errorf(i18n.G("Could not find certificate file path: %s"), certFile)
+	}
+
+	if !shared.PathExists(keyFile) {
+		return fmt.Errorf(i18n.G("Could not find certificate key file path: %s"), keyFile)
+	}
+
+	cert, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Could not read certificate file: %s with error: $v"), certFile, err)
+	}
+
+	key, err := ioutil.ReadFile(keyFile)
+	if err != nil {
+		return fmt.Errorf(i18n.G("Could not read certificate key file: %s with error: $v"), keyFile, err)
+	}
+
+	certificates := api.ClusterCertificatePut{
+		ClusterCertificate:    string(cert),
+		ClusterCertificateKey: string(key),
+	}
+
+	err = resource.server.UpdateClusterCertificate(certificates, "")
+	if err != nil {
+		return err
+	}
+
+	certf := conf.ServerCertPath(resource.remote)
+	if shared.PathExists(certf) {
+		err = ioutil.WriteFile(certf, cert, 0644)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Could not write new remote certificate for remote '%s' with error: %v"), resource.remote, err)
+		}
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Successfully updated cluster certificates for remote %s")+"\n", resource.remote)
+	}
+
+	return nil
 }
