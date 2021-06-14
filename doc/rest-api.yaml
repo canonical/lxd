@@ -133,6 +133,22 @@ definitions:
     title: Cluster represents high-level information about a LXD cluster.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  ClusterCertificatePut:
+    description: ClusterCertificatePut represents the certificate and key pair for
+      all members in a LXD Cluster
+    properties:
+      cluster_certificate:
+        description: The new certificate (X509 PEM encoded) for the cluster
+        example: X509 PEM certificate
+        type: string
+        x-go-name: ClusterCertificate
+      cluster_certificate_key:
+        description: The new certificate key (X509 PEM encoded) for the cluster
+        example: X509 PEM certificate key
+        type: string
+        x-go-name: ClusterCertificateKey
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   ClusterMember:
     properties:
       architecture:
@@ -5345,6 +5361,35 @@ paths:
         "500":
           $ref: '#/responses/InternalServerError'
       summary: Update the cluster configuration
+      tags:
+      - cluster
+  /1.0/cluster/certificate:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Replaces existing cluster certificate and reloads LXD on each cluster
+        member.
+      operationId: clustering_update_cert
+      parameters:
+      - description: Cluster certificate replace request
+        in: body
+        name: cluster
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterCertificatePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the certificate for the cluster
       tags:
       - cluster
   /1.0/cluster/members:
