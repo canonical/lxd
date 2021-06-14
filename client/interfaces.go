@@ -314,6 +314,7 @@ type InstanceServer interface {
 	UpdateClusterMember(name string, member api.ClusterMemberPut, ETag string) (err error)
 	RenameClusterMember(name string, member api.ClusterMemberPost) (err error)
 	CreateClusterMember(member api.ClusterMembersPost) (op Operation, err error)
+	UpdateClusterCertificate(certs api.ClusterCertificatePut, ETag string) (err error)
 
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)
