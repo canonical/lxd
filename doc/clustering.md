@@ -478,3 +478,11 @@ lxc config set core.https_address my.lxd.cluster:8443
 and then use the ```PUT /1.0/cluster``` API endpoint as usual, specifying the
 address of the joining node with the ```server_address``` field. If you use
 preseed, the YAML payload would be exactly like the one above.
+
+## Updating the cluster certificate
+In a LXD cluster, all servers respond with the same shared certificate. This
+is usually a standard self-signed certificate with an expiry set to 10 years.
+
+If you wish to replace it with something else, for example a valid certificate
+obtained through Let's Encrypt, `lxc cluster update-certificate` can be used
+to replace the certificate on all servers in your cluster.
