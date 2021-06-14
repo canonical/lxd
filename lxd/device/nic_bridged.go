@@ -684,10 +684,14 @@ func (d *nicBridged) setFilters() (err error) {
 		return err
 	}
 
-	// If parent bridge is unmanaged check that IP filtering isn't enabled.
+	// If parent bridge is unmanaged check that a manually specified IP is available if IP filtering enabled.
 	if err == db.ErrNoSuchObject || n == nil {
-		if shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
-			return fmt.Errorf("IP filtering requires using a managed parent bridge")
+		if shared.IsTrue(d.config["security.ipv4_filtering"]) && d.config["ipv4.address"] == "" {
+			return fmt.Errorf("IPv4 filtering requires a manually specified ipv4.address when using an unmanaged parent bridge")
+		}
+
+		if shared.IsTrue(d.config["security.ipv6_filtering"]) && d.config["ipv6.address"] == "" {
+			return fmt.Errorf("IPv6 filtering requires a manually specified ipv6.address when using an unmanaged parent bridge")
 		}
 	}
 
@@ -741,7 +745,7 @@ func (d *nicBridged) setFilters() (err error) {
 		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
 	}
 
-	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6, n != nil)
 	if err != nil {
 		return err
 	}

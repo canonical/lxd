@@ -769,7 +769,10 @@ func (d Xtables) instanceDeviceIPTablesComment(projectName string, instanceName 
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
+// If the parent bridge is managed by LXD then parentManaged argument should be true so that the rules added can
+// use the iptablesChainACLFilterPrefix chain. If not they are added to the main filter chains directly (which only
+// works for unmanaged bridges because those don't support ACLs).
+func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP, parentManaged bool) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4, IPv6)
@@ -780,7 +783,7 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 		}
 	}
 
-	rules, err := d.generateFilterIptablesRules(parentName, hostName, hwAddr, IPv6)
+	rules, err := d.generateFilterIptablesRules(parentName, hostName, hwAddr, IPv6, parentManaged)
 	if err != nil {
 		return err
 	}
@@ -1019,7 +1022,10 @@ func (d Xtables) generateFilterEbtablesRules(hostName string, hwAddr string, IPv
 }
 
 // generateFilterIptablesRules returns a customised set of iptables filter rules based on the device.
-func (d Xtables) generateFilterIptablesRules(parentName string, hostName string, hwAddr string, IPv6 net.IP) (rules [][]string, err error) {
+// If parentManaged is true then the rules are added to the iptablesChainACLFilterPrefix chain whereas if its false
+// then the rules are added to both the INPUT and FORWARD chains (so that no additional NIC chain is required, as
+// there's no managed network setup step available to create it and add jump rules).
+func (d Xtables) generateFilterIptablesRules(parentName string, hostName string, hwAddr string, IPv6 net.IP, parentManaged bool) (rules [][]string, err error) {
 	mac, err := net.ParseMAC(hwAddr)
 	if err != nil {
 		return
@@ -1036,15 +1042,30 @@ func (d Xtables) generateFilterIptablesRules(parentName string, hostName string,
 	// correct source address and MAC at the IP & ethernet layers, but a fraudulent IP or MAC
 	// inside the ICMPv6 NDP packet.
 	if IPv6 != nil {
-		chain := fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, parentName)
-
 		ipv6Hex := hex.EncodeToString(IPv6)
-		rules = append(rules,
-			// Prevent Neighbor Advertisement IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
-			[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
-			// Prevent Neighbor Advertisement MAC spoofing (prevents the instance poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
-			[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
-		)
+
+		var chains []string
+
+		if parentManaged {
+			// Managed networks should have setup the iptablesChainNICFilterPrefix chain and added the
+			// jump rules to INPUT and FORWARD already, so reduce the overhead of adding the rules to
+			// both chains and just add it to the iptablesChainNICFilterPrefix chain instead.
+			chains = append(chains, fmt.Sprintf("%s_%s", iptablesChainNICFilterPrefix, parentName))
+		} else {
+			// We add the NIC rules to both the INPUT and FORWARD chain as there is no managed network
+			// setup step that could have created the iptablesChainNICFilterPrefix chain and added the
+			// necessary jump rules to INPUT and FORWARD chains to make them work.
+			chains = append(chains, "INPUT", "FORWARD")
+		}
+
+		for _, chain := range chains {
+			rules = append(rules,
+				// Prevent Neighbor Advertisement IP spoofing (prevents the instance redirecting traffic for IPs that are not its own).
+				[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", ipv6Hex), "--algo", "bm", "--from", "48", "--to", "64", "-j", "DROP"},
+				// Prevent Neighbor Advertisement MAC spoofing (prevents the instance poisoning the NDP cache of its neighbours with a MAC address that isn't its own).
+				[]string{"6", chain, "-i", parentName, "-p", "ipv6-icmp", "-m", "physdev", "--physdev-in", hostName, "-m", "icmp6", "--icmpv6-type", "136", "-m", "string", "!", "--hex-string", fmt.Sprintf("|%s|", macHex), "--algo", "bm", "--from", "66", "--to", "72", "-j", "DROP"},
+			)
+		}
 	}
 
 	return
