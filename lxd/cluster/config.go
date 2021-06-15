@@ -260,7 +260,7 @@ var ConfigSchema = config.Schema{
 	"images.auto_update_cached":      {Type: config.Bool, Default: "true"},
 	"images.auto_update_interval":    {Type: config.Int64, Default: "6"},
 	"images.compression_algorithm":   {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
-	"images.default_architecture":    {Validator: validate.IsArchitecture},
+	"images.default_architecture":    {Validator: validate.Optional(validate.IsArchitecture)},
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
