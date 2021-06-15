@@ -217,10 +217,10 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectsPost(d *Daemon, r *http.Request) response.Response {
-	// Parse the request
+	// Parse the request.
 	project := api.ProjectsPost{}
 
-	// Set default features
+	// Set default features.
 	if project.Config == nil {
 		project.Config = map[string]string{}
 	}
@@ -242,7 +242,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Validate the configuration
+	// Validate the configuration.
 	err = projectValidateConfig(d.State(), project.Config)
 	if err != nil {
 		return response.BadRequest(err)
