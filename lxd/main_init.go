@@ -202,11 +202,11 @@ func (c *cmdInit) availableStorageDrivers(poolType poolType) []string {
 
 	// Check available backends.
 	for _, driver := range supportedDrivers {
-		if poolType == poolTypeRemote && !shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
+		if poolType == poolTypeRemote && !driver.Remote {
 			continue
 		}
 
-		if poolType == poolTypeLocal && shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
+		if poolType == poolTypeLocal && driver.Remote {
 			continue
 		}
 
