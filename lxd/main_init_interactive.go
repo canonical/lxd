@@ -601,7 +601,11 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 		if len(availableBackends) > 1 {
 			defaultBackend := defaultStorage
 			if poolType == poolTypeRemote {
-				defaultBackend = "ceph"
+				if shared.StringInSlice("ceph", availableBackends) {
+					defaultBackend = "ceph"
+				} else {
+					defaultBackend = availableBackends[0] // Default to first remote driver.
+				}
 			}
 
 			pool.Driver = cli.AskChoice(
