@@ -745,11 +745,15 @@ func projectIsEmpty(project *api.Project) bool {
 }
 
 func isEitherAllowOrBlock(value string) error {
-	return validate.IsOneOf(value, []string{"block", "allow"})
+	return validate.Optional(func(value string) error {
+		return validate.IsOneOf(value, []string{"block", "allow"})
+	})(value)
 }
 
 func isEitherAllowOrBlockOrManaged(value string) error {
-	return validate.IsOneOf(value, []string{"block", "allow", "managed"})
+	return validate.Optional(func(value string) error {
+		return validate.IsOneOf(value, []string{"block", "allow", "managed"})
+	})(value)
 }
 
 func projectValidateConfig(s *state.State, config map[string]string) error {
@@ -767,9 +771,9 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted":                     validate.Optional(validate.IsBool),
 		"restricted.containers.nesting":  isEitherAllowOrBlock,
 		"restricted.containers.lowlevel": isEitherAllowOrBlock,
-		"restricted.containers.privilege": func(value string) error {
+		"restricted.containers.privilege": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
-		},
+		}),
 		"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
 		"restricted.devices.unix-char":         isEitherAllowOrBlock,
 		"restricted.devices.unix-block":        isEitherAllowOrBlock,
