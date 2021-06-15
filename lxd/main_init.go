@@ -16,6 +16,12 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type poolType string
+
+const poolTypeAny poolType = ""
+const poolTypeLocal poolType = "local"
+const poolTypeRemote poolType = "remote"
+
 type cmdInitData struct {
 	Node    initDataNode     `yaml:",inline"`
 	Cluster *initDataCluster `json:"cluster" yaml:"cluster"`
