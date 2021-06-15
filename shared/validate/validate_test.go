@@ -63,3 +63,43 @@ func ExampleIsPCIAddress() {
 	// 12.ab.0, false
 	// , false
 }
+
+func ExampleOptional() {
+	tests := []string{
+		"",
+		"foo",
+		"true",
+	}
+
+	for _, v := range tests {
+		f := validate.Optional()
+		fmt.Printf("%v ", f(v))
+
+		f = validate.Optional(validate.IsBool)
+		fmt.Printf("%v\n", f(v))
+	}
+
+	// Output: <nil> <nil>
+	// <nil> Invalid value for a boolean "foo"
+	// <nil> <nil>
+}
+
+func ExampleRequired() {
+	tests := []string{
+		"",
+		"foo",
+		"true",
+	}
+
+	for _, v := range tests {
+		f := validate.Required()
+		fmt.Printf("%v ", f(v))
+
+		f = validate.Required(validate.IsBool)
+		fmt.Printf("%v\n", f(v))
+	}
+
+	// Output: <nil> Invalid value for a boolean ""
+	// <nil> Invalid value for a boolean "foo"
+	// <nil> <nil>
+}
