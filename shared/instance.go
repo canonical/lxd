@@ -169,9 +169,9 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 		return nil
 	},
-	"limits.memory.enforce": func(value string) error {
+	"limits.memory.enforce": validate.Optional(func(value string) error {
 		return validate.IsOneOf(value, []string{"soft", "hard"})
-	},
+	}),
 	"limits.memory.swap":          validate.Optional(validate.IsBool),
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
 	"limits.memory.hugepages":     validate.Optional(validate.IsBool),

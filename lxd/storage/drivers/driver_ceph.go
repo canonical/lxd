@@ -250,12 +250,9 @@ func (d *ceph) Validate(config map[string]string) error {
 		"ceph.rbd.features":       validate.IsAny,
 		"ceph.user.name":          validate.IsAny,
 		"volatile.pool.pristine":  validate.IsAny,
-		"volume.block.filesystem": func(value string) error {
-			if value == "" {
-				return nil
-			}
+		"volume.block.filesystem": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, cephAllowedFilesystems)
-		},
+		}),
 		"volume.block.mount_options": validate.IsAny,
 	}
 
