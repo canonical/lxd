@@ -16,6 +16,12 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
+type poolType string
+
+const poolTypeAny poolType = ""
+const poolTypeLocal poolType = "local"
+const poolTypeRemote poolType = "remote"
+
 type cmdInitData struct {
 	Node    initDataNode     `yaml:",inline"`
 	Cluster *initDataCluster `json:"cluster" yaml:"cluster"`
@@ -182,7 +188,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdInit) availableStorageDrivers(poolType string) []string {
+func (c *cmdInit) availableStorageDrivers(poolType poolType) []string {
 	backingFs, err := util.FilesystemDetect(shared.VarPath())
 	if err != nil {
 		backingFs = "dir"
@@ -196,15 +202,15 @@ func (c *cmdInit) availableStorageDrivers(poolType string) []string {
 
 	// Check available backends.
 	for _, driver := range supportedDrivers {
-		if poolType == "remote" && !shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
+		if poolType == poolTypeRemote && !driver.Remote {
 			continue
 		}
 
-		if poolType == "local" && shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
+		if poolType == poolTypeLocal && driver.Remote {
 			continue
 		}
 
-		if poolType == "all" && driver.Name == "cephfs" {
+		if poolType == poolTypeAny && driver.Name == "cephfs" {
 			continue
 		}
 

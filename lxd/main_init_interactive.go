@@ -518,14 +518,14 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer) error {
 	if config.Cluster != nil {
 		if cli.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes") {
-			err := c.askStoragePool(config, d, "local")
+			err := c.askStoragePool(config, d, poolTypeLocal)
 			if err != nil {
 				return err
 			}
 		}
 
 		if cli.AskBool("Do you want to configure a new remote storage pool? (yes/no) [default=no]: ", "no") {
-			err := c.askStoragePool(config, d, "remote")
+			err := c.askStoragePool(config, d, poolTypeRemote)
 			if err != nil {
 				return err
 			}
@@ -538,14 +538,18 @@ func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer) error {
 		return nil
 	}
 
-	return c.askStoragePool(config, d, "all")
+	return c.askStoragePool(config, d, poolTypeAny)
 }
 
-func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, poolType string) error {
+func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, poolType poolType) error {
 	// Figure out the preferred storage driver
 	availableBackends := c.availableStorageDrivers(poolType)
 
 	if len(availableBackends) == 0 {
+		if poolType != poolTypeAny {
+			return fmt.Errorf("No storage backends available")
+		}
+
 		return fmt.Errorf("No %s storage backends available", poolType)
 	}
 
@@ -568,15 +572,15 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 		pool := api.StoragePoolsPost{}
 		pool.Config = map[string]string{}
 
-		if poolType == "all" {
+		if poolType == poolTypeAny {
 			pool.Name = cli.AskString("Name of the new storage pool [default=default]: ", "default", nil)
 		} else {
-			pool.Name = poolType
+			pool.Name = string(poolType)
 		}
 
 		_, _, err := d.GetStoragePool(pool.Name)
 		if err == nil {
-			if poolType == "all" {
+			if poolType == poolTypeAny {
 				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", pool.Name)
 				continue
 			}
@@ -596,8 +600,12 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 		// Storage backend
 		if len(availableBackends) > 1 {
 			defaultBackend := defaultStorage
-			if poolType == "remote" {
-				defaultBackend = "ceph"
+			if poolType == poolTypeRemote {
+				if shared.StringInSlice("ceph", availableBackends) {
+					defaultBackend = "ceph"
+				} else {
+					defaultBackend = availableBackends[0] // Default to first remote driver.
+				}
 			}
 
 			pool.Driver = cli.AskChoice(
