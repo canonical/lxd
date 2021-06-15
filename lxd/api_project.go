@@ -620,7 +620,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 func projectPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
-	// Parse the request
+	// Parse the request.
 	req := api.ProjectPost{}
 
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -633,7 +633,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
 	}
 
-	// Perform the rename
+	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
