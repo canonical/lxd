@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/task"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -163,8 +165,18 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			heartbeatData.Members[nodeID] = hbNode
 			heartbeatData.Unlock()
 			logger.Debug("Successful heartbeat", log.Ctx{"address": address})
+
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(hbState.cluster, "", db.WarningOfflineClusterMember, cluster.TypeNode, int(nodeID))
+			if err != nil {
+				logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+			}
 		} else {
 			logger.Warn("Failed heartbeat", log.Ctx{"address": address, "err": err})
+
+			err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
+			if err != nil {
+				logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			}
 		}
 	}
 

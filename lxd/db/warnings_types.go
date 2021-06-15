@@ -49,6 +49,8 @@ const (
 	WarningProxyBridgeNetfilterNotEnabled
 	// WarningNetworkStartupFailure represents the network startup failure warning
 	WarningNetworkStartupFailure
+	// WarningOfflineClusterMember represents the offline cluster members warning
+	WarningOfflineClusterMember
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -74,6 +76,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningLargerIPv6PrefixThanSupported:          "IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq",
 	WarningProxyBridgeNetfilterNotEnabled:         "Proxy bridge netfilter not enabled",
 	WarningNetworkStartupFailure:                  "Failed to start network",
+	WarningOfflineClusterMember:                   "Offline cluster member",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -129,6 +132,8 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningProxyBridgeNetfilterNotEnabled:
 		return WarningSeverityLow
 	case WarningNetworkStartupFailure:
+		return WarningSeverityLow
+	case WarningOfflineClusterMember:
 		return WarningSeverityLow
 	}
 
