@@ -510,6 +510,10 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, pool
 	availableBackends := c.availableStorageDrivers(poolType)
 
 	if len(availableBackends) == 0 {
+		if poolType != poolTypeAny {
+			return fmt.Errorf("No storage backends available")
+		}
+
 		return fmt.Errorf("No %s storage backends available", poolType)
 	}
 
