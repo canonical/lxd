@@ -432,12 +432,9 @@ func (d *lvm) Validate(config map[string]string) error {
 		"lvm.thinpool_name":          validate.IsAny,
 		"lvm.use_thinpool":           validate.Optional(validate.IsBool),
 		"volume.block.mount_options": validate.IsAny,
-		"volume.block.filesystem": func(value string) error {
-			if value == "" {
-				return nil
-			}
+		"volume.block.filesystem": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, lvmAllowedFilesystems)
-		},
+		}),
 		"volume.lvm.stripes":      validate.Optional(validate.IsUint32),
 		"volume.lvm.stripes.size": validate.Optional(validate.IsSize),
 		"lvm.vg.force_reuse":      validate.Optional(validate.IsBool),
