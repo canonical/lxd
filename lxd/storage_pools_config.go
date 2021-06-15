@@ -66,9 +66,9 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volatile.initial_source": validate.IsAny,
 
 	// valid drivers: ceph, lvm
-	"volume.block.filesystem": func(value string) error {
+	"volume.block.filesystem": validate.Optional(func(value string) error {
 		return validate.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
-	},
+	}),
 	"volume.block.mount_options": validate.IsAny,
 
 	// valid drivers: ceph, lvm
@@ -88,9 +88,9 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 }
 
 func storagePoolValidateConfig(name string, driver string, config map[string]string, oldConfig map[string]string) error {
-	err := func(value string) error {
+	err := validate.Optional(func(value string) error {
 		return validate.IsOneOf(value, storageDrivers.AllDriverNames())
-	}(driver)
+	})(driver)
 	if err != nil {
 		return err
 	}
