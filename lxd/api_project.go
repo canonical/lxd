@@ -217,10 +217,10 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectsPost(d *Daemon, r *http.Request) response.Response {
-	// Parse the request
+	// Parse the request.
 	project := api.ProjectsPost{}
 
-	// Set default features
+	// Set default features.
 	if project.Config == nil {
 		project.Config = map[string]string{}
 	}
@@ -242,7 +242,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Validate the configuration
+	// Validate the configuration.
 	err = projectValidateConfig(d.State(), project.Config)
 	if err != nil {
 		return response.BadRequest(err)
@@ -252,7 +252,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		id, err = tx.CreateProject(project)
 		if err != nil {
-			return errors.Wrap(err, "Add project to database")
+			return errors.Wrap(err, "Failed adding database record")
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
@@ -272,7 +272,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", project.Name, err))
+		return response.SmartError(errors.Wrapf(err, "Failed creating project %q", project.Name))
 	}
 
 	if d.rbac != nil {
@@ -620,7 +620,7 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 func projectPost(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
-	// Parse the request
+	// Parse the request.
 	req := api.ProjectPost{}
 
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -633,22 +633,22 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf("The 'default' project cannot be renamed"))
 	}
 
-	// Perform the rename
+	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			project, err := tx.GetProject(req.Name)
 			if err != nil && err != db.ErrNoSuchObject {
-				return errors.Wrapf(err, "Check if project %q exists", req.Name)
+				return errors.Wrapf(err, "Failed checking if project %q exists", req.Name)
 			}
 
 			if project != nil {
-				return fmt.Errorf("A project named '%s' already exists", req.Name)
+				return fmt.Errorf("A project named %q already exists", req.Name)
 			}
 
 			project, err = tx.GetProject(name)
 			if err != nil {
-				return errors.Wrapf(err, "Fetch project %q", name)
+				return errors.Wrapf(err, "Failed loading project %q", name)
 			}
 
 			if !projectIsEmpty(project) {
@@ -657,10 +657,10 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 			id, err = tx.GetProjectID(name)
 			if err != nil {
-				return errors.Wrapf(err, "Fetch project id %q", name)
+				return errors.Wrapf(err, "Failed getting project ID for project %q", name)
 			}
 
-			err = projectValidateName(name)
+			err = projectValidateName(req.Name)
 			if err != nil {
 				return err
 			}
@@ -910,6 +910,10 @@ func projectValidateName(name string) error {
 		return fmt.Errorf("Project names may not contain spaces")
 	}
 
+	if strings.Contains(name, "_") {
+		return fmt.Errorf("Project names may not contain underscores")
+	}
+
 	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
 		return fmt.Errorf("Project names may not contain quotes")
 	}
@@ -919,7 +923,7 @@ func projectValidateName(name string) error {
 	}
 
 	if shared.StringInSlice(name, []string{".", ".."}) {
-		return fmt.Errorf("Invalid project name '%s'", name)
+		return fmt.Errorf("Invalid project name %q", name)
 	}
 
 	return nil
