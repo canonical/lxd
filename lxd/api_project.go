@@ -660,7 +660,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrapf(err, "Failed getting project ID for project %q", name)
 			}
 
-			err = projectValidateName(name)
+			err = projectValidateName(req.Name)
 			if err != nil {
 				return err
 			}
