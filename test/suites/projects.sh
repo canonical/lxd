@@ -23,8 +23,15 @@ test_projects_crud() {
   # Trying to create a project with the same name fails
   ! lxc project create foo || false
 
-  # Rename the project
+  # Trying to create a project containing an underscore fails
+  ! lxc project create foo_banned || false
+
+  # Rename the project to a banned name fails
+  ! lxc project rename foo bar_banned || false
+
+  # Rename the project and check it occurs
   lxc project rename foo bar
+  lxc project show bar
 
   # Edit the project
   lxc project show bar| sed 's/^description:.*/description: "Bar project"/' | lxc project edit bar
