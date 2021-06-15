@@ -190,21 +190,21 @@ func (n *ovn) Validate(config map[string]string) error {
 		"network":       validate.IsAny,
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
-		"ipv4.address": func(value string) error {
+		"ipv4.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
-			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
-		},
+			return validate.IsNetworkAddressCIDRV4(value)
+		}),
 		"ipv4.dhcp": validate.Optional(validate.IsBool),
-		"ipv6.address": func(value string) error {
+		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
-			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
-		},
+			return validate.IsNetworkAddressCIDRV6(value)
+		}),
 		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
 		"ipv4.nat":           validate.Optional(validate.IsBool),

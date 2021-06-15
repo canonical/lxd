@@ -186,9 +186,9 @@ func (n *bridge) ValidateName(name string) error {
 func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
 	rules := map[string]func(value string) error{
-		"bridge.driver": func(value string) error {
+		"bridge.driver": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"native", "openvswitch"})
-		},
+		}),
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
@@ -201,9 +201,9 @@ func (n *bridge) Validate(config map[string]string) error {
 		}),
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
-		"bridge.mode": func(value string) error {
+		"bridge.mode": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"standard", "fan"})
-		},
+		}),
 
 		"fan.overlay_subnet": validate.Optional(validate.IsNetworkV4),
 		"fan.underlay_subnet": func(value string) error {
@@ -213,22 +213,22 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.Optional(validate.IsNetworkV4)(value)
 		},
-		"fan.type": func(value string) error {
+		"fan.type": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"vxlan", "ipip"})
-		},
+		}),
 
-		"ipv4.address": func(value string) error {
+		"ipv4.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
-			return validate.Optional(validate.IsNetworkAddressCIDRV4)(value)
-		},
+			return validate.IsNetworkAddressCIDRV4(value)
+		}),
 		"ipv4.firewall": validate.Optional(validate.IsBool),
 		"ipv4.nat":      validate.Optional(validate.IsBool),
-		"ipv4.nat.order": func(value string) error {
+		"ipv4.nat.order": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
-		},
+		}),
 		"ipv4.nat.address":  validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp":         validate.Optional(validate.IsBool),
 		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
@@ -238,18 +238,18 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv4.routing":      validate.Optional(validate.IsBool),
 		"ipv4.ovn.ranges":   validate.Optional(validate.IsNetworkRangeV4List),
 
-		"ipv6.address": func(value string) error {
+		"ipv6.address": validate.Optional(func(value string) error {
 			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
 				return nil
 			}
 
-			return validate.Optional(validate.IsNetworkAddressCIDRV6)(value)
-		},
+			return validate.IsNetworkAddressCIDRV6(value)
+		}),
 		"ipv6.firewall": validate.Optional(validate.IsBool),
 		"ipv6.nat":      validate.Optional(validate.IsBool),
-		"ipv6.nat.order": func(value string) error {
+		"ipv6.nat.order": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"before", "after"})
-		},
+		}),
 		"ipv6.nat.address":   validate.Optional(validate.IsNetworkAddressV6),
 		"ipv6.dhcp":          validate.Optional(validate.IsBool),
 		"ipv6.dhcp.expiry":   validate.IsAny,
@@ -260,9 +260,9 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv6.ovn.ranges":    validate.Optional(validate.IsNetworkRangeV6List),
 		"dns.domain":         validate.IsAny,
 		"dns.search":         validate.IsAny,
-		"dns.mode": func(value string) error {
+		"dns.mode": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"dynamic", "managed", "none"})
-		},
+		}),
 		"raw.dnsmasq":      validate.IsAny,
 		"maas.subnet.ipv4": validate.IsAny,
 		"maas.subnet.ipv6": validate.IsAny,
@@ -296,9 +296,9 @@ func (n *bridge) Validate(config map[string]string) error {
 			// Add the correct validation rule for the dynamic field based on last part of key.
 			switch tunnelKey {
 			case "protocol":
-				rules[k] = func(value string) error {
+				rules[k] = validate.Optional(func(value string) error {
 					return validate.IsOneOf(value, []string{"gre", "vxlan"})
-				}
+				})
 			case "local":
 				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "remote":
