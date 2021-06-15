@@ -108,10 +108,6 @@ func IsBool(value string) error {
 
 // IsOneOf checks whether the string is present in the supplied slice of strings.
 func IsOneOf(value string, valid []string) error {
-	if value == "" {
-		return nil
-	}
-
 	if !stringInSlice(value, valid) {
 		return fmt.Errorf("Invalid value %q (not one of %s)", value, valid)
 	}
