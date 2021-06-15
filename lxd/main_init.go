@@ -188,7 +188,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdInit) availableStorageDrivers(poolType string) []string {
+func (c *cmdInit) availableStorageDrivers(poolType poolType) []string {
 	backingFs, err := util.FilesystemDetect(shared.VarPath())
 	if err != nil {
 		backingFs = "dir"
@@ -202,15 +202,15 @@ func (c *cmdInit) availableStorageDrivers(poolType string) []string {
 
 	// Check available backends.
 	for _, driver := range supportedDrivers {
-		if poolType == "remote" && !shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
+		if poolType == poolTypeRemote && !shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
 			continue
 		}
 
-		if poolType == "local" && shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
+		if poolType == poolTypeLocal && shared.StringInSlice(driver.Name, []string{"ceph", "cephfs"}) {
 			continue
 		}
 
-		if poolType == "all" && driver.Name == "cephfs" {
+		if poolType == poolTypeAny && driver.Name == "cephfs" {
 			continue
 		}
 
