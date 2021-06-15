@@ -252,7 +252,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		id, err = tx.CreateProject(project)
 		if err != nil {
-			return errors.Wrap(err, "Add project to database")
+			return errors.Wrap(err, "Failed adding database record")
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
@@ -272,7 +272,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
-		return response.SmartError(fmt.Errorf("Error inserting %s into database: %s", project.Name, err))
+		return response.SmartError(errors.Wrapf(err, "Failed creating project %q", project.Name))
 	}
 
 	if d.rbac != nil {
@@ -643,7 +643,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if project != nil {
-				return fmt.Errorf("A project named '%s' already exists", req.Name)
+				return fmt.Errorf("A project named %q already exists", req.Name)
 			}
 
 			project, err = tx.GetProject(name)
@@ -919,7 +919,7 @@ func projectValidateName(name string) error {
 	}
 
 	if shared.StringInSlice(name, []string{".", ".."}) {
-		return fmt.Errorf("Invalid project name '%s'", name)
+		return fmt.Errorf("Invalid project name %q", name)
 	}
 
 	return nil
