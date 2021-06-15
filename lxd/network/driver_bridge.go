@@ -203,13 +203,13 @@ func (n *bridge) Validate(config map[string]string) error {
 		}),
 
 		"fan.overlay_subnet": validate.Optional(validate.IsNetworkV4),
-		"fan.underlay_subnet": func(value string) error {
+		"fan.underlay_subnet": validate.Optional(func(value string) error {
 			if value == "auto" {
 				return nil
 			}
 
-			return validate.Optional(validate.IsNetworkV4)(value)
-		},
+			return validate.IsNetworkV4(value)
+		}),
 		"fan.type": validate.Optional(func(value string) error {
 			return validate.IsOneOf(value, []string{"vxlan", "ipip"})
 		}),
