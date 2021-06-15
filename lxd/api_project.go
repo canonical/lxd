@@ -639,7 +639,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			project, err := tx.GetProject(req.Name)
 			if err != nil && err != db.ErrNoSuchObject {
-				return errors.Wrapf(err, "Check if project %q exists", req.Name)
+				return errors.Wrapf(err, "Failed checking if project %q exists", req.Name)
 			}
 
 			if project != nil {
@@ -648,7 +648,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 			project, err = tx.GetProject(name)
 			if err != nil {
-				return errors.Wrapf(err, "Fetch project %q", name)
+				return errors.Wrapf(err, "Failed loading project %q", name)
 			}
 
 			if !projectIsEmpty(project) {
@@ -657,7 +657,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 			id, err = tx.GetProjectID(name)
 			if err != nil {
-				return errors.Wrapf(err, "Fetch project id %q", name)
+				return errors.Wrapf(err, "Failed getting project ID for project %q", name)
 			}
 
 			err = projectValidateName(name)
