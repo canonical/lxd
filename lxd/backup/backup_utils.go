@@ -5,10 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/url"
 
-	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -30,18 +27,4 @@ func TarReader(r io.ReadSeeker) (*tar.Reader, context.CancelFunc, error) {
 	}
 
 	return tr, cancelFunc, nil
-}
-
-// Lifecycle emits a backup-specific lifecycle event.
-func Lifecycle(s *state.State, inst Instance, name string, action string, ctx map[string]interface{}) error {
-	_, backupName, _ := shared.InstanceGetParentAndSnapshotName(name)
-
-	prefix := "instance-backup"
-	u := fmt.Sprintf("/1.0/instances/%s/backups/%s", url.PathEscape(inst.Name()), url.PathEscape(backupName))
-
-	if inst.Project() != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(inst.Project()))
-	}
-
-	return s.Events.SendLifecycle(inst.Project(), fmt.Sprintf("%s-%s", prefix, action), u, ctx, nil)
 }
