@@ -952,7 +952,8 @@ func RunCommandWithFds(stdin io.Reader, stdout io.Writer, name string, arg ...st
 		err := RunError{
 			msg: fmt.Sprintf("Failed to run: %s %s: %s", name, strings.Join(arg, " "),
 				strings.TrimSpace(buffer.String())),
-			Err: err,
+			Err:    err,
+			Stderr: buffer.String(),
 		}
 
 		return err
