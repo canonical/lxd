@@ -38,6 +38,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
@@ -327,7 +328,12 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 	}
 
 	d.logger.Info("Created instance", log.Ctx{"ephemeral": d.ephemeral})
-	d.lifecycle("created", nil)
+
+	if d.snapshot {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotCreated.Event(d, nil))
+	} else {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, nil))
+	}
 
 	return d, nil
 }
@@ -536,7 +542,7 @@ func (d *qemu) Freeze() error {
 		return err
 	}
 
-	d.lifecycle("paused", nil)
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstancePaused.Event(d, nil))
 	return nil
 }
 
@@ -636,7 +642,7 @@ func (d *qemu) onStop(target string) error {
 			return err
 		}
 
-		d.lifecycle("restarted", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
 	} else if d.ephemeral {
 		// Reset timeout to 30s.
 		op.Reset()
@@ -650,7 +656,7 @@ func (d *qemu) onStop(target string) error {
 	}
 
 	if op == nil {
-		d.lifecycle("shutdown", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	op.Done(nil)
@@ -737,7 +743,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	if op.Action() == "stop" {
-		d.lifecycle("shutdown", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	return nil
@@ -750,7 +756,7 @@ func (d *qemu) Restart(timeout time.Duration) error {
 		return err
 	}
 
-	d.lifecycle("restarted", nil)
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
 
 	return nil
 }
@@ -1418,7 +1424,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	if op.Action() == "start" {
-		d.lifecycle("started", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
 	return nil
@@ -3256,7 +3262,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	if op.Action() == "stop" {
-		d.lifecycle("stopped", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	return nil
@@ -3276,7 +3282,7 @@ func (d *qemu) Unfreeze() error {
 		return err
 	}
 
-	d.lifecycle("resumed", nil)
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceResumed.Event(d, nil))
 	return nil
 }
 
@@ -3434,7 +3440,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		}
 	}
 
-	d.lifecycle("restored", map[string]interface{}{"snapshot": source.Name()})
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]interface{}{"snapshot": source.Name()}))
 	d.logger.Info("Restored instance", ctxMap)
 	return nil
 }
@@ -3580,7 +3586,12 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	d.logger.Info("Renamed instance", ctxMap)
-	d.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
+
+	if d.snapshot {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+	} else {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+	}
 
 	revert.Success()
 	return nil
@@ -3909,7 +3920,11 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	if userRequested {
-		d.lifecycle("updated", nil)
+		if d.snapshot {
+			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
+		} else {
+			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceUpdated.Event(d, nil))
+		}
 	}
 
 	return nil
@@ -4296,7 +4311,12 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	d.logger.Info("Deleted instance", ctxMap)
-	d.lifecycle("deleted", nil)
+
+	if d.snapshot {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
+	} else {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceDeleted.Event(d, nil))
+	}
 
 	return nil
 }
