@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -176,7 +177,8 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	revert.Success()
-	backup.Lifecycle(s, sourceInst, args.Name, "created", nil)
+	s.Events.SendLifecycle(sourceInst.Project(), lifecycle.InstanceBackupCreated.Event(args.Name, b.Instance(), nil))
+
 	return nil
 }
 
