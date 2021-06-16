@@ -24,6 +24,7 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool, t
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
 		if runningInUserns {
+			// We can't create char/block devices so avoid extracting them.
 			args = append(args, "--wildcards")
 			args = append(args, "--exclude=dev/*")
 			args = append(args, "--exclude=./dev/*")
@@ -76,6 +77,39 @@ func Unpack(file string, path string, blockBackend bool, runningInUserns bool, t
 
 	err = RunCommandWithFds(reader, nil, command, args...)
 	if err != nil {
+		// We can't create char/block devices in unpriv containers so ignore related errors.
+		if runningInUserns && command == "unsquashfs" {
+			runError, ok := err.(RunError)
+			if !ok || runError.Stderr == "" {
+				return err
+			}
+
+			// Confirm that all errors are related to character or block devices.
+			found := false
+			for _, line := range strings.Split(runError.Stderr, "\n") {
+				line = strings.TrimSpace(line)
+				if line == "" {
+					continue
+				}
+
+				if !strings.Contains(line, "failed to create block device") {
+					continue
+				}
+
+				if !strings.Contains(line, "failed to create character device") {
+					continue
+				}
+
+				// We found an actual error.
+				found = true
+			}
+
+			if !found {
+				// All good, assume everything unpacked.
+				return nil
+			}
+		}
+
 		// Check if we ran out of space
 		fs := unix.Statfs_t{}
 
