@@ -3,7 +3,6 @@ package network
 import (
 	"fmt"
 	"net"
-	"net/url"
 	"os"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -272,7 +272,7 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 			return err
 		}
 
-		n.lifecycle("updated", nil)
+		n.state.Events.SendLifecycle(project.Default, lifecycle.NetworkUpdated.Event(n, nil))
 	}
 
 	return nil
@@ -329,7 +329,7 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 // create just sends the needed lifecycle event.
 func (n *common) create(clientType request.ClientType) error {
 	if clientType == request.ClientTypeNormal {
-		n.lifecycle("created", nil)
+		n.state.Events.SendLifecycle(project.Default, lifecycle.NetworkCreated.Event(n, nil))
 	}
 
 	return nil
@@ -360,7 +360,7 @@ func (n *common) rename(newName string) error {
 	oldName := n.name
 	n.name = newName
 
-	n.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
+	n.state.Events.SendLifecycle(project.Default, lifecycle.NetworkRenamed.Event(n, map[string]interface{}{"old_name": oldName}))
 	return nil
 }
 
@@ -373,7 +373,7 @@ func (n *common) delete(clientType request.ClientType) error {
 
 	// Generate lifecycle event if not notification.
 	if clientType != request.ClientTypeNotifier {
-		n.lifecycle("deleted", nil)
+		n.state.Events.SendLifecycle(project.Default, lifecycle.NetworkDeleted.Event(n, nil))
 	}
 
 	return nil
@@ -389,14 +389,6 @@ func (n *common) Create(clientType request.ClientType) error {
 // HandleHeartbeat is a no-op.
 func (n *common) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	return nil
-}
-
-// lifecycle sends a lifecycle event for the network.
-func (n *common) lifecycle(action string, ctx map[string]interface{}) error {
-	prefix := "network"
-	u := fmt.Sprintf("/1.0/networks/%s", url.PathEscape(n.name))
-
-	return n.state.Events.SendLifecycle(project.Default, fmt.Sprintf("%s-%s", prefix, action), u, ctx, nil)
 }
 
 // notifyDependentNetworks allows any dependent networks to apply changes to themselves when this network changes.
