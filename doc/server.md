@@ -19,7 +19,7 @@ candid.api.key                      | string    | global    | -                 
 candid.api.url                      | string    | global    | -                                 | URL of the the external authentication endpoint using Candid
 candid.domains                      | string    | global    | -                                 | Comma-separated list of allowed Candid domains (empty string means all domains are valid)
 candid.expiry                       | integer   | global    | 3600                              | Candid macaroon expiry in seconds
-cluster.https\_address              | string    | local     | -                                 | Address the server should using for clustering traffic
+cluster.https\_address              | string    | local     | -                                 | Address to use for clustering traffic
 cluster.images\_minimal\_replica    | integer   | global    | 3                                 | Minimal numbers of cluster members with a copy of a particular image (set 1 for no replication, -1 for all members)
 cluster.max\_standby                | integer   | global    | 2                                 | Maximum number of cluster members that will be assigned the database stand-by role
 cluster.max\_voters                 | integer   | global    | 3                                 | Maximum number of cluster members that will be assigned the database voter role
