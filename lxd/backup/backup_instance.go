@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -98,7 +99,7 @@ func (b *InstanceBackup) Rename(newName string) error {
 
 	oldName := b.name
 	b.name = newName
-	Lifecycle(b.state, b.instance, b.name, "renamed", map[string]interface{}{"old_name": oldName})
+	b.state.Events.SendLifecycle(b.instance.Project(), lifecycle.InstanceBackupRenamed.Event(b.name, b.instance, map[string]interface{}{"old_name": oldName}))
 	return nil
 }
 
@@ -130,7 +131,8 @@ func (b *InstanceBackup) Delete() error {
 		return err
 	}
 
-	Lifecycle(b.state, b.instance, b.name, "deleted", nil)
+	b.state.Events.SendLifecycle(b.instance.Project(), lifecycle.InstanceBackupDeleted.Event(b.name, b.instance, nil))
+
 	return nil
 }
 
