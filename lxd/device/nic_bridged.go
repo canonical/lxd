@@ -1051,10 +1051,15 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 		addresses = append(addresses, addr)
 	}
 
-	// Get MTU.
+	// Get MTU of host interface if exists.
 	iface, err := net.InterfaceByName(d.config["host_name"])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting host interface state for %q", d.config["host_name"])
+		d.logger.Warn("Failed getting host interface state for MTU", log.Ctx{"host_name": d.config["host_name"], "err": err})
+	}
+
+	mtu := -1
+	if iface != nil {
+		mtu = iface.MTU
 	}
 
 	// Retrieve the host counters, as we report the values from the instance's point of view,
@@ -1074,7 +1079,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 		},
 		Hwaddr:   d.config["hwaddr"],
 		HostName: d.config["host_name"],
-		Mtu:      iface.MTU,
+		Mtu:      mtu,
 		State:    "up",
 		Type:     "broadcast",
 	}
