@@ -122,6 +122,7 @@ var patches = []patch{
 	{name: "db_nodes_autoinc", stage: patchPreDaemonStorage, run: patchDBNodesAutoInc},
 	{name: "network_acl_remove_defaults", stage: patchPostDaemonStorage, run: patchNetworkACLRemoveDefaults},
 	{name: "clustering_server_cert_trust", stage: patchPreDaemonStorage, run: patchClusteringServerCertTrust},
+	{name: "warnings_remove_empty_node", stage: patchPostDaemonStorage, run: patchRemoveWarningsWithEmptyNode},
 }
 
 type patch struct {
@@ -185,6 +186,31 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		warnings, err := tx.GetWarnings()
+		if err != nil {
+			return err
+		}
+
+		for _, w := range warnings {
+			if w.Node == "" {
+				err = tx.DeleteWarning(w.UUID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	clustered, err := cluster.Enabled(d.db)
