@@ -5691,6 +5691,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	}
 	d.logger.Debug("Retrieved PID of executing child process", log.Ctx{"attachedPid": attachedPid})
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, log.Ctx{"command": req.Command}))
+
 	instCmd := &lxcCmd{
 		cmd:              &cmd,
 		attachedChildPid: int(attachedPid),
