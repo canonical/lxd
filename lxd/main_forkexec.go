@@ -292,7 +292,12 @@ __attribute__ ((noinline)) static int __forkexec(void)
 
 	ret = close_range(EXEC_PIPE_FD + 1, UINT_MAX, CLOSE_RANGE_UNSHARE);
 	if (ret) {
-		if (errno == ENOSYS)
+		// Fallback to close_inherited() when the syscall is not
+		// available or when CLOSE_RANGE_UNSHARE isn't supported.
+		// On a regular kernel CLOSE_RANGE_UNSHARE should always be
+		// available but openSUSE Leap 15.3 seems to have a partial
+		// backport without CLOSE_RANGE_UNSHARE support.
+		if (errno == ENOSYS || errno == EINVAL)
 			ret = close_inherited(fds_to_ignore, ARRAY_SIZE(fds_to_ignore));
 	}
 	if (ret)
