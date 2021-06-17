@@ -32,6 +32,7 @@ const (
 	InstanceDeleted   = InstanceAction("deleted")
 	InstanceRenamed   = InstanceAction("renamed")
 	InstanceUpdated   = InstanceAction("updated")
+	InstanceExec      = InstanceAction("exec")
 )
 
 // Event creates the lifecycle event for an action on an instance.
