@@ -1535,7 +1535,8 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Create subprocess object dnsmasq.
-		p, err := subprocess.NewProcess(command, dnsmasqCmd, "", "")
+		dnsmasqLogPath := shared.LogPath(fmt.Sprintf("dnsmasq.%s.log", n.name))
+		p, err := subprocess.NewProcess(command, dnsmasqCmd, "", dnsmasqLogPath)
 		if err != nil {
 			return fmt.Errorf("Failed to create subprocess: %s", err)
 		}
@@ -1567,9 +1568,11 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*time.Duration(500)))
 		_, err = p.Wait(ctx)
 		if errors.Cause(err) != context.DeadlineExceeded {
+			stderr, _ := ioutil.ReadFile(dnsmasqLogPath)
+
 			// Just log an error if dnsmasq has exited, and still proceed with normal setup so we
 			// don't leave the firewall in an inconsistent state.
-			n.logger.Error("The dnsmasq process exited prematurely", log.Ctx{"err": err})
+			n.logger.Error("The dnsmasq process exited prematurely", log.Ctx{"err": err, "stderr": strings.TrimSpace(string(stderr))})
 		}
 		cancel()
 
