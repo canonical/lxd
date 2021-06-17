@@ -149,6 +149,7 @@ type Instance interface {
 
 	// Progress reporting.
 	SetOperation(op *operations.Operation)
+	Operation() *operations.Operation
 
 	DeferTemplateApply(trigger TemplateTrigger) error
 }
