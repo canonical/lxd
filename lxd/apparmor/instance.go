@@ -57,6 +57,54 @@ func InstanceLoad(state *state.State, inst instance) error {
 		}
 	}
 
+	err := instanceProfileGenerate(state, inst)
+	if err != nil {
+		return err
+	}
+
+	err = loadProfile(state, instanceProfileFilename(inst))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InstanceUnload ensures that the instances's policy namespace is unloaded to free kernel memory.
+// This does not delete the policy from disk or cache.
+func InstanceUnload(state *state.State, inst instance) error {
+	if inst.Type() == instancetype.Container {
+		err := deleteNamespace(state, InstanceNamespaceName(inst))
+		if err != nil {
+			return err
+		}
+	}
+
+	err := unloadProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InstanceValidate generates the instance profile file and validates it.
+func InstanceValidate(state *state.State, inst instance) error {
+	err := instanceProfileGenerate(state, inst)
+	if err != nil {
+		return err
+	}
+
+	return parseProfile(state, instanceProfileFilename(inst))
+}
+
+// InstanceDelete removes the policy from cache/disk.
+func InstanceDelete(state *state.State, inst instance) error {
+	return deleteProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
+}
+
+// instanceProfileGenerate generates instance apparmor profile policy file.
+func instanceProfileGenerate(state *state.State, inst instance) error {
 	/* In order to avoid forcing a profile parse (potentially slow) on
 	 * every container start, let's use AppArmor's binary policy cache,
 	 * which checks mtime of the files to figure out if the policy needs to
@@ -86,40 +134,7 @@ func InstanceLoad(state *state.State, inst instance) error {
 		}
 	}
 
-	err = loadProfile(state, instanceProfileFilename(inst))
-	if err != nil {
-		return err
-	}
-
 	return nil
-}
-
-// InstanceUnload ensures that the instances's policy namespace is unloaded to free kernel memory.
-// This does not delete the policy from disk or cache.
-func InstanceUnload(state *state.State, inst instance) error {
-	if inst.Type() == instancetype.Container {
-		err := deleteNamespace(state, InstanceNamespaceName(inst))
-		if err != nil {
-			return err
-		}
-	}
-
-	err := unloadProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// InstanceParse validates the instance profile.
-func InstanceParse(state *state.State, inst instance) error {
-	return parseProfile(state, instanceProfileFilename(inst))
-}
-
-// InstanceDelete removes the policy from cache/disk.
-func InstanceDelete(state *state.State, inst instance) error {
-	return deleteProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
 }
 
 // instanceProfile generates the AppArmor profile template from the given instance.
