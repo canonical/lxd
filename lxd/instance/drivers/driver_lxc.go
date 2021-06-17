@@ -5594,6 +5594,8 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 		cmd.Process.Kill()
 	}()
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, log.Ctx{"type": instance.ConsoleTypeConsole}))
+
 	return ptx, chDisconnect, nil
 }
 
