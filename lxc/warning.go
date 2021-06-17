@@ -59,6 +59,8 @@ type cmdWarningList struct {
 	flagAll     bool
 }
 
+const defaultWarningColumns = "utSscpLl"
+
 func (c *cmdWarningList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("list", i18n.G("[<remote>:]"))
@@ -85,7 +87,7 @@ Column shorthand chars:
     u - UUID
     t - Type`))
 
-	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", "utSscpLl", i18n.G("Columns")+"``")
+	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultWarningColumns, i18n.G("Columns")+"``")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 	cmd.Flags().BoolVarP(&c.flagAll, "all", "a", false, i18n.G("List all warnings")+"``")
 
