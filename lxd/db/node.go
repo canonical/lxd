@@ -37,6 +37,12 @@ const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 // only contain LXD-specific cluster roles.
 var ClusterRoles = map[int]ClusterRole{}
 
+// Numeric type codes identifying different cluster member states.
+const (
+	ClusterMemberStateCreated = 0
+	ClusterMemberStatePending = 1
+)
+
 // NodeInfo holds information about a single LXD instance in a cluster.
 type NodeInfo struct {
 	ID            int64     // Stable node identifier
@@ -48,6 +54,7 @@ type NodeInfo struct {
 	Heartbeat     time.Time // Timestamp of the last heartbeat
 	Roles         []string  // List of cluster roles
 	Architecture  int       // Node architecture
+	State         int       // Node state
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -453,16 +460,17 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 			&nodes[i].APIExtensions,
 			&nodes[i].Heartbeat,
 			&nodes[i].Architecture,
+			&nodes[i].State,
 		}
 	}
 	if pending {
-		args = append([]interface{}{1}, args...)
+		args = append([]interface{}{ClusterMemberStatePending}, args...)
 	} else {
-		args = append([]interface{}{0}, args...)
+		args = append([]interface{}{ClusterMemberStateCreated}, args...)
 	}
 
 	// Get the node entries
-	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat, arch FROM nodes WHERE pending=?"
+	sql = "SELECT id, name, address, description, schema, api_extensions, heartbeat, arch, state FROM nodes WHERE state=?"
 	if where != "" {
 		sql += fmt.Sprintf("AND %s ", where)
 	}
@@ -516,7 +524,7 @@ func (c *ClusterTx) SetNodePendingFlag(id int64, pending bool) error {
 	if pending {
 		value = 1
 	}
-	result, err := c.tx.Exec("UPDATE nodes SET pending=? WHERE id=?", value, id)
+	result, err := c.tx.Exec("UPDATE nodes SET state=? WHERE id=?", value, id)
 	if err != nil {
 		return err
 	}
