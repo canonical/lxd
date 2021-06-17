@@ -4780,6 +4780,8 @@ func (d *qemu) console() (*os.File, chan error, error) {
 		vmConsoleLock.Unlock()
 	}()
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, log.Ctx{"type": instance.ConsoleTypeConsole}))
+
 	return console, chDisconnect, nil
 }
 
@@ -4795,6 +4797,8 @@ func (d *qemu) vga() (*os.File, chan error, error) {
 		return nil, nil, errors.Wrap(err, "Get socket file")
 	}
 	conn.Close()
+
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, log.Ctx{"type": instance.ConsoleTypeVGA}))
 
 	return file, nil, nil
 }
