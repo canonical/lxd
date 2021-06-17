@@ -3862,6 +3862,14 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	// If apparmor changed, re-validate the apparmor profile (even if not running).
+	if shared.StringInSlice("raw.apparmor", changedConfig) {
+		err = apparmor.InstanceValidate(d.state, d)
+		if err != nil {
+			return errors.Wrap(err, "Parse AppArmor profile")
+		}
+	}
+
 	isRunning := d.IsRunning()
 
 	// Use the device interface to apply update changes.
