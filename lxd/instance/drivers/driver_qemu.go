@@ -4947,6 +4947,8 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		controlResCh:     controlResCh,
 	}
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, log.Ctx{"command": req.Command}))
+
 	revert.Success()
 	return instCmd, nil
 }
