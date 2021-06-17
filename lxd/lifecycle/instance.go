@@ -36,6 +36,7 @@ const (
 	InstanceConsole       = InstanceAction("console")
 	InstanceFileRetrieved = InstanceAction("file-retrieved")
 	InstanceFilePushed    = InstanceAction("file-pushed")
+	InstanceFileDeleted   = InstanceAction("file-deleted")
 )
 
 // Event creates the lifecycle event for an action on an instance.
