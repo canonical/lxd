@@ -135,7 +135,7 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Process the columns
-	columns, err := c.parseColumns()
+	columns, err := c.parseColumns(remoteServer.IsClustered())
 	if err != nil {
 		return err
 	}
@@ -200,17 +200,27 @@ func (c *cmdWarningList) uuidColumnData(warning api.Warning) string {
 	return warning.UUID
 }
 
-func (c *cmdWarningList) parseColumns() ([]warningColumn, error) {
+func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 	columnsShorthandMap := map[rune]warningColumn{
 		'c': {i18n.G("COUNT"), c.countColumnData},
 		'f': {i18n.G("FIRST SEEN"), c.firstSeenColumnData},
 		'l': {i18n.G("LAST SEEN"), c.lastSeenColumnData},
-		'L': {i18n.G("LOCATION"), c.locationColumnData},
 		'p': {i18n.G("PROJECT"), c.projectColumnData},
 		's': {i18n.G("SEVERITY"), c.severityColumnData},
 		'S': {i18n.G("STATUS"), c.statusColumnData},
 		't': {i18n.G("TYPE"), c.typeColumnData},
 		'u': {i18n.G("UUID"), c.uuidColumnData},
+	}
+
+	if clustered {
+		columnsShorthandMap['L'] = warningColumn{i18n.G("LOCATION"), c.locationColumnData}
+	} else {
+		if c.flagColumns != defaultWarningColumns {
+			if strings.ContainsAny(c.flagColumns, "L") {
+				return nil, fmt.Errorf(i18n.G("Can't specify column L when not clustered"))
+			}
+		}
+		c.flagColumns = strings.Replace(c.flagColumns, "L", "", -1)
 	}
 
 	columnList := strings.Split(c.flagColumns, ",")
