@@ -57,33 +57,9 @@ func InstanceLoad(state *state.State, inst instance) error {
 		}
 	}
 
-	/* In order to avoid forcing a profile parse (potentially slow) on
-	 * every container start, let's use AppArmor's binary policy cache,
-	 * which checks mtime of the files to figure out if the policy needs to
-	 * be regenerated.
-	 *
-	 * Since it uses mtimes, we shouldn't just always write out our local
-	 * AppArmor template; instead we should check to see whether the
-	 * template is the same as ours. If it isn't we should write our
-	 * version out so that the new changes are reflected and we definitely
-	 * force a recompile.
-	 */
-	profile := filepath.Join(aaPath, "profiles", instanceProfileFilename(inst))
-	content, err := ioutil.ReadFile(profile)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	updated, err := instanceProfile(state, inst)
+	err := instanceProfileGenerate(state, inst)
 	if err != nil {
 		return err
-	}
-
-	if string(content) != string(updated) {
-		err = ioutil.WriteFile(profile, []byte(updated), 0600)
-		if err != nil {
-			return err
-		}
 	}
 
 	err = loadProfile(state, instanceProfileFilename(inst))
@@ -120,6 +96,40 @@ func InstanceParse(state *state.State, inst instance) error {
 // InstanceDelete removes the policy from cache/disk.
 func InstanceDelete(state *state.State, inst instance) error {
 	return deleteProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
+}
+
+// instanceProfileGenerate generates instance apparmor profile policy file.
+func instanceProfileGenerate(state *state.State, inst instance) error {
+	/* In order to avoid forcing a profile parse (potentially slow) on
+	 * every container start, let's use AppArmor's binary policy cache,
+	 * which checks mtime of the files to figure out if the policy needs to
+	 * be regenerated.
+	 *
+	 * Since it uses mtimes, we shouldn't just always write out our local
+	 * AppArmor template; instead we should check to see whether the
+	 * template is the same as ours. If it isn't we should write our
+	 * version out so that the new changes are reflected and we definitely
+	 * force a recompile.
+	 */
+	profile := filepath.Join(aaPath, "profiles", instanceProfileFilename(inst))
+	content, err := ioutil.ReadFile(profile)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	updated, err := instanceProfile(state, inst)
+	if err != nil {
+		return err
+	}
+
+	if string(content) != string(updated) {
+		err = ioutil.WriteFile(profile, []byte(updated), 0600)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // instanceProfile generates the AppArmor profile template from the given instance.
