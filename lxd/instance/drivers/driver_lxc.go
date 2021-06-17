@@ -4053,9 +4053,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		return err
 	}
 
-	// If apparmor changed, re-validate the apparmor profile
+	// If apparmor changed, re-validate the apparmor profile (even if not running).
 	if shared.StringInSlice("raw.apparmor", changedConfig) || shared.StringInSlice("security.nesting", changedConfig) {
-		err = apparmor.InstanceParse(d.state, d)
+		err = apparmor.InstanceValidate(d.state, d)
 		if err != nil {
 			return errors.Wrap(err, "Parse AppArmor profile")
 		}
