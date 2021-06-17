@@ -88,8 +88,13 @@ func InstanceUnload(state *state.State, inst instance) error {
 	return nil
 }
 
-// InstanceParse validates the instance profile.
-func InstanceParse(state *state.State, inst instance) error {
+// InstanceValidate generates the instance profile file and validates it.
+func InstanceValidate(state *state.State, inst instance) error {
+	err := instanceProfileGenerate(state, inst)
+	if err != nil {
+		return err
+	}
+
 	return parseProfile(state, instanceProfileFilename(inst))
 }
 
