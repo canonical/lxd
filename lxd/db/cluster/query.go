@@ -43,9 +43,13 @@ func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
 		return []interface{}{&versions[i][0], &versions[i][1]}
 	}
 
-	stmt, err := tx.Prepare("SELECT schema, api_extensions FROM nodes WHERE pending=0")
+	stmt, err := tx.Prepare("SELECT schema, api_extensions FROM nodes WHERE state=0")
 	if err != nil {
-		return nil, err
+		// In order to make cluster updates work, let's check for "pending" as well as that's the column's previous name.
+		stmt, err = tx.Prepare("SELECT schema, api_extensions FROM nodes WHERE pending=0")
+		if err != nil {
+			return nil, err
+		}
 	}
 	defer stmt.Close()
 	err = query.SelectObjects(stmt, dest)
