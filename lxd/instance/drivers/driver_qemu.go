@@ -5547,6 +5547,11 @@ func (d *qemu) Info() instance.Info {
 		Error: fmt.Errorf("Unknown error"),
 	}
 
+	if !shared.PathExists("/dev/kvm") {
+		data.Error = fmt.Errorf("KVM support is missing")
+		return data
+	}
+
 	hostArch, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
 		data.Error = fmt.Errorf("Failed getting architecture")
