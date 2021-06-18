@@ -28,7 +28,14 @@ func NewTestState(t *testing.T) (*State, func()) {
 		osCleanup()
 	}
 
-	state := NewState(context.TODO(), node, cluster, nil, os, nil, nil, nil, firewall.New(), nil, nil, func() {})
+	state := &State{
+		Context:                context.TODO(),
+		Node:                   node,
+		Cluster:                cluster,
+		OS:                     os,
+		Firewall:               firewall.New(),
+		UpdateCertificateCache: func() {},
+	}
 
 	return state, cleanup
 }
