@@ -5543,31 +5543,37 @@ func (d *qemu) writeInstanceData() error {
 // Info returns "qemu" and the currently loaded qemu version.
 func (d *qemu) Info() instance.Info {
 	data := instance.Info{
-		Name: "qemu",
+		Name:  "qemu",
+		Error: fmt.Errorf("Unknown error"),
 	}
 
 	hostArch, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
+		data.Error = fmt.Errorf("Failed getting architecture")
 		return data
 	}
 
 	qemuPath, _, err := d.qemuArchConfig(hostArch)
 	if err != nil {
+		data.Error = fmt.Errorf("QEMU command not available for architecture")
 		return data
 	}
 
 	out, err := exec.Command(qemuPath, "--version").Output()
 	if err != nil {
+		data.Error = fmt.Errorf("Failed getting QEMU version")
 		return data
 	}
 
 	qemuOutput := strings.Fields(string(out))
-	if len(qemuOutput) < 4 {
-		data.Version = "unknown"
-		return data
+	if len(qemuOutput) >= 4 {
+		qemuVersion := strings.Fields(string(out))[3]
+		data.Version = qemuVersion
+	} else {
+		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
-	qemuVersion := strings.Fields(string(out))[3]
-	data.Version = qemuVersion
+	data.Error = nil
+
 	return data
 }
