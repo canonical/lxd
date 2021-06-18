@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -95,8 +94,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	chError := make(chan error, 1)
 
 	handler := func(event api.Event) {
-		// Special handling for logging and lifecycle output
-		if c.flagPretty && !shared.StringInSlice("operation", c.flagType) {
+		if c.flagPretty {
 			format := logging.TerminalFormat()
 			record, err := event.ToLogging()
 			if err != nil {
