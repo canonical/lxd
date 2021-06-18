@@ -539,7 +539,7 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, op)
 		}
 
-		return pool.CreateCustomVolumeFromCopy(projectName, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
+		return pool.CreateCustomVolumeFromCopy(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
 	}
 
 	// If no source name supplied then this a volume create operation.
@@ -1020,7 +1020,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
-		err = newPool.CreateCustomVolumeFromCopy(projectName, newVol.Name, "", nil, pool.Name(), vol.Name, false, op)
+		err = newPool.CreateCustomVolumeFromCopy(projectName, projectName, newVol.Name, "", nil, pool.Name(), vol.Name, false, op)
 		if err != nil {
 			return err
 		}
