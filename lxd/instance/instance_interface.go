@@ -182,4 +182,5 @@ type CriuMigrationArgs struct {
 type Info struct {
 	Name    string // Name of an instance driver, e.g. "lxc"
 	Version string // Version number of a loaded instance driver
+	Error   error  // Whether there is an operational impediment.
 }
