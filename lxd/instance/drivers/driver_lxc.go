@@ -6728,5 +6728,6 @@ func (d *lxc) Info() instance.Info {
 	return instance.Info{
 		Name:    "lxc",
 		Version: liblxc.Version(),
+		Error:   nil,
 	}
 }
