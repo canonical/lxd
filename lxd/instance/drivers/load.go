@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// Instance driver definitions.
 var instanceDrivers = map[string]func() instance.Instance{
 	"lxc":  func() instance.Instance { return &lxc{} },
 	"qemu": func() instance.Instance { return &qemu{} },
