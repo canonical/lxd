@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -14,12 +15,18 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var instanceDrivers = map[string]func() instance.Instance{
 	"lxc":  func() instance.Instance { return &lxc{} },
 	"qemu": func() instance.Instance { return &qemu{} },
 }
+
+// Supported instance types cache variables.
+var supportedInstanceTypesMu sync.Mutex
+var supportedInstanceTypes map[instancetype.Type]instance.Info
 
 func init() {
 	// Expose load to the instance package, to avoid circular imports.
@@ -103,14 +110,30 @@ func create(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (inst
 	return nil, fmt.Errorf("Instance type invalid")
 }
 
-// SupportedInstanceDrivers returns a slice of Info structs for all supported drivers
-func SupportedInstanceDrivers() []instance.Info {
-	supportedDrivers := make([]instance.Info, 0, len(instanceDrivers))
+// SupportedInstanceTypes returns a map of Info structs for all operational instance type drivers.
+// The first time this function is called each of the instance drivers will be probed for support and the result
+// will be cached internally to make subsequent calls faster.
+func SupportedInstanceTypes() map[instancetype.Type]instance.Info {
+	supportedInstanceTypesMu.Lock()
+	defer supportedInstanceTypesMu.Unlock()
 
-	for _, instanceDriver := range instanceDrivers {
-		driver := instanceDriver()
-		supportedDrivers = append(supportedDrivers, driver.Info())
+	if supportedInstanceTypes != nil {
+		return supportedInstanceTypes
 	}
 
-	return supportedDrivers
+	supportedInstanceTypes = make(map[instancetype.Type]instance.Info, len(instanceDrivers))
+
+	for _, instanceDriver := range instanceDrivers {
+		driverInfo := instanceDriver().Info()
+
+		if driverInfo.Error != nil || driverInfo.Version == "" {
+			logger.Warn("Instance type not operational", log.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
+
+			continue
+		}
+
+		supportedInstanceTypes[driverInfo.Type] = driverInfo
+	}
+
+	return supportedInstanceTypes
 }
