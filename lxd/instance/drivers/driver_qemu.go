@@ -4776,6 +4776,8 @@ func (d *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int
 		return err
 	}
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFilePushed.Event(d, log.Ctx{"file-source": srcPath, "file-destination": dstPath, "info": args}))
+
 	return nil
 }
 
