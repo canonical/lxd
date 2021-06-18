@@ -43,6 +43,7 @@ import (
 
 	// Import instance/drivers without name so init() runs.
 	_ "github.com/lxc/lxd/lxd/instance/drivers"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
@@ -398,6 +399,14 @@ func (d *Daemon) State() *state.State {
 	// If the daemon is shutting down, the context will be cancelled.
 	// This information will be available throughout the code, and can be used to prevent new
 	// operations from starting during shutdown.
+
+	// Build a list of supported instance types.
+	supportedInstanceTypesInfo := instanceDrivers.SupportedInstanceTypes()
+	supportedInstanceTypes := make(map[instancetype.Type]struct{}, len(supportedInstanceTypesInfo))
+	for instanceType := range supportedInstanceTypesInfo {
+		supportedInstanceTypes[instanceType] = struct{}{}
+	}
+
 	return &state.State{
 		Context:                d.ctx,
 		Node:                   d.db,
@@ -411,6 +420,7 @@ func (d *Daemon) State() *state.State {
 		Proxy:                  d.proxy,
 		ServerCert:             d.serverCert,
 		UpdateCertificateCache: func() { updateCertificateCache(d) },
+		InstanceTypes:          supportedInstanceTypes,
 	}
 }
 
@@ -843,6 +853,9 @@ func (d *Daemon) init() error {
 			logger.Infof(" - shiftfs support: no")
 		}
 	}
+
+	// Detect and cached available instance types from operational drivers.
+	instanceDrivers.SupportedInstanceTypes()
 
 	// Validate the devices storage.
 	testDev := shared.VarPath("devices", ".test")
