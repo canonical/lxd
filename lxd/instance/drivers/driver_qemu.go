@@ -5544,6 +5544,7 @@ func (d *qemu) writeInstanceData() error {
 func (d *qemu) Info() instance.Info {
 	data := instance.Info{
 		Name:  "qemu",
+		Type:  instancetype.VM,
 		Error: fmt.Errorf("Unknown error"),
 	}
 
