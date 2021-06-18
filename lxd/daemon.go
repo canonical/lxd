@@ -38,23 +38,21 @@ import (
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/request"
-	"github.com/lxc/lxd/lxd/ucred"
-	"github.com/lxc/lxd/lxd/warnings"
-
-	// Import instance/drivers without name so init() runs.
-	_ "github.com/lxc/lxd/lxd/instance/drivers"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
+	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
@@ -401,6 +399,14 @@ func (d *Daemon) State() *state.State {
 	// If the daemon is shutting down, the context will be cancelled.
 	// This information will be available throughout the code, and can be used to prevent new
 	// operations from starting during shutdown.
+
+	// Build a list of supported instance types.
+	supportedInstanceTypesInfo := instanceDrivers.SupportedInstanceTypes()
+	supportedInstanceTypes := make(map[instancetype.Type]struct{}, len(supportedInstanceTypesInfo))
+	for instanceType := range supportedInstanceTypesInfo {
+		supportedInstanceTypes[instanceType] = struct{}{}
+	}
+
 	return &state.State{
 		Context:                d.ctx,
 		Node:                   d.db,
@@ -414,6 +420,7 @@ func (d *Daemon) State() *state.State {
 		Proxy:                  d.proxy,
 		ServerCert:             d.serverCert,
 		UpdateCertificateCache: func() { updateCertificateCache(d) },
+		InstanceTypes:          supportedInstanceTypes,
 	}
 }
 
@@ -882,6 +889,9 @@ func (d *Daemon) init() error {
 			logger.Infof(" - shiftfs support: no")
 		}
 	}
+
+	// Detect and cached available instance types from operational drivers.
+	instanceDrivers.SupportedInstanceTypes()
 
 	// Validate the devices storage.
 	testDev := shared.VarPath("devices", ".test")
