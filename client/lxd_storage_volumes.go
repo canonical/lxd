@@ -410,7 +410,25 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	req.Description = volume.Description
 	req.ContentType = volume.ContentType
 
-	if r == source {
+	sourceInfo, err := source.GetConnectionInfo()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get source connection info: %v", err)
+	}
+
+	destInfo, err := r.GetConnectionInfo()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get destination connection info: %v", err)
+	}
+
+	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath {
+		// Project handling
+		if destInfo.Project != sourceInfo.Project {
+			if !r.HasExtension("storage_api_project") {
+				return nil, fmt.Errorf("The server is missing the required \"storage_api_project\" API extension")
+			}
+			req.Source.Project = sourceInfo.Project
+		}
+
 		// Send the request
 		op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s", url.PathEscape(pool), url.PathEscape(volume.Type)), req, "")
 		if err != nil {
