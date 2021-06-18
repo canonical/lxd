@@ -80,7 +80,7 @@ type Pool interface {
 
 	// Custom volumes.
 	CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, op *operations.Operation) error
-	CreateCustomVolumeFromCopy(projectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error
+	CreateCustomVolumeFromCopy(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error
 	UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	RenameCustomVolume(projectName string, volName string, newVolName string, op *operations.Operation) error
 	DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error
