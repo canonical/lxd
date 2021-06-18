@@ -21,6 +21,9 @@ import (
 // and the operating system. It's typically used by model entities such as
 // containers, volumes, etc. in order to perform changes.
 type State struct {
+	// Context
+	Context context.Context
+
 	// Databases
 	Node    *db.Node
 	Cluster *db.Cluster
@@ -45,6 +48,4 @@ type State struct {
 	// Server certificate
 	ServerCert             func() *shared.CertInfo
 	UpdateCertificateCache func()
-
-	Context context.Context
 }
