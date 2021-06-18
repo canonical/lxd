@@ -48,22 +48,3 @@ type State struct {
 
 	Context context.Context
 }
-
-// NewState returns a new State object with the given database and operating
-// system components.
-func NewState(ctx context.Context, node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server, firewall firewall.Firewall, proxy func(req *http.Request) (*url.URL, error), serverCert func() *shared.CertInfo, updateCertificateCache func()) *State {
-	return &State{
-		Node:                   node,
-		Cluster:                cluster,
-		MAAS:                   maas,
-		OS:                     os,
-		Endpoints:              endpoints,
-		DevlxdEvents:           devlxdEvents,
-		Events:                 events,
-		Firewall:               firewall,
-		Proxy:                  proxy,
-		Context:                ctx,
-		ServerCert:             serverCert,
-		UpdateCertificateCache: updateCertificateCache,
-	}
-}
