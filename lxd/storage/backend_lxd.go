@@ -2518,13 +2518,17 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 
 // CreateCustomVolumeFromCopy creates a custom volume from an existing custom volume.
 // It copies the snapshots from the source volume by default, but can be disabled if requested.
-func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "srcVolOnly": srcVolOnly})
+func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "srcVolOnly": srcVolOnly})
 	logger.Debug("CreateCustomVolumeFromCopy started")
 	defer logger.Debug("CreateCustomVolumeFromCopy finished")
 
 	if b.Status() == api.StoragePoolStatusPending {
 		return fmt.Errorf("Specified pool is not fully created")
+	}
+
+	if srcProjectName == "" {
+		srcProjectName = projectName
 	}
 
 	// Setup the source pool backend instance.
@@ -2548,7 +2552,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	}
 
 	// Check source volume exists and is custom type.
-	_, srcVolRow, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, srcVolName, db.StoragePoolVolumeTypeCustom, srcPool.ID())
+	_, srcVolRow, err := b.state.Cluster.GetLocalStoragePoolVolume(srcProjectName, srcVolName, db.StoragePoolVolumeTypeCustom, srcPool.ID())
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			return fmt.Errorf("Source volume doesn't exist")
@@ -2570,7 +2574,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	snapshotNames := []string{}
 	if !srcVolOnly {
-		snapshots, err := VolumeSnapshotsGet(b.state, projectName, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
+		snapshots, err := VolumeSnapshotsGet(b.state, srcProjectName, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -2600,7 +2604,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 		vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, volStorageName, config)
 
 		// Get the src volume name on storage.
-		srcVolStorageName := project.StorageVolume(projectName, srcVolName)
+		srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
 		srcVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, srcVolStorageName, srcVolRow.Config)
 
 		// Check the supplied config and remove any fields not relevant for pool type.
@@ -2661,7 +2665,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, volName stri
 	aEndErrCh := make(chan error, 1)
 	bEndErrCh := make(chan error, 1)
 	go func() {
-		err := srcPool.MigrateCustomVolume(projectName, aEnd, &migration.VolumeSourceArgs{
+		err := srcPool.MigrateCustomVolume(srcProjectName, aEnd, &migration.VolumeSourceArgs{
 			Name:          srcVolName,
 			Snapshots:     snapshotNames,
 			MigrationType: migrationTypes[0],
