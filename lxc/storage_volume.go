@@ -292,8 +292,9 @@ type cmdStorageVolumeCopy struct {
 	storage       *cmdStorage
 	storageVolume *cmdStorageVolume
 
-	flagMode       string
-	flagVolumeOnly bool
+	flagMode          string
+	flagVolumeOnly    bool
+	flagTargetProject string
 }
 
 func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
@@ -307,6 +308,7 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagVolumeOnly, "volume-only", false, i18n.G("Copy the volume without its snapshots"))
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -356,6 +358,10 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	mode := "pull"
 	if c.flagMode != "" {
 		mode = c.flagMode
+	}
+
+	if c.flagTargetProject != "" {
+		dstServer = dstServer.UseProject(c.flagTargetProject)
 	}
 
 	var op lxd.RemoteOperation
@@ -1235,6 +1241,7 @@ func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.storageVolumeCopy.flagMode, "mode", "pull", i18n.G("Transfer mode, one of pull (default), push or relay")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.storageVolumeCopy.flagTargetProject, "target-project", "", i18n.G("Move to a project different from the source")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
