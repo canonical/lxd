@@ -4801,6 +4801,7 @@ func (d *qemu) FileRemove(path string) error {
 		return err
 	}
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileDeleted.Event(d, log.Ctx{"file": path}))
 	return nil
 }
 
