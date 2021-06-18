@@ -1387,3 +1387,6 @@ the proxy server.
 ## clustering\_update\_cert
 Adds `PUT /1.0/cluster/certificate` endpoint for updating the cluster
 certificate across the whole cluster
+
+## storage\_api\_project
+This adds support for copy/move custom storage volumes between projects.
