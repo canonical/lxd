@@ -4682,6 +4682,8 @@ func (d *qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMo
 		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, resp.Entries, nil
 	}
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileRetrieved.Event(d, log.Ctx{"file-source": srcPath, "file-destination": dstPath}))
+
 	return 0, 0, 0, "", nil, fmt.Errorf("bad file type %s", resp.Type)
 }
 
