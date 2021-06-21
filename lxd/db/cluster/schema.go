@@ -347,7 +347,7 @@ CREATE TABLE nodes (
     schema INTEGER NOT NULL,
     api_extensions INTEGER NOT NULL,
     heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
-    pending INTEGER NOT NULL DEFAULT 0,
+    state INTEGER NOT NULL DEFAULT 0,
     arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0),
     failure_domain_id INTEGER DEFAULT NULL REFERENCES nodes_failure_domains (id) ON DELETE SET NULL,
     UNIQUE (name),
@@ -657,5 +657,5 @@ CREATE TABLE warnings (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (48, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (49, strftime("%s"))
 `
