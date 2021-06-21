@@ -71,6 +71,30 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			Ctx:  ctx,
 		}
 		return record, nil
+	} else if event.Type == "operation" {
+		e := &Operation{}
+		err := json.Unmarshal(event.Metadata, &e)
+		if err != nil {
+			return EventLogRecord{}, err
+		}
+
+		record := EventLogRecord{
+			Time: event.Timestamp,
+			Lvl:  "info",
+			Msg:  fmt.Sprintf("ID: %s, Class: %s, Description: %s", e.ID, e.Class, e.Description),
+			Ctx: []interface{}{
+				"CreatedAt", e.CreatedAt,
+				"UpdatedAt", e.UpdatedAt,
+				"Status", e.Status,
+				"StatusCode", e.StatusCode,
+				"Resources", e.Resources,
+				"Metadata", e.Metadata,
+				"MayCancel", e.MayCancel,
+				"Err", e.Err,
+				"Location", e.Location,
+			},
+		}
+		return record, nil
 	}
 
 	return EventLogRecord{}, fmt.Errorf("Not supported event type: %s", event.Type)
