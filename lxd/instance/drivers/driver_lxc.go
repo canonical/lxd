@@ -2876,7 +2876,6 @@ func (d *lxc) onStopNS(args map[string]string) error {
 // onStop is triggered by LXC's post-stop hook once a container is shutdown and after the
 // container's namespaces have been closed.
 func (d *lxc) onStop(args map[string]string) error {
-	var err error
 	target := args["target"]
 
 	// Validate target
@@ -2885,33 +2884,14 @@ func (d *lxc) onStop(args map[string]string) error {
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
 
-	// Pick up the existing stop operation lock created in Stop() function.
-	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
-		return fmt.Errorf("Container is already running a %s operation", op.Action())
-	}
-
-	if op == nil && target == "reboot" {
-		op, err = operationlock.Create(d.id, "restart", false, false)
-		if err != nil {
-			return errors.Wrap(err, "Create restart operation")
-		}
+	// Create/pick up operation.
+	op, err := d.onStopOperationSetup(target)
+	if err != nil {
+		return err
 	}
 
 	// Make sure we can't call go-lxc functions by mistake
 	d.fromHook = true
-
-	// Log user actions
-	ctxMap := log.Ctx{
-		"action":    target,
-		"created":   d.creationDate,
-		"ephemeral": d.ephemeral,
-		"used":      d.lastUsedDate,
-		"stateful":  false}
-
-	if op == nil {
-		d.logger.Debug("Container initiated", ctxMap)
-	}
 
 	// Record power state
 	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
@@ -2978,6 +2958,14 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Log and emit lifecycle if not user triggered
 		if op == nil {
+			ctxMap := log.Ctx{
+				"action":    target,
+				"created":   d.creationDate,
+				"ephemeral": d.ephemeral,
+				"used":      d.lastUsedDate,
+				"stateful":  false,
+			}
+
 			d.logger.Info("Shut down container", ctxMap)
 			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
 		}
