@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
+	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -308,19 +309,18 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		"shiftfs":                   fmt.Sprintf("%v", d.os.Shiftfs),
 	}
 
-	instanceDrivers := readInstanceDriversCache()
-	for driver, version := range instanceDrivers {
+	for _, driverInfo := range instanceDrivers.SupportedInstanceTypes() {
 		if env.Driver != "" {
-			env.Driver = env.Driver + " | " + driver
+			env.Driver = env.Driver + " | " + driverInfo.Name
 		} else {
-			env.Driver = driver
+			env.Driver = driverInfo.Name
 		}
 
 		// Get the version of the instance drivers in use.
 		if env.DriverVersion != "" {
-			env.DriverVersion = env.DriverVersion + " | " + version
+			env.DriverVersion = env.DriverVersion + " | " + driverInfo.Version
 		} else {
-			env.DriverVersion = version
+			env.DriverVersion = driverInfo.Version
 		}
 	}
 
