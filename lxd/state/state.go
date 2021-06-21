@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
@@ -21,6 +22,9 @@ import (
 // and the operating system. It's typically used by model entities such as
 // containers, volumes, etc. in order to perform changes.
 type State struct {
+	// Context
+	Context context.Context
+
 	// Databases
 	Node    *db.Node
 	Cluster *db.Cluster
@@ -46,24 +50,6 @@ type State struct {
 	ServerCert             func() *shared.CertInfo
 	UpdateCertificateCache func()
 
-	Context context.Context
-}
-
-// NewState returns a new State object with the given database and operating
-// system components.
-func NewState(ctx context.Context, node *db.Node, cluster *db.Cluster, maas *maas.Controller, os *sys.OS, endpoints *endpoints.Endpoints, events *events.Server, devlxdEvents *events.Server, firewall firewall.Firewall, proxy func(req *http.Request) (*url.URL, error), serverCert func() *shared.CertInfo, updateCertificateCache func()) *State {
-	return &State{
-		Node:                   node,
-		Cluster:                cluster,
-		MAAS:                   maas,
-		OS:                     os,
-		Endpoints:              endpoints,
-		DevlxdEvents:           devlxdEvents,
-		Events:                 events,
-		Firewall:               firewall,
-		Proxy:                  proxy,
-		Context:                ctx,
-		ServerCert:             serverCert,
-		UpdateCertificateCache: updateCertificateCache,
-	}
+	// Available instance types based on operational drivers.
+	InstanceTypes map[instancetype.Type]struct{}
 }

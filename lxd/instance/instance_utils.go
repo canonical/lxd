@@ -920,6 +920,11 @@ func ValidName(instanceName string, isSnapshot bool) error {
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
 // revert's Fail() or Success() function as needed.
 func CreateInternal(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error) {
+	// Check instance type requested is supported by this machine.
+	if _, supported := s.InstanceTypes[args.Type]; !supported {
+		return nil, fmt.Errorf("Instance type %q is not supported on this server", args.Type)
+	}
+
 	// Set default values.
 	if args.Project == "" {
 		args.Project = project.Default
