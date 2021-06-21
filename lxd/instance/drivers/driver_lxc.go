@@ -2861,6 +2861,12 @@ func (d *lxc) onStopNS(args map[string]string) error {
 		return fmt.Errorf("Invalid stop target %q", target)
 	}
 
+	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
+	_, err := d.onStopOperationSetup(target)
+	if err != nil {
+		return err
+	}
+
 	// Clean up devices.
 	d.cleanupDevices(false, netns)
 
