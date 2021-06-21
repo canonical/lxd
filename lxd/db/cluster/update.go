@@ -87,6 +87,20 @@ var updates = map[int]schema.Update{
 	46: updateFromV45,
 	47: updateFromV46,
 	48: updateFromV47,
+	49: updateFromV48,
+}
+
+// updateFromV48 renames the "pending" column to "state" in the "nodes" table.
+func updateFromV48(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+ALTER TABLE nodes
+RENAME COLUMN pending TO state;
+`)
+	if err != nil {
+		return errors.Wrap(err, `Failed to rename column "pending" to "state" in table "nodes"`)
+	}
+
+	return nil
 }
 
 // updateFromV47 adds warnings
