@@ -14,9 +14,10 @@ type InstanceBackupAction string
 
 // All supported lifecycle events for instance backups.
 const (
-	InstanceBackupCreated = InstanceBackupAction("created")
-	InstanceBackupDeleted = InstanceBackupAction("deleted")
-	InstanceBackupRenamed = InstanceBackupAction("renamed")
+	InstanceBackupCreated   = InstanceBackupAction("created")
+	InstanceBackupDeleted   = InstanceBackupAction("deleted")
+	InstanceBackupRenamed   = InstanceBackupAction("renamed")
+	InstanceBackupRetrieved = InstanceBackupAction("retrieved")
 )
 
 // Event creates the lifecycle event for an action on an instance backup.
