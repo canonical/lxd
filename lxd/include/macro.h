@@ -34,6 +34,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
