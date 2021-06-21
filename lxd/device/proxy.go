@@ -237,19 +237,9 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			if err != nil {
 				return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(forkproxyargs, " "), err)
 			}
+
 			for _, file := range proxyValues.inheritFds {
 				file.Close()
-			}
-
-			err = p.Save(pidPath)
-			if err != nil {
-				// Kill Process if started, but could not save the file
-				err2 := p.Stop()
-				if err != nil {
-					return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
-				}
-
-				return fmt.Errorf("Failed to save subprocess details: %s", err)
 			}
 
 			// Poll log file a few times until we see "Started" to indicate successful start.
@@ -261,6 +251,17 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 				}
 
 				if started {
+					err = p.Save(pidPath)
+					if err != nil {
+						// Kill Process if started, but could not save the file
+						err2 := p.Stop()
+						if err != nil {
+							return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
+						}
+
+						return fmt.Errorf("Failed to save subprocess details: %s", err)
+					}
+
 					return nil
 				}
 
