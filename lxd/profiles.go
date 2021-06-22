@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -436,6 +437,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
+
 	return response.SmartError(err)
 }
 
@@ -553,6 +556,8 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
 
 	return response.SmartError(doProfileUpdate(d, projectName, name, id, profile, req))
 }
