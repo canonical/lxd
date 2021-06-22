@@ -73,6 +73,9 @@ func (c *cmdConfig) Command() *cobra.Command {
 	configUnsetCmd := cmdConfigUnset{global: c.global, config: c, configSet: &configSetCmd}
 	cmd.AddCommand(configUnsetCmd.Command())
 
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
 	return cmd
 }
 
