@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -612,6 +613,8 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	ent := response.FileResponseEntry{
 		Path: shared.VarPath("backups", "instances", project.Instance(projectName, backup.Name())),
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(name, backup.Instance(), nil))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }
