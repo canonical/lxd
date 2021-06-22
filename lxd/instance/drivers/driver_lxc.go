@@ -2323,10 +2323,13 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 
 // Start starts the instance.
 func (d *lxc) Start(stateful bool) error {
-	// Check that we're not already running before creating an operation lock, so if the container is in the
+	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
+
+	// Check that we're not already running before creating an operation lock, so if the instance is in the
 	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
 	if d.IsRunning() {
-		return fmt.Errorf("The container is already running")
+		return fmt.Errorf("The instance is already running")
 	}
 
 	var ctxMap log.Ctx
@@ -2582,7 +2585,13 @@ func (d *lxc) onStart(_ map[string]string) error {
 
 // Stop functions
 func (d *lxc) Stop(stateful bool) error {
-	var ctxMap log.Ctx
+	d.logger.Debug("Stop started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Stop finished", log.Ctx{"stateful": stateful})
+
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
 
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
@@ -2594,14 +2603,7 @@ func (d *lxc) Stop(stateful bool) error {
 		return nil
 	}
 
-	// Check that we're not already stopped
-	if !d.IsRunning() {
-		err = fmt.Errorf("The container is already stopped")
-		op.Done(err)
-		return err
-	}
-
-	ctxMap = log.Ctx{
+	ctxMap := log.Ctx{
 		"action":    op.Action(),
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2723,7 +2725,13 @@ func (d *lxc) Stop(stateful bool) error {
 
 // Shutdown stops the instance.
 func (d *lxc) Shutdown(timeout time.Duration) error {
-	var ctxMap log.Ctx
+	d.logger.Debug("Shutdown started", log.Ctx{"timeout": timeout})
+	defer d.logger.Debug("Shutdown finished", log.Ctx{"timeout": timeout})
+
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
 
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
@@ -2743,14 +2751,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		}
 	}
 
-	// Check that we're not already stopped
-	if !d.IsRunning() {
-		err = fmt.Errorf("The container is already stopped")
-		op.Done(err)
-		return err
-	}
-
-	ctxMap = log.Ctx{
+	ctxMap := log.Ctx{
 		"action":    "shutdown",
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
