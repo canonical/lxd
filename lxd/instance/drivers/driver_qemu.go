@@ -577,13 +577,10 @@ func (d *qemu) onStop(target string) error {
 		return err
 	}
 
-	// Reset timeout to 30s.
-	op.Reset()
-
 	// Wait for QEMU process to end (to avoiding racing start when restarting).
-	// Wait up to 20s to allow for flushing any pending data to disk.
+	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
-	waitDuration := time.Duration(time.Second * time.Duration(20))
+	waitDuration := time.Duration(time.Minute * time.Duration(5))
 	waitUntil := time.Now().Add(waitDuration)
 	for {
 		pid, _ := d.pid()
@@ -597,6 +594,7 @@ func (d *qemu) onStop(target string) error {
 			break // Continue clean up as best we can.
 		}
 
+		op.Reset() // Reset timeout to 30s.
 		time.Sleep(time.Millisecond * time.Duration(100))
 	}
 
