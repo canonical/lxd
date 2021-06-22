@@ -1975,11 +1975,6 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, errors.Wrap(err, "Load go-lxc struct")
 	}
 
-	// Check that we're not already running
-	if d.IsRunning() {
-		return "", nil, fmt.Errorf("The container is already running")
-	}
-
 	// Load any required kernel modules
 	kernelModules := d.expandedConfig["linux.kernel_modules"]
 	if kernelModules != "" {
@@ -2328,6 +2323,12 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 
 // Start starts the instance.
 func (d *lxc) Start(stateful bool) error {
+	// Check that we're not already running before creating an operation lock, so if the container is in the
+	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
+	if d.IsRunning() {
+		return fmt.Errorf("The container is already running")
+	}
+
 	var ctxMap log.Ctx
 
 	// Setup a new operation
@@ -4943,6 +4944,11 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	 * here and do the extra fork.
 	 */
 	if args.Cmd == liblxc.MIGRATE_RESTORE {
+		// Check that we're not already running.
+		if d.IsRunning() {
+			return fmt.Errorf("The container is already running")
+		}
+
 		// Run the shared start
 		_, postStartHooks, err := d.startCommon()
 		if err != nil {
