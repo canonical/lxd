@@ -574,28 +574,16 @@ func (d *qemu) onStop(target string) error {
 	d.logger.Debug("onStop hook started", log.Ctx{"target": target})
 	defer d.logger.Debug("onStop hook finished", log.Ctx{"target": target})
 
-	var err error
-
-	// Pick up the existing stop operation lock created in Stop() function.
-	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
-		return fmt.Errorf("Instance is already running a %s operation", op.Action())
+	// Create/pick up operation.
+	op, err := d.onStopOperationSetup(target)
+	if err != nil {
+		return err
 	}
-
-	if op == nil && target == "reboot" {
-		op, err = operationlock.Create(d.id, "restart", false, false)
-		if err != nil {
-			return errors.Wrap(err, "Create restart operation")
-		}
-	}
-
-	// Reset timeout to 30s.
-	op.Reset()
 
 	// Wait for QEMU process to end (to avoiding racing start when restarting).
-	// Wait up to 20s to allow for flushing any pending data to disk.
+	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
-	waitDuration := time.Duration(time.Second * time.Duration(20))
+	waitDuration := time.Duration(time.Minute * time.Duration(5))
 	waitUntil := time.Now().Add(waitDuration)
 	for {
 		pid, _ := d.pid()
@@ -609,6 +597,7 @@ func (d *qemu) onStop(target string) error {
 			break // Continue clean up as best we can.
 		}
 
+		op.Reset() // Reset timeout to 30s.
 		time.Sleep(time.Millisecond * time.Duration(100))
 	}
 
@@ -892,7 +881,8 @@ func (d *qemu) Start(stateful bool) error {
 	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
 
-	// Must be run prior to creating the operation lock.
+	// Check that we're not already running before creating an operation lock, so if the instance is in the
+	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
 	if d.IsRunning() {
 		return fmt.Errorf("The instance is already running")
 	}
@@ -902,7 +892,7 @@ func (d *qemu) Start(stateful bool) error {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
 	}
 
-	// Setup a new operation
+	// Setup a new operation.
 	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create instance start operation")

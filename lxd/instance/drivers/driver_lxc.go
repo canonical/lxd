@@ -2323,10 +2323,13 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 
 // Start starts the instance.
 func (d *lxc) Start(stateful bool) error {
-	// Check that we're not already running before creating an operation lock, so if the container is in the
+	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
+
+	// Check that we're not already running before creating an operation lock, so if the instance is in the
 	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
 	if d.IsRunning() {
-		return fmt.Errorf("The container is already running")
+		return fmt.Errorf("The instance is already running")
 	}
 
 	var ctxMap log.Ctx
@@ -2582,7 +2585,13 @@ func (d *lxc) onStart(_ map[string]string) error {
 
 // Stop functions
 func (d *lxc) Stop(stateful bool) error {
-	var ctxMap log.Ctx
+	d.logger.Debug("Stop started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Stop finished", log.Ctx{"stateful": stateful})
+
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
 
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
@@ -2594,14 +2603,7 @@ func (d *lxc) Stop(stateful bool) error {
 		return nil
 	}
 
-	// Check that we're not already stopped
-	if !d.IsRunning() {
-		err = fmt.Errorf("The container is already stopped")
-		op.Done(err)
-		return err
-	}
-
-	ctxMap = log.Ctx{
+	ctxMap := log.Ctx{
 		"action":    op.Action(),
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2723,7 +2725,13 @@ func (d *lxc) Stop(stateful bool) error {
 
 // Shutdown stops the instance.
 func (d *lxc) Shutdown(timeout time.Duration) error {
-	var ctxMap log.Ctx
+	d.logger.Debug("Shutdown started", log.Ctx{"timeout": timeout})
+	defer d.logger.Debug("Shutdown finished", log.Ctx{"timeout": timeout})
+
+	// Must be run prior to creating the operation lock.
+	if !d.IsRunning() {
+		return fmt.Errorf("The instance is already stopped")
+	}
 
 	// Setup a new operation
 	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
@@ -2743,14 +2751,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		}
 	}
 
-	// Check that we're not already stopped
-	if !d.IsRunning() {
-		err = fmt.Errorf("The container is already stopped")
-		op.Done(err)
-		return err
-	}
-
-	ctxMap = log.Ctx{
+	ctxMap := log.Ctx{
 		"action":    "shutdown",
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
@@ -2815,39 +2816,6 @@ func (d *lxc) Restart(timeout time.Duration) error {
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
 
 	return nil
-}
-
-// onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
-// ensure that a lock on their activities is held before the liblxc container is stopped. This prevents a start
-// request run at the same time from overlapping with the stop process.
-func (d *lxc) onStopOperationSetup(target string) (*operationlock.InstanceOperation, error) {
-	var err error
-
-	// Pick up the existing stop operation lock created in Stop() function.
-	// If there is another ongoing operation (such as start), wait until that has finished before proceeding
-	// to run the hook (this should be quick as it will fail showing instance is already running).
-	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
-		d.logger.Debug("Waiting for existing operation to finish before running hook", log.Ctx{"opAction": op.Action()})
-		op.Wait()
-		op = nil
-	}
-
-	if op == nil {
-		d.logger.Debug("Container initiated stop", log.Ctx{"action": target})
-
-		action := "stop"
-		if target == "reboot" {
-			action = "restart"
-		}
-
-		op, err = operationlock.Create(d.id, action, false, false)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed creating %s operation", action)
-		}
-	}
-
-	return op, nil
 }
 
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
