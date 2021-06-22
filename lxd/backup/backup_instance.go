@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -16,6 +17,7 @@ import (
 type Instance interface {
 	Name() string
 	Project() string
+	Operation() *operations.Operation
 }
 
 // InstanceBackup represents an instance backup.
@@ -45,6 +47,11 @@ func NewInstanceBackup(state *state.State, inst Instance, ID int, name string, c
 // InstanceOnly returns whether only the instance itself is to be backed up.
 func (b *InstanceBackup) InstanceOnly() bool {
 	return b.instanceOnly
+}
+
+// Instance returns the instance to be backed up.
+func (b *InstanceBackup) Instance() Instance {
+	return b.instance
 }
 
 // Rename renames an instance backup.
