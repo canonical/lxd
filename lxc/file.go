@@ -88,6 +88,9 @@ func (c *cmdFile) Command() *cobra.Command {
 	fileEditCmd := cmdFileEdit{global: c.global, file: c, filePull: &filePullCmd, filePush: &filePushCmd}
 	cmd.AddCommand(fileEditCmd.Command())
 
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
 	return cmd
 }
 
