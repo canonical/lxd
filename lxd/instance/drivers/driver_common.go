@@ -159,7 +159,7 @@ func (d *common) IsSnapshot() bool {
 	return d.snapshot
 }
 
-// IsStateful retuens whether instance is stateful or not.
+// IsStateful returns whether instance is stateful or not.
 func (d *common) IsStateful() bool {
 	return d.stateful
 }
