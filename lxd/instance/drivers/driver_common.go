@@ -164,6 +164,11 @@ func (d *common) IsStateful() bool {
 	return d.stateful
 }
 
+// Operation returns the instance's current operation.
+func (d *common) Operation() *operations.Operation {
+	return d.op
+}
+
 //
 // SECTION: general functions
 //
