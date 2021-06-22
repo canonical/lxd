@@ -571,19 +571,10 @@ func (d *qemu) onStop(target string) error {
 	d.logger.Debug("onStop hook started", log.Ctx{"target": target})
 	defer d.logger.Debug("onStop hook finished", log.Ctx{"target": target})
 
-	var err error
-
-	// Pick up the existing stop operation lock created in Stop() function.
-	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
-		return fmt.Errorf("Instance is already running a %s operation", op.Action())
-	}
-
-	if op == nil && target == "reboot" {
-		op, err = operationlock.Create(d.id, "restart", false, false)
-		if err != nil {
-			return errors.Wrap(err, "Create restart operation")
-		}
+	// Create/pick up operation.
+	op, err := d.onStopOperationSetup(target)
+	if err != nil {
+		return err
 	}
 
 	// Reset timeout to 30s.
