@@ -691,5 +691,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileDeleted.Event(name, projectName, nil))
+
 	return response.EmptySyncResponse
 }
