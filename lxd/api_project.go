@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -20,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -266,6 +268,8 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 	}
+
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectCreated.Event(project.Name, log.Ctx{"project": project}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
 }
