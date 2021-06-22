@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -25,6 +26,10 @@ const iptablesChainNICFilterPrefix = "lxd_nic"
 
 // iptablesChainACLFilterPrefix chain used for ACL specific filtering rules.
 const iptablesChainACLFilterPrefix = "lxd_acl"
+
+// ebtablesMu used for locking concurrent operations against ebtables.
+// As its own locking mechanism isn't always available.
+var ebtablesMu sync.Mutex
 
 // Xtables is an implmentation of LXD firewall using {ip, ip6, eb}tables
 type Xtables struct{}
@@ -127,7 +132,10 @@ func (d Xtables) iptablesInUse(iptablesCmd string) bool {
 
 // ebtablesInUse returns whether the ebtables backend command has any rules defined.
 func (d Xtables) ebtablesInUse() bool {
-	cmd := exec.Command("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
+	ebtablesMu.Lock()
+	defer ebtablesMu.Unlock()
+
+	cmd := exec.Command("ebtables", "-L", "--Lmac2", "--Lx")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return false
@@ -776,12 +784,16 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4, IPv6)
+
+	ebtablesMu.Lock()
 	for _, rule := range rules {
-		_, err := shared.RunCommand(rule[0], append([]string{"--concurrent"}, rule[1:]...)...)
+		_, err := shared.RunCommand(rule[0], rule[1:]...)
 		if err != nil {
+			ebtablesMu.Unlock()
 			return err
 		}
 	}
+	ebtablesMu.Unlock()
 
 	rules, err := d.generateFilterIptablesRules(parentName, hostName, hwAddr, IPv6, parentManaged)
 	if err != nil {
@@ -807,14 +819,17 @@ func (d Xtables) InstanceSetupBridgeFilter(projectName string, instanceName stri
 func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
-	// Get a current list of rules active on the host.
-	out, err := shared.RunCommand("ebtables", "--concurrent", "-L", "--Lmac2", "--Lx")
-	if err != nil {
-		return errors.Wrapf(err, "Failed to get a list of network filters to for %q", deviceName)
-	}
-
 	// Get a list of rules that we would have applied on instance start.
 	rules := d.generateFilterEbtablesRules(hostName, hwAddr, IPv4, IPv6)
+
+	ebtablesMu.Lock()
+
+	// Get a current list of rules active on the host.
+	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
+	if err != nil {
+		ebtablesMu.Unlock()
+		return errors.Wrapf(err, "Failed to get a list of network filters to for %q", deviceName)
+	}
 
 	errs := []error{}
 	// Iterate through each active rule on the host and try and match it to one the LXD rules.
@@ -836,12 +851,14 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 
 			// If we get this far, then the current host rule matches one of our LXD
 			// rules, so we should run the modified command to delete it.
-			_, err = shared.RunCommand(fields[0], append([]string{"--concurrent"}, fields[1:]...)...)
+			_, err = shared.RunCommand(fields[0], fields[1:]...)
 			if err != nil {
 				errs = append(errs, err)
 			}
 		}
 	}
+
+	ebtablesMu.Unlock()
 
 	// Remove any ip6tables rules added as part of bridge filtering.
 	err = d.iptablesClear(6, comment, "filter")
