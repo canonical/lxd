@@ -17,11 +17,13 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -259,6 +261,8 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileCreated.Event(req.Name, projectName, nil))
+
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
@@ -433,6 +437,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
+
 	return response.SmartError(err)
 }
 
@@ -551,6 +557,8 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
+
 	return response.SmartError(doProfileUpdate(d, projectName, name, id, profile, req))
 }
 
@@ -628,6 +636,8 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileRenamed.Event(req.Name, projectName, log.Ctx{"old-name": name, "new-name": req.Name}))
+
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
 
@@ -680,6 +690,8 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileDeleted.Event(name, projectName, nil))
 
 	return response.EmptySyncResponse
 }
