@@ -881,7 +881,8 @@ func (d *qemu) Start(stateful bool) error {
 	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
 
-	// Must be run prior to creating the operation lock.
+	// Check that we're not already running before creating an operation lock, so if the instance is in the
+	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
 	if d.IsRunning() {
 		return fmt.Errorf("The instance is already running")
 	}
@@ -891,7 +892,7 @@ func (d *qemu) Start(stateful bool) error {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
 	}
 
-	// Setup a new operation
+	// Setup a new operation.
 	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create instance start operation")
