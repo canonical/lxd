@@ -406,6 +406,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, log.Ctx{"project": project}))
+
 	return projectChange(d, project, req)
 }
 
@@ -497,6 +499,8 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	}
+
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, log.Ctx{"project": project}))
 
 	return projectChange(d, project, req)
 }
