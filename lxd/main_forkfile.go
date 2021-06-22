@@ -500,6 +500,9 @@ func (c *cmdForkfile) Command() *cobra.Command {
 	cmdRemove.RunE = c.Run
 	cmd.AddCommand(cmdRemove)
 
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
 	return cmd
 }
 
