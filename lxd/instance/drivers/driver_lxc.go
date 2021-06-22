@@ -5595,6 +5595,8 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 		cmd.Process.Kill()
 	}()
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, log.Ctx{"type": instance.ConsoleTypeConsole}))
+
 	return ptx, chDisconnect, nil
 }
 
@@ -5691,6 +5693,8 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		return nil, fmt.Errorf("Failed to retrieve PID of executing child process")
 	}
 	d.logger.Debug("Retrieved PID of executing child process", log.Ctx{"attachedPid": attachedPid})
+
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, log.Ctx{"command": req.Command}))
 
 	instCmd := &lxcCmd{
 		cmd:              &cmd,
