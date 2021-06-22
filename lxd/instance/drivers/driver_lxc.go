@@ -35,6 +35,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -352,7 +353,11 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 	}
 
 	d.logger.Info("Created container", log.Ctx{"ephemeral": d.ephemeral})
-	d.lifecycle("created", nil)
+	if d.snapshot {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotCreated.Event(d, nil))
+	} else {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceCreated.Event(d, nil))
+	}
 
 	return d, nil
 }
@@ -2406,7 +2411,7 @@ func (d *lxc) Start(stateful bool) error {
 
 		if op.Action() == "start" {
 			d.logger.Info("Started container", ctxMap)
-			d.lifecycle("started", nil)
+			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStarted.Event(d, nil))
 		}
 		return nil
 	} else if d.stateful {
@@ -2482,7 +2487,7 @@ func (d *lxc) Start(stateful bool) error {
 
 	if op.Action() == "start" {
 		d.logger.Info("Started container", ctxMap)
-		d.lifecycle("started", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStarted.Event(d, nil))
 	}
 
 	return nil
@@ -2648,7 +2653,7 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 
 		d.logger.Info("Stopped container", ctxMap)
-		d.lifecycle("stopped", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
 
 		return nil
 	} else if shared.PathExists(d.StatePath()) {
@@ -2709,7 +2714,7 @@ func (d *lxc) Stop(stateful bool) error {
 
 	if op.Action() == "stop" {
 		d.logger.Info("Stopped container", ctxMap)
-		d.lifecycle("stopped", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
 	return nil
@@ -2783,7 +2788,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 
 	if op.Action() == "stop" {
 		d.logger.Info("Shut down container", ctxMap)
-		d.lifecycle("shutdown", nil)
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
 	return nil
@@ -2806,7 +2811,7 @@ func (d *lxc) Restart(timeout time.Duration) error {
 	}
 
 	d.logger.Info("Restarted container", ctxMap)
-	d.lifecycle("restarted", nil)
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
 
 	return nil
 }
@@ -2935,7 +2940,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		// Log and emit lifecycle if not user triggered
 		if op == nil {
 			d.logger.Info("Shut down container", ctxMap)
-			d.lifecycle("shutdown", nil)
+			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
 		}
 
 		// Reboot the container
@@ -2946,8 +2951,8 @@ func (d *lxc) onStop(args map[string]string) error {
 				op.Done(errors.Wrap(err, "Failed restarting container"))
 				return
 			}
+			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestarted.Event(d, nil))
 
-			d.lifecycle("restarted", nil)
 			return
 		}
 
@@ -3034,7 +3039,7 @@ func (d *lxc) Freeze() error {
 	}
 
 	d.logger.Info("Froze container", ctxMap)
-	d.lifecycle("paused", nil)
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstancePaused.Event(d, nil))
 
 	return err
 }
@@ -3082,7 +3087,7 @@ func (d *lxc) Unfreeze() error {
 	}
 
 	d.logger.Info("Unfroze container", ctxMap)
-	d.lifecycle("resumed", nil)
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceResumed.Event(d, nil))
 
 	return err
 }
@@ -3505,8 +3510,9 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 	}
 
-	d.lifecycle("restored", map[string]interface{}{"snapshot": sourceContainer.Name()})
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]interface{}{"snapshot": sourceContainer.Name()}))
 	d.logger.Info("Restored container", ctxMap)
+
 	return nil
 }
 
@@ -3646,7 +3652,11 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	d.logger.Info("Deleted container", ctxMap)
-	d.lifecycle("deleted", nil)
+	if d.snapshot {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotDeleted.Event(d, nil))
+	} else {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceDeleted.Event(d, nil))
+	}
 
 	return nil
 }
@@ -3800,7 +3810,11 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	d.logger.Info("Renamed container", ctxMap)
-	d.lifecycle("renamed", map[string]interface{}{"old_name": oldName})
+	if d.snapshot {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+	} else {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+	}
 
 	revert.Success()
 	return nil
@@ -4513,7 +4527,11 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	undoChanges = false
 
 	if userRequested {
-		d.lifecycle("updated", nil)
+		if d.snapshot {
+			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotUpdated.Event(d, nil))
+		} else {
+			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceUpdated.Event(d, nil))
+		}
 	}
 
 	return nil
