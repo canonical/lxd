@@ -26,6 +26,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -829,4 +830,37 @@ func (d *common) maasDelete(inst instance.Instance) error {
 	}
 
 	return d.state.MAAS.DeleteContainer(d)
+}
+
+// onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
+// ensure that a lock on their activities is held before the instance process is stopped. This prevents a start
+// request run at the same time from overlapping with the stop process.
+func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOperation, error) {
+	var err error
+
+	// Pick up the existing stop operation lock created in Stop() function.
+	// If there is another ongoing operation (such as start), wait until that has finished before proceeding
+	// to run the hook (this should be quick as it will fail showing instance is already running).
+	op := operationlock.Get(d.id)
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
+		d.logger.Debug("Waiting for existing operation to finish before running hook", log.Ctx{"opAction": op.Action()})
+		op.Wait()
+		op = nil
+	}
+
+	if op == nil {
+		d.logger.Debug("Instance initiated stop", log.Ctx{"action": target})
+
+		action := "stop"
+		if target == "reboot" {
+			action = "restart"
+		}
+
+		op, err = operationlock.Create(d.id, action, false, false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating %s operation", action)
+		}
+	}
+
+	return op, nil
 }
