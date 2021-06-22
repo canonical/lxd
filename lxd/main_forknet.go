@@ -150,6 +150,9 @@ func (c *cmdForknet) Command() *cobra.Command {
 	cmdDetach.RunE = c.RunDetach
 	cmd.AddCommand(cmdDetach)
 
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
 	return cmd
 }
 

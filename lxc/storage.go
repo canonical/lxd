@@ -73,6 +73,9 @@ func (c *cmdStorage) Command() *cobra.Command {
 	storageVolumeCmd := cmdStorageVolume{global: c.global, storage: c}
 	cmd.AddCommand(storageVolumeCmd.Command())
 
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
 	return cmd
 }
 
