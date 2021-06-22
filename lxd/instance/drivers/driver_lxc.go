@@ -1975,11 +1975,6 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, errors.Wrap(err, "Load go-lxc struct")
 	}
 
-	// Check that we're not already running
-	if d.IsRunning() {
-		return "", nil, fmt.Errorf("The container is already running")
-	}
-
 	// Load any required kernel modules
 	kernelModules := d.expandedConfig["linux.kernel_modules"]
 	if kernelModules != "" {
@@ -2328,6 +2323,12 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 
 // Start starts the instance.
 func (d *lxc) Start(stateful bool) error {
+	// Check that we're not already running before creating an operation lock, so if the container is in the
+	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
+	if d.IsRunning() {
+		return fmt.Errorf("The container is already running")
+	}
+
 	var ctxMap log.Ctx
 
 	// Setup a new operation
@@ -2816,6 +2817,39 @@ func (d *lxc) Restart(timeout time.Duration) error {
 	return nil
 }
 
+// onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
+// ensure that a lock on their activities is held before the liblxc container is stopped. This prevents a start
+// request run at the same time from overlapping with the stop process.
+func (d *lxc) onStopOperationSetup(target string) (*operationlock.InstanceOperation, error) {
+	var err error
+
+	// Pick up the existing stop operation lock created in Stop() function.
+	// If there is another ongoing operation (such as start), wait until that has finished before proceeding
+	// to run the hook (this should be quick as it will fail showing instance is already running).
+	op := operationlock.Get(d.id)
+	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
+		d.logger.Debug("Waiting for existing operation to finish before running hook", log.Ctx{"opAction": op.Action()})
+		op.Wait()
+		op = nil
+	}
+
+	if op == nil {
+		d.logger.Debug("Container initiated stop", log.Ctx{"action": target})
+
+		action := "stop"
+		if target == "reboot" {
+			action = "restart"
+		}
+
+		op, err = operationlock.Create(d.id, action, false, false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed creating %s operation", action)
+		}
+	}
+
+	return op, nil
+}
+
 // onStopNS is triggered by LXC's stop hook once a container is shutdown but before the container's
 // namespaces have been closed. The netns path of the stopped container is provided.
 func (d *lxc) onStopNS(args map[string]string) error {
@@ -2828,6 +2862,12 @@ func (d *lxc) onStopNS(args map[string]string) error {
 		return fmt.Errorf("Invalid stop target %q", target)
 	}
 
+	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
+	_, err := d.onStopOperationSetup(target)
+	if err != nil {
+		return err
+	}
+
 	// Clean up devices.
 	d.cleanupDevices(false, netns)
 
@@ -2837,7 +2877,6 @@ func (d *lxc) onStopNS(args map[string]string) error {
 // onStop is triggered by LXC's post-stop hook once a container is shutdown and after the
 // container's namespaces have been closed.
 func (d *lxc) onStop(args map[string]string) error {
-	var err error
 	target := args["target"]
 
 	// Validate target
@@ -2846,33 +2885,14 @@ func (d *lxc) onStop(args map[string]string) error {
 		return fmt.Errorf("Invalid stop target: %s", target)
 	}
 
-	// Pick up the existing stop operation lock created in Stop() function.
-	op := operationlock.Get(d.id)
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
-		return fmt.Errorf("Container is already running a %s operation", op.Action())
-	}
-
-	if op == nil && target == "reboot" {
-		op, err = operationlock.Create(d.id, "restart", false, false)
-		if err != nil {
-			return errors.Wrap(err, "Create restart operation")
-		}
+	// Create/pick up operation.
+	op, err := d.onStopOperationSetup(target)
+	if err != nil {
+		return err
 	}
 
 	// Make sure we can't call go-lxc functions by mistake
 	d.fromHook = true
-
-	// Log user actions
-	ctxMap := log.Ctx{
-		"action":    target,
-		"created":   d.creationDate,
-		"ephemeral": d.ephemeral,
-		"used":      d.lastUsedDate,
-		"stateful":  false}
-
-	if op == nil {
-		d.logger.Debug("Container initiated", ctxMap)
-	}
 
 	// Record power state
 	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
@@ -2939,6 +2959,14 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Log and emit lifecycle if not user triggered
 		if op == nil {
+			ctxMap := log.Ctx{
+				"action":    target,
+				"created":   d.creationDate,
+				"ephemeral": d.ephemeral,
+				"used":      d.lastUsedDate,
+				"stateful":  false,
+			}
+
 			d.logger.Info("Shut down container", ctxMap)
 			d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
 		}
@@ -4916,6 +4944,11 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 	 * here and do the extra fork.
 	 */
 	if args.Cmd == liblxc.MIGRATE_RESTORE {
+		// Check that we're not already running.
+		if d.IsRunning() {
+			return fmt.Errorf("The container is already running")
+		}
+
 		// Run the shared start
 		_, postStartHooks, err := d.startCommon()
 		if err != nil {
