@@ -36,6 +36,9 @@ func (c *cmdOperation) Command() *cobra.Command {
 	operationShowCmd := cmdOperationShow{global: c.global, operation: c}
 	cmd.AddCommand(operationShowCmd.Command())
 
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
 	return cmd
 }
 
