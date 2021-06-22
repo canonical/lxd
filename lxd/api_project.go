@@ -754,6 +754,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	d.State().Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, nil))
+
 	return response.EmptySyncResponse
 }
 
