@@ -511,7 +511,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		// Trigger a rename in the Ceph driver.
 		err = pool.MigrateInstance(inst, nil, &args, op)
 		if err != nil {
-			return errors.Wrap(err, "Failed to rename ceph RBD volume")
+			return errors.Wrap(err, "Failed to migrate ceph RBD volume")
 		}
 
 		// Re-link the database entries against the new node name.
