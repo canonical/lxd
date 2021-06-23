@@ -5386,6 +5386,8 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 		}
 	}
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileRetrieved.Event(d, log.Ctx{"file-source": srcpath, "file-destination": dstpath}))
+
 	return uid, gid, os.FileMode(mode), fileType, dirEnts, nil
 }
 
