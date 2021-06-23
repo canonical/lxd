@@ -5386,6 +5386,8 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 		}
 	}
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileRetrieved.Event(d, log.Ctx{"file-source": srcpath, "file-destination": dstpath}))
+
 	return uid, gid, os.FileMode(mode), fileType, dirEnts, nil
 }
 
@@ -5476,6 +5478,9 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 		return err
 	}
 
+	ctx := log.Ctx{"file-source": srcpath, "file-destination": dstpath, "gid": gid, "mode": mode, "file-type": fileType, "uid": uid, "write-mode": write}
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFilePushed.Event(d, ctx))
+
 	return nil
 }
 
@@ -5537,6 +5542,7 @@ func (d *lxc) FileRemove(path string) error {
 		return err
 	}
 
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileDeleted.Event(d, log.Ctx{"file": path}))
 	return nil
 }
 
