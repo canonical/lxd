@@ -380,7 +380,7 @@ func (n *bridge) Create(clientType request.ClientType) error {
 		return fmt.Errorf("Network interface %q already exists", n.name)
 	}
 
-	return n.common.create(clientType)
+	return nil
 }
 
 // isRunning returns whether the network is up.
