@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -271,8 +270,6 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 		if err != nil {
 			return err
 		}
-
-		n.state.Events.SendLifecycle(project.Default, lifecycle.NetworkUpdated.Event(n, nil))
 	}
 
 	return nil
@@ -348,10 +345,7 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
-	oldName := n.name
 	n.name = newName
-
-	n.state.Events.SendLifecycle(project.Default, lifecycle.NetworkRenamed.Event(n, map[string]interface{}{"old_name": oldName}))
 	return nil
 }
 
@@ -360,11 +354,6 @@ func (n *common) delete(clientType request.ClientType) error {
 	// Cleanup storage.
 	if shared.PathExists(shared.VarPath("networks", n.name)) {
 		os.RemoveAll(shared.VarPath("networks", n.name))
-	}
-
-	// Generate lifecycle event if not notification.
-	if clientType != request.ClientTypeNotifier {
-		n.state.Events.SendLifecycle(project.Default, lifecycle.NetworkDeleted.Event(n, nil))
 	}
 
 	return nil
