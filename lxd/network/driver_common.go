@@ -328,15 +328,6 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 	return dbUpdateNeeded, changedKeys, oldNetwork, nil
 }
 
-// create just sends the needed lifecycle event.
-func (n *common) create(clientType request.ClientType) error {
-	if clientType == request.ClientTypeNormal {
-		n.state.Events.SendLifecycle(n.project, lifecycle.NetworkCreated.Event(n, nil))
-	}
-
-	return nil
-}
-
 // rename the network directory, update database record and update internal variables.
 func (n *common) rename(newName string) error {
 	// Clear new directory if exists.
@@ -384,8 +375,7 @@ func (n *common) delete(clientType request.ClientType) error {
 // Create is a no-op.
 func (n *common) Create(clientType request.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
-
-	return n.create(clientType)
+	return nil
 }
 
 // HandleHeartbeat is a no-op.
