@@ -506,7 +506,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 	// Setup a new operation for the start phase.
 	op, err = operationlock.Create(d.id, "restart", true, true)
 	if err != nil {
-		return errors.Wrap(err, "Create restart operation")
+		return errors.Wrap(err, "Create restart (for start) operation")
 	}
 
 	err = inst.Start(false)
