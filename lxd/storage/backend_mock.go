@@ -205,7 +205,7 @@ func (b *mockBackend) CreateCustomVolume(projectName string, volName string, des
 	return nil
 }
 
-func (b *mockBackend) CreateCustomVolumeFromCopy(projectName string, volName string, desc string, config map[string]string, srcPoolName string, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
+func (b *mockBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName string, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
 	return nil
 }
 
