@@ -184,4 +184,10 @@ type StorageVolumeSource struct {
 	//
 	// API extension: storage_api_volume_snapshots
 	VolumeOnly bool `json:"volume_only" yaml:"volume_only"`
+
+	// Source project name
+	// Example: foo
+	//
+	// API extension: storage_api_project
+	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
