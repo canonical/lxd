@@ -8,6 +8,7 @@ ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(HOME)/go
+CGO_LDFLAGS_ALLOW ?= "(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
 export GO111MODULE=off
 
 .PHONY: default
@@ -24,7 +25,7 @@ ifeq ($(TAG_SQLITE3),)
 	exit 1
 endif
 
-	CC=$(CC) go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CC=$(CC) CGO_LDFLAGS_ALLOW=$(CGO_LDFLAGS_ALLOW) go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
@@ -83,7 +84,7 @@ deps:
 	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/raft/include/ -I$(GOPATH)/deps/dqlite/include/\""
 	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/raft/.libs -L$(GOPATH)/deps/dqlite/.libs/\""
 	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/raft/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
-	@echo "export CGO_LDFLAGS_ALLOW=\"-Wl,-wrap,pthread_create\""
+	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
 
 
 .PHONY: update
@@ -115,7 +116,7 @@ ifeq ($(TAG_SQLITE3),)
 endif
 
 	go get -t -v -d ./...
-	CC=$(CC) go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
+	CC=$(CC) CGO_LDFLAGS_ALLOW=$(CGO_LDFLAGS_ALLOW) go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags "netgo,logdebug" ./lxd-p2c
 	CGO_ENABLED=0 go install -v -tags "agent,netgo,logdebug" ./lxd-agent
 	@echo "LXD built successfully"
@@ -128,7 +129,7 @@ ifeq ($(TAG_SQLITE3),)
 endif
 
 	go get -t -v -d ./...
-	CC=$(CC) go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CC=$(CC) CGO_LDFLAGS_ALLOW=$(CGO_LDFLAGS_ALLOW) go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -a -v -tags netgo ./lxd-p2c
 	CGO_ENABLED=0 go install -a -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
@@ -140,7 +141,7 @@ ifeq ($(TAG_SQLITE3),)
 endif
 
 	go get -t -v -d ./...
-	CC=$(CC) go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CC=$(CC) CGO_LDFLAGS_ALLOW=$(CGO_LDFLAGS_ALLOW) go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
@@ -150,7 +151,7 @@ check: default
 	go get -v -x github.com/rogpeppe/godeps
 	go get -v -x github.com/tsenart/deadcode
 	go get -v -x golang.org/x/lint/golint
-	go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
+	CGO_LDFLAGS_ALLOW=$(CGO_LDFLAGS_ALLOW) go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
 .PHONY: dist
