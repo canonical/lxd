@@ -16,7 +16,7 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/cluster/request"
+	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -328,7 +328,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	url := fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name)
 	resp := response.SyncResponseLocation(true, nil, url)
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	if isClusterNotification(r) {
 		n, err := network.LoadByName(d.State(), projectName, req.Name)
@@ -388,7 +388,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	// network, either way finalize the config in the db and actually create the network on all cluster nodes.
 	if count > 1 || (netInfo != nil && netInfo.Status != api.NetworkStatusCreated) {
 		// Simulate adding pending node network config when the driver doesn't support per-node config.
-		if !netTypeInfo.NodeSpecificConfig && clientType != request.ClientTypeJoiner {
+		if !netTypeInfo.NodeSpecificConfig && clientType != clusterRequest.ClientTypeJoiner {
 			// Create pending entry for each node.
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				nodes, err := tx.GetNodes()
@@ -478,7 +478,7 @@ func networkPartiallyCreated(netInfo *api.Network) bool {
 // networksPostCluster checks that there is a pending network in the database and then attempts to setup the
 // network on each node. If all nodes are successfully setup then the network's state is set to created.
 // Accepts an optional existing network record, which will exist when performing subsequent re-create attempts.
-func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, req api.NetworksPost, clientType request.ClientType, netType network.Type) error {
+func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, req api.NetworksPost, clientType clusterRequest.ClientType, netType network.Type) error {
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
@@ -618,14 +618,14 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 
 // Create the network on the system. The clusterNotification flag is used to indicate whether creation request
 // is coming from a cluster notification (and if so we should not delete the database record on error).
-func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientType) error {
+func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
 	// Don't validate network config during pre-cluster-join phase, as if network has ACLs they won't exist
 	// in the local database yet. Once cluster join is completed, network will be restarted to give chance for
 	// ACL firewall config to be applied.
-	if clientType != request.ClientTypeJoiner {
+	if clientType != clusterRequest.ClientTypeJoiner {
 		// Validate so that when run on a cluster node the full config (including node specific config)
 		// is checked.
 		err := n.Validate(n.Config())
@@ -649,7 +649,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType request.ClientTyp
 
 	// Only start networks when not doing a cluster pre-join phase (this ensures that networks are only started
 	// once the node has fully joined the clustered database and has consistent config with rest of the nodes).
-	if clientType != request.ClientTypeJoiner {
+	if clientType != clusterRequest.ClientTypeJoiner {
 		err = n.Start()
 		if err != nil {
 			return err
@@ -860,7 +860,7 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	clusterNotification := isClusterNotification(r)
 	if !clusterNotification {
@@ -1149,7 +1149,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	return doNetworkUpdate(d, projectName, n, req, targetNode, clientType, r.Method, clustered)
 }
@@ -1199,7 +1199,7 @@ func networkPatch(d *Daemon, r *http.Request) response.Response {
 
 // doNetworkUpdate loads the current local network config, merges with the requested network config, validates
 // and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doNetworkUpdate(d *Daemon, projectName string, n network.Network, req api.NetworkPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
+func doNetworkUpdate(d *Daemon, projectName string, n network.Network, req api.NetworkPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
