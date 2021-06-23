@@ -21,9 +21,11 @@ import (
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
@@ -450,6 +452,9 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkCreated.Event(n, requestor, nil))
 
 	revert.Success()
 	return resp
@@ -918,6 +923,9 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		logger.Warn("Failed to delete warnings", log.Ctx{"err": err})
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkDeleted.Event(n, requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
@@ -1029,6 +1037,9 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkRenamed.Event(n, requestor, map[string]interface{}{"old_name": name}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
 }
@@ -1151,7 +1162,12 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doNetworkUpdate(d, projectName, n, req, targetNode, clientType, r.Method, clustered)
+	response := doNetworkUpdate(d, projectName, n, req, targetNode, clientType, r.Method, clustered)
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkUpdated.Event(n, requestor, nil))
+
+	return response
 }
 
 // swagger:operation PATCH /1.0/networks/{name} networks network_patch
