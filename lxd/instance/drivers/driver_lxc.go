@@ -5478,6 +5478,9 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 		return err
 	}
 
+	ctx := log.Ctx{"file-source": srcpath, "file-destination": dstpath, "gid": gid, "mode": mode, "file-type": fileType, "uid": uid, "write-mode": write}
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFilePushed.Event(d, ctx))
+
 	return nil
 }
 
