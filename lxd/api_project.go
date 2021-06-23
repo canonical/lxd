@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	projecthelpers "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -269,7 +270,8 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectCreated.Event(project.Name, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectCreated.Event(project.Name, requestor, nil))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
 }
@@ -406,7 +408,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
 	return projectChange(d, project, req)
 }
@@ -500,7 +503,8 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, requestor, nil))
 
 	return projectChange(d, project, req)
 }
@@ -671,7 +675,8 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		d.State().Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, log.Ctx{"old_name": name}))
+		requestor := request.CreateRequestor(r)
+		d.State().Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, requestor, log.Ctx{"old_name": name}))
 
 		return nil
 	}
@@ -739,7 +744,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
 }
