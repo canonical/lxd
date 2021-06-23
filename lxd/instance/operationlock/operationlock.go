@@ -165,7 +165,6 @@ func (op *InstanceOperation) Done(err error) {
 	}
 
 	op.err = err
+	delete(instanceOperations, op.id) // Delete before closing chanDone.
 	close(op.chanDone)
-
-	delete(instanceOperations, op.id)
 }
