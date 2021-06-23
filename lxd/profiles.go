@@ -437,7 +437,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, nil))
 
 	return response.SmartError(err)
 }
@@ -557,7 +557,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, nil))
 
 	return response.SmartError(doProfileUpdate(d, projectName, name, id, profile, req))
 }
