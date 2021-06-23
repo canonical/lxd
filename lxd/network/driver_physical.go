@@ -120,7 +120,7 @@ func (n *physical) Create(clientType request.ClientType) error {
 		}
 	}
 
-	return n.common.create(clientType)
+	return nil
 }
 
 // Delete deletes a network.
