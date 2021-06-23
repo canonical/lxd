@@ -2094,7 +2094,11 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	}
 
 	// Templated files.
-	err = os.MkdirAll(filepath.Join(configDrivePath, "files"), 0500)
+	templateFilesPath := filepath.Join(configDrivePath, "files")
+
+	// Clear path and recreate.
+	os.RemoveAll(templateFilesPath)
+	err = os.MkdirAll(templateFilesPath, 0500)
 	if err != nil {
 		return err
 	}
@@ -2103,7 +2107,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	key := "volatile.apply_template"
 	if d.localConfig[key] != "" {
 		// Run any template that needs running.
-		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]), filepath.Join(configDrivePath, "files"))
+		err = d.templateApplyNow(instance.TemplateTrigger(d.localConfig[key]), templateFilesPath)
 		if err != nil {
 			return err
 		}
@@ -2115,7 +2119,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		}
 	}
 
-	err = d.templateApplyNow("start", filepath.Join(configDrivePath, "files"))
+	err = d.templateApplyNow("start", templateFilesPath)
 	if err != nil {
 		return err
 	}
@@ -2123,7 +2127,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 	// Copy the template metadata itself too.
 	metaPath := filepath.Join(d.Path(), "metadata.yaml")
 	if shared.PathExists(metaPath) {
-		err = shared.FileCopy(metaPath, filepath.Join(configDrivePath, "files/metadata.yaml"))
+		err = shared.FileCopy(metaPath, filepath.Join(templateFilesPath, "metadata.yaml"))
 		if err != nil {
 			return err
 		}
