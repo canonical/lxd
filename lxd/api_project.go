@@ -284,7 +284,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectCreated.Event(project.Name, log.Ctx{"project": project}))
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectCreated.Event(project.Name, nil))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
 }
@@ -421,7 +421,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, log.Ctx{"project": project}))
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, nil))
 
 	return projectChange(d, project, req)
 }
@@ -515,7 +515,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, log.Ctx{"project": project}))
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, nil))
 
 	return projectChange(d, project, req)
 }
