@@ -530,7 +530,8 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 		return response.SmartError(err)
 	}
 
-	return response.SyncResponseETag(true, render.(*api.InstanceSnapshot), render.(*api.InstanceSnapshot))
+	etag := []interface{}{snapInst.ExpiryDate()}
+	return response.SyncResponseETag(true, render.(*api.InstanceSnapshot), etag)
 }
 
 // swagger:operation POST /1.0/instances/{name}/snapshots/{snapshot} instances instance_snapshot_post
