@@ -26,7 +26,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a network device.
-func (a NetworkAction) Event(n network, ctx map[string]interface{}) api.EventLifecycle {
+func (a NetworkAction) Event(n network, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
 	eventType := fmt.Sprintf("network-%s", a)
 	u := fmt.Sprintf("/1.0/networks/%s", url.PathEscape(n.Name()))
 	if n.Project() != project.Default {
@@ -36,6 +36,6 @@ func (a NetworkAction) Event(n network, ctx map[string]interface{}) api.EventLif
 		Action:    eventType,
 		Source:    u,
 		Context:   ctx,
-		Requestor: nil,
+		Requestor: requestor,
 	}
 }
