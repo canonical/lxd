@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -23,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -282,6 +284,8 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectCreated.Event(project.Name, log.Ctx{"project": project}))
+
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/projects/%s", version.APIVersion, project.Name))
 }
 
@@ -417,6 +421,8 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, log.Ctx{"project": project}))
+
 	return projectChange(d, project, req)
 }
 
@@ -508,6 +514,8 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 	}
+
+	d.State().Events.SendLifecycle(project.Name, lifecycle.ProjectUpdated.Event(project.Name, log.Ctx{"project": project}))
 
 	return projectChange(d, project, req)
 }
@@ -678,6 +686,8 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		d.State().Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, log.Ctx{"old-name": name, "new-name": req.Name}))
+
 		return nil
 	}
 
@@ -743,6 +753,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 	}
+
+	d.State().Events.SendLifecycle(name, lifecycle.ProjectDeleted.Event(name, nil))
 
 	return response.EmptySyncResponse
 }
