@@ -1844,8 +1844,8 @@ func (d *qemu) spiceCmdlineConfig() string {
 func (d *qemu) generateConfigShare() error {
 	configDrivePath := filepath.Join(d.Path(), "config")
 
-	// Create config drive dir.
-	os.RemoveAll(configDrivePath)
+	// Create config drive dir if doesn't exist, if it does exist, leave it around so we don't regenerate all
+	// files causing unnecessary config drive snapshot usage.
 	err := os.MkdirAll(configDrivePath, 0500)
 	if err != nil {
 		return err
@@ -1907,21 +1907,51 @@ func (d *qemu) generateConfigShare() error {
 			return err
 		}
 
+		lxdAgentSrcInfo, err := os.Stat(lxdAgentSrcPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting info for lxd-agent source %q", lxdAgentSrcPath)
+		}
+
 		lxdAgentInstallPath := filepath.Join(configDrivePath, "lxd-agent")
-		d.logger.Debug("Installing lxd-agent", log.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
-		err = shared.FileCopy(lxdAgentSrcPath, lxdAgentInstallPath)
-		if err != nil {
-			return err
+		lxdAgentNeedsInstall := true
+
+		if shared.PathExists(lxdAgentInstallPath) {
+			lxdAgentInstallInfo, err := os.Stat(lxdAgentInstallPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed getting info for existing lxd-agent install %q", lxdAgentInstallPath)
+			}
+
+			if lxdAgentInstallInfo.ModTime() == lxdAgentSrcInfo.ModTime() && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
+				lxdAgentNeedsInstall = false
+			}
 		}
 
-		err = os.Chmod(lxdAgentInstallPath, 0500)
-		if err != nil {
-			return err
-		}
+		// Only install the lxd-agent into config drive if the existing one is different to the source one.
+		// Otherwise we would end up copying it again and this can cause unnecessary snapshot usage.
+		if lxdAgentNeedsInstall {
+			d.logger.Debug("Installing lxd-agent", log.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
+			err = shared.FileCopy(lxdAgentSrcPath, lxdAgentInstallPath)
+			if err != nil {
+				return err
+			}
 
-		err = os.Chown(lxdAgentInstallPath, 0, 0)
-		if err != nil {
-			return err
+			err = os.Chmod(lxdAgentInstallPath, 0500)
+			if err != nil {
+				return err
+			}
+
+			err = os.Chown(lxdAgentInstallPath, 0, 0)
+			if err != nil {
+				return err
+			}
+
+			// Ensure we copy the source file's timestamps so they can be used for comparison later.
+			err = os.Chtimes(lxdAgentInstallPath, lxdAgentSrcInfo.ModTime(), lxdAgentSrcInfo.ModTime())
+			if err != nil {
+				return errors.Wrapf(err, "Failed setting lxd-agent timestamps")
+			}
+		} else {
+			d.logger.Debug("Skipping lxd-agent install as unchanged", log.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
 		}
 	}
 
