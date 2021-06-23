@@ -168,14 +168,14 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	listener, ok := e.listeners[network]
-	if !ok {
+	if !ok || listener == nil {
 		return
 	}
 	listener.(*networkListener).TrustedProxy(proxies)
 
 	// Update the cluster listener too, if enabled.
 	listener, ok = e.listeners[cluster]
-	if !ok {
+	if !ok || listener == nil {
 		return
 	}
 	listener.(*networkListener).TrustedProxy(proxies)
