@@ -306,11 +306,7 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors[serverURL] = err
-
-				// If we were able to connect and then operation failed, don't attempt another
-				// endpoint address as it was not a connection error, and we may end up
-				// exacerbating the problem by trying again via another address.
-				break
+				continue
 			}
 
 			success = true
@@ -365,11 +361,7 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors[serverURL] = err
-
-				// If we were able to connect and then operation failed, don't attempt another
-				// endpoint address as it was not a connection error, and we may end up
-				// exacerbating the problem by trying again via another address.
-				break
+				continue
 			}
 
 			success = true
