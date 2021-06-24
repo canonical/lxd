@@ -27,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/filter"
@@ -1836,7 +1836,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredImages(ctx, d)
+			return pruneExpiredImages(ctx, d, op)
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesExpire, nil, nil, opRun, nil, nil, nil)
@@ -1937,7 +1937,7 @@ func pruneLeftoverImages(d *Daemon) {
 	logger.Infof("Done pruning leftover image files")
 }
 
-func pruneExpiredImages(ctx context.Context, d *Daemon) error {
+func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation) error {
 	expiry, err := cluster.ConfigGetInt64(d.cluster, "images.remote_cache_expiry")
 	if err != nil {
 		return errors.Wrap(err, "Unable to fetch cluster configuration")
@@ -2007,6 +2007,8 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 		if err = d.cluster.DeleteImage(imgID); err != nil {
 			return errors.Wrapf(err, "Error deleting image %q from database", img.Fingerprint)
 		}
+
+		d.State().Events.SendLifecycle(img.ProjectName, lifecycle.ImageDeleted.Event(img.Fingerprint, img.ProjectName, op.Requestor(), nil))
 	}
 
 	return nil
@@ -2137,6 +2139,8 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 		// Remove main image file from disk.
 		imageDeleteFromDisk(imgInfo.Fingerprint)
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(imgInfo.Fingerprint, projectName, op.Requestor(), nil))
 
 		return nil
 	}
