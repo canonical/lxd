@@ -28,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/filter"
@@ -1939,7 +1939,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredImages(ctx, d)
+			return pruneExpiredImages(ctx, d, op)
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesExpire, nil, nil, opRun, nil, nil, nil)
@@ -2024,7 +2024,7 @@ func pruneLeftoverImages(d *Daemon) {
 	logger.Infof("Done pruning leftover image files")
 }
 
-func pruneExpiredImages(ctx context.Context, d *Daemon) error {
+func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation) error {
 	var projects []api.Project
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -2040,7 +2040,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 	}
 
 	for _, project := range projects {
-		err := pruneExpiredImagesInProject(ctx, d, project)
+		err := pruneExpiredImagesInProject(ctx, d, project, op)
 		if err != nil {
 			return errors.Wrapf(err, "Unable to prune images for project %s", project)
 		}
@@ -2049,7 +2049,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 	return nil
 }
 
-func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Project) error {
+func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Project, op *operations.Operation) error {
 	var expiry int64
 	var err error
 	if project.Config["images.remote_cache_expiry"] != "" {
@@ -2133,6 +2133,8 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Pro
 		if err = d.cluster.DeleteImage(imgID); err != nil {
 			return errors.Wrapf(err, "Error deleting image %q from database", img)
 		}
+
+		d.State().Events.SendLifecycle(project.Name, lifecycle.ImageDeleted.Event(img, project.Name, op.Requestor(), nil))
 	}
 
 	return nil
@@ -2263,6 +2265,8 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 		// Remove main image file from disk.
 		imageDeleteFromDisk(imgInfo.Fingerprint)
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(imgInfo.Fingerprint, projectName, op.Requestor(), nil))
 
 		return nil
 	}
