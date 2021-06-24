@@ -33,6 +33,7 @@ import (
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	projectutils "github.com/lxc/lxd/lxd/project"
@@ -941,6 +942,8 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return errors.Wrapf(err, "Failed syncing image between nodes")
 		}
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.ImageCreated.Event(info.Fingerprint, projectName, op.Requestor(), log.Ctx{"type": info.Type}))
 
 		return nil
 	}
