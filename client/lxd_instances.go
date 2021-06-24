@@ -290,11 +290,7 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors[serverURL] = err
-
-				// If we were able to connect and then operation failed, don't attempt another
-				// endpoint address as it was not a connection error, and we may end up
-				// exacerbating the problem by trying again via another address.
-				break
+				continue
 			}
 
 			success = true
@@ -664,11 +660,7 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors[serverURL] = err
-
-				// If we were able to connect and then operation failed, don't attempt another
-				// endpoint address as it was not a connection error, and we may end up
-				// exacerbating the problem by trying again via another address.
-				break
+				continue
 			}
 
 			success = true
@@ -1442,11 +1434,7 @@ func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instance
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors[serverURL] = err
-
-				// If we were able to connect and then operation failed, don't attempt another
-				// endpoint address as it was not a connection error, and we may end up
-				// exacerbating the problem by trying again via another address.
-				break
+				continue
 			}
 
 			success = true
