@@ -710,7 +710,20 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
+	response := doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
+
+	projectName := projectParam(r)
+	requestor := request.CreateRequestor(r)
+
+	ctx := log.Ctx{}
+	if targetNode != "" {
+		ctx["target"] = targetNode
+	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolUpdated.Event(pool.Name(), projectName, requestor, ctx))
+
+	return response
+
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{name} storage storage_pool_patch
