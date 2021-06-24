@@ -671,7 +671,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		d.State().Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, log.Ctx{"old_name": name, "new_name": req.Name}))
+		d.State().Events.SendLifecycle(req.Name, lifecycle.ProjectRenamed.Event(req.Name, log.Ctx{"old_name": name}))
 
 		return nil
 	}
