@@ -870,6 +870,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	projectName := projectParam(r)
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 	clusterNotification := isClusterNotification(r)
 	var notifier cluster.Notifier
@@ -900,7 +901,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, volume := range volumeNames {
-			_, imgInfo, err := d.cluster.GetImage(projectParam(r), volume, false)
+			_, imgInfo, err := d.cluster.GetImage(projectName, volume, false)
 			if err != nil {
 				return response.InternalError(errors.Wrapf(err, "Failed getting image info for %q", volume))
 			}
@@ -941,6 +942,9 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolDeleted.Event(pool.Name(), projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
