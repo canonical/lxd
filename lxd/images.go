@@ -3029,6 +3029,9 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(alias.Name, projectName, requestor, log.Ctx{"target": alias.Target}))
+
 	return response.EmptySyncResponse
 }
 
@@ -3115,6 +3118,9 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(alias.Name, projectName, requestor, log.Ctx{"target": alias.Target}))
 
 	return response.EmptySyncResponse
 }
