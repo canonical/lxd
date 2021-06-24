@@ -437,7 +437,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, nil))
 
 	return response.SmartError(err)
 }
@@ -557,7 +557,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, log.Ctx{"profile": req}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, nil))
 
 	return response.SmartError(doProfileUpdate(d, projectName, name, id, profile, req))
 }
@@ -636,7 +636,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileRenamed.Event(req.Name, projectName, log.Ctx{"old-name": name, "new-name": req.Name}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileRenamed.Event(req.Name, projectName, log.Ctx{"old_name": name}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
