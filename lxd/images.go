@@ -3332,6 +3332,9 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	files[0].Path = imagePath
 	files[0].Filename = filename
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
+
 	return response.FileResponse(r, files, nil, false)
 }
 
@@ -3453,6 +3456,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		if opWaitAPI.Status != "success" {
 			return fmt.Errorf(opWaitAPI.Err)
 		}
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(fingerprint, projectName, op.Requestor(), log.Ctx{"target": req.Target}))
 
 		return nil
 	}
