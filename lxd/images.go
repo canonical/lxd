@@ -3831,5 +3831,7 @@ func createTokenResponse(d *Daemon, r *http.Request, projectName string, fingerp
 		return response.InternalError(err)
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageSecretCreated.Event(fingerprint, projectName, op.Requestor(), nil))
+
 	return operations.OperationResponse(op)
 }
