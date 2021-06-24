@@ -3056,6 +3056,9 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasRenamed.Event(req.Name, projectName, requestor, log.Ctx{"old_name": name}))
+
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
 }
 
