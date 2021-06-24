@@ -37,6 +37,7 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	projectutils "github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -2418,6 +2419,9 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
@@ -2518,6 +2522,9 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
