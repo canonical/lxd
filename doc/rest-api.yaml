@@ -4730,6 +4730,11 @@ definitions:
         example: local
         type: string
         x-go-name: Pool
+      project:
+        description: Source project name
+        example: foo
+        type: string
+        x-go-name: Project
       secrets:
         additionalProperties:
           type: string
@@ -6143,6 +6148,29 @@ paths:
       tags:
       - images
   /1.0/images/aliases/{name}:
+    delete:
+      description: Deletes a specific image alias.
+      operationId: image_alias_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the image alias
+      tags:
+      - images
     get:
       description: Gets a specific image alias.
       operationId: image_alias_get
