@@ -2947,6 +2947,30 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, alias, alias)
 }
 
+// swagger:operation DELETE /1.0/images/aliases/{name} images image_alias_delete
+//
+// Delete the image alias
+//
+// Deletes a specific image alias.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
