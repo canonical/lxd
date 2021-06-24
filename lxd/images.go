@@ -2955,6 +2955,9 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasDeleted.Event(name, projectName, requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
