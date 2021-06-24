@@ -14,7 +14,9 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -308,6 +310,14 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	projectName := projectParam(r)
+	requestor := request.CreateRequestor(r)
+
+	ctx := log.Ctx{}
+	if targetNode != "" {
+		ctx["target"] = targetNode
+	}
+
 	// No targetNode was specified and we're clustered or there is an existing partially created single node
 	// pool, either way finalize the config in the db and actually create the pool on all node in the cluster.
 	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
@@ -315,6 +325,8 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.InternalError(err)
 		}
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolCreated.Event(req.Name, projectName, requestor, ctx))
 
 		return resp
 	}
@@ -324,6 +336,8 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolCreated.Event(req.Name, projectName, requestor, ctx))
 
 	return resp
 }
