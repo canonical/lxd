@@ -1731,6 +1731,11 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 
 		metadata := map[string]interface{}{"refreshed": result}
 		op.UpdateMetadata(metadata)
+
+		// Sent a lifecycle event if the refresh actually happened.
+		if result {
+			d.State().Events.SendLifecycle(projectName, lifecycle.ImageRefreshed.Event(fingerprint, projectName, op.Requestor(), nil))
+		}
 	}
 
 	// Update the image on each pool where it currently exists.
