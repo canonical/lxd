@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -2513,6 +2514,8 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+
 	revertDB = false
 	return nil
 }
@@ -2664,6 +2667,8 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		if err != nil {
 			return err
 		}
+
+		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
 		revertDBVolumes = nil
 		return nil
@@ -2875,6 +2880,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		conn.Close()
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
 	revertDBVolumes = nil
 	return nil
@@ -3887,6 +3894,8 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	if volPostHook != nil {
 		return fmt.Errorf("Custom volume restore doesn't support post hooks")
 	}
+
+	b.state.Events.SendLifecycle(srcBackup.Project, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), srcBackup.Project, op, log.Ctx{"type": vol.Type()}))
 
 	revert.Success()
 	return nil
