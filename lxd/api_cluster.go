@@ -1637,6 +1637,9 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		logger.Warn("Failed to sync images")
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRemoved.Event(name, requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
