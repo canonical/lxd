@@ -567,6 +567,9 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 
 	run = func(op *operations.Operation) error {
 		if req.Source.Name == "" {
+			// Use an empty operation for this sync response to pass the requestor
+			op := &operations.Operation{}
+			op.SetRequestor(r)
 			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
 		}
 
@@ -955,7 +958,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// Detect a rename request.
 	if req.Pool == "" || req.Pool == srcPoolName {
-		return storagePoolVolumeTypePostRename(d, srcPoolName, projectName, vol, req)
+		return storagePoolVolumeTypePostRename(d, r, srcPoolName, projectName, vol, req)
 	}
 
 	// Otherwise this is a move request.
@@ -1001,7 +1004,7 @@ func storagePoolVolumeTypePostMigration(state *state.State, r *http.Request, req
 }
 
 // storagePoolVolumeTypePostRename handles volume rename type POST requests.
-func storagePoolVolumeTypePostRename(d *Daemon, poolName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
+func storagePoolVolumeTypePostRename(d *Daemon, r *http.Request, poolName string, projectName string, vol *api.StorageVolume, req api.StorageVolumePost) response.Response {
 	newVol := *vol
 	newVol.Name = req.Name
 
@@ -1019,7 +1022,11 @@ func storagePoolVolumeTypePostRename(d *Daemon, poolName string, projectName str
 		return response.SmartError(err)
 	}
 
-	err = pool.RenameCustomVolume(projectName, vol.Name, req.Name, nil)
+	// Use an empty operation for this sync response to pass the requestor
+	op := &operations.Operation{}
+	op.SetRequestor(r)
+
+	err = pool.RenameCustomVolume(projectName, vol.Name, req.Name, op)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1303,6 +1310,10 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Use an empty operation for this sync response to pass the requestor
+	op := &operations.Operation{}
+	op.SetRequestor(r)
+
 	if volumeType == db.StoragePoolVolumeTypeCustom {
 		// Possibly check if project limits are honored.
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1316,7 +1327,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		// before applying config changes so that changes are applied to the
 		// restored volume.
 		if req.Restore != "" {
-			err = pool.RestoreCustomVolume(projectName, vol.Name, req.Restore, nil)
+			err = pool.RestoreCustomVolume(projectName, vol.Name, req.Restore, op)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1326,7 +1337,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		// Only apply changes during a snapshot restore if a non-nil config is supplied to avoid clearing
 		// the volume's config if only restoring snapshot.
 		if req.Config != nil || req.Restore == "" {
-			err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, nil)
+			err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, op)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1338,13 +1349,13 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Handle instance volume update requests.
-		err = pool.UpdateInstance(inst, req.Description, req.Config, nil)
+		err = pool.UpdateInstance(inst, req.Description, req.Config, op)
 		if err != nil {
 			return response.SmartError(err)
 		}
 	} else if volumeType == db.StoragePoolVolumeTypeImage {
 		// Handle image update requests.
-		err = pool.UpdateImage(vol.Name, req.Description, req.Config, nil)
+		err = pool.UpdateImage(vol.Name, req.Description, req.Config, op)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1468,7 +1479,11 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, nil)
+	// Use an empty operation for this sync response to pass the requestor
+	op := &operations.Operation{}
+	op.SetRequestor(r)
+
+	err = pool.UpdateCustomVolume(projectName, vol.Name, req.Description, req.Config, op)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1570,11 +1585,15 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	// Use an empty operation for this sync response to pass the requestor
+	op := &operations.Operation{}
+	op.SetRequestor(r)
+
 	switch volumeType {
 	case db.StoragePoolVolumeTypeCustom:
-		err = pool.DeleteCustomVolume(projectName, volumeName, nil)
+		err = pool.DeleteCustomVolume(projectName, volumeName, op)
 	case db.StoragePoolVolumeTypeImage:
-		err = pool.DeleteImage(volumeName, nil)
+		err = pool.DeleteImage(volumeName, op)
 	default:
 		return response.BadRequest(fmt.Errorf(`Storage volumes of type %q cannot be deleted with the storage API`, volumeTypeName))
 	}
