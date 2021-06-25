@@ -1641,6 +1641,9 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 	d.endpoints.NetworkUpdateCert(cert)
 	d.gateway.NetworkUpdateCert(cert)
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterCertificateUpdated.Event("certificate", requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
