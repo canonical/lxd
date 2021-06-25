@@ -1475,6 +1475,9 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRenamed.Event(req.ServerName, requestor, log.Ctx{"old_name": name}))
+
 	return response.EmptySyncResponse
 }
 
