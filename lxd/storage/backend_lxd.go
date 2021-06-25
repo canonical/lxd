@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -2512,6 +2513,8 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+
 	revertDB = false
 	return nil
 }
@@ -2639,6 +2642,8 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		if err != nil {
 			return err
 		}
+
+		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
 		revertDBVolumes = nil
 		return nil
@@ -2803,6 +2808,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		conn.Close()
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
 	revertDBVolumes = nil
 	return nil
