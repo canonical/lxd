@@ -181,7 +181,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 
 	// Set requestor if request was provided.
 	if r != nil {
-		op.requestor = request.CreateRequestor(r)
+		op.SetRequestor(r)
 	}
 
 	operationsLock.Lock()
@@ -206,6 +206,11 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 // SetEventServer allows injection of event server.
 func (op *Operation) SetEventServer(events *events.Server) {
 	op.events = events
+}
+
+// SetRequestor sets a requestor for this operation from an http.Request.
+func (op *Operation) SetRequestor(r *http.Request) {
+	op.requestor = request.CreateRequestor(r)
 }
 
 // Requestor returns the initial requestor for this operation.
