@@ -1424,6 +1424,9 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberUpdated.Event(name, requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
