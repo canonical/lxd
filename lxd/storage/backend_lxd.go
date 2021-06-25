@@ -1577,6 +1577,8 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 		}
 	}
 
+	b.state.Events.SendLifecycle(inst.Project(), lifecycle.StorageVolumeUpdated.Event(newVol, string(newVol.Type()), inst.Project(), op, nil))
+
 	return nil
 }
 
@@ -1602,7 +1604,7 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 		return err
 	}
 
-	return b.updateVolumeDescriptionOnly(inst.Project(), inst.Name(), volDBType, newDesc, newConfig)
+	return b.updateVolumeDescriptionOnly(inst.Project(), inst.Name(), volDBType, newDesc, newConfig, op)
 }
 
 // MigrateInstance sends an instance volume for migration.
@@ -2425,7 +2427,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 // updateVolumeDescriptionOnly is a helper function used when handling update requests for volumes
 // that only allow their descriptions to be updated. If any config supplied differs from the
 // current volume's config then an error is returned.
-func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
+func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string, dbVolType int, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	// Get current config to compare what has changed.
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project, volName, dbVolType, b.ID())
 	if err != nil {
@@ -2451,6 +2453,22 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string,
 		}
 	}
 
+	// Get content type.
+	dbContentType, err := VolumeContentTypeNameToContentType(curVol.ContentType)
+	if err != nil {
+		return err
+	}
+
+	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
+	if err != nil {
+		return err
+	}
+
+	// Validate config.
+	vol := b.newVolume(drivers.VolumeType(curVol.Type), contentType, volName, newConfig)
+
+	b.state.Events.SendLifecycle(project, lifecycle.StorageVolumeUpdated.Event(vol, string(vol.Type()), project, op, nil))
+
 	return nil
 }
 
@@ -2460,7 +2478,7 @@ func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[stri
 	logger.Debug("UpdateImage started")
 	defer logger.Debug("UpdateImage finished")
 
-	return b.updateVolumeDescriptionOnly(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig)
+	return b.updateVolumeDescriptionOnly(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig, op)
 }
 
 // CreateCustomVolume creates an empty custom volume.
@@ -3100,6 +3118,8 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 			return err
 		}
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeUpdated.Event(newVol, string(newVol.Type()), projectName, op, nil))
 
 	return nil
 }
