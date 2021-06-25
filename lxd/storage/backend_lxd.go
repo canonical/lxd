@@ -2420,6 +2420,8 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 		return err
 	}
 
+	b.state.Events.SendLifecycle(project.Default, lifecycle.StorageVolumeDeleted.Event(vol, string(vol.Type()), project.Default, op, nil))
+
 	return nil
 }
 
@@ -3097,6 +3099,8 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	if err != nil {
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeDeleted.Event(vol, string(vol.Type()), projectName, op, nil))
 
 	return nil
 }
