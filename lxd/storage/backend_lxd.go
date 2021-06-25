@@ -3378,6 +3378,8 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRestored.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"snapshot": snapshotName}))
+
 	return nil
 }
 
