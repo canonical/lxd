@@ -104,6 +104,11 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	var updatedReq api.StoragePoolsPost
 	shared.DeepCopy(&req, &updatedReq)
 
+	// Make sure that we don't pass a nil to the next function.
+	if updatedReq.Config == nil {
+		updatedReq.Config = map[string]string{}
+	}
+
 	// Fill in the node specific defaults.
 	err := storagePoolFillDefault(updatedReq.Name, updatedReq.Driver, updatedReq.Config)
 	if err != nil {
