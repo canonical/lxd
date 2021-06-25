@@ -658,6 +658,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			logger.Warn("Failed to sync images")
 		}
 
+		d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberAdded.Event(req.ServerName, op.Requestor(), nil))
+
 		revert.Success()
 		return nil
 	}
