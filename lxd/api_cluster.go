@@ -24,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -279,7 +280,7 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 
 	// Disable clustering.
 	if !req.Enabled {
-		return clusterPutDisable(d)
+		return clusterPutDisable(d, r, req)
 	}
 
 	// Depending on the provided parameters we either bootstrap a brand new
@@ -696,7 +697,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 }
 
 // Disable clustering on a node.
-func clusterPutDisable(d *Daemon) response.Response {
+func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	// Close the cluster database
 	err := d.cluster.Close()
 	if err != nil {
@@ -749,6 +750,9 @@ func clusterPutDisable(d *Daemon) response.Response {
 
 	// Remove the cluster flag from the agent
 	version.UserAgentFeatures(nil)
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterDisabled.Event(req.ServerName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
