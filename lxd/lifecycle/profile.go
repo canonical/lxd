@@ -8,10 +8,10 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// ProfileAction represents a lifecycle event action for profile devices.
+// ProfileAction represents a lifecycle event action for profiles.
 type ProfileAction string
 
-// All supported lifecycle events for profile devices.
+// All supported lifecycle events for profiles.
 const (
 	ProfileCreated = ProfileAction("created")
 	ProfileDeleted = ProfileAction("deleted")
@@ -19,7 +19,7 @@ const (
 	ProfileRenamed = ProfileAction("renamed")
 )
 
-// Event creates the lifecycle event for an action on a profile device.
+// Event creates the lifecycle event for an action on a profile.
 func (a ProfileAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
 	eventType := fmt.Sprintf("profile-%s", a)
 	u := fmt.Sprintf("/1.0/profiles/%s", url.PathEscape(name))
