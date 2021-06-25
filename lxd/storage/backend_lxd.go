@@ -2886,6 +2886,9 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 		return err
 	}
 
+	vol = b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, nil)
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRenamed.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"old_name": volName}))
+
 	revert.Success()
 	return nil
 }
