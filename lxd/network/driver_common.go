@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -274,7 +273,6 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 			return err
 		}
 
-		n.state.Events.SendLifecycle(n.project, lifecycle.NetworkUpdated.Event(n, nil))
 	}
 
 	return nil
@@ -328,15 +326,6 @@ func (n *common) configChanged(newNetwork api.NetworkPut) (bool, []string, api.N
 	return dbUpdateNeeded, changedKeys, oldNetwork, nil
 }
 
-// create just sends the needed lifecycle event.
-func (n *common) create(clientType request.ClientType) error {
-	if clientType == request.ClientTypeNormal {
-		n.state.Events.SendLifecycle(n.project, lifecycle.NetworkCreated.Event(n, nil))
-	}
-
-	return nil
-}
-
 // rename the network directory, update database record and update internal variables.
 func (n *common) rename(newName string) error {
 	// Clear new directory if exists.
@@ -359,10 +348,8 @@ func (n *common) rename(newName string) error {
 	}
 
 	// Reinitialise internal name variable and logger context with new name.
-	oldName := n.name
 	n.name = newName
 
-	n.state.Events.SendLifecycle(n.project, lifecycle.NetworkRenamed.Event(n, map[string]interface{}{"old_name": oldName}))
 	return nil
 }
 
@@ -373,19 +360,13 @@ func (n *common) delete(clientType request.ClientType) error {
 		os.RemoveAll(shared.VarPath("networks", n.name))
 	}
 
-	// Generate lifecycle event if not notification.
-	if clientType != request.ClientTypeNotifier {
-		n.state.Events.SendLifecycle(n.project, lifecycle.NetworkDeleted.Event(n, nil))
-	}
-
 	return nil
 }
 
 // Create is a no-op.
 func (n *common) Create(clientType request.ClientType) error {
 	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
-
-	return n.create(clientType)
+	return nil
 }
 
 // HandleHeartbeat is a no-op.

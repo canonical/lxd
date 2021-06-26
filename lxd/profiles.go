@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -261,7 +262,8 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileCreated.Event(req.Name, projectName, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileCreated.Event(req.Name, projectName, requestor, nil))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
@@ -437,7 +439,8 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, requestor, nil))
 
 	return response.SmartError(err)
 }
@@ -557,7 +560,8 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileUpdated.Event(name, projectName, requestor, nil))
 
 	return response.SmartError(doProfileUpdate(d, projectName, name, id, profile, req))
 }
@@ -636,7 +640,8 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileRenamed.Event(req.Name, projectName, log.Ctx{"old_name": name}))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileRenamed.Event(req.Name, projectName, requestor, log.Ctx{"old_name": name}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, req.Name))
 }
@@ -691,7 +696,8 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileDeleted.Event(name, projectName, nil))
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ProfileDeleted.Event(name, projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
