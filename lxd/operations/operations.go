@@ -181,32 +181,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 
 	// Set requestor if request was provided.
 	if r != nil {
-		ctx := r.Context()
-		requestor := api.EventLifecycleRequestor{}
-
-		// Normal requestor.
-		val, ok := ctx.Value(request.CtxUsername).(string)
-		if ok {
-			requestor.Username = val
-		}
-
-		val, ok = ctx.Value(request.CtxProtocol).(string)
-		if ok {
-			requestor.Protocol = val
-		}
-
-		// Forwarded requestor override.
-		val, ok = ctx.Value(request.CtxForwardedUsername).(string)
-		if ok {
-			requestor.Username = val
-		}
-
-		val, ok = ctx.Value(request.CtxForwardedProtocol).(string)
-		if ok {
-			requestor.Protocol = val
-		}
-
-		op.requestor = &requestor
+		op.requestor = request.CreateRequestor(r)
 	}
 
 	operationsLock.Lock()

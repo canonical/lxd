@@ -7,10 +7,10 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// ProjectAction represents a lifecycle event action for project devices.
+// ProjectAction represents a lifecycle event action for projects.
 type ProjectAction string
 
-// All supported lifecycle events for project devices.
+// All supported lifecycle events for projects.
 const (
 	ProjectCreated = ProjectAction("created")
 	ProjectDeleted = ProjectAction("deleted")
@@ -18,8 +18,8 @@ const (
 	ProjectRenamed = ProjectAction("renamed")
 )
 
-// Event creates the lifecycle event for an action on a project device.
-func (a ProjectAction) Event(name string, ctx map[string]interface{}) api.EventLifecycle {
+// Event creates the lifecycle event for an action on a project.
+func (a ProjectAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
 	eventType := fmt.Sprintf("project-%s", a)
 	u := fmt.Sprintf("/1.0/projects/%s", url.PathEscape(name))
 
@@ -27,6 +27,6 @@ func (a ProjectAction) Event(name string, ctx map[string]interface{}) api.EventL
 		Action:    eventType,
 		Source:    u,
 		Context:   ctx,
-		Requestor: nil,
+		Requestor: requestor,
 	}
 }
