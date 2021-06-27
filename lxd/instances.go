@@ -245,7 +245,7 @@ func instancesRestart(s *state.State) error {
 					}
 				}
 				if err != nil {
-					
+					// TODO; Raise warnings through the warnings API
 				}
 
 				wg.Done()
