@@ -238,7 +238,7 @@ func instancesRestart(s *state.State) error {
 				for retry := 0; retry < 3; retry ++ {
 					err = c.Start(false)
 					if err != nil {
-						logger.Errorf("Failed to start instance '%s': %v", c.Name(), err)
+						logger.Errorf("Failed to start instance '%q': %v", c.Name(), err)
 						time.Sleep(5 * time.Second)
 					} else {
 						break
