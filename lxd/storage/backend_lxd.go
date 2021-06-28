@@ -3490,6 +3490,8 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotDeleted.Event(vol, string(vol.Type()), projectName, op, nil))
+
 	return nil
 }
 
