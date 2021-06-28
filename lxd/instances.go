@@ -221,37 +221,45 @@ func instancesRestart(s *state.State) error {
 	sort.Sort(containerAutostartList(instances))
 
 	// Restart the instances
-	for _, c := range instances {
-		config := c.ExpandedConfig()
+	for _, inst := range instances {
+		// Get the instance config.
+		config := inst.ExpandedConfig()
 		lastState := config["volatile.last_state.power"]
-
 		autoStart := config["boot.autostart"]
 		autoStartDelay := config["boot.autostart.delay"]
 
-		if shared.IsTrue(autoStart) || (autoStart == "" && lastState == "RUNNING") {
-			if c.IsRunning() {
-				continue
-			}
+		// Only restart instances configured to auto-start or that were previously running.
+		start := shared.IsTrue(autoStart) || (autoStart == "" && lastState == "RUNNING")
+		if !start {
+			continue
+		}
 
-			var err error
-			for retry := 0; retry < 3; retry++ {
-				err = c.Start(false)
-				if err != nil {
-					logger.Errorf("Failed to start instance '%q': %v", c.Name(), err)
-					time.Sleep(5 * time.Second)
-				} else {
-					break
-				}
-			}
+		// If already running, we're done.
+		if inst.IsRunning() {
+			continue
+		}
 
+		// Try to start the instance.
+		var err error
+		for retry := 0; retry < 3; retry++ {
+			err = inst.Start(false)
 			if err != nil {
-				logger.Errorf("Failed to start instance '%s': %v", c.Name(), err)
+				logger.Errorf("Failed to start instance '%q': %v", inst.Name(), err)
+				time.Sleep(5 * time.Second)
 			} else {
-				autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
-				if err == nil {
-					time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
-				}
+				break
 			}
+		}
+
+		if err != nil {
+			logger.Errorf("Failed to start instance '%s': %v", inst.Name(), err)
+			continue
+		}
+
+		// Wait the auto-start delay if set.
+		autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
+		if err == nil {
+			time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
 		}
 	}
 
