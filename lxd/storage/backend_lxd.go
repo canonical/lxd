@@ -3214,6 +3214,8 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+
 	revertDB = false
 	return nil
 }
