@@ -591,6 +591,8 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 			return err
 		}
 
+		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRenamed.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), log.Ctx{"old_name": backupName}))
+
 		return nil
 	}
 
