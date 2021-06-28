@@ -714,7 +714,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 		return response.BadRequest(err)
 	}
 
-	return doStoragePoolVolumeSnapshotUpdate(d, poolName, projectName, vol.Name, volumeType, req)
+	return doStoragePoolVolumeSnapshotUpdate(d, r, poolName, projectName, vol.Name, volumeType, req)
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{name}/volumes/{type}/{volume}/snapshots/{snapshot} storage storage_pool_volumes_type_snapshot_patch
@@ -826,10 +826,10 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(err)
 	}
 
-	return doStoragePoolVolumeSnapshotUpdate(d, poolName, projectName, vol.Name, volumeType, req)
+	return doStoragePoolVolumeSnapshotUpdate(d, r, poolName, projectName, vol.Name, volumeType, req)
 }
 
-func doStoragePoolVolumeSnapshotUpdate(d *Daemon, poolName string, projectName string, volName string, volumeType int, req api.StorageVolumeSnapshotPut) response.Response {
+func doStoragePoolVolumeSnapshotUpdate(d *Daemon, r *http.Request, poolName string, projectName string, volName string, volumeType int, req api.StorageVolumeSnapshotPut) response.Response {
 	expiry := time.Time{}
 	if req.ExpiresAt != nil {
 		expiry = *req.ExpiresAt
@@ -840,9 +840,13 @@ func doStoragePoolVolumeSnapshotUpdate(d *Daemon, poolName string, projectName s
 		return response.SmartError(err)
 	}
 
+	// Use an empty operation for this sync response to pass the requestor
+	op := &operations.Operation{}
+	op.SetRequestor(r)
+
 	// Update the database.
 	if volumeType == db.StoragePoolVolumeTypeCustom {
-		err = pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, nil)
+		err = pool.UpdateCustomVolumeSnapshot(projectName, volName, req.Description, nil, expiry, op)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -852,7 +856,7 @@ func doStoragePoolVolumeSnapshotUpdate(d *Daemon, poolName string, projectName s
 			return response.NotFound(err)
 		}
 
-		err = pool.UpdateInstanceSnapshot(inst, req.Description, nil, nil)
+		err = pool.UpdateInstanceSnapshot(inst, req.Description, nil, op)
 		if err != nil {
 			return response.SmartError(err)
 		}
