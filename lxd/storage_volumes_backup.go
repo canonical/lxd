@@ -687,6 +687,8 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 			return err
 		}
 
+		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupDeleted.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), nil))
+
 		return nil
 	}
 
