@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -777,6 +778,8 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 	ent := response.FileResponseEntry{
 		Path: shared.VarPath("backups", "custom", poolName, project.StorageVolume(projectName, fullName)),
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRetrieved.Event(poolName, volumeTypeName, volumeName, projectName, request.CreateRequestor(r), nil))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }
