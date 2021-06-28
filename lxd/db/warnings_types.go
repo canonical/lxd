@@ -51,6 +51,8 @@ const (
 	WarningNetworkStartupFailure
 	// WarningOfflineClusterMember represents the offline cluster members warning
 	WarningOfflineClusterMember
+	// WarningInstanceAutostartFailure represents the failure of instance autostart process after three retries
+	WarningInstanceAutostartFailure
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -77,6 +79,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningProxyBridgeNetfilterNotEnabled:         "Proxy bridge netfilter not enabled",
 	WarningNetworkStartupFailure:                  "Failed to start network",
 	WarningOfflineClusterMember:                   "Offline cluster member",
+	WarningInstanceAutostartFailure:               "Failed to autostart instance",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -134,6 +137,8 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningNetworkStartupFailure:
 		return WarningSeverityLow
 	case WarningOfflineClusterMember:
+		return WarningSeverityLow
+	case WarningInstanceAutostartFailure:
 		return WarningSeverityLow
 	}
 
