@@ -207,7 +207,6 @@ func (slice containerAutostartList) Swap(i, j int) {
 }
 
 func instancesRestart(s *state.State) error {
-	var wg sync.WaitGroup
 	// Get all the instances
 	result, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
@@ -231,29 +230,21 @@ func instancesRestart(s *state.State) error {
 		autoStartDelay := config["boot.autostart.delay"]
 
 		if shared.IsTrue(autoStart) {
-			wg.Add(1)
-
-			go func(c instance.Instance) {
-				err := *new(error)
-				for retry := 0; retry < 3; retry ++ {
-					err = c.Start(false)
-					if err != nil {
-						logger.Errorf("Failed to start instance '%q': %v", c.Name(), err)
-						time.Sleep(5 * time.Second)
-					} else {
-						break
-					}
-				}
+			err := *new(error)
+			for retry := 0; retry < 3; retry ++ {
+				err = c.Start(false)
 				if err != nil {
-					// TODO; Raise warnings through the warnings API
+					logger.Errorf("Failed to start instance '%q': %v", c.Name(), err)
+					time.Sleep(5 * time.Second)
+				} else {
+					break
 				}
-
-				wg.Done()
-			}(c)
-
-			autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
-			if err == nil {
-				time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
+			}
+			if err != nil {
+				warningApiErr := s.Cluster.UpsertWarningLocalNode("", -1, -1, db.WarningInstanceAutostartFailure, fmt.Sprintf("instance: %q, error: %v", c.Name(), err))
+				if warningApiErr != nil {
+					logger.Warn("Failed to create instance autostart failure warning '%v'", warningApiErr)
+				}
 			}
 		} else if autoStart == "" && lastState == "RUNNING" {
 			if c.IsRunning() {
@@ -264,14 +255,12 @@ func instancesRestart(s *state.State) error {
 			if err != nil {
 				logger.Errorf("Failed to start instance '%s': %v", c.Name(), err)
 			}
-
-			autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
-			if err == nil {
-				time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
-			}
+		}
+		autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
+		if err == nil {
+			time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
 		}
 	}
-	wg.Wait()
 
 	return nil
 }
