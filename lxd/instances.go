@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"sort"
 	"strconv"
@@ -9,10 +10,12 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -241,11 +244,22 @@ func instancesRestart(s *state.State) error {
 					logger.Errorf("Failed to start instance '%q': %v", c.Name(), err)
 					time.Sleep(5 * time.Second)
 				} else {
+					// Resolve any previous warning.
+					warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, c.Project(), db.WarningInstanceAutostartFailure, cluster.TypeInstance, c.ID())
+					if warnErr != nil {
+						logger.Warn("Failed to resolve instance autostart failure warning '%v'", warnErr)
+					}
 					break
 				}
 			}
 
 			if err != nil {
+				// If unable to start after 3 tries, record a warning.
+				warnErr := s.Cluster.UpsertWarningLocalNode(c.Project(), cluster.TypeInstance, c.ID(), db.WarningInstanceAutostartFailure, fmt.Sprintf("%v", err))
+				if warnErr != nil {
+					logger.Warn("Failed to create instance autostart failure warning '%v'", warnErr)
+				}
+
 				logger.Errorf("Failed to start instance '%s': %v", c.Name(), err)
 			} else {
 				autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
