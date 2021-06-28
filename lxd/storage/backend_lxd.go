@@ -2469,7 +2469,11 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string,
 	// Validate config.
 	vol := b.newVolume(drivers.VolumeType(curVol.Type), contentType, volName, newConfig)
 
-	b.state.Events.SendLifecycle(project, lifecycle.StorageVolumeUpdated.Event(vol, string(vol.Type()), project, op, nil))
+	if !vol.IsSnapshot() {
+		b.state.Events.SendLifecycle(project, lifecycle.StorageVolumeUpdated.Event(vol, string(vol.Type()), project, op, nil))
+	} else {
+		b.state.Events.SendLifecycle(project, lifecycle.StorageVolumeSnapshotUpdated.Event(vol, string(vol.Type()), project, op, nil))
+	}
 
 	return nil
 }
@@ -3169,6 +3173,9 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 			return err
 		}
 	}
+
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(curVol.ContentType), curVol.Name, curVol.Config)
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotUpdated.Event(vol, string(vol.Type()), projectName, op, nil))
 
 	return nil
 }
