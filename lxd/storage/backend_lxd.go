@@ -3435,6 +3435,8 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotRenamed.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"old_name": oldSnapshotName}))
+
 	return nil
 }
 
