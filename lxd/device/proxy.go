@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
@@ -436,7 +437,8 @@ func (d *proxy) setupNAT() error {
 		// br_netfilter is enabled, so we need to enable hairpin mode on instance's bridge port otherwise
 		// the instances on the bridge will not be able to connect to the proxy device's listn IP and the
 		// NAT rule added by the firewall below to allow instance <-> instance traffic will also not work.
-		_, err = shared.RunCommand("bridge", "link", "set", "dev", hostName, "hairpin", "on")
+		link := &ip.Link{Name: hostName}
+		err = link.BridgeLinkSetHairpin(true)
 		if err != nil {
 			return errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", hostName)
 		}
