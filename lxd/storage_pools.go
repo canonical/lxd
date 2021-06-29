@@ -12,9 +12,11 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/cluster/request"
+	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -243,7 +245,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	url := fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, req.Name)
 	resp := response.SyncResponseLocation(true, nil, url)
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	if isClusterNotification(r) {
 		// This is an internal request which triggers the actual
@@ -308,6 +310,14 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	projectName := projectParam(r)
+	requestor := request.CreateRequestor(r)
+
+	ctx := log.Ctx{}
+	if targetNode != "" {
+		ctx["target"] = targetNode
+	}
+
 	// No targetNode was specified and we're clustered or there is an existing partially created single node
 	// pool, either way finalize the config in the db and actually create the pool on all node in the cluster.
 	if count > 1 || (pool != nil && pool.Status != api.StoragePoolStatusCreated) {
@@ -315,6 +325,8 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.InternalError(err)
 		}
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolCreated.Event(req.Name, projectName, requestor, ctx))
 
 		return resp
 	}
@@ -324,6 +336,8 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolCreated.Event(req.Name, projectName, requestor, ctx))
 
 	return resp
 }
@@ -350,7 +364,7 @@ func storagePoolPartiallyCreated(pool *api.StoragePool) bool {
 
 // storagePoolsPostCluster handles creating storage pools after the per-node config records have been created.
 // Accepts an optional existing pool record, which will exist when performing subsequent re-create attempts.
-func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePoolsPost, clientType request.ClientType) error {
+func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePoolsPost, clientType clusterRequest.ClientType) error {
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
@@ -694,9 +708,22 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
+	response := doStoragePoolUpdate(d, pool, req, targetNode, clientType, r.Method, clustered)
+
+	projectName := projectParam(r)
+	requestor := request.CreateRequestor(r)
+
+	ctx := log.Ctx{}
+	if targetNode != "" {
+		ctx["target"] = targetNode
+	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolUpdated.Event(pool.Name(), projectName, requestor, ctx))
+
+	return response
+
 }
 
 // swagger:operation PATCH /1.0/storage-pools/{name} storage storage_pool_patch
@@ -744,7 +771,7 @@ func storagePoolPatch(d *Daemon, r *http.Request) response.Response {
 
 // doStoragePoolUpdate takes the current local storage pool config, merges with the requested storage pool config,
 // validates and applies the changes. Will also notify other cluster nodes of non-node specific config if needed.
-func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType request.ClientType, httpMethod string, clustered bool) response.Response {
+func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolPut, targetNode string, clientType clusterRequest.ClientType, httpMethod string, clustered bool) response.Response {
 	if req.Config == nil {
 		req.Config = map[string]string{}
 	}
@@ -778,7 +805,7 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 	}
 
 	// Notify the other nodes, unless this is itself a notification.
-	if clustered && clientType != request.ClientTypeNotifier && targetNode == "" {
+	if clustered && clientType != clusterRequest.ClientTypeNotifier && targetNode == "" {
 		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAll)
 		if err != nil {
 			return response.SmartError(err)
@@ -843,7 +870,8 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	projectName := projectParam(r)
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 	clusterNotification := isClusterNotification(r)
 	var notifier cluster.Notifier
 	if !clusterNotification {
@@ -873,7 +901,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, volume := range volumeNames {
-			_, imgInfo, err := d.cluster.GetImage(projectParam(r), volume, false)
+			_, imgInfo, err := d.cluster.GetImage(projectName, volume, false)
 			if err != nil {
 				return response.InternalError(errors.Wrapf(err, "Failed getting image info for %q", volume))
 			}
@@ -914,6 +942,9 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolDeleted.Event(pool.Name(), projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
