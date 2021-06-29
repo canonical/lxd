@@ -318,7 +318,8 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	// Attempt to enable port isolation
 	if shared.IsTrue(d.config["security.port_isolation"]) {
-		_, err = shared.RunCommand("bridge", "link", "set", "dev", saveData["host_name"], "isolated", "on")
+		link := &ip.Link{Name: saveData["host_name"]}
+		err = link.BridgeLinkSetIsolated(true)
 		if err != nil {
 			return nil, err
 		}
@@ -1004,6 +1005,8 @@ func (d *nicBridged) networkDHCPv6CreateIAAddress(IP net.IP) []byte {
 
 // setupNativeBridgePortVLANs configures the bridge port with the specified VLAN settings on the native bridge.
 func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
+	link := &ip.Link{Name: hostName}
+
 	// Check vlan_filtering is enabled on bridge if needed.
 	if d.config["vlan"] != "" || d.config["vlan.tagged"] != "" {
 		vlanFilteringStatus, err := network.BridgeVLANFilteringStatus(d.config["parent"])
@@ -1032,7 +1035,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 		// If the default is different to the specified untagged VLAN or if tagged VLAN is set to "none"
 		// then remove the default untagged membership.
 		if defaultPVID != d.config["vlan"] || d.config["vlan"] == "none" {
-			_, err = shared.RunCommand("bridge", "vlan", "del", "dev", hostName, "vid", defaultPVID)
+			err = link.BridgeVLANDelete(defaultPVID, false, false)
 			if err != nil {
 				return err
 			}
@@ -1040,7 +1043,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 		// Configure the untagged membership settings of the port if VLAN ID specified.
 		if d.config["vlan"] != "none" {
-			_, err = shared.RunCommand("bridge", "vlan", "add", "dev", hostName, "vid", d.config["vlan"], "pvid", "untagged", "master")
+			err = link.BridgeVLANAdd(d.config["vlan"], true, true, false, true)
 			if err != nil {
 				return err
 			}
@@ -1057,7 +1060,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 				return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
 			}
 
-			_, err := shared.RunCommand("bridge", "vlan", "add", "dev", hostName, "vid", vlanID)
+			err := link.BridgeVLANAdd(vlanID, false, false, false, false)
 			if err != nil {
 				return err
 			}
