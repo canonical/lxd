@@ -396,6 +396,7 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 			Type:       "copy",
 			Pool:       sourcePool,
 			VolumeOnly: args.VolumeOnly,
+			Fresh:      args.Fresh
 		},
 	}
 	req.Config = volume.Config

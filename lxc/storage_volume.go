@@ -315,7 +315,7 @@ type cmdStorageVolumeCopy struct {
 
 	flagMode          string
 	flagVolumeOnly    bool
-	flagFresh         bool
+	flagRefresh       bool
 	flagTargetProject string
 }
 
@@ -331,7 +331,7 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagVolumeOnly, "volume-only", false, i18n.G("Copy the volume without its snapshots"))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
-	cmd.Flags().BoolVar(&c.flagFresh, "refresh", false, i18n.G("Refresh and update the existing storage volume copies"))
+	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Refresh and update the existing storage volume copies"))
 	cmd.RunE = c.Run
 
 	return cmd
