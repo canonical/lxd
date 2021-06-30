@@ -209,6 +209,31 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
+
+		// Override the storage volume to match the source (if exists on the same pool).
+		pool, err := storagePools.GetPoolByInstance(s, inst)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed loading instance storage pool")
+		}
+
+		volType, err := storagePools.InstanceTypeToVolumeType(inst.Type())
+		if err != nil {
+			return nil, err
+		}
+
+		volDBType, err := storagePools.VolumeTypeToDBType(volType)
+		if err != nil {
+			return nil, err
+		}
+
+		src := opts.sourceInstance
+		_, srcVol, err := s.Cluster.GetLocalStoragePoolVolume(src.Project(), src.Name(), volDBType, pool.ID())
+		if err == nil {
+			err = s.Cluster.UpdateStoragePoolVolume(inst.Project(), inst.Name(), volDBType, pool.ID(), srcVol.Description, srcVol.Config)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to update instance volume config")
+			}
+		}
 	}
 
 	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
@@ -315,6 +340,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		}
 	}
 
+	// Copy the storage volume.
 	pool, err := storagePools.GetPoolByInstance(s, inst)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed loading instance storage pool")
