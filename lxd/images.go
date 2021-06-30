@@ -28,15 +28,17 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	projectutils "github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -1017,6 +1019,8 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrapf(err, "Failed syncing image between nodes")
 		}
 
+		d.State().Events.SendLifecycle(projectName, lifecycle.ImageCreated.Event(info.Fingerprint, projectName, op.Requestor(), log.Ctx{"type": info.Type}))
+
 		return nil
 	}
 
@@ -1830,6 +1834,11 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 
 		metadata := map[string]interface{}{"refreshed": result}
 		op.UpdateMetadata(metadata)
+
+		// Sent a lifecycle event if the refresh actually happened.
+		if result {
+			d.State().Events.SendLifecycle(projectName, lifecycle.ImageRefreshed.Event(fingerprint, projectName, op.Requestor(), nil))
+		}
 	}
 
 	// Update the image on each pool where it currently exists.
@@ -1936,7 +1945,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredImages(ctx, d)
+			return pruneExpiredImages(ctx, d, op)
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationImagesExpire, nil, nil, opRun, nil, nil, nil)
@@ -2021,7 +2030,7 @@ func pruneLeftoverImages(d *Daemon) {
 	logger.Infof("Done pruning leftover image files")
 }
 
-func pruneExpiredImages(ctx context.Context, d *Daemon) error {
+func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation) error {
 	var projects []api.Project
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -2037,7 +2046,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 	}
 
 	for _, project := range projects {
-		err := pruneExpiredImagesInProject(ctx, d, project)
+		err := pruneExpiredImagesInProject(ctx, d, project, op)
 		if err != nil {
 			return errors.Wrapf(err, "Unable to prune images for project %s", project)
 		}
@@ -2046,7 +2055,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon) error {
 	return nil
 }
 
-func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Project) error {
+func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Project, op *operations.Operation) error {
 	var expiry int64
 	var err error
 	if project.Config["images.remote_cache_expiry"] != "" {
@@ -2130,6 +2139,8 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Pro
 		if err = d.cluster.DeleteImage(imgID); err != nil {
 			return errors.Wrapf(err, "Error deleting image %q from database", img)
 		}
+
+		d.State().Events.SendLifecycle(project.Name, lifecycle.ImageDeleted.Event(img, project.Name, op.Requestor(), nil))
 	}
 
 	return nil
@@ -2260,6 +2271,8 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 
 		// Remove main image file from disk.
 		imageDeleteFromDisk(imgInfo.Fingerprint)
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.ImageDeleted.Event(imgInfo.Fingerprint, projectName, op.Requestor(), nil))
 
 		return nil
 	}
@@ -2537,6 +2550,9 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
@@ -2638,6 +2654,9 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageUpdated.Event(info.Fingerprint, projectName, requestor, nil))
+
 	return response.EmptySyncResponse
 }
 
@@ -2703,6 +2722,9 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasCreated.Event(req.Name, projectName, requestor, log.Ctx{"target": req.Target}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
 }
@@ -2925,6 +2947,30 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, alias, alias)
 }
 
+// swagger:operation DELETE /1.0/images/aliases/{name} images image_alias_delete
+//
+// Delete the image alias
+//
+// Deletes a specific image alias.
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
 func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
@@ -2937,6 +2983,9 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasDeleted.Event(name, projectName, requestor, nil))
 
 	return response.EmptySyncResponse
 }
@@ -3008,6 +3057,9 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(alias.Name, projectName, requestor, log.Ctx{"target": alias.Target}))
 
 	return response.EmptySyncResponse
 }
@@ -3096,6 +3148,9 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasUpdated.Event(alias.Name, projectName, requestor, log.Ctx{"target": alias.Target}))
+
 	return response.EmptySyncResponse
 }
 
@@ -3155,6 +3210,9 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageAliasRenamed.Event(req.Name, projectName, requestor, log.Ctx{"old_name": name}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/images/aliases/%s", version.APIVersion, req.Name))
 }
@@ -3303,6 +3361,9 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	files[0].Path = imagePath
 	files[0].Filename = filename
 
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
+
 	return response.FileResponse(r, files, nil, false)
 }
 
@@ -3424,6 +3485,8 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 		if opWaitAPI.Status != "success" {
 			return fmt.Errorf(opWaitAPI.Err)
 		}
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(fingerprint, projectName, op.Requestor(), log.Ctx{"target": req.Target}))
 
 		return nil
 	}
@@ -3791,6 +3854,8 @@ func createTokenResponse(d *Daemon, r *http.Request, projectName string, fingerp
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.ImageSecretCreated.Event(fingerprint, projectName, op.Requestor(), nil))
 
 	return operations.OperationResponse(op)
 }
