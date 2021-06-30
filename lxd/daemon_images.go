@@ -14,8 +14,10 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -514,5 +516,15 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	logger.Info("Image downloaded", ctxMap)
+
+	var requestor *api.EventLifecycleRequestor
+	if op != nil {
+		requestor = op.Requestor()
+	} else if r != nil {
+		requestor = request.CreateRequestor(r)
+	}
+
+	d.State().Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, log.Ctx{"type": info.Type}))
+
 	return info, nil
 }
