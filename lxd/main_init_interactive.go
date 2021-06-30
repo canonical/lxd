@@ -113,8 +113,10 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 			serverName = "lxd"
 		}
 
-		config.Cluster.ServerName = cli.AskString(
-			fmt.Sprintf("What name should be used to identify this node in the cluster? [default=%s]: ", serverName), serverName, nil)
+		askForServerName := func() {
+			config.Cluster.ServerName = cli.AskString(
+				fmt.Sprintf("What name should be used to identify this node in the cluster? [default=%s]: ", serverName), serverName, nil)
+		}
 
 		// Cluster server address
 		address := util.NetworkInterfaceAddress()
@@ -187,9 +189,8 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 					rawJoinToken = cli.AskString("Please provide join token: ", "", validJoinToken)
 				}
 
-				if joinToken.ServerName != config.Cluster.ServerName {
-					return fmt.Errorf("Server name does not match the one specified in join token")
-				}
+				// Set server name from join token
+				config.Cluster.ServerName = joinToken.ServerName
 
 				// Attempt to find a working cluster member to use for joining by retrieving the
 				// cluster certificate from each address in the join token until we succeed.
@@ -225,6 +226,9 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				// Raw join token used as cluster password so it can be validated.
 				config.Cluster.ClusterPassword = rawJoinToken
 			} else {
+				// Ask for server name since no token is provided
+				askForServerName()
+
 				for {
 					// Cluster URL
 					clusterAddress := cli.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
@@ -317,6 +321,9 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 
 			config.Cluster.MemberConfig = cluster.MemberConfig
 		} else {
+			// Ask for server name since no token is provided
+			askForServerName()
+
 			// Password authentication
 			if cli.AskBool("Setup password authentication on the cluster? (yes/no) [default=no]: ", "no") {
 				config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
