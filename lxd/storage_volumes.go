@@ -525,7 +525,9 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+		if req.Refresh == false {
+			return response.Conflict(fmt.Errorf("Volume by that name already exists"))
+		}
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
