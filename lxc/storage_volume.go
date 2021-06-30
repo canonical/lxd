@@ -438,6 +438,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		args.Name = dstVolName
 		args.Mode = mode
 		args.VolumeOnly = c.flagVolumeOnly
+		args.Refresh = c.flagRefresh
 
 		if isSnapshot {
 			srcVol.Name = srcVolName
