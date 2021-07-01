@@ -39,8 +39,9 @@ var ClusterRoles = map[int]ClusterRole{}
 
 // Numeric type codes identifying different cluster member states.
 const (
-	ClusterMemberStateCreated = 0
-	ClusterMemberStatePending = 1
+	ClusterMemberStateCreated   = 0
+	ClusterMemberStatePending   = 1
+	ClusterMemberStateEvacuated = 2
 )
 
 // NodeInfo holds information about a single LXD instance in a cluster.
