@@ -14,7 +14,9 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 var instancesCmd = APIEndpoint{
@@ -220,6 +222,8 @@ func instancesRestart(s *state.State) error {
 
 	sort.Sort(containerAutostartList(instances))
 
+	maxAttempts := 3
+
 	// Restart the instances
 	for _, inst := range instances {
 		// Get the instance config.
@@ -239,12 +243,21 @@ func instancesRestart(s *state.State) error {
 			continue
 		}
 
+		instLogger := logging.AddContext(logger.Log, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+
 		// Try to start the instance.
 		var err error
-		for retry := 0; retry < 3; retry++ {
+		var attempt = 0
+		for {
+			attempt++
 			err = inst.Start(false)
 			if err != nil {
-				logger.Errorf("Failed to start instance '%q': %v", inst.Name(), err)
+				instLogger.Warn("Failed auto start instance attempt", log.Ctx{"attempt": attempt, "maxAttempts": maxAttempts, "err": err})
+
+				if attempt >= maxAttempts {
+					break
+				}
+
 				time.Sleep(5 * time.Second)
 			} else {
 				break
@@ -252,7 +265,7 @@ func instancesRestart(s *state.State) error {
 		}
 
 		if err != nil {
-			logger.Errorf("Failed to start instance '%s': %v", inst.Name(), err)
+			instLogger.Error("Failed to auto start instance", log.Ctx{"err": err})
 			continue
 		}
 
