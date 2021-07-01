@@ -60,6 +60,12 @@ type StorageVolumePost struct {
 	//
 	// API extension: storage_api_remote_volume_snapshots
 	VolumeOnly bool `json:"volume_only" yaml:"volume_only"`
+
+	// Whether existing copies should be refreshed (for copy)
+	// Example: false
+	//
+	// API extension: custom_volume_refresh
+	Refresh bool `json:"refresh" yaml:"refresh"`
 }
 
 // StorageVolumePostTarget represents the migration target host and operation
@@ -185,7 +191,7 @@ type StorageVolumeSource struct {
 	// API extension: storage_api_volume_snapshots
 	VolumeOnly bool `json:"volume_only" yaml:"volume_only"`
 
-	// Whether existing copies should be refreshed (for copy and migration)
+	// Whether existing copies should be refreshed (for copy)
 	// Example: false
 	//
 	// API extension: custom_volume_refresh

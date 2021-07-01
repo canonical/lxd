@@ -518,6 +518,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	var destinationVolumeExists bool
 	// Check if destination volume exists.
 	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != db.ErrNoSuchObject {
@@ -525,9 +526,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		if req.Refresh == false {
-			return response.Conflict(fmt.Errorf("Volume by that name already exists"))
-		}
+		destinationVolumeExists = true
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -541,12 +540,30 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	case "":
 		return doVolumeCreateOrCopy(d, r, projectParam(r), projectName, poolName, &req)
 	case "copy":
+		if destinationVolumeExists && req.Source.Refresh == true {
+			err = doDuplicatedCustomVolumeDeletion(d, projectName, poolName, &req)
+			if err != nil {
+				return response.SmartError(err)
+			}
+		} else if destinationVolumeExists && req.Source.Refresh == false {
+			return response.Conflict(fmt.Errorf("Volume by that name already exists. Use --refresh to refresh the existing storage volume."))
+		}
+
 		return doVolumeCreateOrCopy(d, r, projectParam(r), projectName, poolName, &req)
 	case "migration":
 		return doVolumeMigration(d, r, projectParam(r), projectName, poolName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %q", req.Source.Type))
 	}
+}
+
+func doDuplicatedCustomVolumeDeletion(d *Daemon, projectName string, poolName string, req *api.StorageVolumesPost) error {
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return pool.DeleteCustomVolume(projectName, req.Name, nil)
 }
 
 func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
