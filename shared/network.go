@@ -27,17 +27,21 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	for _, a := range addrs {
 		c, err := net.DialTimeout(network, net.JoinHostPort(a, port), 10*time.Second)
 		if err != nil {
 			continue
 		}
+
 		if tc, ok := c.(*net.TCPConn); ok {
 			tc.SetKeepAlive(true)
 			tc.SetKeepAlivePeriod(3 * time.Second)
 		}
+
 		return c, err
 	}
+
 	return nil, fmt.Errorf("Unable to connect to: " + address)
 }
 
