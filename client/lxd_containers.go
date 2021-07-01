@@ -200,7 +200,12 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
@@ -554,7 +559,12 @@ func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, re
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
@@ -1220,7 +1230,12 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true

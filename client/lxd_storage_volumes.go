@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -306,7 +307,12 @@ func (r *ProtocolLXD) tryMigrateStoragePoolVolume(source InstanceServer, pool st
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
@@ -361,7 +367,12 @@ func (r *ProtocolLXD) tryCreateStoragePoolVolume(pool string, req api.StorageVol
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
