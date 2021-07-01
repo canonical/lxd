@@ -290,7 +290,12 @@ func (r *ProtocolLXD) tryCreateInstance(req api.InstancesPost, urls []string, op
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
@@ -660,7 +665,12 @@ func (r *ProtocolLXD) tryMigrateInstance(source InstanceServer, name string, req
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
@@ -1434,7 +1444,12 @@ func (r *ProtocolLXD) tryMigrateInstanceSnapshot(source InstanceServer, instance
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true

@@ -600,7 +600,12 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 			err = rop.targetOp.Wait()
 			if err != nil {
 				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
-				continue
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
