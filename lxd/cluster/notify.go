@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -109,12 +108,11 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 		// TODO: aggregate all errors?
 		for i, err := range errs {
 			if err != nil {
-				// FIXME: unfortunately the LXD client currently does not
-				//        provide a way to differentiate between errors
-				if isClientConnectionError(err) && policy == NotifyAlive {
+				if shared.IsConnectionError(err) && policy == NotifyAlive {
 					logger.Warnf("Could not notify node %s", peers[i])
 					continue
 				}
+
 				return err
 			}
 		}
@@ -122,12 +120,4 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 	}
 
 	return notifier, nil
-}
-
-// Return true if the given error is due to the LXD Go client not being able to
-// connect to the target LXD node.
-func isClientConnectionError(err error) bool {
-	// FIXME: unfortunately the LXD client currently does not
-	//        provide a way to differentiate between errors
-	return strings.Contains(err.Error(), "Unable to connect to")
 }

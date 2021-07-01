@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,7 +18,12 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-func RFC3493Dialer(network, address string) (net.Conn, error) {
+// connectErrorPrefix used as prefix to error returned from RFC3493Dialer.
+const connectErrorPrefix = "Unable to connect to"
+
+// RFC3493Dialer connects to the specified server and returns the connection.
+// If the connection cannot be established then an error with the connectErrorPrefix is returned.
+func RFC3493Dialer(network string, address string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
@@ -27,18 +33,29 @@ func RFC3493Dialer(network, address string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	for _, a := range addrs {
 		c, err := net.DialTimeout(network, net.JoinHostPort(a, port), 10*time.Second)
 		if err != nil {
 			continue
 		}
+
 		if tc, ok := c.(*net.TCPConn); ok {
 			tc.SetKeepAlive(true)
 			tc.SetKeepAlivePeriod(3 * time.Second)
 		}
+
 		return c, err
 	}
-	return nil, fmt.Errorf("Unable to connect to: " + address)
+
+	return nil, fmt.Errorf("%s: %s", connectErrorPrefix, address)
+}
+
+// IsConnectionError returns true if the given error is due to the dialer not being able to connect to the target
+// LXD server.
+func IsConnectionError(err error) bool {
+	// FIXME: unfortunately the LXD client currently does not provide a way to differentiate between errors.
+	return strings.Contains(err.Error(), connectErrorPrefix)
 }
 
 // InitTLSConfig returns a tls.Config populated with default encryption
