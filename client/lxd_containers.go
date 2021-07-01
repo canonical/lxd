@@ -177,7 +177,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := map[string]error{}
+		var errors []remoteOperationResult
 		for _, serverURL := range urls {
 			if operation == "" {
 				req.Source.Server = serverURL
@@ -187,7 +187,7 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 
 			op, err := r.CreateContainer(req)
 			if err != nil {
-				errors[serverURL] = err
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
 				continue
 			}
 
@@ -199,8 +199,13 @@ func (r *ProtocolLXD) tryCreateContainer(req api.ContainersPost, urls []string) 
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors[serverURL] = err
-				continue
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
@@ -535,13 +540,13 @@ func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, re
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := map[string]error{}
+		var errors []remoteOperationResult
 		for _, serverURL := range urls {
 			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.PathEscape(operation))
 
 			op, err := source.MigrateContainer(name, req)
 			if err != nil {
-				errors[serverURL] = err
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
 				continue
 			}
 
@@ -553,8 +558,13 @@ func (r *ProtocolLXD) tryMigrateContainer(source InstanceServer, name string, re
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors[serverURL] = err
-				continue
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
@@ -1201,13 +1211,13 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 	// Forward targetOp to remote op
 	go func() {
 		success := false
-		errors := map[string]error{}
+		var errors []remoteOperationResult
 		for _, serverURL := range urls {
 			req.Target.Operation = fmt.Sprintf("%s/1.0/operations/%s", serverURL, url.PathEscape(operation))
 
 			op, err := source.MigrateContainerSnapshot(containerName, name, req)
 			if err != nil {
-				errors[serverURL] = err
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
 				continue
 			}
 
@@ -1219,8 +1229,13 @@ func (r *ProtocolLXD) tryMigrateContainerSnapshot(source InstanceServer, contain
 
 			err = rop.targetOp.Wait()
 			if err != nil {
-				errors[serverURL] = err
-				continue
+				errors = append(errors, remoteOperationResult{URL: serverURL, Error: err})
+
+				if shared.IsConnectionError(err) {
+					continue
+				}
+
+				break
 			}
 
 			success = true
