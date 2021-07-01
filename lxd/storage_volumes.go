@@ -541,10 +541,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return doVolumeCreateOrCopy(d, r, projectParam(r), projectName, poolName, &req)
 	case "copy":
 		if destinationVolumeExists && req.Source.Refresh == true {
-			err = doDuplicatedCustomVolumeDeletion(d, projectName, poolName, &req)
-			if err != nil {
-				return response.SmartError(err)
-			}
+			return doCustomVolumeRefresh(d, r, projectParam(r), projectName, poolName, &req)
 		} else if destinationVolumeExists && req.Source.Refresh == false {
 			return response.Conflict(fmt.Errorf("Volume by that name already exists. Use --refresh to refresh the existing storage volume."))
 		}
@@ -557,13 +554,55 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 	}
 }
 
-func doDuplicatedCustomVolumeDeletion(d *Daemon, projectName string, poolName string, req *api.StorageVolumesPost) error {
+func doCustomVolumeRefresh(d *Daemon, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) error {
+	var run func(op *operations.Operation) error
+
 	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	return pool.DeleteCustomVolume(projectName, req.Name, nil)
+	volumeDBContentType, err := storagePools.VolumeContentTypeNameToContentType(req.ContentType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	contentType, err := storagePools.VolumeDBContentTypeToContentType(volumeDBContentType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	run = func(op *operations.Operation) error {
+		revert := revert.New()
+		defer revert.Fail()
+
+		err = pool.DeleteCustomVolume(projectName, req.Name, nil)
+		if err != nil {
+			return err
+		}
+
+		if req.Source.Name == "" {
+			err = pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = pool.CreateCustomVolumeFromCopy(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
+		if err != nil {
+			return err
+		}
+
+		revert.Success()
+		return nil
+	}
+
+	op, err := operations.OperationCreate(d.State(), requestProjectName, operations.OperationClassTask, db.OperationVolumeCopy, nil, nil, run, nil, nil, r)
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return operations.OperationResponse(op)
 }
 
 func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
