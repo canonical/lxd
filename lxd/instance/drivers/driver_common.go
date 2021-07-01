@@ -636,6 +636,21 @@ func (d *common) isRunningStatusCode(statusCode api.StatusCode) bool {
 	return statusCode != api.Error && statusCode != api.Stopped
 }
 
+// isStartableStatusCode returns an error if the status code means the instance cannot be started currently.
+func (d *common) isStartableStatusCode(statusCode api.StatusCode) error {
+	if d.isRunningStatusCode(statusCode) {
+		return fmt.Errorf("The instance is already running")
+	}
+
+	// If the instance process exists but is crashed, don't allow starting until its been cleaned up, as it
+	// would likely fail to start anyway or leave the old process untracked.
+	if statusCode == api.Error {
+		return fmt.Errorf("The instance cannot be started as in %s status", statusCode)
+	}
+
+	return nil
+}
+
 // startupSnapshot triggers a snapshot if configured.
 func (d *common) startupSnapshot(inst instance.Instance) error {
 	schedule := strings.ToLower(d.expandedConfig["snapshots.schedule"])
