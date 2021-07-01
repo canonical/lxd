@@ -881,10 +881,11 @@ func (d *qemu) Start(stateful bool) error {
 	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
 
-	// Check that we're not already running before creating an operation lock, so if the instance is in the
+	// Check that we are startable before creating an operation lock, so if the instance is in the
 	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
-	if d.IsRunning() {
-		return fmt.Errorf("The instance is already running")
+	err := d.isStartableStatusCode(d.statusCode())
+	if err != nil {
+		return err
 	}
 
 	// Check for stateful.
@@ -5313,6 +5314,13 @@ func (d *qemu) statusCode() api.StatusCode {
 	status, err := monitor.Status()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			// If cannot connect to monitor, but qemu process in pid file still exists, then likely qemu
+			// has crashed/hung and this instance is in an error state.
+			pid, _ := d.pid()
+			if pid > 0 {
+				return api.Error
+			}
+
 			return api.Stopped
 		}
 
