@@ -136,7 +136,13 @@ func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 	return client, nil
 }
 
-func remoteOperationError(msg string, errors map[string]error) error {
+// remoteOperationResult used for storing the error that occurred for a particular remote URL.
+type remoteOperationResult struct {
+	URL   string
+	Error error
+}
+
+func remoteOperationError(msg string, errors []remoteOperationResult) error {
 	// Check if empty
 	if len(errors) == 0 {
 		return nil
@@ -145,16 +151,16 @@ func remoteOperationError(msg string, errors map[string]error) error {
 	// Check if all identical
 	var err error
 	for _, entry := range errors {
-		if err != nil && entry.Error() != err.Error() {
-			errorStrs := []string{}
-			for server, errorStr := range errors {
-				errorStrs = append(errorStrs, fmt.Sprintf("%s: %s", server, errorStr))
+		if err != nil && entry.Error.Error() != err.Error() {
+			errorStrs := make([]string, 0, len(errors))
+			for _, error := range errors {
+				errorStrs = append(errorStrs, fmt.Sprintf("%s: %v", error.URL, error.Error))
 			}
 
 			return fmt.Errorf("%s:\n - %s", msg, strings.Join(errorStrs, "\n - "))
 		}
 
-		err = entry
+		err = entry.Error
 	}
 
 	// Check if successful
