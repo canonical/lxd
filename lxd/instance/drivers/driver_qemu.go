@@ -5314,6 +5314,13 @@ func (d *qemu) statusCode() api.StatusCode {
 	status, err := monitor.Status()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
+			// If cannot connect to monitor, but qemu process in pid file still exists, then likely qemu
+			// has crashed/hung and this instance is in an error state.
+			pid, _ := d.pid()
+			if pid > 0 {
+				return api.Error
+			}
+
 			return api.Stopped
 		}
 
