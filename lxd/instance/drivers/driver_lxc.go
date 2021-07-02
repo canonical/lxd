@@ -2832,7 +2832,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	}
 
 	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
-	_, err := d.onStopOperationSetup(target)
+	_, _, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -2855,7 +2855,7 @@ func (d *lxc) onStop(args map[string]string) error {
 	}
 
 	// Create/pick up operation.
-	op, err := d.onStopOperationSetup(target)
+	op, instanceInitiated, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -2927,7 +2927,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Log and emit lifecycle if not user triggered
-		if op == nil {
+		if instanceInitiated {
 			ctxMap := log.Ctx{
 				"action":    target,
 				"created":   d.creationDate,
