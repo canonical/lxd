@@ -278,6 +278,7 @@ var APIExtensions = []string{
 	"server_supported_storage_drivers",
 	"event_lifecycle_requestor_address",
 	"resources_gpu_usb",
+	"clustering_evacuation",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
