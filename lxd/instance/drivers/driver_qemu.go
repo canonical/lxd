@@ -3277,13 +3277,33 @@ func (d *qemu) pid() (int, error) {
 	return pid, nil
 }
 
+// forceStop kills the QEMU prorcess if running, performs normal device & operation cleanup and sends stop
+// lifecycle event.
+func (d *qemu) forceStop() error {
+	pid, _ := d.pid()
+	if pid > 0 {
+		d.killQemuProcess(pid)
+
+		err := d.onStop("stop")
+		if err != nil {
+			return err
+		}
+
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
+	}
+
+	return nil
+}
+
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
 	d.logger.Debug("Stop started", log.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Stop finished", log.Ctx{"stateful": stateful})
 
 	// Must be run prior to creating the operation lock.
-	if !d.IsRunning() {
+	// Allow stop to proceed if statusCode is Error as we may need to forcefully kill the QEMU process.
+	statusCode := d.statusCode()
+	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error {
 		return fmt.Errorf("The instance is already stopped")
 	}
 
@@ -3306,22 +3326,18 @@ func (d *qemu) Stop(stateful bool) error {
 	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off, but it could also be
-		// because the qemu process is hung, check if process still exists and kill it if needed.
-		pid, _ := d.pid()
-		if pid > 0 {
-			d.killQemuProcess(pid)
-		}
-
-		op.Done(nil)
-		return nil
+		// because the qemu process is not responding, check if process still exists and kill it if needed.
+		return d.forceStop()
 	}
 
 	// Get the wait channel.
 	chDisconnect, err := monitor.Wait()
 	if err != nil {
 		if err == qmp.ErrMonitorDisconnect {
-			op.Done(nil)
-			return nil
+			// If we fail to wait, it's most likely because the VM is already off, but it could also be
+			// because the qemu process is not responding, check if process still exists and kill it if
+			// needed.
+			return d.forceStop()
 		}
 
 		op.Done(err)
