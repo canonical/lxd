@@ -661,7 +661,12 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	defer d.logger.Debug("Shutdown finished", log.Ctx{"timeout": timeout})
 
 	// Must be run prior to creating the operation lock.
-	if !d.IsRunning() {
+	statusCode := d.statusCode()
+	if !d.isRunningStatusCode(statusCode) {
+		if statusCode == api.Error {
+			return fmt.Errorf("The instance cannot be cleanly shutdown as in %s status", statusCode)
+		}
+
 		return fmt.Errorf("The instance is already stopped")
 	}
 
