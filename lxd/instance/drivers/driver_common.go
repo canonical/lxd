@@ -850,7 +850,8 @@ func (d *common) maasDelete(inst instance.Instance) error {
 // onStopOperationSetup creates or picks up the relevant operation. This is used in the stopns and stop hooks to
 // ensure that a lock on their activities is held before the instance process is stopped. This prevents a start
 // request run at the same time from overlapping with the stop process.
-func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOperation, error) {
+// Returns the operation along with a boolean indicating if the operation was created or not.
+func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOperation, bool, error) {
 	var err error
 
 	// Pick up the existing stop operation lock created in Stop() function.
@@ -863,8 +864,11 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 		op = nil
 	}
 
+	instanceInitiated := false
+
 	if op == nil {
 		d.logger.Debug("Instance initiated stop", log.Ctx{"action": target})
+		instanceInitiated = true
 
 		action := "stop"
 		if target == "reboot" {
@@ -873,9 +877,9 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 
 		op, err = operationlock.Create(d.id, action, false, false)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed creating %s operation", action)
+			return nil, false, errors.Wrapf(err, "Failed creating %s operation", action)
 		}
 	}
 
-	return op, nil
+	return op, instanceInitiated, nil
 }
