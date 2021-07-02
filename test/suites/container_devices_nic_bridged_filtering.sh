@@ -606,12 +606,12 @@ test_container_devices_nic_bridged_filtering() {
     done
   fi
 
-  # Enable IP filtering and check container won't start without manual IP assigned in LXD config.
-  lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering=true security.ipv6_filtering=true
-  ! lxc start "${ctPrefix}A" || false
-  lxc config device set "${ctPrefix}A" eth0 ipv4.address=192.0.2.2
-  ! lxc start "${ctPrefix}A" || false
-  lxc config device set "${ctPrefix}A" eth0 ipv6.address=2001:db8::2
+  # Check IP filtering cannot be enabled without manual IP assigned in LXD config.
+  ! lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering=true || false
+  lxc config device set "${ctPrefix}A" eth0 ipv4.address=192.0.2.2 security.ipv4_filtering=true
+  ! lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering=true || false
+    lxc config device set "${ctPrefix}A" eth0 ipv6.address=2001:db8::2 security.ipv6_filtering=true
+
   lxc start "${ctPrefix}A"
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
