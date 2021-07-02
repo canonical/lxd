@@ -5352,6 +5352,8 @@ func (d *qemu) statusCode() api.StatusCode {
 		return api.Running
 	} else if status == "paused" {
 		return api.Frozen
+	} else if status == "internal-error" {
+		return api.Error
 	}
 
 	return api.Stopped
