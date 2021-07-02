@@ -2730,7 +2730,12 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	defer d.logger.Debug("Shutdown finished", log.Ctx{"timeout": timeout})
 
 	// Must be run prior to creating the operation lock.
-	if !d.IsRunning() {
+	statusCode := d.statusCode()
+	if !d.isRunningStatusCode(statusCode) {
+		if statusCode == api.Error {
+			return fmt.Errorf("The instance cannot be cleanly shutdown as in %s status", statusCode)
+		}
+
 		return fmt.Errorf("The instance is already stopped")
 	}
 
@@ -2832,7 +2837,7 @@ func (d *lxc) onStopNS(args map[string]string) error {
 	}
 
 	// Create/pick up operation, but don't complete it as we leave operation running for the onStop hook below.
-	_, err := d.onStopOperationSetup(target)
+	_, _, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -2855,7 +2860,7 @@ func (d *lxc) onStop(args map[string]string) error {
 	}
 
 	// Create/pick up operation.
-	op, err := d.onStopOperationSetup(target)
+	op, instanceInitiated, err := d.onStopOperationSetup(target)
 	if err != nil {
 		return err
 	}
@@ -2927,7 +2932,7 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Log and emit lifecycle if not user triggered
-		if op == nil {
+		if instanceInitiated {
 			ctxMap := log.Ctx{
 				"action":    target,
 				"created":   d.creationDate,
@@ -3089,8 +3094,8 @@ func (d *lxc) Unfreeze() error {
 	return err
 }
 
-// Get lxc container state, with 1 second timeout
-// If we don't get a reply, assume the lxc monitor is hung
+// Get lxc container state, with 1 second timeout.
+// If we don't get a reply, assume the lxc monitor is unresponsive.
 func (d *lxc) getLxcState() (liblxc.State, error) {
 	if d.IsSnapshot() {
 		return liblxc.StateMap["STOPPED"], nil
@@ -3116,7 +3121,7 @@ func (d *lxc) getLxcState() (liblxc.State, error) {
 	case state := <-monitor:
 		return state, nil
 	case <-time.After(5 * time.Second):
-		return liblxc.StateMap["FROZEN"], fmt.Errorf("Monitor is hung")
+		return liblxc.StateMap["FROZEN"], fmt.Errorf("Monitor is unresponsive")
 	}
 }
 
