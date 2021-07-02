@@ -451,36 +451,44 @@ func networkSetupHostVethLimits(m deviceConfig.Device) error {
 	}
 
 	// Clean any existing entry
-	shared.RunCommand("tc", "qdisc", "del", "dev", veth, "root")
-	shared.RunCommand("tc", "qdisc", "del", "dev", veth, "ingress")
+	qdisc := &ip.Qdisc{Dev: veth, Root: true}
+	qdisc.Delete()
+	qdisc = &ip.Qdisc{Dev: veth, Ingress: true}
+	qdisc.Delete()
 
 	// Apply new limits
 	if m["limits.ingress"] != "" {
-		_, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "root", "handle", "1:0", "htb", "default", "10")
+		qdiscHTB := &ip.QdiscHTB{Qdisc: ip.Qdisc{Dev: veth, Handle: "1:0", Root: true}, Default: "10"}
+		err := qdiscHTB.Add()
 		if err != nil {
 			return fmt.Errorf("Failed to create root tc qdisc: %s", err)
 		}
 
-		_, err = shared.RunCommand("tc", "class", "add", "dev", veth, "parent", "1:0", "classid", "1:10", "htb", "rate", fmt.Sprintf("%dbit", ingressInt))
+		classHTB := &ip.ClassHTB{Class: ip.Class{Dev: veth, Parent: "1:0", Classid: "1:10"}, Rate: fmt.Sprintf("%dbit", ingressInt)}
+		err = classHTB.Add()
 		if err != nil {
 			return fmt.Errorf("Failed to create limit tc class: %s", err)
 		}
 
-		_, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "1:0", "protocol", "all", "u32", "match", "u32", "0", "0", "flowid", "1:1")
+		filter := &ip.U32Filter{Filter: ip.Filter{Dev: veth, Parent: "1:0", Protocol: "all", Flowid: "1:1"}, Value: "0", Mask: "0"}
+		err = filter.Add()
 		if err != nil {
 			return fmt.Errorf("Failed to create tc filter: %s", err)
 		}
 	}
 
 	if m["limits.egress"] != "" {
-		_, err := shared.RunCommand("tc", "qdisc", "add", "dev", veth, "handle", "ffff:0", "ingress")
+		qdisc = &ip.Qdisc{Dev: veth, Handle: "ffff:0", Ingress: true}
+		err := qdisc.Add()
 		if err != nil {
 			return fmt.Errorf("Failed to create ingress tc qdisc: %s", err)
 		}
 
-		_, err = shared.RunCommand("tc", "filter", "add", "dev", veth, "parent", "ffff:0", "protocol", "all", "u32", "match", "u32", "0", "0", "police", "rate", fmt.Sprintf("%dbit", egressInt), "burst", "1024k", "mtu", "64kb", "drop")
+		police := &ip.ActionPolice{Rate: fmt.Sprintf("%dbit", egressInt), Burst: "1024k", Mtu: "64kb", Drop: true}
+		filter := &ip.U32Filter{Filter: ip.Filter{Dev: veth, Parent: "ffff:0", Protocol: "all"}, Value: "0", Mask: "0", Actions: []ip.Action{police}}
+		err = filter.Add()
 		if err != nil {
-			return fmt.Errorf("Failed to create ingress tc qdisc: %s", err)
+			return fmt.Errorf("Failed to create ingress tc filter: %s", err)
 		}
 	}
 

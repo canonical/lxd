@@ -1,6 +1,14 @@
 package ip
 
 import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os/exec"
+	"regexp"
+	"strconv"
+
 	"github.com/lxc/lxd/shared"
 )
 
@@ -135,6 +143,151 @@ func (l *Link) SetVfSpoofchk(vf string, mode string) error {
 	return nil
 }
 
+// VirtFuncInfo holds information about vf.
+type VirtFuncInfo struct {
+	VF         int              `json:"vf"`
+	Address    string           `json:"address"`
+	MAC        string           `json:"mac"` // Deprecated
+	VLANs      []map[string]int `json:"vlan_list"`
+	SpoofCheck bool             `json:"spoofchk"`
+}
+
+// GetVFInfo returns info about virtual function
+func (l *Link) GetVFInfo(vfID int) (VirtFuncInfo, error) {
+	vf := VirtFuncInfo{}
+	vfNotFoundErr := fmt.Errorf("no matching virtual function found")
+
+	ipPath, err := exec.LookPath("ip")
+	if err != nil {
+		return vf, fmt.Errorf("ip command not found")
+	}
+
+	// Function to get VF info using regex matching, for older versions of ip tool. Less reliable.
+	vfFindByRegex := func(devName string, vfID int) (VirtFuncInfo, error) {
+		cmd := exec.Command(ipPath, "link", "show", devName)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return vf, err
+		}
+		defer stdout.Close()
+
+		err = cmd.Start()
+		if err != nil {
+			return vf, err
+		}
+		defer cmd.Wait()
+
+		// Try and match: "vf 1 MAC 00:00:00:00:00:00, vlan 4095, spoof checking off"
+		reVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, vlan (\d+), spoof checking (\w+)`, vfID))
+
+		// IP link command doesn't show the vlan property if its set to 0, so we need to detect that.
+		// Try and match: "vf 1 MAC 00:00:00:00:00:00, spoof checking off"
+		reNoVlan := regexp.MustCompile(fmt.Sprintf(`vf %d MAC ((?:[[:xdigit:]]{2}:){5}[[:xdigit:]]{2}).*, spoof checking (\w+)`, vfID))
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			// First try and find VF and read its properties with VLAN activated.
+			res := reVlan.FindStringSubmatch(scanner.Text())
+			if len(res) == 4 {
+				vlan, err := strconv.Atoi(res[2])
+				if err != nil {
+					return vf, err
+				}
+
+				vf.Address = res[1]
+				vf.VLANs = append(vf.VLANs, map[string]int{"vlan": vlan})
+				vf.SpoofCheck = shared.IsTrue(res[3])
+
+				return vf, err
+			}
+
+			// Next try and find VF and read its properties with VLAN missing.
+			res = reNoVlan.FindStringSubmatch(scanner.Text())
+			if len(res) == 3 {
+				vf.Address = res[1]
+				// Missing VLAN ID means 0 when resetting later.
+				vf.VLANs = append(vf.VLANs, map[string]int{"vlan": 0})
+				vf.SpoofCheck = shared.IsTrue(res[2])
+
+				return vf, err
+			}
+		}
+
+		err = scanner.Err()
+		if err != nil {
+			return vf, err
+		}
+
+		return vf, vfNotFoundErr
+	}
+
+	// First try using the JSON output format as is more reliable to parse.
+	cmd := exec.Command(ipPath, "-j", "link", "show", l.Name)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return vf, err
+	}
+	defer stdout.Close()
+
+	err = cmd.Start()
+	if err != nil {
+		return vf, err
+	}
+	defer cmd.Wait()
+
+	// Temporary struct to decode ip output into.
+	var ifInfo []struct {
+		VFList []VirtFuncInfo `json:"vfinfo_list"`
+	}
+
+	// Decode JSON output.
+	dec := json.NewDecoder(stdout)
+	err = dec.Decode(&ifInfo)
+	if err != nil && err != io.EOF {
+		return vf, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		// If JSON command fails, fallback to using regex match mode for older versions of ip tool.
+		// This does not support the newer VF "link/ether" output prefix.
+		return vfFindByRegex(l.Name, vfID)
+	}
+
+	if len(ifInfo) == 0 {
+		return vf, vfNotFoundErr
+	}
+
+	// Search VFs returned for match.
+	found := false
+	for _, vfInfo := range ifInfo[0].VFList {
+		if vfInfo.VF == vfID {
+			vf = vfInfo // Found a match.
+			found = true
+		}
+	}
+
+	if !found {
+		return vf, vfNotFoundErr
+	}
+
+	// Always populate VLANs slice if not already populated. Missing VLAN ID means 0 when resetting later.
+	if len(vf.VLANs) == 0 {
+		vf.VLANs = append(vf.VLANs, map[string]int{"vlan": 0})
+	}
+
+	// Ensure empty VLAN entry is consistently populated.
+	if _, found = vf.VLANs[0]["vlan"]; !found {
+		vf.VLANs[0]["vlan"] = 0
+	}
+
+	// If ip tool has provided old mac field, copy into newer address field.
+	if vf.MAC != "" && vf.Address == "" {
+		vf.Address = vf.MAC
+	}
+
+	return vf, nil
+}
+
 // Change sets map for link device
 func (l *Link) Change(devType string, fanMap string) error {
 	_, err := shared.RunCommand("ip", "link", "change", "dev", l.Name, "type", devType, "fan-map", fanMap)
@@ -147,6 +300,80 @@ func (l *Link) Change(devType string, fanMap string) error {
 // Delete deletes the link device
 func (l *Link) Delete() error {
 	_, err := shared.RunCommand("ip", "link", "delete", "dev", l.Name)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// BridgeVLANAdd adds a new vlan filter entry
+func (l *Link) BridgeVLANAdd(vid string, pvid bool, untagged bool, self bool, master bool) error {
+	cmd := []string{"vlan", "add", "dev", l.Name, "vid", vid}
+
+	if pvid == true {
+		cmd = append(cmd, "pvid")
+	}
+
+	if untagged == true {
+		cmd = append(cmd, "untagged")
+	}
+
+	if self == true {
+		cmd = append(cmd, "self")
+	}
+
+	if master == true {
+		cmd = append(cmd, "master")
+	}
+
+	_, err := shared.RunCommand("bridge", cmd...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// BridgeVLANDelete removes an existing vlan filter entry
+func (l *Link) BridgeVLANDelete(vid string, self bool, master bool) error {
+	cmd := []string{"vlan", "del", "dev", l.Name, "vid", vid}
+
+	if self == true {
+		cmd = append(cmd, "self")
+	}
+
+	if master == true {
+		cmd = append(cmd, "master")
+	}
+
+	_, err := shared.RunCommand("bridge", cmd...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// BridgeLinkSetIsolated sets bridge 'isolated' attribute on a port
+func (l *Link) BridgeLinkSetIsolated(isolated bool) error {
+	isolatedState := "on"
+	if isolated == false {
+		isolatedState = "off"
+	}
+
+	_, err := shared.RunCommand("bridge", "link", "set", "dev", l.Name, "isolated", isolatedState)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// BridgeLinkSetHairpin sets bridge 'hairpin' attribute on a port
+func (l *Link) BridgeLinkSetHairpin(hairpin bool) error {
+	hairpinState := "on"
+	if hairpin == false {
+		hairpinState = "off"
+	}
+
+	_, err := shared.RunCommand("bridge", "link", "set", "dev", l.Name, "hairpin", hairpinState)
 	if err != nil {
 		return err
 	}
