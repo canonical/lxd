@@ -3094,8 +3094,8 @@ func (d *lxc) Unfreeze() error {
 	return err
 }
 
-// Get lxc container state, with 1 second timeout
-// If we don't get a reply, assume the lxc monitor is hung
+// Get lxc container state, with 1 second timeout.
+// If we don't get a reply, assume the lxc monitor is unresponsive.
 func (d *lxc) getLxcState() (liblxc.State, error) {
 	if d.IsSnapshot() {
 		return liblxc.StateMap["STOPPED"], nil
@@ -3121,7 +3121,7 @@ func (d *lxc) getLxcState() (liblxc.State, error) {
 	case state := <-monitor:
 		return state, nil
 	case <-time.After(5 * time.Second):
-		return liblxc.StateMap["FROZEN"], fmt.Errorf("Monitor is hung")
+		return liblxc.StateMap["FROZEN"], fmt.Errorf("Monitor is unresponsive")
 	}
 }
 
