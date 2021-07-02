@@ -173,6 +173,15 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			if err != nil {
 				return err
 			}
+		} else {
+			// Check that static IPs are defined when using IP filtering on an unmanaged bridge.
+			if shared.IsTrue(d.config["security.ipv4_filtering"]) && d.config["ipv4.address"] == "" {
+				return fmt.Errorf("IPv4 filtering requires a manually specified ipv4.address when using an unmanaged parent bridge")
+			}
+
+			if shared.IsTrue(d.config["security.ipv6_filtering"]) && d.config["ipv6.address"] == "" {
+				return fmt.Errorf("IPv6 filtering requires a manually specified ipv6.address when using an unmanaged parent bridge")
+			}
 		}
 	}
 
