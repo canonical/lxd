@@ -72,23 +72,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"boot.priority",
 	}
 
-	// Check that if network proeperty is set that conflicting keys are not present.
-	if d.config["network"] != "" {
-		requiredFields = append(requiredFields, "network")
-
-		bannedKeys := []string{"nictype", "parent", "mtu", "maas.subnet.ipv4", "maas.subnet.ipv6"}
-		for _, bannedKey := range bannedKeys {
-			if d.config[bannedKey] != "" {
-				return fmt.Errorf("Cannot use %q property in conjunction with %q property", bannedKey, "network")
-			}
-		}
-
-		// If network property is specified, lookup network settings and apply them to the device's config.
-		n, err := network.LoadByName(d.state, d.config["network"])
-		if err != nil {
-			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
-		}
-
+	// checkWithManagedNetwork validates the device's settings against the managed network.
+	checkWithManagedNetwork := func(n network.Network) error {
 		if n.Status() != api.NetworkStatusCreated {
 			return fmt.Errorf("Specified network is not fully created")
 		}
@@ -104,13 +89,13 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs).
 			if dhcpv4Subnet == nil {
-				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled on network %q`, d.config["network"])
+				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled on network %q`, n.Name())
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
 			if !dhcpalloc.DHCPValidIP(dhcpv4Subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
-				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], d.config["network"])
+				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], n.Name())
 			}
 		}
 
@@ -119,15 +104,44 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs).
 			if dhcpv6Subnet == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) {
-				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled on network %q`, d.config["network"])
+				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled on network %q`, n.Name())
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
 			if !dhcpalloc.DHCPValidIP(dhcpv6Subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
-				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
+				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], n.Name())
 			}
 		}
+
+		return nil
+	}
+
+	// Check that if network proeperty is set that conflicting keys are not present.
+	if d.config["network"] != "" {
+		requiredFields = append(requiredFields, "network")
+
+		bannedKeys := []string{"nictype", "parent", "mtu", "maas.subnet.ipv4", "maas.subnet.ipv6"}
+		for _, bannedKey := range bannedKeys {
+			if d.config[bannedKey] != "" {
+				return fmt.Errorf("Cannot use %q property in conjunction with %q property", bannedKey, "network")
+			}
+		}
+
+		// Load managed network. project.Default is used here as bridge networks don't support projects.
+		n, err := network.LoadByName(d.state, d.config["network"])
+		if err != nil {
+			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+		}
+
+		// Validate NIC settings with managed network.
+		err = checkWithManagedNetwork(n)
+		if err != nil {
+			return err
+		}
+
+		// Apply network settings to NIC.
+		netConfig := n.Config()
 
 		// Link device to network bridge.
 		d.config["parent"] = d.config["network"]
@@ -147,6 +161,17 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	} else {
 		// If no network property supplied, then parent property is required.
 		requiredFields = append(requiredFields, "parent")
+
+		// Check if parent is a managed network.
+		// project.Default is used here as bridge networks don't support projects.
+		n, _ := network.LoadByName(d.state, d.config["parent"])
+		if n != nil {
+			// Validate NIC settings with managed network.
+			err := checkWithManagedNetwork(n)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// Now run normal validation.
