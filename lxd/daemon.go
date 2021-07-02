@@ -1289,7 +1289,7 @@ func (d *Daemon) init() error {
 	for _, w := range dbWarnings {
 		err := d.cluster.UpsertWarningLocalNode("", -1, -1, db.WarningType(w.TypeCode), w.LastMessage)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create warning")
+			logger.Warn("Failed to create warning", log.Ctx{"err": err})
 		}
 	}
 
@@ -1312,7 +1312,7 @@ func (d *Daemon) init() error {
 		// Resolve warnings with the given type
 		err := warnings.ResolveWarningsByLocalNodeAndType(d.cluster, i)
 		if err != nil {
-			return errors.Wrap(err, "Failed to resolve warnings")
+			logger.Warn("Failed to resolve warnings", log.Ctx{"err": err})
 		}
 	}
 
