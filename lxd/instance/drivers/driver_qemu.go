@@ -4343,6 +4343,12 @@ func (d *qemu) Delete(force bool) error {
 		return fmt.Errorf("Instance is protected")
 	}
 
+	// Delete any persistent warnings for instance.
+	err := d.warningsDelete()
+	if err != nil {
+		return err
+	}
+
 	// Check if we're dealing with "lxd import".
 	// TODO consider lxd import detection for VMs.
 	isImport := false
