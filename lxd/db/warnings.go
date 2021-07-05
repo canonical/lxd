@@ -14,6 +14,8 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Warning is a value object holding db-related details about a warning.
@@ -463,7 +465,7 @@ func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
 
 	entity, err := c.GetURIFromEntity(w.EntityTypeCode, w.EntityID)
 	if err != nil {
-		return api.Warning{}, errors.Wrapf(err, "Failed to get URI for entity type code %d", w.EntityTypeCode)
+		logger.Warn("Failed to get entity URI for warning", log.Ctx{"ID": w.UUID, "entityID": w.EntityID, "entityTypeCode": w.EntityTypeCode, "err": err})
 	}
 
 	return api.Warning{
