@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -882,4 +883,16 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	}
 
 	return op, instanceInitiated, nil
+}
+
+// warningsDelete deletes any persistent warnings for the instance.
+func (d *common) warningsDelete() error {
+	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.DeleteWarningsByEntity(dbCluster.TypeInstance, d.ID())
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting persistent warnings")
+	}
+
+	return nil
 }
