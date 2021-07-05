@@ -1490,12 +1490,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		if n.config["dns.mode"] != "none" {
+			dnsmasqCmd = append(dnsmasqCmd, "-s", dnsDomain)
+			dnsmasqCmd = append(dnsmasqCmd, "--interface-name", fmt.Sprintf("_gateway.%s,%s", dnsDomain, n.name))
+
 			if dnsClustered {
-				dnsmasqCmd = append(dnsmasqCmd, "-s", dnsDomain)
 				dnsmasqCmd = append(dnsmasqCmd, "-S", fmt.Sprintf("/%s/%s#1053", dnsDomain, dnsClusteredAddress))
 				dnsmasqCmd = append(dnsmasqCmd, fmt.Sprintf("--rev-server=%s,%s#1053", overlaySubnet, dnsClusteredAddress))
 			} else {
-				dnsmasqCmd = append(dnsmasqCmd, []string{"-s", dnsDomain, "-S", fmt.Sprintf("/%s/", dnsDomain)}...)
+				dnsmasqCmd = append(dnsmasqCmd, "-S", fmt.Sprintf("/%s/", dnsDomain))
 			}
 		}
 
