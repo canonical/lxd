@@ -197,6 +197,63 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
+	// Check there isn't another NIC with the any of the same addresses specified on the same cluster member.
+	// Can only validate this when the instance is supplied (and not doing profile validation).
+	if d.inst != nil && (d.config["ipv4.address"] != "" || d.config["ipv6.address"] != "") {
+		err := d.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+			// Get the instance's effective network project name.
+			instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+			if instNetworkProject != project.Default {
+				return nil // Managed bridge networks can only exist in default project.
+			}
+
+			if inst.Node != d.inst.Location() {
+				return nil // Managed bridge networks have a DHCP server on each cluster member.
+			}
+
+			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+
+			// Iterate through each of the instance's devices, looking for NICs that are linked to
+			// the same network, on the same cluster member as this NIC and have matching static IPs.
+			for devName, devConfig := range devices {
+				if devConfig["type"] != "nic" {
+					continue
+				}
+
+				// Skip our own device.
+				if inst.Name == d.inst.Name() && inst.Project == d.inst.Project() && d.Name() == devName {
+					continue
+				}
+
+				// Skip NICs connected to other networks.
+				if d.config["parent"] != devConfig["parent"] && d.config["network"] != devConfig["network"] {
+					continue
+				}
+
+				// Check NIC's static IPs don't match this NIC's static IPs.
+				for _, key := range []string{"ipv4.address", "ipv6.address"} {
+					if d.config[key] == "" {
+						continue // No static IP specified on this NIC.
+					}
+
+					// Parse IPs to avoid being tripped up by presentation differences.
+					ourNICIP := net.ParseIP(d.config[key])
+					devNiCIP := net.ParseIP(devConfig[key])
+
+					if ourNICIP != nil && devNiCIP != nil && ourNICIP.Equal(devNiCIP) {
+						return fmt.Errorf("IP %q already defined on another NIC", ourNICIP.String())
+					}
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	rules := nicValidationRules(requiredFields, optionalFields, instConf)
 
 	// Add bridge specific vlan validation.
