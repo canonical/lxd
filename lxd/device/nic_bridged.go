@@ -95,7 +95,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs) when
 			// IP filtering isn't enabled (if it is we allow the use of static IPs for this purpose).
 			if dhcpv4Subnet == nil && !shared.IsTrue(d.config["security.ipv4_filtering"]) {
-				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled on network %q`, n.Name())
+				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled (unless using security.ipv4_filtering) on network %q`, n.Name())
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
@@ -111,7 +111,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs) when
 			// IP filtering isn't enabled (if it is we allow the use of static IPs for this purpose).
 			if (dhcpv6Subnet == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"])) && !shared.IsTrue(d.config["security.ipv6_filtering"]) {
-				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled on network %q`, n.Name())
+				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled (unless using security.ipv6_filtering) on network %q`, n.Name())
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
