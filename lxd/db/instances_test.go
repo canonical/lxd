@@ -147,7 +147,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	_, err = tx.CreateInstance(c1p2)
 	require.NoError(t, err)
 
-	containers, err := tx.GetInstances(db.InstanceFilter{})
+	containers, err := tx.GetInstances(*db.InstanceFilterAllInstances())
 	require.NoError(t, err)
 
 	assert.Len(t, containers, 2)
