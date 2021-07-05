@@ -3549,6 +3549,12 @@ func (d *lxc) Delete(force bool) error {
 		return err
 	}
 
+	// Delete any persistent warnings for instance.
+	err := d.warningsDelete()
+	if err != nil {
+		return err
+	}
+
 	isImport := false
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {

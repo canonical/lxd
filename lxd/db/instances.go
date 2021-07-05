@@ -106,6 +106,11 @@ type InstanceFilter struct {
 	Type    instancetype.Type
 }
 
+// InstanceFilterAllInstances returns a predefined filter for returning all instances.
+func InstanceFilterAllInstances() *InstanceFilter {
+	return &InstanceFilter{Type: instancetype.Any}
+}
+
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
 func InstanceToArgs(inst *Instance) InstanceArgs {
 	args := InstanceArgs{
@@ -335,7 +340,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 
 	// Default to listing all instances if no filter provided.
 	if filter == nil {
-		filter = &InstanceFilter{Type: instancetype.Any}
+		filter = InstanceFilterAllInstances()
 	}
 
 	// Retrieve required info from the database in single transaction for performance.

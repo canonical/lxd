@@ -14,6 +14,8 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // Warning is a value object holding db-related details about a warning.
@@ -81,7 +83,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 	// Validate
 	_, err := c.GetURIFromEntity(entityTypeCode, entityID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get URI for entity type code %d", entityTypeCode)
+		return errors.Wrapf(err, "Failed to get URI for entity ID %d with entity type code %d", entityID, entityTypeCode)
 	}
 
 	_, ok := WarningTypeNames[typeCode]
@@ -457,13 +459,19 @@ func (c *ClusterTx) DeleteWarningsByStatus(status WarningStatus) error {
 	return nil
 }
 
+// DeleteWarningsByEntity deletes all warnings with the given entity type and entity ID.
+func (c *ClusterTx) DeleteWarningsByEntity(entityTypeCode int, entityID int) error {
+	_, err := c.tx.Exec(`DELETE FROM warnings WHERE entity_type_code = ? AND entity_id = ?`, entityTypeCode, entityID)
+	return err
+}
+
 // ToAPI returns a LXD API entry.
 func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
 	typeCode := WarningType(w.TypeCode)
 
 	entity, err := c.GetURIFromEntity(w.EntityTypeCode, w.EntityID)
 	if err != nil {
-		return api.Warning{}, errors.Wrapf(err, "Failed to get URI for entity type code %d", w.EntityTypeCode)
+		logger.Warn("Failed to get entity URI for warning", log.Ctx{"ID": w.UUID, "entityID": w.EntityID, "entityTypeCode": w.EntityTypeCode, "err": err})
 	}
 
 	return api.Warning{
