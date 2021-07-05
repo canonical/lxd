@@ -569,6 +569,31 @@ func (d *qemu) configVirtiofsdPaths() (string, string) {
 	return sockPath, pidPath
 }
 
+// pidWait waits for the QEMU process to exit. Does this in a way that doesn't require the LXD process to be a
+// parent of the QEMU process (in order to allow for LXD to be restarted after the VM was started).
+// Returns true if process stopped, false if timeout was exceeded.
+func (d *qemu) pidWait(timeout time.Duration, op *operationlock.InstanceOperation) bool {
+	waitUntil := time.Now().Add(timeout)
+	for {
+		pid, _ := d.pid()
+		if pid <= 0 {
+			break
+		}
+
+		if time.Now().After(waitUntil) {
+			return false
+		}
+
+		if op != nil {
+			op.Reset() // Reset timeout to 30s.
+		}
+
+		time.Sleep(time.Millisecond * time.Duration(250))
+	}
+
+	return true
+}
+
 // onStop is run when the instance stops.
 func (d *qemu) onStop(target string) error {
 	d.logger.Debug("onStop hook started", log.Ctx{"target": target})
@@ -583,22 +608,12 @@ func (d *qemu) onStop(target string) error {
 	// Wait for QEMU process to end (to avoiding racing start when restarting).
 	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
-	waitDuration := time.Duration(time.Minute * time.Duration(5))
-	waitUntil := time.Now().Add(waitDuration)
-	for {
-		pid, _ := d.pid()
-		if pid <= 0 {
-			d.logger.Debug("VM process finished")
-			break
-		}
-
-		if time.Now().After(waitUntil) {
-			d.logger.Error("VM process failed to stop", log.Ctx{"waitDuration": waitDuration})
-			break // Continue clean up as best we can.
-		}
-
-		op.Reset() // Reset timeout to 30s.
-		time.Sleep(time.Millisecond * time.Duration(100))
+	waitTimeout := time.Minute * time.Duration(5)
+	if d.pidWait(waitTimeout, op) {
+		d.logger.Debug("VM process finished")
+	} else {
+		// Log a warning, but continue clean up as best we can.
+		d.logger.Error("VM process failed to stop", log.Ctx{"timeout": waitTimeout})
 	}
 
 	// Reset timeout to 30s.
@@ -766,27 +781,35 @@ func (d *qemu) ovmfPath() string {
 	return "/usr/share/OVMF"
 }
 
-func (d *qemu) killQemuProcess(pid int) {
+// killQemuProcess kills specified process. Optimistically attempts to wait for the process to fully exit, but does
+// not return an error if the Wait call fails. This is because this function is used in scenarios where LXD has
+// been restarted after the VM has been started and is no longer the parent of the QEMU process.
+// The caller should use another method to ensure that the QEMU process has fully exited instead.
+// Returns an error if the Kill signal couldn't be sent to the process (for any other reason apart from the process
+// not existing).
+func (d *qemu) killQemuProcess(pid int) error {
 	proc, err := os.FindProcess(pid)
 	if err != nil {
-		d.logger.Warn("Failed to find VM process", log.Ctx{"pid": pid})
-		return
+		return err
 	}
 
 	err = proc.Kill()
 	if err != nil {
 		if strings.Contains(err.Error(), "process already finished") {
-			d.logger.Warn("Failed to find VM process", log.Ctx{"pid": pid})
-		} else {
-			d.logger.Warn("Failed to kill VM process", log.Ctx{"pid": pid})
+			return nil
 		}
-		return
+
+		return err
 	}
 
+	// Wait for process to exit, but don't return an error if this fails as it may be called when LXD isn't
+	// the parent of the process, and we have still sent the kill signal as per the function's description.
 	_, err = proc.Wait()
 	if err != nil {
 		d.logger.Warn("Failed to collect VM process exit status", log.Ctx{"pid": pid})
 	}
+
+	return nil
 }
 
 // restoreState restores the saved state of the VM.
@@ -3282,9 +3305,13 @@ func (d *qemu) pid() (int, error) {
 func (d *qemu) forceStop() error {
 	pid, _ := d.pid()
 	if pid > 0 {
-		d.killQemuProcess(pid)
+		err := d.killQemuProcess(pid)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to stop VM process %d", pid)
+		}
 
-		err := d.onStop("stop")
+		// Wait for QEMU process to exit and perform device cleanup.
+		err = d.onStop("stop")
 		if err != nil {
 			return err
 		}
