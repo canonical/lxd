@@ -95,7 +95,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs) when
 			// IP filtering isn't enabled (if it is we allow the use of static IPs for this purpose).
 			if dhcpv4Subnet == nil && !shared.IsTrue(d.config["security.ipv4_filtering"]) {
-				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled on network %q`, n.Name())
+				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled (unless using security.ipv4_filtering) on network %q`, n.Name())
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
@@ -111,7 +111,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs) when
 			// IP filtering isn't enabled (if it is we allow the use of static IPs for this purpose).
 			if (dhcpv6Subnet == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"])) && !shared.IsTrue(d.config["security.ipv6_filtering"]) {
-				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled on network %q`, n.Name())
+				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled (unless using security.ipv6_filtering) on network %q`, n.Name())
 			}
 
 			// Check the static IP supplied is valid for the linked network. It should be part of the
@@ -194,6 +194,63 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	if shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
 		if d.config["vlan"] != "" || d.config["vlan.tagged"] != "" {
 			return fmt.Errorf("IP filtering cannot be used with VLAN filtering")
+		}
+	}
+
+	// Check there isn't another NIC with the any of the same addresses specified on the same cluster member.
+	// Can only validate this when the instance is supplied (and not doing profile validation).
+	if d.inst != nil && (d.config["ipv4.address"] != "" || d.config["ipv6.address"] != "") {
+		err := d.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+			// Get the instance's effective network project name.
+			instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+			if instNetworkProject != project.Default {
+				return nil // Managed bridge networks can only exist in default project.
+			}
+
+			if inst.Node != d.inst.Location() {
+				return nil // Managed bridge networks have a DHCP server on each cluster member.
+			}
+
+			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+
+			// Iterate through each of the instance's devices, looking for NICs that are linked to
+			// the same network, on the same cluster member as this NIC and have matching static IPs.
+			for devName, devConfig := range devices {
+				if devConfig["type"] != "nic" {
+					continue
+				}
+
+				// Skip our own device.
+				if inst.Name == d.inst.Name() && inst.Project == d.inst.Project() && d.Name() == devName {
+					continue
+				}
+
+				// Skip NICs connected to other networks.
+				if d.config["parent"] != devConfig["parent"] && d.config["network"] != devConfig["network"] {
+					continue
+				}
+
+				// Check NIC's static IPs don't match this NIC's static IPs.
+				for _, key := range []string{"ipv4.address", "ipv6.address"} {
+					if d.config[key] == "" {
+						continue // No static IP specified on this NIC.
+					}
+
+					// Parse IPs to avoid being tripped up by presentation differences.
+					ourNICIP := net.ParseIP(d.config[key])
+					devNiCIP := net.ParseIP(devConfig[key])
+
+					if ourNICIP != nil && devNiCIP != nil && ourNICIP.Equal(devNiCIP) {
+						return fmt.Errorf("IP %q already defined on another NIC", ourNICIP.String())
+					}
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 	}
 
