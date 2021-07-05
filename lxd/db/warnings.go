@@ -81,7 +81,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 	// Validate
 	_, err := c.GetURIFromEntity(entityTypeCode, entityID)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to get URI for entity type code %d", entityTypeCode)
 	}
 
 	_, ok := WarningTypeNames[typeCode]
@@ -463,7 +463,7 @@ func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
 
 	entity, err := c.GetURIFromEntity(w.EntityTypeCode, w.EntityID)
 	if err != nil {
-		return api.Warning{}, err
+		return api.Warning{}, errors.Wrapf(err, "Failed to get URI for entity type code %d", w.EntityTypeCode)
 	}
 
 	return api.Warning{
