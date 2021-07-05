@@ -459,6 +459,12 @@ func (c *ClusterTx) DeleteWarningsByStatus(status WarningStatus) error {
 	return nil
 }
 
+// DeleteWarningsByEntity deletes all warnings with the given entity type and entity ID.
+func (c *ClusterTx) DeleteWarningsByEntity(entityTypeCode int, entityID int) error {
+	_, err := c.tx.Exec(`DELETE FROM warnings WHERE entity_type_code = ? AND entity_id = ?`, entityTypeCode, entityID)
+	return err
+}
+
 // ToAPI returns a LXD API entry.
 func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
 	typeCode := WarningType(w.TypeCode)
