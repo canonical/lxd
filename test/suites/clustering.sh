@@ -836,7 +836,6 @@ test_clustering_network() {
   # A container can't be created when its NIC is associated with a pending network.
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   ! LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage bar || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   # The bridge.external_interfaces config key is not legal for the final network creation
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
@@ -881,6 +880,30 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
   ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
   ! nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy || false # Check LXD removes non-LXD interface (because we can't track node state).
+
+  # Check instance can be connected to created network and assign static DHCP allocations.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv4.address=192.0.2.2
+
+  # Check cannot assign static IPv6 without stateful DHCPv6 enabled.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" ipv6.dhcp.stateful=true
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2
+
+  # Check duplicate static DHCP allocation detection is working for same server as c1.
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" ipv4.address=192.0.2.2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" ipv6.address=2001:db8::2 || false
+
+  # Check duplicate static DHCP allocation is allowed for instance on a different server.
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv4.address=192.0.2.2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2
+
+  # Cleanup instances and image.
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
