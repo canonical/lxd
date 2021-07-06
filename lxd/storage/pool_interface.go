@@ -99,4 +99,7 @@ type Pool interface {
 	MigrationTypes(contentType drivers.ContentType, refresh bool) []migration.Type
 	CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
+
+	// Storage volume recovery.
+	ListUnknownVolumes(op *operations.Operation) (map[string][]*backup.Config, error)
 }
