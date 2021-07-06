@@ -98,6 +98,11 @@ func (v Volume) Name() string {
 	return v.name
 }
 
+// Pool returns the volume's pool name.
+func (v Volume) Pool() string {
+	return v.pool
+}
+
 // Config returns the volumes (unexpanded) config.
 func (v Volume) Config() map[string]string {
 	return v.config
