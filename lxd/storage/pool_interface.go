@@ -104,4 +104,7 @@ type Pool interface {
 	// Custom volume backups.
 	BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error
 	CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error
+
+	// Storage volume recovery.
+	ListUnknownVolumes(op *operations.Operation) (map[string][]*backup.Config, error)
 }
