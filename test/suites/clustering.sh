@@ -952,8 +952,8 @@ test_clustering_network() {
 
   # Check duplicate static DHCP allocation is allowed for instance on a different server.
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage c3
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv4.address=192.0.2.2
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 "${net}" ipv4.address=192.0.2.2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 "${net}" ipv6.address=2001:db8::2
 
   # Check duplicate MAC address assignment detection is working.
   c1MAC=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c1 volatile."${net}".hwaddr)
