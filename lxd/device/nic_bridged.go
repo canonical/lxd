@@ -188,11 +188,13 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	// Check there isn't another NIC with the any of the same addresses specified on the same cluster member.
 	// Can only validate this when the instance is supplied (and not doing profile validation).
 	if d.inst != nil && (d.config["ipv4.address"] != "" || d.config["ipv6.address"] != "") {
-		err := d.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
-			if inst.Node != d.inst.Location() {
-				return nil // Managed bridge networks have a DHCP server on each cluster member.
-			}
+		filter := db.InstanceFilter{
+			Project: "",                // All projects.
+			Node:    d.inst.Location(), // Managed bridge networks have a per-server DHCP daemon.
+			Type:    instancetype.Any,
+		}
 
+		err := d.state.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 
 			// Iterate through each of the instance's devices, looking for NICs that are linked to
