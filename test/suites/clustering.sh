@@ -901,6 +901,11 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv4.address=192.0.2.2
   LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2
 
+  # Check duplicate MAC address assignment detection is working.
+  c1MAC=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c1 volatile."${net}".hwaddr)
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" hwaddr="${c1MAC}" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 "${net}" hwaddr="${c1MAC}"
+
   # Cleanup instances and image.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
   LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
