@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -1576,6 +1577,8 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 		}
 	}
 
+	b.state.Events.SendLifecycle(inst.Project(), lifecycle.StorageVolumeUpdated.Event(newVol, string(newVol.Type()), inst.Project(), op, nil))
+
 	return nil
 }
 
@@ -1601,7 +1604,7 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 		return err
 	}
 
-	return b.updateVolumeDescriptionOnly(inst.Project(), inst.Name(), volDBType, newDesc, newConfig)
+	return b.updateVolumeDescriptionOnly(inst.Project(), inst.Name(), volDBType, newDesc, newConfig, op)
 }
 
 // MigrateInstance sends an instance volume for migration.
@@ -2418,13 +2421,15 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 		return err
 	}
 
+	b.state.Events.SendLifecycle(project.Default, lifecycle.StorageVolumeDeleted.Event(vol, string(vol.Type()), project.Default, op, nil))
+
 	return nil
 }
 
 // updateVolumeDescriptionOnly is a helper function used when handling update requests for volumes
 // that only allow their descriptions to be updated. If any config supplied differs from the
 // current volume's config then an error is returned.
-func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string, dbVolType int, newDesc string, newConfig map[string]string) error {
+func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string, dbVolType int, newDesc string, newConfig map[string]string, op *operations.Operation) error {
 	// Get current config to compare what has changed.
 	_, curVol, err := b.state.Cluster.GetLocalStoragePoolVolume(project, volName, dbVolType, b.ID())
 	if err != nil {
@@ -2450,6 +2455,26 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string,
 		}
 	}
 
+	// Get content type.
+	dbContentType, err := VolumeContentTypeNameToContentType(curVol.ContentType)
+	if err != nil {
+		return err
+	}
+
+	contentType, err := VolumeDBContentTypeToContentType(dbContentType)
+	if err != nil {
+		return err
+	}
+
+	// Validate config.
+	vol := b.newVolume(drivers.VolumeType(curVol.Type), contentType, volName, newConfig)
+
+	if !vol.IsSnapshot() {
+		b.state.Events.SendLifecycle(project, lifecycle.StorageVolumeUpdated.Event(vol, string(vol.Type()), project, op, nil))
+	} else {
+		b.state.Events.SendLifecycle(project, lifecycle.StorageVolumeSnapshotUpdated.Event(vol, string(vol.Type()), project, op, nil))
+	}
+
 	return nil
 }
 
@@ -2459,7 +2484,7 @@ func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[stri
 	logger.Debug("UpdateImage started")
 	defer logger.Debug("UpdateImage finished")
 
-	return b.updateVolumeDescriptionOnly(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig)
+	return b.updateVolumeDescriptionOnly(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig, op)
 }
 
 // CreateCustomVolume creates an empty custom volume.
@@ -2512,6 +2537,8 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	if err != nil {
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
 	revertDB = false
 	return nil
@@ -2664,6 +2691,8 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		if err != nil {
 			return err
 		}
+
+		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
 		revertDBVolumes = nil
 		return nil
@@ -2876,6 +2905,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+
 	revertDBVolumes = nil
 	return nil
 }
@@ -2962,6 +2993,9 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	if err != nil {
 		return err
 	}
+
+	vol = b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, nil)
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRenamed.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"old_name": volName}))
 
 	revert.Success()
 	return nil
@@ -3094,6 +3128,8 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 		}
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeUpdated.Event(newVol, string(newVol.Type()), projectName, op, nil))
+
 	return nil
 }
 
@@ -3137,6 +3173,9 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 			return err
 		}
 	}
+
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(curVol.ContentType), curVol.Name, curVol.Config)
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotUpdated.Event(vol, string(vol.Type()), projectName, op, nil))
 
 	return nil
 }
@@ -3211,6 +3250,8 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	if err != nil {
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeDeleted.Event(vol, string(vol.Type()), projectName, op, nil))
 
 	return nil
 }
@@ -3352,6 +3393,8 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+
 	revertDB = false
 	return nil
 }
@@ -3398,6 +3441,8 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		b.driver.RenameVolumeSnapshot(newVol, oldSnapshotName, op)
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotRenamed.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"old_name": oldSnapshotName}))
 
 	return nil
 }
@@ -3451,6 +3496,8 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	if err != nil {
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotDeleted.Event(vol, string(vol.Type()), projectName, op, nil))
 
 	return nil
 }
@@ -3542,6 +3589,8 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 
 		return err
 	}
+
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRestored.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"snapshot": snapshotName}))
 
 	return nil
 }
@@ -3887,6 +3936,8 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	if volPostHook != nil {
 		return fmt.Errorf("Custom volume restore doesn't support post hooks")
 	}
+
+	b.state.Events.SendLifecycle(srcBackup.Project, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), srcBackup.Project, op, log.Ctx{"type": vol.Type()}))
 
 	revert.Success()
 	return nil
