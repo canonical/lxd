@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -197,13 +198,23 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	// Check there isn't another NIC with the any of the same addresses specified on the same cluster member.
+	// Check there isn't another NIC with any of the same addresses specified on the same cluster member.
 	// Can only validate this when the instance is supplied (and not doing profile validation).
-	if d.inst != nil && (d.config["ipv4.address"] != "" || d.config["ipv6.address"] != "") {
+	if d.inst != nil {
 		filter := db.InstanceFilter{
 			Project: "",                // All projects.
 			Node:    d.inst.Location(), // Managed bridge networks have a per-server DHCP daemon.
 			Type:    instancetype.Any,
+		}
+
+		ourNICIPs := make(map[string]net.IP, 2)
+		ourNICIPs["ipv4.address"] = net.ParseIP(d.config["ipv4.address"])
+		ourNICIPs["ipv6.address"] = net.ParseIP(d.config["ipv6.address"])
+
+		ourNICMAC, _ := net.ParseMAC(d.config["hwaddr"])
+		if ourNICMAC == nil {
+			v := d.volatileGet()
+			ourNICMAC, _ = net.ParseMAC(v["hwaddr"])
 		}
 
 		err := d.state.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
@@ -233,6 +244,16 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					continue
 				}
 
+				// Check NIC's MAC address doesn't match this NIC's MAC address.
+				devNICMAC, _ := net.ParseMAC(devConfig["hwaddr"])
+				if devNICMAC == nil {
+					devNICMAC, _ = net.ParseMAC(inst.Config[fmt.Sprintf("volatile.%s.hwaddr", devName)])
+				}
+
+				if ourNICMAC != nil && devNICMAC != nil && bytes.Compare(ourNICMAC, devNICMAC) == 0 {
+					return fmt.Errorf("MAC address %q already defined on another NIC", devNICMAC.String())
+				}
+
 				// Check NIC's static IPs don't match this NIC's static IPs.
 				for _, key := range []string{"ipv4.address", "ipv6.address"} {
 					if d.config[key] == "" {
@@ -240,11 +261,10 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					}
 
 					// Parse IPs to avoid being tripped up by presentation differences.
-					ourNICIP := net.ParseIP(d.config[key])
-					devNiCIP := net.ParseIP(devConfig[key])
+					devNICIP := net.ParseIP(devConfig[key])
 
-					if ourNICIP != nil && devNiCIP != nil && ourNICIP.Equal(devNiCIP) {
-						return fmt.Errorf("IP %q already defined on another NIC", ourNICIP.String())
+					if ourNICIPs[key] != nil && devNICIP != nil && ourNICIPs[key].Equal(devNICIP) {
+						return fmt.Errorf("IP address %q already defined on another NIC", devNICIP.String())
 					}
 				}
 			}
