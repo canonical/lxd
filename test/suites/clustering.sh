@@ -853,7 +853,6 @@ test_clustering_network() {
   # A container can't be created when its NIC is associated with a pending network.
   LXD_DIR="${LXD_TWO_DIR}" ensure_import_testimage
   ! LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage bar || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   # The bridge.external_interfaces config key is not legal for the final network creation
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" bridge.external_interfaces=foo || false
@@ -922,7 +921,7 @@ test_clustering_network() {
   # Create new partially created network and check we can fix it.
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
   LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64|| false
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
   nsenter -n -t "${LXD_PID1}" -- ip link delete "${net}" # Remove conflicting interface.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.dhcp=false || false # Check supplying global config on re-create is blocked.
@@ -935,6 +934,30 @@ test_clustering_network() {
   # Check both nodes marked created.
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'" | grep "| node1 | 1     |"
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'" | grep "| node2 | 1     |"
+
+  # Check instance can be connected to created network and assign static DHCP allocations.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv4.address=192.0.2.2
+
+  # Check cannot assign static IPv6 without stateful DHCPv6 enabled.
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2 || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" ipv6.dhcp.stateful=true
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2
+
+  # Check duplicate static DHCP allocation detection is working for same server as c1.
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c2
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" ipv4.address=192.0.2.2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" ipv6.address=2001:db8::2 || false
+
+  # Check duplicate static DHCP allocation is allowed for instance on a different server.
+  LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv4.address=192.0.2.2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2
+
+  # Cleanup instances and image.
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
+  LXD_DIR="${LXD_ONE_DIR}" lxc image delete testimage
 
   # Delete network.
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
