@@ -105,6 +105,34 @@ type ServerEnvironment struct {
 	// List of active storage driver versions (separate by " | ")
 	// Example: 1 | 0.8.4-1ubuntu11
 	StorageVersion string `json:"storage_version" yaml:"storage_version"`
+
+	// List of supported storage drivers
+	StorageSupportedDrivers []ServerStorageDriverInfo `json:"storage_supported_drivers" yaml:"storage_supported_drivers"`
+}
+
+// ServerStorageDriverInfo represents the read-only info about a storage driver
+//
+// swagger:model
+//
+// API extension: server_supported_storage_drivers
+type ServerStorageDriverInfo struct {
+	// Name of the driver
+	// Example: zfs
+	//
+	// API extension: server_supported_storage_drivers
+	Name string
+
+	// Version of the driver
+	// Example: 0.8.4-1ubuntu11
+	//
+	// API extension: server_supported_storage_drivers
+	Version string
+
+	// Whether the driver has remote volumes
+	// Example: false
+	//
+	// API extension: server_supported_storage_drivers
+	Remote bool
 }
 
 // ServerPut represents the modifiable fields of a LXD server configuration
