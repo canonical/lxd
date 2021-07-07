@@ -14,13 +14,13 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
+func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*cmdInitData, error) {
 	// Quick checks.
 	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, storageDrivers.AllDriverNames()) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't supported by lxd init", c.flagStorageBackend)
 	}
 
-	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, c.availableStorageDrivers(poolTypeAny)) {
+	if c.flagStorageBackend != "" && !shared.StringInSlice(c.flagStorageBackend, c.availableStorageDrivers(server.Environment.StorageSupportedDrivers, poolTypeAny)) {
 		return nil, fmt.Errorf("The requested backend '%s' isn't available on your system (missing tools)", c.flagStorageBackend)
 	}
 
