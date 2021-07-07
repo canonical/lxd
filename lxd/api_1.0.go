@@ -322,8 +322,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	drivers := readStoragePoolDriversCache()
-	for driver, version := range drivers {
+	supportedStorageDrivers, usedStorageDrivers := readStoragePoolDriversCache()
+	for driver, version := range usedStorageDrivers {
 		if env.Storage != "" {
 			env.Storage = env.Storage + " | " + driver
 		} else {
@@ -337,6 +337,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 			env.StorageVersion = version
 		}
 	}
+
+	env.StorageSupportedDrivers = supportedStorageDrivers
 
 	fullSrv := api.Server{ServerUntrusted: srv}
 	fullSrv.Environment = env
