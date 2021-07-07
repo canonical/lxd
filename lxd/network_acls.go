@@ -8,8 +8,10 @@ import (
 	"github.com/gorilla/mux"
 
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
@@ -221,6 +223,13 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	netACL, err := acl.LoadByName(d.State(), projectName, req.Name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(r), nil))
 
 	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
 	return response.SyncResponseLocation(true, nil, url)
