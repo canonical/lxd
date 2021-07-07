@@ -275,6 +275,7 @@ var APIExtensions = []string{
 	"clustering_update_cert",
 	"storage_api_project",
 	"server_instance_driver_operational",
+	"server_supported_storage_drivers",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
