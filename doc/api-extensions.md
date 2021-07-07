@@ -1129,3 +1129,6 @@ This adds support for copy/move custom storage volumes between projects.
 # server\_instance\_driver\_operational
 This modifies the `driver` output for the `/1.0` endpoint to only include drivers which are actually supported and
 operational on the server (as opposed to being included in LXD but not operational on the server).
+
+## server\_supported\_storage\_drivers
+This adds supported storage driver info to server environment info.
