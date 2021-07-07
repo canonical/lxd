@@ -658,7 +658,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	// Apply the update.
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType)
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -716,10 +716,10 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType)
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType, r)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType clusterRequest.ClientType) response.Response {
+func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
 	if clientType == clusterRequest.ClientTypeNormal {
 		reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
 		if err != nil {
@@ -765,6 +765,8 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 
 	// Reload the cache.
 	updateCertificateCache(d)
+
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateUpdated.Event(fingerprint, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
