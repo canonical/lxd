@@ -14,6 +14,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -22,16 +23,23 @@ import (
 
 // Simply cache used to storage the activated drivers on this LXD instance. This
 // allows us to avoid querying the database everytime and API call is made.
-var storagePoolDriversCacheVal atomic.Value
+var storagePoolUsedDriversCacheVal atomic.Value
+var storagePoolSupportedDriversCacheVal atomic.Value
 var storagePoolDriversCacheLock sync.Mutex
 
-func readStoragePoolDriversCache() map[string]string {
-	drivers := storagePoolDriversCacheVal.Load()
-	if drivers == nil {
-		return map[string]string{}
+// readStoragePoolDriversCache returns supported and used storage driver info.
+func readStoragePoolDriversCache() ([]api.ServerStorageDriverInfo, map[string]string) {
+	usedDrivers := storagePoolUsedDriversCacheVal.Load()
+	if usedDrivers == nil {
+		usedDrivers = map[string]string{}
 	}
 
-	return drivers.(map[string]string)
+	supportedDrivers := storagePoolSupportedDriversCacheVal.Load()
+	if supportedDrivers == nil {
+		supportedDrivers = []api.ServerStorageDriverInfo{}
+	}
+
+	return supportedDrivers.([]api.ServerStorageDriverInfo), usedDrivers.(map[string]string)
 }
 
 func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.IdmapSet) error {
@@ -67,12 +75,16 @@ func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.Idmap
 }
 
 func setupStorageDriver(s *state.State, forceCheck bool) error {
+	// Update the storage drivers supported and used cache in api_1.0.go.
+	storagePoolDriversCacheUpdate(s)
+
 	pools, err := s.Cluster.GetCreatedStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
 			logger.Debugf("No existing storage pools detected")
 			return nil
 		}
+
 		logger.Debugf("Failed to retrieve existing storage pools")
 		return err
 	}
@@ -111,8 +123,6 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 		}
 	}
 
-	// Update the storage drivers cache in api_1.0.go.
-	storagePoolDriversCacheUpdate(s)
 	return nil
 }
 
@@ -126,25 +136,32 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	// copy-on-write semantics without locking in the read case seems
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
-
 	drivers, err := s.Cluster.GetStoragePoolDrivers()
 	if err != nil && err != db.ErrNoSuchObject {
 		return
 	}
 
-	data := map[string]string{}
+	usedDrivers := map[string]string{}
 
 	// Get the driver info.
 	info := storageDrivers.SupportedDrivers(s)
+	supportedDrivers := make([]api.ServerStorageDriverInfo, 0, len(info))
+
 	for _, entry := range info {
+		supportedDrivers = append(supportedDrivers, api.ServerStorageDriverInfo{
+			Name:    entry.Name,
+			Version: entry.Version,
+			Remote:  entry.Remote,
+		})
+
 		if shared.StringInSlice(entry.Name, drivers) {
-			data[entry.Name] = entry.Version
+			usedDrivers[entry.Name] = entry.Version
 		}
 	}
 
 	// Prepare the cache entries.
 	backends := []string{}
-	for k, v := range data {
+	for k, v := range usedDrivers {
 		backends = append(backends, fmt.Sprintf("%s %s", k, v))
 	}
 
@@ -152,7 +169,8 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	version.UserAgentStorageBackends(backends)
 
 	storagePoolDriversCacheLock.Lock()
-	storagePoolDriversCacheVal.Store(data)
+	storagePoolUsedDriversCacheVal.Store(usedDrivers)
+	storagePoolSupportedDriversCacheVal.Store(supportedDrivers)
 	storagePoolDriversCacheLock.Unlock()
 
 	return
