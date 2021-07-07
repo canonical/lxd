@@ -138,6 +138,54 @@ func InstanceTypeToVolumeType(instType instancetype.Type) (drivers.VolumeType, e
 	return "", fmt.Errorf("Invalid instance type")
 }
 
+// VolumeTypeToAPIInstanceType converts storage driver volume type to API instance type type.
+func VolumeTypeToAPIInstanceType(volType drivers.VolumeType) (api.InstanceType, error) {
+	switch volType {
+	case drivers.VolumeTypeContainer:
+		return api.InstanceTypeContainer, nil
+	case drivers.VolumeTypeVM:
+		return api.InstanceTypeVM, nil
+	}
+
+	return api.InstanceTypeAny, fmt.Errorf("Volume type doesn't have equivalent instance type")
+}
+
+// VolumeContentTypeToDBContentType converts volume type to internal code.
+func VolumeContentTypeToDBContentType(contentType drivers.ContentType) (int, error) {
+	switch contentType {
+	case drivers.ContentTypeBlock:
+		return db.StoragePoolVolumeContentTypeBlock, nil
+	case drivers.ContentTypeFS:
+		return db.StoragePoolVolumeContentTypeFS, nil
+	}
+
+	return -1, fmt.Errorf("Invalid volume content type")
+}
+
+// VolumeDBContentTypeToContentType converts internal content type DB code to driver representation.
+func VolumeDBContentTypeToContentType(volDBType int) (drivers.ContentType, error) {
+	switch volDBType {
+	case db.StoragePoolVolumeContentTypeBlock:
+		return drivers.ContentTypeBlock, nil
+	case db.StoragePoolVolumeContentTypeFS:
+		return drivers.ContentTypeFS, nil
+	}
+
+	return "", fmt.Errorf("Invalid volume content type")
+}
+
+// VolumeContentTypeNameToContentType converts volume content type string internal code.
+func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
+	switch contentTypeName {
+	case db.StoragePoolVolumeContentTypeNameFS:
+		return db.StoragePoolVolumeContentTypeFS, nil
+	case db.StoragePoolVolumeContentTypeNameBlock:
+		return db.StoragePoolVolumeContentTypeBlock, nil
+	}
+
+	return -1, fmt.Errorf("Invalid volume content type name")
+}
+
 // VolumeDBCreate creates a volume in the database.
 func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time) error {
 	// Convert the volume type to our internal integer representation.
