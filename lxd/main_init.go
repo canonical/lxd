@@ -9,11 +9,9 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/state"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type poolType string
@@ -98,6 +96,11 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to connect to local LXD")
 	}
 
+	server, _, err := d.GetServer()
+	if err != nil {
+		return errors.Wrap(err, "Failed to connect to get LXD server info")
+	}
+
 	// Dump mode
 	if c.flagDump {
 		err := c.RunDump(d)
@@ -121,7 +124,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	// Auto mode
 	if c.flagAuto {
-		config, err = c.RunAuto(cmd, args, d)
+		config, err = c.RunAuto(cmd, args, d, server)
 		if err != nil {
 			return err
 		}
@@ -129,7 +132,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	// Interactive mode
 	if !c.flagAuto && !c.flagPreseed {
-		config, err = c.RunInteractive(cmd, args, d)
+		config, err = c.RunInteractive(cmd, args, d, server)
 		if err != nil {
 			return err
 		}
@@ -188,18 +191,11 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (c *cmdInit) availableStorageDrivers(poolType poolType) []string {
+func (c *cmdInit) availableStorageDrivers(supportedDrivers []api.ServerStorageDriverInfo, poolType poolType) []string {
 	backingFs, err := util.FilesystemDetect(shared.VarPath())
 	if err != nil {
 		backingFs = "dir"
 	}
-
-	// Get info for supported drivers.
-	s := &state.State{
-		OS:                     sys.DefaultOS(),
-		UpdateCertificateCache: func() {},
-	}
-	supportedDrivers := storageDrivers.SupportedDrivers(s)
 
 	drivers := make([]string, 0, len(supportedDrivers))
 
