@@ -64,7 +64,7 @@ cgroups on the system and by extension, all containers.
 If this is something you'd like to see blocked, make sure you have the
 following done before any container is started:
 
- - chmod 600 /proc/sched\_debug
+ - chmod 400 /proc/sched\_debug
  - chmod 700 /sys/kernel/slab/
 
 ### Network Bandwidth Tweaking 
