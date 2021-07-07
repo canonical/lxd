@@ -34,6 +34,7 @@ root    | hard  | nofile  | 1048576   | unset     | maximum number of open files
 root    | soft  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB) (Only need with `bpf` syscall supervision)
 root    | hard  | memlock | unlimited | unset     | maximum locked-in-memory address space (KB) (Only need with `bpf` syscall supervision)
 
+NOTE: For users of the snap, those ulimits are automatically raised by the snap/LXD.
 
 ### /etc/sysctl.conf
 
