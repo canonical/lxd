@@ -28,7 +28,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer) (*cmdInitData, error) {
+func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.InstanceServer, server *api.Server) (*cmdInitData, error) {
 	// Initialize config
 	config := cmdInitData{}
 	config.Node.Config = map[string]interface{}{}
@@ -45,7 +45,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	}
 
 	// Clustering
-	err := c.askClustering(&config, d)
+	err := c.askClustering(&config, d, server)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	// Ask all the other questions
 	if config.Cluster == nil || config.Cluster.ClusterAddress == "" {
 		// Storage
-		err = c.askStorage(&config, d)
+		err = c.askStorage(&config, d, server)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +71,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 		}
 
 		// Daemon config
-		err = c.askDaemon(&config, d)
+		err = c.askDaemon(&config, d, server)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 	return &config, nil
 }
 
-func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error {
+func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, server *api.Server) error {
 	if cli.AskBool("Would you like to use LXD clustering? (yes/no) [default=no]: ", "no") {
 		config.Cluster = &initDataCluster{}
 		config.Cluster.Enabled = true
@@ -128,9 +128,8 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer) error
 				return fmt.Errorf("Invalid IP address or DNS name")
 			}
 
-			s, _, err := d.GetServer()
 			if err == nil {
-				if s.Config["cluster.https_address"] == address || s.Config["core.https_address"] == address {
+				if server.Config["cluster.https_address"] == address || server.Config["core.https_address"] == address {
 					// We already own the address, just move on.
 					return nil
 				}
@@ -522,17 +521,17 @@ func (c *cmdInit) askNetworking(config *cmdInitData, d lxd.InstanceServer) error
 	return nil
 }
 
-func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer) error {
+func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer, server *api.Server) error {
 	if config.Cluster != nil {
 		if cli.AskBool("Do you want to configure a new local storage pool? (yes/no) [default=yes]: ", "yes") {
-			err := c.askStoragePool(config, d, poolTypeLocal)
+			err := c.askStoragePool(config, d, server, poolTypeLocal)
 			if err != nil {
 				return err
 			}
 		}
 
 		if cli.AskBool("Do you want to configure a new remote storage pool? (yes/no) [default=no]: ", "no") {
-			err := c.askStoragePool(config, d, poolTypeRemote)
+			err := c.askStoragePool(config, d, server, poolTypeRemote)
 			if err != nil {
 				return err
 			}
@@ -545,12 +544,12 @@ func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer) error {
 		return nil
 	}
 
-	return c.askStoragePool(config, d, poolTypeAny)
+	return c.askStoragePool(config, d, server, poolTypeAny)
 }
 
-func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, poolType poolType) error {
+func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, server *api.Server, poolType poolType) error {
 	// Figure out the preferred storage driver
-	availableBackends := c.availableStorageDrivers(poolType)
+	availableBackends := c.availableStorageDrivers(server.Environment.StorageSupportedDrivers, poolType)
 
 	if len(availableBackends) == 0 {
 		if poolType != poolTypeAny {
@@ -752,7 +751,7 @@ your Linux distribution and run "lxd init" again afterwards.
 	return nil
 }
 
-func (c *cmdInit) askDaemon(config *cmdInitData, d lxd.InstanceServer) error {
+func (c *cmdInit) askDaemon(config *cmdInitData, d lxd.InstanceServer, server *api.Server) error {
 	// Detect lack of uid/gid
 	idmapset, err := idmap.DefaultIdmapSet("", "")
 	if (err != nil || len(idmapset.Idmap) == 0 || idmapset.Usable() != nil) && shared.RunningInUserNS() {
@@ -795,9 +794,8 @@ they otherwise would.
 		netPort := cli.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.DefaultPort), 1, 65535, fmt.Sprintf("%d", shared.DefaultPort), func(netPort int64) error {
 			address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort))
 
-			s, _, err := d.GetServer()
 			if err == nil {
-				if s.Config["cluster.https_address"] == address || s.Config["core.https_address"] == address {
+				if server.Config["cluster.https_address"] == address || server.Config["core.https_address"] == address {
 					// We already own the address, just move on.
 					return nil
 				}
