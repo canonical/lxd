@@ -12,9 +12,11 @@ import (
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -433,7 +435,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 		return response.PreconditionFailed(err)
 	}
 
-	return doApi10Update(d, req, false)
+	return doApi10Update(d, r, req, false)
 }
 
 // swagger:operation PATCH /1.0 server server_patch
@@ -496,10 +498,10 @@ func api10Patch(d *Daemon, r *http.Request) response.Response {
 		return response.EmptySyncResponse
 	}
 
-	return doApi10Update(d, req, true)
+	return doApi10Update(d, r, req, true)
 }
 
-func doApi10Update(d *Daemon, req api.ServerPut, patch bool) response.Response {
+func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) response.Response {
 	s := d.State()
 
 	// First deal with config specific to the local daemon
@@ -639,6 +641,8 @@ func doApi10Update(d *Daemon, req api.ServerPut, patch bool) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ConfigUpdated.Event(request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
