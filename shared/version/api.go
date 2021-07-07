@@ -227,6 +227,7 @@ var APIExtensions = []string{
 	"server_trusted_proxy",
 	"clustering_update_cert",
 	"storage_api_project",
+	"server_instance_driver_operational",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
