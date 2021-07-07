@@ -4233,6 +4233,12 @@ definitions:
         example: dir | zfs
         type: string
         x-go-name: Storage
+      storage_supported_drivers:
+        description: List of supported storage drivers
+        items:
+          $ref: '#/definitions/ServerStorageDriverInfo'
+        type: array
+        x-go-name: StorageSupportedDrivers
       storage_version:
         description: List of active storage driver versions (separate by " | ")
         example: 1 | 0.8.4-1ubuntu11
@@ -4252,6 +4258,24 @@ definitions:
           core.trust_password: true
         type: object
         x-go-name: Config
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ServerStorageDriverInfo:
+    description: ServerStorageDriverInfo represents the read-only info about a storage
+      driver
+    properties:
+      Name:
+        description: Name of the driver
+        example: zfs
+        type: string
+      Remote:
+        description: Whether the driver has remote volumes
+        example: false
+        type: boolean
+      Version:
+        description: Version of the driver
+        example: 0.8.4-1ubuntu11
+        type: string
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   ServerUntrusted:
