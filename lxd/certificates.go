@@ -808,5 +808,7 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	// Reload the cache.
 	updateCertificateCache(d)
 
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
+
 	return response.EmptySyncResponse
 }
