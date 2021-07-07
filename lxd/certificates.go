@@ -17,8 +17,10 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -547,6 +549,8 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Reload the cache.
 	updateCertificateCache(d)
+
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
