@@ -14,6 +14,8 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/lifecycle"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
@@ -121,6 +123,8 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(c, request.CreateRequestor(r), nil))
 
 	return response.SyncResponseETag(true, metadata, metadata)
 }
