@@ -681,6 +681,8 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 		return response.InternalError(err)
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateDeleted.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+
 	return response.EmptySyncResponse
 }
 
