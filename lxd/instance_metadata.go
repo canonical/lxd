@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // swagger:operation GET /1.0/instances/{name}/metadata instances instance_metadata_get
@@ -477,6 +478,9 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	files[0].Identifier = templateName
 	files[0].Path = tempfile.Name()
 	files[0].Filename = templateName
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+
 	return response.FileResponse(r, files, nil, true)
 }
 
