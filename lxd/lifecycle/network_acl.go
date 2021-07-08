@@ -29,14 +29,11 @@ const (
 func (a NetworkACLAction) Event(n networkACL, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
 	eventType := fmt.Sprintf("network-acl-%s", a)
 
-	u := fmt.Sprintf("/1.0/network-acls")
-
-	if a != NetworkACLCreated {
-		u = fmt.Sprintf("%s/%s", u, url.PathEscape(n.Info().Name))
-	}
+	u := fmt.Sprintf("/1.0/network-acls/%s", url.PathEscape(n.Info().Name))
 	if n.Project() != project.Default {
 		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(n.Project()))
 	}
+
 	return api.EventLifecycle{
 		Action:    eventType,
 		Source:    u,
