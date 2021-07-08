@@ -15,10 +15,12 @@ import (
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
-	"github.com/lxc/lxd/lxd/cluster/request"
+	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -548,6 +550,8 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	// Reload the cache.
 	updateCertificateCache(d)
 
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateCreated.Event(fingerprint, request.CreateRequestor(r), nil))
+
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/certificates/%s", version.APIVersion, fingerprint))
 }
 
@@ -651,10 +655,10 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	// Apply the update.
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType)
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -710,13 +714,13 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType)
+	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType, r)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType request.ClientType) response.Response {
-	if clientType == request.ClientTypeNormal {
+func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
+	if clientType == clusterRequest.ClientTypeNormal {
 		reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
 		if err != nil {
 			return response.BadRequest(err)
@@ -761,6 +765,8 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 
 	// Reload the cache.
 	updateCertificateCache(d)
+
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateUpdated.Event(fingerprint, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -815,6 +821,8 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Reload the cache.
 	updateCertificateCache(d)
+
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
