@@ -7,12 +7,15 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/lxc/lxd/lxd/cluster/request"
+	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -222,6 +225,13 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	netACL, err := acl.LoadByName(d.State(), projectName, req.Name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLCreated.Event(netACL, request.CreateRequestor(r), nil))
+
 	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
 	return response.SyncResponseLocation(true, nil, url)
 }
@@ -265,6 +275,8 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLDeleted.Event(netACL, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -435,12 +447,14 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	clientType := request.UserAgentClientType(r.Header.Get("User-Agent"))
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	err = netACL.Update(&req, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLUpdated.Event(netACL, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -478,6 +492,8 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkACLPost(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+
 	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
@@ -492,7 +508,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the existing Network ACL.
-	netACL, err := acl.LoadByName(d.State(), projectName, mux.Vars(r)["name"])
+	netACL, err := acl.LoadByName(d.State(), projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -501,6 +517,8 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r), log.Ctx{"old_name": name}))
 
 	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
 	return response.SyncResponseLocation(true, nil, url)
