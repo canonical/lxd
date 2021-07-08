@@ -10,7 +10,9 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
@@ -192,6 +194,12 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
+	// Ensure instance exists.
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
@@ -216,6 +224,8 @@ func instanceLogGet(d *Daemon, r *http.Request) response.Response {
 		Path:     shared.LogPath(project.Instance(projectName, name), file),
 		Filename: file,
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceLogRetrieved.Event(file, inst, request.CreateRequestor(r), nil))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }
@@ -255,6 +265,12 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
+	// Ensure instance exists.
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
@@ -279,5 +295,13 @@ func instanceLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("lxc.log and lxc.conf may not be deleted"))
 	}
 
-	return response.SmartError(os.Remove(shared.LogPath(project.Instance(projectName, name), file)))
+	err = os.Remove(shared.LogPath(project.Instance(projectName, name), file))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceLogDeleted.Event(file, inst, request.CreateRequestor(r), nil))
+
+	return response.EmptySyncResponse
+
 }
