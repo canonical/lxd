@@ -1137,7 +1137,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterTokenCreated.Event("", op.Requestor(), nil))
+	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterTokenCreated.Event("members", op.Requestor(), nil))
 
 	return operations.OperationResponse(op)
 }
