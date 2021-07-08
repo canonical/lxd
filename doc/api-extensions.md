@@ -1391,7 +1391,7 @@ certificate across the whole cluster
 ## storage\_api\_project
 This adds support for copy/move custom storage volumes between projects.
 
-# server\_instance\_driver\_operational
+## server\_instance\_driver\_operational
 This modifies the `driver` output for the `/1.0` endpoint to only include drivers which are actually supported and
 operational on the server (as opposed to being included in LXD but not operational on the server).
 
