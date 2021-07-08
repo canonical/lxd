@@ -276,6 +276,7 @@ var APIExtensions = []string{
 	"storage_api_project",
 	"server_instance_driver_operational",
 	"server_supported_storage_drivers",
+	"event_lifecycle_requestor_address",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
