@@ -234,7 +234,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Update the file.
-	return doInstanceMetadataUpdate(d, inst, metadata)
+	return doInstanceMetadataUpdate(d, inst, metadata, r)
 }
 
 // swagger:operation PUT /1.0/instances/{name}/metadata instances instance_metadata_put
@@ -314,10 +314,10 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 	defer storagePools.InstanceUnmount(pool, inst, nil)
 
-	return doInstanceMetadataUpdate(d, inst, metadata)
+	return doInstanceMetadataUpdate(d, inst, metadata, r)
 }
 
-func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.ImageMetadata) response.Response {
+func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.ImageMetadata, r *http.Request) response.Response {
 	// Convert YAML.
 	data, err := yaml.Marshal(metadata)
 	if err != nil {
@@ -330,6 +330,8 @@ func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.Im
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	d.State().Events.SendLifecycle(inst.Project(), lifecycle.InstanceMetadataUpdated.Event(inst, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
