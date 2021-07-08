@@ -11,10 +11,12 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -233,8 +235,8 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
 	if err == nil {
+		projectName := op.Project()
 		if op.Permission() != "" {
-			projectName := op.Project()
 			if projectName == "" {
 				projectName = project.Default
 			}
@@ -248,6 +250,8 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.BadRequest(err)
 		}
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(op, request.CreateRequestor(r), nil))
 
 		return response.EmptySyncResponse
 	}
@@ -286,6 +290,8 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 				return errors.Wrapf(err, "Failed to cancel local operation %q", op.ID)
 			}
 		}
+
+		d.State().Events.SendLifecycle(projectName, lifecycle.OperationCancelled.Event(localOp, request.CreateRequestor(r), nil))
 
 		return nil
 	}
