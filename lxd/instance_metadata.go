@@ -14,11 +14,14 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/lifecycle"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 // swagger:operation GET /1.0/instances/{name}/metadata instances instance_metadata_get
@@ -121,6 +124,8 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataRetrieved.Event(c, request.CreateRequestor(r), nil))
 
 	return response.SyncResponseETag(true, metadata, metadata)
 }
@@ -230,7 +235,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Update the file.
-	return doInstanceMetadataUpdate(d, inst, metadata)
+	return doInstanceMetadataUpdate(d, inst, metadata, r)
 }
 
 // swagger:operation PUT /1.0/instances/{name}/metadata instances instance_metadata_put
@@ -310,10 +315,10 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 	defer storagePools.InstanceUnmount(pool, inst, nil)
 
-	return doInstanceMetadataUpdate(d, inst, metadata)
+	return doInstanceMetadataUpdate(d, inst, metadata, r)
 }
 
-func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.ImageMetadata) response.Response {
+func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.ImageMetadata, r *http.Request) response.Response {
 	// Convert YAML.
 	data, err := yaml.Marshal(metadata)
 	if err != nil {
@@ -326,6 +331,8 @@ func doInstanceMetadataUpdate(d *Daemon, inst instance.Instance, metadata api.Im
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	d.State().Events.SendLifecycle(inst.Project(), lifecycle.InstanceMetadataUpdated.Event(inst, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -471,6 +478,9 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	files[0].Identifier = templateName
 	files[0].Path = tempfile.Name()
 	files[0].Filename = templateName
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+
 	return response.FileResponse(r, files, nil, true)
 }
 
@@ -577,6 +587,8 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 		return response.InternalError(err)
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateCreated.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+
 	return response.EmptySyncResponse
 }
 
@@ -668,6 +680,8 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateDeleted.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
 
 	return response.EmptySyncResponse
 }
