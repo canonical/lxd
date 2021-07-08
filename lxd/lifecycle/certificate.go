@@ -21,10 +21,7 @@ const (
 func (a CertificateAction) Event(fingerprint string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
 	eventType := fmt.Sprintf("certificate-%s", a)
 
-	u := fmt.Sprintf("/1.0/certificates")
-	if a != CertificateCreated {
-		u = fmt.Sprintf("%s/%s", u, url.PathEscape(fingerprint))
-	}
+	u := fmt.Sprintf("/1.0/certificates/%s", url.PathEscape(fingerprint))
 
 	return api.EventLifecycle{
 		Action:    eventType,
