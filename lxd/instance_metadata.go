@@ -587,6 +587,8 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 		return response.InternalError(err)
 	}
 
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateCreated.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+
 	return response.EmptySyncResponse
 }
 
