@@ -1132,3 +1132,6 @@ operational on the server (as opposed to being included in LXD but not operation
 
 ## server\_supported\_storage\_drivers
 This adds supported storage driver info to server environment info.
+
+## event\_lifecycle\_requestor\_address
+Adds a new address field to lifecycle requestor.
