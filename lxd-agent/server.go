@@ -66,7 +66,6 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 
 		// Actually process the request
 		var resp response.Response
-		resp = response.NotImplemented(nil)
 
 		handleRequest := func(action APIEndpointAction) response.Response {
 			if action.Handler == nil {
