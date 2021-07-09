@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-07-08 12:10-0400\n"
+"POT-Creation-Date: 2021-07-09 10:08-0400\n"
 "PO-Revision-Date: 2020-10-08 08:16+0000\n"
 "Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1039,14 +1039,14 @@ msgid "Could not find certificate key file path: %s"
 msgstr "Не удалось очистить путь %s"
 
 #: lxc/cluster.go:884
-#, c-format
-msgid "Could not read certificate file: %s with error: $v"
-msgstr ""
+#, fuzzy, c-format
+msgid "Could not read certificate file: %s with error: %v"
+msgstr "Не удалось очистить путь %s"
 
 #: lxc/cluster.go:889
-#, c-format
-msgid "Could not read certificate key file: %s with error: $v"
-msgstr ""
+#, fuzzy, c-format
+msgid "Could not read certificate key file: %s with error: %v"
+msgstr "Не удалось очистить путь %s"
 
 #: lxc/cluster.go:906
 #, c-format
