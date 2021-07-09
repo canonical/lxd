@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
@@ -143,7 +143,7 @@ func connectTarget(url string) (lxd.ContainerServer, error) {
 
 	// Prompt for trust password
 	fmt.Printf("Admin password for %s: ", url)
-	pwd, err := terminal.ReadPassword(0)
+	pwd, err := term.ReadPassword(0)
 	if err != nil {
 		return nil, err
 	}
