@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-07-08 12:10-0400\n"
+"POT-Creation-Date: 2021-07-09 10:08-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -864,12 +864,12 @@ msgstr ""
 
 #: lxc/cluster.go:884
 #, c-format
-msgid "Could not read certificate file: %s with error: $v"
+msgid "Could not read certificate file: %s with error: %v"
 msgstr ""
 
 #: lxc/cluster.go:889
 #, c-format
-msgid "Could not read certificate key file: %s with error: $v"
+msgid "Could not read certificate key file: %s with error: %v"
 msgstr ""
 
 #: lxc/cluster.go:906
