@@ -139,8 +139,6 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 				logger.Debugf("Failed to forward signal '%s'.", unix.SIGCONT)
 				return
 			}
-		default:
-			break
 		}
 	}
 }

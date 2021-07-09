@@ -105,7 +105,7 @@ func getConfig(config []string, key string) []string {
 
 func getConfigKeys(config []string) []string {
 	// Make sure we don't have duplicate keys
-	m := make(map[string]bool, 0)
+	m := make(map[string]bool)
 	for _, c := range config {
 		text := strings.TrimSpace(c)
 
