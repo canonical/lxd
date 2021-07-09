@@ -879,12 +879,12 @@ func (c *cmdClusterUpdateCertificate) Run(cmd *cobra.Command, args []string) err
 
 	cert, err := ioutil.ReadFile(certFile)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Could not read certificate file: %s with error: $v"), certFile, err)
+		return fmt.Errorf(i18n.G("Could not read certificate file: %s with error: %v"), certFile, err)
 	}
 
 	key, err := ioutil.ReadFile(keyFile)
 	if err != nil {
-		return fmt.Errorf(i18n.G("Could not read certificate key file: %s with error: $v"), keyFile, err)
+		return fmt.Errorf(i18n.G("Could not read certificate key file: %s with error: %v"), keyFile, err)
 	}
 
 	certificates := api.ClusterCertificatePut{
