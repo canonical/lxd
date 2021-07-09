@@ -763,7 +763,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 		Name:         backupConf.Container.Name,
 		Profiles:     backupConf.Container.Profiles,
 		Stateful:     backupConf.Container.Stateful,
-	}, revert)
+	}, true, revert)
 	if err != nil {
 		return response.SmartError(errors.Wrap(err, "Failed creating instance record"))
 	}
@@ -858,7 +858,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost, reco
 			Name:         snap.Name,
 			Profiles:     snap.Profiles,
 			Stateful:     snap.Stateful,
-		}, revert)
+		}, true, revert)
 		if err != nil {
 			return response.SmartError(errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name))
 		}
