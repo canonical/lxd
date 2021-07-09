@@ -463,24 +463,6 @@ func (d *lvm) lvmFullVolumeName(volType VolumeType, contentType ContentType, vol
 		return volName
 	}
 
-	// Convert volume type to internal volume prefix.
-	volTypePrefix := ""
-	switch volType {
-	case VolumeTypeContainer:
-		volTypePrefix = "containers"
-	case VolumeTypeVM:
-		volTypePrefix = "virtual-machines"
-	case VolumeTypeImage:
-		volTypePrefix = "images"
-	case VolumeTypeCustom:
-		volTypePrefix = "custom"
-	}
-
-	// Invalid volume type supplied.
-	if volTypePrefix == "" {
-		return ""
-	}
-
 	contentTypeSuffix := ""
 	if contentType == ContentTypeBlock {
 		contentTypeSuffix = lvmBlockVolSuffix
@@ -489,7 +471,7 @@ func (d *lvm) lvmFullVolumeName(volType VolumeType, contentType ContentType, vol
 	// Escape the volume name to a name suitable for using as a logical volume.
 	lvName := strings.Replace(strings.Replace(volName, "-", lvmEscapedHyphen, -1), shared.SnapshotDelimiter, lvmSnapshotSeparator, -1)
 
-	return fmt.Sprintf("%s_%s%s", volTypePrefix, lvName, contentTypeSuffix)
+	return fmt.Sprintf("%s_%s%s", volType, lvName, contentTypeSuffix)
 }
 
 // lvmDevPath returns the path to the LVM volume device. Empty string is returned if invalid volType supplied.
