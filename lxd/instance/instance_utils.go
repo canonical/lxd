@@ -919,7 +919,7 @@ func ValidName(instanceName string, isSnapshot bool) error {
 // CreateInternal creates an instance record and storage volume record in the database and sets up devices.
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
 // revert's Fail() or Success() function as needed.
-func CreateInternal(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error) {
+func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, revert *revert.Reverter) (Instance, error) {
 	// Check instance type requested is supported by this machine.
 	if _, supported := s.InstanceTypes[args.Type]; !supported {
 		return nil, fmt.Errorf("Instance type %q is not supported on this server", args.Type)
@@ -1120,7 +1120,9 @@ func CreateInternal(s *state.State, args db.InstanceArgs, revert *revert.Reverte
 	}
 
 	// Wipe any existing log for this instance name.
-	os.RemoveAll(inst.LogPath())
+	if clearLogDir {
+		os.RemoveAll(inst.LogPath())
+	}
 
 	return inst, nil
 }
