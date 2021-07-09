@@ -295,21 +295,6 @@ func instancesRestart(s *state.State) error {
 	return nil
 }
 
-func vmMonitor(s *state.State) error {
-	// Get all the instances
-	insts, err := instance.LoadNodeAll(s, instancetype.VM)
-	if err != nil {
-		return err
-	}
-
-	for _, inst := range insts {
-		// Retrieve running state, this will re-connect to QMP
-		inst.IsRunning()
-	}
-
-	return nil
-}
-
 type containerStopList []instance.Instance
 
 func (slice containerStopList) Len() int {

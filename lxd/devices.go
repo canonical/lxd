@@ -582,7 +582,10 @@ func deviceEventListener(s *state.State) {
 }
 
 // devicesRegister calls the Register() function on all supported devices so they receive events.
+// This also has the effect of actively reconnecting to any running VM monitor sockets.
 func devicesRegister(s *state.State) {
+	logger.Debug("Registering running instances")
+
 	instances, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
 		logger.Error("Problem loading instances list", log.Ctx{"err": err})
