@@ -366,7 +366,19 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		return nil, err
 	}
 
-	agent, err := vsock.HTTPClient(d.vsockID(), clientCert, clientKey, agentCert)
+	vsockID := d.vsockID() // Default to using the vsock ID that will be used on next start.
+
+	// But if vsock ID from last VM start is present in volatie, then use that.
+	// This allows a running VM to be recovered after DB record deletion and that agent connection still work
+	// after the VM's instance ID has changed.
+	if d.localConfig["volatile.last_state.vsock_id"] != "" {
+		volatileVsockID, err := strconv.Atoi(d.localConfig["volatile.last_state.vsock_id"])
+		if err == nil {
+			vsockID = volatileVsockID
+		}
+	}
+
+	agent, err := vsock.HTTPClient(vsockID, clientCert, clientKey, agentCert)
 	if err != nil {
 		return nil, err
 	}
@@ -1006,11 +1018,26 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
+	volatileSet := make(map[string]string)
+
+	// Update vsock ID in volatile if needed (for recovery).
+	oldVsockID := d.localConfig["volatile.last_state.vsock_id"]
+	newVsockID := strconv.Itoa(d.vsockID())
+	if oldVsockID != newVsockID {
+		volatileSet["volatile.last_state.vsock_id"] = newVsockID
+	}
+
 	// Generate UUID if not present.
 	instUUID := d.localConfig["volatile.uuid"]
 	if instUUID == "" {
 		instUUID = uuid.New()
-		d.VolatileSet(map[string]string{"volatile.uuid": instUUID})
+		volatileSet["volatile.uuid"] = instUUID
+	}
+
+	// Apply any volatile changes that need to be made.
+	err = d.VolatileSet(volatileSet)
+	if err != nil {
+		return errors.Wrapf(err, "Failed setting volatile keys")
 	}
 
 	// Copy OVMF settings firmware to nvram file.
@@ -5300,7 +5327,7 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 
 	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed connecting to agent")
 	}
 	defer agent.Disconnect()
 
