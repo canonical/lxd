@@ -457,10 +457,12 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 	}
 
 	sourceReq := api.StorageVolumePost{
-		Migration:  true,
-		Name:       volume.Name,
-		Pool:       sourcePool,
-		VolumeOnly: args.VolumeOnly,
+		Migration: true,
+		Name:      volume.Name,
+		Pool:      sourcePool,
+	}
+	if args != nil {
+		sourceReq.VolumeOnly = args.VolumeOnly
 	}
 
 	// Push mode migration

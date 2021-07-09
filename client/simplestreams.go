@@ -19,7 +19,6 @@ type ProtocolSimpleStreams struct {
 
 // Disconnect is a no-op for simplestreams
 func (r *ProtocolSimpleStreams) Disconnect() {
-	return
 }
 
 // GetConnectionInfo returns the basic connection information used to interact with the server

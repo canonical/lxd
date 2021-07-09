@@ -38,9 +38,11 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 	}
 
 	// Special TLS handling
+	//lint:ignore SA1019 DialContext doesn't exist in Go 1.13
 	transport.DialTLS = func(network string, addr string) (net.Conn, error) {
 		tlsDial := func(network string, addr string, config *tls.Config, resetName bool) (net.Conn, error) {
 			// TCP connection
+			//lint:ignore SA1019 DialContext doesn't exist in Go 1.13
 			conn, err := transport.Dial(network, addr)
 			if err != nil {
 				return nil, err
