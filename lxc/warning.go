@@ -250,8 +250,6 @@ func (c *cmdWarningList) parseColumns(clustered bool) ([]warningColumn, error) {
 type cmdWarningAcknowledge struct {
 	global  *cmdGlobal
 	warning *cmdWarning
-
-	flagAll bool
 }
 
 func (c *cmdWarningAcknowledge) Command() *cobra.Command {

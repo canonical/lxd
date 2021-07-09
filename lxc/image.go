@@ -715,17 +715,9 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Only https:// is supported for remote image import"))
 	}
 
-	createArgs := &lxd.ImageCreateArgs{}
+	var createArgs *lxd.ImageCreateArgs
 	image := api.ImagesPost{}
 	image.Public = c.flagPublic
-
-	// Handle aliases
-	aliases := []api.ImageAlias{}
-	for _, entry := range c.flagAliases {
-		alias := api.ImageAlias{}
-		alias.Name = entry
-		aliases = append(aliases, alias)
-	}
 
 	// Handle properties
 	for _, entry := range properties {
