@@ -13,7 +13,7 @@ func networkGet(container *liblxc.Container, index int, configKey string) map[st
 		return nil
 	}
 
-	dev := make(map[string]string, 0)
+	dev := make(map[string]string)
 	for _, k := range keys {
 		value := container.ConfigItem(fmt.Sprintf("%s.%d.%s", configKey, index, k))
 		if len(value) == 0 || strings.TrimSpace(value[0]) == "" {

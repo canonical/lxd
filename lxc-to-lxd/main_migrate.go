@@ -212,7 +212,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 		return err
 	}
 
-	newConfig := make(map[string]string, 0)
+	newConfig := make(map[string]string)
 
 	value := getConfig(conf, "lxd.idmap")
 	if value == nil {
@@ -226,7 +226,7 @@ func convertContainer(d lxd.ContainerServer, container *liblxc.Container, storag
 		newConfig["security.privileged"] = "false"
 	}
 
-	newDevices := make(map[string]map[string]string, 0)
+	newDevices := make(map[string]map[string]string)
 
 	// Convert network configuration
 	err = convertNetworkConfig(container, newDevices)
@@ -449,7 +449,7 @@ func convertNetworkConfig(container *liblxc.Container, devices map[string]map[st
 			return nil
 		}
 
-		device := make(map[string]string, 0)
+		device := make(map[string]string)
 		device["type"] = "nic"
 
 		// Get the device type
@@ -489,7 +489,7 @@ func convertNetworkConfig(container *liblxc.Container, devices map[string]map[st
 
 	fmt.Println("Processing network configuration")
 
-	devices["eth0"] = make(map[string]string, 0)
+	devices["eth0"] = make(map[string]string)
 	devices["eth0"]["type"] = "none"
 
 	// New config key
@@ -534,7 +534,7 @@ func convertStorageConfig(conf []string, devices map[string]map[string]string) e
 			continue
 		}
 
-		device := make(map[string]string, 0)
+		device := make(map[string]string)
 		device["type"] = "disk"
 
 		// Deal with read-only mounts
