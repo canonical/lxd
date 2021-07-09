@@ -350,6 +350,7 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 
 	// Setup a new websocket dialer based on it
 	dialer := websocket.Dialer{
+		//lint:ignore SA1019 DialContext doesn't exist in Go 1.13
 		NetDial:         httpTransport.Dial,
 		TLSClientConfig: httpTransport.TLSClientConfig,
 		Proxy:           httpTransport.Proxy,
