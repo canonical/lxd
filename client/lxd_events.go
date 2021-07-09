@@ -44,14 +44,13 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 
 	// Spawn a watcher that will close the websocket connection after all
 	// listeners are gone.
-	stopCh := make(chan struct{}, 0)
+	stopCh := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case <-time.After(time.Minute):
 			case <-r.chConnected:
 			case <-stopCh:
-				break
 			}
 
 			r.eventListenersLock.Lock()

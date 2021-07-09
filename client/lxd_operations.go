@@ -43,9 +43,7 @@ func (r *ProtocolLXD) GetOperations() ([]api.Operation, error) {
 	// Turn it into just a list of operations
 	operations := []api.Operation{}
 	for _, v := range apiOperations {
-		for _, operation := range v {
-			operations = append(operations, operation)
-		}
+		operations = append(operations, v...)
 	}
 
 	return operations, nil
