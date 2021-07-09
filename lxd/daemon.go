@@ -1197,7 +1197,7 @@ func (d *Daemon) init() error {
 
 		go device.InotifyHandler(d.State())
 
-		// Register devices on running instances to receive events.
+		// Register devices on running instances to receive events and reconnect to VM monitor sockets.
 		// This should come after the event handler go routines have been started.
 		devicesRegister(d.State())
 
@@ -1317,9 +1317,6 @@ func (d *Daemon) Ready() error {
 
 	// Restore containers
 	instancesRestart(s)
-
-	// Start monitoring VMs again
-	vmMonitor(s)
 
 	// Re-balance in case things changed while LXD was down
 	deviceTaskBalance(s)
