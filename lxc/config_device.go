@@ -681,7 +681,7 @@ func (c *cmdConfigDeviceShow) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf(string(data))
+	fmt.Print(string(data))
 
 	return nil
 }

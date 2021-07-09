@@ -593,7 +593,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 				column.Data = func(cInfo api.InstanceFull) string {
 					v, ok := cInfo.Config[k]
 					if !ok {
-						v, _ = cInfo.ExpandedConfig[k]
+						v = cInfo.ExpandedConfig[k]
 					}
 
 					// Truncate the data according to the max width.  A negative max width
@@ -612,7 +612,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 					}
 					v, ok := cInfo.Devices[d[0]][d[1]]
 					if !ok {
-						v, _ = cInfo.ExpandedDevices[d[0]][d[1]]
+						v = cInfo.ExpandedDevices[d[0]][d[1]]
 					}
 
 					//// Truncate the data according to the max width.  A negative max width
@@ -841,19 +841,19 @@ func (c *cmdList) locationColumnData(cInfo api.InstanceFull) string {
 }
 
 func (c *cmdList) matchByType(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return strings.ToLower(cInfo.Type) == strings.ToLower(query)
+	return strings.EqualFold(cInfo.Type, query)
 }
 
 func (c *cmdList) matchByStatus(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return strings.ToLower(cInfo.Status) == strings.ToLower(query)
+	return strings.EqualFold(cInfo.Status, query)
 }
 
 func (c *cmdList) matchByArchitecture(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return strings.ToLower(cInfo.InstancePut.Architecture) == strings.ToLower(query)
+	return strings.EqualFold(cInfo.InstancePut.Architecture, query)
 }
 
 func (c *cmdList) matchByLocation(cInfo *api.Instance, cState *api.InstanceState, query string) bool {
-	return strings.ToLower(cInfo.Location) == strings.ToLower(query)
+	return strings.EqualFold(cInfo.Location, query)
 }
 
 func (c *cmdList) matchByNet(cInfo *api.Instance, cState *api.InstanceState, query string, family string) bool {

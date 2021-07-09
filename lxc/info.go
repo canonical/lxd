@@ -85,7 +85,7 @@ func (c *cmdInfo) Run(cmd *cobra.Command, args []string) error {
 
 func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial bool) {
 	if initial {
-		fmt.Printf(prefix)
+		fmt.Print(prefix)
 	}
 	fmt.Printf(i18n.G("NUMA node: %v")+"\n", gpu.NUMANode)
 
@@ -168,7 +168,7 @@ func (c *cmdInfo) renderGPU(gpu api.ResourcesGPUCard, prefix string, initial boo
 
 func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial bool) {
 	if initial {
-		fmt.Printf(prefix)
+		fmt.Print(prefix)
 	}
 	fmt.Printf(i18n.G("NUMA node: %v")+"\n", nic.NUMANode)
 
@@ -253,7 +253,7 @@ func (c *cmdInfo) renderNIC(nic api.ResourcesNetworkCard, prefix string, initial
 
 func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initial bool) {
 	if initial {
-		fmt.Printf(prefix)
+		fmt.Print(prefix)
 	}
 	fmt.Printf(i18n.G("NUMA node: %v")+"\n", disk.NUMANode)
 
@@ -503,7 +503,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 
 		if ipInfo != "" {
 			fmt.Println(i18n.G("Ips:"))
-			fmt.Printf(ipInfo)
+			fmt.Print(ipInfo)
 		}
 		fmt.Println(i18n.G("Resources:"))
 
@@ -521,8 +521,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		}
 
 		if diskInfo != "" {
-			fmt.Println(fmt.Sprintf("  %s", i18n.G("Disk usage:")))
-			fmt.Printf(diskInfo)
+			fmt.Printf("  %s\n", i18n.G("Disk usage:"))
+			fmt.Print(diskInfo)
 		}
 
 		// CPU usage
@@ -532,8 +532,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		}
 
 		if cpuInfo != "" {
-			fmt.Println(fmt.Sprintf("  %s", i18n.G("CPU usage:")))
-			fmt.Printf(cpuInfo)
+			fmt.Printf("  %s\n", i18n.G("CPU usage:"))
+			fmt.Print(cpuInfo)
 		}
 
 		// Memory usage
@@ -555,8 +555,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		}
 
 		if memoryInfo != "" {
-			fmt.Println(fmt.Sprintf("  %s", i18n.G("Memory usage:")))
-			fmt.Printf(memoryInfo)
+			fmt.Printf("  %s\n", i18n.G("Memory usage:"))
+			fmt.Print(memoryInfo)
 		}
 
 		// Network usage
@@ -572,8 +572,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		}
 
 		if networkInfo != "" {
-			fmt.Println(fmt.Sprintf("  %s", i18n.G("Network usage:")))
-			fmt.Printf(networkInfo)
+			fmt.Printf("  %s\n", i18n.G("Network usage:"))
+			fmt.Print(networkInfo)
 		}
 	}
 
