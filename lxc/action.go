@@ -306,7 +306,7 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 		success = false
 		msg := fmt.Sprintf(i18n.G("error: %v"), result.err)
 		for _, line := range strings.Split(msg, "\n") {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("%s: %s", result.name, line))
+			fmt.Fprintf(os.Stderr, "%s: %s\n", result.name, line)
 		}
 	}
 

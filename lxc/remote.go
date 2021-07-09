@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
@@ -419,7 +419,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 			// Prompt for trust password
 			if c.flagPassword == "" {
 				fmt.Printf(i18n.G("Admin password for %s:")+" ", server)
-				pwd, err := terminal.ReadPassword(0)
+				pwd, err := term.ReadPassword(0)
 				if err != nil {
 					/* We got an error, maybe this isn't a terminal, let's try to
 					 * read it as a file */

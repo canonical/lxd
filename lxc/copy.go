@@ -177,23 +177,19 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Allow setting additional config keys
-		if configMap != nil {
-			for key, value := range configMap {
-				entry.Config[key] = value
-			}
+		for key, value := range configMap {
+			entry.Config[key] = value
 		}
 
 		// Allow setting device overrides
-		if deviceMap != nil {
-			for k, m := range deviceMap {
-				if entry.Devices[k] == nil {
-					entry.Devices[k] = m
-					continue
-				}
+		for k, m := range deviceMap {
+			if entry.Devices[k] == nil {
+				entry.Devices[k] = m
+				continue
+			}
 
-				for key, value := range m {
-					entry.Devices[k][key] = value
-				}
+			for key, value := range m {
+				entry.Devices[k][key] = value
 			}
 		}
 
@@ -269,23 +265,19 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		}
 
 		// Allow setting additional config keys
-		if configMap != nil {
-			for key, value := range configMap {
-				entry.Config[key] = value
-			}
+		for key, value := range configMap {
+			entry.Config[key] = value
 		}
 
 		// Allow setting device overrides
-		if deviceMap != nil {
-			for k, m := range deviceMap {
-				if entry.Devices[k] == nil {
-					entry.Devices[k] = m
-					continue
-				}
+		for k, m := range deviceMap {
+			if entry.Devices[k] == nil {
+				entry.Devices[k] = m
+				continue
+			}
 
-				for key, value := range m {
-					entry.Devices[k][key] = value
-				}
+			for key, value := range m {
+				entry.Devices[k][key] = value
 			}
 		}
 
