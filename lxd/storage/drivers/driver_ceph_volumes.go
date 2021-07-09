@@ -1,10 +1,13 @@
 package drivers
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/pborman/uuid"
@@ -968,6 +971,85 @@ func (d *ceph) GetVolumeDiskPath(vol Volume) (string, error) {
 	}
 
 	return "", ErrNotSupported
+}
+
+// ListVolumes returns a list of LXD volumes in storage pool.
+func (d *ceph) ListVolumes() ([]Volume, error) {
+	var vols []Volume
+
+	cmd := exec.Command("rbd",
+		"--id", d.config["ceph.user.name"],
+		"--cluster", d.config["ceph.cluster_name"],
+		"--pool", d.config["ceph.osd.pool_name"],
+		"ls",
+	)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		rawName := strings.TrimSpace(scanner.Text())
+		var volType VolumeType
+		var volName string
+
+		for _, volumeType := range d.Info().VolumeTypes {
+			prefix := cephVolTypePrefixes[volumeType]
+			if prefix == "" {
+				continue // Unknown volume type.
+			}
+
+			prefix = fmt.Sprintf("%s_", prefix)
+
+			if strings.HasPrefix(rawName, prefix) {
+				volType = volumeType
+				volName = strings.TrimPrefix(rawName, prefix)
+			}
+		}
+
+		if volType == "" {
+			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": rawName})
+			continue // Ignore unrecognised volume.
+		}
+
+		isBlock := strings.HasSuffix(volName, cephBlockVolSuffix)
+
+		if volType == VolumeTypeVM && !isBlock {
+			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
+		}
+
+		contentType := ContentTypeFS
+		if volType == VolumeTypeVM || isBlock {
+			contentType = ContentTypeBlock
+			volName = strings.TrimSuffix(volName, cephBlockVolSuffix)
+		}
+
+		vols = append(vols, NewVolume(d, d.name, volType, contentType, volName, nil, d.config))
+	}
+
+	errMsg, err := ioutil.ReadAll(stderr)
+	if err != nil {
+		return nil, err
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting volume list: %v", strings.TrimSpace(string(errMsg)))
+	}
+
+	return vols, nil
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
