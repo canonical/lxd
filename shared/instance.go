@@ -237,16 +237,16 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"raw.qemu":     validate.IsAny,
 	"raw.seccomp":  validate.IsAny,
 
-	"volatile.apply_template":      validate.IsAny,
-	"volatile.base_image":          validate.IsAny,
-	"volatile.last_state.idmap":    validate.IsAny,
-	"volatile.last_state.power":    validate.IsAny,
-	"volatile.idmap.base":          validate.IsAny,
-	"volatile.idmap.current":       validate.IsAny,
-	"volatile.idmap.next":          validate.IsAny,
-	"volatile.apply_quota":         validate.IsAny,
-	"volatile.uuid":                validate.Optional(validate.IsUUID),
-	"volatile.last_state.vsock_id": validate.Optional(validate.IsInt64),
+	"volatile.apply_template":   validate.IsAny,
+	"volatile.base_image":       validate.IsAny,
+	"volatile.last_state.idmap": validate.IsAny,
+	"volatile.last_state.power": validate.IsAny,
+	"volatile.idmap.base":       validate.IsAny,
+	"volatile.idmap.current":    validate.IsAny,
+	"volatile.idmap.next":       validate.IsAny,
+	"volatile.apply_quota":      validate.IsAny,
+	"volatile.uuid":             validate.Optional(validate.IsUUID),
+	"volatile.vsock_id":         validate.Optional(validate.IsInt64),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
