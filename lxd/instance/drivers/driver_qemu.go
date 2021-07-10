@@ -368,8 +368,8 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	// But if vsock ID from last VM start is present in volatie, then use that.
 	// This allows a running VM to be recovered after DB record deletion and that agent connection still work
 	// after the VM's instance ID has changed.
-	if d.localConfig["volatile.last_state.vsock_id"] != "" {
-		volatileVsockID, err := strconv.Atoi(d.localConfig["volatile.last_state.vsock_id"])
+	if d.localConfig["volatile.vsock_id"] != "" {
+		volatileVsockID, err := strconv.Atoi(d.localConfig["volatile.vsock_id"])
 		if err == nil {
 			vsockID = volatileVsockID
 		}
@@ -1018,10 +1018,10 @@ func (d *qemu) Start(stateful bool) error {
 	volatileSet := make(map[string]string)
 
 	// Update vsock ID in volatile if needed (for recovery).
-	oldVsockID := d.localConfig["volatile.last_state.vsock_id"]
+	oldVsockID := d.localConfig["volatile.vsock_id"]
 	newVsockID := strconv.Itoa(d.vsockID())
 	if oldVsockID != newVsockID {
-		volatileSet["volatile.last_state.vsock_id"] = newVsockID
+		volatileSet["volatile.vsock_id"] = newVsockID
 	}
 
 	// Generate UUID if not present.
