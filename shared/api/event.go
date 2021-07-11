@@ -133,4 +133,10 @@ type EventLifecycle struct {
 type EventLifecycleRequestor struct {
 	Username string `yaml:"username" json:"username"`
 	Protocol string `yaml:"protocol" json:"protocol"`
+
+	// Requestor address
+	// Example: 10.0.2.15
+	//
+	// API extension: event_lifecycle_requestor_address
+	Address string `yaml:"address" json:"address"`
 }

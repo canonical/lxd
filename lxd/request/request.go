@@ -22,6 +22,8 @@ func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 		requestor.Protocol = val
 	}
 
+	requestor.Address = r.RemoteAddr
+
 	// Forwarded requestor override.
 	val, ok = ctx.Value(CtxForwardedUsername).(string)
 	if ok {
@@ -31,6 +33,11 @@ func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 	val, ok = ctx.Value(CtxForwardedProtocol).(string)
 	if ok {
 		requestor.Protocol = val
+	}
+
+	val, ok = ctx.Value(CtxForwardedAddress).(string)
+	if ok {
+		requestor.Address = val
 	}
 	return requestor
 }
