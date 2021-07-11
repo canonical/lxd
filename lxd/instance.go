@@ -33,7 +33,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	defer revert.Fail()
 
 	// Create the instance record.
-	inst, err := instance.CreateInternal(d.State(), args, revert)
+	inst, err := instance.CreateInternal(d.State(), args, true, revert)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
@@ -143,7 +143,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	args.BaseImage = hash
 
 	// Create the instance.
-	inst, err := instance.CreateInternal(s, args, revert)
+	inst, err := instance.CreateInternal(s, args, true, revert)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
@@ -206,7 +206,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		// Create the instance.
-		inst, err = instance.CreateInternal(s, opts.targetInstance, revert)
+		inst, err = instance.CreateInternal(s, opts.targetInstance, true, revert)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
@@ -326,7 +326,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			snapInst, err := instance.CreateInternal(s, snapInstArgs, revert)
+			snapInst, err := instance.CreateInternal(s, snapInstArgs, true, revert)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", newSnapName)
 			}
