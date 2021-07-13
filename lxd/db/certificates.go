@@ -121,10 +121,11 @@ func (c *ClusterTx) DeleteCertificateByNameAndType(name string, certType int) er
 	_, err := c.tx.Exec("DELETE FROM certificates WHERE name = ? and type = ?", name, certType)
 	return err
 }
-
-// CertificateFilter can be used to filter results yielded by GetCertInfos
+// CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
 	Fingerprint string // Matched with LIKE
+	Name        string
+	Type        int
 }
 
 // GetCertificate gets an CertBaseInfo object from the database.
