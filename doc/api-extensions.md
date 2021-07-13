@@ -1439,3 +1439,6 @@ And the following NIC-specific configuration keys (`bridged` nictype):
 ## network\_forward
 This introduces the networking address forward functionality. Allowing for `bridge` and `ovn` networks to define
 external IP addresses that can be forwarded to internal IP(s) inside their respective networks.
+
+## custom\_volume\_refresh
+Adds support for refresh during volume migration.
