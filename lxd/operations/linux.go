@@ -15,7 +15,21 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 	}
 
 	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		_, err := tx.CreateOperation(op.projectName, op.id, opType)
+		opInfo := db.Operation{
+			UUID:   op.id,
+			Type:   opType,
+			NodeID: tx.GetNodeID(),
+		}
+
+		if op.projectName != "" {
+			projectID, err := tx.GetProjectID(op.projectName)
+			if err != nil {
+				return errors.Wrap(err, "Fetch project ID")
+			}
+			opInfo.ProjectID = &projectID
+		}
+
+		_, err := tx.CreateOrReplaceOperation(opInfo)
 		return err
 	})
 	if err != nil {
@@ -31,7 +45,8 @@ func removeDBOperation(op *Operation) error {
 	}
 
 	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.RemoveOperation(op.id)
+		filter := db.OperationFilter{UUID: op.id}
+		return tx.DeleteOperation(filter)
 	})
 
 	return err
