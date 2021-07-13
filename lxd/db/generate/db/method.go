@@ -61,8 +61,10 @@ func (m *Method) Generate(buf *file.Buffer) error {
 		return m.rename(buf)
 	case "Update":
 		return m.update(buf)
-	case "Delete":
-		return m.delete(buf)
+	case "DeleteOne":
+		return m.delete(buf, true)
+	case "DeleteMany":
+		return m.delete(buf, false)
 	default:
 		return fmt.Errorf("Unknown method kind '%s'", m.kind)
 	}
@@ -925,7 +927,7 @@ func (m *Method) update(buf *file.Buffer) error {
 	return nil
 }
 
-func (m *Method) delete(buf *file.Buffer) error {
+func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
@@ -1004,13 +1006,23 @@ func (m *Method) delete(buf *file.Buffer) error {
 	buf.L("        return errors.Wrap(err, \"Delete %s\")", m.entity)
 	buf.L("}")
 	buf.N()
-	buf.L("n, err := result.RowsAffected()")
+
+	if deleteOne {
+		buf.L("n, err := result.RowsAffected()")
+	} else {
+		buf.L("_, err = result.RowsAffected()")
+	}
+
 	buf.L("if err != nil {")
 	buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
 	buf.L("}")
-	buf.L("if n != 1 {")
-	buf.L("        return fmt.Errorf(\"Query deleted %%d rows instead of 1\", n)")
-	buf.L("}")
+
+	if deleteOne {
+		buf.L("if n != 1 {")
+		buf.L("        return fmt.Errorf(\"Query deleted %%d rows instead of 1\", n)")
+		buf.L("}")
+	}
+
 	buf.N()
 	buf.L("return nil")
 	return nil
@@ -1036,8 +1048,10 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 		name = fmt.Sprintf("Rename%s", entity)
 	case "Update":
 		name = fmt.Sprintf("Update%s", entity)
-	case "Delete":
+	case "DeleteOne":
 		name = fmt.Sprintf("Delete%s", entity)
+	case "DeleteMany":
+		name = fmt.Sprintf("Delete%ss", entity)
 	default:
 		name = fmt.Sprintf("%s%s", entity, m.kind)
 	}
