@@ -746,7 +746,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrapf(err, "Fetch project id %q", name)
 		}
 
-		return tx.DeleteProject(name)
+		return tx.DeleteProject(db.ProjectFilter{Name: name})
 	})
 
 	if err != nil {
