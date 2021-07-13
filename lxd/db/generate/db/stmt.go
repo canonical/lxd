@@ -62,6 +62,10 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.names(buf)
 	}
 
+	if strings.HasPrefix(s.kind, "delete") {
+		return s.delete(buf)
+	}
+
 	switch s.kind {
 	case "create":
 		return s.create(buf)
@@ -71,8 +75,6 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.rename(buf)
 	case "update":
 		return s.update(buf)
-	case "delete":
-		return s.delete(buf)
 	default:
 		return fmt.Errorf("Unknown statement '%s'", s.kind)
 	}
@@ -507,9 +509,23 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	}
 
 	table := entityTable(s.entity)
+
+	fields := []*Field{}
 	where := whereClause(mapping.NaturalKey())
 
-	sql := fmt.Sprintf(stmts[s.kind], table, where)
+	if strings.HasPrefix(s.kind, "delete-by") {
+		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
+		for _, filter := range filters {
+			field, err := mapping.FilterFieldByName(filter)
+			if err != nil {
+				return err
+			}
+			fields = append(fields, field)
+		}
+		where = whereClause(fields)
+	}
+
+	sql := fmt.Sprintf(stmts["delete"], table, where)
 	s.register(buf, sql)
 	return nil
 }
