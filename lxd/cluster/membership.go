@@ -952,7 +952,8 @@ func Purge(cluster *db.Cluster, name string) error {
 			return errors.Wrapf(err, "Failed to remove member %q", name)
 		}
 
-		err = tx.DeleteCertificateByNameAndType(name, db.CertificateTypeServer)
+		filter := db.CertificateFilter{Name: name, Type: db.CertificateTypeServer}
+		err = tx.DeleteCertificates(filter)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to remove member %q certificate from trust store", name)
 		}
