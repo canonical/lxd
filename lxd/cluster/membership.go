@@ -349,7 +349,8 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		if err != nil {
 			return err
 		}
-		operations, err = tx.GetLocalOperations()
+		filter := db.OperationFilter{NodeID: tx.GetNodeID()}
+		operations, err = tx.GetOperations(filter)
 		if err != nil {
 			return err
 		}
@@ -492,7 +493,12 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 		// Migrate outstanding operations.
 		for _, operation := range operations {
-			_, err := tx.CreateOperation("", operation.UUID, operation.Type)
+			op := db.Operation{
+				UUID:   operation.UUID,
+				Type:   operation.Type,
+				NodeID: tx.GetNodeID(),
+			}
+			_, err := tx.CreateOrReplaceOperation(op)
 			if err != nil {
 				return errors.Wrapf(err, "failed to migrate operation %s", operation.UUID)
 			}
