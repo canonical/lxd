@@ -273,8 +273,7 @@ func parseField(f *ast.Field) (*Field, error) {
 func parseType(x ast.Expr) string {
 	switch t := x.(type) {
 	case *ast.StarExpr:
-		// Pointers are not supported.
-		return ""
+		return parseType(t.X)
 	case *ast.SelectorExpr:
 		return parseType(t.X) + "." + t.Sel.String()
 	case *ast.Ident:
