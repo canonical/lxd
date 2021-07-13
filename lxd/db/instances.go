@@ -60,7 +60,7 @@ import (
 //go:generate mapper stmt -p db -e instance create-config-ref
 //go:generate mapper stmt -p db -e instance create-devices-ref
 //go:generate mapper stmt -p db -e instance rename
-//go:generate mapper stmt -p db -e instance delete
+//go:generate mapper stmt -p db -e instance delete-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance delete-config-ref
 //go:generate mapper stmt -p db -e instance delete-devices-ref
 //go:generate mapper stmt -p db -e instance delete-profiles-ref
@@ -75,7 +75,7 @@ import (
 //go:generate mapper method -p db -e instance ConfigRef
 //go:generate mapper method -p db -e instance DevicesRef
 //go:generate mapper method -p db -e instance Rename
-//go:generate mapper method -p db -e instance Delete
+//go:generate mapper method -p db -e instance DeleteOne
 //go:generate mapper method -p db -e instance Update struct=Instance
 
 // Instance is a value object holding db-related details about an instance.
