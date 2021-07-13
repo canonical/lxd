@@ -68,7 +68,9 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 
 	switch s.kind {
 	case "create":
-		return s.create(buf)
+		return s.create(buf, false)
+	case "create-or-replace":
+		return s.create(buf, true)
 	case "id":
 		return s.id(buf)
 	case "rename":
@@ -335,7 +337,7 @@ func (s *Stmt) ref(buf *file.Buffer) error {
 	return nil
 }
 
-func (s *Stmt) create(buf *file.Buffer) error {
+func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityCreate, ok := s.config["struct"]
 	if !ok {
@@ -388,8 +390,13 @@ func (s *Stmt) create(buf *file.Buffer) error {
 		}
 	}
 
+	tmpl := stmts[s.kind]
+	if replace {
+		tmpl = stmts["replace"]
+	}
+
 	sql := fmt.Sprintf(
-		stmts[s.kind], entityTable(s.entity),
+		tmpl, entityTable(s.entity),
 		strings.Join(columns, ", "), strings.Join(params, ", "))
 	s.register(buf, sql)
 
@@ -653,6 +660,7 @@ var stmts = map[string]string{
 	"names":   "SELECT %s\n  FROM %s\n  %sORDER BY %s",
 	"objects": "SELECT %s\n  FROM %s\n  %sORDER BY %s",
 	"create":  "INSERT INTO %s (%s)\n  VALUES (%s)",
+	"replace": "INSERT OR REPLACE INTO %s (%s)\n VALUES (%s)",
 	"id":      "SELECT %s.id FROM %s\n  WHERE %s",
 	"rename":  "UPDATE %s SET name = ? WHERE %s",
 	"update":  "UPDATE %s\n  SET %s\n WHERE %s",
