@@ -55,8 +55,14 @@ func (d *cephfs) load() error {
 		if err != nil {
 			return err
 		}
+		out = strings.TrimSpace(out)
 
-		cephfsVersion = strings.TrimSpace(out)
+		fields := strings.Split(out, " ")
+		if strings.HasPrefix(out, "ceph version ") && len(fields) > 2 {
+			cephfsVersion = fields[2]
+		} else {
+			cephfsVersion = out
+		}
 	}
 
 	cephfsLoaded = true
