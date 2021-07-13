@@ -126,7 +126,7 @@ func (c *Cluster) CreateCertificate(cert Certificate) error {
 // DeleteCertificate deletes a certificate from the db.
 func (c *Cluster) DeleteCertificate(fingerprint string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.DeleteCertificate(fingerprint)
+		return tx.DeleteCertificate(CertificateFilter{Fingerprint: fingerprint})
 	})
 	return err
 }
