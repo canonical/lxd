@@ -2460,6 +2460,11 @@ test_clustering_image_refresh() {
   # shellcheck disable=SC2046
   LXD_DIR="${LXD_REMOTE_DIR}" lxc rm $(LXD_DIR="${LXD_REMOTE_DIR}" lxc ls --format csv | cut -d, -f1)
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete bar
+  printf 'config: {}\ndevices: {}' | LXD_DIR="${LXD_ONE_DIR}" lxc profile edit default
+  LXD_DIR="${LXD_ONE_DIR}" lxc storage delete data
+
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
