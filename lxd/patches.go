@@ -858,7 +858,8 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
 			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				return tx.DeleteProfile("default", profile)
+				filter := db.ProfileFilter{Project: project.Default, Name: profile}
+				return tx.DeleteProfile(filter)
 			})
 			if err != nil {
 				return err
