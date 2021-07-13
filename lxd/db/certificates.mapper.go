@@ -46,8 +46,12 @@ INSERT INTO certificates (fingerprint, type, name, certificate, restricted)
   VALUES (?, ?, ?, ?, ?)
 `)
 
-var certificateDelete = cluster.RegisterStmt(`
+var certificateDeleteByFingerprint = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE fingerprint = ?
+`)
+
+var certificateDeleteByNameAndType = cluster.RegisterStmt(`
+DELETE FROM certificates WHERE name = ? AND type = ?
 `)
 
 var certificateUpdate = cluster.RegisterStmt(`
@@ -65,6 +69,12 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	criteria := map[string]interface{}{}
 	if filter.Fingerprint != "" {
 		criteria["Fingerprint"] = filter.Fingerprint
+	}
+	if filter.Name != "" {
+		criteria["Name"] = filter.Name
+	}
+	if filter.Type != -1 {
+		criteria["Type"] = filter.Type
 	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
@@ -229,6 +239,9 @@ func (c *ClusterTx) CertificateProjectsRef(filter CertificateFilter) (map[string
 	if filter.Fingerprint != "" {
 		criteria["Fingerprint"] = filter.Fingerprint
 	}
+	if filter.Name != "" {
+		criteria["Name"] = filter.Name
+	}
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
@@ -278,9 +291,38 @@ func (c *ClusterTx) CertificateProjectsRef(filter CertificateFilter) (map[string
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
-func (c *ClusterTx) DeleteCertificate(fingerprint string) error {
-	stmt := c.stmt(certificateDelete)
-	result, err := stmt.Exec(fingerprint)
+func (c *ClusterTx) DeleteCertificate(filter CertificateFilter) error {
+	// Check which filter criteria are active.
+	criteria := map[string]interface{}{}
+	if filter.Fingerprint != "" {
+		criteria["Fingerprint"] = filter.Fingerprint
+	}
+	if filter.Name != "" {
+		criteria["Name"] = filter.Name
+	}
+	if filter.Type != -1 {
+		criteria["Type"] = filter.Type
+	}
+
+	// Pick the prepared statement and arguments to use based on active criteria.
+	var stmt *sql.Stmt
+	var args []interface{}
+
+	if criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByNameAndType)
+		args = []interface{}{
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprint)
+		args = []interface{}{
+			filter.Fingerprint,
+		}
+	} else {
+		return fmt.Errorf("No valid filter for certificate delete")
+	}
+	result, err := stmt.Exec(args...)
 	if err != nil {
 		return errors.Wrap(err, "Delete certificate")
 	}
@@ -291,6 +333,51 @@ func (c *ClusterTx) DeleteCertificate(fingerprint string) error {
 	}
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
+	}
+
+	return nil
+}
+
+// DeleteCertificates deletes the certificate matching the given key parameters.
+func (c *ClusterTx) DeleteCertificates(filter CertificateFilter) error {
+	// Check which filter criteria are active.
+	criteria := map[string]interface{}{}
+	if filter.Fingerprint != "" {
+		criteria["Fingerprint"] = filter.Fingerprint
+	}
+	if filter.Name != "" {
+		criteria["Name"] = filter.Name
+	}
+	if filter.Type != -1 {
+		criteria["Type"] = filter.Type
+	}
+
+	// Pick the prepared statement and arguments to use based on active criteria.
+	var stmt *sql.Stmt
+	var args []interface{}
+
+	if criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByNameAndType)
+		args = []interface{}{
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprint)
+		args = []interface{}{
+			filter.Fingerprint,
+		}
+	} else {
+		return fmt.Errorf("No valid filter for certificate delete")
+	}
+	result, err := stmt.Exec(args...)
+	if err != nil {
+		return errors.Wrap(err, "Delete certificate")
+	}
+
+	_, err = result.RowsAffected()
+	if err != nil {
+		return errors.Wrap(err, "Fetch affected rows")
 	}
 
 	return nil
