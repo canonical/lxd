@@ -37,11 +37,11 @@ var defaultPackages = []string{
 
 // Filters parses all filtering statement defined for the given entity. It
 // returns all supported combinations of filters, sorted by number of criteria.
-func Filters(pkg *ast.Package, entity string) [][]string {
+func Filters(pkg *ast.Package, kind string, entity string) [][]string {
 	objects := pkg.Scope.Objects
 	filters := [][]string{}
 
-	prefix := fmt.Sprintf("%sObjectsBy", lex.Minuscule(lex.Camel(entity)))
+	prefix := fmt.Sprintf("%s%sBy", lex.Minuscule(lex.Camel(entity)), lex.Camel(kind))
 
 	for name := range objects {
 		if !strings.HasPrefix(name, prefix) {
