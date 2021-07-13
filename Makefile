@@ -101,6 +101,7 @@ update-schema:
 	cd lxd/db/generate && go build -o lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
 	mv lxd/db/generate/lxd-generate $(GOPATH)/bin
 	go generate ./...
+	gofmt -s -w ./lxd/db/
 	@echo "Code generation completed"
 
 .PHONY: update-api
