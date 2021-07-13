@@ -22,7 +22,8 @@ import (
 //go:generate mapper stmt -p db -e certificate id
 //go:generate mapper stmt -p db -e certificate create struct=Certificate
 //go:generate mapper stmt -p db -e certificate create-projects-ref
-//go:generate mapper stmt -p db -e certificate delete
+//go:generate mapper stmt -p db -e certificate delete-by-Fingerprint
+//go:generate mapper stmt -p db -e certificate delete-by-Name-and-Type
 //go:generate mapper stmt -p db -e certificate update struct=Certificate
 //
 //go:generate mapper method -p db -e certificate List
@@ -31,7 +32,8 @@ import (
 //go:generate mapper method -p db -e certificate Exists struct=Certificate
 //go:generate mapper method -p db -e certificate Create struct=Certificate
 //go:generate mapper method -p db -e certificate ProjectsRef
-//go:generate mapper method -p db -e certificate Delete
+//go:generate mapper method -p db -e certificate DeleteOne
+//go:generate mapper method -p db -e certificate DeleteMany
 //go:generate mapper method -p db -e certificate Update struct=Certificate
 
 // CertificateTypeClient indicates a client certificate type.
