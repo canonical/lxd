@@ -36,7 +36,7 @@ import (
 //go:generate mapper stmt -p db -e profile create-config-ref
 //go:generate mapper stmt -p db -e profile create-devices-ref
 //go:generate mapper stmt -p db -e profile rename
-//go:generate mapper stmt -p db -e profile delete
+//go:generate mapper stmt -p db -e profile delete-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile delete-config-ref
 //go:generate mapper stmt -p db -e profile delete-devices-ref
 //go:generate mapper stmt -p db -e profile update struct=Profile
@@ -51,7 +51,7 @@ import (
 //go:generate mapper method -p db -e profile UsedByRef
 //go:generate mapper method -p db -e profile Create struct=Profile
 //go:generate mapper method -p db -e profile Rename
-//go:generate mapper method -p db -e profile Delete
+//go:generate mapper method -p db -e profile DeleteOne
 //go:generate mapper method -p db -e profile Update struct=Profile
 
 // Profile is a value object holding db-related details about a profile.
@@ -79,7 +79,7 @@ func ProfileToAPI(profile *Profile) *api.Profile {
 	return p
 }
 
-// ProfileFilter can be used to filter results yielded by ProfileList.
+// ProfileFilter specifies potential query parameter fields.
 type ProfileFilter struct {
 	Project string
 	Name    string
