@@ -86,7 +86,7 @@ var instanceSnapshotRename = cluster.RegisterStmt(`
 UPDATE instances_snapshots SET name = ? WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
 `)
 
-var instanceSnapshotDelete = cluster.RegisterStmt(`
+var instanceSnapshotDeleteByProjectAndInstanceAndName = cluster.RegisterStmt(`
 DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?) AND name = ?
 `)
 
@@ -579,9 +579,34 @@ func (c *ClusterTx) RenameInstanceSnapshot(project string, instance string, name
 }
 
 // DeleteInstanceSnapshot deletes the instance_snapshot matching the given key parameters.
-func (c *ClusterTx) DeleteInstanceSnapshot(project string, instance string, name string) error {
-	stmt := c.stmt(instanceSnapshotDelete)
-	result, err := stmt.Exec(project, instance, name)
+func (c *ClusterTx) DeleteInstanceSnapshot(filter InstanceSnapshotFilter) error {
+	// Check which filter criteria are active.
+	criteria := map[string]interface{}{}
+	if filter.Project != "" {
+		criteria["Project"] = filter.Project
+	}
+	if filter.Instance != "" {
+		criteria["Instance"] = filter.Instance
+	}
+	if filter.Name != "" {
+		criteria["Name"] = filter.Name
+	}
+
+	// Pick the prepared statement and arguments to use based on active criteria.
+	var stmt *sql.Stmt
+	var args []interface{}
+
+	if criteria["Project"] != nil && criteria["Instance"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(instanceSnapshotDeleteByProjectAndInstanceAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Instance,
+			filter.Name,
+		}
+	} else {
+		return fmt.Errorf("No valid filter for instance_snapshot delete")
+	}
+	result, err := stmt.Exec(args...)
 	if err != nil {
 		return errors.Wrap(err, "Delete instance_snapshot")
 	}
