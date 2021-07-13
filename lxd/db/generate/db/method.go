@@ -79,7 +79,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse filter struct")
 	}
 
-	filters := Filters(m.packages["db"], m.entity)
+	filters := Filters(m.packages["db"], "objects", m.entity)
 
 	comment := fmt.Sprintf("returns all available %s URIs.", m.entity)
 	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
@@ -156,7 +156,7 @@ func (m *Method) list(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse filter struct")
 	}
 
-	filters := Filters(m.packages["db"], m.entity)
+	filters := Filters(m.packages["db"], "objects", m.entity)
 
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := entityType(m.pkg, m.entity)
