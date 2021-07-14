@@ -4341,7 +4341,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 							return err
 						}
 					} else {
-						priority := 0
+						priority := 10
 						if memorySwapPriority != "" {
 							priority, err = strconv.Atoi(memorySwapPriority)
 							if err != nil {
