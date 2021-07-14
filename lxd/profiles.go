@@ -690,7 +690,8 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
-		return tx.DeleteProfile(projectName, name)
+		filter := db.ProfileFilter{Project: projectName, Name: name}
+		return tx.DeleteProfile(filter)
 	})
 	if err != nil {
 		return response.SmartError(err)

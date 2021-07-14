@@ -32,7 +32,7 @@ import (
 //go:generate mapper stmt -e project id
 //go:generate mapper stmt -e project rename
 //go:generate mapper stmt -e project update
-//go:generate mapper stmt -e project delete
+//go:generate mapper stmt -e project delete-by-Name
 //
 //go:generate mapper method -e project URIs
 //go:generate mapper method -e project List
@@ -43,9 +43,9 @@ import (
 //go:generate mapper method -e project UsedByRef
 //go:generate mapper method -e project ID
 //go:generate mapper method -e project Rename
-//go:generate mapper method -e project Delete
+//go:generate mapper method -e project DeleteOne
 
-// ProjectFilter can be used to filter results yielded by ProjectList.
+// ProjectFilter specifies potential query parameter fields.
 type ProjectFilter struct {
 	Name string // If non-empty, return only the project with this name.
 }

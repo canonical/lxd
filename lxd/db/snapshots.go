@@ -29,7 +29,7 @@ import (
 //go:generate mapper stmt -p db -e instance_snapshot create-config-ref
 //go:generate mapper stmt -p db -e instance_snapshot create-devices-ref
 //go:generate mapper stmt -p db -e instance_snapshot rename
-//go:generate mapper stmt -p db -e instance_snapshot delete
+//go:generate mapper stmt -p db -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
 //go:generate mapper method -p db -e instance_snapshot List
 //go:generate mapper method -p db -e instance_snapshot Get
@@ -39,7 +39,7 @@ import (
 //go:generate mapper method -p db -e instance_snapshot ConfigRef
 //go:generate mapper method -p db -e instance_snapshot DevicesRef
 //go:generate mapper method -p db -e instance_snapshot Rename
-//go:generate mapper method -p db -e instance_snapshot Delete
+//go:generate mapper method -p db -e instance_snapshot DeleteOne
 
 // InstanceSnapshot is a value object holding db-related details about a snapshot.
 type InstanceSnapshot struct {
@@ -55,7 +55,7 @@ type InstanceSnapshot struct {
 	ExpiryDate   time.Time
 }
 
-// InstanceSnapshotFilter can be used to filter results yielded by GetInstanceSnapshots.
+// InstanceSnapshotFilter specifies potential query parameter fields.
 type InstanceSnapshotFilter struct {
 	Project  string
 	Instance string
