@@ -240,7 +240,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 				}
 
 				// Skip NICs connected to other networks.
-				if d.config["parent"] != devConfig["parent"] && d.config["network"] != devConfig["network"] {
+				if d.config["parent"] != devConfig["parent"] || d.config["network"] != devConfig["network"] || d.config["vlan"] != devConfig["vlan"] {
 					continue
 				}
 
