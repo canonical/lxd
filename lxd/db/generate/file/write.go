@@ -10,7 +10,8 @@ import (
 
 // Reset an auto-generated source file, writing a new empty file header.
 func Reset(path string, imports []string) error {
-	content := fmt.Sprintf(`// +build linux,cgo,!agent
+	content := fmt.Sprintf(`//go:build linux && cgo && !agent
+// +build linux,cgo,!agent
 
 package %s
 

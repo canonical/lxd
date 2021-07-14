@@ -62,6 +62,10 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.names(buf)
 	}
 
+	if strings.HasPrefix(s.kind, "delete") {
+		return s.delete(buf)
+	}
+
 	switch s.kind {
 	case "create":
 		return s.create(buf)
@@ -71,8 +75,6 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.rename(buf)
 	case "update":
 		return s.update(buf)
-	case "delete":
-		return s.delete(buf)
 	default:
 		return fmt.Errorf("Unknown statement '%s'", s.kind)
 	}
@@ -459,7 +461,7 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 	}
 
 	table := entityTable(s.entity)
-	where := naturalKeyWhere(mapping)
+	where := whereClause(mapping.NaturalKey())
 
 	sql := fmt.Sprintf(stmts[s.kind], table, where)
 	s.register(buf, sql)
@@ -507,9 +509,23 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	}
 
 	table := entityTable(s.entity)
-	where := naturalKeyWhere(mapping)
 
-	sql := fmt.Sprintf(stmts[s.kind], table, where)
+	fields := []*Field{}
+	where := whereClause(mapping.NaturalKey())
+
+	if strings.HasPrefix(s.kind, "delete-by") {
+		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
+		for _, filter := range filters {
+			field, err := mapping.FilterFieldByName(filter)
+			if err != nil {
+				return err
+			}
+			fields = append(fields, field)
+		}
+		where = whereClause(fields)
+	}
+
+	sql := fmt.Sprintf(stmts["delete"], table, where)
 	s.register(buf, sql)
 	return nil
 }
@@ -542,26 +558,24 @@ func (s *Stmt) deleteRef(buf *file.Buffer) error {
 	return nil
 }
 
-// Return a where clause that filters an entity by natural key.
-func naturalKeyWhere(mapping *Mapping) string {
-	nk := mapping.NaturalKey()
-
+// Return a where clause that filters an entity by the given fields
+func whereClause(fields []*Field) string {
 	via := map[string][]*Field{} // Map scalar fields to their additional indirect fields
 
 	// Filter out indirect fields
-	fields := []*Field{}
-	for _, field := range nk {
+	directFields := []*Field{}
+	for _, field := range fields {
 		if field.IsIndirect() {
 			entity := field.Config.Get("via")
 			via[entity] = append(via[entity], field)
 			continue
 		}
-		fields = append(fields, field)
+		directFields = append(directFields, field)
 	}
 
-	where := make([]string, len(fields))
+	where := make([]string, len(directFields))
 
-	for i, field := range fields {
+	for i, field := range directFields {
 		if field.IsScalar() {
 			ref := lex.Snake(field.Name)
 			refTable := entityTable(ref)
