@@ -1,13 +1,11 @@
 package node
 
 import (
-	"fmt"
-	"net"
+	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // Config holds node-local configuration values for a certain LXD instance.
@@ -23,12 +21,12 @@ func ConfigLoad(tx *db.NodeTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config()
 	if err != nil {
-		return nil, fmt.Errorf("cannot fetch node config from database: %v", err)
+		return nil, errors.Wrap(err, "Cannot fetch node config from database")
 	}
 
 	m, err := config.SafeLoad(ConfigSchema, values)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load node config: %v", err)
+		return nil, errors.Wrap(err, "Failed to load node config")
 	}
 
 	return &Config{tx: tx, m: m}, nil
@@ -144,7 +142,7 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 
 	err = c.tx.UpdateConfig(changed)
 	if err != nil {
-		return nil, fmt.Errorf("cannot persist local configuration changes: %v", err)
+		return nil, errors.Wrap(err, "Cannot persist local configuration changes")
 	}
 
 	return changed, nil
@@ -153,13 +151,13 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 // ConfigSchema defines available server configuration keys.
 var ConfigSchema = config.Schema{
 	// Network address for this LXD server
-	"core.https_address": {},
+	"core.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for cluster communication
-	"cluster.https_address": {Validator: validateClusterHTTPSAddress},
+	"cluster.https_address": {Validator: validate.Optional(validate.IsListenAddress(false, false, false))},
 
 	// Network address for the debug server
-	"core.debug_address": {},
+	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// MAAS machine this LXD instance is associated with
 	"maas.machine": {},
@@ -167,18 +165,4 @@ var ConfigSchema = config.Schema{
 	// Storage volumes to store backups/images on
 	"storage.backups_volume": {},
 	"storage.images_volume":  {},
-}
-
-func validateClusterHTTPSAddress(value string) error {
-	if value == "" {
-		return nil // Deleting entry
-	}
-	host, _, err := net.SplitHostPort(value)
-	if err != nil {
-		return errors.Wrap(err, "Address not in form of <HOST>:<PORT>")
-	}
-	if shared.StringInSlice(host, []string{"[::]", "0.0.0.0"}) {
-		return fmt.Errorf("Invalid IP address or DNS name")
-	}
-	return nil
 }

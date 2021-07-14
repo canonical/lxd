@@ -644,3 +644,44 @@ func IsCron(aliases []string) func(value string) error {
 		return nil
 	}
 }
+
+// IsListenAddress returns a validator for a listen address.
+func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(value string) error {
+	return func(value string) error {
+		// Validate address format and port.
+		host, _, err := net.SplitHostPort(value)
+		if err != nil {
+			if requirePort {
+				return fmt.Errorf("A port is required as part of the address")
+			}
+
+			host = value
+		}
+
+		// Validate wildcard.
+		if stringInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
+			if !allowWildcard {
+				return fmt.Errorf("Wildcard addresses aren't allowed")
+			}
+
+			return nil
+		}
+
+		// Validate DNS.
+		ip := net.ParseIP(strings.Trim(host, "[]"))
+		if ip != nil {
+			return nil
+		}
+
+		if !allowDNS {
+			return fmt.Errorf("DNS names not allowed in address")
+		}
+
+		_, err = net.LookupHost(host)
+		if err != nil {
+			return fmt.Errorf("Couldn't resolve %q", host)
+		}
+
+		return nil
+	}
+}
