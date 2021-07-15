@@ -83,7 +83,7 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 }
 
 func (s *Stmt) objects(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 }
 
 func (s *Stmt) names(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Capital(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Capital(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func (s *Stmt) ref(buf *file.Buffer) error {
 	// Table name where reference objects can be fetched.
 	table := fmt.Sprintf("%s_%s_ref", entityTable(s.entity), name)
 
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func (s *Stmt) ref(buf *file.Buffer) error {
 		columns[len(columns)-2] = "key"
 		columns[len(columns)-1] = "value"
 	} else {
-		ref, err := Parse(s.packages["db"], typ)
+		ref, err := Parse(s.packages["db"], typ, s.kind)
 		if err != nil {
 			return errors.Wrap(err, "Parse referenced entity")
 		}
@@ -344,7 +344,7 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		entityCreate = entityPost(s.entity)
 	}
 
-	mapping, err := Parse(s.packages[s.pkg], entityCreate)
+	mapping, err := Parse(s.packages[s.pkg], entityCreate, s.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -413,7 +413,7 @@ func (s *Stmt) createRef(buf *file.Buffer) error {
 	// Table name where reference objects can be fetched.
 	table := fmt.Sprintf("%s_%s", entityTable(s.entity), name)
 
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -451,7 +451,7 @@ func (s *Stmt) createRef(buf *file.Buffer) error {
 }
 
 func (s *Stmt) id(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -462,7 +462,7 @@ func (s *Stmt) id(buf *file.Buffer) error {
 }
 
 func (s *Stmt) rename(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -482,7 +482,7 @@ func (s *Stmt) update(buf *file.Buffer) error {
 		entityUpdate = entityPut(s.entity)
 	}
 
-	mapping, err := Parse(s.packages[s.pkg], entityUpdate)
+	mapping, err := Parse(s.packages[s.pkg], entityUpdate, s.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -510,7 +510,7 @@ func (s *Stmt) update(buf *file.Buffer) error {
 }
 
 func (s *Stmt) delete(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -547,7 +547,7 @@ func (s *Stmt) deleteRef(buf *file.Buffer) error {
 	// Table name where reference objects can be fetched.
 	table := fmt.Sprintf("%s_%s", entityTable(s.entity), name)
 
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity))
+	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
