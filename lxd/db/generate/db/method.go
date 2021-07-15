@@ -73,7 +73,7 @@ func (m *Method) Generate(buf *file.Buffer) error {
 }
 
 func (m *Method) uris(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -150,7 +150,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 }
 
 func (m *Method) list(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -257,7 +257,7 @@ func (m *Method) list(buf *file.Buffer) error {
 }
 
 func (m *Method) get(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -300,7 +300,7 @@ func (m *Method) get(buf *file.Buffer) error {
 }
 
 func (m *Method) ref(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -559,7 +559,7 @@ func (m *Method) id(buf *file.Buffer) error {
 		entityCreate = entityPost(m.entity)
 	}
 
-	mapping, err := Parse(m.packages[m.pkg], entityCreate)
+	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -609,7 +609,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 		entityCreate = entityPost(m.entity)
 	}
 
-	mapping, err := Parse(m.packages[m.pkg], entityCreate)
+	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -643,7 +643,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		entityCreate = entityPost(m.entity)
 	}
 
-	mapping, err := Parse(m.packages[m.pkg], entityCreate)
+	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -764,7 +764,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 }
 
 func (m *Method) rename(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -798,7 +798,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 }
 
 func (m *Method) update(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -818,7 +818,7 @@ func (m *Method) update(buf *file.Buffer) error {
 	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
-	updateMapping, err := Parse(m.packages[m.pkg], entityUpdate)
+	updateMapping, err := Parse(m.packages[m.pkg], entityUpdate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -935,7 +935,7 @@ func (m *Method) update(buf *file.Buffer) error {
 }
 
 func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
