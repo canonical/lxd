@@ -881,6 +881,11 @@ test_clustering_network() {
   ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
   ! nsenter -n -t "${LXD_PID1}" -- ip -details link show "${net}" | grep dummy || false # Check LXD removes non-LXD interface (because we can't track node state).
 
+  # Create a working network.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" --target node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" ipv4.address=192.0.2.1/24 ipv6.address=2001:db8::1/64
+
   # Check instance can be connected to created network and assign static DHCP allocations.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}"
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c1
