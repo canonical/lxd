@@ -14,6 +14,7 @@ type Mapping struct {
 	Package string   // Package of the Go struct
 	Name    string   // Name of the Go struct.
 	Fields  []*Field // Metadata about the Go struct.
+	Filters []*Field // Metadata about the Go struct used for filter fields.
 }
 
 // NaturalKey returns the struct fields that can be used as natural key for
@@ -85,6 +86,45 @@ func (m *Mapping) FilterFieldByName(name string) (*Field, error) {
 	}
 
 	return field, nil
+}
+
+// FilterCombinations returns the power set of the filter fields, excluding combinations where indirect fields are present without their reference fields.
+func (m *Mapping) FilterCombinations() [][]string {
+	powerSet := [][]string{{}}
+	for _, field := range m.Filters {
+		var tmp [][]string
+		for _, ps := range powerSet {
+			lastSlice := append([]string{}, ps...)
+			nextSlice := append(lastSlice, field.Name)
+			tmp = append(tmp, nextSlice)
+		}
+		powerSet = append(powerSet, tmp...)
+	}
+
+	// Check for sets with indirect fields and no reference fields.
+	validSet := [][]string{}
+	for _, filterSet := range powerSet {
+		for _, filter := range filterSet {
+			// Get the main struct field for its tags.
+			field := m.FieldByName(filter)
+			if field == nil {
+				return [][]string{}
+			}
+
+			if field.IsIndirect() {
+				referenceField := lex.Camel(field.Config.Get("via"))
+				if shared.StringInSlice(field.Name, filterSet) && !shared.StringInSlice(referenceField, filterSet) {
+					// Make the invalid set nil to ignore later.
+					filterSet = nil
+					break
+				}
+			}
+		}
+		if filterSet != nil {
+			validSet = append(validSet, filterSet)
+		}
+	}
+	return validSet
 }
 
 // ColumnFields returns the fields that map directly to a database column,
