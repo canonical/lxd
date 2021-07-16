@@ -33,7 +33,6 @@ SELECT projects.description, projects.name
   FROM projects
   ORDER BY projects.name
 `)
-
 var projectObjectsByName = cluster.RegisterStmt(`
 SELECT projects.description, projects.name
   FROM projects
@@ -77,7 +76,7 @@ UPDATE projects SET name = ? WHERE name = ?
 
 var projectUpdate = cluster.RegisterStmt(`
 UPDATE projects
-  SET description = ?
+  SET description = ?, name = ?
  WHERE id = ?
 `)
 
@@ -114,9 +113,9 @@ func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
 }
 
 // GetProjects returns all available projects.
-func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]api.Project, error) {
+func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	// Result slice.
-	objects := make([]api.Project, 0)
+	objects := make([]Project, 0)
 
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
@@ -140,7 +139,7 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]api.Project, error) {
 
 	// Dest function for scanning a row.
 	dest := func(i int) []interface{} {
-		objects = append(objects, api.Project{})
+		objects = append(objects, Project{})
 		return []interface{}{
 			&objects[i].Description,
 			&objects[i].Name,
@@ -151,20 +150,6 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]api.Project, error) {
 	err := query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch projects")
-	}
-
-	// Fill field Config.
-	configObjects, err := c.ProjectConfigRef(filter)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Config")
-	}
-
-	for i := range objects {
-		value := configObjects[objects[i].Name]
-		if value == nil {
-			value = map[string]string{}
-		}
-		objects[i].Config = value
 	}
 
 	// Fill field UsedBy.
@@ -189,11 +174,25 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]api.Project, error) {
 		objects[i].UsedBy = value
 	}
 
+	// Fill field Config.
+	configObjects, err := c.ProjectConfigRef(filter)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to fetch field Config")
+	}
+
+	for i := range objects {
+		value := configObjects[objects[i].Name]
+		if value == nil {
+			value = map[string]string{}
+		}
+		objects[i].Config = value
+	}
+
 	return objects, nil
 }
 
 // GetProject returns the project with the given key.
-func (c *ClusterTx) GetProject(name string) (*api.Project, error) {
+func (c *ClusterTx) GetProject(name string) (*Project, error) {
 	filter := ProjectFilter{}
 	filter.Name = name
 
@@ -291,7 +290,7 @@ func (c *ClusterTx) ProjectExists(name string) (bool, error) {
 }
 
 // CreateProject adds a new project to the database.
-func (c *ClusterTx) CreateProject(object api.ProjectsPost) (int64, error) {
+func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 	// Check if a project with the same key exists.
 	exists, err := c.ProjectExists(object.Name)
 	if err != nil {

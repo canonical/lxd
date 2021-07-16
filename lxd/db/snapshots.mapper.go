@@ -21,13 +21,26 @@ SELECT instances_snapshots.id, projects.name AS project, instances.name AS insta
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
   ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
-
+var instanceSnapshotObjectsByInstance = cluster.RegisterStmt(`
+SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
+  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  WHERE instance = ? ORDER BY projects.id, instances.id, instances_snapshots.name
+`)
 var instanceSnapshotObjectsByProjectAndInstance = cluster.RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
   WHERE project = ? AND instance = ? ORDER BY projects.id, instances.id, instances_snapshots.name
 `)
-
+var instanceSnapshotObjectsByName = cluster.RegisterStmt(`
+SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
+  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  WHERE instances_snapshots.name = ? ORDER BY projects.id, instances.id, instances_snapshots.name
+`)
+var instanceSnapshotObjectsByInstanceAndName = cluster.RegisterStmt(`
+SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
+  FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
+  WHERE instance = ? AND instances_snapshots.name = ? ORDER BY projects.id, instances.id, instances_snapshots.name
+`)
 var instanceSnapshotObjectsByProjectAndInstanceAndName = cluster.RegisterStmt(`
 SELECT instances_snapshots.id, projects.name AS project, instances.name AS instance, instances_snapshots.name, instances_snapshots.creation_date, instances_snapshots.stateful, coalesce(instances_snapshots.description, ''), instances_snapshots.expiry_date
   FROM instances_snapshots JOIN projects ON instances.project_id = projects.id JOIN instances ON instances_snapshots.instance_id = instances.id
@@ -122,6 +135,22 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 		stmt = c.stmt(instanceSnapshotObjectsByProjectAndInstance)
 		args = []interface{}{
 			filter.Project,
+			filter.Instance,
+		}
+	} else if criteria["Instance"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(instanceSnapshotObjectsByInstanceAndName)
+		args = []interface{}{
+			filter.Instance,
+			filter.Name,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(instanceSnapshotObjectsByName)
+		args = []interface{}{
+			filter.Name,
+		}
+	} else if criteria["Instance"] != nil {
+		stmt = c.stmt(instanceSnapshotObjectsByInstance)
+		args = []interface{}{
 			filter.Instance,
 		}
 	} else {

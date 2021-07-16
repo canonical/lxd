@@ -21,11 +21,40 @@ SELECT certificates.id, certificates.fingerprint, certificates.type, certificate
   FROM certificates
   ORDER BY certificates.fingerprint
 `)
-
 var certificateObjectsByFingerprint = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.fingerprint LIKE ? ORDER BY certificates.fingerprint
+`)
+var certificateObjectsByName = cluster.RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  WHERE certificates.name = ? ORDER BY certificates.fingerprint
+`)
+var certificateObjectsByFingerprintAndName = cluster.RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  WHERE certificates.fingerprint LIKE ? AND certificates.name = ? ORDER BY certificates.fingerprint
+`)
+var certificateObjectsByType = cluster.RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  WHERE certificates.type = ? ORDER BY certificates.fingerprint
+`)
+var certificateObjectsByFingerprintAndType = cluster.RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  WHERE certificates.fingerprint LIKE ? AND certificates.type = ? ORDER BY certificates.fingerprint
+`)
+var certificateObjectsByNameAndType = cluster.RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  WHERE certificates.name = ? AND certificates.type = ? ORDER BY certificates.fingerprint
+`)
+var certificateObjectsByFingerprintAndNameAndType = cluster.RegisterStmt(`
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+  FROM certificates
+  WHERE certificates.fingerprint LIKE ? AND certificates.name = ? AND certificates.type = ? ORDER BY certificates.fingerprint
 `)
 
 var certificateProjectsRef = cluster.RegisterStmt(`
@@ -73,7 +102,7 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Type != -1 {
+	if filter.Type != nil {
 		criteria["Type"] = filter.Type
 	}
 
@@ -81,7 +110,42 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Fingerprint"] != nil {
+	if criteria["Fingerprint"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateObjectsByFingerprintAndNameAndType)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateObjectsByNameAndType)
+		args = []interface{}{
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateObjectsByFingerprintAndType)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(certificateObjectsByFingerprintAndName)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Name,
+		}
+	} else if criteria["Type"] != nil {
+		stmt = c.stmt(certificateObjectsByType)
+		args = []interface{}{
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(certificateObjectsByName)
+		args = []interface{}{
+			filter.Name,
+		}
+	} else if criteria["Fingerprint"] != nil {
 		stmt = c.stmt(certificateObjectsByFingerprint)
 		args = []interface{}{
 			filter.Fingerprint,
@@ -300,7 +364,7 @@ func (c *ClusterTx) DeleteCertificate(filter CertificateFilter) error {
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Type != -1 {
+	if filter.Type != nil {
 		criteria["Type"] = filter.Type
 	}
 
@@ -348,7 +412,7 @@ func (c *ClusterTx) DeleteCertificates(filter CertificateFilter) error {
 	if filter.Name != "" {
 		criteria["Name"] = filter.Name
 	}
-	if filter.Type != -1 {
+	if filter.Type != nil {
 		criteria["Type"] = filter.Type
 	}
 

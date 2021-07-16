@@ -39,13 +39,16 @@ SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.d
   FROM profiles JOIN projects ON profiles.project_id = projects.id
   ORDER BY projects.id, profiles.name
 `)
-
 var profileObjectsByProject = cluster.RegisterStmt(`
 SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? ORDER BY projects.id, profiles.name
 `)
-
+var profileObjectsByName = cluster.RegisterStmt(`
+SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  WHERE profiles.name = ? ORDER BY projects.id, profiles.name
+`)
 var profileObjectsByProjectAndName = cluster.RegisterStmt(`
 SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
@@ -160,6 +163,11 @@ func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 		args = []interface{}{
 			filter.Project,
 		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(profileNamesByName)
+		args = []interface{}{
+			filter.Name,
+		}
 	} else {
 		stmt = c.stmt(profileNames)
 		args = []interface{}{}
@@ -199,6 +207,11 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 		stmt = c.stmt(profileObjectsByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(profileObjectsByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else {
 		stmt = c.stmt(profileObjects)
