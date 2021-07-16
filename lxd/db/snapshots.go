@@ -16,8 +16,6 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e instance_snapshot objects
-//go:generate mapper stmt -p db -e instance_snapshot objects-by-Project-and-Instance
-//go:generate mapper stmt -p db -e instance_snapshot objects-by-Project-and-Instance-and-Name
 //go:generate mapper stmt -p db -e instance_snapshot id
 //go:generate mapper stmt -p db -e instance_snapshot config-ref
 //go:generate mapper stmt -p db -e instance_snapshot config-ref-by-Project-and-Instance

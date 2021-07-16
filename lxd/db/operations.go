@@ -10,9 +10,6 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t operations.mapper.go
 //go:generate mapper reset
 //go:generate mapper stmt -p db -e operation objects
-//go:generate mapper stmt -p db -e operation objects-by-NodeID
-//go:generate mapper stmt -p db -e operation objects-by-ID
-//go:generate mapper stmt -p db -e operation objects-by-UUID
 //go:generate mapper stmt -p db -e operation create-or-replace struct=Operation
 //go:generate mapper stmt -p db -e operation delete-by-UUID
 //go:generate mapper stmt -p db -e operation delete-by-NodeID

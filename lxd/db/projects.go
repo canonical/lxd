@@ -22,7 +22,6 @@ import (
 //go:generate mapper stmt -p db -e project names
 //go:generate mapper stmt -p db -e project names-by-Name
 //go:generate mapper stmt -p db -e project objects
-//go:generate mapper stmt -p db -e project objects-by-Name
 //go:generate mapper stmt -p db -e project used-by-ref
 //go:generate mapper stmt -p db -e project used-by-ref-by-Name
 //go:generate mapper stmt -p db -e project config-ref

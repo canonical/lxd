@@ -20,8 +20,6 @@ import (
 //go:generate mapper stmt -p db -e profile names-by-Project
 //go:generate mapper stmt -p db -e profile names-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile objects
-//go:generate mapper stmt -p db -e profile objects-by-Project
-//go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile config-ref
 //go:generate mapper stmt -p db -e profile config-ref-by-Project
 //go:generate mapper stmt -p db -e profile config-ref-by-Project-and-Name
