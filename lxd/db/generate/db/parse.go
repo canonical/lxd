@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/generate/lex"
+	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
 
@@ -127,13 +128,13 @@ func Criteria(pkg *ast.Package, entity string) ([]string, error) {
 
 // Parse the structure declaration with the given name found in the given Go
 // package.
-func Parse(pkg *ast.Package, name string) (*Mapping, error) {
+func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 	str := findStruct(pkg.Scope, name)
 	if str == nil {
 		return nil, fmt.Errorf("No declaration found for %q", name)
 	}
 
-	fields, err := parseStruct(str)
+	fields, err := parseStruct(str, kind)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to parse %q", name)
 	}
@@ -168,7 +169,7 @@ func findStruct(scope *ast.Scope, name string) *ast.StructType {
 }
 
 // Extract field information from the given structure.
-func parseStruct(str *ast.StructType) ([]*Field, error) {
+func parseStruct(str *ast.StructType, kind string) ([]*Field, error) {
 	fields := make([]*Field, 0)
 
 	for _, f := range str.Fields.List {
@@ -189,7 +190,7 @@ func parseStruct(str *ast.StructType) ([]*Field, error) {
 				continue
 			}
 
-			parentFields, err := parseStruct(parentStr)
+			parentFields, err := parseStruct(parentStr, kind)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed to parse parent struct")
 			}
@@ -202,7 +203,7 @@ func parseStruct(str *ast.StructType) ([]*Field, error) {
 			return nil, fmt.Errorf("Expected a single field name, got %q", f.Names)
 		}
 
-		field, err := parseField(f)
+		field, err := parseField(f, kind)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +217,7 @@ func parseStruct(str *ast.StructType) ([]*Field, error) {
 	return fields, nil
 }
 
-func parseField(f *ast.Field) (*Field, error) {
+func parseField(f *ast.Field, kind string) (*Field, error) {
 	name := f.Names[0]
 
 	if !name.IsExported() {
@@ -261,6 +262,18 @@ func parseField(f *ast.Field) (*Field, error) {
 		}
 	}
 
+	// Ignore fields that are marked with `db:"omit"`.
+	if omit := config.Get("omit"); omit != "" {
+		omitFields := strings.Split(omit, ",")
+		kind = strings.Replace(lex.Snake(kind), "_", "-", -1)
+		if shared.StringInSlice(kind, omitFields) {
+			return nil, nil
+		} else if kind == "exists" && shared.StringInSlice("id", omitFields) {
+			// Exists checks ID, so if we are omitting the field from ID, also omit it from Exists.
+			return nil, nil
+		}
+	}
+
 	field := Field{
 		Name:   name.Name,
 		Type:   typeObj,
@@ -273,8 +286,7 @@ func parseField(f *ast.Field) (*Field, error) {
 func parseType(x ast.Expr) string {
 	switch t := x.(type) {
 	case *ast.StarExpr:
-		// Pointers are not supported.
-		return ""
+		return parseType(t.X)
 	case *ast.SelectorExpr:
 		return parseType(t.X) + "." + t.Sel.String()
 	case *ast.Ident:

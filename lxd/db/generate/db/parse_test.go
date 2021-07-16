@@ -51,7 +51,7 @@ func TestParse(t *testing.T) {
 	}
 	pkg, _ := ast.NewPackage(fset, files, nil, nil)
 
-	m, err := db.Parse(pkg, "Teacher")
+	m, err := db.Parse(pkg, "Teacher", "objects")
 	require.NoError(t, err)
 
 	assert.Equal(t, "db_test", m.Package)
