@@ -191,10 +191,19 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.GetOperationByUUID(id)
+		filter := db.OperationFilter{UUID: id}
+		ops, err := tx.GetOperations(filter)
 		if err != nil {
 			return err
 		}
+		if len(ops) < 1 {
+			return db.ErrNoSuchObject
+		}
+		if len(ops) > 1 {
+			return fmt.Errorf("More than one operation matches")
+		}
+
+		operation := ops[0]
 
 		address = operation.NodeAddress
 		return nil
@@ -259,10 +268,19 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.GetOperationByUUID(id)
+		filter := db.OperationFilter{UUID: id}
+		ops, err := tx.GetOperations(filter)
 		if err != nil {
 			return err
 		}
+		if len(ops) < 1 {
+			return db.ErrNoSuchObject
+		}
+		if len(ops) > 1 {
+			return fmt.Errorf("More than one operation matches")
+		}
+
+		operation := ops[0]
 
 		address = operation.NodeAddress
 		return nil
@@ -300,10 +318,19 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 	var memberAddress string
 	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.GetOperationByUUID(op.ID)
+		filter := db.OperationFilter{UUID: op.ID}
+		ops, err := tx.GetOperations(filter)
 		if err != nil {
 			return errors.Wrapf(err, "Failed loading operation %q", op.ID)
 		}
+		if len(ops) < 1 {
+			return db.ErrNoSuchObject
+		}
+		if len(ops) > 1 {
+			return fmt.Errorf("More than one operation matches")
+		}
+
+		operation := ops[0]
 
 		memberAddress = operation.NodeAddress
 		return nil
@@ -828,10 +855,19 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.GetOperationByUUID(id)
+		filter := db.OperationFilter{UUID: id}
+		ops, err := tx.GetOperations(filter)
 		if err != nil {
 			return err
 		}
+		if len(ops) < 1 {
+			return db.ErrNoSuchObject
+		}
+		if len(ops) > 1 {
+			return fmt.Errorf("More than one operation matches")
+		}
+
+		operation := ops[0]
 
 		address = operation.NodeAddress
 		return nil
@@ -943,10 +979,19 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		operation, err := tx.GetOperationByUUID(id)
+		filter := db.OperationFilter{UUID: id}
+		ops, err := tx.GetOperations(filter)
 		if err != nil {
 			return err
 		}
+		if len(ops) < 1 {
+			return db.ErrNoSuchObject
+		}
+		if len(ops) > 1 {
+			return fmt.Errorf("More than one operation matches")
+		}
+
+		operation := ops[0]
 
 		address = operation.NodeAddress
 		return nil

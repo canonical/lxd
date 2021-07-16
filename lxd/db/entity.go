@@ -254,11 +254,17 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var op Operation
 
 		err = c.transaction(func(tx *ClusterTx) error {
-			op, err = tx.GetOperationWithID(entityID)
+			filter := OperationFilter{ID: int64(entityID)}
+			ops, err := tx.GetOperations(filter)
 			if err != nil {
 				return err
 			}
 
+			if len(ops) > 1 {
+				return fmt.Errorf("More than one operation matches")
+			}
+
+			op = ops[0]
 			return nil
 		})
 		if err != nil {

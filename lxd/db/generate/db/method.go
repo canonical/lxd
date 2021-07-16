@@ -56,7 +56,9 @@ func (m *Method) Generate(buf *file.Buffer) error {
 	case "Exists":
 		return m.exists(buf)
 	case "Create":
-		return m.create(buf)
+		return m.create(buf, false)
+	case "CreateOrReplace":
+		return m.create(buf, true)
 	case "Rename":
 		return m.rename(buf)
 	case "Update":
@@ -71,7 +73,7 @@ func (m *Method) Generate(buf *file.Buffer) error {
 }
 
 func (m *Method) uris(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -148,7 +150,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 }
 
 func (m *Method) list(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -255,7 +257,7 @@ func (m *Method) list(buf *file.Buffer) error {
 }
 
 func (m *Method) get(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -298,7 +300,7 @@ func (m *Method) get(buf *file.Buffer) error {
 }
 
 func (m *Method) ref(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -557,7 +559,7 @@ func (m *Method) id(buf *file.Buffer) error {
 		entityCreate = entityPost(m.entity)
 	}
 
-	mapping, err := Parse(m.packages[m.pkg], entityCreate)
+	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -607,7 +609,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 		entityCreate = entityPost(m.entity)
 	}
 
-	mapping, err := Parse(m.packages[m.pkg], entityCreate)
+	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -634,14 +636,14 @@ func (m *Method) exists(buf *file.Buffer) error {
 	return nil
 }
 
-func (m *Method) create(buf *file.Buffer) error {
+func (m *Method) create(buf *file.Buffer, replace bool) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityCreate, ok := m.config["struct"]
 	if !ok {
 		entityCreate = entityPost(m.entity)
 	}
 
-	mapping, err := Parse(m.packages[m.pkg], entityCreate)
+	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -662,15 +664,20 @@ func (m *Method) create(buf *file.Buffer) error {
 		nkParams[i] = fmt.Sprintf("object.%s", field.Name)
 	}
 
-	buf.L("// Check if a %s with the same key exists.", m.entity)
-	buf.L("exists, err := c.%sExists(%s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to check for duplicates\")")
-	buf.L("}")
-	buf.L("if exists {")
-	buf.L("        return -1, fmt.Errorf(\"This %s already exists\")", m.entity)
-	buf.L("}")
-	buf.N()
+	kind := "create"
+	if replace {
+		kind = "create_or_replace"
+	} else {
+		buf.L("// Check if a %s with the same key exists.", m.entity)
+		buf.L("exists, err := c.%sExists(%s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
+		buf.L("if err != nil {")
+		buf.L("        return -1, errors.Wrap(err, \"Failed to check for duplicates\")")
+		buf.L("}")
+		buf.L("if exists {")
+		buf.L("        return -1, fmt.Errorf(\"This %s already exists\")", m.entity)
+		buf.L("}")
+		buf.N()
+	}
 
 	fields := mapping.ColumnFields("ID")
 	buf.L("args := make([]interface{}, %d)", len(fields))
@@ -684,7 +691,7 @@ func (m *Method) create(buf *file.Buffer) error {
 	buf.N()
 
 	buf.L("// Prepared statement to use. ")
-	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "create"))
+	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, kind))
 	buf.N()
 	buf.L("// Execute the statement. ")
 	buf.L("result, err := stmt.Exec(args...)")
@@ -757,7 +764,7 @@ func (m *Method) create(buf *file.Buffer) error {
 }
 
 func (m *Method) rename(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -791,7 +798,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 }
 
 func (m *Method) update(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -811,7 +818,7 @@ func (m *Method) update(buf *file.Buffer) error {
 	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
-	updateMapping, err := Parse(m.packages[m.pkg], entityUpdate)
+	updateMapping, err := Parse(m.packages[m.pkg], entityUpdate, m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -928,7 +935,7 @@ func (m *Method) update(buf *file.Buffer) error {
 }
 
 func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity))
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
 	}
@@ -1044,6 +1051,8 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 		name = fmt.Sprintf("%sExists", entity)
 	case "Create":
 		name = fmt.Sprintf("Create%s", entity)
+	case "CreateOrReplace":
+		name = fmt.Sprintf("CreateOrReplace%s", entity)
 	case "Rename":
 		name = fmt.Sprintf("Rename%s", entity)
 	case "Update":

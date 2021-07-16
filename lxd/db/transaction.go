@@ -41,6 +41,11 @@ func (c *ClusterTx) NodeID(id int64) {
 	c.nodeID = id
 }
 
+// GetNodeID gets the ID of the node associated with this cluster transaction.
+func (c *ClusterTx) GetNodeID() int64 {
+	return c.nodeID
+}
+
 func (c *ClusterTx) stmt(code int) *sql.Stmt {
 	stmt, ok := c.stmts[code]
 	if !ok {
