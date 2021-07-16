@@ -42,10 +42,6 @@ func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stm
 
 // Generate plumbing and wiring code for the desired statement.
 func (s *Stmt) Generate(buf *file.Buffer) error {
-	if strings.HasPrefix(s.kind, "objects") {
-		return s.objects(buf)
-	}
-
 	if strings.HasPrefix(s.kind, "create") && strings.HasSuffix(s.kind, "-ref") {
 		return s.createRef(buf)
 	}
@@ -67,6 +63,8 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 	}
 
 	switch s.kind {
+	case "objects":
+		return s.objects(buf)
 	case "create":
 		return s.create(buf, false)
 	case "create-or-replace":
@@ -89,88 +87,86 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	}
 
 	where := ""
+	filterCombinations := mapping.FilterCombinations()
+	for _, filters := range filterCombinations {
+		if len(filters) > 0 {
+			where = "WHERE "
+			for i, filter := range filters {
+				if i > 0 {
+					where += "AND "
+				}
 
-	if strings.HasPrefix(s.kind, "objects-by") {
-		filters := strings.Split(s.kind[len("objects-by-"):], "-and-")
-		where = "WHERE "
+				if filter == "Parent" {
+					where += fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity))
+					continue
+				}
 
-		for i, filter := range filters {
-			if i > 0 {
-				where += "AND "
+				field, err := mapping.FilterFieldByName(filter)
+				if err != nil {
+					return err
+				}
+
+				var column string
+				if field.IsScalar() {
+					column = lex.Snake(field.Name)
+				} else {
+					column = mapping.FieldColumnName(field.Name)
+				}
+
+				comparison, ok := field.Config["comparison"]
+				if !ok {
+					comparison = []string{"equal"}
+				}
+				switch comparison[0] {
+				case "equal":
+					where += fmt.Sprintf("%s = ? ", column)
+				case "like":
+					where += fmt.Sprintf("%s LIKE ? ", column)
+				default:
+					panic("unknown 'comparison' value")
+				}
 			}
+		}
 
-			if filter == "Parent" {
-				where += fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity))
-				continue
-			}
-
-			field, err := mapping.FilterFieldByName(filter)
-			if err != nil {
-				return err
-			}
-
-			var column string
+		boiler := stmts["objects"]
+		fields := mapping.ColumnFields()
+		columns := make([]string, len(fields))
+		for i, field := range fields {
 			if field.IsScalar() {
-				column = lex.Snake(field.Name)
+				columns[i] = field.Column()
 			} else {
-				column = mapping.FieldColumnName(field.Name)
-			}
-
-			comparison, ok := field.Config["comparison"]
-			if !ok {
-				comparison = []string{"equal"}
-			}
-			switch comparison[0] {
-			case "equal":
-				where += fmt.Sprintf("%s = ? ", column)
-			case "like":
-				where += fmt.Sprintf("%s LIKE ? ", column)
-			default:
-				panic("unknown 'comparison' value")
-			}
-
-		}
-
-	}
-
-	boiler := stmts["objects"]
-	fields := mapping.ColumnFields()
-	columns := make([]string, len(fields))
-	for i, field := range fields {
-		if field.IsScalar() {
-			columns[i] = field.Column()
-		} else {
-			columns[i] = mapping.FieldColumnName(field.Name)
-			coalesce, ok := field.Config["coalesce"]
-			if ok {
-				columns[i] = fmt.Sprintf("coalesce(%s, %s)", columns[i], coalesce[0])
+				columns[i] = mapping.FieldColumnName(field.Name)
+				coalesce, ok := field.Config["coalesce"]
+				if ok {
+					columns[i] = fmt.Sprintf("coalesce(%s, %s)", columns[i], coalesce[0])
+				}
 			}
 		}
-	}
-	nk := mapping.NaturalKey()
-	orderBy := make([]string, len(nk))
-	for i, field := range nk {
-		if field.IsScalar() {
-			orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
-		} else {
-			orderBy[i] = mapping.FieldColumnName(field.Name)
+		nk := mapping.NaturalKey()
+		orderBy := make([]string, len(nk))
+		for i, field := range nk {
+			if field.IsScalar() {
+				orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
+			} else {
+				orderBy[i] = mapping.FieldColumnName(field.Name)
+			}
 		}
-	}
 
-	table := entityTable(s.entity)
-	for _, field := range mapping.ScalarFields() {
-		join := field.Config.Get("join")
-		right := strings.Split(join, ".")[0]
-		via := entityTable(s.entity)
-		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"))
+		table := entityTable(s.entity)
+		for _, field := range mapping.ScalarFields() {
+			join := field.Config.Get("join")
+			right := strings.Split(join, ".")[0]
+			via := entityTable(s.entity)
+			if field.Config.Get("via") != "" {
+				via = entityTable(field.Config.Get("via"))
+			}
+			table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
 		}
-		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
+
+		sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
+
+		s.register(buf, sql, filters...)
 	}
-
-	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
-
-	s.register(buf, sql)
 	return nil
 }
 
