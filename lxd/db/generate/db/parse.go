@@ -139,10 +139,38 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 		return nil, errors.Wrapf(err, "Failed to parse %q", name)
 	}
 
+	filterStr := findStruct(pkg.Scope, name+"Filter")
+	if filterStr == nil {
+		return nil, fmt.Errorf("No declaration found for %q", name+"Filter")
+	}
+
+	filters, err := parseStruct(filterStr, kind)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse %q", name)
+	}
+
 	m := &Mapping{
 		Package: pkg.Name,
 		Name:    name,
 		Fields:  fields,
+		Filters: filters,
+	}
+
+	for _, filter := range filters {
+		// Filter field must be present in original struct.
+		field, err := m.FilterFieldByName(filter.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		// Filter field's indirect reference must be present in the Filter struct.
+		if field.IsIndirect() {
+			indirectField := lex.Camel(field.Config.Get("via"))
+			_, err := m.FilterFieldByName(indirectField)
+			if err != nil {
+				return nil, fmt.Errorf("field %q requires field %q in struct %q", field.Name, indirectField, name+"Filter")
+			}
+		}
 	}
 
 	return m, nil
