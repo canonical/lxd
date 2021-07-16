@@ -107,7 +107,7 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 	}
 
 	// Look at instances. Most expensive to do.
-	err = s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	err = s.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 		// Look for NIC devices using this network.
 		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 		for _, devConfig := range devices {
