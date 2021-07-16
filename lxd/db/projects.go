@@ -200,9 +200,9 @@ func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 }
 
 // GetProject returns the project with the given key.
-func (c *Cluster) GetProject(projectName string) (*api.Project, error) {
+func (c *Cluster) GetProject(projectName string) (*Project, error) {
 	var err error
-	var p *api.Project
+	var p *Project
 	err = c.Transaction(func(tx *ClusterTx) error {
 		p, err = tx.GetProject(projectName)
 		if err != nil {
