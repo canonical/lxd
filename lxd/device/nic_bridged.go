@@ -209,7 +209,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			ourNICMAC, _ = net.ParseMAC(v["hwaddr"])
 		}
 
-		err := d.state.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		err := d.state.Cluster.InstanceList(&filter, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 
 			// Iterate through each of the instance's devices, looking for NICs that are linked to
