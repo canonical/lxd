@@ -16,7 +16,6 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e certificate objects
-//go:generate mapper stmt -p db -e certificate objects-by-Fingerprint
 //go:generate mapper stmt -p db -e certificate projects-ref
 //go:generate mapper stmt -p db -e certificate projects-ref-by-Fingerprint
 //go:generate mapper stmt -p db -e certificate id
