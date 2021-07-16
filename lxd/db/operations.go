@@ -17,7 +17,16 @@ type Operation struct {
 	ID          int64         // Stable database identifier
 	UUID        string        // User-visible identifier
 	NodeAddress string        // Address of the node the operation is running on
+	ProjectID   *int64        // ID of the project for the operation
+	NodeID      int64         // ID of the node the operation is running on
 	Type        OperationType // Type of the operation
+}
+
+// OperationFilter specifies potential query parameter fields.
+type OperationFilter struct {
+	ID     int64
+	NodeID int64
+	UUID   string
 }
 
 // GetLocalOperations returns all operations associated with this node.
