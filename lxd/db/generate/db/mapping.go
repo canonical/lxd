@@ -76,16 +76,21 @@ func (m *Mapping) FieldColumnName(name string) string {
 // FilterFieldByName returns the field with the given name if that field can be
 // used as query filter, an error otherwise.
 func (m *Mapping) FilterFieldByName(name string) (*Field, error) {
-	field := m.FieldByName(name)
-	if field == nil {
-		return nil, fmt.Errorf("Unknown filter %q", name)
-	}
+	for _, field := range m.Filters {
+		if field.Name == name {
+			if f := m.FieldByName(field.Name); f != nil {
+				if field.Type.Code != TypeColumn {
+					return nil, fmt.Errorf("Unknown filter %q not a column", name)
+				}
 
-	if field.Type.Code != TypeColumn {
-		return nil, fmt.Errorf("Unknown filter %q not a column", name)
-	}
+				// Use the filter struct's type instead to deal with zero values.
+				f.Type = field.Type
 
-	return field, nil
+				return f, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("Unknown filter %q", name)
 }
 
 // FilterCombinations returns the power set of the filter fields, excluding combinations where indirect fields are present without their reference fields.
