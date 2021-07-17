@@ -195,6 +195,10 @@ func (f *Field) ZeroValue() string {
 		panic("attempt to get zero value of non-column field")
 	}
 
+	if f.Type.IsPointer {
+		return "nil"
+	}
+
 	switch f.Type.Name {
 	case "string":
 		return `""`
@@ -257,8 +261,9 @@ func FieldCriteria(fields []*Field) string {
 // Type holds all information about a field in a field type that is relevant
 // for database code generation.
 type Type struct {
-	Name string
-	Code int
+	Name      string
+	Code      int
+	IsPointer bool
 }
 
 // Possible type code.
