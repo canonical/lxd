@@ -35,14 +35,17 @@ import (
 //go:generate mapper method -p db -e certificate DeleteMany
 //go:generate mapper method -p db -e certificate Update struct=Certificate
 
+// CertificateType indicates the type of the certificate.
+type CertificateType int
+
 // CertificateTypeClient indicates a client certificate type.
-const CertificateTypeClient = 1
+const CertificateTypeClient = CertificateType(1)
 
 // CertificateTypeServer indicates a server certificate type.
-const CertificateTypeServer = 2
+const CertificateTypeServer = CertificateType(2)
 
 // CertificateAPITypeToDBType converts an API type to the equivalent DB type.
-func CertificateAPITypeToDBType(apiType string) (int, error) {
+func CertificateAPITypeToDBType(apiType string) (CertificateType, error) {
 	switch apiType {
 	case api.CertificateTypeClient:
 		return CertificateTypeClient, nil
@@ -57,7 +60,7 @@ func CertificateAPITypeToDBType(apiType string) (int, error) {
 type Certificate struct {
 	ID          int
 	Fingerprint string `db:"primary=yes&comparison=like"`
-	Type        int
+	Type        CertificateType
 	Name        string
 	Certificate string
 	Restricted  bool
@@ -119,7 +122,7 @@ func (c *ClusterTx) UpdateCertificateProjects(id int, projects []string) error {
 type CertificateFilter struct {
 	Fingerprint string // Matched with LIKE
 	Name        string
-	Type        int
+	Type        *CertificateType // CertificateType is a pointer so it can be omitted.
 }
 
 // GetCertificate gets an CertBaseInfo object from the database.
@@ -186,14 +189,14 @@ func (c *Cluster) UpdateCertificateProjects(id int, projects []string) error {
 func (n *NodeTx) GetCertificates() ([]Certificate, error) {
 	dbCerts := []struct {
 		fingerprint string
-		certType    int
+		certType    CertificateType
 		name        string
 		certificate string
 	}{}
 	dest := func(i int) []interface{} {
 		dbCerts = append(dbCerts, struct {
 			fingerprint string
-			certType    int
+			certType    CertificateType
 			name        string
 			certificate string
 		}{})
