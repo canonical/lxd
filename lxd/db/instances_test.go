@@ -98,13 +98,13 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	defer cleanup()
 
 	// Create a project with no features
-	project1 := api.ProjectsPost{}
+	project1 := db.Project{}
 	project1.Name = "blah"
 	_, err := tx.CreateProject(project1)
 	require.NoError(t, err)
 
 	// Create a project with the profiles feature and a custom profile.
-	project2 := api.ProjectsPost{}
+	project2 := db.Project{}
 	project2.Name = "test"
 	project2.Config = map[string]string{"features.profiles": "true"}
 	_, err = tx.CreateProject(project2)
