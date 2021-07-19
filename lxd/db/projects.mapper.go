@@ -21,7 +21,6 @@ SELECT projects.name
   FROM projects
   ORDER BY projects.name
 `)
-
 var projectNamesByName = cluster.RegisterStmt(`
 SELECT projects.name
   FROM projects

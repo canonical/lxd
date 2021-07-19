@@ -21,13 +21,16 @@ SELECT projects.name AS project, profiles.name
   FROM profiles JOIN projects ON profiles.project_id = projects.id
   ORDER BY projects.id, profiles.name
 `)
-
 var profileNamesByProject = cluster.RegisterStmt(`
 SELECT projects.name AS project, profiles.name
   FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? ORDER BY projects.id, profiles.name
 `)
-
+var profileNamesByName = cluster.RegisterStmt(`
+SELECT projects.name AS project, profiles.name
+  FROM profiles JOIN projects ON profiles.project_id = projects.id
+  WHERE profiles.name = ? ORDER BY projects.id, profiles.name
+`)
 var profileNamesByProjectAndName = cluster.RegisterStmt(`
 SELECT projects.name AS project, profiles.name
   FROM profiles JOIN projects ON profiles.project_id = projects.id
