@@ -122,8 +122,28 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
+		// When we know the parent network is managed, we can validate the NIC's VLAN settings based on
+		// on the bridge driver type.
+		if shared.StringInSlice(netConfig["bridge.driver"], []string{"", "native"}) {
+			// Check VLAN 0 isn't set when using a native Linux managed bridge, as not supported.
+			if d.config["vlan"] == "0" {
+				return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
+			}
+
+			// Check that none of the supplied VLAN IDs are VLAN 0 when using a native Linux managed
+			// bridge, as not supported.
+			for _, vlanID := range util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true) {
+				if vlanID == "0" {
+					return fmt.Errorf("VLAN tagged ID 0 is not allowed for native Linux bridges")
+				}
+			}
+		}
+
 		return nil
 	}
+
+	// Managed network if specified in config (either via parent or network keys), left nil if not.
+	var n network.Network
 
 	// Check that if network proeperty is set that conflicting keys are not present.
 	if d.config["network"] != "" {
@@ -137,7 +157,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Load managed network. project.Default is used here as bridge networks don't support projects.
-		n, err := network.LoadByName(d.state, project.Default, d.config["network"])
+		var err error
+		n, err = network.LoadByName(d.state, project.Default, d.config["network"])
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 		}
@@ -172,7 +193,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 		// Check if parent is a managed network.
 		// project.Default is used here as bridge networks don't support projects.
-		n, _ := network.LoadByName(d.state, project.Default, d.config["parent"])
+		n, _ = network.LoadByName(d.state, project.Default, d.config["parent"])
 		if n != nil {
 			// Validate NIC settings with managed network.
 			err := checkWithManagedNetwork(n)
@@ -234,13 +255,36 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					continue
 				}
 
+				// Skip NICs that specify a NIC type that is not the same as our own.
+				if !shared.StringInSlice(devConfig["nictype"], []string{"", "bridged"}) {
+					continue
+				}
+
 				// Skip our own device.
 				if inst.Name == d.inst.Name() && inst.Project == d.inst.Project() && d.Name() == devName {
 					continue
 				}
 
-				// Skip NICs connected to other networks.
-				if d.config["parent"] != devConfig["parent"] || d.config["network"] != devConfig["network"] || d.config["vlan"] != devConfig["vlan"] {
+				// Skip NICs not connected to our NIC's managed network.
+				// If our NIC is connected to a managed network (either via network or parent keys)
+				// but the other NIC doesn't reference the same network name via either its network
+				// or parent keys then we can say it is connected to a different network, so the
+				// duplicate checks can be skipped.
+				if n != nil && n.Name() != devConfig["network"] && n.Name() != devConfig["parent"] {
+					continue
+				}
+
+				// Skip NICs that are connected to a managed network or different unmanaged parent
+				// when we are not connected to a managed network.
+				if n == nil && (devConfig["network"] != "" || d.config["parent"] != devConfig["parent"]) {
+					continue
+				}
+
+				// Skip NICs connected to other VLANs (not perfect though as one NIC could
+				// explicitly specify the default untagged VLAN and these would be connected to
+				// same L2 even though the values are different, and there is a different default
+				// value for native and openvswith parent bridges).
+				if d.config["vlan"] != devConfig["vlan"] {
 					continue
 				}
 
@@ -299,8 +343,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Check that none of the supplied VLAN IDs are the same as the untagged VLAN ID.
-		for _, vlanID := range strings.Split(value, ",") {
-			vlanID = strings.TrimSpace(vlanID)
+		for _, vlanID := range util.SplitNTrimSpace(value, ",", -1, true) {
 			if vlanID == d.config["vlan"] {
 				return fmt.Errorf("Tagged VLAN ID %q cannot be the same as untagged VLAN ID", vlanID)
 			}
@@ -1135,7 +1178,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 	// Set port on bridge to specified untagged PVID.
 	if d.config["vlan"] != "" {
-		// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
+		// Reject VLAN ID 0 if specified (as validation allows VLAN ID 0 on unmanaged bridges for OVS).
 		if d.config["vlan"] == "0" {
 			return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
 		}
@@ -1166,12 +1209,10 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 	// Add any tagged VLAN memberships.
 	if d.config["vlan.tagged"] != "" {
-		for _, vlanID := range strings.Split(d.config["vlan.tagged"], ",") {
-			vlanID = strings.TrimSpace(vlanID)
-
-			// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
+		for _, vlanID := range util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true) {
+			// Reject VLAN ID 0 if specified (as validation allows VLAN ID 0 on unmanaged bridges for OVS).
 			if vlanID == "0" {
-				return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
+				return fmt.Errorf("VLAN tagged ID 0 is not allowed for native Linux bridges")
 			}
 
 			err := link.BridgeVLANAdd(vlanID, false, false, false, false)
@@ -1208,13 +1249,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 
 	// Add any tagged VLAN memberships.
 	if d.config["vlan.tagged"] != "" {
-		vlanIDs := strings.Split(d.config["vlan.tagged"], ",")
-
-		// Remove any spaces from raw config string.
-		for i, vlanID := range vlanIDs {
-			vlanIDs[i] = strings.TrimSpace(vlanID)
-		}
-
+		vlanIDs := util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true)
 		vlanMode := "trunk" // Default to only allowing tagged frames (drop untagged frames).
 		if d.config["vlan"] != "none" {
 			// If untagged vlan mode isn't "none" then allow untagged frames for port's 'native' VLAN.
