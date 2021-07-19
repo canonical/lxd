@@ -1168,7 +1168,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 		for _, vlanID := range util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true) {
 			// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
 			if vlanID == "0" {
-				return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
+				return fmt.Errorf("VLAN tagged ID 0 is not allowed for native Linux bridges")
 			}
 
 			err := link.BridgeVLANAdd(vlanID, false, false, false, false)
