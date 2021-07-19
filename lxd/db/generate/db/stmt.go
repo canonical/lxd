@@ -58,10 +58,6 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.names(buf)
 	}
 
-	if strings.HasPrefix(s.kind, "delete") {
-		return s.delete(buf)
-	}
-
 	switch s.kind {
 	case "objects":
 		return s.objects(buf)
@@ -75,6 +71,8 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.rename(buf)
 	case "update":
 		return s.update(buf)
+	case "delete":
+		return s.delete(buf)
 	default:
 		return fmt.Errorf("Unknown statement '%s'", s.kind)
 	}
@@ -513,23 +511,25 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 
 	table := entityTable(s.entity)
 
-	fields := []*Field{}
-	where := whereClause(mapping.NaturalKey())
-
-	if strings.HasPrefix(s.kind, "delete-by") {
-		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
+	for _, filters := range mapping.FilterCombinations() {
+		fields := []*Field{}
 		for _, filter := range filters {
 			field, err := mapping.FilterFieldByName(filter)
 			if err != nil {
 				return err
 			}
+
 			fields = append(fields, field)
 		}
-		where = whereClause(fields)
-	}
 
-	sql := fmt.Sprintf(stmts["delete"], table, where)
-	s.register(buf, sql)
+		where := whereClause(fields)
+
+		// Only produce a delete statement if there is a valid field to delete by.
+		if where != "" {
+			sql := fmt.Sprintf(stmts["delete"], table, where)
+			s.register(buf, sql, filters...)
+		}
+	}
 	return nil
 }
 
@@ -574,6 +574,11 @@ func whereClause(fields []*Field) string {
 			continue
 		}
 		directFields = append(directFields, field)
+	}
+
+	// If there are no valid direct fields, don't return a where clause.
+	if len(directFields) == 0 {
+		return ""
 	}
 
 	where := make([]string, len(directFields))
