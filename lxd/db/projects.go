@@ -31,7 +31,7 @@ import (
 //go:generate mapper stmt -p db -e project id
 //go:generate mapper stmt -p db -e project rename
 //go:generate mapper stmt -p db -e project update struct=Project
-//go:generate mapper stmt -p db -e project delete-by-Name
+//go:generate mapper stmt -p db -e project delete
 //
 //go:generate mapper method -p db -e project URIs
 //go:generate mapper method -p db -e project List

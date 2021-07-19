@@ -21,8 +21,7 @@ import (
 //go:generate mapper stmt -p db -e certificate id
 //go:generate mapper stmt -p db -e certificate create struct=Certificate
 //go:generate mapper stmt -p db -e certificate create-projects-ref
-//go:generate mapper stmt -p db -e certificate delete-by-Fingerprint
-//go:generate mapper stmt -p db -e certificate delete-by-Name-and-Type
+//go:generate mapper stmt -p db -e certificate delete
 //go:generate mapper stmt -p db -e certificate update struct=Certificate
 //
 //go:generate mapper method -p db -e certificate List

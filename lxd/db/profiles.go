@@ -34,7 +34,7 @@ import (
 //go:generate mapper stmt -p db -e profile create-config-ref
 //go:generate mapper stmt -p db -e profile create-devices-ref
 //go:generate mapper stmt -p db -e profile rename
-//go:generate mapper stmt -p db -e profile delete-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile delete
 //go:generate mapper stmt -p db -e profile delete-config-ref
 //go:generate mapper stmt -p db -e profile delete-devices-ref
 //go:generate mapper stmt -p db -e profile update struct=Profile
