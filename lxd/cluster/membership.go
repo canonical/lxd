@@ -496,7 +496,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			op := db.Operation{
 				UUID:   operation.UUID,
 				Type:   operation.Type,
-				NodeID: tx.GetNodeID(),
+				NodeID: *tx.GetNodeID(),
 			}
 			_, err := tx.CreateOrReplaceOperation(op)
 			if err != nil {
