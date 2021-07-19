@@ -31,7 +31,7 @@ import (
 )
 
 type certificateCache struct {
-	Certificates map[int]map[string]x509.Certificate
+	Certificates map[db.CertificateType]map[string]x509.Certificate
 	Lock         sync.Mutex
 }
 
@@ -169,7 +169,7 @@ func certificatesGet(d *Daemon, r *http.Request) response.Response {
 func updateCertificateCache(d *Daemon) {
 	logger.Debug("Refreshing trusted certificate cache")
 
-	newCerts := map[int]map[string]x509.Certificate{}
+	newCerts := map[db.CertificateType]map[string]x509.Certificate{}
 
 	var dbCerts []db.Certificate
 	var localCerts []db.Certificate
@@ -237,7 +237,7 @@ func updateCertificateCache(d *Daemon) {
 func updateCertificateCacheFromLocal(d *Daemon) error {
 	logger.Debug("Refreshing local trusted certificate cache")
 
-	newCerts := map[int]map[string]x509.Certificate{}
+	newCerts := map[db.CertificateType]map[string]x509.Certificate{}
 
 	var dbCerts []db.Certificate
 	var err error
