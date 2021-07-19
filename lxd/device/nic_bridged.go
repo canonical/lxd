@@ -122,6 +122,23 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			}
 		}
 
+		// When we know the parent network is managed, we can validate the NIC's VLAN settings based on
+		// on the bridge driver type.
+		if shared.StringInSlice(netConfig["bridge.driver"], []string{"", "native"}) {
+			// Check VLAN 0 isn't set when using a native Linux managed bridge, as not supported.
+			if d.config["vlan"] == "0" {
+				return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
+			}
+
+			// Check that none of the supplied VLAN IDs are VLAN 0 when using a native Linux managed
+			// bridge, as not supported.
+			for _, vlanID := range util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true) {
+				if vlanID == "0" {
+					return fmt.Errorf("VLAN tagged ID 0 is not allowed for native Linux bridges")
+				}
+			}
+		}
+
 		return nil
 	}
 
@@ -1134,7 +1151,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 	// Set port on bridge to specified untagged PVID.
 	if d.config["vlan"] != "" {
-		// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
+		// Reject VLAN ID 0 if specified (as validation allows VLAN ID 0 on unmanaged bridges for OVS).
 		if d.config["vlan"] == "0" {
 			return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
 		}
@@ -1166,7 +1183,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 	// Add any tagged VLAN memberships.
 	if d.config["vlan.tagged"] != "" {
 		for _, vlanID := range util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true) {
-			// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
+			// Reject VLAN ID 0 if specified (as validation allows VLAN ID 0 on unmanaged bridges for OVS).
 			if vlanID == "0" {
 				return fmt.Errorf("VLAN tagged ID 0 is not allowed for native Linux bridges")
 			}
