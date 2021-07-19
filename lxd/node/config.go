@@ -154,7 +154,7 @@ var ConfigSchema = config.Schema{
 	"core.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for cluster communication
-	"cluster.https_address": {Validator: validate.Optional(validate.IsListenAddress(false, false, false))},
+	"cluster.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, false, false))},
 
 	// Network address for the debug server
 	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
