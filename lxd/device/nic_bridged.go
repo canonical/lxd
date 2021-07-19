@@ -299,8 +299,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Check that none of the supplied VLAN IDs are the same as the untagged VLAN ID.
-		for _, vlanID := range strings.Split(value, ",") {
-			vlanID = strings.TrimSpace(vlanID)
+		for _, vlanID := range util.SplitNTrimSpace(value, ",", -1, true) {
 			if vlanID == d.config["vlan"] {
 				return fmt.Errorf("Tagged VLAN ID %q cannot be the same as untagged VLAN ID", vlanID)
 			}
@@ -1166,9 +1165,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 	// Add any tagged VLAN memberships.
 	if d.config["vlan.tagged"] != "" {
-		for _, vlanID := range strings.Split(d.config["vlan.tagged"], ",") {
-			vlanID = strings.TrimSpace(vlanID)
-
+		for _, vlanID := range util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true) {
 			// Reject VLAN ID 0 if specified (as main validation allows VLAN ID 0 to accommodate ovs).
 			if vlanID == "0" {
 				return fmt.Errorf("VLAN ID 0 is not allowed for native Linux bridges")
@@ -1208,13 +1205,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 
 	// Add any tagged VLAN memberships.
 	if d.config["vlan.tagged"] != "" {
-		vlanIDs := strings.Split(d.config["vlan.tagged"], ",")
-
-		// Remove any spaces from raw config string.
-		for i, vlanID := range vlanIDs {
-			vlanIDs[i] = strings.TrimSpace(vlanID)
-		}
-
+		vlanIDs := util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true)
 		vlanMode := "trunk" // Default to only allowing tagged frames (drop untagged frames).
 		if d.config["vlan"] != "none" {
 			// If untagged vlan mode isn't "none" then allow untagged frames for port's 'native' VLAN.
