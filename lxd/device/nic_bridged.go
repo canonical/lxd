@@ -120,6 +120,9 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		return nil
 	}
 
+	// Managed network if specified in config (either via parent or network keys), left nil if not.
+	var n network.Network
+
 	// Check that if network proeperty is set that conflicting keys are not present.
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
@@ -132,7 +135,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Load managed network. project.Default is used here as bridge networks don't support projects.
-		n, err := network.LoadByName(d.state, d.config["network"])
+		var err error
+		n, err = network.LoadByName(d.state, d.config["network"])
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 		}
@@ -167,7 +171,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 		// Check if parent is a managed network.
 		// project.Default is used here as bridge networks don't support projects.
-		n, _ := network.LoadByName(d.state, d.config["parent"])
+		n, _ = network.LoadByName(d.state, d.config["parent"])
 		if n != nil {
 			// Validate NIC settings with managed network.
 			err := checkWithManagedNetwork(n)
@@ -225,8 +229,26 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					continue
 				}
 
-				// Skip NICs connected to other networks.
-				if d.config["parent"] != devConfig["parent"] && d.config["network"] != devConfig["network"] {
+				// Skip NICs not connected to our NIC's managed network.
+				// If our NIC is connected to a managed network (either via network or parent keys)
+				// but the other NIC doesn't reference the same network name via either its network
+				// or parent keys then we can say it is connected to a different network, so the
+				// duplicate checks can be skipped.
+				if n != nil && n.Name() != devConfig["network"] && n.Name() != devConfig["parent"] {
+					continue
+				}
+
+				// Skip NICs that are connected to a managed network or different unmanaged parent
+				// when we are not connected to a managed network.
+				if n == nil && (devConfig["network"] != "" || d.config["parent"] != devConfig["parent"]) {
+					continue
+				}
+
+				// Skip NICs connected to other VLANs (not perfect though as one NIC could
+				// explicitly specify the default untagged VLAN and these would be connected to
+				// same L2 even though the values are different, and there is a different default
+				// value for native and openvswith parent bridges).
+				if d.config["vlan"] != devConfig["vlan"] {
 					continue
 				}
 
