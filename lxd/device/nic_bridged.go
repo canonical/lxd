@@ -215,6 +215,11 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					continue
 				}
 
+				// Skip NICs that specify a NIC type that is not the same as our own.
+				if !shared.StringInSlice(devConfig["nictype"], []string{"", "bridged"}) {
+					continue
+				}
+
 				// Skip our own device.
 				if inst.Name == d.inst.Name() && inst.Project == d.inst.Project() && d.Name() == devName {
 					continue
