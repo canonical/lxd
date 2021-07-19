@@ -54,10 +54,6 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.ref(buf)
 	}
 
-	if strings.HasPrefix(s.kind, "names") {
-		return s.names(buf)
-	}
-
 	switch s.kind {
 	case "objects":
 		return s.objects(buf)
@@ -73,6 +69,8 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.update(buf)
 	case "delete":
 		return s.delete(buf)
+	case "names":
+		return s.names(buf)
 	default:
 		return fmt.Errorf("Unknown statement '%s'", s.kind)
 	}
@@ -200,11 +198,12 @@ func (s *Stmt) names(buf *file.Buffer) error {
 
 	where := ""
 
-	if strings.HasPrefix(s.kind, "names-by") {
-		filters := strings.Split(s.kind[len("names-by-"):], "-and-")
-		where = "WHERE "
-
+	for _, filters := range mapping.FilterCombinations() {
 		for i, filter := range filters {
+			if i == 0 {
+				where = "WHERE "
+			}
+
 			field, err := mapping.FilterFieldByName(filter)
 
 			if err != nil {
@@ -225,11 +224,10 @@ func (s *Stmt) names(buf *file.Buffer) error {
 			where += fmt.Sprintf("%s = ? ", column)
 		}
 
+		boiler := stmts["names"]
+		sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
+		s.register(buf, sql, filters...)
 	}
-
-	boiler := stmts["names"]
-	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
-	s.register(buf, sql)
 	return nil
 }
 
