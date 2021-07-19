@@ -21,14 +21,8 @@ import (
 //go:generate mapper stmt -p db -e profile names-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile objects
 //go:generate mapper stmt -p db -e profile config-ref
-//go:generate mapper stmt -p db -e profile config-ref-by-Project
-//go:generate mapper stmt -p db -e profile config-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile devices-ref
-//go:generate mapper stmt -p db -e profile devices-ref-by-Project
-//go:generate mapper stmt -p db -e profile devices-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile used-by-ref
-//go:generate mapper stmt -p db -e profile used-by-ref-by-Project
-//go:generate mapper stmt -p db -e profile used-by-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile id
 //go:generate mapper stmt -p db -e profile create struct=Profile
 //go:generate mapper stmt -p db -e profile create-config-ref

@@ -26,20 +26,8 @@ import (
 //
 //go:generate mapper stmt -p db -e instance objects
 //go:generate mapper stmt -p db -e instance profiles-ref
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Node
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance config-ref
-//go:generate mapper stmt -p db -e instance config-ref-by-Project
-//go:generate mapper stmt -p db -e instance config-ref-by-Node
-//go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance devices-ref
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project
-//go:generate mapper stmt -p db -e instance devices-ref-by-Node
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance id
 //go:generate mapper stmt -p db -e instance create struct=Instance
 //go:generate mapper stmt -p db -e instance create-config-ref
@@ -88,7 +76,7 @@ type InstanceFilter struct {
 	Project string
 	Name    string
 	Node    string
-	Type    instancetype.Type
+	Type    instancetype.Type `db:"omit=profiles-ref,config-ref"`
 }
 
 // InstanceFilterAllInstances returns a predefined filter for returning all instances.
