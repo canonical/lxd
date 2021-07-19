@@ -17,8 +17,6 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e profile names
-//go:generate mapper stmt -p db -e profile names-by-Project
-//go:generate mapper stmt -p db -e profile names-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile objects
 //go:generate mapper stmt -p db -e profile config-ref
 //go:generate mapper stmt -p db -e profile devices-ref
