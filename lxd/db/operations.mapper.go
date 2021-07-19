@@ -62,12 +62,26 @@ INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
  VALUES (?, ?, ?, ?)
 `)
 
+var operationDeleteByID = cluster.RegisterStmt(`
+DELETE FROM operations WHERE id = ?
+`)
+var operationDeleteByNodeID = cluster.RegisterStmt(`
+DELETE FROM operations WHERE node_id = ?
+`)
+var operationDeleteByIDAndNodeID = cluster.RegisterStmt(`
+DELETE FROM operations WHERE id = ? AND node_id = ?
+`)
 var operationDeleteByUUID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE uuid = ?
 `)
-
-var operationDeleteByNodeID = cluster.RegisterStmt(`
-DELETE FROM operations WHERE node_id = ?
+var operationDeleteByIDAndUUID = cluster.RegisterStmt(`
+DELETE FROM operations WHERE id = ? AND uuid = ?
+`)
+var operationDeleteByNodeIDAndUUID = cluster.RegisterStmt(`
+DELETE FROM operations WHERE node_id = ? AND uuid = ?
+`)
+var operationDeleteByIDAndNodeIDAndUUID = cluster.RegisterStmt(`
+DELETE FROM operations WHERE id = ? AND node_id = ? AND uuid = ?
 `)
 
 // GetOperations returns all available operations.
@@ -203,7 +217,32 @@ func (c *ClusterTx) DeleteOperation(filter OperationFilter) error {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["UUID"] != nil {
+	if criteria["ID"] != nil && criteria["NodeID"] != nil && criteria["UUID"] != nil {
+		stmt = c.stmt(operationDeleteByIDAndNodeIDAndUUID)
+		args = []interface{}{
+			filter.ID,
+			filter.NodeID,
+			filter.UUID,
+		}
+	} else if criteria["NodeID"] != nil && criteria["UUID"] != nil {
+		stmt = c.stmt(operationDeleteByNodeIDAndUUID)
+		args = []interface{}{
+			filter.NodeID,
+			filter.UUID,
+		}
+	} else if criteria["ID"] != nil && criteria["UUID"] != nil {
+		stmt = c.stmt(operationDeleteByIDAndUUID)
+		args = []interface{}{
+			filter.ID,
+			filter.UUID,
+		}
+	} else if criteria["ID"] != nil && criteria["NodeID"] != nil {
+		stmt = c.stmt(operationDeleteByIDAndNodeID)
+		args = []interface{}{
+			filter.ID,
+			filter.NodeID,
+		}
+	} else if criteria["UUID"] != nil {
 		stmt = c.stmt(operationDeleteByUUID)
 		args = []interface{}{
 			filter.UUID,
@@ -212,6 +251,11 @@ func (c *ClusterTx) DeleteOperation(filter OperationFilter) error {
 		stmt = c.stmt(operationDeleteByNodeID)
 		args = []interface{}{
 			filter.NodeID,
+		}
+	} else if criteria["ID"] != nil {
+		stmt = c.stmt(operationDeleteByID)
+		args = []interface{}{
+			filter.ID,
 		}
 	} else {
 		return fmt.Errorf("No valid filter for operation delete")
@@ -250,7 +294,32 @@ func (c *ClusterTx) DeleteOperations(filter OperationFilter) error {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["UUID"] != nil {
+	if criteria["ID"] != nil && criteria["NodeID"] != nil && criteria["UUID"] != nil {
+		stmt = c.stmt(operationDeleteByIDAndNodeIDAndUUID)
+		args = []interface{}{
+			filter.ID,
+			filter.NodeID,
+			filter.UUID,
+		}
+	} else if criteria["NodeID"] != nil && criteria["UUID"] != nil {
+		stmt = c.stmt(operationDeleteByNodeIDAndUUID)
+		args = []interface{}{
+			filter.NodeID,
+			filter.UUID,
+		}
+	} else if criteria["ID"] != nil && criteria["UUID"] != nil {
+		stmt = c.stmt(operationDeleteByIDAndUUID)
+		args = []interface{}{
+			filter.ID,
+			filter.UUID,
+		}
+	} else if criteria["ID"] != nil && criteria["NodeID"] != nil {
+		stmt = c.stmt(operationDeleteByIDAndNodeID)
+		args = []interface{}{
+			filter.ID,
+			filter.NodeID,
+		}
+	} else if criteria["UUID"] != nil {
 		stmt = c.stmt(operationDeleteByUUID)
 		args = []interface{}{
 			filter.UUID,
@@ -259,6 +328,11 @@ func (c *ClusterTx) DeleteOperations(filter OperationFilter) error {
 		stmt = c.stmt(operationDeleteByNodeID)
 		args = []interface{}{
 			filter.NodeID,
+		}
+	} else if criteria["ID"] != nil {
+		stmt = c.stmt(operationDeleteByID)
+		args = []interface{}{
+			filter.ID,
 		}
 	} else {
 		return fmt.Errorf("No valid filter for operation delete")

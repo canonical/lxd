@@ -119,6 +119,12 @@ var profileRename = cluster.RegisterStmt(`
 UPDATE profiles SET name = ? WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
+var profileDeleteByProject = cluster.RegisterStmt(`
+DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?)
+`)
+var profileDeleteByName = cluster.RegisterStmt(`
+DELETE FROM profiles WHERE name = ?
+`)
 var profileDeleteByProjectAndName = cluster.RegisterStmt(`
 DELETE FROM profiles WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
@@ -744,6 +750,16 @@ func (c *ClusterTx) DeleteProfile(filter ProfileFilter) error {
 		stmt = c.stmt(profileDeleteByProjectAndName)
 		args = []interface{}{
 			filter.Project,
+			filter.Name,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(profileDeleteByProject)
+		args = []interface{}{
+			filter.Project,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(profileDeleteByName)
+		args = []interface{}{
 			filter.Name,
 		}
 	} else {

@@ -78,9 +78,23 @@ INSERT INTO certificates (fingerprint, type, name, certificate, restricted)
 var certificateDeleteByFingerprint = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE fingerprint = ?
 `)
-
+var certificateDeleteByName = cluster.RegisterStmt(`
+DELETE FROM certificates WHERE name = ?
+`)
+var certificateDeleteByFingerprintAndName = cluster.RegisterStmt(`
+DELETE FROM certificates WHERE fingerprint = ? AND name = ?
+`)
+var certificateDeleteByType = cluster.RegisterStmt(`
+DELETE FROM certificates WHERE type = ?
+`)
+var certificateDeleteByFingerprintAndType = cluster.RegisterStmt(`
+DELETE FROM certificates WHERE fingerprint = ? AND type = ?
+`)
 var certificateDeleteByNameAndType = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE name = ? AND type = ?
+`)
+var certificateDeleteByFingerprintAndNameAndType = cluster.RegisterStmt(`
+DELETE FROM certificates WHERE fingerprint = ? AND name = ? AND type = ?
 `)
 
 var certificateUpdate = cluster.RegisterStmt(`
@@ -372,11 +386,40 @@ func (c *ClusterTx) DeleteCertificate(filter CertificateFilter) error {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Name"] != nil && criteria["Type"] != nil {
+	if criteria["Fingerprint"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprintAndNameAndType)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(certificateDeleteByNameAndType)
 		args = []interface{}{
 			filter.Name,
 			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprintAndType)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprintAndName)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Name,
+		}
+	} else if criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByType)
+		args = []interface{}{
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(certificateDeleteByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else if criteria["Fingerprint"] != nil {
 		stmt = c.stmt(certificateDeleteByFingerprint)
@@ -420,11 +463,40 @@ func (c *ClusterTx) DeleteCertificates(filter CertificateFilter) error {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Name"] != nil && criteria["Type"] != nil {
+	if criteria["Fingerprint"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprintAndNameAndType)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil && criteria["Type"] != nil {
 		stmt = c.stmt(certificateDeleteByNameAndType)
 		args = []interface{}{
 			filter.Name,
 			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprintAndType)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Type,
+		}
+	} else if criteria["Fingerprint"] != nil && criteria["Name"] != nil {
+		stmt = c.stmt(certificateDeleteByFingerprintAndName)
+		args = []interface{}{
+			filter.Fingerprint,
+			filter.Name,
+		}
+	} else if criteria["Type"] != nil {
+		stmt = c.stmt(certificateDeleteByType)
+		args = []interface{}{
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(certificateDeleteByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else if criteria["Fingerprint"] != nil {
 		stmt = c.stmt(certificateDeleteByFingerprint)

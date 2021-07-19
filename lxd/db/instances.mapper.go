@@ -185,8 +185,50 @@ var instanceRename = cluster.RegisterStmt(`
 UPDATE instances SET name = ? WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
+var instanceDeleteByProject = cluster.RegisterStmt(`
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?)
+`)
+var instanceDeleteByName = cluster.RegisterStmt(`
+DELETE FROM instances WHERE name = ?
+`)
 var instanceDeleteByProjectAndName = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
+`)
+var instanceDeleteByNode = cluster.RegisterStmt(`
+DELETE FROM instances WHERE node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
+`)
+var instanceDeleteByProjectAndNode = cluster.RegisterStmt(`
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
+`)
+var instanceDeleteByNameAndNode = cluster.RegisterStmt(`
+DELETE FROM instances WHERE name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
+`)
+var instanceDeleteByProjectAndNameAndNode = cluster.RegisterStmt(`
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
+`)
+var instanceDeleteByType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE type = ?
+`)
+var instanceDeleteByProjectAndType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND type = ?
+`)
+var instanceDeleteByNameAndType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE name = ? AND type = ?
+`)
+var instanceDeleteByProjectAndNameAndType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ? AND type = ?
+`)
+var instanceDeleteByNodeAndType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
+`)
+var instanceDeleteByProjectAndNodeAndType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
+`)
+var instanceDeleteByNameAndNodeAndType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
+`)
+var instanceDeleteByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
+DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
 `)
 
 var instanceDeleteConfigRef = cluster.RegisterStmt(`
@@ -903,10 +945,96 @@ func (c *ClusterTx) DeleteInstance(filter InstanceFilter) error {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByProjectAndNameAndNodeAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByProjectAndNodeAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByProjectAndNameAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByNameAndNodeAndType)
+		args = []interface{}{
+			filter.Name,
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceDeleteByProjectAndNameAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Node,
+		}
+	} else if criteria["Project"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByProjectAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Type,
+		}
+	} else if criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByNodeAndType)
+		args = []interface{}{
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByNameAndType)
+		args = []interface{}{
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceDeleteByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil {
 		stmt = c.stmt(instanceDeleteByProjectAndName)
 		args = []interface{}{
 			filter.Project,
+			filter.Name,
+		}
+	} else if criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceDeleteByNameAndNode)
+		args = []interface{}{
+			filter.Name,
+			filter.Node,
+		}
+	} else if criteria["Type"] != nil {
+		stmt = c.stmt(instanceDeleteByType)
+		args = []interface{}{
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil {
+		stmt = c.stmt(instanceDeleteByProject)
+		args = []interface{}{
+			filter.Project,
+		}
+	} else if criteria["Node"] != nil {
+		stmt = c.stmt(instanceDeleteByNode)
+		args = []interface{}{
+			filter.Node,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(instanceDeleteByName)
+		args = []interface{}{
 			filter.Name,
 		}
 	} else {
