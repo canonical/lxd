@@ -50,7 +50,7 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 		return s.deleteRef(buf)
 	}
 
-	if strings.HasSuffix(s.kind, "-ref") || strings.Contains(s.kind, "-ref-by-") {
+	if strings.HasSuffix(s.kind, "-ref") {
 		return s.ref(buf)
 	}
 
@@ -297,11 +297,13 @@ func (s *Stmt) ref(buf *file.Buffer) error {
 	}
 
 	where := ""
-	if strings.Contains(s.kind, "-ref-by-") {
-		filters := strings.Split(s.kind[strings.Index(s.kind, "-ref-by-")+len("-ref-by-"):], "-and-")
-		where = "WHERE "
+	for _, filters := range mapping.FilterCombinations() {
 
 		for i, filter := range filters {
+			if i == 0 {
+				where = "WHERE "
+			}
+
 			field, err := mapping.FilterFieldByName(filter)
 
 			if err != nil {
@@ -315,18 +317,18 @@ func (s *Stmt) ref(buf *file.Buffer) error {
 			column := lex.Snake(field.Name)
 			where += fmt.Sprintf("%s = ? ", column)
 		}
+
+		orderBy := make([]string, len(nk))
+		for i, field := range nk {
+			orderBy[i] = lex.Snake(field.Name)
+		}
+
+		sql := fmt.Sprintf(
+			"SELECT %s FROM %s %sORDER BY %s", strings.Join(columns, ", "),
+			table, where, strings.Join(orderBy, ", "))
+
+		s.register(buf, sql, filters...)
 	}
-
-	orderBy := make([]string, len(nk))
-	for i, field := range nk {
-		orderBy[i] = lex.Snake(field.Name)
-	}
-
-	sql := fmt.Sprintf(
-		"SELECT %s FROM %s %sORDER BY %s", strings.Join(columns, ", "),
-		table, where, strings.Join(orderBy, ", "))
-
-	s.register(buf, sql)
 
 	return nil
 }
