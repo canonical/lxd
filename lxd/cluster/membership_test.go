@@ -124,7 +124,7 @@ func TestBootstrap(t *testing.T) {
 	// The cluster certificate is in place.
 	assert.True(t, shared.PathExists(filepath.Join(state.OS.VarDir, "cluster.crt")))
 
-	trustedCerts := func() map[int]map[string]x509.Certificate {
+	trustedCerts := func() map[db.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -257,8 +257,8 @@ func TestJoin(t *testing.T) {
 	altServerCert := shared.TestingAltKeyPair()
 	trustedAltServerCert, _ := x509.ParseCertificate(altServerCert.KeyPair().Certificate[0])
 
-	trustedCerts := func() map[int]map[string]x509.Certificate {
-		return map[int]map[string]x509.Certificate{
+	trustedCerts := func() map[db.CertificateType]map[string]x509.Certificate {
+		return map[db.CertificateType]map[string]x509.Certificate{
 			db.CertificateTypeServer: {
 				altServerCert.Fingerprint(): *trustedAltServerCert,
 			},
