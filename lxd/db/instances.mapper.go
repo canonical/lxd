@@ -100,61 +100,100 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
 var instanceProfilesRef = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref ORDER BY project, name
 `)
-
 var instanceProfilesRefByProject = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE project = ? ORDER BY project, name
 `)
-
+var instanceProfilesRefByName = cluster.RegisterStmt(`
+SELECT project, name, value FROM instances_profiles_ref WHERE name = ? ORDER BY project, name
+`)
+var instanceProfilesRefByProjectAndName = cluster.RegisterStmt(`
+SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND name = ? ORDER BY project, name
+`)
 var instanceProfilesRefByNode = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE node = ? ORDER BY project, name
 `)
-
 var instanceProfilesRefByProjectAndNode = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND node = ? ORDER BY project, name
 `)
-
-var instanceProfilesRefByProjectAndName = cluster.RegisterStmt(`
-SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND name = ? ORDER BY project, name
+var instanceProfilesRefByNameAndNode = cluster.RegisterStmt(`
+SELECT project, name, value FROM instances_profiles_ref WHERE name = ? AND node = ? ORDER BY project, name
+`)
+var instanceProfilesRefByProjectAndNameAndNode = cluster.RegisterStmt(`
+SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND name = ? AND node = ? ORDER BY project, name
 `)
 
 var instanceConfigRef = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref ORDER BY project, name
 `)
-
 var instanceConfigRefByProject = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE project = ? ORDER BY project, name
 `)
-
+var instanceConfigRefByName = cluster.RegisterStmt(`
+SELECT project, name, key, value FROM instances_config_ref WHERE name = ? ORDER BY project, name
+`)
+var instanceConfigRefByProjectAndName = cluster.RegisterStmt(`
+SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND name = ? ORDER BY project, name
+`)
 var instanceConfigRefByNode = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE node = ? ORDER BY project, name
 `)
-
 var instanceConfigRefByProjectAndNode = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND node = ? ORDER BY project, name
 `)
-
-var instanceConfigRefByProjectAndName = cluster.RegisterStmt(`
-SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND name = ? ORDER BY project, name
+var instanceConfigRefByNameAndNode = cluster.RegisterStmt(`
+SELECT project, name, key, value FROM instances_config_ref WHERE name = ? AND node = ? ORDER BY project, name
+`)
+var instanceConfigRefByProjectAndNameAndNode = cluster.RegisterStmt(`
+SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND name = ? AND node = ? ORDER BY project, name
 `)
 
 var instanceDevicesRef = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref ORDER BY project, name
 `)
-
 var instanceDevicesRefByProject = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? ORDER BY project, name
 `)
-
+var instanceDevicesRefByName = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? ORDER BY project, name
+`)
+var instanceDevicesRefByProjectAndName = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? ORDER BY project, name
+`)
 var instanceDevicesRefByNode = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE node = ? ORDER BY project, name
 `)
-
 var instanceDevicesRefByProjectAndNode = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND node = ? ORDER BY project, name
 `)
-
-var instanceDevicesRefByProjectAndName = cluster.RegisterStmt(`
-SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? ORDER BY project, name
+var instanceDevicesRefByNameAndNode = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? AND node = ? ORDER BY project, name
+`)
+var instanceDevicesRefByProjectAndNameAndNode = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? AND node = ? ORDER BY project, name
+`)
+var instanceDevicesRefByType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE type = ? ORDER BY project, name
+`)
+var instanceDevicesRefByProjectAndType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND type = ? ORDER BY project, name
+`)
+var instanceDevicesRefByNameAndType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? AND type = ? ORDER BY project, name
+`)
+var instanceDevicesRefByProjectAndNameAndType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? AND type = ? ORDER BY project, name
+`)
+var instanceDevicesRefByNodeAndType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE node = ? AND type = ? ORDER BY project, name
+`)
+var instanceDevicesRefByProjectAndNodeAndType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND node = ? AND type = ? ORDER BY project, name
+`)
+var instanceDevicesRefByNameAndNodeAndType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? AND node = ? AND type = ? ORDER BY project, name
+`)
+var instanceDevicesRefByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? AND node = ? AND type = ? ORDER BY project, name
 `)
 
 var instanceID = cluster.RegisterStmt(`
@@ -629,7 +668,14 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceProfilesRefByProjectAndNameAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Node,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
 		stmt = c.stmt(instanceProfilesRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
@@ -641,6 +687,12 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 			filter.Project,
 			filter.Name,
 		}
+	} else if criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceProfilesRefByNameAndNode)
+		args = []interface{}{
+			filter.Name,
+			filter.Node,
+		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceProfilesRefByProject)
 		args = []interface{}{
@@ -650,6 +702,11 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 		stmt = c.stmt(instanceProfilesRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(instanceProfilesRefByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else {
 		stmt = c.stmt(instanceProfilesRef)
@@ -720,7 +777,14 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceConfigRefByProjectAndNameAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Node,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
 		stmt = c.stmt(instanceConfigRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
@@ -732,6 +796,12 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 			filter.Project,
 			filter.Name,
 		}
+	} else if criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceConfigRefByNameAndNode)
+		args = []interface{}{
+			filter.Name,
+			filter.Node,
+		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceConfigRefByProject)
 		args = []interface{}{
@@ -741,6 +811,11 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 		stmt = c.stmt(instanceConfigRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(instanceConfigRefByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else {
 		stmt = c.stmt(instanceConfigRef)
@@ -816,7 +891,61 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
+	if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByProjectAndNameAndNodeAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByProjectAndNodeAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByProjectAndNameAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil && criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByNameAndNodeAndType)
+		args = []interface{}{
+			filter.Name,
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceDevicesRefByProjectAndNameAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Node,
+		}
+	} else if criteria["Project"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByProjectAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Type,
+		}
+	} else if criteria["Node"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByNodeAndType)
+		args = []interface{}{
+			filter.Node,
+			filter.Type,
+		}
+	} else if criteria["Name"] != nil && criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByNameAndType)
+		args = []interface{}{
+			filter.Name,
+			filter.Type,
+		}
+	} else if criteria["Project"] != nil && criteria["Node"] != nil {
 		stmt = c.stmt(instanceDevicesRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
@@ -828,6 +957,17 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 			filter.Project,
 			filter.Name,
 		}
+	} else if criteria["Name"] != nil && criteria["Node"] != nil {
+		stmt = c.stmt(instanceDevicesRefByNameAndNode)
+		args = []interface{}{
+			filter.Name,
+			filter.Node,
+		}
+	} else if criteria["Type"] != nil {
+		stmt = c.stmt(instanceDevicesRefByType)
+		args = []interface{}{
+			filter.Type,
+		}
 	} else if criteria["Project"] != nil {
 		stmt = c.stmt(instanceDevicesRefByProject)
 		args = []interface{}{
@@ -837,6 +977,11 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 		stmt = c.stmt(instanceDevicesRefByNode)
 		args = []interface{}{
 			filter.Node,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(instanceDevicesRefByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else {
 		stmt = c.stmt(instanceDevicesRef)

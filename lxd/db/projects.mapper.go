@@ -42,7 +42,6 @@ SELECT projects.description, projects.name
 var projectUsedByRef = cluster.RegisterStmt(`
 SELECT name, value FROM projects_used_by_ref ORDER BY name
 `)
-
 var projectUsedByRefByName = cluster.RegisterStmt(`
 SELECT name, value FROM projects_used_by_ref WHERE name = ? ORDER BY name
 `)
@@ -50,7 +49,6 @@ SELECT name, value FROM projects_used_by_ref WHERE name = ? ORDER BY name
 var projectConfigRef = cluster.RegisterStmt(`
 SELECT name, key, value FROM projects_config_ref ORDER BY name
 `)
-
 var projectConfigRefByName = cluster.RegisterStmt(`
 SELECT name, key, value FROM projects_config_ref WHERE name = ? ORDER BY name
 `)

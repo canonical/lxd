@@ -60,7 +60,6 @@ SELECT certificates.id, certificates.fingerprint, certificates.type, certificate
 var certificateProjectsRef = cluster.RegisterStmt(`
 SELECT fingerprint, value FROM certificates_projects_ref ORDER BY fingerprint
 `)
-
 var certificateProjectsRefByFingerprint = cluster.RegisterStmt(`
 SELECT fingerprint, value FROM certificates_projects_ref WHERE fingerprint = ? ORDER BY fingerprint
 `)

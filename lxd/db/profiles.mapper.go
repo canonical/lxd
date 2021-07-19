@@ -58,11 +58,12 @@ SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.d
 var profileConfigRef = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM profiles_config_ref ORDER BY project, name
 `)
-
 var profileConfigRefByProject = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM profiles_config_ref WHERE project = ? ORDER BY project, name
 `)
-
+var profileConfigRefByName = cluster.RegisterStmt(`
+SELECT project, name, key, value FROM profiles_config_ref WHERE name = ? ORDER BY project, name
+`)
 var profileConfigRefByProjectAndName = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM profiles_config_ref WHERE project = ? AND name = ? ORDER BY project, name
 `)
@@ -70,11 +71,12 @@ SELECT project, name, key, value FROM profiles_config_ref WHERE project = ? AND 
 var profileDevicesRef = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM profiles_devices_ref ORDER BY project, name
 `)
-
 var profileDevicesRefByProject = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM profiles_devices_ref WHERE project = ? ORDER BY project, name
 `)
-
+var profileDevicesRefByName = cluster.RegisterStmt(`
+SELECT project, name, device, type, key, value FROM profiles_devices_ref WHERE name = ? ORDER BY project, name
+`)
 var profileDevicesRefByProjectAndName = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM profiles_devices_ref WHERE project = ? AND name = ? ORDER BY project, name
 `)
@@ -82,11 +84,12 @@ SELECT project, name, device, type, key, value FROM profiles_devices_ref WHERE p
 var profileUsedByRef = cluster.RegisterStmt(`
 SELECT project, name, value FROM profiles_used_by_ref ORDER BY project, name
 `)
-
 var profileUsedByRefByProject = cluster.RegisterStmt(`
 SELECT project, name, value FROM profiles_used_by_ref WHERE project = ? ORDER BY project, name
 `)
-
+var profileUsedByRefByName = cluster.RegisterStmt(`
+SELECT project, name, value FROM profiles_used_by_ref WHERE name = ? ORDER BY project, name
+`)
 var profileUsedByRefByProjectAndName = cluster.RegisterStmt(`
 SELECT project, name, value FROM profiles_used_by_ref WHERE project = ? AND name = ? ORDER BY project, name
 `)
@@ -409,6 +412,11 @@ func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[strin
 		args = []interface{}{
 			filter.Project,
 		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(profileConfigRefByName)
+		args = []interface{}{
+			filter.Name,
+		}
 	} else {
 		stmt = c.stmt(profileConfigRef)
 		args = []interface{}{}
@@ -493,6 +501,11 @@ func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[stri
 		stmt = c.stmt(profileDevicesRefByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(profileDevicesRefByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else {
 		stmt = c.stmt(profileDevicesRef)
@@ -594,6 +607,11 @@ func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string]map[strin
 		stmt = c.stmt(profileUsedByRefByProject)
 		args = []interface{}{
 			filter.Project,
+		}
+	} else if criteria["Name"] != nil {
+		stmt = c.stmt(profileUsedByRefByName)
+		args = []interface{}{
+			filter.Name,
 		}
 	} else {
 		stmt = c.stmt(profileUsedByRef)
