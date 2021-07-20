@@ -1165,7 +1165,8 @@ func (d *lxc) initLXC(config bool) error {
 					return err
 				}
 
-				err = cg.SetMemorySwappiness(int64(60 - 10 + priority))
+				// Maximum priority (10) should be default swappiness (60).
+				err = cg.SetMemorySwappiness(int64(70 - priority))
 				if err != nil {
 					return err
 				}
@@ -4335,7 +4336,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 							return err
 						}
 					} else {
-						priority := 0
+						priority := 10
 						if memorySwapPriority != "" {
 							priority, err = strconv.Atoi(memorySwapPriority)
 							if err != nil {
@@ -4343,7 +4344,8 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 							}
 						}
 
-						err = cg.SetMemorySwappiness(int64(60 - 10 + priority))
+						// Maximum priority (10) should be default swappiness (60).
+						err = cg.SetMemorySwappiness(int64(70 - priority))
 						if err != nil {
 							return err
 						}
