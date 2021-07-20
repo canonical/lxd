@@ -3762,7 +3762,8 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 
 		inBackupFile := false
 		for _, backupFileSnap := range backupConf.Snapshots {
-			_, backupFileSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(backupFileSnap.Name)
+			backupFileSnapOnly := backupFileSnap.Name
+
 			if driverSnapOnly == backupFileSnapOnly {
 				inBackupFile = true
 				break
@@ -3788,7 +3789,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 	// Check the snapshots in backup config exist on storage device.
 	existingSnapshots := []*api.InstanceSnapshot{}
 	for _, backupFileSnap := range backupConf.Snapshots {
-		_, backupFileSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(backupFileSnap.Name)
+		backupFileSnapOnly := backupFileSnap.Name
 
 		onStorageDevice := false
 		for _, driverSnapVol := range driverSnapshots {
