@@ -438,7 +438,7 @@ func (s *Stmt) createRef(buf *file.Buffer) error {
 		sql = fmt.Sprintf(stmts["create"], table+"_config", columns, params)
 
 		kind := fmt.Sprintf("Create%sConfigRef", field.Name)
-		buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtCodeVar(s.entity, kind), s.db, sql)
+		buf.L("const %s = %s.RegisterStmt(`\n%s\n`)", stmtCodeVar(s.entity, kind), s.db, sql)
 	}
 
 	return nil
@@ -653,7 +653,7 @@ func (s *Stmt) register(buf *file.Buffer, sql string, filters ...string) {
 	if kind == "id" {
 		kind = "ID" // silence go lints
 	}
-	buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtCodeVar(s.entity, kind, filters...), s.db, sql)
+	buf.L("const %s = %s.RegisterStmt(`\n%s\n`)", stmtCodeVar(s.entity, kind, filters...), s.db, sql)
 }
 
 // Map of boilerplate statements.
