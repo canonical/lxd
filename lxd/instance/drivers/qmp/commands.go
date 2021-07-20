@@ -384,5 +384,9 @@ func (m *Monitor) QueryPCI() ([]PCIDevice, error) {
 		return nil, errors.Wrapf(err, "Failed querying PCI devices")
 	}
 
-	return resp.Return[0].Devices, nil
+	if len(resp.Return) > 0 {
+		return resp.Return[0].Devices, nil
+	}
+
+	return nil, nil
 }
