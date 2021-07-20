@@ -16,71 +16,71 @@ import (
 
 var _ = api.ServerEnvironment{}
 
-var operationObjects = cluster.RegisterStmt(`
+const operationObjects = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.uuid
 `)
-var operationObjectsByID = cluster.RegisterStmt(`
+const operationObjectsByID = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   WHERE operations.id = ? ORDER BY operations.id, operations.uuid
 `)
-var operationObjectsByNodeID = cluster.RegisterStmt(`
+const operationObjectsByNodeID = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   WHERE operations.node_id = ? ORDER BY operations.id, operations.uuid
 `)
-var operationObjectsByIDAndNodeID = cluster.RegisterStmt(`
+const operationObjectsByIDAndNodeID = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   WHERE operations.id = ? AND operations.node_id = ? ORDER BY operations.id, operations.uuid
 `)
-var operationObjectsByUUID = cluster.RegisterStmt(`
+const operationObjectsByUUID = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   WHERE operations.uuid = ? ORDER BY operations.id, operations.uuid
 `)
-var operationObjectsByIDAndUUID = cluster.RegisterStmt(`
+const operationObjectsByIDAndUUID = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   WHERE operations.id = ? AND operations.uuid = ? ORDER BY operations.id, operations.uuid
 `)
-var operationObjectsByNodeIDAndUUID = cluster.RegisterStmt(`
+const operationObjectsByNodeIDAndUUID = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   WHERE operations.node_id = ? AND operations.uuid = ? ORDER BY operations.id, operations.uuid
 `)
-var operationObjectsByIDAndNodeIDAndUUID = cluster.RegisterStmt(`
+const operationObjectsByIDAndNodeIDAndUUID = cluster.RegisterStmt(`
 SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   WHERE operations.id = ? AND operations.node_id = ? AND operations.uuid = ? ORDER BY operations.id, operations.uuid
 `)
 
-var operationCreateOrReplace = cluster.RegisterStmt(`
+const operationCreateOrReplace = cluster.RegisterStmt(`
 INSERT OR REPLACE INTO operations (uuid, project_id, node_id, type)
  VALUES (?, ?, ?, ?)
 `)
 
-var operationDeleteByID = cluster.RegisterStmt(`
+const operationDeleteByID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE id = ?
 `)
-var operationDeleteByNodeID = cluster.RegisterStmt(`
+const operationDeleteByNodeID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE node_id = ?
 `)
-var operationDeleteByIDAndNodeID = cluster.RegisterStmt(`
+const operationDeleteByIDAndNodeID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE id = ? AND node_id = ?
 `)
-var operationDeleteByUUID = cluster.RegisterStmt(`
+const operationDeleteByUUID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE uuid = ?
 `)
-var operationDeleteByIDAndUUID = cluster.RegisterStmt(`
+const operationDeleteByIDAndUUID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE id = ? AND uuid = ?
 `)
-var operationDeleteByNodeIDAndUUID = cluster.RegisterStmt(`
+const operationDeleteByNodeIDAndUUID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE node_id = ? AND uuid = ?
 `)
-var operationDeleteByIDAndNodeIDAndUUID = cluster.RegisterStmt(`
+const operationDeleteByIDAndNodeIDAndUUID = cluster.RegisterStmt(`
 DELETE FROM operations WHERE id = ? AND node_id = ? AND uuid = ?
 `)
 

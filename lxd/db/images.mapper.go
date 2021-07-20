@@ -16,162 +16,162 @@ import (
 
 var _ = api.ServerEnvironment{}
 
-var imageObjects = cluster.RegisterStmt(`
+const imageObjects = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProject = cluster.RegisterStmt(`
+const imageObjectsByProject = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprint = cluster.RegisterStmt(`
+const imageObjectsByFingerprint = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprint = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprint = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByPublic = cluster.RegisterStmt(`
+const imageObjectsByPublic = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.public = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndPublic = cluster.RegisterStmt(`
+const imageObjectsByProjectAndPublic = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.public = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprintAndPublic = cluster.RegisterStmt(`
+const imageObjectsByFingerprintAndPublic = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? AND images.public = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprintAndPublic = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprintAndPublic = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? AND images.public = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByCached = cluster.RegisterStmt(`
+const imageObjectsByCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndCached = cluster.RegisterStmt(`
+const imageObjectsByProjectAndCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprintAndCached = cluster.RegisterStmt(`
+const imageObjectsByFingerprintAndCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprintAndCached = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprintAndCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByPublicAndCached = cluster.RegisterStmt(`
+const imageObjectsByPublicAndCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.public = ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndPublicAndCached = cluster.RegisterStmt(`
+const imageObjectsByProjectAndPublicAndCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.public = ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprintAndPublicAndCached = cluster.RegisterStmt(`
+const imageObjectsByFingerprintAndPublicAndCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? AND images.public = ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprintAndPublicAndCached = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprintAndPublicAndCached = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? AND images.public = ? AND images.cached = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprintAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByFingerprintAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprintAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprintAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByPublicAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByPublicAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.public = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndPublicAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndPublicAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.public = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprintAndPublicAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByFingerprintAndPublicAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? AND images.public = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprintAndPublicAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprintAndPublicAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? AND images.public = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprintAndCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByFingerprintAndCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? AND images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprintAndCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprintAndCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? AND images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.public = ? AND images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.public = ? AND images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByFingerprintAndPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByFingerprintAndPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE images.fingerprint LIKE ? AND images.public = ? AND images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint
 `)
-var imageObjectsByProjectAndFingerprintAndPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
+const imageObjectsByProjectAndFingerprintAndPublicAndCachedAndAutoUpdate = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
   WHERE project = ? AND images.fingerprint LIKE ? AND images.public = ? AND images.cached = ? AND images.auto_update = ? ORDER BY projects.id, images.fingerprint

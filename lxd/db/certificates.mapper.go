@@ -16,87 +16,87 @@ import (
 
 var _ = api.ServerEnvironment{}
 
-var certificateObjects = cluster.RegisterStmt(`
+const certificateObjects = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   ORDER BY certificates.fingerprint
 `)
-var certificateObjectsByFingerprint = cluster.RegisterStmt(`
+const certificateObjectsByFingerprint = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.fingerprint LIKE ? ORDER BY certificates.fingerprint
 `)
-var certificateObjectsByName = cluster.RegisterStmt(`
+const certificateObjectsByName = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.name = ? ORDER BY certificates.fingerprint
 `)
-var certificateObjectsByFingerprintAndName = cluster.RegisterStmt(`
+const certificateObjectsByFingerprintAndName = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.fingerprint LIKE ? AND certificates.name = ? ORDER BY certificates.fingerprint
 `)
-var certificateObjectsByType = cluster.RegisterStmt(`
+const certificateObjectsByType = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.type = ? ORDER BY certificates.fingerprint
 `)
-var certificateObjectsByFingerprintAndType = cluster.RegisterStmt(`
+const certificateObjectsByFingerprintAndType = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.fingerprint LIKE ? AND certificates.type = ? ORDER BY certificates.fingerprint
 `)
-var certificateObjectsByNameAndType = cluster.RegisterStmt(`
+const certificateObjectsByNameAndType = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.name = ? AND certificates.type = ? ORDER BY certificates.fingerprint
 `)
-var certificateObjectsByFingerprintAndNameAndType = cluster.RegisterStmt(`
+const certificateObjectsByFingerprintAndNameAndType = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.fingerprint LIKE ? AND certificates.name = ? AND certificates.type = ? ORDER BY certificates.fingerprint
 `)
 
-var certificateProjectsRef = cluster.RegisterStmt(`
+const certificateProjectsRef = cluster.RegisterStmt(`
 SELECT fingerprint, value FROM certificates_projects_ref ORDER BY fingerprint
 `)
-var certificateProjectsRefByFingerprint = cluster.RegisterStmt(`
+const certificateProjectsRefByFingerprint = cluster.RegisterStmt(`
 SELECT fingerprint, value FROM certificates_projects_ref WHERE fingerprint = ? ORDER BY fingerprint
 `)
 
-var certificateID = cluster.RegisterStmt(`
+const certificateID = cluster.RegisterStmt(`
 SELECT certificates.id FROM certificates
   WHERE certificates.fingerprint = ?
 `)
 
-var certificateCreate = cluster.RegisterStmt(`
+const certificateCreate = cluster.RegisterStmt(`
 INSERT INTO certificates (fingerprint, type, name, certificate, restricted)
   VALUES (?, ?, ?, ?, ?)
 `)
 
-var certificateDeleteByFingerprint = cluster.RegisterStmt(`
+const certificateDeleteByFingerprint = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE fingerprint = ?
 `)
-var certificateDeleteByName = cluster.RegisterStmt(`
+const certificateDeleteByName = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE name = ?
 `)
-var certificateDeleteByFingerprintAndName = cluster.RegisterStmt(`
+const certificateDeleteByFingerprintAndName = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE fingerprint = ? AND name = ?
 `)
-var certificateDeleteByType = cluster.RegisterStmt(`
+const certificateDeleteByType = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE type = ?
 `)
-var certificateDeleteByFingerprintAndType = cluster.RegisterStmt(`
+const certificateDeleteByFingerprintAndType = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE fingerprint = ? AND type = ?
 `)
-var certificateDeleteByNameAndType = cluster.RegisterStmt(`
+const certificateDeleteByNameAndType = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE name = ? AND type = ?
 `)
-var certificateDeleteByFingerprintAndNameAndType = cluster.RegisterStmt(`
+const certificateDeleteByFingerprintAndNameAndType = cluster.RegisterStmt(`
 DELETE FROM certificates WHERE fingerprint = ? AND name = ? AND type = ?
 `)
 
-var certificateUpdate = cluster.RegisterStmt(`
+const certificateUpdate = cluster.RegisterStmt(`
 UPDATE certificates
   SET fingerprint = ?, type = ?, name = ?, certificate = ?, restricted = ?
  WHERE id = ?

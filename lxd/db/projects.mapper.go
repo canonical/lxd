@@ -16,68 +16,68 @@ import (
 
 var _ = api.ServerEnvironment{}
 
-var projectNames = cluster.RegisterStmt(`
+const projectNames = cluster.RegisterStmt(`
 SELECT projects.name
   FROM projects
   ORDER BY projects.name
 `)
-var projectNamesByName = cluster.RegisterStmt(`
+const projectNamesByName = cluster.RegisterStmt(`
 SELECT projects.name
   FROM projects
   WHERE projects.name = ? ORDER BY projects.name
 `)
 
-var projectObjects = cluster.RegisterStmt(`
+const projectObjects = cluster.RegisterStmt(`
 SELECT projects.description, projects.name
   FROM projects
   ORDER BY projects.name
 `)
-var projectObjectsByName = cluster.RegisterStmt(`
+const projectObjectsByName = cluster.RegisterStmt(`
 SELECT projects.description, projects.name
   FROM projects
   WHERE projects.name = ? ORDER BY projects.name
 `)
 
-var projectUsedByRef = cluster.RegisterStmt(`
+const projectUsedByRef = cluster.RegisterStmt(`
 SELECT name, value FROM projects_used_by_ref ORDER BY name
 `)
-var projectUsedByRefByName = cluster.RegisterStmt(`
+const projectUsedByRefByName = cluster.RegisterStmt(`
 SELECT name, value FROM projects_used_by_ref WHERE name = ? ORDER BY name
 `)
 
-var projectConfigRef = cluster.RegisterStmt(`
+const projectConfigRef = cluster.RegisterStmt(`
 SELECT name, key, value FROM projects_config_ref ORDER BY name
 `)
-var projectConfigRefByName = cluster.RegisterStmt(`
+const projectConfigRefByName = cluster.RegisterStmt(`
 SELECT name, key, value FROM projects_config_ref WHERE name = ? ORDER BY name
 `)
 
-var projectCreate = cluster.RegisterStmt(`
+const projectCreate = cluster.RegisterStmt(`
 INSERT INTO projects (description, name)
   VALUES (?, ?)
 `)
 
-var projectCreateConfigRef = cluster.RegisterStmt(`
+const projectCreateConfigRef = cluster.RegisterStmt(`
 INSERT INTO projects_config (project_id, key, value)
   VALUES (?, ?, ?)
 `)
 
-var projectID = cluster.RegisterStmt(`
+const projectID = cluster.RegisterStmt(`
 SELECT projects.id FROM projects
   WHERE projects.name = ?
 `)
 
-var projectRename = cluster.RegisterStmt(`
+const projectRename = cluster.RegisterStmt(`
 UPDATE projects SET name = ? WHERE name = ?
 `)
 
-var projectUpdate = cluster.RegisterStmt(`
+const projectUpdate = cluster.RegisterStmt(`
 UPDATE projects
   SET description = ?, name = ?
  WHERE id = ?
 `)
 
-var projectDeleteByName = cluster.RegisterStmt(`
+const projectDeleteByName = cluster.RegisterStmt(`
 DELETE FROM projects WHERE name = ?
 `)
 

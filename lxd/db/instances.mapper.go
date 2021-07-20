@@ -16,273 +16,273 @@ import (
 
 var _ = api.ServerEnvironment{}
 
-var instanceObjects = cluster.RegisterStmt(`
+const instanceObjects = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProject = cluster.RegisterStmt(`
+const instanceObjectsByProject = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByName = cluster.RegisterStmt(`
+const instanceObjectsByName = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE instances.name = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProjectAndName = cluster.RegisterStmt(`
+const instanceObjectsByProjectAndName = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.name = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByNode = cluster.RegisterStmt(`
+const instanceObjectsByNode = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE node = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProjectAndNode = cluster.RegisterStmt(`
+const instanceObjectsByProjectAndNode = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND node = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByNameAndNode = cluster.RegisterStmt(`
+const instanceObjectsByNameAndNode = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE instances.name = ? AND node = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProjectAndNameAndNode = cluster.RegisterStmt(`
+const instanceObjectsByProjectAndNameAndNode = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.name = ? AND node = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByType = cluster.RegisterStmt(`
+const instanceObjectsByType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE instances.type = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProjectAndType = cluster.RegisterStmt(`
+const instanceObjectsByProjectAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByNameAndType = cluster.RegisterStmt(`
+const instanceObjectsByNameAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE instances.name = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProjectAndNameAndType = cluster.RegisterStmt(`
+const instanceObjectsByProjectAndNameAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.name = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByNodeAndType = cluster.RegisterStmt(`
+const instanceObjectsByNodeAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE node = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProjectAndNodeAndType = cluster.RegisterStmt(`
+const instanceObjectsByProjectAndNodeAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND node = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByNameAndNodeAndType = cluster.RegisterStmt(`
+const instanceObjectsByNameAndNodeAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE instances.name = ? AND node = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
-var instanceObjectsByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
+const instanceObjectsByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE project = ? AND instances.name = ? AND node = ? AND instances.type = ? ORDER BY projects.id, instances.name
 `)
 
-var instanceProfilesRef = cluster.RegisterStmt(`
+const instanceProfilesRef = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref ORDER BY project, name
 `)
-var instanceProfilesRefByProject = cluster.RegisterStmt(`
+const instanceProfilesRefByProject = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE project = ? ORDER BY project, name
 `)
-var instanceProfilesRefByName = cluster.RegisterStmt(`
+const instanceProfilesRefByName = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE name = ? ORDER BY project, name
 `)
-var instanceProfilesRefByProjectAndName = cluster.RegisterStmt(`
+const instanceProfilesRefByProjectAndName = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND name = ? ORDER BY project, name
 `)
-var instanceProfilesRefByNode = cluster.RegisterStmt(`
+const instanceProfilesRefByNode = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE node = ? ORDER BY project, name
 `)
-var instanceProfilesRefByProjectAndNode = cluster.RegisterStmt(`
+const instanceProfilesRefByProjectAndNode = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND node = ? ORDER BY project, name
 `)
-var instanceProfilesRefByNameAndNode = cluster.RegisterStmt(`
+const instanceProfilesRefByNameAndNode = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE name = ? AND node = ? ORDER BY project, name
 `)
-var instanceProfilesRefByProjectAndNameAndNode = cluster.RegisterStmt(`
+const instanceProfilesRefByProjectAndNameAndNode = cluster.RegisterStmt(`
 SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND name = ? AND node = ? ORDER BY project, name
 `)
 
-var instanceConfigRef = cluster.RegisterStmt(`
+const instanceConfigRef = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref ORDER BY project, name
 `)
-var instanceConfigRefByProject = cluster.RegisterStmt(`
+const instanceConfigRefByProject = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE project = ? ORDER BY project, name
 `)
-var instanceConfigRefByName = cluster.RegisterStmt(`
+const instanceConfigRefByName = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE name = ? ORDER BY project, name
 `)
-var instanceConfigRefByProjectAndName = cluster.RegisterStmt(`
+const instanceConfigRefByProjectAndName = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND name = ? ORDER BY project, name
 `)
-var instanceConfigRefByNode = cluster.RegisterStmt(`
+const instanceConfigRefByNode = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE node = ? ORDER BY project, name
 `)
-var instanceConfigRefByProjectAndNode = cluster.RegisterStmt(`
+const instanceConfigRefByProjectAndNode = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND node = ? ORDER BY project, name
 `)
-var instanceConfigRefByNameAndNode = cluster.RegisterStmt(`
+const instanceConfigRefByNameAndNode = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE name = ? AND node = ? ORDER BY project, name
 `)
-var instanceConfigRefByProjectAndNameAndNode = cluster.RegisterStmt(`
+const instanceConfigRefByProjectAndNameAndNode = cluster.RegisterStmt(`
 SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND name = ? AND node = ? ORDER BY project, name
 `)
 
-var instanceDevicesRef = cluster.RegisterStmt(`
+const instanceDevicesRef = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref ORDER BY project, name
 `)
-var instanceDevicesRefByProject = cluster.RegisterStmt(`
+const instanceDevicesRefByProject = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? ORDER BY project, name
 `)
-var instanceDevicesRefByName = cluster.RegisterStmt(`
+const instanceDevicesRefByName = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? ORDER BY project, name
 `)
-var instanceDevicesRefByProjectAndName = cluster.RegisterStmt(`
+const instanceDevicesRefByProjectAndName = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? ORDER BY project, name
 `)
-var instanceDevicesRefByNode = cluster.RegisterStmt(`
+const instanceDevicesRefByNode = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE node = ? ORDER BY project, name
 `)
-var instanceDevicesRefByProjectAndNode = cluster.RegisterStmt(`
+const instanceDevicesRefByProjectAndNode = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND node = ? ORDER BY project, name
 `)
-var instanceDevicesRefByNameAndNode = cluster.RegisterStmt(`
+const instanceDevicesRefByNameAndNode = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? AND node = ? ORDER BY project, name
 `)
-var instanceDevicesRefByProjectAndNameAndNode = cluster.RegisterStmt(`
+const instanceDevicesRefByProjectAndNameAndNode = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? AND node = ? ORDER BY project, name
 `)
-var instanceDevicesRefByType = cluster.RegisterStmt(`
+const instanceDevicesRefByType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE type = ? ORDER BY project, name
 `)
-var instanceDevicesRefByProjectAndType = cluster.RegisterStmt(`
+const instanceDevicesRefByProjectAndType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND type = ? ORDER BY project, name
 `)
-var instanceDevicesRefByNameAndType = cluster.RegisterStmt(`
+const instanceDevicesRefByNameAndType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? AND type = ? ORDER BY project, name
 `)
-var instanceDevicesRefByProjectAndNameAndType = cluster.RegisterStmt(`
+const instanceDevicesRefByProjectAndNameAndType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? AND type = ? ORDER BY project, name
 `)
-var instanceDevicesRefByNodeAndType = cluster.RegisterStmt(`
+const instanceDevicesRefByNodeAndType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE node = ? AND type = ? ORDER BY project, name
 `)
-var instanceDevicesRefByProjectAndNodeAndType = cluster.RegisterStmt(`
+const instanceDevicesRefByProjectAndNodeAndType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND node = ? AND type = ? ORDER BY project, name
 `)
-var instanceDevicesRefByNameAndNodeAndType = cluster.RegisterStmt(`
+const instanceDevicesRefByNameAndNodeAndType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE name = ? AND node = ? AND type = ? ORDER BY project, name
 `)
-var instanceDevicesRefByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
+const instanceDevicesRefByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
 SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? AND node = ? AND type = ? ORDER BY project, name
 `)
 
-var instanceID = cluster.RegisterStmt(`
+const instanceID = cluster.RegisterStmt(`
 SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE projects.name = ? AND instances.name = ?
 `)
 
-var instanceCreate = cluster.RegisterStmt(`
+const instanceCreate = cluster.RegisterStmt(`
 INSERT INTO instances (project_id, name, node_id, type, architecture, ephemeral, creation_date, stateful, last_use_date, description, expiry_date)
   VALUES ((SELECT projects.id FROM projects WHERE projects.name = ?), ?, (SELECT nodes.id FROM nodes WHERE nodes.name = ?), ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
-var instanceCreateConfigRef = cluster.RegisterStmt(`
+const instanceCreateConfigRef = cluster.RegisterStmt(`
 INSERT INTO instances_config (instance_id, key, value)
   VALUES (?, ?, ?)
 `)
 
-var instanceCreateDevicesRef = cluster.RegisterStmt(`
+const instanceCreateDevicesRef = cluster.RegisterStmt(`
 INSERT INTO instances_devices (instance_id, name, type)
   VALUES (?, ?, ?)
 `)
-var instanceCreateDevicesConfigRef = cluster.RegisterStmt(`
+const instanceCreateDevicesConfigRef = cluster.RegisterStmt(`
 INSERT INTO instances_devices_config (instance_device_id, key, value)
   VALUES (?, ?, ?)
 `)
 
-var instanceRename = cluster.RegisterStmt(`
+const instanceRename = cluster.RegisterStmt(`
 UPDATE instances SET name = ? WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
-var instanceDeleteByProject = cluster.RegisterStmt(`
+const instanceDeleteByProject = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?)
 `)
-var instanceDeleteByName = cluster.RegisterStmt(`
+const instanceDeleteByName = cluster.RegisterStmt(`
 DELETE FROM instances WHERE name = ?
 `)
-var instanceDeleteByProjectAndName = cluster.RegisterStmt(`
+const instanceDeleteByProjectAndName = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
-var instanceDeleteByNode = cluster.RegisterStmt(`
+const instanceDeleteByNode = cluster.RegisterStmt(`
 DELETE FROM instances WHERE node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
 `)
-var instanceDeleteByProjectAndNode = cluster.RegisterStmt(`
+const instanceDeleteByProjectAndNode = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
 `)
-var instanceDeleteByNameAndNode = cluster.RegisterStmt(`
+const instanceDeleteByNameAndNode = cluster.RegisterStmt(`
 DELETE FROM instances WHERE name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
 `)
-var instanceDeleteByProjectAndNameAndNode = cluster.RegisterStmt(`
+const instanceDeleteByProjectAndNameAndNode = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?)
 `)
-var instanceDeleteByType = cluster.RegisterStmt(`
+const instanceDeleteByType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE type = ?
 `)
-var instanceDeleteByProjectAndType = cluster.RegisterStmt(`
+const instanceDeleteByProjectAndType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND type = ?
 `)
-var instanceDeleteByNameAndType = cluster.RegisterStmt(`
+const instanceDeleteByNameAndType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE name = ? AND type = ?
 `)
-var instanceDeleteByProjectAndNameAndType = cluster.RegisterStmt(`
+const instanceDeleteByProjectAndNameAndType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ? AND type = ?
 `)
-var instanceDeleteByNodeAndType = cluster.RegisterStmt(`
+const instanceDeleteByNodeAndType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
 `)
-var instanceDeleteByProjectAndNodeAndType = cluster.RegisterStmt(`
+const instanceDeleteByProjectAndNodeAndType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
 `)
-var instanceDeleteByNameAndNodeAndType = cluster.RegisterStmt(`
+const instanceDeleteByNameAndNodeAndType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
 `)
-var instanceDeleteByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
+const instanceDeleteByProjectAndNameAndNodeAndType = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ? AND node_id = (SELECT nodes.id FROM nodes WHERE nodes.name = ?) AND type = ?
 `)
 
-var instanceDeleteConfigRef = cluster.RegisterStmt(`
+const instanceDeleteConfigRef = cluster.RegisterStmt(`
 DELETE FROM instances_config WHERE instance_id = ?
 `)
 
-var instanceDeleteDevicesRef = cluster.RegisterStmt(`
+const instanceDeleteDevicesRef = cluster.RegisterStmt(`
 DELETE FROM instances_devices WHERE instance_id = ?
 `)
 
-var instanceDeleteProfilesRef = cluster.RegisterStmt(`
+const instanceDeleteProfilesRef = cluster.RegisterStmt(`
 DELETE FROM instances_profiles WHERE instance_id = ?
 `)
 
-var instanceUpdate = cluster.RegisterStmt(`
+const instanceUpdate = cluster.RegisterStmt(`
 UPDATE instances
   SET project_id = (SELECT id FROM projects WHERE name = ?), name = ?, node_id = (SELECT id FROM nodes WHERE name = ?), type = ?, architecture = ?, ephemeral = ?, creation_date = ?, stateful = ?, last_use_date = ?, description = ?, expiry_date = ?
  WHERE id = ?
