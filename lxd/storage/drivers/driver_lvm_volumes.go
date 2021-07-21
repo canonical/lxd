@@ -508,13 +508,22 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 		// Check if already mounted.
 		mountPath := vol.MountPath()
 		if !shared.IsMountPoint(mountPath) {
+			fsType := vol.ConfigBlockFilesystem()
+
+			if vol.mountFilesystemProbe {
+				fsType, err = fsProbe(volDevPath)
+				if err != nil {
+					return errors.Wrapf(err, "Failed probing filesystem")
+				}
+			}
+
 			err = vol.EnsureMountPath()
 			if err != nil {
 				return err
 			}
 
 			mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
-			err = TryMount(volDevPath, mountPath, vol.ConfigBlockFilesystem(), mountFlags, mountOptions)
+			err = TryMount(volDevPath, mountPath, fsType, mountFlags, mountOptions)
 			if err != nil {
 				return errors.Wrapf(err, "Failed to mount LVM logical volume")
 			}
