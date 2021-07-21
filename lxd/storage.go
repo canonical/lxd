@@ -81,12 +81,11 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 	pools, err := s.Cluster.GetCreatedStoragePoolNames()
 	if err != nil {
 		if err == db.ErrNoSuchObject {
-			logger.Debugf("No existing storage pools detected")
+			logger.Debug("No existing storage pools detected")
 			return nil
 		}
 
-		logger.Debugf("Failed to retrieve existing storage pools")
-		return err
+		return errors.Wrapf(err, "Failed loading existing storage pools")
 	}
 
 	// In case the daemon got killed during upgrade we will already have a
@@ -102,14 +101,14 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 		}
 
 		if !shared.StringInSlice("storage_api", appliedPatches) {
-			logger.Warnf("Incorrectly applied \"storage_api\" patch, skipping storage pool initialization as it might be corrupt")
+			logger.Warn(`Incorrectly applied "storage_api" patch, skipping storage pool initialization as it might be corrupt`)
 			return nil
 		}
 
 	}
 
 	for _, poolName := range pools {
-		logger.Debugf("Initializing and checking storage pool %q", poolName)
+		logger.Debug("Initializing and checking storage pool", log.Ctx{"pool": poolName})
 		errPrefix := fmt.Sprintf("Failed initializing storage pool %q", poolName)
 
 		pool, err := storagePools.GetPoolByName(s, poolName)
