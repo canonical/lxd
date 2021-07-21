@@ -1040,7 +1040,7 @@ func (d *Daemon) init() error {
 
 			continue
 		}
-		return errors.Wrap(err, "failed to open cluster database")
+		return errors.Wrap(err, "Failed to open cluster database")
 	}
 
 	d.firewall = firewall.New()
