@@ -735,13 +735,12 @@ func (d *Daemon) init() error {
 	}
 
 	/* Print welcome message */
+	mode := "normal"
 	if d.os.MockMode {
-		logger.Info(fmt.Sprintf("LXD %s is starting in mock mode", version.Version),
-			log.Ctx{"path": shared.VarPath("")})
-	} else {
-		logger.Info(fmt.Sprintf("LXD %s is starting in normal mode", version.Version),
-			log.Ctx{"path": shared.VarPath("")})
+		mode = "mock"
 	}
+
+	logger.Info("LXD is starting", log.Ctx{"version": version.Version, "mode": mode, "path": shared.VarPath("")})
 
 	/* List of sub-systems to trace */
 	trace := d.config.Trace
