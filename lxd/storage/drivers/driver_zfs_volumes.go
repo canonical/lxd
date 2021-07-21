@@ -1380,7 +1380,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 
 			// Override volume's mount path with location of snapshot so genericVFSBackupVolume reads
 			// from there instead of main volume.
-			vol.customMountPath = tmpDir
+			vol.mountCustomPath = tmpDir
 
 			// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
 			// already mounted by the time genericVFSBackupVolume tries to mount it below,
