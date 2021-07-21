@@ -78,14 +78,14 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
 				e.listeners[cluster] = networkTLSListener(*listener, e.cert)
-				e.serveHTTP(cluster)
+				e.serve(cluster)
 			}
 
 			return err
 		}
 
 		e.listeners[cluster] = networkTLSListener(*listener, e.cert)
-		e.serveHTTP(cluster)
+		e.serve(cluster)
 	}
 
 	return nil
