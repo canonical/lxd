@@ -166,7 +166,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 // qemuCreate creates a new storage volume record and returns an initialised Instance.
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
 // revert's Fail() or Success() function as needed.
-func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
+func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]string, revert *revert.Reverter) (instance.Instance, error) {
 	// Create the instance struct.
 	d := &qemu{
 		common: common{
@@ -292,7 +292,10 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 		}
 	} else {
 		// Fill default config for new instances.
-		volumeConfig := map[string]string{}
+		if volumeConfig == nil {
+			volumeConfig = make(map[string]string)
+		}
+
 		err = d.storagePool.FillInstanceConfig(d, volumeConfig)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed filling default config")

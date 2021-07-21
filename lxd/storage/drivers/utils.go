@@ -212,8 +212,17 @@ func fsUUID(path string) (string, error) {
 		return "", err
 	}
 
-	val = strings.TrimSpace(val)
-	return val, nil
+	return strings.TrimSpace(val), nil
+}
+
+// fsProbe returns the filesystem type for the given block path.
+func fsProbe(path string) (string, error) {
+	val, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", path)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(val), nil
 }
 
 // hasFilesystem checks if a given path is backed by a specified filesystem.

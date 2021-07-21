@@ -979,7 +979,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 	defer revert.Fail()
 
 	// Activate RBD volume if needed.
-	activated, devPath, err := d.getRBDMappedDevPath(vol, true)
+	activated, volDevPath, err := d.getRBDMappedDevPath(vol, true)
 	if err != nil {
 		return err
 	}
@@ -995,14 +995,22 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
-			RBDFilesystem := vol.ConfigBlockFilesystem()
+			fsType := vol.ConfigBlockFilesystem()
+
+			if vol.mountFilesystemProbe {
+				fsType, err = fsProbe(volDevPath)
+				if err != nil {
+					return errors.Wrapf(err, "Failed probing filesystem")
+				}
+			}
+
 			mountFlags, mountOptions := resolveMountOptions(vol.ConfigBlockMountOptions())
-			err = TryMount(devPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
+			err = TryMount(volDevPath, mountPath, fsType, mountFlags, mountOptions)
 			if err != nil {
 				return err
 			}
 
-			d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": devPath, "path": mountPath, "options": mountOptions})
+			d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 		}
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, mount the filesystem volume.

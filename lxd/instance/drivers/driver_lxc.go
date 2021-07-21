@@ -139,7 +139,7 @@ func lxcStatusCode(state liblxc.State) api.StatusCode {
 // lxcCreate creates the DB storage records and sets up instance devices.
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
 // revert's Fail() or Success() function as needed.
-func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
+func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]string, revert *revert.Reverter) (instance.Instance, error) {
 	// Create the container struct
 	d := &lxc{
 		common: common{
@@ -258,7 +258,10 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 		}
 	} else {
 		// Fill default config for new instances.
-		volumeConfig := map[string]string{}
+		if volumeConfig == nil {
+			volumeConfig = make(map[string]string)
+		}
+
 		err = d.storagePool.FillInstanceConfig(d, volumeConfig)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed filling default config")
