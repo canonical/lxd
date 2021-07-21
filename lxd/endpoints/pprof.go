@@ -95,14 +95,14 @@ func (e *Endpoints) PprofUpdateAddress(address string) error {
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
 				e.listeners[pprof] = *listener
-				e.serveHTTP(pprof)
+				e.serve(pprof)
 			}
 
 			return err
 		}
 
 		e.listeners[pprof] = *listener
-		e.serveHTTP(pprof)
+		e.serve(pprof)
 	}
 
 	return nil

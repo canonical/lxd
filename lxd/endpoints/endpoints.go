@@ -239,7 +239,7 @@ func (e *Endpoints) up(config *Config) error {
 			}
 
 			logger.Infof("Starting cluster handler:")
-			e.serveHTTP(cluster)
+			e.serve(cluster)
 		} else if networkAddressErr != nil {
 			logger.Error("Cannot currently listen on https socket, re-trying once in 30s...", log.Ctx{"err": networkAddressErr})
 
@@ -260,15 +260,15 @@ func (e *Endpoints) up(config *Config) error {
 		}
 
 		logger.Infof("Starting pprof handler:")
-		e.serveHTTP(pprof)
+		e.serve(pprof)
 	}
 
 	logger.Infof("Starting /dev/lxd handler:")
-	e.serveHTTP(devlxd)
+	e.serve(devlxd)
 
 	logger.Infof("REST API daemon:")
-	e.serveHTTP(local)
-	e.serveHTTP(network)
+	e.serve(local)
+	e.serve(network)
 
 	return nil
 }
@@ -324,7 +324,7 @@ func (e *Endpoints) Down() error {
 }
 
 // Start an HTTP server for the endpoint associated with the given code.
-func (e *Endpoints) serveHTTP(kind kind) {
+func (e *Endpoints) serve(kind kind) {
 	listener := e.listeners[kind]
 
 	if listener == nil {
