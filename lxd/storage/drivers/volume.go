@@ -103,7 +103,7 @@ func (v Volume) Pool() string {
 	return v.pool
 }
 
-// Config returns the volumes (unexpanded) config.
+// Config returns the volume's (unexpanded) config.
 func (v Volume) Config() map[string]string {
 	return v.config
 }
