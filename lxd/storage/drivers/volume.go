@@ -77,7 +77,7 @@ type Volume struct {
 	contentType     ContentType
 	config          map[string]string
 	driver          Driver
-	customMountPath string
+	mountCustomPath string // Mount the filesystem volume at a custom location.
 }
 
 // NewVolume instantiates a new Volume struct.
@@ -135,8 +135,8 @@ func (v Volume) IsSnapshot() bool {
 
 // MountPath returns the path where the volume will be mounted.
 func (v Volume) MountPath() string {
-	if v.customMountPath != "" {
-		return v.customMountPath
+	if v.mountCustomPath != "" {
+		return v.mountCustomPath
 	}
 
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
