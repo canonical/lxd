@@ -905,14 +905,15 @@ func (d *Daemon) init() error {
 		// If the cluster has not yet upgraded to per-server client certificates (by running patch
 		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
 		// certificate, and cause us to trust it for use as client certificate from the other members.
-		logger.Warnf("No local trusted server certificates found, falling back to trusting network certificate")
-		logger.Infof("Set client certificate to network certificate %v", networkCert.Fingerprint())
+		networkCertFingerPrint := networkCert.Fingerprint()
+		logger.Warn("No local trusted server certificates found, falling back to trusting network certificate", log.Ctx{"fingerprint": networkCertFingerPrint})
+		logger.Info("Set client certificate to network certificate", log.Ctx{"fingerprint": networkCertFingerPrint})
 		d.serverCertInt = networkCert
 
 	} else {
 		// If standalone or the local trusted certificates table is populated with server certificates then
 		// use our local server certificate as client certificate for intra-cluster communication.
-		logger.Infof("Set client certificate to server certificate %v", serverCert.Fingerprint())
+		logger.Info("Set client certificate to server certificate", log.Ctx{"fingerprint": serverCert.Fingerprint()})
 		d.serverCertInt = serverCert
 	}
 
@@ -937,7 +938,7 @@ func (d *Daemon) init() error {
 		// Attempt to mount the shmounts tmpfs
 		err := setupSharedMounts()
 		if err != nil {
-			logger.Warnf("Failed settting up shared mounts: %v", err)
+			logger.Warn("Failed settting up shared mounts", log.Ctx{"err": err})
 		}
 
 		// Attempt to Mount the devlxd tmpfs
@@ -1043,7 +1044,7 @@ func (d *Daemon) init() error {
 	}
 
 	d.firewall = firewall.New()
-	logger.Infof("Firewall loaded driver %q", d.firewall)
+	logger.Info("Firewall loaded driver", log.Ctx{"driver": d.firewall})
 
 	err = cluster.NotifyUpgradeCompleted(d.State(), networkCert, d.serverCert())
 	if err != nil {
