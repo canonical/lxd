@@ -54,7 +54,7 @@ type Config struct {
 	// It can be updated after the endpoints are up using ClusterUpdateAddress().
 	ClusterAddress string
 
-	// DebugSetAddress sets the address for the pprof endpoint.
+	// Address of the debug endpoint.
 	//
 	// It can be updated after the endpoints are up using PprofUpdateAddress().
 	DebugAddress string
