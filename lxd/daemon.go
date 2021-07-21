@@ -1022,7 +1022,7 @@ func (d *Daemon) init() error {
 		// from the last node being upgraded that everything should be
 		// now fine, and then retry
 		if err == db.ErrSomeNodesAreBehind {
-			logger.Info("Wait for other cluster nodes to upgrade their versions")
+			logger.Warn("Wait for other cluster nodes to upgrade their versions, cluster not started yet")
 
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
@@ -1051,7 +1051,7 @@ func (d *Daemon) init() error {
 		// Ignore the error, since it's not fatal for this particular
 		// node. In most cases it just means that some nodes are
 		// offline.
-		logger.Debugf("Could not notify all nodes of database upgrade: %v", err)
+		logger.Warn("Could not notify all nodes of database upgrade", log.Ctx{"err": err})
 	}
 	d.gateway.Cluster = d.cluster
 
