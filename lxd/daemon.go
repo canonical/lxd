@@ -735,13 +735,12 @@ func (d *Daemon) init() error {
 	}
 
 	/* Print welcome message */
+	mode := "normal"
 	if d.os.MockMode {
-		logger.Info(fmt.Sprintf("LXD %s is starting in mock mode", version.Version),
-			log.Ctx{"path": shared.VarPath("")})
-	} else {
-		logger.Info(fmt.Sprintf("LXD %s is starting in normal mode", version.Version),
-			log.Ctx{"path": shared.VarPath("")})
+		mode = "mock"
 	}
+
+	logger.Info("LXD is starting", log.Ctx{"version": version.Version, "mode": mode, "path": shared.VarPath("")})
 
 	/* List of sub-systems to trace */
 	trace := d.config.Trace
@@ -793,67 +792,67 @@ func (d *Daemon) init() error {
 	logger.Infof("Kernel features:")
 	d.os.CloseRange = canUseCloseRange()
 	if d.os.CloseRange {
-		logger.Infof(" - closing multiple file descriptors efficiently: yes")
+		logger.Info(" - closing multiple file descriptors efficiently: yes")
 	} else {
-		logger.Infof(" - closing multiple file descriptors efficiently: no")
+		logger.Info(" - closing multiple file descriptors efficiently: no")
 	}
 
 	d.os.NetnsGetifaddrs = canUseNetnsGetifaddrs()
 	if d.os.NetnsGetifaddrs {
-		logger.Infof(" - netnsid-based network retrieval: yes")
+		logger.Info(" - netnsid-based network retrieval: yes")
 	} else {
-		logger.Infof(" - netnsid-based network retrieval: no")
+		logger.Info(" - netnsid-based network retrieval: no")
 	}
 
 	if canUsePidFds() && d.os.LXCFeatures["pidfd"] {
 		d.os.PidFds = true
 	}
 	if d.os.PidFds {
-		logger.Infof(" - pidfds: yes")
+		logger.Info(" - pidfds: yes")
 	} else {
-		logger.Infof(" - pidfds: no")
+		logger.Info(" - pidfds: no")
 	}
 
 	d.os.UeventInjection = canUseUeventInjection()
 	if d.os.UeventInjection {
-		logger.Infof(" - uevent injection: yes")
+		logger.Info(" - uevent injection: yes")
 	} else {
-		logger.Infof(" - uevent injection: no")
+		logger.Info(" - uevent injection: no")
 	}
 
 	d.os.SeccompListener = canUseSeccompListener()
 	if d.os.SeccompListener {
-		logger.Infof(" - seccomp listener: yes")
+		logger.Info(" - seccomp listener: yes")
 	} else {
-		logger.Infof(" - seccomp listener: no")
+		logger.Info(" - seccomp listener: no")
 	}
 
 	d.os.SeccompListenerContinue = canUseSeccompListenerContinue()
 	if d.os.SeccompListenerContinue {
-		logger.Infof(" - seccomp listener continue syscalls: yes")
+		logger.Info(" - seccomp listener continue syscalls: yes")
 	} else {
-		logger.Infof(" - seccomp listener continue syscalls: no")
+		logger.Info(" - seccomp listener continue syscalls: no")
 	}
 
 	if canUseSeccompListenerAddfd() && d.os.LXCFeatures["seccomp_proxy_send_notify_fd"] {
 		d.os.SeccompListenerAddfd = true
-		logger.Infof(" - seccomp listener add file descriptors: yes")
+		logger.Info(" - seccomp listener add file descriptors: yes")
 	} else {
-		logger.Infof(" - seccomp listener add file descriptors: no")
+		logger.Info(" - seccomp listener add file descriptors: no")
 	}
 
 	d.os.PidFdSetns = canUsePidFdSetns()
 	if d.os.PidFdSetns {
-		logger.Infof(" - attach to namespaces via pidfds: yes")
+		logger.Info(" - attach to namespaces via pidfds: yes")
 	} else {
-		logger.Infof(" - attach to namespaces via pidfds: no")
+		logger.Info(" - attach to namespaces via pidfds: no")
 	}
 
 	if d.os.LXCFeatures["devpts_fd"] && canUseNativeTerminals() {
 		d.os.NativeTerminals = true
-		logger.Infof(" - safe native terminal allocation : yes")
+		logger.Info(" - safe native terminal allocation : yes")
 	} else {
-		logger.Infof(" - safe native terminal allocation : no")
+		logger.Info(" - safe native terminal allocation : no")
 	}
 
 	/*
@@ -880,13 +879,13 @@ func (d *Daemon) init() error {
 
 	// Detect shiftfs support.
 	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
-		logger.Infof(" - shiftfs support: disabled")
+		logger.Info(" - shiftfs support: disabled")
 	} else {
 		if canUseShiftfs() && (util.HasFilesystem("shiftfs") || util.LoadModule("shiftfs") == nil) {
 			d.os.Shiftfs = true
-			logger.Infof(" - shiftfs support: yes")
+			logger.Info(" - shiftfs support: yes")
 		} else {
-			logger.Infof(" - shiftfs support: no")
+			logger.Info(" - shiftfs support: no")
 		}
 	}
 
@@ -901,7 +900,7 @@ func (d *Daemon) init() error {
 	if err == nil {
 		fd, err := os.Open(testDev)
 		if err != nil && os.IsPermission(err) {
-			logger.Warnf("Unable to access device nodes, LXD likely running on a nodev mount")
+			logger.Warn("Unable to access device nodes, LXD likely running on a nodev mount")
 			d.os.Nodev = true
 		}
 		fd.Close()
@@ -942,14 +941,15 @@ func (d *Daemon) init() error {
 		// If the cluster has not yet upgraded to per-server client certificates (by running patch
 		// patchClusteringServerCertTrust) then temporarily use the network (cluster) certificate as client
 		// certificate, and cause us to trust it for use as client certificate from the other members.
-		logger.Warnf("No local trusted server certificates found, falling back to trusting network certificate")
-		logger.Infof("Set client certificate to network certificate %v", networkCert.Fingerprint())
+		networkCertFingerPrint := networkCert.Fingerprint()
+		logger.Warn("No local trusted server certificates found, falling back to trusting network certificate", log.Ctx{"fingerprint": networkCertFingerPrint})
+		logger.Info("Set client certificate to network certificate", log.Ctx{"fingerprint": networkCertFingerPrint})
 		d.serverCertInt = networkCert
 
 	} else {
 		// If standalone or the local trusted certificates table is populated with server certificates then
 		// use our local server certificate as client certificate for intra-cluster communication.
-		logger.Infof("Set client certificate to server certificate %v", serverCert.Fingerprint())
+		logger.Info("Set client certificate to server certificate", log.Ctx{"fingerprint": serverCert.Fingerprint()})
 		d.serverCertInt = serverCert
 	}
 
@@ -974,7 +974,7 @@ func (d *Daemon) init() error {
 		// Attempt to mount the shmounts tmpfs
 		err := setupSharedMounts()
 		if err != nil {
-			logger.Warnf("Failed settting up shared mounts: %v", err)
+			logger.Warn("Failed settting up shared mounts", log.Ctx{"err": err})
 		}
 
 		// Attempt to Mount the devlxd tmpfs
@@ -1058,7 +1058,7 @@ func (d *Daemon) init() error {
 		// from the last node being upgraded that everything should be
 		// now fine, and then retry
 		if err == db.ErrSomeNodesAreBehind {
-			logger.Info("Wait for other cluster nodes to upgrade their versions")
+			logger.Warn("Wait for other cluster nodes to upgrade their versions, cluster not started yet")
 
 			// The only thing we want to still do on this node is
 			// to run the heartbeat task, in case we are the raft
@@ -1076,18 +1076,18 @@ func (d *Daemon) init() error {
 
 			continue
 		}
-		return errors.Wrap(err, "failed to open cluster database")
+		return errors.Wrap(err, "Failed to open cluster database")
 	}
 
 	d.firewall = firewall.New()
-	logger.Infof("Firewall loaded driver %q", d.firewall)
+	logger.Info("Firewall loaded driver", log.Ctx{"driver": d.firewall})
 
 	err = cluster.NotifyUpgradeCompleted(d.State(), networkCert, d.serverCert())
 	if err != nil {
 		// Ignore the error, since it's not fatal for this particular
 		// node. In most cases it just means that some nodes are
 		// offline.
-		logger.Debugf("Could not notify all nodes of database upgrade: %v", err)
+		logger.Warn("Could not notify all nodes of database upgrade", log.Ctx{"err": err})
 	}
 	d.gateway.Cluster = d.cluster
 
@@ -1099,7 +1099,7 @@ func (d *Daemon) init() error {
 			return err
 		}
 
-		logger.Debugf("Restarting all the containers following directory rename")
+		logger.Debug("Restarting all the containers following directory rename")
 		s := d.State()
 		instancesShutdown(s)
 		instancesRestart(s)
@@ -1183,7 +1183,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	logger.Infof("Loading daemon configuration")
+	logger.Info("Loading daemon configuration")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {

@@ -31,12 +31,13 @@ func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 	if info == nil {
 		return nil, nil
 	}
-	logger.Debug("Start database node", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
 	if info.Address == "" {
 		// This is a standalone node not exposed to the network.
 		info.Address = "1"
 	}
+
+	logger.Info("Starting database node", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
 	// Rename legacy data directory if needed.
 	dir := filepath.Join(database.Dir(), "global")
