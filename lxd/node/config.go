@@ -38,6 +38,16 @@ func (c *Config) HTTPSAddress() string {
 	return c.m.GetString("core.https_address")
 }
 
+// BGPAddress returns the address and port to setup the BGP listener on
+func (c *Config) BGPAddress() string {
+	return c.m.GetString("core.bgp_address")
+}
+
+// BGPRouterID returns the address to use as a router ID
+func (c *Config) BGPRouterID() string {
+	return c.m.GetString("core.bgp_routerid")
+}
+
 // ClusterAddress returns the address and port this LXD node should use for
 // cluster communication.
 func (c *Config) ClusterAddress() string {
@@ -102,6 +112,38 @@ func HTTPSAddress(node *db.Node) (string, error) {
 	return config.HTTPSAddress(), nil
 }
 
+// BGPAddress is a convenience for loading the node configuration and
+// returning the value of core.bgp_address.
+func BGPAddress(node *db.Node) (string, error) {
+	var config *Config
+	err := node.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		config, err = ConfigLoad(tx)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return config.BGPAddress(), nil
+}
+
+// BGPRouterID is a convenience for loading the node configuration and
+// returning the value of core.bgp_routerid.
+func BGPRouterID(node *db.Node) (string, error) {
+	var config *Config
+	err := node.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		config, err = ConfigLoad(tx)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return config.BGPRouterID(), nil
+}
+
 // ClusterAddress is a convenience for loading the node configuration and
 // returning the value of cluster.https_address.
 func ClusterAddress(node *db.Node) (string, error) {
@@ -155,6 +197,12 @@ var ConfigSchema = config.Schema{
 
 	// Network address for cluster communication
 	"cluster.https_address": {Validator: validate.Optional(validate.IsListenAddress(true, false, false))},
+
+	// Network address for the BGP server
+	"core.bgp_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+
+	// Unique router ID for the BGP server
+	"core.bgp_routerid": {Validator: validate.Optional(validate.IsNetworkAddressV4)},
 
 	// Network address for the debug server
 	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
