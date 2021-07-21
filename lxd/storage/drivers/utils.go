@@ -212,8 +212,7 @@ func fsUUID(path string) (string, error) {
 		return "", err
 	}
 
-	val = strings.TrimSpace(val)
-	return val, nil
+	return strings.TrimSpace(val), nil
 }
 
 // hasFilesystem checks if a given path is backed by a specified filesystem.
