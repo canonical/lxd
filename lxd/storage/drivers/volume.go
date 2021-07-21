@@ -70,14 +70,15 @@ var BaseDirectories = map[VolumeType][]string{
 
 // Volume represents a storage volume, and provides functions to mount and unmount it.
 type Volume struct {
-	name            string
-	pool            string
-	poolConfig      map[string]string
-	volType         VolumeType
-	contentType     ContentType
-	config          map[string]string
-	driver          Driver
-	customMountPath string
+	name                 string
+	pool                 string
+	poolConfig           map[string]string
+	volType              VolumeType
+	contentType          ContentType
+	config               map[string]string
+	driver               Driver
+	mountCustomPath      string // Mount the filesystem volume at a custom location.
+	mountFilesystemProbe bool   // Probe filesystem type when mounting volume (when needed).
 }
 
 // NewVolume instantiates a new Volume struct.
@@ -103,7 +104,7 @@ func (v Volume) Pool() string {
 	return v.pool
 }
 
-// Config returns the volumes (unexpanded) config.
+// Config returns the volume's (unexpanded) config.
 func (v Volume) Config() map[string]string {
 	return v.config
 }
@@ -125,7 +126,12 @@ func (v Volume) NewSnapshot(snapshotName string) (Volume, error) {
 	}
 
 	fullSnapName := GetSnapshotVolumeName(v.name, snapshotName)
-	return NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, v.config, v.poolConfig), nil
+	vol := NewVolume(v.driver, v.pool, v.volType, v.contentType, fullSnapName, v.config, v.poolConfig)
+
+	// Propagate filesystem probe mode of parent volume.
+	vol.SetMountFilesystemProbe(v.mountFilesystemProbe)
+
+	return vol, nil
 }
 
 // IsSnapshot indicates if volume is a snapshot.
@@ -135,8 +141,8 @@ func (v Volume) IsSnapshot() bool {
 
 // MountPath returns the path where the volume will be mounted.
 func (v Volume) MountPath() string {
-	if v.customMountPath != "" {
-		return v.customMountPath
+	if v.mountCustomPath != "" {
+		return v.mountCustomPath
 	}
 
 	return GetVolumeMountPath(v.pool, v.volType, v.name)
@@ -355,7 +361,12 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 		newConf["size"] = DefaultVMBlockFilesystemSize
 	}
 
-	return NewVolume(v.driver, v.pool, v.volType, ContentTypeFS, v.name, newConf, v.poolConfig)
+	vol := NewVolume(v.driver, v.pool, v.volType, ContentTypeFS, v.name, newConf, v.poolConfig)
+
+	// Propagate filesystem probe mode of parent volume.
+	vol.SetMountFilesystemProbe(v.mountFilesystemProbe)
+
+	return vol
 }
 
 // SetQuota calls SetVolumeQuota on the Volume's driver.
@@ -475,4 +486,9 @@ func (v Volume) ConfigSizeFromSource(srcVol Volume) (string, error) {
 
 	// Use the default volume size.
 	return volSize, nil
+}
+
+// SetMountFilesystemProbe enables or disables the probing mode when mounting the filesystem volume.
+func (v *Volume) SetMountFilesystemProbe(probe bool) {
+	v.mountFilesystemProbe = probe
 }

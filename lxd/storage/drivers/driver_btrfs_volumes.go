@@ -1001,7 +1001,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 			// Override volume's mount path with location of snapshot so genericVFSBackupVolume reads
 			// from there instead of main volume.
-			vol.customMountPath = filepath.Join(tmpDir, vol.name)
+			vol.mountCustomPath = filepath.Join(tmpDir, vol.name)
 
 			// Create the read-only snapshot.
 			mountPath := vol.MountPath()
