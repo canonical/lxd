@@ -70,7 +70,8 @@ _have lxc && {
       core.https_allowed_origin candid.api.url candid.api.key candid.expiry \
       candid.domains cluster.https_address \
       core.proxy_https core.proxy_http core.proxy_ignore_hosts \
-      core.trust_password core.debug_address cluster.offline_threshold \
+      core.trust_password core.bgp_address core.bgp_asn core.bgp_routerid \
+      core.debug_address cluster.offline_threshold \
       images.auto_update_cached images.auto_update_interval \
       images.compression_algorithm images.remote_cache_expiry \
       maas.api.url maas.api.key maas.machine cluster.images_minimal_replica \
@@ -110,7 +111,8 @@ _have lxc && {
       volatile.last_state.idmap volatile.last_state.power user.meta-data \
       user.network-config user.network_mode user.user-data user.vendor-data"
 
-    device_keys="limits.ingress limits.egress ipv4.routes ipv6.routes parent \
+    device_keys="limits.ingress limits.egress ipv4.routes \
+      ipv4.routes.external ipv6.routes ipv6.routes.external parent \
       name mtu hwaddr vlan maas.subnet.ipv4 maas.subnet.ipv6 nictype \
       host_name limits.max \
       ipv4.address ipv6.address ipv4.host_address ipv6.host_address ipv4.gateway ipv6.gateway \
@@ -120,7 +122,7 @@ _have lxc && {
       pci id listen connect bind nat proxy_protocol security.uid security.gid \
       boot.priority"
 
-    networks_keys="bridge.driver bridge.external_interfaces bridge.mode \
+    networks_keys="bgp.ipv4.nexthop bgp.ipv6.nexthop bridge.driver bridge.external_interfaces bridge.mode \
       bridge.mtu bridge.hwaddr dns.domain dns.mode dns.search fan.overlay_subnet fan.type \
       fan.underlay_subnet ipv4.address ipv4.dhcp ipv4.dhcp.expiry ipv4.dhcp.gateway \
       ipv4.dhcp.ranges ipv4.firewall ipv4.nat ipv4.nat.address ipv4.nat.order ipv4.ovn.ranges \
