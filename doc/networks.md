@@ -64,6 +64,11 @@ The exception being tunnel local and remote addresses which are just plain addre
 
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--
+bgp.peers.NAME.address               | string    | bgp server            | -                         | Peer address (IPv4 or IPv6)
+bgp.peers.NAME.asn                   | integer   | bgp server            | -                         | Peer AS number
+bgp.peers.NAME.password              | string    | bgp server            | - (no password)           | Peer session password (optional)
+bgp.ipv4.nexthop                     | string    | bgp server            | local address             | Override the next-hop for advertised prefixes
+bgp.ipv6.nexthop                     | string    | bgp server            | local address             | Override the next-hop for advertised prefixes
 bridge.driver                        | string    | -                     | native                    | Bridge driver ("native" or "openvswitch")
 bridge.external\_interfaces          | string    | -                     | -                         | Comma separate list of unconfigured network interfaces to include in the bridge
 bridge.hwaddr                        | string    | -                     | -                         | MAC address for the bridge
@@ -385,6 +390,9 @@ Network configuration properties:
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
+bgp.peers.NAME.address          | string    | bgp server            | -                         | Peer address (IPv4 or IPv6) for use by `ovn` downstream networks
+bgp.peers.NAME.asn              | integer   | bgp server            | -                         | Peer AS number for use by `ovn` downstream networks
+bgp.peers.NAME.password         | string    | bgp server            | - (no password)           | Peer session password (optional) for use by `ovn` downstream networks
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
 mtu                             | integer   | -                     | -                         | The MTU of the new interface
