@@ -64,10 +64,11 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			ctx = append(ctx, v)
 		}
 
+		requestor := fmt.Sprintf("%s/%s (%s)", e.Requestor.Protocol, e.Requestor.Username, e.Requestor.Address)
 		record := EventLogRecord{
 			Time: event.Timestamp,
 			Lvl:  "info",
-			Msg:  fmt.Sprintf("Action: %s, Source: %s", e.Action, e.Source),
+			Msg:  fmt.Sprintf("Action: %s, Source: %s, Requestor: %s", e.Action, e.Source, requestor),
 			Ctx:  ctx,
 		}
 		return record, nil
