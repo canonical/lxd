@@ -204,7 +204,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 }
 
 func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
-	f, err := shared.ConfigKeyChecker(key)
+	f, err := shared.ConfigKeyChecker(key, instanceType)
 	if err != nil {
 		return err
 	}
