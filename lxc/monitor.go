@@ -17,9 +17,10 @@ import (
 type cmdMonitor struct {
 	global *cmdGlobal
 
-	flagType     []string
-	flagPretty   bool
-	flagLogLevel string
+	flagType        []string
+	flagPretty      bool
+	flagLogLevel    string
+	flagAllProjects bool
 }
 
 func (c *cmdMonitor) Command() *cobra.Command {
@@ -43,6 +44,7 @@ lxc monitor --type=lifecycle
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagPretty, "pretty", false, i18n.G("Pretty rendering"))
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Show events from all projects"))
 	cmd.Flags().StringArrayVar(&c.flagType, "type", nil, i18n.G("Event type to listen for")+"``")
 	cmd.Flags().StringVar(&c.flagLogLevel, "loglevel", "", i18n.G("Minimum level for log messages")+"``")
 
@@ -76,6 +78,10 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
+	}
+
+	if c.flagAllProjects {
+		d = d.UseProject("*")
 	}
 
 	listener, err := d.GetEvents()
