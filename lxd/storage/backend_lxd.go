@@ -952,6 +952,247 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	return nil
 }
 
+// RefreshCustomVolume refreshes custom volumes (and optionally snapshots) during the custom volume copy operations.
+// Snapshots that are not present in the source but are in the destination are removed from the
+// destination if snapshots are included in the synchronization.
+func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "srcVolOnly": srcVolOnly})
+	logger.Debug("RefreshCustomVolume started")
+	defer logger.Debug("RefreshCustomVolume finished")
+
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
+	if srcProjectName == "" {
+		srcProjectName = projectName
+	}
+
+	// Setup the source pool backend instance.
+	var srcPool *lxdBackend
+	if b.name == srcPoolName {
+		srcPool = b // Source and target are in the same pool so share pool var.
+	} else {
+		// Source is in a different pool to target, so load the pool.
+		tmpPool, err := GetPoolByName(b.state, srcPoolName)
+		if err != nil {
+			return err
+		}
+
+		// Convert to lxdBackend so we can access driver.
+		tmpBackend, ok := tmpPool.(*lxdBackend)
+		if !ok {
+			return fmt.Errorf("Pool is not an lxdBackend")
+		}
+
+		srcPool = tmpBackend
+	}
+
+	// Check source volume exists and is custom type.
+	_, srcVolRow, err := b.state.Cluster.GetLocalStoragePoolVolume(srcProjectName, srcVolName, db.StoragePoolVolumeTypeCustom, srcPool.ID())
+	if err != nil {
+		if err == db.ErrNoSuchObject {
+			return fmt.Errorf("Source volume doesn't exist")
+		}
+
+		return err
+	}
+
+	// Use the source volume's config if not supplied.
+	if config == nil {
+		config = srcVolRow.Config
+	}
+
+	// Use the source volume's description if not supplied.
+	if desc == "" {
+		desc = srcVolRow.Description
+	}
+
+	contentDBType, err := VolumeContentTypeNameToContentType(srcVolRow.ContentType)
+	if err != nil {
+		return err
+	}
+
+	// Get the source volume's content type.
+	contentType := drivers.ContentTypeFS
+
+	if contentDBType == db.StoragePoolVolumeContentTypeBlock {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	storagePoolSupported := false
+	for _, supportedType := range b.Driver().Info().VolumeTypes {
+		if supportedType == drivers.VolumeTypeCustom {
+			storagePoolSupported = true
+			break
+		}
+	}
+
+	if !storagePoolSupported {
+		return fmt.Errorf("Storage pool does not support custom volume type")
+	}
+
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	snapshotNames := []string{}
+	srcSnapVols := []drivers.Volume{}
+	syncSnapshots := []db.StorageVolumeArgs{}
+	if !srcVolOnly {
+		// Detect added/deleted snapshots.
+		srcSnapshots, err := VolumeSnapshotsGet(srcPool.state, srcProjectName, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		destSnapshots, err := VolumeSnapshotsGet(b.state, projectName, b.Name(), volName, db.StoragePoolVolumeTypeCustom)
+		if err != nil {
+			return err
+		}
+
+		var deleteSnapshots []db.StorageVolumeArgs
+		syncSnapshots, deleteSnapshots = syncSnapshotsVolumeGet(srcSnapshots, destSnapshots)
+
+		// Build the list of snapshots to transfer.
+		for _, snapshot := range syncSnapshots {
+			_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+			snapshotNames = append(snapshotNames, snapshotName)
+
+			snapVolStorageName := project.StorageVolume(projectName, snapshot.Name)
+			srcSnapVol := srcPool.newVolume(drivers.VolumeTypeCustom, contentType, snapVolStorageName, nil)
+			srcSnapVols = append(srcSnapVols, srcSnapVol)
+		}
+
+		// Delete any snapshots that have disappeared or changed on the source.
+		for _, snapshot := range deleteSnapshots {
+			_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+			snapVolName := fmt.Sprintf("%s/%s", volName, snapshotName)
+
+			// Delete the snapshot.
+			err = b.DeleteCustomVolumeSnapshot(projectName, snapVolName, op)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	volStorageName := project.StorageVolume(projectName, volName)
+	vol := b.newVolume(drivers.VolumeTypeCustom, contentType, volStorageName, config)
+	srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
+	srcVol := srcPool.newVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
+
+	if srcPool == b {
+		logger.Debug("RefreshCustomVolume same-pool mode detected")
+		err = b.driver.RefreshVolume(vol, srcVol, srcSnapVols, op)
+		if err != nil {
+			return err
+		}
+
+		// Create database entry for new storage volume snapshots.
+		for _, snapshot := range syncSnapshots {
+			_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+
+			err = VolumeDBCreate(b.state, b, projectName, fmt.Sprintf("%s/%s", volName, snapshotName), snapshot.Description, drivers.VolumeTypeCustom, true, snapshot.Config, snapshot.ExpiryDate, contentType)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		logger.Debug("RefreshCustomVolume cross-pool mode detected")
+
+		// Negotiate the migration type to use.
+		offeredTypes := srcPool.MigrationTypes(contentType, true)
+		offerHeader := migration.TypesToHeader(offeredTypes...)
+		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true))
+		if err != nil {
+			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
+		}
+
+		var volSize int64
+
+		if contentType == drivers.ContentTypeBlock {
+			// Get the src volume name on storage.
+			srcVolStorageName := project.StorageVolume(srcProjectName, srcVolName)
+			srcVol := srcPool.newVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
+
+			srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
+				volDiskPath, err := srcPool.driver.GetVolumeDiskPath(srcVol)
+				if err != nil {
+					return err
+				}
+
+				volSize, err = drivers.BlockDiskSizeBytes(volDiskPath)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			}, nil)
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		// Use in-memory pipe pair to simulate a connection between the sender and receiver.
+		aEnd, bEnd := memorypipe.NewPipePair(ctx)
+
+		// Run sender and receiver in separate go routines to prevent deadlocks.
+		aEndErrCh := make(chan error, 1)
+		bEndErrCh := make(chan error, 1)
+		go func() {
+			err := srcPool.MigrateCustomVolume(srcProjectName, aEnd, &migration.VolumeSourceArgs{
+				Name:          srcVolName,
+				Snapshots:     snapshotNames,
+				MigrationType: migrationTypes[0],
+				TrackProgress: true, // Do use a progress tracker on sender.
+				ContentType:   string(contentType),
+			}, op)
+
+			if err != nil {
+				cancel()
+			}
+			aEndErrCh <- err
+		}()
+
+		go func() {
+			err := b.CreateCustomVolumeFromMigration(projectName, bEnd, migration.VolumeTargetArgs{
+				Name:          volName,
+				Description:   desc,
+				Config:        config,
+				Snapshots:     snapshotNames,
+				MigrationType: migrationTypes[0],
+				TrackProgress: false, // Do not use a progress tracker on receiver.
+				ContentType:   string(contentType),
+				VolumeSize:    volSize, // Block size setting override.
+				Refresh:       true,
+			}, op)
+
+			if err != nil {
+				cancel()
+			}
+			bEndErrCh <- err
+		}()
+
+		// Capture errors from the sender and receiver from their result channels.
+		errs := []error{}
+		aEndErr := <-aEndErrCh
+		if aEndErr != nil {
+			aEnd.Close()
+			errs = append(errs, aEndErr)
+		}
+
+		bEndErr := <-bEndErrCh
+		if bEndErr != nil {
+			errs = append(errs, bEndErr)
+		}
+
+		cancel()
+
+		if len(errs) > 0 {
+			return fmt.Errorf("Refresh custom volume from copy failed: %v", errs)
+		}
+	}
+
+	return nil
+}
+
 // RefreshInstance synchronises one instance's volume (and optionally snapshots) over another.
 // Snapshots that are not present in the source but are in the destination are removed from the
 // destination if snapshots are included in the synchronisation.
