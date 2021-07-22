@@ -106,7 +106,7 @@ static int find_associated_loop_device(const char *loop_file,
 			continue;
 
 		// Open fd to loop device.
-		return open(loop_dev_name, O_RDWR);
+		return open(loop_dev_name, O_RDWR | O_CLOEXEC);
 	}
 
 	return -1;
