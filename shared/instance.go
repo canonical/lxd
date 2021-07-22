@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -266,17 +267,21 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 // syntactic checking of the value, semantic and usage checking must
 // be done by the caller.  User defined keys are always considered to
 // be valid, e.g. user.* and environment.* keys.
-func ConfigKeyChecker(key string) (func(value string) error, error) {
+func ConfigKeyChecker(key string, instanceType instancetype.Type) (func(value string) error, error) {
 	if f, ok := InstanceConfigKeysAny[key]; ok {
 		return f, nil
 	}
 
-	if f, ok := InstanceConfigKeysContainer[key]; ok {
-		return f, nil
+	if instanceType == instancetype.Any || instanceType == instancetype.Container {
+		if f, ok := InstanceConfigKeysContainer[key]; ok {
+			return f, nil
+		}
 	}
 
-	if f, ok := InstanceConfigKeysVM[key]; ok {
-		return f, nil
+	if instanceType == instancetype.Any || instanceType == instancetype.VM {
+		if f, ok := InstanceConfigKeysVM[key]; ok {
+			return f, nil
+		}
 	}
 
 	if strings.HasPrefix(key, ConfigVolatilePrefix) {
