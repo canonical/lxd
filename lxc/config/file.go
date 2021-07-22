@@ -64,6 +64,11 @@ func LoadConfig(path string) (*Config, error) {
 		c.Remotes[k] = v
 	}
 
+	// Set default remote if not defined.
+	if c.DefaultRemote == "" {
+		c.DefaultRemote = DefaultConfig.DefaultRemote
+	}
+
 	// NOTE: Remove this once we only see a small fraction of non-simplestreams users
 	// Upgrade users to the "simplestreams" protocol
 	images, ok := c.Remotes["images"]
