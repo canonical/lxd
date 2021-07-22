@@ -98,7 +98,7 @@ func (c *Config) SaveConfig(path string) error {
 
 	// Remove the static remotes
 	for k := range StaticRemotes {
-		if k == "local" {
+		if k == DefaultConfig.DefaultRemote {
 			continue
 		}
 
