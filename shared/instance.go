@@ -73,10 +73,8 @@ var HugePageSizeKeys = [...]string{"limits.hugepages.64KB", "limits.hugepages.1M
 // HugePageSizeSuffix contains the list of known hugepage size suffixes.
 var HugePageSizeSuffix = [...]string{"64KB", "1MB", "2MB", "1GB"}
 
-// KnownInstanceConfigKeys maps all fully defined, well-known config keys
-// to an appropriate checker function, which validates whether or not a
-// given value is syntactically legal.
-var KnownInstanceConfigKeys = map[string]func(value string) error{
+// InstanceConfigKeysAny is a map of config key to validator. (keys applying to containers AND virtual machines)
+var InstanceConfigKeysAny = map[string]func(value string) error{
 	"boot.autostart":             validate.Optional(validate.IsBool),
 	"boot.autostart.delay":       validate.Optional(validate.IsInt64),
 	"boot.autostart.priority":    validate.Optional(validate.IsInt64),
@@ -106,6 +104,60 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 
 		return nil
 	},
+	"limits.disk.priority": validate.Optional(validate.IsPriority),
+	"limits.memory": func(value string) error {
+		if value == "" {
+			return nil
+		}
+
+		if strings.HasSuffix(value, "%") {
+			_, err := strconv.ParseInt(strings.TrimSuffix(value, "%"), 10, 64)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		_, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
+	"limits.network.priority": validate.Optional(validate.IsPriority),
+
+	// Caller is responsible for full validation of any raw.* value.
+	"raw.apparmor": validate.IsAny,
+
+	"security.devlxd":        validate.Optional(validate.IsBool),
+	"security.protection.delete": validate.Optional(validate.IsBool),
+
+	"snapshots.schedule":         validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup"})),
+	"snapshots.schedule.stopped": validate.Optional(validate.IsBool),
+	"snapshots.pattern":          validate.IsAny,
+	"snapshots.expiry": func(value string) error {
+		// Validate expression
+		_, err := GetSnapshotExpiry(time.Time{}, value)
+		return err
+	},
+
+	// Volatile keys.
+	"volatile.apply_template":   validate.IsAny,
+	"volatile.base_image":       validate.IsAny,
+	"volatile.last_state.idmap": validate.IsAny,
+	"volatile.last_state.power": validate.IsAny,
+	"volatile.idmap.base":       validate.IsAny,
+	"volatile.idmap.current":    validate.IsAny,
+	"volatile.idmap.next":       validate.IsAny,
+	"volatile.apply_quota":      validate.IsAny,
+	"volatile.uuid":             validate.Optional(validate.IsUUID),
+	"volatile.vsock_id":         validate.Optional(validate.IsInt64),
+}
+
+// InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only)
+var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"limits.cpu.allowance": func(value string) error {
 		if value == "" {
 			return nil
@@ -140,44 +192,16 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 		return nil
 	},
 	"limits.cpu.priority": validate.Optional(validate.IsPriority),
-
-	"limits.disk.priority": validate.Optional(validate.IsPriority),
-
 	"limits.hugepages.64KB": validate.Optional(validate.IsSize),
 	"limits.hugepages.1MB":  validate.Optional(validate.IsSize),
 	"limits.hugepages.2MB":  validate.Optional(validate.IsSize),
 	"limits.hugepages.1GB":  validate.Optional(validate.IsSize),
-
-	"limits.memory": func(value string) error {
-		if value == "" {
-			return nil
-		}
-
-		if strings.HasSuffix(value, "%") {
-			_, err := strconv.ParseInt(strings.TrimSuffix(value, "%"), 10, 64)
-			if err != nil {
-				return err
-			}
-
-			return nil
-		}
-
-		_, err := units.ParseByteSizeString(value)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	},
 	"limits.memory.enforce": validate.Optional(func(value string) error {
 		return validate.IsOneOf(value, []string{"soft", "hard"})
 	}),
+
 	"limits.memory.swap":          validate.Optional(validate.IsBool),
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
-	"limits.memory.hugepages":     validate.Optional(validate.IsBool),
-
-	"limits.network.priority": validate.Optional(validate.IsPriority),
-
 	"limits.processes": validate.Optional(validate.IsInt64),
 
 	"linux.kernel_modules": validate.IsAny,
@@ -185,26 +209,26 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"migration.incremental.memory":            validate.Optional(validate.IsBool),
 	"migration.incremental.memory.iterations": validate.Optional(validate.IsUint32),
 	"migration.incremental.memory.goal":       validate.Optional(validate.IsUint32),
-	"migration.stateful":                      validate.Optional(validate.IsBool),
 
 	"nvidia.runtime":             validate.Optional(validate.IsBool),
 	"nvidia.driver.capabilities": validate.IsAny,
 	"nvidia.require.cuda":        validate.IsAny,
 	"nvidia.require.driver":      validate.IsAny,
 
-	"security.nesting":       validate.Optional(validate.IsBool),
-	"security.privileged":    validate.Optional(validate.IsBool),
-	"security.devlxd":        validate.Optional(validate.IsBool),
-	"security.devlxd.images": validate.Optional(validate.IsBool),
+	// Caller is responsible for full validation of any raw.* value.
+	"raw.idmap":    validate.IsAny,
+	"raw.lxc":      validate.IsAny,
+	"raw.seccomp":  validate.IsAny,
 
-	"security.protection.delete": validate.Optional(validate.IsBool),
-	"security.protection.shift":  validate.Optional(validate.IsBool),
+	"security.devlxd.images": validate.Optional(validate.IsBool),
 
 	"security.idmap.base":     validate.Optional(validate.IsUint32),
 	"security.idmap.isolated": validate.Optional(validate.IsBool),
 	"security.idmap.size":     validate.Optional(validate.IsUint32),
 
-	"security.secureboot": validate.Optional(validate.IsBool),
+	"security.nesting":       validate.Optional(validate.IsBool),
+	"security.privileged":    validate.Optional(validate.IsBool),
+	"security.protection.shift":  validate.Optional(validate.IsBool),
 
 	"security.syscalls.allow":                   validate.IsAny,
 	"security.syscalls.blacklist_default":       validate.Optional(validate.IsBool),
@@ -222,33 +246,18 @@ var KnownInstanceConfigKeys = map[string]func(value string) error{
 	"security.syscalls.intercept.mount.shift":   validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.setxattr":      validate.Optional(validate.IsBool),
 	"security.syscalls.whitelist":               validate.IsAny,
+}
 
-	"snapshots.schedule":         validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup"})),
-	"snapshots.schedule.stopped": validate.Optional(validate.IsBool),
-	"snapshots.pattern":          validate.IsAny,
-	"snapshots.expiry": func(value string) error {
-		// Validate expression
-		_, err := GetSnapshotExpiry(time.Time{}, value)
-		return err
-	},
+// InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only)
+var InstanceConfigKeysVM = map[string]func(value string) error{
+	"limits.memory.hugepages":     validate.Optional(validate.IsBool),
 
-	// Caller is responsible for full validation of any raw.* value
-	"raw.apparmor": validate.IsAny,
-	"raw.idmap":    validate.IsAny,
-	"raw.lxc":      validate.IsAny,
+	"migration.stateful":                      validate.Optional(validate.IsBool),
+
+	// Caller is responsible for full validation of any raw.* value.
 	"raw.qemu":     validate.IsAny,
-	"raw.seccomp":  validate.IsAny,
 
-	"volatile.apply_template":   validate.IsAny,
-	"volatile.base_image":       validate.IsAny,
-	"volatile.last_state.idmap": validate.IsAny,
-	"volatile.last_state.power": validate.IsAny,
-	"volatile.idmap.base":       validate.IsAny,
-	"volatile.idmap.current":    validate.IsAny,
-	"volatile.idmap.next":       validate.IsAny,
-	"volatile.apply_quota":      validate.IsAny,
-	"volatile.uuid":             validate.Optional(validate.IsUUID),
-	"volatile.vsock_id":         validate.Optional(validate.IsInt64),
+	"security.secureboot": validate.Optional(validate.IsBool),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
