@@ -160,10 +160,10 @@ func TestColumns(t *testing.T) {
 	keys := make([]string, 0, len(shared.KnownInstanceConfigKeys))
 	for k := range shared.KnownInstanceConfigKeys {
 		keys = append(keys, k)
-		//Test compatibility with 'config:' prefix
+		// Test compatibility with 'config:' prefix.
 		keys = append(keys, "config:"+k)
 	}
-	//Test with 'devices:'
+	// Test with 'devices:'.
 	keys = append(keys, "devices:eth0.parent.rand")
 	keys = append(keys, "devices:root.path")
 
