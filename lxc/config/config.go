@@ -81,8 +81,8 @@ func (c *Config) SaveCookies() {
 func NewConfig(configDir string, defaults bool) *Config {
 	config := &Config{ConfigDir: configDir}
 	if defaults {
-		config.Remotes = DefaultRemotes
-		config.DefaultRemote = "local"
+		config.Remotes = DefaultConfig.Remotes
+		config.DefaultRemote = DefaultConfig.DefaultRemote
 	}
 
 	return config
