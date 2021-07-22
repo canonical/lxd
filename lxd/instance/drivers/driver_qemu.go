@@ -219,8 +219,8 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 		return nil, errors.Wrap(err, "Failed to expand config")
 	}
 
-	// Validate expanded config.
-	err = instance.ValidConfig(s.OS, d.expandedConfig, false, true)
+	// Validate expanded config (allows mixed instance types for profiles).
+	err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid config")
 	}
@@ -3814,7 +3814,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if userRequested {
 		// Validate the new config.
-		err := instance.ValidConfig(d.state.OS, args.Config, false, false)
+		err := instance.ValidConfig(d.state.OS, args.Config, false, d.dbType)
 		if err != nil {
 			return errors.Wrap(err, "Invalid config")
 		}
@@ -3970,8 +3970,8 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	})
 
 	if userRequested {
-		// Do some validation of the config diff.
-		err = instance.ValidConfig(d.state.OS, d.expandedConfig, false, true)
+		// Do some validation of the config diff (allows mixed instance types for profiles).
+		err = instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any)
 		if err != nil {
 			return errors.Wrap(err, "Invalid expanded config")
 		}
