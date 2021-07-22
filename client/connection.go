@@ -13,6 +13,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
 )
@@ -184,7 +185,7 @@ func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error) {
-	logger.Debugf("Connecting to a remote simplestreams server")
+	logger.Debug("Connecting to a remote simplestreams server", log.Ctx{"URL": url})
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")
@@ -215,7 +216,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	// Setup the cache
 	if args.CachePath != "" {
 		if !shared.PathExists(args.CachePath) {
-			return nil, fmt.Errorf("Cache directory '%s' doesn't exist", args.CachePath)
+			return nil, fmt.Errorf("Cache directory %q doesn't exist", args.CachePath)
 		}
 
 		hashedURL := fmt.Sprintf("%x", sha256.Sum256([]byte(url)))
