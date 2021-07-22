@@ -156,7 +156,7 @@ int shiftowner(char *basepath, char *path, int uid, int gid)
 	char fdpath[PATH_MAX], realpath[PATH_MAX];
 	struct stat sb;
 
-	fd = open(path, O_PATH | O_NOFOLLOW);
+	fd = open(path, O_PATH | O_NOFOLLOW | O_CLOEXEC);
 	if (fd < 0) {
 		perror("Failed open");
 		return 1;
