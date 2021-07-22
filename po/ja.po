@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-07-22 09:40-0400\n"
-"PO-Revision-Date: 2021-02-02 15:21+0000\n"
+"POT-Creation-Date: 2021-07-22 10:50-0400\n"
+"PO-Revision-Date: 2021-07-19 14:34+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.5-dev\n"
+"X-Generator: Weblate 4.7.2-dev\n"
 
 #: lxc/storage.go:228
 msgid ""
@@ -74,19 +74,16 @@ msgstr ""
 "###   size: \"61203283968\""
 
 #: lxc/config_trust.go:162
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### Note that the fingerprint is shown but cannot be changed"
 msgstr ""
-"### This is a YAML representation of the image properties.\n"
+"### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
-"### Each property is represented by a single line:\n"
-"### An example would be:\n"
-"###  description: My custom image"
+"### Note that the fingerprint is shown but cannot be changed"
 
 #: lxc/config.go:105
 msgid ""
@@ -187,7 +184,6 @@ msgstr ""
 "###     properties: {}"
 
 #: lxc/network_acl.go:441
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the network ACL.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -214,22 +210,30 @@ msgid ""
 "### Note that only the ingress and egress rules, description and "
 "configuration keys can be changed."
 msgstr ""
-"### This is a YAML representation of the network.\n"
+"### This is a YAML representation of the network ACL.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
-"### A network consists of a set of configuration items.\n"
+"### A network ACL consists of a set of rules and configuration items.\n"
 "###\n"
 "### An example would look like:\n"
-"### name: lxdbr0\n"
+"### name: allow-all-inbound\n"
+"### description: test desc\n"
+"### egress: []\n"
+"### ingress:\n"
+"### - action: allow\n"
+"###   state: enabled\n"
+"###   protocol: \"\"\n"
+"###   source: \"\"\n"
+"###   source_port: \"\"\n"
+"###   destination: \"\"\n"
+"###   destination_port: \"\"\n"
+"###   icmp_type: \"\"\n"
+"###   icmp_code: \"\"\n"
 "### config:\n"
-"###   ipv4.address: 10.62.42.1/24\n"
-"###   ipv4.nat: true\n"
-"###   ipv6.address: fd00:56ad:9f7a:9800::1/64\n"
-"###   ipv6.nat: true\n"
-"### managed: true\n"
-"### type: bridge\n"
+"###  user.foo: bah\n"
 "###\n"
-"### Note that only the configuration can be changed."
+"### Note that only the ingress and egress rules, description and "
+"configuration keys can be changed."
 
 #: lxc/network.go:577
 msgid ""
@@ -394,9 +398,8 @@ msgid "- Port %d (%s)"
 msgstr "- ポート %d (%s)"
 
 #: lxc/action.go:206
-#, fuzzy
 msgid "--console can't be used while forcing instance shutdown"
-msgstr "--console と --all は同時に指定できません"
+msgstr "インスタンスの強制シャットダウンの際は --console は使えません"
 
 #: lxc/action.go:351
 msgid "--console can't be used with --all"
@@ -505,7 +508,7 @@ msgstr "拡張した設定を表示する"
 
 #: lxc/warning.go:259 lxc/warning.go:260
 msgid "Acknowledge warning"
-msgstr ""
+msgstr "警告を確認します"
 
 #: lxc/query.go:42
 msgid "Action (defaults to GET)"
@@ -551,9 +554,8 @@ msgid "Add profiles to instances"
 msgstr "インスタンスにプロファイルを追加します"
 
 #: lxc/network_acl.go:676 lxc/network_acl.go:677
-#, fuzzy
 msgid "Add rules to an ACL"
-msgstr "インスタンスにプロファイルを追加します"
+msgstr "ACLにルールを追加します"
 
 #: lxc/info.go:197
 #, c-format
@@ -584,9 +586,8 @@ msgid "Aliases:"
 msgstr "エイリアス:"
 
 #: lxc/config_trust.go:82
-#, fuzzy
 msgid "Alternative certificate name"
-msgstr "サーバの証明書が変更されていました"
+msgstr "別の証明署名"
 
 #: lxc/image.go:906 lxc/info.go:468
 #, c-format
@@ -735,13 +736,12 @@ msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
 #: lxc/storage_volume.go:1281
-#, fuzzy
 msgid "CONTENT-TYPE"
-msgstr "CONTENT TYPE"
+msgstr "CONTENT-TYPE"
 
 #: lxc/warning.go:208
 msgid "COUNT"
-msgstr ""
+msgstr "COUNT"
 
 #: lxc/info.go:349
 #, c-format
@@ -861,7 +861,7 @@ msgstr "クライアントバージョン: %s\n"
 #: lxc/cluster.go:811
 #, c-format
 msgid "Cluster join token for %s:%s deleted"
-msgstr ""
+msgstr "%s:%s のクラスターに join するためのトークンが削除されました"
 
 #: lxc/config.go:98 lxc/config.go:367 lxc/config.go:470 lxc/config.go:617
 #: lxc/config.go:736 lxc/copy.go:52 lxc/info.go:46 lxc/init.go:54
@@ -1022,29 +1022,29 @@ msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
 #: lxc/cluster.go:875
-#, fuzzy, c-format
+#, c-format
 msgid "Could not find certificate file path: %s"
-msgstr "パス %s をサニタイズできません"
+msgstr "証明書のファイルパスが見つかりません: %s"
 
 #: lxc/cluster.go:879
-#, fuzzy, c-format
+#, c-format
 msgid "Could not find certificate key file path: %s"
-msgstr "パス %s をサニタイズできません"
+msgstr "証明書の鍵のパスが見つかりません: %s"
 
 #: lxc/cluster.go:884
-#, fuzzy, c-format
+#, c-format
 msgid "Could not read certificate file: %s with error: %v"
-msgstr "パス %s をサニタイズできません"
+msgstr "証明書ファイル %s をエラーで読み込めません: %v"
 
 #: lxc/cluster.go:889
-#, fuzzy, c-format
+#, c-format
 msgid "Could not read certificate key file: %s with error: %v"
-msgstr "パス %s をサニタイズできません"
+msgstr "秘密鍵ファイル %s をエラーで読み込めません: %v"
 
 #: lxc/cluster.go:906
 #, c-format
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
-msgstr ""
+msgstr "リモート '%s' に対する新しいリモート証明書がエラーで書き込めません: %v"
 
 #: lxc/init.go:57
 msgid "Create a virtual machine"
@@ -1095,9 +1095,8 @@ msgid "Create new instance file templates"
 msgstr "新たにインスタンスのファイルテンプレートを作成します"
 
 #: lxc/network_acl.go:262 lxc/network_acl.go:263
-#, fuzzy
 msgid "Create new network ACLs"
-msgstr "新たにネットワークを作成します"
+msgstr "新たにネットワーク ACL を作成します"
 
 #: lxc/network.go:273 lxc/network.go:274
 msgid "Create new networks"
@@ -1170,9 +1169,8 @@ msgid "Delete a background operation (will attempt to cancel)"
 msgstr "バックグラウンドの操作を削除します（キャンセルを試みます）"
 
 #: lxc/warning.go:358
-#, fuzzy
 msgid "Delete all warnings"
-msgstr "イメージを削除します"
+msgstr "警告をすべて削除します"
 
 #: lxc/file.go:107 lxc/file.go:108
 msgid "Delete files in instances"
@@ -1195,9 +1193,8 @@ msgid "Delete instances and snapshots"
 msgstr "インスタンスとスナップショットを削除します"
 
 #: lxc/network_acl.go:612 lxc/network_acl.go:613
-#, fuzzy
 msgid "Delete network ACLs"
-msgstr "ネットワークを削除します"
+msgstr "ネットワーク ACL を削除します"
 
 #: lxc/network.go:347 lxc/network.go:348
 msgid "Delete networks"
@@ -1220,9 +1217,8 @@ msgid "Delete storage volumes"
 msgstr "ストレージボリュームを削除します"
 
 #: lxc/warning.go:354 lxc/warning.go:355
-#, fuzzy
 msgid "Delete warning"
-msgstr "イメージを削除します"
+msgstr "警告を削除します"
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147
@@ -1421,9 +1417,8 @@ msgid "Edit instance or server configurations as YAML"
 msgstr "インスタンスもしくはサーバの設定をYAMLファイルで編集します"
 
 #: lxc/network_acl.go:432 lxc/network_acl.go:433
-#, fuzzy
 msgid "Edit network ACL configurations as YAML"
-msgstr "ネットワーク設定をYAMLで編集します"
+msgstr "ネットワーク ACL をYAMLで編集します"
 
 #: lxc/network.go:567 lxc/network.go:568
 msgid "Edit network configurations as YAML"
@@ -1446,9 +1441,8 @@ msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
 
 #: lxc/config_trust.go:152 lxc/config_trust.go:153
-#, fuzzy
 msgid "Edit trust configurations as YAML"
-msgstr "プロジェクト設定をYAMLで編集します"
+msgstr "信頼済みクライアント設定をYAMLで編集します"
 
 #: lxc/image.go:1031 lxc/list.go:533 lxc/storage_volume.go:1302
 #: lxc/warning.go:234
@@ -1598,7 +1592,7 @@ msgstr "FINGERPRINT"
 
 #: lxc/warning.go:209
 msgid "FIRST SEEN"
-msgstr ""
+msgstr "FIRST SEEN"
 
 #: lxc/move.go:262 lxc/move.go:335
 msgid "Failed to connect to cluster member"
@@ -1730,7 +1724,7 @@ msgstr "クロック数: %vMhz (最小: %vMhz, 最大: %vMhz)"
 
 #: lxc/remote.go:595
 msgid "GLOBAL"
-msgstr ""
+msgstr "GLOBAL"
 
 #: lxc/info.go:390
 msgid "GPU:"
@@ -1750,7 +1744,7 @@ msgstr "クライアント証明書を生成します。1分ぐらいかかり�
 
 #: lxc/project.go:746 lxc/project.go:747
 msgid "Get a summary of resource allocations"
-msgstr ""
+msgstr "リソース割当の状況を表示します"
 
 #: lxc/image.go:1415 lxc/image.go:1416
 msgid "Get image properties"
@@ -1769,9 +1763,8 @@ msgid "Get values for instance or server configuration keys"
 msgstr "インスタンスもしくはサーバの設定値を取得します"
 
 #: lxc/network_acl.go:213 lxc/network_acl.go:214
-#, fuzzy
 msgid "Get values for network ACL configuration keys"
-msgstr "ネットワークの設定値を取得します"
+msgstr "ネットワーク ACL の設定値を取得します"
 
 #: lxc/network.go:690 lxc/network.go:691
 msgid "Get values for network configuration keys"
@@ -1873,7 +1866,7 @@ msgstr "イメージのコピーが成功しました!"
 
 #: lxc/publish.go:42
 msgid "Image expiration date (format: rfc3339)"
-msgstr ""
+msgstr "イメージの失効日（フォーマット: rfc3339）"
 
 #: lxc/image.go:608
 msgid "Image exported successfully!"
@@ -2063,9 +2056,8 @@ msgid "Keep the image up to date after initial copy"
 msgstr "最初にコピーした後も常にイメージを最新の状態に保つ"
 
 #: lxc/warning.go:210
-#, fuzzy
 msgid "LAST SEEN"
-msgstr "LAST USED AT"
+msgstr "LAST SEEN"
 
 #: lxc/list.go:493
 msgid "LAST USED AT"
@@ -2073,7 +2065,7 @@ msgstr "LAST USED AT"
 
 #: lxc/project.go:807
 msgid "LIMIT"
-msgstr ""
+msgstr "LIMIT"
 
 #: lxc/list.go:517 lxc/network.go:976 lxc/operation.go:168
 #: lxc/storage_volume.go:1287 lxc/warning.go:219
@@ -2122,28 +2114,24 @@ msgid "List aliases"
 msgstr "エイリアスを一覧表示します"
 
 #: lxc/cluster.go:654 lxc/cluster.go:655
-#, fuzzy
 msgid "List all active cluster member join tokens"
-msgstr "クラスタのメンバをすべて一覧表示します"
+msgstr "有効なクラスター加入トークンをすべて一覧表示します"
 
 #: lxc/cluster.go:92 lxc/cluster.go:93
 msgid "List all the cluster members"
 msgstr "クラスタのメンバをすべて一覧表示します"
 
 #: lxc/warning.go:95
-#, fuzzy
 msgid "List all warnings"
-msgstr "エイリアスを一覧表示します"
+msgstr "警告を一覧表示します"
 
 #: lxc/network_acl.go:91
-#, fuzzy
 msgid "List available network ACL"
-msgstr "利用可能なネットワークを一覧表示します"
+msgstr "利用可能なネットワーク ACL を一覧表示します"
 
 #: lxc/network_acl.go:90
-#, fuzzy
 msgid "List available network ACLS"
-msgstr "利用可能なネットワークを一覧表示します"
+msgstr "利用可能なネットワーク ACL を一覧表示します"
 
 #: lxc/network.go:828 lxc/network.go:829
 msgid "List available networks"
@@ -2240,7 +2228,7 @@ msgid "List instances"
 msgstr "インスタンスを一覧表示します"
 
 #: lxc/list.go:48
-#, fuzzy, c-format
+#, c-format
 msgid ""
 "List instances\n"
 "\n"
@@ -2329,25 +2317,36 @@ msgstr ""
 "単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるイン"
 "スタンスが一覧表示されます。\n"
 "インスタンス名の正規表現 (例: .*web.*01$)。\n"
-"設定項目のキーと値。キーの名前空間は一意に識別できる場合は短縮することができ"
-"ます。\n"
+"設定項目を参照するキーと値のペア。これらの場合、名前空間は最短の一意な識別子"
+"に短縮できます。\n"
+"短縮形のキーを使ったキーと値のペア。複数の値は ',' で区切らなければなりませ"
+"ん。使用できる表現は:\n"
+"  - type={instance type}\n"
+"  - status={instance current lifecycle status}\n"
+"  - architecture={instance architecture}\n"
+"  - location={location name}\n"
+"  - ipv4={ip or CIDR}\n"
+"  - ipv6={ip or CIDR}\n"
 "\n"
 "例:\n"
 "  - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定され"
-"ているインスタンスをすべて一覧表示します。\n"
-"  - \"u.blah=abc\" は上記と同じ意味になります。\n"
-"  - \"security.privileged=true\" は特権インスタンスをすべて一覧表示します。\n"
-"  - \"s.privileged=true\" は上記と同じ意味になります。\n"
+"ているインスタンスをすべて一覧表示します\n"
+"  - \"u.blah=abc\" は上記と同じ意味になります\n"
+"  - \"security.privileged=true\" は特権インスタンスをすべて一覧表示します\n"
+"  - \"s.privileged=true\" は上記と同じ意味になります\n"
+"  - \"type=container\" コンテナインスタンスをすべて表示します\n"
+"  - \"type=container status=running\" 実行中のコンテナインスタンスをすべて表"
+"示します\n"
 "\n"
 "設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:."
 "*)。\n"
 "\n"
-"複数のフィルタを指定した場合は、指定したフィルタが順に追加され、すべてのフィ"
-"ルタを満たすインスタンスが選択されます。\n"
+"複数のフィルタを指定した場合は、指定したフィルタが順に追加され、\n"
+"すべてのフィルタを満たすインスタンスが選択されます。\n"
 "\n"
 "== カラム ==\n"
 "-c オプションには、表形式もしくは csv 形式で表示する際にどのインスタンスの\n"
-"属性を表示するかを指定するコンマ区切りのリストを指定します。\n"
+"属性を表示するかを指定するコンマ区切りの引数のリストを指定します。\n"
 "\n"
 "カラムの指定は、定義済みの短縮形 (以下を参照) もしくは (拡張された)\n"
 "設定キーのどちらかを指定します。\n"
@@ -2363,7 +2362,8 @@ msgstr ""
 "  d - 説明\n"
 "  D - ディスク使用量\n"
 "  l - 最終使用日\n"
-"  m - メモリ使用量 (%)\n"
+"  m - メモリ使用量\n"
+"  M - メモリ使用量 (%)\n"
 "  n - 名前\n"
 "  N - プロセス数\n"
 "  p - インスタンスの init プロセスの pid\n"
@@ -2371,22 +2371,23 @@ msgstr ""
 "  s - 状態\n"
 "  S - スナップショットの数\n"
 "  t - タイプ (persistent か ephemeral)\n"
+"  u - CPU 消費量 (秒)\n"
 "  L - インスタンスのロケーション (クラスタメンバー名)\n"
 "  f - ベースとなるイメージのフィンガープリント (短い形式)\n"
 "  F - ベースとなるイメージのフィンガープリント (長い形式)\n"
 "\n"
 "\"[config:|devices:]key[:name][:maxWidth]\" のように指定するカスタムカラム:\n"
-"     KEY: 表示する (拡張された) 設定キー。[config:|devices:] が省略された場合"
-"は config が指定されたものとします\n"
-"    NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデ"
+"  KEY: 表示する (拡張された) 設定キー。[config:|devices:] が省略された場合は "
+"config が指定されたものとします\n"
+"  NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデ"
 "フォルトはキー。\n"
 "\n"
-"MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
-"          デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
+"  MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
+"  デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
 
 #: lxc/config_trust.go:81
 msgid "List of projects to restrict the certificate to"
-msgstr ""
+msgstr "証明書の使用を制限するプロジェクトのリスト"
 
 #: lxc/profile.go:579 lxc/profile.go:580
 msgid "List profiles"
@@ -2401,7 +2402,6 @@ msgid "List storage volumes"
 msgstr "ストレージボリュームを一覧表示します"
 
 #: lxc/storage_volume.go:1186
-#, fuzzy
 msgid ""
 "List storage volumes\n"
 "\n"
@@ -2421,11 +2421,7 @@ msgid ""
 "    L - Location of the instance (e.g. its cluster member)\n"
 "    U - Current disk usage"
 msgstr ""
-"イメージをリスト表示します\n"
-"\n"
-"プロパティでフィルタを行う場合はフィルタは <key>=<value> の形になります。\n"
-"あるいはイメージのハッシュ値やイメージのエイリアスの一部を指定することもでき"
-"ます。\n"
+"ストレージボリュームをリスト表示します\n"
 "\n"
 "-c オプションは、表もしくは csv 形式で表示する際の、出力するイメージの\n"
 "属性を指定する引数のリスト (カンマ区切りでも OK) を指定します。\n"
@@ -2434,17 +2430,13 @@ msgstr ""
 "\n"
 "カラムの指定文字:\n"
 "\n"
-"    l - もっとも短いイメージのエイリアス (他の指定されているエイリアスの数も"
-"表示します)\n"
-"    L - イメージのエイリアスすべて (改行区切り)\n"
-"    f - フィンガープリント (短い形式)\n"
-"    F - フィンガープリント (長い形式)\n"
-"    p - イメージがパブリックかどうか\n"
+"    t - ボリュームのタイプ (custom, image, container or virtual-machine)\n"
+"    n - 名前\n"
 "    d - 説明\n"
-"    a - アーキテクチャ\n"
-"    s - サイズ\n"
-"    u - アップロード日\n"
-"    t - タイプ"
+"    c - 中身のタイプ (filesystem or block)\n"
+"    u - （使用中の）リファレンス数\n"
+"    L - インスタンスの場所 (例: its cluster member)\n"
+"    U - 現在のディスク使用量"
 
 #: lxc/remote.go:525 lxc/remote.go:526
 msgid "List the available remotes"
@@ -2455,12 +2447,10 @@ msgid "List trusted clients"
 msgstr "信頼済みクライアントを一覧表示します"
 
 #: lxc/warning.go:71
-#, fuzzy
 msgid "List warnings"
-msgstr "イメージを一覧表示します"
+msgstr "警告を一覧表示します"
 
 #: lxc/warning.go:72
-#, fuzzy
 msgid ""
 "List warnings\n"
 "\n"
@@ -2482,29 +2472,23 @@ msgid ""
 "    u - UUID\n"
 "    t - Type"
 msgstr ""
-"イメージをリスト表示します\n"
+"警告をリスト表示します\n"
 "\n"
-"プロパティでフィルタを行う場合はフィルタは <key>=<value> の形になります。\n"
-"あるいはイメージのハッシュ値やイメージのエイリアスの一部を指定することもでき"
-"ます。\n"
-"\n"
-"-c オプションは、表もしくは csv 形式で表示する際の、出力するイメージの\n"
+"-c オプションは、表もしくは csv 形式で表示する際の、出力する警告の\n"
 "属性を指定する引数のリスト (カンマ区切りでも OK) を指定します。\n"
 "\n"
-"デフォルトのカラムレイアウトは lfpdasu です。\n"
+"デフォルトのカラムレイアウトは utSscpLl です。\n"
 "\n"
 "カラムの指定文字:\n"
 "\n"
-"    l - もっとも短いイメージのエイリアス (他の指定されているエイリアスの数も"
-"表示します)\n"
-"    L - イメージのエイリアスすべて (改行区切り)\n"
-"    f - フィンガープリント (短い形式)\n"
-"    F - フィンガープリント (長い形式)\n"
-"    p - イメージがパブリックかどうか\n"
-"    d - 説明\n"
-"    a - アーキテクチャ\n"
-"    s - サイズ\n"
-"    u - アップロード日\n"
+"    c - 数\n"
+"    l - 最後の確認日時\n"
+"    L - 場所\n"
+"    f - 最初の確認日時\n"
+"    p - プロジェクト\n"
+"    s - 重大度 (Severity)\n"
+"    S - 状態\n"
+"    u - UUID\n"
 "    t - タイプ"
 
 #: lxc/operation.go:23 lxc/operation.go:24
@@ -2637,14 +2621,12 @@ msgid "Manage instance metadata files"
 msgstr "インスタンスのメタデータファイルを管理します"
 
 #: lxc/network_acl.go:661 lxc/network_acl.go:662
-#, fuzzy
 msgid "Manage network ACL rules"
-msgstr "ネットワーク名を変更します"
+msgstr "ネットワーク ACL ルールを管理します"
 
 #: lxc/network_acl.go:29 lxc/network_acl.go:30
-#, fuzzy
 msgid "Manage network ACLs"
-msgstr "ネットワーク名を変更します"
+msgstr "ネットワーク ACL を管理します"
 
 #: lxc/profile.go:28 lxc/profile.go:29
 msgid "Manage profiles"
@@ -2683,9 +2665,8 @@ msgid "Manage trusted clients"
 msgstr "信頼済みのクライアントを管理します"
 
 #: lxc/warning.go:29 lxc/warning.go:30
-#, fuzzy
 msgid "Manage warnings"
-msgstr "イメージを管理します"
+msgstr "警告を管理します"
 
 #: lxc/info.go:137 lxc/info.go:243
 #, c-format
@@ -2697,9 +2678,9 @@ msgid "Mdev profiles:"
 msgstr "Mdevプロファイル:"
 
 #: lxc/cluster.go:636
-#, fuzzy, c-format
+#, c-format
 msgid "Member %s join token:"
-msgstr "メンバ名 %s を %s に変更しました"
+msgstr "メンバ %s の join トークン:"
 
 #: lxc/cluster.go:341
 #, c-format
@@ -2740,9 +2721,8 @@ msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
 
 #: lxc/config_trust.go:185 lxc/config_trust.go:413
-#, fuzzy
 msgid "Missing certificate fingerprint"
-msgstr "証明書のフィンガープリント: %s"
+msgstr "証明書のフィンガープリントがありません"
 
 #: lxc/cluster.go:475 lxc/cluster.go:616
 msgid "Missing cluster member name"
@@ -2765,9 +2745,8 @@ msgstr "名前を指定する必要があります"
 #: lxc/network_acl.go:183 lxc/network_acl.go:236 lxc/network_acl.go:286
 #: lxc/network_acl.go:373 lxc/network_acl.go:483 lxc/network_acl.go:586
 #: lxc/network_acl.go:635 lxc/network_acl.go:755 lxc/network_acl.go:822
-#, fuzzy
 msgid "Missing network ACL name"
-msgstr "ネットワーク名を指定する必要があります"
+msgstr "ネットワーク ACL 名を指定する必要があります"
 
 #: lxc/network.go:140 lxc/network.go:225 lxc/network.go:372 lxc/network.go:422
 #: lxc/network.go:507 lxc/network.go:612 lxc/network.go:717 lxc/network.go:775
@@ -2858,9 +2837,8 @@ msgid "Move the instance without its snapshots"
 msgstr "インスタンスを移動します。スナップショットは移動しません"
 
 #: lxc/storage_volume.go:1375
-#, fuzzy
 msgid "Move to a project different from the source"
-msgstr "コピー／移動元とは異なるプロジェクトにコピーします"
+msgstr "コピー／移動元とは異なるプロジェクトに移動します"
 
 #: lxc/storage_volume.go:395
 #, c-format
@@ -2953,19 +2931,19 @@ msgid "Network %s renamed to %s"
 msgstr "ネットワーク名 %s を %s に変更しました"
 
 #: lxc/network_acl.go:330
-#, fuzzy, c-format
+#, c-format
 msgid "Network ACL %s created"
-msgstr "ネットワーク %s を作成しました"
+msgstr "ネットワーク ACL %s を作成しました"
 
 #: lxc/network_acl.go:645
-#, fuzzy, c-format
+#, c-format
 msgid "Network ACL %s deleted"
-msgstr "ネットワーク %s を削除しました"
+msgstr "ネットワーク ACL %s を削除しました"
 
 #: lxc/network_acl.go:596
-#, fuzzy, c-format
+#, c-format
 msgid "Network ACL %s renamed to %s"
-msgstr "ネットワーク名 %s を %s に変更しました"
+msgstr "ネットワーク ACL 名 %s を %s に変更しました"
 
 #: lxc/init.go:51
 msgid "Network name"
@@ -2994,7 +2972,7 @@ msgstr "指定するデバイスに適用する新しいキー/値"
 #: lxc/cluster.go:818
 #, c-format
 msgid "No cluster join token for member %s on remote: %s"
-msgstr ""
+msgstr "メンバー %s に対するクラスター加入トークンがリモート %s にありません"
 
 #: lxc/network.go:451 lxc/network.go:536
 msgid "No device found for this network"
@@ -3043,9 +3021,8 @@ msgid "Only https:// is supported for remote image import"
 msgstr "リモートイメージのインポートは https:// のみをサポートします"
 
 #: lxc/storage_volume.go:1142
-#, fuzzy
 msgid "Only instance or custom volumes are supported"
-msgstr "\"カスタム\" のボリュームのみがエクスポートできます"
+msgstr "インスタンスもしくはカスタムボリュームのみをサポートしています"
 
 #: lxc/network.go:638 lxc/network.go:1087
 msgid "Only managed networks can be modified"
@@ -3083,7 +3060,7 @@ msgstr "PROFILES"
 
 #: lxc/warning.go:211
 msgid "PROJECT"
-msgstr ""
+msgstr "PROJECT"
 
 #: lxc/remote.go:591
 msgid "PROTOCOL"
@@ -3125,7 +3102,7 @@ msgstr "Pid: %d"
 
 #: lxc/remote.go:330
 msgid "Please type 'y', 'n' or the fingerprint:"
-msgstr ""
+msgstr "'y', 'n', フィンガープリントのどれかを入力してください:"
 
 #: lxc/info.go:209
 #, c-format
@@ -3141,9 +3118,10 @@ msgstr "ポート:"
 #: lxc/config_trust.go:232 lxc/image.go:435 lxc/network.go:663
 #: lxc/network_acl.go:532 lxc/profile.go:502 lxc/project.go:313
 #: lxc/storage.go:307 lxc/storage_volume.go:951 lxc/storage_volume.go:981
-#, fuzzy
 msgid "Press enter to open the editor again or ctrl+c to abort change"
-msgstr "再度エディタを開くためには Enter キーを押します"
+msgstr ""
+"再度エディタを開くためには Enter キーを、変更を取り消すには ctrl+c を入力しま"
+"す"
 
 #: lxc/monitor.go:48
 msgid "Pretty rendering (short for --format=pretty)"
@@ -3304,9 +3282,8 @@ msgid "Query virtual machine images"
 msgstr "仮想マシンイメージを対象にします"
 
 #: lxc/project.go:806
-#, fuzzy
 msgid "RESOURCE"
-msgstr "SOURCE"
+msgstr "RESOURCE"
 
 #: lxc/info.go:277 lxc/info.go:286
 #, c-format
@@ -3348,9 +3325,9 @@ msgid "Remote %s exists as <%s>"
 msgstr "リモート %s は <%s> として存在します"
 
 #: lxc/remote.go:710
-#, fuzzy, c-format
+#, c-format
 msgid "Remote %s is global and cannot be removed"
-msgstr "リモート %s は static ですので変更できません"
+msgstr "リモート %s は global ですので削除できません"
 
 #: lxc/remote.go:636 lxc/remote.go:706 lxc/remote.go:798
 #, c-format
@@ -3394,7 +3371,7 @@ msgstr "エイリアスを削除します"
 
 #: lxc/network_acl.go:799
 msgid "Remove all rules that match"
-msgstr ""
+msgstr "マッチするルールをすべて削除します"
 
 #: lxc/config_device.go:431 lxc/config_device.go:432
 msgid "Remove instance devices"
@@ -3409,9 +3386,8 @@ msgid "Remove remotes"
 msgstr "リモートサーバを削除します"
 
 #: lxc/network_acl.go:797 lxc/network_acl.go:798
-#, fuzzy
 msgid "Remove rules from an ACL"
-msgstr "インスタンスからプロファイルを削除します"
+msgstr "ACL からルールを削除します"
 
 #: lxc/config_trust.go:344 lxc/config_trust.go:345
 msgid "Remove trusted clients"
@@ -3431,9 +3407,8 @@ msgid "Rename instances and snapshots"
 msgstr "インスタンスまたはインスタンスのスナップショットの名前を変更します"
 
 #: lxc/network_acl.go:563 lxc/network_acl.go:564
-#, fuzzy
 msgid "Rename network ACLs"
-msgstr "ネットワーク名を変更します"
+msgstr "ネットワーク ACL 名を変更します"
 
 #: lxc/network.go:992 lxc/network.go:993
 msgid "Rename networks"
@@ -3517,7 +3492,7 @@ msgstr "スナップショットからストレージボリュームをリスト
 
 #: lxc/config_trust.go:80
 msgid "Restrict the certificate to one or more projects"
-msgstr ""
+msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 
 #: lxc/console.go:43
 msgid "Retrieve the instance's console log"
@@ -3539,7 +3514,7 @@ msgstr "すべてのインスタンスに対してコマンドを実行します
 
 #: lxc/warning.go:212
 msgid "SEVERITY"
-msgstr ""
+msgstr "SEVERITY"
 
 #: lxc/image.go:1021
 msgid "SIZE"
@@ -3894,7 +3869,7 @@ msgstr "ストレージプールの情報を表示します"
 
 #: lxc/warning.go:300 lxc/warning.go:301
 msgid "Show warning"
-msgstr ""
+msgstr "警告を表示します"
 
 #: lxc/image.go:905
 #, c-format
@@ -4008,7 +3983,7 @@ msgstr "インスタンスの状態を保存します"
 #: lxc/cluster.go:911
 #, c-format
 msgid "Successfully updated cluster certificates for remote %s"
-msgstr ""
+msgstr "リモート %s に対するクラスター証明書の更新に成功しました"
 
 #: lxc/info.go:201
 #, c-format
@@ -4042,7 +4017,7 @@ msgstr "TARGET"
 
 #: lxc/cluster.go:737
 msgid "TOKEN"
-msgstr ""
+msgstr "TOKEN"
 
 #: lxc/config_trust.go:322 lxc/image.go:1023 lxc/image_alias.go:236
 #: lxc/list.go:502 lxc/network.go:898 lxc/network.go:973 lxc/operation.go:162
@@ -4257,7 +4232,7 @@ msgstr "タイプ: %s (ephemeral)"
 
 #: lxc/project.go:785
 msgid "UNLIMITED"
-msgstr ""
+msgstr "UNLIMITED"
 
 #: lxc/image.go:1022
 msgid "UPLOAD DATE"
@@ -4359,6 +4334,7 @@ msgid ""
 "Update cluster certificate with PEM certificate and key read from input "
 "files."
 msgstr ""
+"入力ファイルから読み込んだ PEM 証明書と鍵でクラスター証明書を更新します。"
 
 #: lxc/image.go:916
 #, c-format
@@ -5296,7 +5272,7 @@ msgstr "no"
 
 #: lxc/remote.go:320
 msgid "ok (y/n/[fingerprint])?"
-msgstr ""
+msgstr "ok (y/n/[fingerprint])?"
 
 #: lxc/config.go:53
 msgid "please use `lxc profile`"
