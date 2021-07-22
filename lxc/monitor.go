@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
@@ -17,9 +18,11 @@ import (
 type cmdMonitor struct {
 	global *cmdGlobal
 
-	flagType     []string
-	flagPretty   bool
-	flagLogLevel string
+	flagType        []string
+	flagPretty      bool
+	flagLogLevel    string
+	flagAllProjects bool
+	flagFormat      string
 }
 
 func (c *cmdMonitor) Command() *cobra.Command {
@@ -42,9 +45,11 @@ lxc monitor --type=lifecycle
 	cmd.Hidden = true
 
 	cmd.RunE = c.Run
-	cmd.Flags().BoolVar(&c.flagPretty, "pretty", false, i18n.G("Pretty rendering"))
+	cmd.Flags().BoolVar(&c.flagPretty, "pretty", false, i18n.G("Pretty rendering (short for --format=pretty)"))
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Show events from all projects"))
 	cmd.Flags().StringArrayVar(&c.flagType, "type", nil, i18n.G("Event type to listen for")+"``")
 	cmd.Flags().StringVar(&c.flagLogLevel, "loglevel", "", i18n.G("Minimum level for log messages")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "yaml", i18n.G("Format (json|pretty|yaml)")+"``")
 
 	return cmd
 }
@@ -61,6 +66,16 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if !shared.StringInSlice(c.flagFormat, []string{"json", "pretty", "yaml"}) {
+		return fmt.Errorf(i18n.G("Invalid format: %s"), c.flagFormat)
+	}
+
+	// Setup format.
+	if c.flagPretty {
+		c.flagFormat = "pretty"
+	}
+
+	// Connect to the event source.
 	if len(args) == 0 {
 		remote, _, err = conf.ParseRemote("")
 		if err != nil {
@@ -76,6 +91,10 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	d, err := conf.GetInstanceServer(remote)
 	if err != nil {
 		return err
+	}
+
+	if c.flagAllProjects {
+		d = d.UseProject("*")
 	}
 
 	listener, err := d.GetEvents()
@@ -94,7 +113,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	chError := make(chan error, 1)
 
 	handler := func(event api.Event) {
-		if c.flagPretty {
+		if c.flagFormat == "pretty" {
 			format := logging.TerminalFormat()
 			record, err := event.ToLogging()
 			if err != nil {
@@ -138,11 +157,20 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 			return
 		}
 
-		// And now print as YAML
-		render, err := yaml.Marshal(&rawEvent)
-		if err != nil {
-			chError <- err
-			return
+		// And now print the result.
+		var render []byte
+		if c.flagFormat == "yaml" {
+			render, err = yaml.Marshal(&rawEvent)
+			if err != nil {
+				chError <- err
+				return
+			}
+		} else if c.flagFormat == "json" {
+			render, err = json.Marshal(&rawEvent)
+			if err != nil {
+				chError <- err
+				return
+			}
 		}
 
 		fmt.Printf("%s\n\n", render)
