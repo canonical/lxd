@@ -3437,10 +3437,17 @@ func (d *qemu) Stop(stateful bool) error {
 	// Wait for QEMU to exit (can take a while if pending I/O).
 	<-chDisconnect
 
-	// Wait for onStop.
+	// Wait for onStop (which checks for QEMU process to end).
 	err = op.Wait()
-	if err != nil && d.IsRunning() {
-		return err
+	status := d.statusCode()
+	if status != api.Stopped {
+		errPrefix := fmt.Errorf("Failed stopping instance, status is %q", status)
+
+		if err != nil {
+			return errors.Wrap(err, errPrefix.Error())
+		}
+
+		return errPrefix
 	}
 
 	if op.Action() == "stop" {

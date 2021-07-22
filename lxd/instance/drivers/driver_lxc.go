@@ -2715,9 +2715,17 @@ func (d *lxc) Stop(stateful bool) error {
 		return err
 	}
 
+	// Wait for onStop and liblxc to stop.
 	err = op.Wait()
-	if err != nil && d.IsRunning() {
-		return err
+	status := d.statusCode()
+	if status != api.Stopped {
+		errPrefix := fmt.Errorf("Failed stopping instance, status is %q", status)
+
+		if err != nil {
+			return errors.Wrap(err, errPrefix.Error())
+		}
+
+		return errPrefix
 	}
 
 	if op.Action() == "stop" {
