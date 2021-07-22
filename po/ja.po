@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-07-14 23:33-0400\n"
+"POT-Creation-Date: 2021-07-22 23:17-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1144,7 +1144,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153
 #: lxc/image_alias.go:255 lxc/import.go:28 lxc/info.go:34 lxc/init.go:40
 #: lxc/launch.go:25 lxc/list.go:45 lxc/main.go:50 lxc/manpage.go:22
-#: lxc/monitor.go:29 lxc/move.go:36 lxc/network.go:32 lxc/network.go:111
+#: lxc/monitor.go:32 lxc/move.go:36 lxc/network.go:32 lxc/network.go:111
 #: lxc/network.go:196 lxc/network.go:269 lxc/network.go:341 lxc/network.go:391
 #: lxc/network.go:476 lxc/network.go:561 lxc/network.go:684 lxc/network.go:742
 #: lxc/network.go:822 lxc/network.go:907 lxc/network.go:976 lxc/network.go:1026
@@ -1376,7 +1376,7 @@ msgstr "Ephemeral インスタンス"
 msgid "Error updating template file: %s"
 msgstr "テンプレートファイル更新のエラー: %s"
 
-#: lxc/monitor.go:46
+#: lxc/monitor.go:50
 msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
@@ -1561,6 +1561,11 @@ msgstr ""
 #: lxc/operation.go:107 lxc/profile.go:584 lxc/project.go:389 lxc/remote.go:526
 #: lxc/storage.go:518 lxc/storage_volume.go:1100
 msgid "Format (csv|json|table|yaml)"
+msgstr "フォーマット (csv|json|table|yaml)"
+
+#: lxc/monitor.go:52
+#, fuzzy
+msgid "Format (json|pretty|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
 #: lxc/manpage.go:25
@@ -1813,6 +1818,11 @@ msgstr ""
 #: lxc/utils/table.go:56
 #, c-format
 msgid "Invalid format %q"
+msgstr "不正なフォーマット %q"
+
+#: lxc/monitor.go:70
+#, fuzzy, c-format
+msgid "Invalid format: %s"
 msgstr "不正なフォーマット %q"
 
 #: lxc/snapshot.go:72
@@ -2440,7 +2450,7 @@ msgstr "マイグレーション API が失敗しました"
 msgid "Migration operation failure"
 msgstr "マイグレーションが失敗しました"
 
-#: lxc/monitor.go:47
+#: lxc/monitor.go:51
 msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
 
@@ -2513,11 +2523,11 @@ msgstr "モデル: %s"
 msgid "Model: %v"
 msgstr "モデル: %v"
 
-#: lxc/monitor.go:28
+#: lxc/monitor.go:31
 msgid "Monitor a local or remote LXD server"
 msgstr "ローカルもしくはリモートの LXD サーバをモニタリングします"
 
-#: lxc/monitor.go:29
+#: lxc/monitor.go:32
 msgid ""
 "Monitor a local or remote LXD server\n"
 "\n"
@@ -2795,9 +2805,9 @@ msgstr "ポート:"
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr "再度エディタを開くためには Enter キーを押します"
 
-#: lxc/monitor.go:45
-msgid "Pretty rendering"
-msgstr "見やすい形 (pretty) で表示します"
+#: lxc/monitor.go:48
+msgid "Pretty rendering (short for --format=pretty)"
+msgstr ""
 
 #: lxc/main.go:61
 msgid "Print help"
@@ -3389,6 +3399,10 @@ msgstr "クラスタメンバの詳細を表示します"
 #: lxc/operation.go:183 lxc/operation.go:184
 msgid "Show details on a background operation"
 msgstr "バックグラウンド操作の詳細を表示します"
+
+#: lxc/monitor.go:49
+msgid "Show events from all projects"
+msgstr ""
 
 #: lxc/config_device.go:633 lxc/config_device.go:634
 #, fuzzy
@@ -4009,7 +4023,7 @@ msgstr ""
 "attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 
 #: lxc/cluster.go:90 lxc/cluster.go:651 lxc/config_trust.go:115
-#: lxc/monitor.go:27 lxc/network.go:819 lxc/operation.go:102 lxc/profile.go:577
+#: lxc/monitor.go:30 lxc/network.go:819 lxc/operation.go:102 lxc/profile.go:577
 #: lxc/project.go:384 lxc/storage.go:513 lxc/version.go:20
 #, fuzzy
 msgid "[<remote>:]"
@@ -4679,7 +4693,7 @@ msgstr ""
 "lxc list -c ns,user.comment:comment\n"
 "  実行状態とユーザコメントとともにインスタンスを一覧表示します。"
 
-#: lxc/monitor.go:33
+#: lxc/monitor.go:36
 msgid ""
 "lxc monitor --type=logging\n"
 "    Only show log messages.\n"
@@ -4896,6 +4910,9 @@ msgstr "y"
 #: lxc/image.go:1055
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "Pretty rendering"
+#~ msgstr "見やすい形 (pretty) で表示します"
 
 #~ msgid "Press enter to start the editor again"
 #~ msgstr "再度エディタを起動するには Enter キーを押します"
