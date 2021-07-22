@@ -140,7 +140,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 			return fmt.Errorf("Image keys can only be set on instances")
 		}
 
-		err := validConfigKey(sysOS, k, v)
+		err := validConfigKey(sysOS, k, v, instanceType)
 		if err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 	return nil
 }
 
-func validConfigKey(os *sys.OS, key string, value string) error {
+func validConfigKey(os *sys.OS, key string, value string, instanceType instancetype.Type) error {
 	f, err := shared.ConfigKeyChecker(key)
 	if err != nil {
 		return err
