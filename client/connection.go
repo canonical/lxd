@@ -216,7 +216,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 	// Setup the cache
 	if args.CachePath != "" {
 		if !shared.PathExists(args.CachePath) {
-			return nil, fmt.Errorf("Cache directory '%s' doesn't exist", args.CachePath)
+			return nil, fmt.Errorf("Cache directory %q doesn't exist", args.CachePath)
 		}
 
 		hashedURL := fmt.Sprintf("%x", sha256.Sum256([]byte(url)))
