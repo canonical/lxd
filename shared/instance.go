@@ -131,7 +131,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// Caller is responsible for full validation of any raw.* value.
 	"raw.apparmor": validate.IsAny,
 
-	"security.devlxd":        validate.Optional(validate.IsBool),
+	"security.devlxd":            validate.Optional(validate.IsBool),
 	"security.protection.delete": validate.Optional(validate.IsBool),
 
 	"snapshots.schedule":         validate.Optional(validate.IsCron([]string{"@hourly", "@daily", "@midnight", "@weekly", "@monthly", "@annually", "@yearly", "@startup"})),
@@ -191,7 +191,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 		return nil
 	},
-	"limits.cpu.priority": validate.Optional(validate.IsPriority),
+	"limits.cpu.priority":   validate.Optional(validate.IsPriority),
 	"limits.hugepages.64KB": validate.Optional(validate.IsSize),
 	"limits.hugepages.1MB":  validate.Optional(validate.IsSize),
 	"limits.hugepages.2MB":  validate.Optional(validate.IsSize),
@@ -202,7 +202,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 	"limits.memory.swap":          validate.Optional(validate.IsBool),
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
-	"limits.processes": validate.Optional(validate.IsInt64),
+	"limits.processes":            validate.Optional(validate.IsInt64),
 
 	"linux.kernel_modules": validate.IsAny,
 
@@ -216,9 +216,9 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"nvidia.require.driver":      validate.IsAny,
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.idmap":    validate.IsAny,
-	"raw.lxc":      validate.IsAny,
-	"raw.seccomp":  validate.IsAny,
+	"raw.idmap":   validate.IsAny,
+	"raw.lxc":     validate.IsAny,
+	"raw.seccomp": validate.IsAny,
 
 	"security.devlxd.images": validate.Optional(validate.IsBool),
 
@@ -226,9 +226,9 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.idmap.isolated": validate.Optional(validate.IsBool),
 	"security.idmap.size":     validate.Optional(validate.IsUint32),
 
-	"security.nesting":       validate.Optional(validate.IsBool),
-	"security.privileged":    validate.Optional(validate.IsBool),
-	"security.protection.shift":  validate.Optional(validate.IsBool),
+	"security.nesting":          validate.Optional(validate.IsBool),
+	"security.privileged":       validate.Optional(validate.IsBool),
+	"security.protection.shift": validate.Optional(validate.IsBool),
 
 	"security.syscalls.allow":                   validate.IsAny,
 	"security.syscalls.blacklist_default":       validate.Optional(validate.IsBool),
@@ -250,12 +250,12 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 
 // InstanceConfigKeysVM is a map of config key to validator. (keys applying to VM only)
 var InstanceConfigKeysVM = map[string]func(value string) error{
-	"limits.memory.hugepages":     validate.Optional(validate.IsBool),
+	"limits.memory.hugepages": validate.Optional(validate.IsBool),
 
-	"migration.stateful":                      validate.Optional(validate.IsBool),
+	"migration.stateful": validate.Optional(validate.IsBool),
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.qemu":     validate.IsAny,
+	"raw.qemu": validate.IsAny,
 
 	"security.secureboot": validate.Optional(validate.IsBool),
 }
