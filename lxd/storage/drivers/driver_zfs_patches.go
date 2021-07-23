@@ -42,7 +42,7 @@ func (d *zfs) patchStorageZFSMount() error {
 		}
 
 		// Skip block devices.
-		if strings.HasSuffix(dataset, ".block") {
+		if strings.HasSuffix(dataset, zfsBlockVolSuffix) {
 			continue
 		}
 
