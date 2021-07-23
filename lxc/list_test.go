@@ -157,13 +157,29 @@ const shorthand = "46abcdDfFlmMnNpPsStuL"
 const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 func TestColumns(t *testing.T) {
-	keys := make([]string, 0, len(shared.KnownInstanceConfigKeys))
-	for k := range shared.KnownInstanceConfigKeys {
+	keys := make([]string, 0, len(shared.InstanceConfigKeysAny)+len(shared.InstanceConfigKeysContainer)+len(shared.InstanceConfigKeysVM))
+	for k := range shared.InstanceConfigKeysAny {
 		keys = append(keys, k)
-		//Test compatibility with 'config:' prefix
+
+		// Test compatibility with 'config:' prefix.
 		keys = append(keys, "config:"+k)
 	}
-	//Test with 'devices:'
+
+	for k := range shared.InstanceConfigKeysContainer {
+		keys = append(keys, k)
+
+		// Test compatibility with 'config:' prefix.
+		keys = append(keys, "config:"+k)
+	}
+
+	for k := range shared.InstanceConfigKeysVM {
+		keys = append(keys, k)
+
+		// Test compatibility with 'config:' prefix.
+		keys = append(keys, "config:"+k)
+	}
+
+	// Test with 'devices:'.
 	keys = append(keys, "devices:eth0.parent.rand")
 	keys = append(keys, "devices:root.path")
 

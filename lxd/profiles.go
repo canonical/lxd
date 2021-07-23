@@ -230,7 +230,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid profile name %q", req.Name))
 	}
 
-	err = instance.ValidConfig(d.os, req.Config, true, false)
+	err = instance.ValidConfig(d.os, req.Config, false, instancetype.Any)
 	if err != nil {
 		return response.BadRequest(err)
 	}

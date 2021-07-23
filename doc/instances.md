@@ -72,7 +72,7 @@ raw.idmap                                   | blob      | -                 | no
 raw.lxc                                     | blob      | -                 | no            | container                 | Raw LXC configuration to be appended to the generated one
 raw.qemu                                    | blob      | -                 | no            | virtual-machine           | Raw Qemu configuration to be appended to the generated command line
 raw.seccomp                                 | blob      | -                 | no            | container                 | Raw Seccomp configuration
-security.devlxd                             | boolean   | true              | no            | container                 | Controls the presence of /dev/lxd in the instance
+security.devlxd                             | boolean   | true              | no            | -                         | Controls the presence of /dev/lxd in the instance
 security.devlxd.images                      | boolean   | false             | no            | container                 | Controls the availability of the /1.0/images API over devlxd
 security.idmap.base                         | integer   | -                 | no            | unprivileged container    | The base host ID to use for the allocation (overrides auto-detection)
 security.idmap.isolated                     | boolean   | false             | no            | unprivileged container    | Use an idmap for this instance that is unique among instances with isolated set

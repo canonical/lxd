@@ -24,7 +24,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 	}
 
 	// Quick checks.
-	err = instance.ValidConfig(d.os, req.Config, true, false)
+	err = instance.ValidConfig(d.os, req.Config, false, instancetype.Any)
 	if err != nil {
 		return err
 	}
