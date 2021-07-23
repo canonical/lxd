@@ -989,7 +989,29 @@ func (d *qemu) Start(stateful bool) error {
 
 	revert.Add(func() { d.unmount() })
 
-	// Update the backup.yaml file.
+	volatileSet := make(map[string]string)
+
+	// Update vsock ID in volatile if needed (for recovery).
+	oldVsockID := d.localConfig["volatile.vsock_id"]
+	newVsockID := strconv.Itoa(d.vsockID())
+	if oldVsockID != newVsockID {
+		volatileSet["volatile.vsock_id"] = newVsockID
+	}
+
+	// Generate UUID if not present.
+	instUUID := d.localConfig["volatile.uuid"]
+	if instUUID == "" {
+		instUUID = uuid.New()
+		volatileSet["volatile.uuid"] = instUUID
+	}
+
+	// Apply any volatile changes that need to be made.
+	err = d.VolatileSet(volatileSet)
+	if err != nil {
+		return errors.Wrapf(err, "Failed setting volatile keys")
+	}
+
+	// Update the backup.yaml file (must come after volatile keys have been updated).
 	err = d.UpdateBackupFile()
 	if err != nil {
 		return err
@@ -1019,28 +1041,6 @@ func (d *qemu) Start(stateful bool) error {
 	if err != nil {
 		op.Done(err)
 		return err
-	}
-
-	volatileSet := make(map[string]string)
-
-	// Update vsock ID in volatile if needed (for recovery).
-	oldVsockID := d.localConfig["volatile.vsock_id"]
-	newVsockID := strconv.Itoa(d.vsockID())
-	if oldVsockID != newVsockID {
-		volatileSet["volatile.vsock_id"] = newVsockID
-	}
-
-	// Generate UUID if not present.
-	instUUID := d.localConfig["volatile.uuid"]
-	if instUUID == "" {
-		instUUID = uuid.New()
-		volatileSet["volatile.uuid"] = instUUID
-	}
-
-	// Apply any volatile changes that need to be made.
-	err = d.VolatileSet(volatileSet)
-	if err != nil {
-		return errors.Wrapf(err, "Failed setting volatile keys")
 	}
 
 	// Copy OVMF settings firmware to nvram file.
