@@ -22,7 +22,18 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// cephBlockVolSuffix suffix used for block content type volumes.
+const cephBlockVolSuffix = ".block"
+
 const cephVolumeTypeZombieImage = VolumeType("zombie_image")
+
+// cephVolTypePrefixes maps volume type to storage volume name prefix.
+var cephVolTypePrefixes = map[VolumeType]string{
+	VolumeTypeContainer: db.StoragePoolVolumeTypeNameContainer,
+	VolumeTypeVM:        db.StoragePoolVolumeTypeNameVM,
+	VolumeTypeImage:     db.StoragePoolVolumeTypeNameImage,
+	VolumeTypeCustom:    db.StoragePoolVolumeTypeNameCustom,
+}
 
 // osdPoolExists checks whether a given OSD pool exists.
 func (d *ceph) osdPoolExists() bool {
@@ -1048,8 +1059,7 @@ func (d *ceph) generateUUID(fsType string, devPath string) error {
 }
 
 func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPoolName bool) string {
-	out := ""
-	volumeType := string(vol.volType)
+	var out string
 	parentName, snapshotName, isSnapshot := shared.InstanceGetParentAndSnapshotName(vol.name)
 
 	// Only use filesystem suffix on filesystem type image volumes (for all content types).
@@ -1058,31 +1068,26 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 	}
 
 	if vol.contentType == ContentTypeBlock {
-		parentName = fmt.Sprintf("%s.block", parentName)
+		parentName = fmt.Sprintf("%s%s", parentName, cephBlockVolSuffix)
 	}
 
-	switch vol.volType {
-	case VolumeTypeContainer:
-		volumeType = db.StoragePoolVolumeTypeNameContainer
-	case VolumeTypeVM:
-		volumeType = db.StoragePoolVolumeTypeNameVM
-	case VolumeTypeImage:
-		volumeType = db.StoragePoolVolumeTypeNameImage
-	case VolumeTypeCustom:
-		volumeType = db.StoragePoolVolumeTypeNameCustom
+	// Use volume's type as storage volume prefix, unless there is an override in cephVolTypePrefixes.
+	volumeTypePrefix := string(vol.volType)
+	if volumeTypePrefixOverride, foundOveride := cephVolTypePrefixes[vol.volType]; foundOveride {
+		volumeTypePrefix = volumeTypePrefixOverride
 	}
 
 	if snapName != "" {
 		// Always use the provided snapshot name if specified.
-		out = fmt.Sprintf("%s_%s@%s", volumeType, parentName, snapName)
+		out = fmt.Sprintf("%s_%s@%s", volumeTypePrefix, parentName, snapName)
 	} else {
 		if isSnapshot {
 			// If volumeName is a snapshot (<vol>/<snap>) and snapName is not set,
 			// assume that it's a normal snapshot (not a zombie) and prefix it with
 			// "snapshot_".
-			out = fmt.Sprintf("%s_%s@snapshot_%s", volumeType, parentName, snapshotName)
+			out = fmt.Sprintf("%s_%s@snapshot_%s", volumeTypePrefix, parentName, snapshotName)
 		} else {
-			out = fmt.Sprintf("%s_%s", volumeType, parentName)
+			out = fmt.Sprintf("%s_%s", volumeTypePrefix, parentName)
 		}
 	}
 
