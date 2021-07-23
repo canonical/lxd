@@ -225,31 +225,23 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(fmt.Errorf("Instance is running"))
 			}
 
-			// Check if we are migrating a ceph-based container.
-			poolName, err := d.cluster.GetInstancePool(project, name)
-			if err != nil {
-				err = errors.Wrap(err, "Failed to fetch instance's pool name")
-				return response.SmartError(err)
-			}
-			_, pool, _, err := d.cluster.GetStoragePool(poolName)
-			if err != nil {
-				err = errors.Wrap(err, "Failed to fetch instance's pool info")
-				return response.SmartError(err)
-			}
-			if pool.Driver == "ceph" {
-				return instancePostClusteringMigrateWithCeph(d, r, inst, project, name, req.Name, targetNode, instanceType)
+			run := func(op *operations.Operation) error {
+				return migrateInstance(d, r, inst, projectName, targetNode, sourceNodeOffline, name, instanceType, req, op)
 			}
 
-			// If this is not a ceph-based container, make sure
-			// that the source node is online, and we didn't get
-			// here only to handle the case where the container is
-			// ceph-based.
-			if sourceNodeOffline {
-				err := fmt.Errorf("The cluster member hosting the instance is offline")
-				return response.SmartError(err)
+			resources := map[string][]string{}
+			resources["instances"] = []string{name}
+
+			if inst.Type() == instancetype.Container {
+				resources["containers"] = resources["instances"]
 			}
 
-			return instancePostClusteringMigrate(d, r, inst, name, req.Name, targetNode)
+			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			return operations.OperationResponse(op)
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
@@ -324,7 +316,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move a non-ceph container to another cluster node.
-func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, oldName, newName, newNode string) response.Response {
+func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, oldName, newName, newNode string) (func(op *operations.Operation) error, error) {
 	var sourceAddress string
 	var targetAddress string
 
@@ -349,7 +341,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		return nil
 	})
 	if err != nil {
-		return response.SmartError(err)
+		return nil, err
 	}
 
 	run := func(op *operations.Operation) error {
@@ -469,23 +461,11 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{oldName}
-
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
-	op, err := operations.OperationCreate(d.State(), inst.Project(), operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	return operations.OperationResponse(op)
+	return run, nil
 }
 
-// Special case migrating a container backed by ceph across two cluster nodes.
-func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) response.Response {
+// Special case migrating a container backed response.Responseby ceph across two cluster nodes.
+func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) (func(op *operations.Operation) error, error) {
 	run := func(op *operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
@@ -547,19 +527,8 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		return nil
 	}
 
-	resources := map[string][]string{}
-	resources["instances"] = []string{oldName}
+	return run, nil
 
-	if inst.Type() == instancetype.Container {
-		resources["containers"] = resources["instances"]
-	}
-
-	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
-	if err != nil {
-		return response.InternalError(err)
-	}
-
-	return operations.OperationResponse(op)
 }
 
 // Notification that an instance was moved.
@@ -596,4 +565,41 @@ func instancePostCreateInstanceMountPoint(d *Daemon, project, instanceName strin
 	}
 
 	return nil
+}
+
+func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, projectName string, targetNode string, sourceNodeOffline bool, name string, instanceType instancetype.Type, req api.InstancePost, op *operations.Operation) error { // Check if we are migrating a ceph-based container.
+	poolName, err := inst.StoragePool()
+	if err != nil {
+		err = errors.Wrap(err, "Failed to fetch instance's pool name")
+		return err
+	}
+	_, pool, _, err := d.cluster.GetStoragePool(poolName)
+	if err != nil {
+		err = errors.Wrap(err, "Failed to fetch instance's pool info")
+		return err
+	}
+	if pool.Driver == "ceph" {
+		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, projectName, name, req.Name, targetNode, instanceType)
+		if err != nil {
+			return err
+		}
+
+		return f(op)
+	}
+
+	// If this is not a ceph-based container, make sure
+	// that the source node is online, and we didn't get
+	// here only to handle the case where the container is
+	// ceph-based.
+	if sourceNodeOffline {
+		err := fmt.Errorf("The cluster member hosting the instance is offline")
+		return err
+	}
+
+	f, err := instancePostClusteringMigrate(d, r, inst, name, req.Name, targetNode)
+	if err != nil {
+		return err
+	}
+
+	return f(op)
 }
