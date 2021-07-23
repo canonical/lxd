@@ -22,6 +22,9 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// cephBlockVolSuffix suffix used for block content type volumes.
+const cephBlockVolSuffix = ".block"
+
 const cephVolumeTypeZombieImage = VolumeType("zombie_image")
 
 // osdPoolExists checks whether a given OSD pool exists.
@@ -1058,7 +1061,7 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 	}
 
 	if vol.contentType == ContentTypeBlock {
-		parentName = fmt.Sprintf("%s.block", parentName)
+		parentName = fmt.Sprintf("%s%s", parentName, cephBlockVolSuffix)
 	}
 
 	switch vol.volType {
