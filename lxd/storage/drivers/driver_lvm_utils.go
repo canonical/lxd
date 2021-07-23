@@ -19,7 +19,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// lvmBlockVolSuffix suffix used for block content type svolumes.
+// lvmBlockVolSuffix suffix used for block content type volumes.
 const lvmBlockVolSuffix = ".block"
 
 // lvmSnapshotSeparator separator character used between volume name and snaphot name in logical volume names.
