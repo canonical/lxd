@@ -968,3 +968,36 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 	revert.Success()
 	return nil
 }
+
+// genericVFSListVolumes returns a list of LXD volumes in storage pool.
+func genericVFSListVolumes(d Driver) ([]Volume, error) {
+	var vols []Volume
+	poolName := d.Name()
+	poolConfig := d.Config()
+	poolMountPath := GetPoolMountPath(poolName)
+
+	for _, volType := range d.Info().VolumeTypes {
+		if len(BaseDirectories[volType]) < 1 {
+			return nil, fmt.Errorf("Cannot get base directory name for volume type %q", volType)
+		}
+
+		volTypePath := filepath.Join(poolMountPath, BaseDirectories[volType][0])
+		ents, err := ioutil.ReadDir(volTypePath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to list directory %q for volume type %q", volTypePath, volType)
+		}
+
+		for _, ent := range ents {
+			contentType := ContentTypeFS
+			if volType == VolumeTypeVM {
+				contentType = ContentTypeBlock
+			} else if volType == VolumeTypeCustom && shared.PathExists(filepath.Join(volTypePath, ent.Name(), genericVolumeDiskFile)) {
+				contentType = ContentTypeBlock
+			}
+
+			vols = append(vols, NewVolume(d, poolName, volType, contentType, ent.Name(), nil, poolConfig))
+		}
+	}
+
+	return vols, nil
+}
