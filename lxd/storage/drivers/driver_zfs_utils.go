@@ -15,10 +15,13 @@ import (
 	"github.com/lxc/lxd/shared/ioprogress"
 )
 
+// zfsBlockVolSuffix suffix used for block content type volumes.
+const zfsBlockVolSuffix = ".block"
+
 func (d *zfs) dataset(vol Volume, deleted bool) string {
 	name, snapName, _ := shared.InstanceGetParentAndSnapshotName(vol.name)
 	if (vol.volType == VolumeTypeVM || vol.volType == VolumeTypeImage) && vol.contentType == ContentTypeBlock {
-		name = fmt.Sprintf("%s.block", name)
+		name = fmt.Sprintf("%s%s", name, zfsBlockVolSuffix)
 	}
 
 	if snapName != "" {
