@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/pkg/errors"
 )
@@ -32,6 +33,26 @@ func PrepareStmts(db *sql.DB, skipErrors bool) (map[int]*sql.Stmt, error) {
 	}
 
 	return index, nil
+}
+
+// GetRegisteredStmt returns the SQL statement string from its registration code.
+func GetRegisteredStmt(code int) string {
+	sql, ok := stmts[code]
+	if !ok {
+		panic(fmt.Sprintf("No statement registered with code :%d", code))
+	}
+	return sql
+}
+
+// RegisterStmtIfNew registers a new SQL statement if it has not already been registered.
+func RegisterStmtIfNew(sql string) int {
+	for k, v := range stmts {
+		if v == sql {
+			return k
+		}
+	}
+
+	return RegisterStmt(sql)
 }
 
 var stmts = map[int]string{} // Statement code to statement SQL text
