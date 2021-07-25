@@ -13,15 +13,15 @@ import (
 
 // Method generates a code snippet for a particular database query method.
 type Method struct {
-	db       string                  // Target database (cluster or node)
-	pkg      string                  // Package where the entity struct is declared.
-	entity   string                  // Name of the database entity
-	kind     string                  // Kind of statement to generate
-	config   map[string]string       // Configuration parameters
-	packages map[string]*ast.Package // Packages to perform for struct declaration lookups
-	buf      *file.Buffer            // File buffer to write to
-	mapping  *Mapping                // Mapping for the method
-	filters  []*Field                // Filters to apply to the database query
+	db            string                  // Target database (cluster or node)
+	pkg           string                  // Package where the entity struct is declared.
+	entity        string                  // Name of the database entity
+	kind          string                  // Kind of statement to generate
+	config        map[string]string       // Configuration parameters
+	packages      map[string]*ast.Package // Packages to perform for struct declaration lookups
+	buf           *file.Buffer            // File buffer to write to
+	mapping       *Mapping                // Mapping for the method
+	activeFilters []*Field                // Filters to apply to the database query
 }
 
 // NewMethod return a new method code snippet for executing a certain mapping.
@@ -47,9 +47,11 @@ func NewMethod(database, pkg, entity, kind string, config map[string]string) (*M
 	}
 
 	coreFields := []string{}
+	methodKind := kind
 	if strings.Contains(kind, "-by-") {
-		index := strings.Index(kind, "-by-") + len("-by-")
-		coreFields = strings.Split(kind[index:], "-and-")
+		index := strings.Index(kind, "-by-")
+		coreFields = strings.Split(kind[index+len("-by-"):], "-and-")
+		methodKind = kind[:index]
 	}
 
 	activeFilters := []*Field{}
@@ -63,14 +65,14 @@ func NewMethod(database, pkg, entity, kind string, config map[string]string) (*M
 	}
 
 	method := &Method{
-		db:       database,
-		pkg:      pkg,
-		entity:   entity,
-		kind:     kind,
-		config:   config,
-		packages: packages,
-		mapping:  mapping,
-		filters:  activeFilters,
+		db:            database,
+		pkg:           pkg,
+		entity:        entity,
+		kind:          methodKind,
+		config:        config,
+		packages:      packages,
+		mapping:       mapping,
+		activeFilters: activeFilters,
 	}
 
 	return method, nil
@@ -111,121 +113,15 @@ func (m *Method) Generate(buf *file.Buffer) error {
 	return fmt.Errorf("Unknown method kind '%s'", m.kind)
 }
 
-func (m *Method) addFilterToStmt(filter *Field) {
-	zero := filter.ZeroValue()
-	m.buf.L("if filter.%s != %s {", filter.Name, zero)
-	m.buf.L("  args = append(args, filter.%s)", filter.Name)
-	m.buf.L("  stmtParts := strings.Split(stmtStr, \"ORDER BY\")")
-	m.buf.L("  stmtBody := stmtParts[0]")
-	m.buf.L("  stmtOrderBy := \"\"")
-	m.buf.L("  if len(stmtParts) == 2 {")
-	m.buf.L("    stmtOrderBy = \" ORDER BY \" + stmtParts[1]")
-	m.buf.L("  }")
-	m.buf.L("  if strings.Contains(stmtBody, \"WHERE\") {")
-	m.buf.L("    stmtBody += \" AND \" ")
-	m.buf.L("  } else {")
-	if comp := filter.Config.Get("comparison"); shared.StringInSlice("like", strings.Split(comp, ",")) {
-		m.buf.L("    stmtBody += \" WHERE LIKE \"")
-	} else {
-		m.buf.L("    stmtBody += \" WHERE \"")
-	}
-	m.buf.L("  }")
-	m.buf.L("  fullStmt := fmt.Sprintf(\"%%s%%s = ?%%s\", stmtBody, \"%s\", stmtOrderBy)", lex.Snake(filter.Name))
-	m.buf.L("  stmt = c.stmt(cluster.RegisterStmtIfNew(fullStmt))")
-	m.buf.L("}")
-}
-
-func (m *Method) makeCriteriaFromFilter() error {
-	kind := strings.Split(m.kind, "-")[0]
-	if kind == "List" {
-		kind = "Objects"
-	} else if strings.HasPrefix(kind, "Delete") {
-		kind = "Delete"
-	}
-	filters := Filters(m.packages["db"], kind, m.entity)
-
-	m.buf.L("// Check which filter criteria are active.")
-	m.buf.L("criteria := map[string]interface{}{}")
-
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
-	}
-
-	for _, name := range criteria {
-		var zero string
-		if name == "Parent" {
-			zero = `""`
-		} else {
-			field, err := m.mapping.FilterFieldByName(name)
-			if err != nil {
-				return err
-			}
-			zero = field.ZeroValue()
-		}
-		m.buf.L("if filter.%s != %s {", name, zero)
-		m.buf.L("        criteria[%q] = filter.%s", name, name)
-		m.buf.L("}")
-	}
-
-	m.buf.N()
-	m.buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	m.buf.L("var stmt *sql.Stmt")
-	m.buf.L("var args []interface{}")
-	m.buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-		m.buf.L("%s %s {", branch, activeCriteria(filter))
-
-		m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, kind, filter...))
-		m.buf.L("args = []interface{}{")
-
-		for _, name := range filter {
-			if name == "Parent" {
-				m.buf.L("len(filter.Parent)+1,")
-				m.buf.L("filter.%s+\"/\",", name)
-			} else {
-				m.buf.L("filter.%s,", name)
-			}
-		}
-
-		m.buf.L("}")
-
-		// Last branch, no filter to use.
-		if i == len(filters)-1 {
-			m.buf.L("} else {")
-		}
-	}
-	// Else branch.
-	if strings.HasPrefix(m.kind, "Delete") {
-		m.buf.L("return fmt.Errorf(\"No valid filter for %s delete\")", m.entity)
-	} else {
-		m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, kind))
-		m.buf.L("args = []interface{}{}")
-	}
-	if len(filters) > 0 {
-		m.buf.L("}")
-	}
-	m.buf.N()
-
-	return nil
-}
-
 func (m *Method) uris() error {
 	comment := fmt.Sprintf("returns all available %s URIs.", m.entity)
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
+	args := m.argsWithFilter()
 	rets := "([]string, error)"
 
 	m.begin(comment, args, rets)
 	defer m.end()
 
-	if err := m.makeCriteriaFromFilter(); err != nil {
-		return err
-	}
+	m.addFiltersToStmt()
 
 	m.buf.L("code := %s.EntityTypes[%q]", m.db, m.entity)
 	m.buf.L("formatter := %s.EntityFormatURIs[code]", m.db)
@@ -240,8 +136,7 @@ func (m *Method) list() error {
 	typ := entityType(m.pkg, m.entity)
 
 	comment := fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
+	args := m.argsWithFilter()
 	rets := fmt.Sprintf("(%s, error)", lex.Slice(typ))
 
 	m.begin(comment, args, rets)
@@ -250,9 +145,9 @@ func (m *Method) list() error {
 	m.buf.L("// Result slice.")
 	m.buf.L("objects := make(%s, 0)", lex.Slice(typ))
 	m.buf.N()
-	if err := m.makeCriteriaFromFilter(); err != nil {
-		return err
-	}
+	m.buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
+
+	m.addFiltersToStmt()
 
 	m.buf.N()
 	m.buf.L("// Dest function for scanning a row.")
@@ -281,25 +176,17 @@ func (m *Method) list() error {
 func (m *Method) get() error {
 	comment := fmt.Sprintf("returns the %s with the given key.", m.entity)
 
-	nk := m.mapping.NaturalKey()
 	typ := entityType(m.pkg, m.entity)
 
-	args := FieldArgs(nk)
+	args := m.argsWithFilter()
 	rets := fmt.Sprintf("(%s, error)", lex.Star(typ))
+
+	method := m.filterSequence(lex.Plural(lex.Camel(m.entity)))
 
 	m.begin(comment, args, rets)
 	defer m.end()
 
-	m.buf.L("filter := %s{}", entityFilter(m.entity))
-	for _, field := range nk {
-		m.buf.L("filter.%s = %s", field.Name, lex.Minuscule(field.Name))
-	}
-	// FIXME: snowflake
-	if m.entity == "instance" {
-		m.buf.L("filter.Type = -1")
-	}
-	m.buf.N()
-	m.buf.L("objects, err := c.Get%s(filter)", lex.Plural(lex.Camel(m.entity)))
+	m.buf.L("objects, err := c.Get%s(%s)", method, m.paramsWithFilter())
 	m.buf.L("if err != nil {")
 	m.buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Camel(m.entity))
 	m.buf.L("}")
@@ -382,7 +269,7 @@ func (m *Method) ref() error {
 	// keys.
 	indexTyp := indexType(nk, retTyp)
 
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
+	args := m.args()
 	rets := fmt.Sprintf("(%s, error)", indexTyp)
 
 	m.begin(comment, args, rets)
@@ -391,10 +278,21 @@ func (m *Method) ref() error {
 	m.buf.L("// Result slice.")
 	m.buf.L("objects := make(%s, 0)", lex.Slice(destType))
 	m.buf.N()
-
-	if err := m.makeCriteriaFromFilter(); err != nil {
-		return err
+	filterNames := []string{}
+	for _, f := range m.activeFilters {
+		filterNames = append(filterNames, f.Name)
 	}
+
+	m.buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, m.kind, filterNames...))
+	m.buf.L("args := []interface{}{")
+	for _, filter := range m.activeFilters {
+		name := filter.Name
+		if name == "Type" {
+			name = lex.Camel(m.entity) + name
+		}
+		m.buf.L("%s,", lex.Minuscule(name))
+	}
+	m.buf.L("}")
 
 	m.buf.L("// Dest function for scanning a row.")
 	m.buf.L("dest := %s", destFunc("objects", destType, destFields))
@@ -467,10 +365,10 @@ func (m *Method) ref() error {
 // natural key of the entity.
 func (m *Method) fillSliceReferenceField(nk []*Field, field *Field) error {
 	objectsVar := fmt.Sprintf("%sObjects", lex.Minuscule(field.Name))
-	methodName := fmt.Sprintf("%s%sRef", lex.Camel(m.entity), field.Name)
+	methodName := m.filterSequence(fmt.Sprintf("%s%sRef", lex.Camel(m.entity), field.Name))
 
 	m.buf.L("// Fill field %s.", field.Name)
-	m.buf.L("%s, err := c.%s(filter)", objectsVar, methodName)
+	m.buf.L("%s, err := c.%s(%s)", objectsVar, methodName, m.params())
 	m.buf.L("if err != nil {")
 	m.buf.L("        return nil, errors.Wrap(err, \"Failed to fetch field %s\")", field.Name)
 	m.buf.L("}")
@@ -848,15 +746,13 @@ func (m *Method) update() error {
 
 func (m *Method) delete(deleteOne bool) error {
 	comment := fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
+	args := m.argsWithFilter()
 	rets := "error"
 
 	m.begin(comment, args, rets)
 	defer m.end()
 
-	if err := m.makeCriteriaFromFilter(); err != nil {
-		return err
-	}
+	m.addFiltersToStmt()
 
 	m.buf.L("result, err := stmt.Exec(args...)")
 	m.buf.L("if err != nil {")
@@ -911,11 +807,12 @@ func (m *Method) begin(comment string, args string, rets string) {
 	case "DeleteOne":
 		name = fmt.Sprintf("Delete%s", entity)
 	case "DeleteMany":
-		name = fmt.Sprintf("Delete%ss", entity)
+		name = fmt.Sprintf("Delete%s", lex.Plural(entity))
 	default:
 		name = fmt.Sprintf("%s%s", entity, lex.Camel(kind))
 	}
 	receiver := fmt.Sprintf("c %s", dbTxType(m.db))
+	name = m.filterSequence(name)
 
 	m.buf.L("// %s %s", name, comment)
 	m.buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
@@ -923,4 +820,117 @@ func (m *Method) begin(comment string, args string, rets string) {
 
 func (m *Method) end() {
 	m.buf.L("}")
+}
+
+// args returns the arguments for the signature of the method.
+func (m *Method) args() string {
+	args := ""
+	for i, filter := range m.activeFilters {
+		if i > 0 {
+			args += ", "
+		}
+		name := filter.Name
+		if name == "Type" {
+			name = lex.Camel(m.entity) + name
+		}
+		args = fmt.Sprintf("%s%s %s", args, lex.Minuscule(name), filter.Type.Name)
+	}
+
+	return args
+}
+
+// args returns the arguments for the signature of the method.
+func (m *Method) argsWithFilter() string {
+	args := m.args()
+	if len(args) > 0 {
+		args += ", "
+	}
+	return fmt.Sprintf("%sfilter %s", args, entityFilter(m.entity))
+}
+
+// params returns the arguments of the method as a string of parameters.
+func (m *Method) params() string {
+	params := ""
+	for i, filter := range m.activeFilters {
+		if i > 0 {
+			params += ", "
+		}
+		name := filter.Name
+		if name == "Type" {
+			name = lex.Camel(m.entity) + name
+		}
+		params += lex.Minuscule(name)
+	}
+	return params
+}
+
+func (m *Method) paramsWithFilter() string {
+	params := m.params()
+	if len(params) > 0 {
+		params += ", "
+	}
+	return params + "filter"
+}
+
+// returns the string sequence for variable names: PrefixByFilter1AndFilter2
+func (m *Method) filterSequence(prefix string) string {
+	sequence := prefix
+	for i, filter := range m.activeFilters {
+		if i == 0 {
+			sequence += "By"
+		}
+		if i > 0 {
+			sequence += "And"
+		}
+		sequence += lex.Camel(filter.Name)
+	}
+	return sequence
+}
+
+func (m *Method) addFiltersToStmt() {
+	filterNames := []string{}
+	for _, f := range m.activeFilters {
+		filterNames = append(filterNames, f.Name)
+	}
+
+	m.buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, m.kind, filterNames...))
+	m.buf.L("args := []interface{}{")
+	for _, filter := range m.activeFilters {
+		name := filter.Name
+		if name == "Type" {
+			name = lex.Camel(m.entity) + name
+		}
+		m.buf.L("%s,", lex.Minuscule(name))
+	}
+	m.buf.L("}")
+
+	if len(m.mapping.Filters) > 0 {
+		m.buf.L("stmtStr := cluster.GetRegisteredStmt(%s)", stmtCodeVar(m.entity, m.kind, filterNames...))
+	}
+	for _, filter := range m.mapping.Filters {
+		zero := filter.ZeroValue()
+		m.buf.L("if filter.%s != %s {", filter.Name, zero)
+		m.buf.L("  args = append(args, filter.%s)", filter.Name)
+		m.buf.L("  stmtParts := strings.Split(stmtStr, \"ORDER BY\")")
+		m.buf.L("  stmtBody := stmtParts[0]")
+		m.buf.L("  stmtOrderBy := \"\"")
+		m.buf.L("  if len(stmtParts) == 2 {")
+		m.buf.L("    stmtOrderBy = \" ORDER BY \" + stmtParts[1]")
+		m.buf.L("  }")
+		m.buf.L("  if strings.Contains(stmtBody, \"WHERE\") {")
+		m.buf.L("    stmtBody += \" AND \" ")
+		m.buf.L("  } else {")
+
+		comparator := "="
+		if comp := filter.Config.Get("comparison"); shared.StringInSlice("like", strings.Split(comp, ",")) {
+			comparator = "LIKE"
+		}
+
+		m.buf.L("    stmtBody += \" WHERE \"")
+		m.buf.L("  }")
+		m.buf.L("  fullStmt := fmt.Sprintf(\"%%s%%s %s ?%%s\", stmtBody, \"%s\", stmtOrderBy)", comparator, lex.Snake(filter.Name))
+		m.buf.L("  stmt = c.stmt(cluster.RegisterStmtIfNew(fullStmt))")
+		m.buf.L("}")
+		m.buf.N()
+	}
 }
