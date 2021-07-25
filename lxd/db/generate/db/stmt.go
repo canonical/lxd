@@ -104,9 +104,9 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 				continue
 			}
 
-			field, err := mapping.FilterFieldByName(filter)
-			if err != nil {
-				return err
+			field := mapping.FieldByName(filter)
+			if field == nil {
+				return fmt.Errorf("No field with name %q in struct %q", field.Name, s.entity)
 			}
 
 			var column string
@@ -211,10 +211,9 @@ func (s *Stmt) names(buf *file.Buffer) error {
 		where = "WHERE "
 
 		for i, filter := range filters {
-			field, err := mapping.FilterFieldByName(filter)
-
-			if err != nil {
-				return err
+			field := mapping.FieldByName(filter)
+			if field == nil {
+				return fmt.Errorf("No field with name %q in struct %q", field.Name, s.entity)
 			}
 
 			if i > 0 {
@@ -308,10 +307,9 @@ func (s *Stmt) ref(buf *file.Buffer) error {
 		where = "WHERE "
 
 		for i, filter := range filters {
-			field, err := mapping.FilterFieldByName(filter)
-
-			if err != nil {
-				return err
+			field := mapping.FieldByName(filter)
+			if field == nil {
+				return fmt.Errorf("No field with name %q in struct %q", field.Name, s.entity)
 			}
 
 			if i > 0 {
@@ -523,9 +521,9 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	if strings.HasPrefix(s.kind, "delete-by") {
 		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
 		for _, filter := range filters {
-			field, err := mapping.FilterFieldByName(filter)
-			if err != nil {
-				return err
+			field := mapping.FieldByName(filter)
+			if field == nil {
+				return fmt.Errorf("No field with name %q in struct %q", field.Name, s.entity)
 			}
 			fields = append(fields, field)
 		}
