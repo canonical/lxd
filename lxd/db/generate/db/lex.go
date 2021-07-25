@@ -45,6 +45,16 @@ func entityPut(entity string) string {
 // Return the name of the global variable holding the registration code for
 // the given kind of statement aganst the given entity.
 func stmtCodeVar(entity string, kind string, filters ...string) string {
+	if strings.HasPrefix(kind, "List") {
+		kind = "Objects"
+	}
+	if strings.HasPrefix(kind, "Delete") {
+		kind = "Delete"
+	}
+	if strings.HasPrefix(kind, "URIs") {
+		kind = "Names"
+	}
+
 	prefix := lex.Minuscule(lex.Camel(entity))
 	name := fmt.Sprintf("%s%s", prefix, lex.Camel(kind))
 
