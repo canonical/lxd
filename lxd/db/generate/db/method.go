@@ -7,6 +7,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
 	"github.com/lxc/lxd/lxd/db/generate/lex"
+	"github.com/lxc/lxd/shared"
 	"github.com/pkg/errors"
 )
 
@@ -18,6 +19,9 @@ type Method struct {
 	kind     string                  // Kind of statement to generate
 	config   map[string]string       // Configuration parameters
 	packages map[string]*ast.Package // Packages to perform for struct declaration lookups
+	buf      *file.Buffer            // File buffer to write to
+	mapping  *Mapping                // Mapping for the method
+	filters  []*Field                // Filters to apply to the database query
 }
 
 // NewMethod return a new method code snippet for executing a certain mapping.
@@ -27,6 +31,37 @@ func NewMethod(database, pkg, entity, kind string, config map[string]string) (*M
 		return nil, err
 	}
 
+	var mapping *Mapping
+
+	entityCreate, ok := config["struct"]
+	if !ok {
+		mapping, err = Parse(packages[pkg], lex.Camel(entity), kind)
+		if err != nil {
+			return nil, errors.Wrap(err, "Parse entity struct")
+		}
+	} else {
+		mapping, err = Parse(packages[pkg], entityCreate, kind)
+		if err != nil {
+			return nil, errors.Wrap(err, "Parse entity struct")
+		}
+	}
+
+	coreFields := []string{}
+	if strings.Contains(kind, "-by-") {
+		index := strings.Index(kind, "-by-") + len("-by-")
+		coreFields = strings.Split(kind[index:], "-and-")
+	}
+
+	activeFilters := []*Field{}
+	for _, fieldName := range coreFields {
+		field := mapping.FieldByName(fieldName)
+		if field == nil {
+			return nil, fmt.Errorf("Argument %q is not a valid field for struct %q", fieldName, lex.Camel(entity))
+		}
+
+		activeFilters = append(activeFilters, field)
+	}
+
 	method := &Method{
 		db:       database,
 		pkg:      pkg,
@@ -34,6 +69,8 @@ func NewMethod(database, pkg, entity, kind string, config map[string]string) (*M
 		kind:     kind,
 		config:   config,
 		packages: packages,
+		mapping:  mapping,
+		filters:  activeFilters,
 	}
 
 	return method, nil
@@ -41,274 +78,249 @@ func NewMethod(database, pkg, entity, kind string, config map[string]string) (*M
 
 // Generate the desired method.
 func (m *Method) Generate(buf *file.Buffer) error {
+	m.buf = buf
 	if strings.HasSuffix(m.kind, "Ref") {
-		return m.ref(buf)
+		return m.ref()
 	}
+
 	switch m.kind {
 	case "URIs":
-		return m.uris(buf)
+		return m.uris()
 	case "List":
-		return m.list(buf)
+		return m.list()
 	case "Get":
-		return m.get(buf)
+		return m.get()
 	case "ID":
-		return m.id(buf)
+		return m.id()
 	case "Exists":
-		return m.exists(buf)
+		return m.exists()
 	case "Create":
-		return m.create(buf, false)
+		return m.create(false)
 	case "CreateOrReplace":
-		return m.create(buf, true)
+		return m.create(true)
 	case "Rename":
-		return m.rename(buf)
+		return m.rename()
 	case "Update":
-		return m.update(buf)
+		return m.update()
 	case "DeleteOne":
-		return m.delete(buf, true)
+		return m.delete(true)
 	case "DeleteMany":
-		return m.delete(buf, false)
-	default:
-		return fmt.Errorf("Unknown method kind '%s'", m.kind)
+		return m.delete(false)
 	}
+
+	return fmt.Errorf("Unknown method kind '%s'", m.kind)
 }
 
-func (m *Method) uris(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+func (m *Method) addFilterToStmt(filter *Field) {
+	zero := filter.ZeroValue()
+	m.buf.L("if filter.%s != %s {", filter.Name, zero)
+	m.buf.L("  args = append(args, filter.%s)", filter.Name)
+	m.buf.L("  stmtParts := strings.Split(stmtStr, \"ORDER BY\")")
+	m.buf.L("  stmtBody := stmtParts[0]")
+	m.buf.L("  stmtOrderBy := \"\"")
+	m.buf.L("  if len(stmtParts) == 2 {")
+	m.buf.L("    stmtOrderBy = \" ORDER BY \" + stmtParts[1]")
+	m.buf.L("  }")
+	m.buf.L("  if strings.Contains(stmtBody, \"WHERE\") {")
+	m.buf.L("    stmtBody += \" AND \" ")
+	m.buf.L("  } else {")
+	if comp := filter.Config.Get("comparison"); shared.StringInSlice("like", strings.Split(comp, ",")) {
+		m.buf.L("    stmtBody += \" WHERE LIKE \"")
+	} else {
+		m.buf.L("    stmtBody += \" WHERE \"")
 	}
+	m.buf.L("  }")
+	m.buf.L("  fullStmt := fmt.Sprintf(\"%%s%%s = ?%%s\", stmtBody, \"%s\", stmtOrderBy)", lex.Snake(filter.Name))
+	m.buf.L("  stmt = c.stmt(cluster.RegisterStmtIfNew(fullStmt))")
+	m.buf.L("}")
+}
+
+func (m *Method) makeCriteriaFromFilter() error {
+	kind := strings.Split(m.kind, "-")[0]
+	if kind == "List" {
+		kind = "Objects"
+	} else if strings.HasPrefix(kind, "Delete") {
+		kind = "Delete"
+	}
+	filters := Filters(m.packages["db"], kind, m.entity)
+
+	m.buf.L("// Check which filter criteria are active.")
+	m.buf.L("criteria := map[string]interface{}{}")
 
 	criteria, err := Criteria(m.packages["db"], m.entity)
 	if err != nil {
 		return errors.Wrap(err, "Parse filter struct")
 	}
-
-	filters := Filters(m.packages["db"], "objects", m.entity)
-
-	comment := fmt.Sprintf("returns all available %s URIs.", m.entity)
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
-	rets := "([]string, error)"
-
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
-
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
-
-	for _, name := range criteria {
-		if name == "Parent" {
-			continue
-		}
-		field := mapping.FieldByName(name)
-		if field == nil {
-			return fmt.Errorf("No field named %q in filter struct", name)
-		}
-		buf.L("if filter.%s != %s {", name, field.ZeroValue())
-		buf.L("        criteria[%q] = filter.%s", name, name)
-		buf.L("}")
-	}
-
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
-	buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-		buf.L("%s %s {", branch, activeCriteria(filter))
-
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "names", filter...))
-		buf.L("args = []interface{}{")
-
-		for _, name := range filter {
-			buf.L("filter.%s,", name)
-		}
-
-		buf.L("}")
-
-		// Last branch, no filter to use.
-		if i == len(filters)-1 {
-			buf.L("} else {")
-		}
-	}
-	// Else branch.
-	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "names"))
-	buf.L("args = []interface{}{}")
-	buf.L("}")
-	buf.N()
-
-	buf.L("code := %s.EntityTypes[%q]", m.db, m.entity)
-	buf.L("formatter := %s.EntityFormatURIs[code]", m.db)
-	buf.N()
-	buf.L("return query.SelectURIs(stmt, formatter, args...)")
-
-	return nil
-}
-
-func (m *Method) list(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
-	}
-
-	filters := Filters(m.packages["db"], "objects", m.entity)
-
-	// Go type name the objects to return (e.g. api.Foo).
-	typ := entityType(m.pkg, m.entity)
-
-	comment := fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
-	rets := fmt.Sprintf("(%s, error)", lex.Slice(typ))
-
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
-
-	buf.L("// Result slice.")
-	buf.L("objects := make(%s, 0)", lex.Slice(typ))
-	buf.N()
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
 
 	for _, name := range criteria {
 		var zero string
 		if name == "Parent" {
 			zero = `""`
 		} else {
-			field := mapping.FieldByName(name)
-			if field == nil {
-				return fmt.Errorf("No field named %q in filter struct", name)
+			field, err := m.mapping.FilterFieldByName(name)
+			if err != nil {
+				return err
 			}
 			zero = field.ZeroValue()
 		}
-		buf.L("if filter.%s != %s {", name, zero)
-		buf.L("        criteria[%q] = filter.%s", name, name)
-		buf.L("}")
+		m.buf.L("if filter.%s != %s {", name, zero)
+		m.buf.L("        criteria[%q] = filter.%s", name, name)
+		m.buf.L("}")
 	}
 
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
-	buf.N()
+	m.buf.N()
+	m.buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
+	m.buf.L("var stmt *sql.Stmt")
+	m.buf.L("var args []interface{}")
+	m.buf.N()
 
 	for i, filter := range filters {
 		branch := "if"
 		if i > 0 {
 			branch = "} else if"
 		}
-		buf.L("%s %s {", branch, activeCriteria(filter))
+		m.buf.L("%s %s {", branch, activeCriteria(filter))
 
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects", filter...))
-		buf.L("args = []interface{}{")
+		m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, kind, filter...))
+		m.buf.L("args = []interface{}{")
 
 		for _, name := range filter {
 			if name == "Parent" {
-				buf.L("len(filter.Parent)+1,")
-				buf.L("filter.%s+\"/\",", name)
+				m.buf.L("len(filter.Parent)+1,")
+				m.buf.L("filter.%s+\"/\",", name)
 			} else {
-				buf.L("filter.%s,", name)
+				m.buf.L("filter.%s,", name)
 			}
 		}
 
-		buf.L("}")
+		m.buf.L("}")
 
 		// Last branch, no filter to use.
 		if i == len(filters)-1 {
-			buf.L("} else {")
+			m.buf.L("} else {")
 		}
 	}
 	// Else branch.
-	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
-	buf.L("args = []interface{}{}")
-	buf.L("}")
+	if strings.HasPrefix(m.kind, "Delete") {
+		m.buf.L("return fmt.Errorf(\"No valid filter for %s delete\")", m.entity)
+	} else {
+		m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, kind))
+		m.buf.L("args = []interface{}{}")
+	}
+	if len(filters) > 0 {
+		m.buf.L("}")
+	}
+	m.buf.N()
 
-	buf.N()
-	buf.L("// Dest function for scanning a row.")
-	buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
-	buf.N()
-	buf.L("// Select.")
-	buf.L("err := query.SelectObjects(stmt, dest, args...)")
-	buf.L("if err != nil {")
-	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Plural(m.entity))
-	buf.L("}")
-	buf.N()
+	return nil
+}
+
+func (m *Method) uris() error {
+	comment := fmt.Sprintf("returns all available %s URIs.", m.entity)
+	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
+	rets := "([]string, error)"
+
+	m.begin(comment, args, rets)
+	defer m.end()
+
+	if err := m.makeCriteriaFromFilter(); err != nil {
+		return err
+	}
+
+	m.buf.L("code := %s.EntityTypes[%q]", m.db, m.entity)
+	m.buf.L("formatter := %s.EntityFormatURIs[code]", m.db)
+	m.buf.N()
+	m.buf.L("return query.SelectURIs(stmt, formatter, args...)")
+
+	return nil
+}
+
+func (m *Method) list() error {
+	// Go type name the objects to return (e.g. api.Foo).
+	typ := entityType(m.pkg, m.entity)
+
+	comment := fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
+
+	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
+	rets := fmt.Sprintf("(%s, error)", lex.Slice(typ))
+
+	m.begin(comment, args, rets)
+	defer m.end()
+
+	m.buf.L("// Result slice.")
+	m.buf.L("objects := make(%s, 0)", lex.Slice(typ))
+	m.buf.N()
+	if err := m.makeCriteriaFromFilter(); err != nil {
+		return err
+	}
+
+	m.buf.N()
+	m.buf.L("// Dest function for scanning a row.")
+	m.buf.L("dest := %s", destFunc("objects", typ, m.mapping.ColumnFields()))
+	m.buf.N()
+	m.buf.L("// Select.")
+	m.buf.L("err := query.SelectObjects(stmt, dest, args...)")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Plural(m.entity))
+	m.buf.L("}")
+	m.buf.N()
 
 	// Fill reference fields.
-	nk := mapping.NaturalKey()
-	for _, field := range mapping.RefFields() {
-		err := m.fillSliceReferenceField(buf, nk, field)
+	nk := m.mapping.NaturalKey()
+	for _, field := range m.mapping.RefFields() {
+		err := m.fillSliceReferenceField(nk, field)
 		if err != nil {
 			return err
 		}
 	}
 
-	buf.L("return objects, nil")
-
+	m.buf.L("return objects, nil")
 	return nil
 }
 
-func (m *Method) get(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
+func (m *Method) get() error {
 	comment := fmt.Sprintf("returns the %s with the given key.", m.entity)
 
-	nk := mapping.NaturalKey()
+	nk := m.mapping.NaturalKey()
 	typ := entityType(m.pkg, m.entity)
 
 	args := FieldArgs(nk)
 	rets := fmt.Sprintf("(%s, error)", lex.Star(typ))
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
+	m.begin(comment, args, rets)
+	defer m.end()
 
-	buf.L("filter := %s{}", entityFilter(m.entity))
+	m.buf.L("filter := %s{}", entityFilter(m.entity))
 	for _, field := range nk {
-		buf.L("filter.%s = %s", field.Name, lex.Minuscule(field.Name))
+		m.buf.L("filter.%s = %s", field.Name, lex.Minuscule(field.Name))
 	}
 	// FIXME: snowflake
 	if m.entity == "instance" {
-		buf.L("filter.Type = -1")
+		m.buf.L("filter.Type = -1")
 	}
-	buf.N()
-	buf.L("objects, err := c.Get%s(filter)", lex.Plural(lex.Camel(m.entity)))
-	buf.L("if err != nil {")
-	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Camel(m.entity))
-	buf.L("}")
-	buf.N()
-	buf.L("switch len(objects) {")
-	buf.L("case 0:")
-	buf.L("        return nil, ErrNoSuchObject")
-	buf.L("case 1:")
-	buf.L("        return &objects[0], nil")
-	buf.L("default:")
-	buf.L("        return nil, fmt.Errorf(\"More than one %s matches\")", m.entity)
-	buf.L("}")
+	m.buf.N()
+	m.buf.L("objects, err := c.Get%s(filter)", lex.Plural(lex.Camel(m.entity)))
+	m.buf.L("if err != nil {")
+	m.buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Camel(m.entity))
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("switch len(objects) {")
+	m.buf.L("case 0:")
+	m.buf.L("        return nil, ErrNoSuchObject")
+	m.buf.L("case 1:")
+	m.buf.L("        return &objects[0], nil")
+	m.buf.L("default:")
+	m.buf.L("        return nil, fmt.Errorf(\"More than one %s matches\")", m.entity)
+	m.buf.L("}")
 
 	return nil
 }
 
-func (m *Method) ref(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	nk := mapping.NaturalKey()
+func (m *Method) ref() error {
+	nk := m.mapping.NaturalKey()
 
 	name := m.kind[:len(m.kind)-len("Ref")]
-	field := mapping.FieldByName(name)
+	field := m.mapping.FieldByName(name)
 
 	var typ string
 	var retTyp string
@@ -373,132 +385,78 @@ func (m *Method) ref(buf *file.Buffer) error {
 	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
 	rets := fmt.Sprintf("(%s, error)", indexTyp)
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
+	m.begin(comment, args, rets)
+	defer m.end()
 
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
+	m.buf.L("// Result slice.")
+	m.buf.L("objects := make(%s, 0)", lex.Slice(destType))
+	m.buf.N()
+
+	if err := m.makeCriteriaFromFilter(); err != nil {
+		return err
 	}
 
-	filters := RefFilters(m.packages["db"], m.entity, name)
+	m.buf.L("// Dest function for scanning a row.")
+	m.buf.L("dest := %s", destFunc("objects", destType, destFields))
+	m.buf.N()
+	m.buf.L("// Select.")
+	m.buf.L("err := query.SelectObjects(stmt, dest, args...)")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s ref for %s\")", typ, lex.Plural(m.entity))
+	m.buf.L("}")
+	m.buf.N()
 
-	buf.L("// Result slice.")
-	buf.L("objects := make(%s, 0)", lex.Slice(destType))
-	buf.N()
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
-
-	for _, name := range criteria {
-		var zero string
-		if name == "Parent" {
-			zero = `""`
-		} else {
-			field := mapping.FieldByName(name)
-			if !field.IsPrimary() {
-				continue
-			}
-			zero = field.ZeroValue()
-		}
-		buf.L("if filter.%s != %s {", name, zero)
-		buf.L("        criteria[%q] = filter.%s", name, name)
-		buf.L("}")
-	}
-
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
-	buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-		buf.L("%s %s {", branch, activeCriteria(filter))
-
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, m.kind, filter...))
-		buf.L("args = []interface{}{")
-
-		for _, name := range filter {
-			buf.L("filter.%s,", name)
-		}
-
-		buf.L("}")
-
-		// Last branch, no filter to use.
-		if i == len(filters)-1 {
-			buf.L("} else {")
-		}
-	}
-
-	// Else branch.
-	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, m.kind))
-	buf.L("args = []interface{}{}")
-	buf.L("}")
-	buf.N()
-	buf.L("// Dest function for scanning a row.")
-	buf.L("dest := %s", destFunc("objects", destType, destFields))
-	buf.N()
-	buf.L("// Select.")
-	buf.L("err := query.SelectObjects(stmt, dest, args...)")
-	buf.L("if err != nil {")
-	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s ref for %s\")", typ, lex.Plural(m.entity))
-	buf.L("}")
-	buf.N()
-
-	buf.L("// Build index by primary name.")
-	buf.L("index := %s{}", indexTyp)
-	buf.N()
-	buf.L("for _, object := range objects {")
+	m.buf.L("// Build index by primary name.")
+	m.buf.L("index := %s{}", indexTyp)
+	m.buf.N()
+	m.buf.L("for _, object := range objects {")
 	needle := ""
 	for i, key := range nk[:len(nk)-1] {
 		needle += fmt.Sprintf("[object.%s]", key.Name)
 
 		subIndexTyp := indexType(nk[i+1:], retTyp)
-		buf.L("        _, ok%d := index%s", i, needle)
-		buf.L("        if !ok%d {", i)
-		buf.L("                subIndex := %s{}", subIndexTyp)
-		buf.L("                index%s = subIndex", needle)
-		buf.L("        }")
-		buf.N()
+		m.buf.L("        _, ok%d := index%s", i, needle)
+		m.buf.L("        if !ok%d {", i)
+		m.buf.L("                subIndex := %s{}", subIndexTyp)
+		m.buf.L("                index%s = subIndex", needle)
+		m.buf.L("        }")
+		m.buf.N()
 	}
 
 	needle += fmt.Sprintf("[object.%s]", nk[len(nk)-1].Name)
-	buf.L("        item, ok := index%s", needle)
-	buf.L("        if !ok {")
-	buf.L("                item = %s{}", retTyp)
-	buf.L("        }")
-	buf.N()
+	m.buf.L("        item, ok := index%s", needle)
+	m.buf.L("        if !ok {")
+	m.buf.L("                item = %s{}", retTyp)
+	m.buf.L("        }")
+	m.buf.N()
 	if field.Type.Code == TypeSlice && IsColumnType(typ) {
-		buf.L("        index%s = append(item, object.Value)", needle)
+		m.buf.L("        index%s = append(item, object.Value)", needle)
 	} else if field.Type.Code == TypeMap && field.Type.Name == "map[string]string" {
-		buf.L("        index%s = item", needle)
-		buf.L("        item[object.Key] = object.Value")
+		m.buf.L("        index%s = item", needle)
+		m.buf.L("        item[object.Key] = object.Value")
 	} else if field.Type.Code == TypeMap && field.Type.Name == "map[string]map[string]string" {
-		buf.L("        index%s = item", needle)
-		buf.L("        config, ok := item[object.Device]")
-		buf.L("        if !ok {")
-		buf.L("                // First time we see this device, let's int the config")
-		buf.L("                // and add the type.")
-		buf.L("                deviceType, err := deviceTypeToString(object.Type)")
-		buf.L("                if err != nil {")
-		buf.L("                        return nil, errors.Wrapf(")
-		buf.L("                            err, \"unexpected device type code '%%d'\", object.Type)")
-		buf.L("                }")
-		buf.L("                config = map[string]string{}")
-		buf.L("                config[\"type\"] = deviceType")
-		buf.L("                item[object.Device] = config")
-		buf.L("        }")
-		buf.L("        if object.Key != \"\" {")
-		buf.L("                config[object.Key] = object.Value")
-		buf.L("        }")
+		m.buf.L("        index%s = item", needle)
+		m.buf.L("        config, ok := item[object.Device]")
+		m.buf.L("        if !ok {")
+		m.buf.L("                // First time we see this device, let's int the config")
+		m.buf.L("                // and add the type.")
+		m.buf.L("                deviceType, err := deviceTypeToString(object.Type)")
+		m.buf.L("                if err != nil {")
+		m.buf.L("                        return nil, errors.Wrapf(")
+		m.buf.L("                            err, \"unexpected device type code '%%d'\", object.Type)")
+		m.buf.L("                }")
+		m.buf.L("                config = map[string]string{}")
+		m.buf.L("                config[\"type\"] = deviceType")
+		m.buf.L("                item[object.Device] = config")
+		m.buf.L("        }")
+		m.buf.L("        if object.Key != \"\" {")
+		m.buf.L("                config[object.Key] = object.Value")
+		m.buf.L("        }")
 	} else {
 	}
-	buf.L("}")
-	buf.N()
-	buf.L("return index, nil")
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("return index, nil")
 
 	return nil
 }
@@ -507,158 +465,122 @@ func (m *Method) ref(buf *file.Buffer) error {
 // entity. This information is available by joining a the view or table
 // associated with the type of the referenced objects, which must contain the
 // natural key of the entity.
-func (m *Method) fillSliceReferenceField(buf *file.Buffer, nk []*Field, field *Field) error {
+func (m *Method) fillSliceReferenceField(nk []*Field, field *Field) error {
 	objectsVar := fmt.Sprintf("%sObjects", lex.Minuscule(field.Name))
 	methodName := fmt.Sprintf("%s%sRef", lex.Camel(m.entity), field.Name)
 
-	buf.L("// Fill field %s.", field.Name)
-	buf.L("%s, err := c.%s(filter)", objectsVar, methodName)
-	buf.L("if err != nil {")
-	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch field %s\")", field.Name)
-	buf.L("}")
-	buf.N()
-	buf.L("for i := range objects {")
+	m.buf.L("// Fill field %s.", field.Name)
+	m.buf.L("%s, err := c.%s(filter)", objectsVar, methodName)
+	m.buf.L("if err != nil {")
+	m.buf.L("        return nil, errors.Wrap(err, \"Failed to fetch field %s\")", field.Name)
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("for i := range objects {")
 	needle := ""
 	for i, key := range nk[:len(nk)-1] {
 		needle += fmt.Sprintf("[objects[i].%s]", key.Name)
 		subIndexTyp := indexType(nk[i+1:], field.Type.Name)
-		buf.L("        _, ok%d := %s%s", i, objectsVar, needle)
-		buf.L("        if !ok%d {", i)
-		buf.L("                subIndex := %s{}", subIndexTyp)
-		buf.L("                %s%s = subIndex", objectsVar, needle)
-		buf.L("        }")
-		buf.N()
+		m.buf.L("        _, ok%d := %s%s", i, objectsVar, needle)
+		m.buf.L("        if !ok%d {", i)
+		m.buf.L("                subIndex := %s{}", subIndexTyp)
+		m.buf.L("                %s%s = subIndex", objectsVar, needle)
+		m.buf.L("        }")
+		m.buf.N()
 	}
 
 	needle += fmt.Sprintf("[objects[i].%s]", nk[len(nk)-1].Name)
-	buf.L("        value := %s%s", objectsVar, needle)
-	buf.L("        if value == nil {")
-	buf.L("                value = %s{}", field.Type.Name)
-	buf.L("        }")
+	m.buf.L("        value := %s%s", objectsVar, needle)
+	m.buf.L("        if value == nil {")
+	m.buf.L("                value = %s{}", field.Type.Name)
+	m.buf.L("        }")
 	if field.Name == "UsedBy" {
-		buf.L("        for j := range value {")
-		buf.L("                if len(value[j]) > 12 && value[j][len(value[j])-12:] == \"&target=none\" {")
-		buf.L("                         value[j] = value[j][0:len(value[j])-12]")
-		buf.L("                }")
-		buf.L("                if len(value[j]) > 16 && value[j][len(value[j])-16:] == \"?project=default\" {")
-		buf.L("                         value[j] = value[j][0:len(value[j])-16]")
-		buf.L("                }")
-		buf.L("        }")
+		m.buf.L("        for j := range value {")
+		m.buf.L("                if len(value[j]) > 12 && value[j][len(value[j])-12:] == \"&target=none\" {")
+		m.buf.L("                         value[j] = value[j][0:len(value[j])-12]")
+		m.buf.L("                }")
+		m.buf.L("                if len(value[j]) > 16 && value[j][len(value[j])-16:] == \"?project=default\" {")
+		m.buf.L("                         value[j] = value[j][0:len(value[j])-16]")
+		m.buf.L("                }")
+		m.buf.L("        }")
 	}
-	buf.L("        objects[i].%s = value", field.Name)
-	buf.L("}")
-	buf.N()
+	m.buf.L("        objects[i].%s = value", field.Name)
+	m.buf.L("}")
+	m.buf.N()
 
 	return nil
 }
 
-func (m *Method) id(buf *file.Buffer) error {
-	// Support using a different structure or package to pass arguments to Create.
-	entityCreate, ok := m.config["struct"]
-	if !ok {
-		entityCreate = entityPost(m.entity)
-	}
-
-	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	nk := mapping.NaturalKey()
+func (m *Method) id() error {
+	nk := m.mapping.NaturalKey()
 
 	comment := fmt.Sprintf("return the ID of the %s with the given key.", m.entity)
 	args := FieldArgs(nk)
 	rets := "(int64, error)"
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
+	m.begin(comment, args, rets)
+	defer m.end()
 
-	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "ID"))
-	buf.L("rows, err := stmt.Query(%s)", FieldParams(nk))
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to get %s ID\")", m.entity)
-	buf.L("}")
-	buf.L("defer rows.Close()")
-	buf.N()
-	buf.L("// Ensure we read one and only one row.")
-	buf.L("if !rows.Next() {")
-	buf.L("        return -1, ErrNoSuchObject")
-	buf.L("}")
-	buf.L("var id int64")
-	buf.L("err = rows.Scan(&id)")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to scan ID\")")
-	buf.L("}")
-	buf.L("if rows.Next() {")
-	buf.L("        return -1, fmt.Errorf(\"More than one row returned\")")
-	buf.L("}")
-	buf.L("err = rows.Err()")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Result set failure\")")
-	buf.L("}")
-	buf.N()
-	buf.L("return id, nil")
+	m.buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "ID"))
+	m.buf.L("rows, err := stmt.Query(%s)", FieldParams(nk))
+	m.buf.L("if err != nil {")
+	m.buf.L("        return -1, errors.Wrap(err, \"Failed to get %s ID\")", m.entity)
+	m.buf.L("}")
+	m.buf.L("defer rows.Close()")
+	m.buf.N()
+	m.buf.L("// Ensure we read one and only one row.")
+	m.buf.L("if !rows.Next() {")
+	m.buf.L("        return -1, ErrNoSuchObject")
+	m.buf.L("}")
+	m.buf.L("var id int64")
+	m.buf.L("err = rows.Scan(&id)")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return -1, errors.Wrap(err, \"Failed to scan ID\")")
+	m.buf.L("}")
+	m.buf.L("if rows.Next() {")
+	m.buf.L("        return -1, fmt.Errorf(\"More than one row returned\")")
+	m.buf.L("}")
+	m.buf.L("err = rows.Err()")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return -1, errors.Wrap(err, \"Result set failure\")")
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("return id, nil")
 
 	return nil
 }
 
-func (m *Method) exists(buf *file.Buffer) error {
-	// Support using a different structure or package to pass arguments to Create.
-	entityCreate, ok := m.config["struct"]
-	if !ok {
-		entityCreate = entityPost(m.entity)
-	}
-
-	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	nk := mapping.NaturalKey()
+func (m *Method) exists() error {
+	nk := m.mapping.NaturalKey()
 
 	comment := fmt.Sprintf("checks if a %s with the given key exists.", m.entity)
 	args := FieldArgs(nk)
 	rets := "(bool, error)"
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
+	m.begin(comment, args, rets)
+	defer m.end()
 
-	buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
-	buf.L("if err != nil {")
-	buf.L("        if err == ErrNoSuchObject {")
-	buf.L("                return false, nil")
-	buf.L("        }")
-	buf.L("        return false, err")
-	buf.L("}")
-	buf.N()
-	buf.L("return true, nil")
+	m.buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
+	m.buf.L("if err != nil {")
+	m.buf.L("        if err == ErrNoSuchObject {")
+	m.buf.L("                return false, nil")
+	m.buf.L("        }")
+	m.buf.L("        return false, err")
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("return true, nil")
 
 	return nil
 }
 
-func (m *Method) create(buf *file.Buffer, replace bool) error {
-	// Support using a different structure or package to pass arguments to Create.
-	entityCreate, ok := m.config["struct"]
-	if !ok {
-		entityCreate = entityPost(m.entity)
-	}
-
-	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
+func (m *Method) create(replace bool) error {
 	comment := fmt.Sprintf("adds a new %s to the database.", m.entity)
-
-	typ := entityType(m.pkg, entityCreate)
-
-	args := fmt.Sprintf("object %s", typ)
+	args := fmt.Sprintf("object %s", entityType(m.pkg, m.mapping.Name))
 	rets := "(int64, error)"
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
+	m.begin(comment, args, rets)
+	defer m.end()
 
-	nk := mapping.NaturalKey()
+	nk := m.mapping.NaturalKey()
 	nkParams := make([]string, len(nk))
 	for i, field := range nk {
 		nkParams[i] = fmt.Sprintf("object.%s", field.Name)
@@ -668,155 +590,145 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	if replace {
 		kind = "create_or_replace"
 	} else {
-		buf.L("// Check if a %s with the same key exists.", m.entity)
-		buf.L("exists, err := c.%sExists(%s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
-		buf.L("if err != nil {")
-		buf.L("        return -1, errors.Wrap(err, \"Failed to check for duplicates\")")
-		buf.L("}")
-		buf.L("if exists {")
-		buf.L("        return -1, fmt.Errorf(\"This %s already exists\")", m.entity)
-		buf.L("}")
-		buf.N()
+		m.buf.L("// Check if a %s with the same key exists.", m.entity)
+		m.buf.L("exists, err := c.%sExists(%s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
+		m.buf.L("if err != nil {")
+		m.buf.L("        return -1, errors.Wrap(err, \"Failed to check for duplicates\")")
+		m.buf.L("}")
+		m.buf.L("if exists {")
+		m.buf.L("        return -1, fmt.Errorf(\"This %s already exists\")", m.entity)
+		m.buf.L("}")
+		m.buf.N()
 	}
 
-	fields := mapping.ColumnFields("ID")
-	buf.L("args := make([]interface{}, %d)", len(fields))
-	buf.N()
+	fields := m.mapping.ColumnFields("ID")
+	m.buf.L("args := make([]interface{}, %d)", len(fields))
+	m.buf.N()
 
-	buf.L("// Populate the statement arguments. ")
+	m.buf.L("// Populate the statement arguments. ")
 	for i, field := range fields {
-		buf.L("args[%d] = object.%s", i, field.Name)
+		m.buf.L("args[%d] = object.%s", i, field.Name)
 	}
 
-	buf.N()
+	m.buf.N()
 
-	buf.L("// Prepared statement to use. ")
-	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, kind))
-	buf.N()
-	buf.L("// Execute the statement. ")
-	buf.L("result, err := stmt.Exec(args...)")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to create %s\")", m.entity)
-	buf.L("}")
-	buf.N()
-	buf.L("id, err := result.LastInsertId()")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to fetch %s ID\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.buf.L("// Prepared statement to use. ")
+	m.buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, kind))
+	m.buf.N()
+	m.buf.L("// Execute the statement. ")
+	m.buf.L("result, err := stmt.Exec(args...)")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return -1, errors.Wrap(err, \"Failed to create %s\")", m.entity)
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("id, err := result.LastInsertId()")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return -1, errors.Wrap(err, \"Failed to fetch %s ID\")", m.entity)
+	m.buf.L("}")
+	m.buf.N()
 
-	fields = mapping.RefFields()
+	fields = m.mapping.RefFields()
 	for _, field := range fields {
 		if field.Type.Name == "map[string]string" {
-			buf.L("// Insert config reference. ")
-			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createConfigRef"))
-			buf.L("for key, value := range object.%s {", field.Name)
-			buf.L("        _, err := stmt.Exec(id, key, value)")
-			buf.L("        if err != nil {")
-			buf.L("                return -1, errors.Wrap(err, \"Insert config for %s\")", m.entity)
-			buf.L("        }")
-			buf.L("}")
-			buf.N()
+			m.buf.L("// Insert config reference. ")
+			m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createConfigRef"))
+			m.buf.L("for key, value := range object.%s {", field.Name)
+			m.buf.L("        _, err := stmt.Exec(id, key, value)")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return -1, errors.Wrap(err, \"Insert config for %s\")", m.entity)
+			m.buf.L("        }")
+			m.buf.L("}")
+			m.buf.N()
 		}
 		if field.Type.Name == "map[string]map[string]string" {
-			buf.L("// Insert devices reference. ")
-			buf.L("for name, config := range object.%s {", field.Name)
-			buf.L("        typ, ok := config[\"type\"]")
-			buf.L("        if !ok {")
-			buf.L("                return -1, fmt.Errorf(\"No type for device %%s\", name)")
-			buf.L("        }")
-			buf.L("        typCode, err := deviceTypeToInt(typ)")
-			buf.L("        if err != nil {")
-			buf.L("                return -1, errors.Wrapf(err, \"Device type code for %%s\", typ)")
-			buf.L("        }")
-			buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesRef"))
-			buf.L("        result, err := stmt.Exec(id, name, typCode)")
-			buf.L("        if err != nil {")
-			buf.L("                return -1, errors.Wrapf(err, \"Insert device %%s\", name)")
-			buf.L("        }")
-			buf.L("        deviceID, err := result.LastInsertId()")
-			buf.L("        if err != nil {")
-			buf.L("                return -1, errors.Wrap(err, \"Failed to fetch device ID\")")
-			buf.L("        }")
-			buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesConfigRef"))
-			buf.L("        for key, value := range config {")
-			buf.L("                _, err := stmt.Exec(deviceID, key, value)")
-			buf.L("                if err != nil {")
-			buf.L("                        return -1, errors.Wrap(err, \"Insert config for %s\")", m.entity)
-			buf.L("                }")
-			buf.L("        }")
-			buf.L("}")
-			buf.N()
+			m.buf.L("// Insert devices reference. ")
+			m.buf.L("for name, config := range object.%s {", field.Name)
+			m.buf.L("        typ, ok := config[\"type\"]")
+			m.buf.L("        if !ok {")
+			m.buf.L("                return -1, fmt.Errorf(\"No type for device %%s\", name)")
+			m.buf.L("        }")
+			m.buf.L("        typCode, err := deviceTypeToInt(typ)")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return -1, errors.Wrapf(err, \"Device type code for %%s\", typ)")
+			m.buf.L("        }")
+			m.buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesRef"))
+			m.buf.L("        result, err := stmt.Exec(id, name, typCode)")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return -1, errors.Wrapf(err, \"Insert device %%s\", name)")
+			m.buf.L("        }")
+			m.buf.L("        deviceID, err := result.LastInsertId()")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return -1, errors.Wrap(err, \"Failed to fetch device ID\")")
+			m.buf.L("        }")
+			m.buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesConfigRef"))
+			m.buf.L("        for key, value := range config {")
+			m.buf.L("                _, err := stmt.Exec(deviceID, key, value)")
+			m.buf.L("                if err != nil {")
+			m.buf.L("                        return -1, errors.Wrap(err, \"Insert config for %s\")", m.entity)
+			m.buf.L("                }")
+			m.buf.L("        }")
+			m.buf.L("}")
+			m.buf.N()
 		}
 		if field.Name == "Profiles" {
 			// TODO: get rid of the special case
-			buf.L("// Insert profiles reference. ")
-			buf.L("err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
-			buf.L("if err != nil {")
-			buf.L("        return -1, errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
-			buf.L("}")
+			m.buf.L("// Insert profiles reference. ")
+			m.buf.L("err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
+			m.buf.L("if err != nil {")
+			m.buf.L("        return -1, errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
+			m.buf.L("}")
 		}
 	}
 
-	buf.L("return id, nil")
+	m.buf.L("return id, nil")
 
 	return nil
 }
 
-func (m *Method) rename(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	nk := mapping.NaturalKey()
+func (m *Method) rename() error {
+	nk := m.mapping.NaturalKey()
 
 	comment := fmt.Sprintf("renames the %s matching the given key parameters.", m.entity)
 	args := FieldArgs(nk) + ", to string"
 	rets := "error"
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
+	m.begin(comment, args, rets)
+	defer m.end()
 
-	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "rename"))
-	buf.L("result, err := stmt.Exec(%s)", "to, "+FieldParams(nk))
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Rename %s\")", m.entity)
-	buf.L("}")
-	buf.N()
-	buf.L("n, err := result.RowsAffected()")
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
-	buf.L("}")
-	buf.L("if n != 1 {")
-	buf.L("        return fmt.Errorf(\"Query affected %%d rows instead of 1\", n)")
-	buf.L("}")
+	m.buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "rename"))
+	m.buf.L("result, err := stmt.Exec(%s)", "to, "+FieldParams(nk))
+	m.buf.L("if err != nil {")
+	m.buf.L("        return errors.Wrap(err, \"Rename %s\")", m.entity)
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("n, err := result.RowsAffected()")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
+	m.buf.L("}")
+	m.buf.L("if n != 1 {")
+	m.buf.L("        return fmt.Errorf(\"Query affected %%d rows instead of 1\", n)")
+	m.buf.L("}")
 
-	buf.L("return nil")
+	m.buf.L("return nil")
 
 	return nil
 }
 
-func (m *Method) update(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
+func (m *Method) update() error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityUpdate, ok := m.config["struct"]
 	if !ok {
 		entityUpdate = entityPut(m.entity)
 	}
 
-	nk := mapping.NaturalKey()
+	nk := m.mapping.NaturalKey()
 
 	comment := fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
 	args := FieldArgs(nk) + fmt.Sprintf(", object %s", entityType(m.pkg, entityUpdate))
 	rets := "error"
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
+	m.begin(comment, args, rets)
+	defer m.end()
 
 	updateMapping, err := Parse(m.packages[m.pkg], entityUpdate, m.kind)
 	if err != nil {
@@ -830,214 +742,153 @@ func (m *Method) update(buf *file.Buffer) error {
 		params[i] = fmt.Sprintf("object.%s", field.Name)
 	}
 
-	//buf.L("id, err := c.Get%s(%s)", lex.Camel(m.entity), FieldArgs(nk))
-	buf.L("id, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Get %s\")", m.entity)
-	buf.L("}")
-	buf.N()
-	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "update"))
-	buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Update %s\")", m.entity)
-	buf.L("}")
-	buf.N()
-	buf.L("n, err := result.RowsAffected()")
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
-	buf.L("}")
-	buf.L("if n != 1 {")
-	buf.L("        return fmt.Errorf(\"Query updated %%d rows instead of 1\", n)")
-	buf.L("}")
-	buf.N()
+	//m.buf.L("id, err := c.Get%s(%s)", lex.Camel(m.entity), FieldArgs(nk))
+	m.buf.L("id, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
+	m.buf.L("if err != nil {")
+	m.buf.L("        return errors.Wrap(err, \"Get %s\")", m.entity)
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "update"))
+	m.buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return errors.Wrap(err, \"Update %s\")", m.entity)
+	m.buf.L("}")
+	m.buf.N()
+	m.buf.L("n, err := result.RowsAffected()")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
+	m.buf.L("}")
+	m.buf.L("if n != 1 {")
+	m.buf.L("        return fmt.Errorf(\"Query updated %%d rows instead of 1\", n)")
+	m.buf.L("}")
+	m.buf.N()
 
-	fields = mapping.RefFields()
+	fields = m.mapping.RefFields()
 	for _, field := range fields {
 		switch field.Name {
 		case "Config":
-			buf.L("// Delete current config. ")
-			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteConfigRef"))
-			buf.L("_, err = stmt.Exec(id)")
-			buf.L("if err != nil {")
-			buf.L("        return errors.Wrap(err, \"Delete current config\")")
-			buf.L("}")
-			buf.N()
-			buf.L("// Insert config reference. ")
-			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createConfigRef"))
-			buf.L("for key, value := range object.%s {", field.Name)
-			buf.L("        if value == \"\" {")
-			buf.L("                continue")
-			buf.L("        }")
-			buf.L("        _, err := stmt.Exec(id, key, value)")
-			buf.L("        if err != nil {")
-			buf.L("                return errors.Wrap(err, \"Insert config for %s\")", m.entity)
-			buf.L("        }")
-			buf.L("}")
-			buf.N()
+			m.buf.L("// Delete current config. ")
+			m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteConfigRef"))
+			m.buf.L("_, err = stmt.Exec(id)")
+			m.buf.L("if err != nil {")
+			m.buf.L("        return errors.Wrap(err, \"Delete current config\")")
+			m.buf.L("}")
+			m.buf.N()
+			m.buf.L("// Insert config reference. ")
+			m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createConfigRef"))
+			m.buf.L("for key, value := range object.%s {", field.Name)
+			m.buf.L("        if value == \"\" {")
+			m.buf.L("                continue")
+			m.buf.L("        }")
+			m.buf.L("        _, err := stmt.Exec(id, key, value)")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return errors.Wrap(err, \"Insert config for %s\")", m.entity)
+			m.buf.L("        }")
+			m.buf.L("}")
+			m.buf.N()
 		case "Devices":
-			buf.L("// Delete current devices. ")
-			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteDevicesRef"))
-			buf.L("_, err = stmt.Exec(id)")
-			buf.L("if err != nil {")
-			buf.L("        return errors.Wrap(err, \"Delete current devices\")")
-			buf.L("}")
-			buf.N()
-			buf.L("// Insert devices reference. ")
-			buf.L("for name, config := range object.%s {", field.Name)
-			buf.L("        typ, ok := config[\"type\"]")
-			buf.L("        if !ok {")
-			buf.L("                return fmt.Errorf(\"No type for device %%s\", name)")
-			buf.L("        }")
-			buf.L("        typCode, err := deviceTypeToInt(typ)")
-			buf.L("        if err != nil {")
-			buf.L("                return errors.Wrapf(err, \"Device type code for %%s\", typ)")
-			buf.L("        }")
-			buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesRef"))
-			buf.L("        result, err := stmt.Exec(id, name, typCode)")
-			buf.L("        if err != nil {")
-			buf.L("                return errors.Wrapf(err, \"Insert device %%s\", name)")
-			buf.L("        }")
-			buf.L("        deviceID, err := result.LastInsertId()")
-			buf.L("        if err != nil {")
-			buf.L("                return errors.Wrap(err, \"Failed to fetch device ID\")")
-			buf.L("        }")
-			buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesConfigRef"))
-			buf.L("        for key, value := range config {")
-			buf.L("                if value == \"\" {")
-			buf.L("                        continue")
-			buf.L("                }")
-			buf.L("                _, err := stmt.Exec(deviceID, key, value)")
-			buf.L("                if err != nil {")
-			buf.L("                        return errors.Wrap(err, \"Insert config for %s\")", m.entity)
-			buf.L("                }")
-			buf.L("        }")
-			buf.L("}")
-			buf.N()
+			m.buf.L("// Delete current devices. ")
+			m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteDevicesRef"))
+			m.buf.L("_, err = stmt.Exec(id)")
+			m.buf.L("if err != nil {")
+			m.buf.L("        return errors.Wrap(err, \"Delete current devices\")")
+			m.buf.L("}")
+			m.buf.N()
+			m.buf.L("// Insert devices reference. ")
+			m.buf.L("for name, config := range object.%s {", field.Name)
+			m.buf.L("        typ, ok := config[\"type\"]")
+			m.buf.L("        if !ok {")
+			m.buf.L("                return fmt.Errorf(\"No type for device %%s\", name)")
+			m.buf.L("        }")
+			m.buf.L("        typCode, err := deviceTypeToInt(typ)")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return errors.Wrapf(err, \"Device type code for %%s\", typ)")
+			m.buf.L("        }")
+			m.buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesRef"))
+			m.buf.L("        result, err := stmt.Exec(id, name, typCode)")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return errors.Wrapf(err, \"Insert device %%s\", name)")
+			m.buf.L("        }")
+			m.buf.L("        deviceID, err := result.LastInsertId()")
+			m.buf.L("        if err != nil {")
+			m.buf.L("                return errors.Wrap(err, \"Failed to fetch device ID\")")
+			m.buf.L("        }")
+			m.buf.L("        stmt = c.stmt(%s)", stmtCodeVar(m.entity, "createDevicesConfigRef"))
+			m.buf.L("        for key, value := range config {")
+			m.buf.L("                if value == \"\" {")
+			m.buf.L("                        continue")
+			m.buf.L("                }")
+			m.buf.L("                _, err := stmt.Exec(deviceID, key, value)")
+			m.buf.L("                if err != nil {")
+			m.buf.L("                        return errors.Wrap(err, \"Insert config for %s\")", m.entity)
+			m.buf.L("                }")
+			m.buf.L("        }")
+			m.buf.L("}")
+			m.buf.N()
 		case "Profiles":
-			buf.L("// Delete current profiles. ")
-			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteProfilesRef"))
-			buf.L("_, err = stmt.Exec(id)")
-			buf.L("if err != nil {")
-			buf.L("        return errors.Wrap(err, \"Delete current profiles\")")
-			buf.L("}")
-			buf.N()
-			buf.L("// Insert profiles reference. ")
-			buf.L("err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
-			buf.L("if err != nil {")
-			buf.L("        return errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
-			buf.L("}")
+			m.buf.L("// Delete current profiles. ")
+			m.buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "deleteProfilesRef"))
+			m.buf.L("_, err = stmt.Exec(id)")
+			m.buf.L("if err != nil {")
+			m.buf.L("        return errors.Wrap(err, \"Delete current profiles\")")
+			m.buf.L("}")
+			m.buf.N()
+			m.buf.L("// Insert profiles reference. ")
+			m.buf.L("err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
+			m.buf.L("if err != nil {")
+			m.buf.L("        return errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
+			m.buf.L("}")
 		}
 	}
 
-	buf.L("return nil")
+	m.buf.L("return nil")
 
 	return nil
 }
 
-func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
-	}
-
-	filters := Filters(m.packages["db"], "delete", m.entity)
-
+func (m *Method) delete(deleteOne bool) error {
 	comment := fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
 	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
 	rets := "error"
 
-	m.begin(buf, comment, args, rets)
-	defer m.end(buf)
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
+	m.begin(comment, args, rets)
+	defer m.end()
 
-	for _, name := range criteria {
-		var zero string
-		if name == "Parent" {
-			zero = `""`
-		} else {
-			field := mapping.FieldByName(name)
-			if field == nil {
-				return fmt.Errorf("No field named %q in filter struct", name)
-			}
-			zero = field.ZeroValue()
-		}
-		buf.L("if filter.%s != %s {", name, zero)
-		buf.L("        criteria[%q] = filter.%s", name, name)
-		buf.L("}")
+	if err := m.makeCriteriaFromFilter(); err != nil {
+		return err
 	}
 
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
-	buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-		buf.L("%s %s {", branch, activeCriteria(filter))
-
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "delete", filter...))
-		buf.L("args = []interface{}{")
-
-		for _, name := range filter {
-			if name == "Parent" {
-				buf.L("len(filter.Parent)+1,")
-				buf.L("filter.%s+\"/\",", name)
-			} else {
-				buf.L("filter.%s,", name)
-			}
-		}
-
-		buf.L("}")
-
-		// Last branch, no filter to use.
-		if i == len(filters)-1 {
-			buf.L("} else {")
-		}
-	}
-	// Else branch.
-	buf.L("return fmt.Errorf(\"No valid filter for %s delete\")", m.entity)
-	buf.L("}")
-
-	buf.L("result, err := stmt.Exec(args...)")
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Delete %s\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.buf.L("result, err := stmt.Exec(args...)")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return errors.Wrap(err, \"Delete %s\")", m.entity)
+	m.buf.L("}")
+	m.buf.N()
 
 	if deleteOne {
-		buf.L("n, err := result.RowsAffected()")
+		m.buf.L("n, err := result.RowsAffected()")
 	} else {
-		buf.L("_, err = result.RowsAffected()")
+		m.buf.L("_, err = result.RowsAffected()")
 	}
 
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
-	buf.L("}")
+	m.buf.L("if err != nil {")
+	m.buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
+	m.buf.L("}")
 
 	if deleteOne {
-		buf.L("if n != 1 {")
-		buf.L("        return fmt.Errorf(\"Query deleted %%d rows instead of 1\", n)")
-		buf.L("}")
+		m.buf.L("if n != 1 {")
+		m.buf.L("        return fmt.Errorf(\"Query deleted %%d rows instead of 1\", n)")
+		m.buf.L("}")
 	}
 
-	buf.N()
-	buf.L("return nil")
+	m.buf.N()
+	m.buf.L("return nil")
 	return nil
 }
 
-func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string) {
+func (m *Method) begin(comment string, args string, rets string) {
 	name := ""
 	entity := lex.Camel(m.entity)
+	kind := strings.Replace(m.kind, "-", "_", -1)
 	switch m.kind {
 	case "URIs":
 		name = fmt.Sprintf("Get%sURIs", entity)
@@ -1062,14 +913,14 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 	case "DeleteMany":
 		name = fmt.Sprintf("Delete%ss", entity)
 	default:
-		name = fmt.Sprintf("%s%s", entity, m.kind)
+		name = fmt.Sprintf("%s%s", entity, lex.Camel(kind))
 	}
 	receiver := fmt.Sprintf("c %s", dbTxType(m.db))
 
-	buf.L("// %s %s", name, comment)
-	buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
+	m.buf.L("// %s %s", name, comment)
+	m.buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
 }
 
-func (m *Method) end(buf *file.Buffer) {
-	buf.L("}")
+func (m *Method) end() {
+	m.buf.L("}")
 }
