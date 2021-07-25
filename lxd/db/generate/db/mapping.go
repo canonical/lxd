@@ -14,6 +14,7 @@ type Mapping struct {
 	Package string   // Package of the Go struct
 	Name    string   // Name of the Go struct.
 	Fields  []*Field // Metadata about the Go struct.
+	Filters []*Field // Metadata about the Go struct used for filter fields.
 }
 
 // NaturalKey returns the struct fields that can be used as natural key for
@@ -75,16 +76,16 @@ func (m *Mapping) FieldColumnName(name string) string {
 // FilterFieldByName returns the field with the given name if that field can be
 // used as query filter, an error otherwise.
 func (m *Mapping) FilterFieldByName(name string) (*Field, error) {
-	field := m.FieldByName(name)
-	if field == nil {
-		return nil, fmt.Errorf("Unknown filter %q", name)
+	for _, filter := range m.Filters {
+		if name == filter.Name {
+			if filter.Type.Code != TypeColumn {
+				return nil, fmt.Errorf("Unknown filter %q not a column", name)
+			}
+			return filter, nil
+		}
 	}
 
-	if field.Type.Code != TypeColumn {
-		return nil, fmt.Errorf("Unknown filter %q not a column", name)
-	}
-
-	return field, nil
+	return nil, fmt.Errorf("Unknown filter %q", name)
 }
 
 // ColumnFields returns the fields that map directly to a database column,
