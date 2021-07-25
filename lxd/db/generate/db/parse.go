@@ -155,11 +155,21 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 		Fields:  fields,
 	}
 
+	coreFields := []string{}
+	if strings.Contains(kind, "-by-") {
+		index := strings.Index(kind, "-by-") + len("-by-")
+		coreFields = strings.Split(kind[index:], "-and-")
+	}
+
 	for i, filter := range filters {
 		// Filter field must be present in original struct.
 		field := m.FieldByName(filter.Name)
 		if field == nil {
 			return nil, fmt.Errorf("filter field %q is not in struct %q", field.Name, name)
+		}
+		// Filter must not be a core field.
+		if shared.StringInSlice(filter.Name, coreFields) {
+			return nil, fmt.Errorf("core field %q must not be part of filter struct %q", filter.Name, name+"Filter")
 		}
 
 		// Get the config tags from the main struct.
