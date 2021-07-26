@@ -15,14 +15,17 @@ import (
 var stdin = bufio.NewReader(os.Stdin)
 
 // AskBool asks a question and expect a yes/no answer.
-func AskBool(question string, defaultAnswer string) bool {
+func AskBool(question string, defaultAnswer string) (bool, error) {
 	for {
-		answer := askQuestion(question, defaultAnswer)
+		answer, err := askQuestion(question, defaultAnswer)
+		if err != nil {
+			return false, err
+		}
 
 		if shared.StringInSlice(strings.ToLower(answer), []string{"yes", "y"}) {
-			return true
+			return true, nil
 		} else if shared.StringInSlice(strings.ToLower(answer), []string{"no", "n"}) {
-			return false
+			return false, nil
 		}
 
 		invalidInput()
@@ -30,12 +33,15 @@ func AskBool(question string, defaultAnswer string) bool {
 }
 
 // AskChoice asks the user to select one of multiple options
-func AskChoice(question string, choices []string, defaultAnswer string) string {
+func AskChoice(question string, choices []string, defaultAnswer string) (string, error) {
 	for {
-		answer := askQuestion(question, defaultAnswer)
+		answer, err := askQuestion(question, defaultAnswer)
+		if err != nil {
+			return "", err
+		}
 
 		if shared.StringInSlice(answer, choices) {
-			return answer
+			return answer, nil
 		}
 
 		invalidInput()
@@ -43,9 +49,12 @@ func AskChoice(question string, choices []string, defaultAnswer string) string {
 }
 
 // AskInt asks the user to enter an integer between a min and max value
-func AskInt(question string, min int64, max int64, defaultAnswer string, validate func(int64) error) int64 {
+func AskInt(question string, min int64, max int64, defaultAnswer string, validate func(int64) error) (int64, error) {
 	for {
-		answer := askQuestion(question, defaultAnswer)
+		answer, err := askQuestion(question, defaultAnswer)
+		if err != nil {
+			return -1, err
+		}
 
 		result, err := strconv.ParseInt(answer, 10, 64)
 		if err != nil {
@@ -66,15 +75,18 @@ func AskInt(question string, min int64, max int64, defaultAnswer string, validat
 			}
 		}
 
-		return result
+		return result, err
 	}
 }
 
 // AskString asks the user to enter a string, which optionally
 // conforms to a validation function.
-func AskString(question string, defaultAnswer string, validate func(string) error) string {
+func AskString(question string, defaultAnswer string, validate func(string) error) (string, error) {
 	for {
-		answer := askQuestion(question, defaultAnswer)
+		answer, err := askQuestion(question, defaultAnswer)
+		if err != nil {
+			return "", err
+		}
 
 		if validate != nil {
 			error := validate(answer)
@@ -83,11 +95,11 @@ func AskString(question string, defaultAnswer string, validate func(string) erro
 				continue
 			}
 
-			return answer
+			return answer, err
 		}
 
 		if len(answer) != 0 {
-			return answer
+			return answer, err
 		}
 
 		invalidInput()
@@ -139,22 +151,21 @@ func AskPasswordOnce(question string) string {
 }
 
 // Ask a question on the output stream and read the answer from the input stream
-func askQuestion(question, defaultAnswer string) string {
+func askQuestion(question, defaultAnswer string) (string, error) {
 	fmt.Printf(question)
 
 	return readAnswer(defaultAnswer)
 }
 
 // Read the user's answer from the input stream, trimming newline and providing a default.
-func readAnswer(defaultAnswer string) string {
-	answer, _ := stdin.ReadString('\n')
-	answer = strings.TrimSuffix(answer, "\n")
-	answer = strings.TrimSpace(answer)
+func readAnswer(defaultAnswer string) (string, error) {
+	answer, err := stdin.ReadString('\n')
+	answer = strings.TrimSpace(strings.TrimSuffix(answer, "\n"))
 	if answer == "" {
 		answer = defaultAnswer
 	}
 
-	return answer
+	return answer, err
 }
 
 // Print an invalid input message on the error stream
