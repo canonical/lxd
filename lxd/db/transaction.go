@@ -5,7 +5,8 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
+
+	"github.com/lxc/lxd/lxd/db/cluster"
 )
 
 // NodeTx models a single interaction with a LXD node-local database.
@@ -49,7 +50,12 @@ func (c *ClusterTx) GetNodeID() *int64 {
 func (c *ClusterTx) stmt(code int) *sql.Stmt {
 	stmt, ok := c.stmts[code]
 	if !ok {
-		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
+		var err error
+		stmt, err = c.tx.Prepare(cluster.GetRegisteredStmt(code))
+		if err != nil {
+			panic(err)
+		}
+		c.stmts[code] = stmt
 	}
 	return c.tx.Stmt(stmt)
 }
