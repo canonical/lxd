@@ -135,7 +135,8 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 			for _, name := range names {
 				fmt.Println(" - " + name)
 			}
-			return cli.AskChoice(i18n.G("Name of the project to use for this remote:")+" ", names, ""), nil
+
+			return cli.AskChoice(i18n.G("Name of the project to use for this remote:")+" ", names, "")
 		}
 
 		return "", nil
