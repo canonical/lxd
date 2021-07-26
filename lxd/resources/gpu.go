@@ -182,37 +182,50 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		}
 	}
 
-	// Vendor and product
-	deviceVendorPath := filepath.Join(devicePath, "vendor")
-	if sysfsExists(deviceVendorPath) {
-		id, err := ioutil.ReadFile(deviceVendorPath)
+	deviceUSBPath := filepath.Join(devicePath, "device", "busnum")
+	if sysfsExists(deviceUSBPath) {
+		// USB address
+		deviceDevicePath := filepath.Join(devicePath, "device")
+		usbAddr, err := usbAddress(deviceDevicePath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to read %q", deviceVendorPath)
+			return errors.Wrapf(err, "Failed to track down USB address for %q", devicePath)
+		}
+		if usbAddr != "" {
+			card.USBAddress = usbAddr
+		}
+	} else {
+		// Vendor and product
+		deviceVendorPath := filepath.Join(devicePath, "vendor")
+		if sysfsExists(deviceVendorPath) {
+			id, err := ioutil.ReadFile(deviceVendorPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to read %q", deviceVendorPath)
+			}
+
+			card.VendorID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
 		}
 
-		card.VendorID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
-	}
+		deviceDevicePath := filepath.Join(devicePath, "device")
+		if sysfsExists(deviceDevicePath) {
+			id, err := ioutil.ReadFile(deviceDevicePath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to read %q", deviceDevicePath)
+			}
 
-	deviceDevicePath := filepath.Join(devicePath, "device")
-	if sysfsExists(deviceDevicePath) {
-		id, err := ioutil.ReadFile(deviceDevicePath)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to read %q", deviceDevicePath)
+			card.ProductID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
 		}
 
-		card.ProductID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
-	}
+		// Fill vendor and product names
+		if pciDB != nil {
+			vendor, ok := pciDB.Vendors[card.VendorID]
+			if ok {
+				card.Vendor = vendor.Name
 
-	// Fill vendor and product names
-	if pciDB != nil {
-		vendor, ok := pciDB.Vendors[card.VendorID]
-		if ok {
-			card.Vendor = vendor.Name
-
-			for _, product := range vendor.Products {
-				if product.ID == card.ProductID {
-					card.Product = product.Name
-					break
+				for _, product := range vendor.Products {
+					if product.ID == card.ProductID {
+						card.Product = product.Name
+						break
+					}
 				}
 			}
 		}
