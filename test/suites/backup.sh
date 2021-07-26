@@ -175,6 +175,134 @@ test_container_import() {
   kill_lxd "${LXD_IMPORT_DIR}"
 }
 
+test_container_recover() {
+  LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_IMPORT_DIR}"
+  spawn_lxd "${LXD_IMPORT_DIR}" true
+
+  (
+    set -e
+
+    # shellcheck disable=SC2030
+    LXD_DIR=${LXD_IMPORT_DIR}
+    lxd_backend=$(storage_backend "$LXD_DIR")
+
+    ensure_import_testimage
+
+    # Basic no-op check.
+    cat <<EOF | lxd recover | grep "No unknown volumes found. Nothing to do."
+no
+yes
+EOF
+
+    # Recover container that isn't running.
+    lxc init testimage c1
+    lxc snapshot c1
+    lxc info c1
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+    ! lxc info c1 || false
+
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+    # Check snapshot exists and container can be started.
+    lxc info c1 | grep snap0
+    lxc start c1
+    lxc exec c1 -- ls
+
+    # Check snashot can be restored.
+    lxc restore c1 snap0
+    lxc info c1
+    lxc exec c1 -- ls
+
+    # Recover container that is running.
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+
+    # Restart LXD so internal mount counters are cleared for deleted (but running) container.
+    shutdown_lxd "${LXD_DIR}"
+    respawn_lxd "${LXD_DIR}" true
+
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
+
+    lxc info c1 | grep snap0
+    lxc exec c1 -- ls
+    lxc restore c1 snap0
+    lxc info c1
+    lxc exec c1 -- ls
+
+    # Test recover after pool DB config deletion too.
+    poolName=$(lxc profile device get default root pool)
+    poolConfigBefore=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
+    poolDriver=$(lxc storage show "${poolName}" | grep 'driver:' | awk '{print $2}')
+    poolSource=$(lxc storage get "${poolName}" source)
+    poolExtraConfig=""
+
+    case $poolDriver in
+      lvm)
+        poolExtraConfig="lvm.vg_name=$(lxc storage get "${poolName}" lvm.vg_name)
+"
+      ;;
+      zfs)
+        poolExtraConfig="zfs.pool_name=$(lxc storage get "${poolName}" zfs.pool_name)
+"
+      ;;
+      ceph)
+        poolExtraConfig="ceph.cluster_name=$(lxc storage get "${poolName}" ceph.cluster_name)
+ceph.osd.pool_name=$(lxc storage get "${poolName}" ceph.osd.pool_name)
+ceph.user.name=$(lxc storage get "${poolName}" ceph.user.name)
+"
+      ;;
+    esac
+
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_pools WHERE name='${poolName}'"
+
+    cat <<EOF |lxd recover
+yes
+${poolName}
+${poolDriver}
+${poolSource}
+${poolExtraConfig}
+no
+yes
+yes
+EOF
+
+    # Check recovered pool config (from instance backup file) matches what originally was there.
+    lxc storage show "${poolName}"
+    poolConfigAfter=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
+    echo "Before:"
+    echo "${poolConfigBefore}"
+
+    echo "After:"
+    echo "${poolConfigAfter}"
+
+    [ "${poolConfigBefore}" =  "${poolConfigAfter}" ] || false
+    lxc storage show "${poolName}"
+
+    lxc info c1 | grep snap0
+    lxc exec c1 -- ls
+    lxc restore c1 snap0
+    lxc info c1
+    lxc exec c1 -- ls
+    lxc delete -f c1
+  )
+
+  # shellcheck disable=SC2031
+  LXD_DIR=${LXD_DIR}
+  kill_lxd "${LXD_IMPORT_DIR}"
+}
+
 test_backup_import() {
   test_backup_import_with_project
   test_backup_import_with_project fooproject
