@@ -24,16 +24,9 @@ import (
 //
 //go:generate mapper stmt -p db -e image objects
 //go:generate mapper stmt -p db -e image objects-by-Project
-//go:generate mapper stmt -p db -e image objects-by-Project-and-Cached
-//go:generate mapper stmt -p db -e image objects-by-Project-and-Public
-//go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint
-//go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint-and-Public
-//go:generate mapper stmt -p db -e image objects-by-Fingerprint
-//go:generate mapper stmt -p db -e image objects-by-Cached
-//go:generate mapper stmt -p db -e image objects-by-AutoUpdate
 //
 //go:generate mapper method -p db -e image List
-//go:generate mapper method -p db -e image Get
+//go:generate mapper method -p db -e image List-by-Project
 
 // Image is a value object holding db-related details about an image.
 type Image struct {
@@ -55,7 +48,6 @@ type Image struct {
 
 // ImageFilter can be used to filter results yielded by GetImages.
 type ImageFilter struct {
-	Project     string
 	Fingerprint string // Matched with LIKE
 	Public      bool
 	Cached      bool

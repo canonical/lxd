@@ -26,35 +26,24 @@ import (
 //
 //go:generate mapper stmt -p db -e instance objects
 //go:generate mapper stmt -p db -e instance objects-by-Project
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Node-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Name-and-Node
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Type
-//go:generate mapper stmt -p db -e instance objects-by-Type-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Type-and-Name-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Type-and-Node
+//go:generate mapper stmt -p db -e instance objects-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance objects-by-Node
-//go:generate mapper stmt -p db -e instance objects-by-Node-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Name
 //go:generate mapper stmt -p db -e instance profiles-ref
 //go:generate mapper stmt -p db -e instance profiles-ref-by-Project
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Node
 //go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Node
 //go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e instance profiles-ref-by-Node
 //go:generate mapper stmt -p db -e instance config-ref
 //go:generate mapper stmt -p db -e instance config-ref-by-Project
-//go:generate mapper stmt -p db -e instance config-ref-by-Node
 //go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Node
 //go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e instance config-ref-by-Node
 //go:generate mapper stmt -p db -e instance devices-ref
 //go:generate mapper stmt -p db -e instance devices-ref-by-Project
-//go:generate mapper stmt -p db -e instance devices-ref-by-Node
 //go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Node
 //go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Name
+//go:generate mapper stmt -p db -e instance devices-ref-by-Node
 //go:generate mapper stmt -p db -e instance id
 //go:generate mapper stmt -p db -e instance create struct=Instance
 //go:generate mapper stmt -p db -e instance create-config-ref
@@ -67,15 +56,32 @@ import (
 //go:generate mapper stmt -p db -e instance update struct=Instance
 //
 //go:generate mapper method -p db -e instance List
-//go:generate mapper method -p db -e instance Get
+//go:generate mapper method -p db -e instance List-by-Project
+//go:generate mapper method -p db -e instance List-by-Project-and-Node
+//go:generate mapper method -p db -e instance List-by-Project-and-Name
+//go:generate mapper method -p db -e instance List-by-Node
+//go:generate mapper method -p db -e instance Get-by-Project
+//go:generate mapper method -p db -e instance Get-by-Project-and-Name
 //go:generate mapper method -p db -e instance ID struct=Instance
 //go:generate mapper method -p db -e instance Exists struct=Instance
 //go:generate mapper method -p db -e instance Create struct=Instance
 //go:generate mapper method -p db -e instance ProfilesRef
+//go:generate mapper method -p db -e instance ProfilesRef-by-Project
+//go:generate mapper method -p db -e instance ProfilesRef-by-Project-and-Node
+//go:generate mapper method -p db -e instance ProfilesRef-by-Project-and-Name
+//go:generate mapper method -p db -e instance ProfilesRef-by-Node
 //go:generate mapper method -p db -e instance ConfigRef
+//go:generate mapper method -p db -e instance ConfigRef-by-Project
+//go:generate mapper method -p db -e instance ConfigRef-by-Project-and-Node
+//go:generate mapper method -p db -e instance ConfigRef-by-Project-and-Name
+//go:generate mapper method -p db -e instance ConfigRef-by-Node
 //go:generate mapper method -p db -e instance DevicesRef
+//go:generate mapper method -p db -e instance DevicesRef-by-Project
+//go:generate mapper method -p db -e instance DevicesRef-by-Project-and-Node
+//go:generate mapper method -p db -e instance DevicesRef-by-Project-and-Name
+//go:generate mapper method -p db -e instance DevicesRef-by-Node
 //go:generate mapper method -p db -e instance Rename
-//go:generate mapper method -p db -e instance DeleteOne
+//go:generate mapper method -p db -e instance DeleteOne-by-Project-and-Name
 //go:generate mapper method -p db -e instance Update struct=Instance
 
 // Instance is a value object holding db-related details about an instance.
@@ -100,10 +106,7 @@ type Instance struct {
 
 // InstanceFilter specifies potential query parameter fields.
 type InstanceFilter struct {
-	Project string
-	Name    string
-	Node    string
-	Type    instancetype.Type
+	Type instancetype.Type
 }
 
 // InstanceFilterAllInstances returns a predefined filter for returning all instances.

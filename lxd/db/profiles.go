@@ -42,16 +42,26 @@ import (
 //go:generate mapper stmt -p db -e profile update struct=Profile
 //
 //go:generate mapper method -p db -e profile URIs
+//go:generate mapper method -p db -e profile URIs-by-Project
+//go:generate mapper method -p db -e profile URIs-by-Project-and-Name
 //go:generate mapper method -p db -e profile List
-//go:generate mapper method -p db -e profile Get
+//go:generate mapper method -p db -e profile List-by-Project
+//go:generate mapper method -p db -e profile List-by-Project-and-Name
+//go:generate mapper method -p db -e profile Get-by-Project-and-Name
 //go:generate mapper method -p db -e profile Exists struct=Profile
 //go:generate mapper method -p db -e profile ID struct=Profile
 //go:generate mapper method -p db -e profile ConfigRef
+//go:generate mapper method -p db -e profile ConfigRef-by-Project
+//go:generate mapper method -p db -e profile ConfigRef-by-Project-and-Name
 //go:generate mapper method -p db -e profile DevicesRef
+//go:generate mapper method -p db -e profile DevicesRef-by-Project
+//go:generate mapper method -p db -e profile DevicesRef-by-Project-and-Name
 //go:generate mapper method -p db -e profile UsedByRef
+//go:generate mapper method -p db -e profile UsedByRef-by-Project
+//go:generate mapper method -p db -e profile UsedByRef-by-Project-and-Name
 //go:generate mapper method -p db -e profile Create struct=Profile
 //go:generate mapper method -p db -e profile Rename
-//go:generate mapper method -p db -e profile DeleteOne
+//go:generate mapper method -p db -e profile DeleteOne-by-Project-and-Name
 //go:generate mapper method -p db -e profile Update struct=Profile
 
 // Profile is a value object holding db-related details about a profile.
@@ -81,8 +91,7 @@ func ProfileToAPI(profile *Profile) *api.Profile {
 
 // ProfileFilter specifies potential query parameter fields.
 type ProfileFilter struct {
-	Project string
-	Name    string
+	Description string
 }
 
 // GetProfileNames returns the names of all profiles in the given project.

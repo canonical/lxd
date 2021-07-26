@@ -11,16 +11,19 @@ import (
 //go:generate mapper reset
 //go:generate mapper stmt -p db -e operation objects
 //go:generate mapper stmt -p db -e operation objects-by-NodeID
-//go:generate mapper stmt -p db -e operation objects-by-ID
 //go:generate mapper stmt -p db -e operation objects-by-UUID
 //go:generate mapper stmt -p db -e operation create-or-replace struct=Operation
 //go:generate mapper stmt -p db -e operation delete-by-UUID
 //go:generate mapper stmt -p db -e operation delete-by-NodeID
 
 //go:generate mapper method -p db -e operation List
+//go:generate mapper method -p db -e operation List-by-NodeID
+//go:generate mapper method -p db -e operation List-by-UUID
 //go:generate mapper method -p db -e operation CreateOrReplace struct=Operation
-//go:generate mapper method -p db -e operation DeleteOne
-//go:generate mapper method -p db -e operation DeleteMany
+//go:generate mapper method -p db -e operation DeleteOne-by-UUID
+//go:generate mapper method -p db -e operation DeleteOne-by-NodeID
+//go:generate mapper method -p db -e operation DeleteMany-by-UUID
+//go:generate mapper method -p db -e operation DeleteMany-by-NodeID
 
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.
@@ -35,9 +38,7 @@ type Operation struct {
 
 // OperationFilter specifies potential query parameter fields.
 type OperationFilter struct {
-	ID     *int64 // ID is a pointer so it can be omitted.
-	NodeID *int64 // NodeID is a pointer so it can be omitted.
-	UUID   string
+	ID *int64
 }
 
 // GetNodesWithRunningOperations returns a list of nodes that have running operations

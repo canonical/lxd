@@ -32,14 +32,20 @@ import (
 //go:generate mapper stmt -p db -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
 //go:generate mapper method -p db -e instance_snapshot List
-//go:generate mapper method -p db -e instance_snapshot Get
+//go:generate mapper method -p db -e instance_snapshot List-by-Project-and-Instance
+//go:generate mapper method -p db -e instance_snapshot List-by-Project-and-Instance-and-Name
+//go:generate mapper method -p db -e instance_snapshot Get-by-Project-and-Instance-and-Name
 //go:generate mapper method -p db -e instance_snapshot ID struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot Exists struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot Create struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot ConfigRef
 //go:generate mapper method -p db -e instance_snapshot DevicesRef
+//go:generate mapper method -p db -e instance_snapshot ConfigRef-by-Project-and-Instance
+//go:generate mapper method -p db -e instance_snapshot DevicesRef-by-Project-and-Instance
+//go:generate mapper method -p db -e instance_snapshot ConfigRef-by-Project-and-Instance-and-Name
+//go:generate mapper method -p db -e instance_snapshot DevicesRef-by-Project-and-Instance-and-Name
 //go:generate mapper method -p db -e instance_snapshot Rename
-//go:generate mapper method -p db -e instance_snapshot DeleteOne
+//go:generate mapper method -p db -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
 
 // InstanceSnapshot is a value object holding db-related details about a snapshot.
 type InstanceSnapshot struct {
@@ -57,9 +63,7 @@ type InstanceSnapshot struct {
 
 // InstanceSnapshotFilter specifies potential query parameter fields.
 type InstanceSnapshotFilter struct {
-	Project  string
-	Instance string
-	Name     string
+	Stateful bool
 }
 
 // InstanceSnapshotToInstance is a temporary convenience function to merge

@@ -20,12 +20,11 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e project names
-//go:generate mapper stmt -p db -e project names-by-Name
 //go:generate mapper stmt -p db -e project objects
 //go:generate mapper stmt -p db -e project objects-by-Name
 //go:generate mapper stmt -p db -e project used-by-ref
-//go:generate mapper stmt -p db -e project used-by-ref-by-Name
 //go:generate mapper stmt -p db -e project config-ref
+//go:generate mapper stmt -p db -e project used-by-ref-by-Name
 //go:generate mapper stmt -p db -e project config-ref-by-Name
 //go:generate mapper stmt -p db -e project create struct=Project
 //go:generate mapper stmt -p db -e project create-config-ref
@@ -36,14 +35,17 @@ import (
 //
 //go:generate mapper method -p db -e project URIs
 //go:generate mapper method -p db -e project List
-//go:generate mapper method -p db -e project Get struct=Project
+//go:generate mapper method -p db -e project List-by-Name
+//go:generate mapper method -p db -e project Get-by-Name struct=Project
 //go:generate mapper method -p db -e project ConfigRef
+//go:generate mapper method -p db -e project UsedByRef
+//go:generate mapper method -p db -e project ConfigRef-by-Name
+//go:generate mapper method -p db -e project UsedByRef-by-Name
 //go:generate mapper method -p db -e project Exists struct=Project
 //go:generate mapper method -p db -e project Create struct=Project
-//go:generate mapper method -p db -e project UsedByRef
 //go:generate mapper method -p db -e project ID struct=Project
 //go:generate mapper method -p db -e project Rename
-//go:generate mapper method -p db -e project DeleteOne
+//go:generate mapper method -p db -e project DeleteOne-by-Name
 
 // Project represents a LXD project
 type Project struct {
@@ -55,7 +57,7 @@ type Project struct {
 
 // ProjectFilter specifies potential query parameter fields.
 type ProjectFilter struct {
-	Name string // If non-empty, return only the project with this name.
+	Description string
 }
 
 // ProjectHasProfiles is a helper to check if a project has the profiles

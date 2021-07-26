@@ -27,13 +27,15 @@ import (
 //go:generate mapper stmt -p db -e certificate update struct=Certificate
 //
 //go:generate mapper method -p db -e certificate List
-//go:generate mapper method -p db -e certificate Get
+//go:generate mapper method -p db -e certificate List-by-Fingerprint
+//go:generate mapper method -p db -e certificate Get-by-Fingerprint
 //go:generate mapper method -p db -e certificate ID struct=Certificate
 //go:generate mapper method -p db -e certificate Exists struct=Certificate
-//go:generate mapper method -p db -e certificate Create struct=Certificate
 //go:generate mapper method -p db -e certificate ProjectsRef
-//go:generate mapper method -p db -e certificate DeleteOne
-//go:generate mapper method -p db -e certificate DeleteMany
+//go:generate mapper method -p db -e certificate ProjectsRef-by-Fingerprint
+//go:generate mapper method -p db -e certificate Create struct=Certificate
+//go:generate mapper method -p db -e certificate DeleteOne-by-Fingerprint
+//go:generate mapper method -p db -e certificate DeleteMany-by-Name-and-Type
 //go:generate mapper method -p db -e certificate Update struct=Certificate
 
 // CertificateType indicates the type of the certificate.
@@ -121,9 +123,7 @@ func (c *ClusterTx) UpdateCertificateProjects(id int, projects []string) error {
 
 // CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
-	Fingerprint string // Matched with LIKE
-	Name        string
-	Type        *CertificateType // CertificateType is a pointer so it can be omitted.
+	Restricted bool
 }
 
 // GetCertificate gets an CertBaseInfo object from the database.
