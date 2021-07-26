@@ -15,7 +15,7 @@ func TestProjectsList(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	project, err := tx.GetProject("default")
+	project, err := tx.GetProjectByName("default", db.ProjectFilter{})
 	require.NoError(t, err)
 
 	assert.Len(t, project.UsedBy, 1)

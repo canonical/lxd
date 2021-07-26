@@ -147,11 +147,8 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	var result interface{}
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.ProfileFilter{
-			Project: projectName,
-		}
 		if recursion {
-			profiles, err := tx.GetProfiles(filter)
+			profiles, err := tx.GetProfilesByProject(projectName, db.ProfileFilter{})
 			if err != nil {
 				return err
 			}
@@ -163,7 +160,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 			result = apiProfiles
 		} else {
-			result, err = tx.GetProfileURIs(filter)
+			result, err = tx.GetProfileURIsByProject(projectName, db.ProfileFilter{})
 		}
 		return err
 	})
@@ -243,7 +240,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Update DB entry.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		current, _ := tx.GetProfile(projectName, req.Name)
+		current, _ := tx.GetProfileByProjectAndName(projectName, req.Name, db.ProfileFilter{})
 		if current != nil {
 			return fmt.Errorf("The profile already exists")
 		}
@@ -319,7 +316,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	var resp *api.Profile
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		profile, err := tx.GetProfile(projectName, name)
+		profile, err := tx.GetProfileByProjectAndName(projectName, name, db.ProfileFilter{})
 		if err != nil {
 			return errors.Wrap(err, "Fetch profile")
 		}
@@ -396,7 +393,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		current, err := tx.GetProfile(projectName, name)
+		current, err := tx.GetProfileByProjectAndName(projectName, name, db.ProfileFilter{})
 		if err != nil {
 			return errors.Wrapf(err, "Failed to retrieve profile %q", name)
 		}
@@ -491,7 +488,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	var profile *api.Profile
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		current, err := tx.GetProfile(projectName, name)
+		current, err := tx.GetProfileByProjectAndName(projectName, name, db.ProfileFilter{})
 		if err != nil {
 			return errors.Wrapf(err, "Failed to retrieve profile=%q", name)
 		}
@@ -629,7 +626,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
-		_, err = tx.GetProfile(projectName, req.Name)
+		_, err = tx.GetProfileByProjectAndName(projectName, req.Name, db.ProfileFilter{})
 		if err == nil {
 			return fmt.Errorf("Name %q already in use", req.Name)
 		}
@@ -682,7 +679,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		profile, err := tx.GetProfile(projectName, name)
+		profile, err := tx.GetProfileByProjectAndName(projectName, name, db.ProfileFilter{})
 		if err != nil {
 			return err
 		}
@@ -690,8 +687,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
-		filter := db.ProfileFilter{Project: projectName, Name: name}
-		return tx.DeleteProfile(filter)
+		return tx.DeleteProfileByProjectAndName(projectName, name, db.ProfileFilter{})
 	})
 	if err != nil {
 		return response.SmartError(err)

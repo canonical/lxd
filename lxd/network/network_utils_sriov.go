@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/pci"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -56,16 +55,10 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 		return nil, err
 	}
 
-	filter := db.InstanceFilter{
-		Project: "", // All projects.
-		Node:    localNode,
-		Type:    instancetype.Any,
-	}
-
 	reservedDevices := map[string]struct{}{}
 
 	// Check if any instances are using the VF device.
-	err = s.Cluster.InstanceList(&filter, func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
+	err = s.Cluster.InstanceListByNode(localNode, func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
 		// Expand configs so we take into account profile devices.
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
 		dbInst.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(dbInst.Devices), profiles).CloneNative()

@@ -19,7 +19,7 @@ func TestGetCertificate(t *testing.T) {
 	_, err := tx.CreateCertificate(db.Certificate{Fingerprint: "foobar"})
 	require.NoError(t, err)
 
-	cert, err := tx.GetCertificate("foo%")
+	cert, err := tx.GetCertificateByFingerprint("foo%", db.CertificateFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, cert.Fingerprint, "foobar")
 }

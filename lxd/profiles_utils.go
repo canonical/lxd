@@ -215,7 +215,7 @@ func getProfileInstancesInfo(cluster *db.Cluster, projectName string, profileNam
 	err = cluster.Transaction(func(tx *db.ClusterTx) error {
 		for instProject, instNames := range projectInstNames {
 			for _, instName := range instNames {
-				inst, err := tx.GetInstance(instProject, instName)
+				inst, err := tx.GetInstanceByProjectAndName(instProject, instName, db.InstanceFilter{Type: instancetype.Any})
 				if err != nil {
 					return err
 				}

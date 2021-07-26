@@ -132,7 +132,7 @@ SELECT projects_config.value
 // ProjectHasImages is a helper to check if a project has the images
 // feature enabled.
 func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
-	project, err := c.GetProject(name)
+	project, err := c.GetProjectByName(name, ProjectFilter{})
 	if err != nil {
 		return false, errors.Wrap(err, "fetch project")
 	}
@@ -206,7 +206,7 @@ func (c *Cluster) GetProject(projectName string) (*Project, error) {
 	var err error
 	var p *Project
 	err = c.Transaction(func(tx *ClusterTx) error {
-		p, err = tx.GetProject(projectName)
+		p, err = tx.GetProjectByName(projectName, ProjectFilter{})
 		if err != nil {
 			return err
 		}

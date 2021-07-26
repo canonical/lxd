@@ -201,12 +201,6 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	// Check there isn't another NIC with any of the same addresses specified on the same cluster member.
 	// Can only validate this when the instance is supplied (and not doing profile validation).
 	if d.inst != nil {
-		filter := db.InstanceFilter{
-			Project: "",                // All projects.
-			Node:    d.inst.Location(), // Managed bridge networks have a per-server DHCP daemon.
-			Type:    instancetype.Any,
-		}
-
 		ourNICIPs := make(map[string]net.IP, 2)
 		ourNICIPs["ipv4.address"] = net.ParseIP(d.config["ipv4.address"])
 		ourNICIPs["ipv6.address"] = net.ParseIP(d.config["ipv6.address"])
@@ -217,7 +211,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			ourNICMAC, _ = net.ParseMAC(v["hwaddr"])
 		}
 
-		err := d.state.Cluster.InstanceList(&filter, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+		err := d.state.Cluster.InstanceListByNode(d.inst.Location(), func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 			// Get the instance's effective network project name.
 			instNetworkProject := project.NetworkProjectFromRecord(&p)
 

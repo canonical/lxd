@@ -191,8 +191,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: id}
-		ops, err := tx.GetOperations(filter)
+		ops, err := tx.GetOperationsByUUID(id, db.OperationFilter{})
 		if err != nil {
 			return err
 		}
@@ -268,8 +267,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: id}
-		ops, err := tx.GetOperations(filter)
+		ops, err := tx.GetOperationsByUUID(id, db.OperationFilter{})
 		if err != nil {
 			return err
 		}
@@ -318,8 +316,7 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 	var memberAddress string
 	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: op.ID}
-		ops, err := tx.GetOperations(filter)
+		ops, err := tx.GetOperationsByUUID(op.ID, db.OperationFilter{})
 		if err != nil {
 			return errors.Wrapf(err, "Failed loading operation %q", op.ID)
 		}
@@ -855,8 +852,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: id}
-		ops, err := tx.GetOperations(filter)
+		ops, err := tx.GetOperationsByUUID(id, db.OperationFilter{})
 		if err != nil {
 			return err
 		}
@@ -979,8 +975,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 	var address string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: id}
-		ops, err := tx.GetOperations(filter)
+		ops, err := tx.GetOperationsByUUID(id, db.OperationFilter{})
 		if err != nil {
 			return err
 		}

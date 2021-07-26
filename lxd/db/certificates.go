@@ -135,12 +135,12 @@ func (c *Cluster) GetCertificate(fingerprint string) (*Certificate, error) {
 	var err error
 	var cert *Certificate
 	err = c.Transaction(func(tx *ClusterTx) error {
-		cert, err = tx.GetCertificate(fingerprint + "%")
+		cert, err = tx.GetCertificateByFingerprint(fingerprint+"%", CertificateFilter{})
 		if err != nil {
 			return err
 		}
 
-		cert, err = tx.GetCertificate(cert.Fingerprint)
+		cert, err = tx.GetCertificateByFingerprint(cert.Fingerprint, CertificateFilter{})
 		return err
 	})
 	if err != nil {
@@ -165,7 +165,7 @@ func (c *Cluster) CreateCertificate(cert Certificate) (int64, error) {
 // DeleteCertificate deletes a certificate from the db.
 func (c *Cluster) DeleteCertificate(fingerprint string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.DeleteCertificate(CertificateFilter{Fingerprint: fingerprint})
+		return tx.DeleteCertificateByFingerprint(fingerprint, CertificateFilter{})
 	})
 	return err
 }

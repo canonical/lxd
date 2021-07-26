@@ -441,7 +441,7 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 	oldUUIDKey := "volatile.vm.uuid"
 	newUUIDKey := "volatile.uuid"
 
-	return d.State().Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+	return d.State().Cluster.InstanceListByNode("", func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 		if inst.Type != instancetype.VM {
 			return nil
 		}
@@ -858,8 +858,7 @@ func patchInvalidProfileNames(name string, d *Daemon) error {
 		if strings.Contains(profile, "/") || shared.StringInSlice(profile, []string{".", ".."}) {
 			logger.Info("Removing unreachable profile (invalid name)", log.Ctx{"name": profile})
 			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				filter := db.ProfileFilter{Project: project.Default, Name: profile}
-				return tx.DeleteProfile(filter)
+				return tx.DeleteProfileByProjectAndName(project.Default, profile, db.ProfileFilter{})
 			})
 			if err != nil {
 				return err

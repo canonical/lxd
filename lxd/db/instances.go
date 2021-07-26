@@ -333,23 +333,26 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 // ErrInstanceListStop used as return value from InstanceList's instanceFunc when prematurely stopping the search.
 var ErrInstanceListStop = fmt.Errorf("search stopped")
 
-// InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
+// InstanceListByNode loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project Project, profiles []api.Profile) error) error {
+func (c *Cluster) InstanceListByNode(node string, instanceFunc func(inst Instance, project Project, profiles []api.Profile) error) error {
 	var instances []Instance
 	projectMap := map[string]Project{}
 	projectHasProfiles := map[string]bool{}
 	profilesByProjectAndName := map[string]map[string]Profile{}
 
+	filter := InstanceFilter{Type: instancetype.Any}
+
 	// Default to listing all instances if no filter provided.
-	if filter == nil {
-		filter = InstanceFilterAllInstances()
-	}
 
 	// Retrieve required info from the database in single transaction for performance.
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		instances, err = tx.GetInstances(*filter)
+		if node == "" {
+			instances, err = tx.GetInstances(filter)
+		} else {
+			instances, err = tx.GetInstancesByNode(node, filter)
+		}
 		if err != nil {
 			return errors.Wrap(err, "Failed loading instances")
 		}
@@ -544,14 +547,10 @@ func (c *ClusterTx) GetLocalInstancesInProject(projectName string, instanceType 
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
 	}
-
-	filter := InstanceFilter{
-		Project: projectName,
-		Node:    node,
-		Type:    instanceType,
+	if projectName == "" {
+		return c.GetInstancesByNode(node, InstanceFilter{})
 	}
-
-	return c.GetInstances(filter)
+	return c.GetInstancesByProjectAndNode(projectName, node, InstanceFilter{})
 }
 
 // CreateInstanceConfig inserts a new config for the container with the given ID.
@@ -660,16 +659,12 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 
 // GetInstanceSnapshotsWithName returns all snapshots of a given instance in date created order, oldest first.
 func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([]Instance, error) {
-	instance, err := c.GetInstance(project, name)
+	instance, err := c.GetInstanceByProjectAndName(project, name, InstanceFilter{})
 	if err != nil {
 		return nil, err
 	}
-	filter := InstanceSnapshotFilter{
-		Project:  project,
-		Instance: name,
-	}
 
-	snapshots, err := c.GetInstanceSnapshots(filter)
+	snapshots, err := c.GetInstanceSnapshotsByProjectAndInstance(project, name, InstanceSnapshotFilter{})
 	if err != nil {
 		return nil, err
 	}
@@ -729,22 +724,13 @@ SELECT storage_pools.name FROM storage_pools
 func (c *Cluster) DeleteInstance(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		filter := InstanceSnapshotFilter{
-			Project:  project,
-			Instance: parts[0],
-			Name:     parts[1],
-		}
 		return c.Transaction(func(tx *ClusterTx) error {
-			return tx.DeleteInstanceSnapshot(filter)
+			return tx.DeleteInstanceSnapshotByProjectAndInstanceAndName(project, parts[0], parts[1], InstanceSnapshotFilter{})
 		})
 	}
 
-	filter := InstanceFilter{
-		Project: project,
-		Name:    name,
-	}
 	return c.Transaction(func(tx *ClusterTx) error {
-		return tx.DeleteInstance(filter)
+		return tx.DeleteInstanceByProjectAndName(project, name, InstanceFilter{})
 	})
 }
 

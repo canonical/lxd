@@ -4046,7 +4046,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)
 		}
 
-		object, err := tx.GetInstance(d.project, d.name)
+		object, err := tx.GetInstanceByProjectAndName(d.project, d.name, db.InstanceFilter{Type: instancetype.Any})
 		if err != nil {
 			return err
 		}

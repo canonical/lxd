@@ -162,7 +162,7 @@ func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error
 		project = "default"
 	}
 
-	profile, err := c.GetProfile(project, name)
+	profile, err := c.GetProfileByProjectAndName(project, name, ProfileFilter{})
 	if err != nil {
 		return -1, nil, err
 	}
@@ -188,7 +188,7 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 		}
 
 		for i, profileName := range profileNames {
-			profile, err := tx.GetProfile(projectName, profileName)
+			profile, err := tx.GetProfileByProjectAndName(projectName, profileName, ProfileFilter{})
 			if err != nil {
 				return errors.Wrapf(err, "Failed loading profile %q", profileName)
 			}

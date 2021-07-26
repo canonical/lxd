@@ -13,7 +13,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -465,12 +465,12 @@ func LoadInstanceDatabaseObject(tx *db.ClusterTx, project, name string) (*db.Ins
 		instanceName := parts[0]
 		snapshotName := parts[1]
 
-		instance, err := tx.GetInstance(project, instanceName)
+		instance, err := tx.GetInstanceByProjectAndName(project, instanceName, db.InstanceFilter{Type: instancetype.Any})
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
 		}
 
-		snapshot, err := tx.GetInstanceSnapshot(project, instanceName, snapshotName)
+		snapshot, err := tx.GetInstanceSnapshotByProjectAndInstanceAndName(project, instanceName, snapshotName, db.InstanceSnapshotFilter{})
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to fetch snapshot %q of instance %q in project %q", snapshotName, instanceName, project)
 		}
@@ -478,7 +478,7 @@ func LoadInstanceDatabaseObject(tx *db.ClusterTx, project, name string) (*db.Ins
 		c := db.InstanceSnapshotToInstance(instance, snapshot)
 		container = &c
 	} else {
-		container, err = tx.GetInstance(project, name)
+		container, err = tx.GetInstanceByProjectAndName(project, name, db.InstanceFilter{Type: instancetype.Any})
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
 		}
@@ -560,12 +560,8 @@ func LoadByProject(s *state.State, project string) ([]Instance, error) {
 	// Get all the instances.
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.InstanceFilter{
-			Project: project,
-			Type:    instancetype.Any,
-		}
 		var err error
-		cts, err = tx.GetInstances(filter)
+		cts, err = tx.GetInstancesByProject(project, db.InstanceFilter{Type: instancetype.Any})
 		if err != nil {
 			return err
 		}
@@ -1030,7 +1026,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
 			instanceName := parts[0]
 			snapshotName := parts[1]
-			instance, err := tx.GetInstance(args.Project, instanceName)
+			instance, err := tx.GetInstanceByProjectAndName(args.Project, instanceName, db.InstanceFilter{Type: instancetype.Any})
 			if err != nil {
 				return fmt.Errorf("Get instance %q in project %q", instanceName, args.Project)
 			}
@@ -1051,7 +1047,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 			}
 
 			// Read back the snapshot, to get ID and creation time.
-			s, err := tx.GetInstanceSnapshot(args.Project, instanceName, snapshotName)
+			s, err := tx.GetInstanceSnapshotByProjectAndInstanceAndName(args.Project, instanceName, snapshotName, db.InstanceSnapshotFilter{})
 			if err != nil {
 				return errors.Wrap(err, "Fetch created snapshot from the database")
 			}
@@ -1086,7 +1082,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 		}
 
 		// Read back the instance, to get ID and creation time.
-		dbRow, err := tx.GetInstance(args.Project, args.Name)
+		dbRow, err := tx.GetInstanceByProjectAndName(args.Project, args.Name, db.InstanceFilter{Type: instancetype.Any})
 		if err != nil {
 			return errors.Wrap(err, "Fetch created instance from the database")
 		}

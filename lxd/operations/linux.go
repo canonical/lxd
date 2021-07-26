@@ -45,8 +45,7 @@ func removeDBOperation(op *Operation) error {
 	}
 
 	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.OperationFilter{UUID: op.id}
-		return tx.DeleteOperation(filter)
+		return tx.DeleteOperationByUUID(op.id, db.OperationFilter{})
 	})
 
 	return err

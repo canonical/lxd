@@ -983,7 +983,7 @@ type projectInfo struct {
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
 func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
-	project, err := tx.GetProject(projectName)
+	project, err := tx.GetProjectByName(projectName, db.ProjectFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch project database object")
 	}
@@ -992,25 +992,21 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 		return nil, nil
 	}
 
-	profilesFilter := db.ProfileFilter{}
-
+	profileProject := Default
 	// If the project has the profiles feature enabled, we use its own
 	// profiles to expand the instances configs, otherwise we use the
 	// profiles from the default project.
-	if projectName == Default || shared.IsTrue(project.Config["features.profiles"]) {
-		profilesFilter.Project = projectName
-	} else {
-		profilesFilter.Project = Default
+	if shared.IsTrue(project.Config["features.profiles"]) {
+		profileProject = projectName
 	}
 
-	profiles, err := tx.GetProfiles(profilesFilter)
+	profiles, err := tx.GetProfilesByProject(profileProject, db.ProfileFilter{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch profiles from database")
 	}
 
-	instances, err := tx.GetInstances(db.InstanceFilter{
-		Type:    instancetype.Any,
-		Project: projectName,
+	instances, err := tx.GetInstancesByProject(projectName, db.InstanceFilter{
+		Type: instancetype.Any,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch project instances from database")
@@ -1250,7 +1246,7 @@ func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, projectNam
 		return nil
 	}
 
-	project, err := tx.GetProject(projectName)
+	project, err := tx.GetProjectByName(projectName, db.ProjectFilter{})
 	if err != nil {
 		return fmt.Errorf("Fetch project database object")
 	}
@@ -1294,7 +1290,7 @@ func projectHasRestriction(project *db.Project, restrictionKey string, blockValu
 // AllowBackupCreation returns an error if any project-specific restriction is violated
 // when creating a new backup in a project.
 func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
-	project, err := tx.GetProject(projectName)
+	project, err := tx.GetProjectByName(projectName, db.ProjectFilter{})
 	if err != nil {
 		return err
 	}
@@ -1308,7 +1304,7 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 // AllowSnapshotCreation returns an error if any project-specific restriction is violated
 // when creating a new snapshot in a project.
 func AllowSnapshotCreation(tx *db.ClusterTx, projectName string) error {
-	project, err := tx.GetProject(projectName)
+	project, err := tx.GetProjectByName(projectName, db.ProjectFilter{})
 	if err != nil {
 		return err
 	}

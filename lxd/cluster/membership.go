@@ -184,7 +184,7 @@ func EnsureServerCertificateTrusted(serverName string, serverCert *shared.CertIn
 
 	// Add our server cert to the DB trust store (so when other members join this cluster they will be
 	// able to trust intra-cluster requests from this member).
-	existingCert, _ := tx.GetCertificate(dbCert.Fingerprint)
+	existingCert, _ := tx.GetCertificateByFingerprint(dbCert.Fingerprint, db.CertificateFilter{})
 	if existingCert != nil {
 		if existingCert.Name != dbCert.Name && existingCert.Type == db.CertificateTypeServer {
 			// Don't alter an existing server certificate that has our fingerprint but not our name.
@@ -349,8 +349,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		if err != nil {
 			return err
 		}
-		filter := db.OperationFilter{NodeID: tx.GetNodeID()}
-		operations, err = tx.GetOperations(filter)
+		operations, err = tx.GetOperationsByNodeID(*tx.GetNodeID(), db.OperationFilter{})
 		if err != nil {
 			return err
 		}
@@ -959,8 +958,7 @@ func Purge(cluster *db.Cluster, name string) error {
 		}
 
 		certType := db.CertificateTypeServer
-		filter := db.CertificateFilter{Name: name, Type: &certType}
-		err = tx.DeleteCertificates(filter)
+		err = tx.DeleteCertificatesByNameAndType(name, certType, db.CertificateFilter{})
 		if err != nil {
 			return errors.Wrapf(err, "Failed to remove member %q certificate from trust store", name)
 		}

@@ -75,13 +75,7 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	addContainer(t, tx, nodeID1, "c2")
 	addContainer(t, tx, nodeID2, "c3")
 
-	filter := db.InstanceFilter{
-		Project: "default",
-		Node:    "node2",
-		Type:    instancetype.Container,
-	}
-
-	containers, err := tx.GetInstances(filter)
+	containers, err := tx.GetInstancesByProjectAndNode("default", "node2", db.InstanceFilter{Type: instancetype.Container})
 	require.NoError(t, err)
 	assert.Len(t, containers, 2)
 
@@ -199,7 +193,7 @@ func TestInstanceList(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances []db.Instance
-	err = cluster.InstanceList(nil, func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
+	err = cluster.InstanceListByNode("", func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
 		dbInst.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(dbInst.Devices), profiles).CloneNative()
 		instances = append(instances, dbInst)
@@ -240,7 +234,7 @@ func TestCreateInstance(t *testing.T) {
 
 	assert.Equal(t, int64(1), id)
 
-	c1, err := tx.GetInstance("default", "c1")
+	c1, err := tx.GetInstanceByProjectAndName("default", "c1", db.InstanceFilter{Type: instancetype.Any})
 	require.NoError(t, err)
 
 	assert.Equal(t, "c1", c1.Name)
@@ -309,7 +303,7 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 
 	assert.Equal(t, int64(2), id)
 
-	_, err = tx.GetInstance("default", "foo/snap0")
+	_, err = tx.GetInstanceByProjectAndName("default", "foo/snap0", db.InstanceFilter{Type: instancetype.Any})
 	require.NoError(t, err)
 }
 

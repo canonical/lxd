@@ -29,31 +29,26 @@ func TestOperation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	filter := db.OperationFilter{NodeID: tx.GetNodeID()}
-	operations, err := tx.GetOperations(filter)
+	operations, err := tx.GetOperationsByNodeID(*tx.GetNodeID(), db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	ops, err := tx.GetOperations(filter)
+	ops, err := tx.GetOperationsByUUID("abcd", db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 1)
 	operation := ops[0]
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationInstanceCreate, operation.Type)
 
-	filter = db.OperationFilter{NodeID: tx.GetNodeID()}
-	ops, err = tx.GetOperations(filter)
+	ops, err = tx.GetOperationsByNodeID(*tx.GetNodeID(), db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].UUID)
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	err = tx.DeleteOperation(filter)
+	err = tx.DeleteOperationByUUID("abcd", db.OperationFilter{})
 	require.NoError(t, err)
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	ops, err = tx.GetOperations(filter)
+	ops, err = tx.GetOperationsByUUID("abcd", db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 0)
 }
@@ -73,14 +68,12 @@ func TestOperationNoProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
-	filter := db.OperationFilter{NodeID: tx.GetNodeID()}
-	operations, err := tx.GetOperations(filter)
+	operations, err := tx.GetOperationsByNodeID(*tx.GetNodeID(), db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Len(t, operations, 1)
 	assert.Equal(t, operations[0].UUID, "abcd")
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	ops, err := tx.GetOperations(filter)
+	ops, err := tx.GetOperationsByUUID("abcd", db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 1)
 	operation := ops[0]
@@ -88,17 +81,14 @@ func TestOperationNoProject(t *testing.T) {
 	assert.Equal(t, id, operation.ID)
 	assert.Equal(t, db.OperationInstanceCreate, operation.Type)
 
-	filter = db.OperationFilter{NodeID: tx.GetNodeID()}
-	ops, err = tx.GetOperations(filter)
+	ops, err = tx.GetOperationsByNodeID(*tx.GetNodeID(), db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].UUID)
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	err = tx.DeleteOperation(filter)
+	err = tx.DeleteOperationByUUID("abcd", db.OperationFilter{})
 	require.NoError(t, err)
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	ops, err = tx.GetOperations(filter)
+	ops, err = tx.GetOperationsByUUID("abcd", db.OperationFilter{})
 	require.NoError(t, err)
 	assert.Equal(t, len(ops), 0)
 }

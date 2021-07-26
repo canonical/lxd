@@ -83,7 +83,7 @@ func (suite *lxdTestSuite) SetupTest() {
 	devicesMap["root"] = rootDev
 
 	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		profile, err := tx.GetProfile("default", "default")
+		profile, err := tx.GetProfileByProjectAndName("default", "default", db.ProfileFilter{})
 		if err != nil {
 			return err
 		}

@@ -585,8 +585,7 @@ func projectChange(d *Daemon, project *db.Project, req api.ProjectPut) response.
 				}
 			} else {
 				// Delete the project-specific default profile.
-				filter := db.ProfileFilter{Project: project.Name, Name: projecthelpers.Default}
-				err = tx.DeleteProfile(filter)
+				err = tx.DeleteProfileByProjectAndName(project.Name, projecthelpers.Default, db.ProfileFilter{})
 				if err != nil {
 					return errors.Wrap(err, "Delete project default profile")
 				}
@@ -650,7 +649,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	run := func(op *operations.Operation) error {
 		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			project, err := tx.GetProject(req.Name)
+			project, err := tx.GetProjectByName(req.Name, db.ProjectFilter{})
 			if err != nil && err != db.ErrNoSuchObject {
 				return errors.Wrapf(err, "Failed checking if project %q exists", req.Name)
 			}
@@ -659,7 +658,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("A project named %q already exists", req.Name)
 			}
 
-			project, err = tx.GetProject(name)
+			project, err = tx.GetProjectByName(name, db.ProjectFilter{})
 			if err != nil {
 				return errors.Wrapf(err, "Failed loading project %q", name)
 			}
@@ -733,7 +732,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 	var id int64
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err := tx.GetProject(name)
+		project, err := tx.GetProjectByName(name, db.ProjectFilter{})
 		if err != nil {
 			return errors.Wrapf(err, "Fetch project %q", name)
 		}
@@ -746,7 +745,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrapf(err, "Fetch project id %q", name)
 		}
 
-		return tx.DeleteProject(db.ProjectFilter{Name: name})
+		return tx.DeleteProjectByName(name, db.ProjectFilter{})
 	})
 
 	if err != nil {

@@ -2540,7 +2540,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Load the project to get uplink network restrictions.
-		p, err = tx.GetProject(n.project)
+		p, err = tx.GetProjectByName(n.project, db.ProjectFilter{})
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
 		}
@@ -3189,7 +3189,7 @@ func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDevic
 		return false
 	}
 
-	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+	err := n.state.Cluster.InstanceListByNode("", func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
@@ -3302,7 +3302,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
 			// This will restore the l2proxy DNAT_AND_SNAT rules.
-			err = n.state.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+			err = n.state.Cluster.InstanceListByNode("", func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 				// Get the instance's effective network project name.
 				instNetworkProject := project.NetworkProjectFromRecord(&p)
 
