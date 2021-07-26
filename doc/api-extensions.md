@@ -1400,3 +1400,6 @@ This adds supported storage driver info to server environment info.
 
 ## event\_lifecycle\_requestor\_address
 Adds a new address field to lifecycle requestor.
+
+## resources\_gpu\_usb
+Add a new USBAddress (usb\_address) field to ResourcesGPUCard (GPU entries) in the resources API.
