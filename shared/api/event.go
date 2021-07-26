@@ -64,13 +64,19 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			ctx = append(ctx, v)
 		}
 
-		requestor := fmt.Sprintf("%s/%s (%s)", e.Requestor.Protocol, e.Requestor.Username, e.Requestor.Address)
 		record := EventLogRecord{
 			Time: event.Timestamp,
 			Lvl:  "info",
-			Msg:  fmt.Sprintf("Action: %s, Source: %s, Requestor: %s", e.Action, e.Source, requestor),
 			Ctx:  ctx,
 		}
+
+		if e.Requestor != nil {
+			requestor := fmt.Sprintf("%s/%s (%s)", e.Requestor.Protocol, e.Requestor.Username, e.Requestor.Address)
+			record.Msg = fmt.Sprintf("Action: %s, Source: %s, Requestor: %s", e.Action, e.Source, requestor)
+		} else {
+			record.Msg = fmt.Sprintf("Action: %s, Source: %s", e.Action, e.Source)
+		}
+
 		return record, nil
 	} else if event.Type == "operation" {
 		e := &Operation{}
