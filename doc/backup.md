@@ -17,8 +17,7 @@ goal is to get back online quickly, consider all the different pieces of
 LXD you're using.
 
 ## Full backup
-A full backup would include the entirety of `/var/lib/lxd` or
-`/var/snap/lxd/common/lxd` for snap users.
+A full backup would include the entirety of `/var/lib/lxd` or `/var/snap/lxd/common/lxd` for snap users.
 
 You will also need to appropriately backup any external storage that you
 made LXD use, this can be LVM volume groups, ZFS zpools or any other
@@ -48,8 +47,8 @@ Those tarballs will include all snapshots by default and an "optimized"
 tarball can be obtained if you know that you'll be restoring on a LXD
 server using the same storage pool backend.
 
-You can use any compressor installed on the server using the `--compression` 
-flag. There is no validation on the LXD side, any command that is available
+You can use any compressor installed on the server using the `--compression` flag.
+There is no validation on the LXD side, any command that is available
 to LXD and supports `-c` for stdout should work.
 
 Those tarballs can be saved any way you want on any filesystem you want
