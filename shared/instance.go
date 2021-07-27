@@ -197,9 +197,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"limits.hugepages.1MB":  validate.Optional(validate.IsSize),
 	"limits.hugepages.2MB":  validate.Optional(validate.IsSize),
 	"limits.hugepages.1GB":  validate.Optional(validate.IsSize),
-	"limits.memory.enforce": validate.Optional(func(value string) error {
-		return validate.IsOneOf(value, []string{"soft", "hard"})
-	}),
+	"limits.memory.enforce": validate.Optional(validate.IsOneOf("soft", "hard")),
 
 	"limits.memory.swap":          validate.Optional(validate.IsBool),
 	"limits.memory.swap.priority": validate.Optional(validate.IsPriority),
