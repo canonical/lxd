@@ -188,7 +188,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		deviceDevicePath := filepath.Join(devicePath, "device")
 		usbAddr, err := usbAddress(deviceDevicePath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to track down USB address for %q", devicePath)
+			return errors.Wrapf(err, "Failed to find USB address for %q", devicePath)
 		}
 		if usbAddr != "" {
 			card.USBAddress = usbAddr
@@ -236,7 +236,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 	if sysfsExists(driverPath) {
 		linkTarget, err := filepath.EvalSymlinks(driverPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to track down %q", driverPath)
+			return errors.Wrapf(err, "Failed to find %q", driverPath)
 		}
 
 		// Set the driver name
@@ -464,7 +464,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 			// PCI address.
 			pciAddr, err := pciAddress(devicePath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to track down PCI address for %q", devicePath)
+				return nil, errors.Wrapf(err, "Failed to find PCI address for %q", devicePath)
 			}
 			if pciAddr != "" {
 				card.PCIAddress = pciAddr
@@ -488,7 +488,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "physfn"))
+					return nil, errors.Wrapf(err, "Failed to find %q", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 
@@ -550,7 +550,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "physfn"))
+					return nil, errors.Wrapf(err, "Failed to find %q", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 
