@@ -107,12 +107,14 @@ func IsBool(value string) error {
 }
 
 // IsOneOf checks whether the string is present in the supplied slice of strings.
-func IsOneOf(value string, valid []string) error {
-	if !stringInSlice(value, valid) {
-		return fmt.Errorf("Invalid value %q (not one of %s)", value, valid)
-	}
+func IsOneOf(valid ...string) func(value string) error {
+	return func(value string) error {
+		if !stringInSlice(value, valid) {
+			return fmt.Errorf("Invalid value %q (not one of %s)", value, valid)
+		}
 
-	return nil
+		return nil
+	}
 }
 
 // IsAny accepts all strings as valid.
@@ -605,7 +607,7 @@ func IsCompressionAlgorithm(value string) error {
 
 // IsArchitecture validates whether the value is a valid LXD architecture name.
 func IsArchitecture(value string) error {
-	return IsOneOf(value, osarch.SupportedArchitectures())
+	return IsOneOf(osarch.SupportedArchitectures()...)(value)
 }
 
 // IsCron checks that it's a valid cron pattern or alias.

@@ -841,46 +841,40 @@ func projectIsEmpty(project *api.Project) bool {
 }
 
 func isEitherAllowOrBlock(value string) error {
-	return validate.Optional(func(value string) error {
-		return validate.IsOneOf(value, []string{"block", "allow"})
-	})(value)
+	return validate.Optional(validate.IsOneOf("block", "allow"))(value)
 }
 
 func isEitherAllowOrBlockOrManaged(value string) error {
-	return validate.Optional(func(value string) error {
-		return validate.IsOneOf(value, []string{"block", "allow", "managed"})
-	})(value)
+	return validate.Optional(validate.IsOneOf("block", "allow", "managed"))(value)
 }
 
 func projectValidateConfig(s *state.State, config map[string]string) error {
 	// Validate the project configuration.
 	projectConfigKeys := map[string]func(value string) error{
-		"backups.compression_algorithm":  validate.IsCompressionAlgorithm,
-		"features.profiles":              validate.Optional(validate.IsBool),
-		"features.images":                validate.Optional(validate.IsBool),
-		"features.storage.volumes":       validate.Optional(validate.IsBool),
-		"features.networks":              validate.Optional(validate.IsBool),
-		"images.auto_update_cached":      validate.Optional(validate.IsBool),
-		"images.auto_update_interval":    validate.Optional(validate.IsInt64),
-		"images.compression_algorithm":   validate.IsCompressionAlgorithm,
-		"images.default_architecture":    validate.Optional(validate.IsArchitecture),
-		"images.remote_cache_expiry":     validate.Optional(validate.IsInt64),
-		"limits.instances":               validate.Optional(validate.IsUint32),
-		"limits.containers":              validate.Optional(validate.IsUint32),
-		"limits.virtual-machines":        validate.Optional(validate.IsUint32),
-		"limits.memory":                  validate.Optional(validate.IsSize),
-		"limits.processes":               validate.Optional(validate.IsUint32),
-		"limits.cpu":                     validate.Optional(validate.IsUint32),
-		"limits.disk":                    validate.Optional(validate.IsSize),
-		"limits.networks":                validate.Optional(validate.IsUint32),
-		"restricted":                     validate.Optional(validate.IsBool),
-		"restricted.backups":             isEitherAllowOrBlock,
-		"restricted.cluster.target":      isEitherAllowOrBlock,
-		"restricted.containers.nesting":  isEitherAllowOrBlock,
-		"restricted.containers.lowlevel": isEitherAllowOrBlock,
-		"restricted.containers.privilege": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"allow", "unprivileged", "isolated"})
-		}),
+		"backups.compression_algorithm":        validate.IsCompressionAlgorithm,
+		"features.profiles":                    validate.Optional(validate.IsBool),
+		"features.images":                      validate.Optional(validate.IsBool),
+		"features.storage.volumes":             validate.Optional(validate.IsBool),
+		"features.networks":                    validate.Optional(validate.IsBool),
+		"images.auto_update_cached":            validate.Optional(validate.IsBool),
+		"images.auto_update_interval":          validate.Optional(validate.IsInt64),
+		"images.compression_algorithm":         validate.IsCompressionAlgorithm,
+		"images.default_architecture":          validate.Optional(validate.IsArchitecture),
+		"images.remote_cache_expiry":           validate.Optional(validate.IsInt64),
+		"limits.instances":                     validate.Optional(validate.IsUint32),
+		"limits.containers":                    validate.Optional(validate.IsUint32),
+		"limits.virtual-machines":              validate.Optional(validate.IsUint32),
+		"limits.memory":                        validate.Optional(validate.IsSize),
+		"limits.processes":                     validate.Optional(validate.IsUint32),
+		"limits.cpu":                           validate.Optional(validate.IsUint32),
+		"limits.disk":                          validate.Optional(validate.IsSize),
+		"limits.networks":                      validate.Optional(validate.IsUint32),
+		"restricted":                           validate.Optional(validate.IsBool),
+		"restricted.backups":                   isEitherAllowOrBlock,
+		"restricted.cluster.target":            isEitherAllowOrBlock,
+		"restricted.containers.nesting":        isEitherAllowOrBlock,
+		"restricted.containers.lowlevel":       isEitherAllowOrBlock,
+		"restricted.containers.privilege":      validate.Optional(validate.IsOneOf("allow", "unprivileged", "isolated")),
 		"restricted.virtual-machines.lowlevel": isEitherAllowOrBlock,
 		"restricted.devices.unix-char":         isEitherAllowOrBlock,
 		"restricted.devices.unix-block":        isEitherAllowOrBlock,
