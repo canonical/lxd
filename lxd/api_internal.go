@@ -45,7 +45,6 @@ var apiInternal = []APIEndpoint{
 	internalContainerOnStartCmd,
 	internalContainerOnStopNSCmd,
 	internalContainerOnStopCmd,
-	internalContainersCmd,
 	internalSQLCmd,
 	internalClusterAcceptCmd,
 	internalClusterRebalanceCmd,
@@ -95,12 +94,6 @@ var internalSQLCmd = APIEndpoint{
 
 	Get:  APIEndpointAction{Handler: internalSQLGet},
 	Post: APIEndpointAction{Handler: internalSQLPost},
-}
-
-var internalContainersCmd = APIEndpoint{
-	Path: "containers",
-
-	Post: APIEndpointAction{Handler: internalImportFromRecovery},
 }
 
 var internalGarbageCollectorCmd = APIEndpoint{
@@ -526,63 +519,6 @@ type internalImportPost struct {
 	Name              string `json:"name" yaml:"name"`
 	Force             bool   `json:"force" yaml:"force"`
 	AllowNameOverride bool   `json:"allow_name_override" yaml:"allow_name_override"`
-}
-
-// internalImportFromRecovery allows recovery of an instance that is already on disk and mounted.
-// If recovery is successful the instance is unmounted at the end.
-func internalImportFromRecovery(d *Daemon, r *http.Request) response.Response {
-	projectName := projectParam(r)
-
-	// Parse the request.
-	req := &internalImportPost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
-	resp := internalImport(d, projectName, req, true)
-	if resp.String() != "success" {
-		return resp
-	}
-
-	inst, err := instance.LoadByProjectAndName(d.State(), projectName, req.Name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	if inst.IsRunning() {
-		// If the instance is running, then give the instance a chance to regenerate its config file, as
-		// the internalImport function will have cleared its log directory (which contains the conf file).
-		// This allows functionality that relies on a config file to continue after the recovery.
-		err = inst.SaveConfigFile()
-		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed regenerating instance config file"))
-		}
-	} else {
-		// If instance isn't running, then unmount instance volume to reset the mount and any left over
-		// reference counters back its non-running state.
-		_, err = pool.UnmountInstance(inst, nil)
-		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed unmounting instance"))
-		}
-	}
-
-	// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
-	// opportunity to reinitialise the quota based on the new storage volume's DB ID).
-	_, rootConfig, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
-	if err == nil {
-		err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
-		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q", rootConfig["size"]))
-		}
-	}
-
-	return resp
 }
 
 // internalImport creates the instance and storage volume DB records.
