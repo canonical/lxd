@@ -814,7 +814,17 @@ func (m *Method) begin(comment string, args string, rets string) {
 	receiver := fmt.Sprintf("c %s", dbTxType(m.db))
 	name = m.filterSequence(name)
 
+	keyword := m.kind
+	if len(m.activeFilters) > 0 {
+		filterNames := []string{}
+		for _, filter := range m.activeFilters {
+			filterNames = append(filterNames, filter.Name)
+		}
+		keyword += "-by-" + strings.Join(filterNames, "-and-")
+	}
+
 	m.buf.L("// %s %s", name, comment)
+	m.buf.L("// generator: %s %s", m.entity, keyword)
 	m.buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
 }
 
