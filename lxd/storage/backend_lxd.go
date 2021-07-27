@@ -278,6 +278,23 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 			}
 		}
 	} else {
+		// Remove any left over image volumes.
+		// This can occur during partial image unpack or if the storage pool has been recovered from an
+		// instace backup file and the image volume DB records were not restored.
+		// If non-image volumes exist, we don't delete the, even if they can then prevent the storage pool
+		// from being deleted, because they should not exist by this point and we don't want to end up
+		// removing an instance or custom volume accidentally.
+		// Errors listing volumes are ignored, as we should still try and delete the storage pool.
+		vols, _ := b.driver.ListVolumes()
+		for _, vol := range vols {
+			if vol.Type() == drivers.VolumeTypeImage {
+				err := b.driver.DeleteVolume(vol, op)
+				if err != nil {
+					return errors.Wrapf(err, "Failed deleting image volume %q", vol.Name())
+				}
+			}
+		}
+
 		// Delete the low-level storage.
 		err := b.driver.Delete(op)
 		if err != nil {
