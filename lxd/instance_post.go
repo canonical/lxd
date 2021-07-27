@@ -29,7 +29,7 @@ import (
 var internalClusterContainerMovedCmd = APIEndpoint{
 	Path: "cluster/container-moved/{name}",
 
-	Post: APIEndpointAction{Handler: internalClusterContainerMovedPost},
+	Post: APIEndpointAction{Handler: internalClusterInstanceMovedPost},
 }
 
 // swagger:operation POST /1.0/instances/{name} instances instance_post
@@ -562,11 +562,11 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 	return operations.OperationResponse(op)
 }
 
-// Notification that a container was moved.
+// Notification that an instance was moved.
 //
-// At the moment it's used for ceph-based containers, where the target node needs
+// At the moment it's used for ceph-based instances, where the target node needs
 // to create the appropriate mount points.
-func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Response {
+func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	containerName := mux.Vars(r)["name"]
 	err := instancePostCreateContainerMountPoint(d, projectName, containerName)
