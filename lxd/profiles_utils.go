@@ -99,7 +99,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 		return err
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to query local node name")
+		return errors.Wrap(err, "Failed to query local cluster member name")
 	}
 
 	failures := map[*db.InstanceArgs]error{}
@@ -133,7 +133,7 @@ func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.
 		return err
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to query local node name")
+		return errors.Wrap(err, "Failed to query local cluster member name")
 	}
 
 	insts, err := getProfileInstancesInfo(d.cluster, projectName, name)
