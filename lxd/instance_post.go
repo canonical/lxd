@@ -531,7 +531,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		if client == nil {
 			err := instancePostCreateContainerMountPoint(d, projectName, newName)
 			if err != nil {
-				return errors.Wrap(err, "Failed to create mount point on target node")
+				return errors.Wrap(err, "Failed creating mount point of instance on target node")
 			}
 		} else {
 			path := fmt.Sprintf("/internal/cluster/container-moved/%s?project=%s", newName, projectName)
