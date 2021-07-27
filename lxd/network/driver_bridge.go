@@ -186,9 +186,7 @@ func (n *bridge) ValidateName(name string) error {
 func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
 	rules := map[string]func(value string) error{
-		"bridge.driver": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"native", "openvswitch"})
-		}),
+		"bridge.driver": validate.Optional(validate.IsOneOf("native", "openvswitch")),
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
@@ -201,9 +199,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		}),
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
-		"bridge.mode": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"standard", "fan"})
-		}),
+		"bridge.mode":   validate.Optional(validate.IsOneOf("standard", "fan")),
 
 		"fan.overlay_subnet": validate.Optional(validate.IsNetworkV4),
 		"fan.underlay_subnet": validate.Optional(func(value string) error {
@@ -213,22 +209,18 @@ func (n *bridge) Validate(config map[string]string) error {
 
 			return validate.IsNetworkV4(value)
 		}),
-		"fan.type": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"vxlan", "ipip"})
-		}),
+		"fan.type": validate.Optional(validate.IsOneOf("vxlan", "ipip")),
 
 		"ipv4.address": validate.Optional(func(value string) error {
-			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
+			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
 			}
 
 			return validate.IsNetworkAddressCIDRV4(value)
 		}),
-		"ipv4.firewall": validate.Optional(validate.IsBool),
-		"ipv4.nat":      validate.Optional(validate.IsBool),
-		"ipv4.nat.order": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"before", "after"})
-		}),
+		"ipv4.firewall":     validate.Optional(validate.IsBool),
+		"ipv4.nat":          validate.Optional(validate.IsBool),
+		"ipv4.nat.order":    validate.Optional(validate.IsOneOf("before", "after")),
 		"ipv4.nat.address":  validate.Optional(validate.IsNetworkAddressV4),
 		"ipv4.dhcp":         validate.Optional(validate.IsBool),
 		"ipv4.dhcp.gateway": validate.Optional(validate.IsNetworkAddressV4),
@@ -239,40 +231,32 @@ func (n *bridge) Validate(config map[string]string) error {
 		"ipv4.ovn.ranges":   validate.Optional(validate.IsNetworkRangeV4List),
 
 		"ipv6.address": validate.Optional(func(value string) error {
-			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
+			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
 			}
 
 			return validate.IsNetworkAddressCIDRV6(value)
 		}),
-		"ipv6.firewall": validate.Optional(validate.IsBool),
-		"ipv6.nat":      validate.Optional(validate.IsBool),
-		"ipv6.nat.order": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"before", "after"})
-		}),
-		"ipv6.nat.address":   validate.Optional(validate.IsNetworkAddressV6),
-		"ipv6.dhcp":          validate.Optional(validate.IsBool),
-		"ipv6.dhcp.expiry":   validate.IsAny,
-		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
-		"ipv6.dhcp.ranges":   validate.Optional(validate.IsNetworkRangeV6List),
-		"ipv6.routes":        validate.Optional(validate.IsNetworkV6List),
-		"ipv6.routing":       validate.Optional(validate.IsBool),
-		"ipv6.ovn.ranges":    validate.Optional(validate.IsNetworkRangeV6List),
-		"dns.domain":         validate.IsAny,
-		"dns.search":         validate.IsAny,
-		"dns.mode": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"dynamic", "managed", "none"})
-		}),
-		"raw.dnsmasq":      validate.IsAny,
-		"maas.subnet.ipv4": validate.IsAny,
-		"maas.subnet.ipv6": validate.IsAny,
-		"security.acls":    validate.IsAny,
-		"security.acls.default.ingress.action": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, acl.ValidActions)
-		}),
-		"security.acls.default.egress.action": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, acl.ValidActions)
-		}),
+		"ipv6.firewall":                        validate.Optional(validate.IsBool),
+		"ipv6.nat":                             validate.Optional(validate.IsBool),
+		"ipv6.nat.order":                       validate.Optional(validate.IsOneOf("before", "after")),
+		"ipv6.nat.address":                     validate.Optional(validate.IsNetworkAddressV6),
+		"ipv6.dhcp":                            validate.Optional(validate.IsBool),
+		"ipv6.dhcp.expiry":                     validate.IsAny,
+		"ipv6.dhcp.stateful":                   validate.Optional(validate.IsBool),
+		"ipv6.dhcp.ranges":                     validate.Optional(validate.IsNetworkRangeV6List),
+		"ipv6.routes":                          validate.Optional(validate.IsNetworkV6List),
+		"ipv6.routing":                         validate.Optional(validate.IsBool),
+		"ipv6.ovn.ranges":                      validate.Optional(validate.IsNetworkRangeV6List),
+		"dns.domain":                           validate.IsAny,
+		"dns.search":                           validate.IsAny,
+		"dns.mode":                             validate.Optional(validate.IsOneOf("dynamic", "managed", "none")),
+		"raw.dnsmasq":                          validate.IsAny,
+		"maas.subnet.ipv4":                     validate.IsAny,
+		"maas.subnet.ipv6":                     validate.IsAny,
+		"security.acls":                        validate.IsAny,
+		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
+		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
 		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
 	}
@@ -296,9 +280,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			// Add the correct validation rule for the dynamic field based on last part of key.
 			switch tunnelKey {
 			case "protocol":
-				rules[k] = validate.Optional(func(value string) error {
-					return validate.IsOneOf(value, []string{"gre", "vxlan"})
-				})
+				rules[k] = validate.Optional(validate.IsOneOf("gre", "vxlan"))
 			case "local":
 				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "remote":
