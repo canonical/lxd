@@ -700,7 +700,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 			AllowNameOverride: instanceName != "",
 		}
 
-		resp := internalImport(d, bInfo.Project, req, false)
+		resp := internalImport(d, bInfo.Project, req)
 		if resp.String() != "success" {
 			return fmt.Errorf("Internal import request: %v", resp.String())
 		}
