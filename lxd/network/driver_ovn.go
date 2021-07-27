@@ -191,7 +191,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		"bridge.hwaddr": validate.Optional(validate.IsNetworkMAC),
 		"bridge.mtu":    validate.Optional(validate.IsNetworkMTU),
 		"ipv4.address": validate.Optional(func(value string) error {
-			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
+			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
 			}
 
@@ -199,25 +199,21 @@ func (n *ovn) Validate(config map[string]string) error {
 		}),
 		"ipv4.dhcp": validate.Optional(validate.IsBool),
 		"ipv6.address": validate.Optional(func(value string) error {
-			if validate.IsOneOf(value, []string{"none", "auto"}) == nil {
+			if validate.IsOneOf("none", "auto")(value) == nil {
 				return nil
 			}
 
 			return validate.IsNetworkAddressCIDRV6(value)
 		}),
-		"ipv6.dhcp":          validate.Optional(validate.IsBool),
-		"ipv6.dhcp.stateful": validate.Optional(validate.IsBool),
-		"ipv4.nat":           validate.Optional(validate.IsBool),
-		"ipv6.nat":           validate.Optional(validate.IsBool),
-		"dns.domain":         validate.IsAny,
-		"dns.search":         validate.IsAny,
-		"security.acls":      validate.IsAny,
-		"security.acls.default.ingress.action": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, acl.ValidActions)
-		}),
-		"security.acls.default.egress.action": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, acl.ValidActions)
-		}),
+		"ipv6.dhcp":                            validate.Optional(validate.IsBool),
+		"ipv6.dhcp.stateful":                   validate.Optional(validate.IsBool),
+		"ipv4.nat":                             validate.Optional(validate.IsBool),
+		"ipv6.nat":                             validate.Optional(validate.IsBool),
+		"dns.domain":                           validate.IsAny,
+		"dns.search":                           validate.IsAny,
+		"security.acls":                        validate.IsAny,
+		"security.acls.default.ingress.action": validate.Optional(validate.IsOneOf(acl.ValidActions...)),
+		"security.acls.default.egress.action":  validate.Optional(validate.IsOneOf(acl.ValidActions...)),
 		"security.acls.default.ingress.logged": validate.Optional(validate.IsBool),
 		"security.acls.default.egress.logged":  validate.Optional(validate.IsBool),
 
@@ -274,7 +270,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	var externalSubnets []*net.IPNet
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		addressKey := fmt.Sprintf("%s.address", keyPrefix)
-		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf(config[addressKey], []string{"", "none", "auto"}) != nil {
+		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
 			_, ipNet, err := net.ParseCIDR(config[addressKey])
 			if err != nil {
 				return errors.Wrapf(err, "Failed parsing %s", addressKey)
@@ -1585,14 +1581,14 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
-	if validate.IsOneOf(n.getRouterIntPortIPv4Net(), []string{"none", ""}) != nil {
+	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv4Net()) != nil {
 		routerIntPortIPv4, routerIntPortIPv4Net, err = net.ParseCIDR(n.getRouterIntPortIPv4Net())
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing router's internal port IPv4 Net")
 		}
 	}
 
-	if validate.IsOneOf(n.getRouterIntPortIPv6Net(), []string{"none", ""}) != nil {
+	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv6Net()) != nil {
 		routerIntPortIPv6, routerIntPortIPv6Net, err = net.ParseCIDR(n.getRouterIntPortIPv6Net())
 		if err != nil {
 			return errors.Wrapf(err, "Failed parsing router's internal port IPv6 Net")

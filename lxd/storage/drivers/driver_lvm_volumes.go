@@ -273,9 +273,7 @@ func (d *lvm) FillVolumeConfig(vol Volume) error {
 // ValidateVolume validates the supplied volume config.
 func (d *lvm) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	rules := map[string]func(value string) error{
-		"block.filesystem": validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, lvmAllowedFilesystems)
-		}),
+		"block.filesystem": validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
 		"lvm.stripes":      validate.Optional(validate.IsUint32),
 		"lvm.stripes.size": validate.Optional(validate.IsSize),
 	}
