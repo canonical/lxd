@@ -3561,31 +3561,15 @@ func (d *lxc) Delete(force bool) error {
 		return err
 	}
 
-	isImport := false
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 		return err
 	} else if pool != nil {
-		// Check if we're dealing with "lxd import".
-		// "lxd import" is used for disaster recovery, where you already have a container
-		// and snapshots on disk but no DB entry. As such if something has gone wrong during
-		// the creation of the instance and we are now being asked to delete the instance,
-		// we should not remove the storage volumes themselves as this would cause data loss.
-		cName, _, _ := shared.InstanceGetParentAndSnapshotName(d.Name())
-		importingFilePath := storagePools.InstanceImportingFilePath(d.Type(), pool.Name(), d.Project(), cName)
-		if shared.PathExists(importingFilePath) {
-			isImport = true
-		}
-
 		if d.IsSnapshot() {
-			if !isImport {
-				// Remove snapshot volume and database record.
-				err = pool.DeleteInstanceSnapshot(d, nil)
-				if err != nil {
-					return err
-				}
-			} else {
-				d.logger.Info("Skipping snapshot volume delete")
+			// Remove snapshot volume and database record.
+			err = pool.DeleteInstanceSnapshot(d, nil)
+			if err != nil {
+				return err
 			}
 		} else {
 			// Remove all snapshots by initialising each snapshot as an Instance and
@@ -3596,14 +3580,10 @@ func (d *lxc) Delete(force bool) error {
 				return err
 			}
 
-			if !isImport {
-				// Remove the storage volume, snapshot volumes and database records.
-				err = pool.DeleteInstance(d, nil)
-				if err != nil {
-					return err
-				}
-			} else {
-				d.logger.Info("Skipping instance volume delete")
+			// Remove the storage volume, snapshot volumes and database records.
+			err = pool.DeleteInstance(d, nil)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -3649,7 +3629,7 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() && !isImport {
+	if d.IsSnapshot() {
 		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
 
 		// Load the parent.
