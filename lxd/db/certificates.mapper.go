@@ -53,6 +53,7 @@ UPDATE certificates
 `)
 
 // GetCertificates returns all available certificates.
+// generator: certificate List
 func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, error) {
 	// Result slice.
 	objects := make([]Certificate, 0)
@@ -105,6 +106,7 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 }
 
 // GetCertificate returns the certificate with the given key.
+// generator: certificate Get
 func (c *ClusterTx) GetCertificate(fingerprint string) (*Certificate, error) {
 	filter := CertificateFilter{}
 	filter.Fingerprint = fingerprint
@@ -125,6 +127,7 @@ func (c *ClusterTx) GetCertificate(fingerprint string) (*Certificate, error) {
 }
 
 // GetCertificateID return the ID of the certificate with the given key.
+// generator: certificate ID
 func (c *ClusterTx) GetCertificateID(fingerprint string) (int64, error) {
 	stmt := c.stmt(certificateID)
 	rows, err := stmt.Query(fingerprint)
@@ -154,6 +157,7 @@ func (c *ClusterTx) GetCertificateID(fingerprint string) (int64, error) {
 }
 
 // CertificateExists checks if a certificate with the given key exists.
+// generator: certificate Exists
 func (c *ClusterTx) CertificateExists(fingerprint string) (bool, error) {
 	_, err := c.GetCertificateID(fingerprint)
 	if err != nil {
@@ -167,6 +171,7 @@ func (c *ClusterTx) CertificateExists(fingerprint string) (bool, error) {
 }
 
 // CreateCertificate adds a new certificate to the database.
+// generator: certificate Create
 func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 	// Check if a certificate with the same key exists.
 	exists, err := c.CertificateExists(object.Fingerprint)
@@ -203,6 +208,7 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
+// generator: certificate DeleteOne
 func (c *ClusterTx) DeleteCertificate(filter CertificateFilter) error {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
@@ -251,6 +257,7 @@ func (c *ClusterTx) DeleteCertificate(filter CertificateFilter) error {
 }
 
 // DeleteCertificates deletes the certificate matching the given key parameters.
+// generator: certificate DeleteMany
 func (c *ClusterTx) DeleteCertificates(filter CertificateFilter) error {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
@@ -296,6 +303,7 @@ func (c *ClusterTx) DeleteCertificates(filter CertificateFilter) error {
 }
 
 // UpdateCertificate updates the certificate matching the given key parameters.
+// generator: certificate Update
 func (c *ClusterTx) UpdateCertificate(fingerprint string, object Certificate) error {
 	id, err := c.GetCertificateID(fingerprint)
 	if err != nil {
