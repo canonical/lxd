@@ -676,37 +676,21 @@ func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Respo
 	return response.EmptySyncResponse
 }
 
-// Used after to create the appropriate mounts point after a container has been
-// moved.
-func instancePostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
-	c, err := instance.LoadByProjectAndName(d.State(), project, containerName)
+// Used after to create the appropriate mounts point after an instance has been moved.
+func instancePostCreateInstanceMountPoint(d *Daemon, project, instanceName string) error {
+	inst, err := instance.LoadByProjectAndName(d.State(), project, instanceName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to load moved instance on target node")
-	}
-	poolName, err := c.StoragePool()
-	if err != nil {
-		return errors.Wrap(err, "Failed get pool name of moved instance on target node")
-	}
-	snapshotNames, err := d.cluster.GetInstanceSnapshotsNames(project, containerName)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create instance snapshot names")
+		return errors.Wrap(err, "Failed loading instance on target node")
 	}
 
-	containerMntPoint := driver.GetContainerMountPoint(c.Project(), poolName, containerName)
-	err = driver.CreateContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create instance mount point on target node")
+		return errors.Wrap(err, "Failed loading pool of instance on target node")
 	}
 
-	for _, snapshotName := range snapshotNames {
-		mntPoint := driver.GetSnapshotMountPoint(project, poolName, snapshotName)
-		snapshotsSymlinkTarget := shared.VarPath("storage-pools",
-			poolName, "containers-snapshots", containerName)
-		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
-		err := driver.CreateSnapshotMountpoint(mntPoint, snapshotsSymlinkTarget, snapshotMntPointSymlink)
-		if err != nil {
-			return errors.Wrap(err, "Failed to create snapshot mount point on target node")
-		}
+	err = pool.ImportInstance(inst, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed creating mount point of instance on target node")
 	}
 
 	return nil
