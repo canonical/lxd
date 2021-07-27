@@ -890,7 +890,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 
 	if len(cRegular) > 0 {
 		// ${LXD_DIR}/storage-pools/<name>
-		containersSubvolumePath := driver.GetContainerMountPoint("default", defaultPoolName, "")
+		containersSubvolumePath := containerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -937,7 +937,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		// subvolume of the subvolume of the storage pool:
 		// mv ${LXD_DIR}/containers/<container_name> ${LXD_DIR}/storage-pools/<pool>/<container_name>
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
+		newContainerMntPoint := containerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			err = os.Rename(oldContainerMntPoint, newContainerMntPoint)
 			if err != nil {
@@ -1225,7 +1225,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Create the new path where containers will be located on the
 		// new storage api.
-		containersMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, "")
+		containersMntPoint := containerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(containersMntPoint) {
 			err := os.MkdirAll(containersMntPoint, 0711)
 			if err != nil {
@@ -1235,7 +1235,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 
 		// Simply rename the container when they are directories.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
+		newContainerMntPoint := containerMountPoint("default", defaultPoolName, ct)
 		if shared.PathExists(oldContainerMntPoint) && !shared.PathExists(newContainerMntPoint) {
 			// First try to rename.
 			err := os.Rename(oldContainerMntPoint, newContainerMntPoint)
@@ -1488,7 +1488,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 	if len(cRegular) > 0 {
 		// Create generic containers folder on the storage pool.
-		newContainersMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, "")
+		newContainersMntPoint := containerMountPoint("default", defaultPoolName, "")
 		if !shared.PathExists(newContainersMntPoint) {
 			err = os.MkdirAll(newContainersMntPoint, 0711)
 			if err != nil {
@@ -1545,7 +1545,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		// Create the new path where containers will be located on the
 		// new storage api. We do os.Rename() here to preserve
 		// permissions and ownership.
-		newContainerMntPoint := driver.GetContainerMountPoint("default", defaultPoolName, ct)
+		newContainerMntPoint := containerMountPoint("default", defaultPoolName, ct)
 		ctLvName := lvmNameToLVName(ct)
 		newContainerLvName := fmt.Sprintf("%s_%s", patchStoragePoolVolumeAPIEndpointContainers, ctLvName)
 		containerLvDevPath := lvmDevPath("default", defaultPoolName, patchStoragePoolVolumeAPIEndpointContainers, ctLvName)
@@ -2024,7 +2024,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 	}
 
 	if len(cRegular) > 0 {
-		containersSubvolumePath := driver.GetContainerMountPoint("default", poolName, "")
+		containersSubvolumePath := containerMountPoint("default", poolName, "")
 		if !shared.PathExists(containersSubvolumePath) {
 			err := os.MkdirAll(containersSubvolumePath, 0711)
 			if err != nil {
@@ -2088,7 +2088,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// Changing the mountpoint property should have actually created
 		// the path but in case it somehow didn't let's do it ourselves.
 		doesntMatter := false
-		newContainerMntPoint := driver.GetContainerMountPoint("default", poolName, ct)
+		newContainerMntPoint := containerMountPoint("default", poolName, ct)
 		err = driver.CreateContainerMountpoint(newContainerMntPoint, oldContainerMntPoint, doesntMatter)
 		if err != nil {
 			logger.Warnf("Failed to create mountpoint for the container: %s", newContainerMntPoint)
