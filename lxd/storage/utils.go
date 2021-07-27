@@ -197,9 +197,7 @@ var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"
 // Deprecated: these are being moved to the per-storage-driver implementations.
 var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	"block.filesystem": func(value string) ([]string, error) {
-		err := validate.Optional(func(value string) error {
-			return validate.IsOneOf(value, []string{"btrfs", "ext4", "xfs"})
-		})(value)
+		err := validate.Optional(validate.IsOneOf("btrfs", "ext4", "xfs"))(value)
 		if err != nil {
 			return nil, err
 		}
