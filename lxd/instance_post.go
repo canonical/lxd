@@ -20,7 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -590,12 +590,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
 		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, inst.Name(), inst.Name(), newName)
-		poolName, err := inst.StoragePool()
-		if err != nil {
-			return errors.Wrap(err, "Failed to get source instance's storage pool name")
-		}
-
-		pool, err := driver.GetPoolByName(d.State(), poolName)
+		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get source instance's storage pool")
 		}
