@@ -54,6 +54,7 @@ DELETE FROM operations WHERE node_id = ?
 `)
 
 // GetOperations returns all available operations.
+// generator: operation List
 func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 	// Result slice.
 	objects := make([]Operation, 0)
@@ -117,6 +118,7 @@ func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 }
 
 // CreateOrReplaceOperation adds a new operation to the database.
+// generator: operation CreateOrReplace
 func (c *ClusterTx) CreateOrReplaceOperation(object Operation) (int64, error) {
 	args := make([]interface{}, 4)
 
@@ -144,6 +146,7 @@ func (c *ClusterTx) CreateOrReplaceOperation(object Operation) (int64, error) {
 }
 
 // DeleteOperation deletes the operation matching the given key parameters.
+// generator: operation DeleteOne
 func (c *ClusterTx) DeleteOperation(filter OperationFilter) error {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
@@ -191,6 +194,7 @@ func (c *ClusterTx) DeleteOperation(filter OperationFilter) error {
 }
 
 // DeleteOperations deletes the operation matching the given key parameters.
+// generator: operation DeleteMany
 func (c *ClusterTx) DeleteOperations(filter OperationFilter) error {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
