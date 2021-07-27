@@ -31,7 +31,7 @@ func wipeDirectory(path string) error {
 			return nil
 		}
 
-		return errors.Wrapf(err, "Failed to list directory '%s'", path)
+		return errors.Wrapf(err, "Failed listing directory %q", path)
 	}
 
 	// Individually wipe all entries.
@@ -39,7 +39,7 @@ func wipeDirectory(path string) error {
 		entryPath := filepath.Join(path, entry.Name())
 		err := os.RemoveAll(entryPath)
 		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "Failed to remove '%s'", entryPath)
+			return errors.Wrapf(err, "Failed removing %q", entryPath)
 		}
 	}
 
