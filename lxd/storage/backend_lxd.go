@@ -2337,7 +2337,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				return nil
 			}
 		} else {
-			// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
+			// We have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
+			// This can occur if LXD process exits unexpectedly during an image unpack or if the
+			// storage pool has been recovered (which would not recreate the image volume DB records).
 			logger.Warn("Deleting leftover/partially unpacked image volume")
 			err = b.driver.DeleteVolume(imgVol, op)
 			if err != nil {
