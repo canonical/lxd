@@ -226,15 +226,16 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 
 			err := d.deleteSubvolume(path, true)
 			if err != nil {
-				return fmt.Errorf("Could not delete btrfs subvolume: %s", path)
+				return fmt.Errorf("Failed deleting btrfs subvolume %q", path)
 			}
 		}
 	}
 
 	// On delete, wipe everything in the directory.
-	err := wipeDirectory(GetPoolMountPath(d.name))
+	mountPath := GetPoolMountPath(d.name)
+	err := wipeDirectory(mountPath)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed removing mount path %q", mountPath)
 	}
 
 	// Unmount the path.
@@ -244,16 +245,16 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 	}
 
 	// If the pool path is a subvolume itself, delete it.
-	if d.isSubvolume(GetPoolMountPath(d.name)) {
-		err := d.deleteSubvolume(GetPoolMountPath(d.name), false)
+	if d.isSubvolume(mountPath) {
+		err := d.deleteSubvolume(mountPath, false)
 		if err != nil {
 			return err
 		}
 
 		// And re-create as an empty directory to make the backend happy.
-		err = os.Mkdir(GetPoolMountPath(d.name), 0700)
+		err = os.Mkdir(mountPath, 0700)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create directory '%s'", GetPoolMountPath(d.name))
+			return errors.Wrapf(err, "Failed creating directory %q", mountPath)
 		}
 	}
 
@@ -261,7 +262,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 	loopPath := loopFilePath(d.name)
 	err = os.Remove(loopPath)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove '%s'", loopPath)
+		return errors.Wrapf(err, "Failed removing loop file %q", loopPath)
 	}
 
 	return nil
