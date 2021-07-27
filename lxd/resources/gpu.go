@@ -182,37 +182,50 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 		}
 	}
 
-	// Vendor and product
-	deviceVendorPath := filepath.Join(devicePath, "vendor")
-	if sysfsExists(deviceVendorPath) {
-		id, err := ioutil.ReadFile(deviceVendorPath)
+	deviceUSBPath := filepath.Join(devicePath, "device", "busnum")
+	if sysfsExists(deviceUSBPath) {
+		// USB address
+		deviceDevicePath := filepath.Join(devicePath, "device")
+		usbAddr, err := usbAddress(deviceDevicePath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to read %q", deviceVendorPath)
+			return errors.Wrapf(err, "Failed to find USB address for %q", devicePath)
+		}
+		if usbAddr != "" {
+			card.USBAddress = usbAddr
+		}
+	} else {
+		// Vendor and product
+		deviceVendorPath := filepath.Join(devicePath, "vendor")
+		if sysfsExists(deviceVendorPath) {
+			id, err := ioutil.ReadFile(deviceVendorPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to read %q", deviceVendorPath)
+			}
+
+			card.VendorID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
 		}
 
-		card.VendorID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
-	}
+		deviceDevicePath := filepath.Join(devicePath, "device")
+		if sysfsExists(deviceDevicePath) {
+			id, err := ioutil.ReadFile(deviceDevicePath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to read %q", deviceDevicePath)
+			}
 
-	deviceDevicePath := filepath.Join(devicePath, "device")
-	if sysfsExists(deviceDevicePath) {
-		id, err := ioutil.ReadFile(deviceDevicePath)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to read %q", deviceDevicePath)
+			card.ProductID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
 		}
 
-		card.ProductID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
-	}
+		// Fill vendor and product names
+		if pciDB != nil {
+			vendor, ok := pciDB.Vendors[card.VendorID]
+			if ok {
+				card.Vendor = vendor.Name
 
-	// Fill vendor and product names
-	if pciDB != nil {
-		vendor, ok := pciDB.Vendors[card.VendorID]
-		if ok {
-			card.Vendor = vendor.Name
-
-			for _, product := range vendor.Products {
-				if product.ID == card.ProductID {
-					card.Product = product.Name
-					break
+				for _, product := range vendor.Products {
+					if product.ID == card.ProductID {
+						card.Product = product.Name
+						break
+					}
 				}
 			}
 		}
@@ -223,7 +236,7 @@ func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGP
 	if sysfsExists(driverPath) {
 		linkTarget, err := filepath.EvalSymlinks(driverPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to track down %q", driverPath)
+			return errors.Wrapf(err, "Failed to find %q", driverPath)
 		}
 
 		// Set the driver name
@@ -451,7 +464,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 			// PCI address.
 			pciAddr, err := pciAddress(devicePath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to track down PCI address for %q", devicePath)
+				return nil, errors.Wrapf(err, "Failed to find PCI address for %q", devicePath)
 			}
 			if pciAddr != "" {
 				card.PCIAddress = pciAddr
@@ -475,7 +488,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "physfn"))
+					return nil, errors.Wrapf(err, "Failed to find %q", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 
@@ -537,7 +550,7 @@ func GetGPU() (*api.ResourcesGPU, error) {
 				// Virtual functions need to be added to the parent
 				linkTarget, err := filepath.EvalSymlinks(filepath.Join(devicePath, "physfn"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "physfn"))
+					return nil, errors.Wrapf(err, "Failed to find %q", filepath.Join(devicePath, "physfn"))
 				}
 				parentAddress := filepath.Base(linkTarget)
 

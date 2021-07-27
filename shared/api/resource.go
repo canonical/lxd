@@ -238,6 +238,12 @@ type ResourcesGPUCard struct {
 	// PCI ID of the product
 	// Example: 5916
 	ProductID string `json:"product_id,omitempty" yaml:"product_id,omitempty"`
+
+	// USB address (for USB cards)
+	// Example: 2:7
+	//
+	// API extension: resources_gpu_usb
+	USBAddress string `json:"usb_address,omitempty" yaml:"usb_address,omitempty"`
 }
 
 // ResourcesGPUCardDRM represents the Linux DRM configuration of the GPU

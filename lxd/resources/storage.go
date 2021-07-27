@@ -167,7 +167,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			// PCI address
 			pciAddr, err := pciAddress(devicePath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to track down PCI address for %q", devicePath)
+				return nil, errors.Wrapf(err, "Failed to find PCI address for %q", devicePath)
 			}
 			if pciAddr != "" {
 				disk.PCIAddress = pciAddr
@@ -176,7 +176,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			// USB address
 			usbAddr, err := usbAddress(devicePath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to track down USB address for %q", devicePath)
+				return nil, errors.Wrapf(err, "Failed to find USB address for %q", devicePath)
 			}
 			if usbAddr != "" {
 				disk.USBAddress = usbAddr
@@ -208,7 +208,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 			if sysfsExists(filepath.Join(devicePath, "subsystem")) {
 				diskSubsystem, err := filepath.EvalSymlinks(filepath.Join(devicePath, "subsystem"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to track down %q", filepath.Join(devicePath, "subsystem"))
+					return nil, errors.Wrapf(err, "Failed to find %q", filepath.Join(devicePath, "subsystem"))
 				}
 
 				disk.Type = filepath.Base(diskSubsystem)
@@ -322,7 +322,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 					linkTarget, err := filepath.EvalSymlinks(linkPath)
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed to track down %q", linkPath)
+						return nil, errors.Wrapf(err, "Failed to find %q", linkPath)
 					}
 
 					if linkTarget == filepath.Join("/dev", entryName) {
@@ -344,7 +344,7 @@ func GetStorage() (*api.ResourcesStorage, error) {
 
 					linkTarget, err := filepath.EvalSymlinks(linkPath)
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed to track down %q", linkPath)
+						return nil, errors.Wrapf(err, "Failed to find %q", linkPath)
 					}
 
 					if linkTarget == filepath.Join("/dev", entryName) {
