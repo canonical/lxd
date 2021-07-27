@@ -199,6 +199,27 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 				continue
 			}
 
+			// If a pool has been recovered then there may be left over image subvolumes that are not
+			// in the database and so won't be removed when deleting the storage pool. We need to
+			// detect and handle this scenario here otherwise the storage pool won't be removable.
+			// We don't remove other types of subvolume if they exist, as we don't want to accidentally
+			// remove instance or custom volumes that have been left over for an unknown reason.
+			if volType == VolumeTypeImage {
+				// Get image subvolumes list.
+				imageSubVols, err := d.getSubvolumes(path)
+				if err != nil {
+					return err
+				}
+
+				for _, imageSubVol := range imageSubVols {
+					imageSubVolPath := filepath.Join(path, imageSubVol)
+					err := d.deleteSubvolume(imageSubVolPath, true)
+					if err != nil {
+						return fmt.Errorf("Failed deleting btrfs image subvolume %q", imageSubVolPath)
+					}
+				}
+			}
+
 			if !d.isSubvolume(path) {
 				continue
 			}
