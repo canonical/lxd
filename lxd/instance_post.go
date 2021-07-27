@@ -629,7 +629,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
 		if client == nil {
-			err := instancePostCreateContainerMountPoint(d, projectName, newName)
+			err := instancePostCreateInstanceMountPoint(d, projectName, newName)
 			if err != nil {
 				return errors.Wrap(err, "Failed creating mount point of instance on target node")
 			}
@@ -668,11 +668,13 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 // to create the appropriate mount points.
 func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	containerName := mux.Vars(r)["name"]
-	err := instancePostCreateContainerMountPoint(d, projectName, containerName)
+	instanceName := mux.Vars(r)["name"]
+
+	err := instancePostCreateInstanceMountPoint(d, projectName, instanceName)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	return response.EmptySyncResponse
 }
 
