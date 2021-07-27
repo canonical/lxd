@@ -276,7 +276,7 @@ func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volNa
 	if !shared.PathExists(snapshotsPath) {
 		err := os.Mkdir(snapshotsPath, 0700)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create directory '%s'", snapshotsPath)
+			return errors.Wrapf(err, "Failed to create parent snapshot directory %q", snapshotsPath)
 		}
 
 		return nil
