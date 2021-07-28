@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/storage/memorypipe"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -3922,9 +3923,13 @@ func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]
 			return nil, fmt.Errorf("Storage driver returned unexpected VM volume with filesystem content type (%q)", poolVol.Name())
 		}
 
-		// Detect unknown instance volume.
 		if volType == drivers.VolumeTypeVM || volType == drivers.VolumeTypeContainer {
 			err = b.detectUnknownInstanceVolume(&poolVol, projectVols, op)
+			if err != nil {
+				return nil, err
+			}
+		} else if volType == drivers.VolumeTypeCustom {
+			err = b.detectUnknownCustomVolume(&poolVol, projectVols, op)
 			if err != nil {
 				return nil, err
 			}
@@ -4086,6 +4091,115 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		if volID > 0 {
 			return fmt.Errorf("Instance %q snapshot %q in project %q already has storage DB record", instName, snapshot.Name, projectName)
 		}
+	}
+
+	return nil
+}
+
+// detectUnknownCustomVolume detects if a volume is unknown and if so attempts to discover the filesystem of the
+// volume (for filesystem volumes). It then runs a series of consistency checks, and if all checks out, it adds
+// generates a simulated backup config for the custom volume and adds it to projectVols.
+func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols map[string][]*backup.Config, op *operations.Operation) error {
+	volType := vol.Type()
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	projectName, volName := project.StorageVolumeParts(vol.Name())
+
+	// Check if any entry for the custom volume already exists in the DB.
+	// This will return no record for any temporary pool structs being used (as ID is -1).
+	volID, _, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, volDBType, b.ID())
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
+		return err
+	}
+
+	if volID > 0 {
+		return nil // Storage record already exists in DB, no recovery needed.
+	}
+
+	// Get a list of snapshots that exist on storage device.
+	snapshots, err := b.driver.VolumeSnapshots(*vol, op)
+	if err != nil {
+		return err
+	}
+
+	contentType := vol.ContentType()
+	var apiContentType string
+
+	if contentType == drivers.ContentTypeBlock {
+		apiContentType = db.StoragePoolVolumeContentTypeNameBlock
+	} else if contentType == drivers.ContentTypeFS {
+		apiContentType = db.StoragePoolVolumeContentTypeNameFS
+
+		// Detect block volume filesystem (by mounting it (if not already) with filesystem probe mode).
+		if b.driver.Info().BlockBacking {
+			var blockFS string
+			mountPath := vol.MountPath()
+			if filesystem.IsMountPoint(mountPath) {
+				blockFS, err = filesystem.Detect(mountPath)
+				if err != nil {
+					return err
+				}
+			} else {
+				vol.SetMountFilesystemProbe(true)
+				vol.MountTask(func(mountPath string, op *operations.Operation) error {
+					blockFS, err = filesystem.Detect(mountPath)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				}, op)
+			}
+
+			// Record detected filesystem in config.
+			vol.Config()["block.filesystem"] = blockFS
+		}
+	} else {
+		return fmt.Errorf("Unknown custom volume content type %q", contentType)
+	}
+
+	// This may not always be the correct thing to do, but seeing as we don't know what the volume's config
+	// was lets take a best guess that it was the default config.
+	err = b.driver.FillVolumeConfig(*vol)
+	if err != nil {
+		return errors.Wrapf(err, "Failed filling custom volume default config")
+	}
+
+	// Check the filesystem detected is valid for the storage driver.
+	err = b.driver.ValidateVolume(*vol, false)
+	if err != nil {
+		return errors.Wrapf(err, "Failed custom volume validation")
+	}
+
+	backupConf := &backup.Config{
+		Volume: &api.StorageVolume{
+			Name:        volName,
+			Type:        db.StoragePoolVolumeTypeNameCustom,
+			ContentType: apiContentType,
+			StorageVolumePut: api.StorageVolumePut{
+				Config: vol.Config(),
+			},
+		},
+	}
+
+	// Populate snaphot volumes.
+	for _, snapOnlyName := range snapshots {
+		backupConf.VolumeSnapshots = append(backupConf.VolumeSnapshots, &api.StorageVolumeSnapshot{
+			Name:        snapOnlyName, // Snapshot only name, not full name.
+			Config:      vol.Config(), // Have to assume the snapshot volume config is same as parent.
+			ContentType: apiContentType,
+		})
+	}
+
+	// Add to volume to unknown volumes list for the project.
+	if projectVols[projectName] == nil {
+		projectVols[projectName] = []*backup.Config{backupConf}
+	} else {
+		projectVols[projectName] = append(projectVols[projectName], backupConf)
 	}
 
 	return nil
