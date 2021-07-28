@@ -25,6 +25,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// genericVolumeBlockExtension extension used for generic block volume disk files.
+const genericVolumeBlockExtension = "img"
+
 // genericVolumeDiskFile used to indicate the file name used for block volume disk files.
 const genericVolumeDiskFile = "root.img"
 
@@ -516,7 +519,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					return err
 				}
 
-				name := fmt.Sprintf("%s.img", prefix)
+				name := fmt.Sprintf("%s.%s", prefix, genericVolumeBlockExtension)
 
 				logMsg = "Copying virtual machine block volume"
 				if vol.volType == VolumeTypeCustom {
@@ -674,7 +677,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 				return err
 			}
 
-			srcFile := fmt.Sprintf("%s.img", srcPrefix)
+			srcFile := fmt.Sprintf("%s.%s", srcPrefix, genericVolumeBlockExtension)
 			d.Logger().Debug("Unpacking virtual machine block volume", log.Ctx{"source": srcFile, "target": targetPath})
 
 			tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
@@ -967,4 +970,37 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 
 	revert.Success()
 	return nil
+}
+
+// genericVFSListVolumes returns a list of LXD volumes in storage pool.
+func genericVFSListVolumes(d Driver) ([]Volume, error) {
+	var vols []Volume
+	poolName := d.Name()
+	poolConfig := d.Config()
+	poolMountPath := GetPoolMountPath(poolName)
+
+	for _, volType := range d.Info().VolumeTypes {
+		if len(BaseDirectories[volType]) < 1 {
+			return nil, fmt.Errorf("Cannot get base directory name for volume type %q", volType)
+		}
+
+		volTypePath := filepath.Join(poolMountPath, BaseDirectories[volType][0])
+		ents, err := ioutil.ReadDir(volTypePath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to list directory %q for volume type %q", volTypePath, volType)
+		}
+
+		for _, ent := range ents {
+			contentType := ContentTypeFS
+			if volType == VolumeTypeVM {
+				contentType = ContentTypeBlock
+			} else if volType == VolumeTypeCustom && shared.PathExists(filepath.Join(volTypePath, ent.Name(), genericVolumeDiskFile)) {
+				contentType = ContentTypeBlock
+			}
+
+			vols = append(vols, NewVolume(d, poolName, volType, contentType, ent.Name(), nil, poolConfig))
+		}
+	}
+
+	return vols, nil
 }
