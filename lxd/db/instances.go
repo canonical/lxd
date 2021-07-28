@@ -66,8 +66,8 @@ import (
 //go:generate mapper stmt -p db -e instance delete-profiles-ref
 //go:generate mapper stmt -p db -e instance update struct=Instance
 //
-//go:generate mapper method -p db -e instance List
-//go:generate mapper method -p db -e instance Get
+//go:generate mapper method -p db -e instance GetMany
+//go:generate mapper method -p db -e instance GetOne
 //go:generate mapper method -p db -e instance ID struct=Instance
 //go:generate mapper method -p db -e instance Exists struct=Instance
 //go:generate mapper method -p db -e instance Create struct=Instance
