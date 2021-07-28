@@ -183,6 +183,15 @@ func (v Volume) EnsureMountPath() error {
 
 	// Create volume's mount path if missing, with any created directories set to 0711.
 	if !shared.PathExists(volPath) {
+		if v.IsSnapshot() {
+			// Create the parent directory if needed.
+			parentName, _, _ := shared.InstanceGetParentAndSnapshotName(v.name)
+			err := createParentSnapshotDirIfMissing(v.pool, v.volType, parentName)
+			if err != nil {
+				return err
+			}
+		}
+
 		err := os.Mkdir(volPath, 0711)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to create mount directory %q", volPath)

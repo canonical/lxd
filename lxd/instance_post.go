@@ -20,16 +20,16 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
-	driver "github.com/lxc/lxd/lxd/storage"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
-var internalClusterContainerMovedCmd = APIEndpoint{
-	Path: "cluster/container-moved/{name}",
+var internalClusterInstanceMovedCmd = APIEndpoint{
+	Path: "cluster/instance-moved/{name}",
 
-	Post: APIEndpointAction{Handler: internalClusterContainerMovedPost},
+	Post: APIEndpointAction{Handler: internalClusterInstanceMovedPost},
 }
 
 // swagger:operation POST /1.0/instances/{name} instances instance_post
@@ -590,12 +590,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
 		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, inst.Name(), inst.Name(), newName)
-		poolName, err := inst.StoragePool()
-		if err != nil {
-			return errors.Wrap(err, "Failed to get source instance's storage pool name")
-		}
-
-		pool, err := driver.GetPoolByName(d.State(), poolName)
+		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get source instance's storage pool")
 		}
@@ -628,18 +623,18 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			return errors.Wrap(err, "Failed to relink instance database data")
 		}
 
-		// Create the container mount point on the target node
+		// Create the instance mount point on the target node.
 		client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, newName, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
 		if client == nil {
-			err := instancePostCreateContainerMountPoint(d, projectName, newName)
+			err := instancePostCreateInstanceMountPoint(d, projectName, newName)
 			if err != nil {
-				return errors.Wrap(err, "Failed to create mount point on target node")
+				return errors.Wrap(err, "Failed creating mount point of instance on target node")
 			}
 		} else {
-			path := fmt.Sprintf("/internal/cluster/container-moved/%s?project=%s", newName, projectName)
+			path := fmt.Sprintf("/internal/cluster/instance-moved/%s?project=%s", newName, projectName)
 			resp, _, err := client.RawQuery("POST", path, nil, "")
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
@@ -667,51 +662,37 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 	return operations.OperationResponse(op)
 }
 
-// Notification that a container was moved.
+// Notification that an instance was moved.
 //
-// At the moment it's used for ceph-based containers, where the target node needs
+// At the moment it's used for ceph-based instances, where the target node needs
 // to create the appropriate mount points.
-func internalClusterContainerMovedPost(d *Daemon, r *http.Request) response.Response {
+func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	containerName := mux.Vars(r)["name"]
-	err := instancePostCreateContainerMountPoint(d, projectName, containerName)
+	instanceName := mux.Vars(r)["name"]
+
+	err := instancePostCreateInstanceMountPoint(d, projectName, instanceName)
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	return response.EmptySyncResponse
 }
 
-// Used after to create the appropriate mounts point after a container has been
-// moved.
-func instancePostCreateContainerMountPoint(d *Daemon, project, containerName string) error {
-	c, err := instance.LoadByProjectAndName(d.State(), project, containerName)
+// Used after to create the appropriate mounts point after an instance has been moved.
+func instancePostCreateInstanceMountPoint(d *Daemon, project, instanceName string) error {
+	inst, err := instance.LoadByProjectAndName(d.State(), project, instanceName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to load moved instance on target node")
-	}
-	poolName, err := c.StoragePool()
-	if err != nil {
-		return errors.Wrap(err, "Failed get pool name of moved instance on target node")
-	}
-	snapshotNames, err := d.cluster.GetInstanceSnapshotsNames(project, containerName)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create instance snapshot names")
+		return errors.Wrap(err, "Failed loading instance on target node")
 	}
 
-	containerMntPoint := driver.GetContainerMountPoint(c.Project(), poolName, containerName)
-	err = driver.CreateContainerMountpoint(containerMntPoint, c.Path(), c.IsPrivileged())
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create instance mount point on target node")
+		return errors.Wrap(err, "Failed loading pool of instance on target node")
 	}
 
-	for _, snapshotName := range snapshotNames {
-		mntPoint := driver.GetSnapshotMountPoint(project, poolName, snapshotName)
-		snapshotsSymlinkTarget := shared.VarPath("storage-pools",
-			poolName, "containers-snapshots", containerName)
-		snapshotMntPointSymlink := shared.VarPath("snapshots", containerName)
-		err := driver.CreateSnapshotMountpoint(mntPoint, snapshotsSymlinkTarget, snapshotMntPointSymlink)
-		if err != nil {
-			return errors.Wrap(err, "Failed to create snapshot mount point on target node")
-		}
+	err = pool.ImportInstance(inst, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed creating mount point of instance on target node")
 	}
 
 	return nil

@@ -1,19 +1,10 @@
-test_container_import() {
+test_container_recover() {
   LXD_IMPORT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_IMPORT_DIR}"
   spawn_lxd "${LXD_IMPORT_DIR}" true
+
   (
     set -e
-
-    kill_lxc() {
-        pid=${1:-}
-        [ -n "${pid}" ] || return
-        ppid=$(ps -o ppid="" -p "${pid}")
-        kill -9 "${pid}" || true
-
-        [ -n "${ppid}" ] || return
-        kill -9 "${ppid}" || true
-    }
 
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_IMPORT_DIR}
@@ -21,155 +12,115 @@ test_container_import() {
 
     ensure_import_testimage
 
-    lxc init testimage ctImport
-    lxc start ctImport
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    ! lxd import ctImport || false
-    # Import without killing the running instance to test restoring control plane after DB corruption.
-    lxd import ctImport --force
+    # Basic no-op check.
+    cat <<EOF | lxd recover | grep "No unknown volumes found. Nothing to do."
+no
+yes
+EOF
 
-    # Check exec works after forced import while running (to check config file is regenerated).
-    lxc exec ctImport -- date
-    kill_lxc "${pid}"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='ctImport'"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    lxd import ctImport --force
-    lxc start ctImport
-    lxc delete --force ctImport
+    # Recover container that isn't running.
+    lxc init testimage c1
+    lxc snapshot c1
+    lxc info c1
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+    ! lxc info c1 || false
 
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    ! lxd import ctImport || false
-    lxd import ctImport --force
-    lxc info ctImport | grep snap0
-    lxc delete --force ctImport
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
 
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    kill_lxc "${pid}"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='ctImport'"
-    ! lxd import ctImport || false
-    lxd import ctImport --force
-    lxc info ctImport | grep snap0
-    lxc start ctImport
-    lxc delete --force ctImport
+    # Check snapshot exists and container can be started.
+    lxc info c1 | grep snap0
+    lxc start c1
+    lxc exec c1 -- ls
 
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    kill_lxc "${pid}"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances_snapshots WHERE name='snap0'"
-    ! lxd import ctImport || false
-    lxd import ctImport --force
-    lxc info ctImport | grep snap0
-    lxc start ctImport
-    lxc delete --force ctImport
+    # Check snashot can be restored.
+    lxc restore c1 snap0
+    lxc info c1
+    lxc exec c1 -- ls
 
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    kill_lxc "${pid}"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='ctImport'"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    lxd import ctImport --force
-    lxc info ctImport | grep snap0
-    lxc start ctImport
-    lxc delete --force ctImport
+    # Recover container that is running.
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
 
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    lxc delete ctImport/snap1
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    kill_lxc "${pid}"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='ctImport'"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    lxd import ctImport
-    lxc start ctImport
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    kill_lxc "${pid}"
-    lxd import ctImport --force
-    lxc info ctImport | grep snap0
-    lxc start ctImport
-    lxc delete --force ctImport
+    # Restart LXD so internal mount counters are cleared for deleted (but running) container.
+    shutdown_lxd "${LXD_DIR}"
+    respawn_lxd "${LXD_DIR}" true
 
-    # delete all snapshots from disk
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    rm "${LXD_DIR}/containers/ctImport"
-    if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "btrfs" ]; then
-      rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
-    fi
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    kill_lxc "${pid}"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='ctImport'"
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport'"
-    lxd import ctImport --force
-    lxc info ctImport | grep snap0
-    [ -L "${LXD_DIR}/containers/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers/ctImport" ]
-    if [ "$lxd_backend" != "dir" ] && [ "$lxd_backend" != "btrfs" ]; then
-      [ -L "${LXD_DIR}/snapshots/ctImport" ] && [ -d "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0" ]
-    fi
-    lxc start ctImport
-    lxc delete --force ctImport
+    cat <<EOF | lxd recover
+no
+yes
+yes
+EOF
 
-    # delete one snapshot from disk
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    case "$lxd_backend" in
-      btrfs)
-        btrfs subvolume delete "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
-        rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
-        ;;
-      ceph)
-        rbd unmap "lxdtest-$(basename "${LXD_DIR}")/container_ctImport@snapshot_snap0" || true
-        rbd snap unprotect "lxdtest-$(basename "${LXD_DIR}")/container_ctImport@snapshot_snap0" || true
-        rbd snap rm "lxdtest-$(basename "${LXD_DIR}")/container_ctImport@snapshot_snap0"
-        rm -f "${LXD_DIR}/snapshots/ctImport"
-        ;;
-      dir)
-        rm -r "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
-        ;;
+    lxc info c1 | grep snap0
+    lxc exec c1 -- ls
+    lxc restore c1 snap0
+    lxc info c1
+    lxc exec c1 -- ls
+
+    # Test recover after pool DB config deletion too.
+    poolName=$(lxc profile device get default root pool)
+    poolConfigBefore=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
+    poolDriver=$(lxc storage show "${poolName}" | grep 'driver:' | awk '{print $2}')
+    poolSource=$(lxc storage get "${poolName}" source)
+    poolExtraConfig=""
+
+    case $poolDriver in
       lvm)
-        lvremove -f "lxdtest-$(basename "${LXD_DIR}")/containers_ctImport-snap0"
-        rm -rf "${LXD_DIR}/storage-pools/lxdtest-$(basename "${LXD_DIR}")/containers-snapshots/ctImport/snap0"
-        ;;
+        poolExtraConfig="lvm.vg_name=$(lxc storage get "${poolName}" lvm.vg_name)
+"
+      ;;
       zfs)
-        zfs destroy "lxdtest-$(basename "${LXD_DIR}")/containers/ctImport@snapshot-snap0"
-        ;;
+        poolExtraConfig="zfs.pool_name=$(lxc storage get "${poolName}" zfs.pool_name)
+"
+      ;;
+      ceph)
+        poolExtraConfig="ceph.cluster_name=$(lxc storage get "${poolName}" ceph.cluster_name)
+ceph.osd.pool_name=$(lxc storage get "${poolName}" ceph.osd.pool_name)
+ceph.user.name=$(lxc storage get "${poolName}" ceph.user.name)
+"
+      ;;
     esac
-    pid=$(lxc info ctImport | grep ^Pid | awk '{print $2}')
-    kill_lxc "${pid}"
-    ! lxd import ctImport || false
-    lxd import ctImport --force
-    ! lxc info ctImport | grep snap0 || false
-    lxc start ctImport
-    lxc delete --force ctImport
-    # FIXME: the daemon code should get rid of this leftover db entry
-    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='ctImport/snap0'"
 
-    lxc init testimage ctImport
-    lxc snapshot ctImport
-    lxc start ctImport
-    lxd import ctImport --force
-    lxc config device show ctImport | grep '{}'
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_pools WHERE name='${poolName}'"
 
-    lxc config device override ctImport root size=11GB
-    lxd import ctImport --force
-    lxc config device show ctImport | grep 'size: 11GB'
+    cat <<EOF |lxd recover
+yes
+${poolName}
+${poolDriver}
+${poolSource}
+${poolExtraConfig}
+no
+yes
+yes
+EOF
 
-    lxc delete --force ctImport
+    # Check recovered pool config (from instance backup file) matches what originally was there.
+    lxc storage show "${poolName}"
+    poolConfigAfter=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
+    echo "Before:"
+    echo "${poolConfigBefore}"
 
+    echo "After:"
+    echo "${poolConfigAfter}"
+
+    [ "${poolConfigBefore}" =  "${poolConfigAfter}" ] || false
+    lxc storage show "${poolName}"
+
+    lxc info c1 | grep snap0
+    lxc exec c1 -- ls
+    lxc restore c1 snap0
+    lxc info c1
+    lxc exec c1 -- ls
+    lxc delete -f c1
   )
+
   # shellcheck disable=SC2031
   LXD_DIR=${LXD_DIR}
   kill_lxd "${LXD_IMPORT_DIR}"

@@ -320,6 +320,11 @@ func (d *dir) GetVolumeDiskPath(vol Volume) (string, error) {
 	return genericVFSGetVolumeDiskPath(vol)
 }
 
+// ListVolumes returns a list of LXD volumes in storage pool.
+func (d *dir) ListVolumes() ([]Volume, error) {
+	return genericVFSListVolumes(d)
+}
+
 // MountVolume simulates mounting a volume.
 func (d *dir) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()

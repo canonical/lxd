@@ -15,6 +15,9 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 )
 
+// PoolIDTemporary is used to indicate a temporary pool instance that is not in the database.
+const PoolIDTemporary = -1
+
 // volIDFuncMake returns a function that can be supplied to the underlying storage drivers allowing
 // them to lookup the volume ID for a specific volume type and volume name. This function is tied
 // to the Pool ID that it is generated for, meaning the storage drivers do not need to know the ID
@@ -61,6 +64,53 @@ func commonRules() *drivers.Validators {
 		PoolRules:   validatePoolCommonRules,
 		VolumeRules: validateVolumeCommonRules,
 	}
+}
+
+// NewTemporary instantiates a temporary pool from config supplied and returns a Pool interface.
+// Not all functionality will be available due to the lack of Pool ID.
+// If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
+func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
+	// Handle mock requests.
+	if state.OS.MockMode {
+		pool := mockBackend{}
+		pool.name = info.Name
+		pool.state = state
+		pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": "mock", "pool": pool.name})
+		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		pool.driver = driver
+
+		return &pool, nil
+	}
+
+	var poolID int64 = PoolIDTemporary // Temporary as not in DB. Not all functionality will be available.
+
+	// Ensure a config map exists.
+	if info.Config == nil {
+		info.Config = map[string]string{}
+	}
+
+	logger := logging.AddContext(logger.Log, log.Ctx{"driver": info.Driver, "pool": info.Name})
+
+	// Load the storage driver.
+	driver, err := drivers.Load(state, info.Driver, info.Name, info.Config, logger, volIDFuncMake(state, poolID), commonRules())
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup the pool struct.
+	pool := lxdBackend{}
+	pool.driver = driver
+	pool.id = poolID
+	pool.db = *info
+	pool.name = info.Name
+	pool.state = state
+	pool.logger = logger
+	pool.nodes = nil // TODO support clustering.
+
+	return &pool, nil
 }
 
 // CreatePool creates a new storage pool on disk and returns a Pool interface.

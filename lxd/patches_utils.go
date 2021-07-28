@@ -248,3 +248,10 @@ func volumeFillDefault(config map[string]string, parentPool *api.StoragePool) er
 
 	return nil
 }
+
+// containerMountPoint returns the mountpoint of the given container.
+// ${LXD_DIR}/storage-pools/<pool>/containers/[<project_name>_]<container_name>
+// Deprecated.
+func containerMountPoint(projectName string, poolName string, containerName string) string {
+	return shared.VarPath("storage-pools", poolName, "containers", project.Instance(projectName, containerName))
+}

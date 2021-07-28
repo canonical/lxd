@@ -278,6 +278,23 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 			}
 		}
 	} else {
+		// Remove any left over image volumes.
+		// This can occur during partial image unpack or if the storage pool has been recovered from an
+		// instace backup file and the image volume DB records were not restored.
+		// If non-image volumes exist, we don't delete the, even if they can then prevent the storage pool
+		// from being deleted, because they should not exist by this point and we don't want to end up
+		// removing an instance or custom volume accidentally.
+		// Errors listing volumes are ignored, as we should still try and delete the storage pool.
+		vols, _ := b.driver.ListVolumes()
+		for _, vol := range vols {
+			if vol.Type() == drivers.VolumeTypeImage {
+				err := b.driver.DeleteVolume(vol, op)
+				if err != nil {
+					return errors.Wrapf(err, "Failed deleting image volume %q", vol.Name())
+				}
+			}
+		}
+
 		// Delete the low-level storage.
 		err := b.driver.Delete(op)
 		if err != nil {
@@ -1778,9 +1795,12 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	}
 
 	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
-	if err != nil {
-		return nil, err
+	var rootDiskConf map[string]string
+	if inst.ID() > -1 {
+		rootDiskConf, err = b.instanceRootVolumeConfig(inst)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	contentType := InstanceContentType(inst)
@@ -1821,9 +1841,12 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	}
 
 	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
-	if err != nil {
-		return false, err
+	var rootDiskConf map[string]string
+	if inst.ID() > -1 {
+		rootDiskConf, err = b.instanceRootVolumeConfig(inst)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	contentType := InstanceContentType(inst)
@@ -2337,7 +2360,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 				return nil
 			}
 		} else {
-			// We somehow have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
+			// We have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
+			// This can occur if LXD process exits unexpectedly during an image unpack or if the
+			// storage pool has been recovered (which would not recreate the image volume DB records).
 			logger.Warn("Deleting leftover/partially unpacked image volume")
 			err = b.driver.DeleteVolume(imgVol, op)
 			if err != nil {
@@ -3748,13 +3773,14 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 		}
 	}
 
-	// Delete snapshots that do not exist in backup config.
+	// Check (and optionally delete) snapshots that do not exist in backup config.
 	for _, driverSnapVol := range driverSnapshots {
 		_, driverSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(driverSnapVol.Name())
 
 		inBackupFile := false
 		for _, backupFileSnap := range backupConf.Snapshots {
-			_, backupFileSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(backupFileSnap.Name)
+			backupFileSnapOnly := backupFileSnap.Name
+
 			if driverSnapOnly == backupFileSnapOnly {
 				inBackupFile = true
 				break
@@ -3780,7 +3806,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 	// Check the snapshots in backup config exist on storage device.
 	existingSnapshots := []*api.InstanceSnapshot{}
 	for _, backupFileSnap := range backupConf.Snapshots {
-		_, backupFileSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(backupFileSnap.Name)
+		backupFileSnapOnly := backupFileSnap.Name
 
 		onStorageDevice := false
 		for _, driverSnapVol := range driverSnapshots {
@@ -3804,6 +3830,303 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 	}
 
 	return existingSnapshots, nil
+}
+
+// ListUnknownVolumes returns volumes that exist on the storage pool but don't have records in the database.
+// Returns the unknown volumes parsed/generated backup config in a slice (keyed on project name).
+func (b *lxdBackend) ListUnknownVolumes(op *operations.Operation) (map[string][]*backup.Config, error) {
+	// Get a list of volumes on the storage pool. We only expect to get 1 volume per logical LXD volume.
+	// So for VMs we only expect to get the block volume for a VM and not its filesystem one too. This way we
+	// can operate on the volume using the existing storage pool functions and let the pool then handle the
+	// associated filesystem volume as needed.
+	poolVols, err := b.driver.ListVolumes()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting pool volumes")
+	}
+
+	projectVols := make(map[string][]*backup.Config)
+
+	for _, poolVol := range poolVols {
+		volType := poolVol.Type()
+
+		// If the storage driver has returned a filesystem volume for a VM, this is a break of protocol.
+		if volType == drivers.VolumeTypeVM && poolVol.ContentType() == drivers.ContentTypeFS {
+			return nil, fmt.Errorf("Storage driver returned unexpected VM volume with filesystem content type (%q)", poolVol.Name())
+		}
+
+		// Detect unknown instance volume.
+		if volType == drivers.VolumeTypeVM || volType == drivers.VolumeTypeContainer {
+			err = b.detectUnknownInstanceVolume(&poolVol, projectVols, op)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return projectVols, nil
+}
+
+// detectUnknownInstanceVolume detects if a volume is unknown and if so attempts to mount the volume and parse the
+// backup stored on it. It then runs a series of consistency checks that compare the contents of the backup file to
+// the state of the volume on disk, and if all checks out, it adds the parsed backup file contents to projectVols.
+func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVols map[string][]*backup.Config, op *operations.Operation) error {
+	volType := vol.Type()
+
+	volDBType, err := VolumeTypeToDBType(volType)
+	if err != nil {
+		return err
+	}
+
+	projectName, instName := project.InstanceParts(vol.Name())
+
+	// Check if an entry for the instance already exists in the DB.
+	instID, err := b.state.Cluster.GetInstanceID(projectName, instName)
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
+		return err
+	}
+
+	instSnapshots, err := b.state.Cluster.GetInstanceSnapshotsNames(projectName, instName)
+	if err != nil {
+		return err
+	}
+
+	// Check if any entry for the instance volume already exists in the DB.
+	// This will return no record for any temporary pool structs being used (as ID is -1).
+	volID, _, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, instName, volDBType, b.ID())
+	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
+		return err
+	}
+
+	if instID > 0 && volID > 0 {
+		return nil // Instance record and storage record already exists in DB, no recovery needed.
+	} else if instID > 0 {
+		return fmt.Errorf("Instance %q in project %q already has instance DB record", instName, projectName)
+	} else if volID > 0 {
+		return fmt.Errorf("Instance %q in project %q already has storage DB record", instName, projectName)
+	}
+
+	backupYamlPath := filepath.Join(vol.MountPath(), "backup.yaml")
+	var backupConf *backup.Config
+
+	// If the instance is running, it should already be mounted, so check if the backup file
+	// is already accessible, and if so parse it directly, without disturbing the mount count.
+	if shared.PathExists(backupYamlPath) {
+		backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+		if err != nil {
+			return errors.Wrapf(err, "Failed parsing backup file %q", backupYamlPath)
+		}
+	} else {
+		// We won't know what filesystem some block backed volumes are using, so ask the storage
+		// driver to probe the block device for us (if appropriate).
+		vol.SetMountFilesystemProbe(true)
+
+		// If backup file not accessible, we take this to mean the instance isn't running
+		// and so we need to mount the volume to access the backup file and then unmount.
+		// This will also create the mount path if needed.
+		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
+			backupConf, err = backup.ParseConfigYamlFile(backupYamlPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed parsing backup file %q", backupYamlPath)
+			}
+
+			return nil
+		}, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Run some consistency checks on the backup file contents.
+	if backupConf.Pool != nil {
+		if backupConf.Pool.Name != b.name {
+			return fmt.Errorf("Instance %q in project %q has pool name mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, backupConf.Pool.Name, b.name)
+		}
+
+		if backupConf.Pool.Driver != b.Driver().Info().Name {
+			return fmt.Errorf("Instance %q in project %q has pool driver mismatch in its backup file (%q doesn't match's pool's %q)", instName, projectName, backupConf.Pool.Driver, b.Driver().Name())
+		}
+	}
+
+	if backupConf.Container == nil {
+		return fmt.Errorf("Instance %q in project %q has no instance information in its backup file", instName, projectName)
+	}
+
+	if instName != backupConf.Container.Name {
+		return fmt.Errorf("Instance %q in project %q has a different instance name in its backup file (%q)", instName, projectName, backupConf.Container.Name)
+	}
+
+	apiInstType, err := VolumeTypeToAPIInstanceType(volType)
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking instance type for instance %q in project %q", instName, projectName)
+	}
+
+	if apiInstType != api.InstanceType(backupConf.Container.Type) {
+		return fmt.Errorf("Instance %q in project %q has a different instance type in its backup file (%q)", instName, projectName, backupConf.Container.Type)
+	}
+
+	if backupConf.Volume == nil {
+		return fmt.Errorf("Instance %q in project %q has no volume information in its backup file", instName, projectName)
+	}
+
+	if instName != backupConf.Volume.Name {
+		return fmt.Errorf("Instance %q in project %q has a different volume name in its backup file (%q)", instName, projectName, backupConf.Volume.Name)
+	}
+
+	instVolDBType, err := VolumeTypeNameToDBType(backupConf.Volume.Type)
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking instance volume type for instance %q in project %q", instName, projectName)
+	}
+
+	instVolType, err := VolumeDBTypeToType(instVolDBType)
+	if err != nil {
+		return errors.Wrapf(err, "Failed checking instance volume type for instance %q in project %q", instName, projectName)
+	}
+
+	if volType != instVolType {
+		return fmt.Errorf("Instance %q in project %q has a different volume type in its backup file (%q)", instName, projectName, backupConf.Volume.Type)
+	}
+
+	// Add to volume to unknown volumes list for the project.
+	if projectVols[projectName] == nil {
+		projectVols[projectName] = []*backup.Config{backupConf}
+	} else {
+		projectVols[projectName] = append(projectVols[projectName], backupConf)
+	}
+
+	// Check snapshots are consistent between storage layer and backup config file.
+	_, err = b.CheckInstanceBackupFileSnapshots(backupConf, projectName, false, nil)
+	if err != nil {
+		return fmt.Errorf("Instance %q in project %q has snapshot inconsistency: %v", instName, projectName, err)
+	}
+
+	// Check there are no existing DB records present for snapshots.
+	for _, snapshot := range backupConf.Snapshots {
+		fullSnapshotName := drivers.GetSnapshotVolumeName(instName, snapshot.Name)
+
+		// Check if an entry for the instance already exists in the DB.
+		if shared.StringInSlice(fullSnapshotName, instSnapshots) {
+			return fmt.Errorf("Instance %q snapshot %q in project %q already has instance DB record", instName, snapshot.Name, projectName)
+		}
+
+		// Check if any entry for the instance snapshot volume already exists in the DB.
+		// This will return no record for any temporary pool structs being used (as ID is -1).
+		volID, _, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volDBType, b.ID())
+		if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
+			return err
+		}
+
+		if volID > 0 {
+			return fmt.Errorf("Instance %q snapshot %q in project %q already has storage DB record", instName, snapshot.Name, projectName)
+		}
+	}
+
+	return nil
+}
+
+// ImportInstance takes an existing instance volume on the storage backend and ensures that the volume directories
+// and symlinks are restored as needed to make it operational with LXD. Used during the recovery import stage.
+// If the instance exists on the local cluster member then the local mount status is restored as needed.
+func (b *lxdBackend) ImportInstance(inst instance.Instance, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	logger.Debug("ImportInstance started")
+	defer logger.Debug("ImportInstance finished")
+
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return err
+	}
+
+	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
+	snapshots, err := b.state.Cluster.GetInstanceSnapshotsNames(inst.Project(), inst.Name())
+	if err != nil {
+		return err
+	}
+
+	// Get local cluster member name.
+	var nodeName string
+	err = b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		nodeName, err = tx.GetLocalNodeName()
+		return err
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed getting local cluster member name")
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	contentType := InstanceContentType(inst)
+
+	// Get the volume name on storage.
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+
+	vol := b.newVolume(volType, contentType, volStorageName, nil)
+	err = vol.EnsureMountPath()
+	if err != nil {
+		return err
+	}
+
+	// Only attempt to restore mount status on instance's local cluster member.
+	if inst.Location() == nodeName {
+		logger.Debug("Restoring local instance mount status")
+
+		if inst.IsRunning() {
+			// If the instance is running then this implies the volume is mounted, but if the LXD daemon has
+			// been restarted since the DB records were removed then there will be no mount reference counter
+			// showing the volume is in use. If this is the case then call mount the volume to increment the
+			// reference counter.
+			if !vol.MountInUse() {
+				_, err = b.MountInstance(inst, op)
+				if err != nil {
+					return errors.Wrapf(err, "Failed mounting instance")
+				}
+			}
+		} else {
+			// If the instance isn't running then try and unmount it to ensure consistent state after import.
+			_, err = b.UnmountInstance(inst, op)
+			if err != nil {
+				return errors.Wrapf(err, "Failed unmounting instance")
+			}
+		}
+	}
+
+	// Create symlink.
+	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		// Remove symlinks.
+		b.removeInstanceSymlink(inst.Type(), inst.Project(), inst.Name())
+		b.removeInstanceSnapshotSymlinkIfUnused(inst.Type(), inst.Project(), inst.Name())
+	})
+
+	// Create snapshot mount paths and snapshot symlink if needed.
+	if len(snapshots) > 0 {
+		for _, snapName := range snapshots {
+			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapName)
+			logger.Debug("Ensuring instance snapshot mount path", log.Ctx{"snapshot": snapOnlyName})
+
+			snapVol, err := vol.NewSnapshot(snapOnlyName)
+			if err != nil {
+				return err
+			}
+
+			err = snapVol.EnsureMountPath()
+			if err != nil {
+				return err
+			}
+		}
+
+		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), inst.Name())
+		if err != nil {
+			return err
+		}
+	}
+
+	revert.Success()
+	return nil
 }
 
 func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {

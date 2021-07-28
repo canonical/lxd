@@ -17,8 +17,7 @@ goal is to get back online quickly, consider all the different pieces of
 LXD you're using.
 
 ## Full backup
-A full backup would include the entirety of `/var/lib/lxd` or
-`/var/snap/lxd/common/lxd` for snap users.
+A full backup would include the entirety of `/var/lib/lxd` or `/var/snap/lxd/common/lxd` for snap users.
 
 You will also need to appropriately backup any external storage that you
 made LXD use, this can be LVM volume groups, ZFS zpools or any other
@@ -48,35 +47,30 @@ Those tarballs will include all snapshots by default and an "optimized"
 tarball can be obtained if you know that you'll be restoring on a LXD
 server using the same storage pool backend.
 
-You can use any compressor installed on the server using the `--compression` 
-flag. There is no validation on the LXD side, any command that is available
+You can use any compressor installed on the server using the `--compression` flag.
+There is no validation on the LXD side, any command that is available
 to LXD and supports `-c` for stdout should work.
 
 Those tarballs can be saved any way you want on any filesystem you want
 and can be imported back into LXD using the `lxc import` command.
 
 ## Disaster recovery
-Additionally, LXD maintains a `backup.yaml` file in each instance's storage
-volume. This file contains all necessary information to recover a given
-instance, such as instance configuration, attached devices and storage.
+LXD provides the `lxd recover` command (note the the `lxd` command rather than the normal `lxc` command).
+This is an interactive CLI tool that will attempt to scan all storage pools that exist in the database looking for
+missing volumes that can be recovered. It also provides the ability for the user to specify the details of any
+unknown storage pools (those that exist on disk but do not exist in the database) and it will attempt to scan those
+too.
 
-This file can be processed by the `lxd import` command, not to
-be confused with `lxc import`.
+Because LXD maintains a `backup.yaml` file in each instance's storage volume which contains all necessary
+information to recover a given instance (including instance configuration, attached devices, storage volume and
+pool configuration) it can be used to rebuild the instance, storage volume and storage pool database records.
 
-To use the disaster recovery mechanism, you must mount the instance's
-storage to its expected location, usually under
-`storage-pools/NAME-OF-POOL/containers/NAME-OF-CONTAINER`.
+The `lxd recover` tool will attempt to mount the storage pool (if not already mounted) and scan it for unknown
+volumes that look like they are associated with LXD. For each instance volume LXD will attempt to mount it and
+access the `backup.yaml` file. From there it will perform some consistency checks to compare what is in the
+`backup.yaml` file with what is actually on disk (such as matching snapshots) and if all checks out then the
+database records are recreated.
 
-Depending on your storage backend you will also need to do the same for
-any snapshot you want to restore (needed for `dir` and `btrfs`).
-
-Once everything is mounted where it should be, you can now run `lxd import NAME-OF-CONTAINER`.
-
-If any matching database entry for resources declared in `backup.yaml` is found
-during import, the command will refuse to restore the instance.  This can be
-overridden by passing `--force`.
-
-NOTE: When dealing with mounts and the snap, you may need to either
-perform a full restart of the snap with `snap stop` and `snap start` or
-perform the mounts from within the snap environment using `nsenter
---mount=/run/snapd/ns/lxd.mnt`.
+If the storage pool database record also needs to be created then it will prefer to use an instance `backup.yaml`
+file as the basis of its config, rather than what the user provided during the discovery phase, however if not
+available then it will fallback to restoring the pool's database record with what was provided by the user.
