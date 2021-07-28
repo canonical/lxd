@@ -458,30 +458,24 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 	return nil
 }
 
-type internalImportPost struct {
-	Name              string `json:"name" yaml:"name"`
-	Force             bool   `json:"force" yaml:"force"`
-	AllowNameOverride bool   `json:"allow_name_override" yaml:"allow_name_override"`
-}
-
-// internalImport creates the instance and storage volume DB records.
+// internalImportFromBackup creates instance, storage pool and volume DB records from an instance's backup file.
 // It expects the instance volume to be mounted so that the backup.yaml file is readable.
-func internalImport(d *Daemon, projectName string, req *internalImportPost) response.Response {
-	if req.Name == "" {
-		return response.BadRequest(fmt.Errorf("The name of the instance is required"))
+func internalImportFromBackup(d *Daemon, projectName string, instName string, force bool, allowNameOverride bool) error {
+	if instName == "" {
+		return fmt.Errorf("The name of the instance is required")
 	}
 
 	storagePoolsPath := shared.VarPath("storage-pools")
 	storagePoolsDir, err := os.Open(storagePoolsPath)
 	if err != nil {
-		return response.InternalError(err)
+		return err
 	}
 
 	// Get a list of all storage pools.
 	storagePoolNames, err := storagePoolsDir.Readdirnames(-1)
 	if err != nil {
 		storagePoolsDir.Close()
-		return response.InternalError(err)
+		return err
 	}
 	storagePoolsDir.Close()
 
@@ -494,7 +488,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 
 	for _, volType := range []storageDrivers.VolumeType{storageDrivers.VolumeTypeVM, storageDrivers.VolumeTypeContainer} {
 		for _, poolName := range storagePoolNames {
-			volStorageName := project.Instance(projectName, req.Name)
+			volStorageName := project.Instance(projectName, instName)
 			instanceMntPoint := storageDrivers.GetVolumeMountPath(poolName, volType, volStorageName)
 
 			if shared.PathExists(instanceMntPoint) {
@@ -515,40 +509,40 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 
 	// Quick checks.
 	if len(instanceMountPoints) > 1 {
-		return response.BadRequest(fmt.Errorf(`The instance %q seems to exist on multiple storage pools`, req.Name))
+		return fmt.Errorf(`The instance %q seems to exist on multiple storage pools`, instName)
 	} else if len(instanceMountPoints) != 1 {
-		return response.BadRequest(fmt.Errorf(`The instance %q does not seem to exist on any storage pool`, req.Name))
+		return fmt.Errorf(`The instance %q does not seem to exist on any storage pool`, instName)
 	}
 
 	// User needs to make sure that we can access the directory where backup.yaml lives.
 	instanceMountPoint := instanceMountPoints[0]
 	isEmpty, err := shared.PathIsEmpty(instanceMountPoint)
 	if err != nil {
-		return response.InternalError(err)
+		return err
 	}
 
 	if isEmpty {
-		return response.BadRequest(fmt.Errorf(`The instance's directory %q appears to be empty. Please ensure that the instance's storage volume is mounted`, instanceMountPoint))
+		return fmt.Errorf(`The instance's directory %q appears to be empty. Please ensure that the instance's storage volume is mounted`, instanceMountPoint)
 	}
 
 	// Read in the backup.yaml file.
 	backupYamlPath := filepath.Join(instanceMountPoint, "backup.yaml")
 	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
-	if req.AllowNameOverride && req.Name != "" {
-		backupConf.Container.Name = req.Name
+	if allowNameOverride && instName != "" {
+		backupConf.Container.Name = instName
 	}
 
-	if req.Name != backupConf.Container.Name {
-		return response.InternalError(fmt.Errorf("Instance name in request %q doesn't match instance name in backup config %q", req.Name, backupConf.Container.Name))
+	if instName != backupConf.Container.Name {
+		return fmt.Errorf("Instance name requested %q doesn't match instance name in backup config %q", instName, backupConf.Container.Name)
 	}
 
 	if backupConf.Pool == nil {
 		// We don't know what kind of storage type the pool is.
-		return response.BadRequest(fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`))
+		return fmt.Errorf(`No storage pool struct in the backup file found. The storage pool needs to be recovered manually`)
 	}
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
@@ -557,78 +551,78 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 		// Create the storage pool db entry if it doesn't exist.
 		_, err = storagePoolDBCreate(d.State(), instancePoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
 		if err != nil {
-			return response.SmartError(errors.Wrap(err, "Create storage pool database entry"))
+			return errors.Wrap(err, "Create storage pool database entry")
 		}
 
 		pool, err = storagePools.GetPoolByName(d.State(), instancePoolName)
 		if err != nil {
-			return response.SmartError(errors.Wrap(err, "Load storage pool database entry"))
+			return errors.Wrap(err, "Load storage pool database entry")
 		}
 	} else if err != nil {
-		return response.SmartError(errors.Wrap(err, "Find storage pool database entry"))
+		return errors.Wrap(err, "Find storage pool database entry")
 	}
 
 	if backupConf.Pool.Name != instancePoolName {
-		return response.BadRequest(fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, instancePoolName, backupConf.Pool.Name))
+		return fmt.Errorf(`The storage pool %q the instance was detected on does not match the storage pool %q specified in the backup file`, instancePoolName, backupConf.Pool.Name)
 	}
 
 	if backupConf.Pool.Driver != pool.Driver().Info().Name {
-		return response.BadRequest(fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, instancePoolName, pool.Driver().Info().Name, backupConf.Pool.Driver))
+		return fmt.Errorf(`The storage pool's %q driver %q conflicts with the driver %q recorded in the instance's backup file`, instancePoolName, pool.Driver().Info().Name, backupConf.Pool.Driver)
 	}
 
 	// Check snapshots are consistent, and if not, if req.Force is true, then delete snapshots that do not exist in backup.yaml.
-	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, req.Force, nil)
+	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, force, nil)
 	if err != nil {
 		if errors.Cause(err) == storagePools.ErrBackupSnapshotsMismatch {
-			return response.InternalError(fmt.Errorf(`%s. Set "force" to discard non-existing snapshots`, err))
+			return fmt.Errorf(`%s. Set "force" to discard non-existing snapshots`, err)
 		}
 
-		return response.InternalError(errors.Wrap(err, "Checking snapshots"))
+		return errors.Wrap(err, "Checking snapshots")
 	}
 
 	// Check if a storage volume entry for the instance already exists.
 	_, volume, ctVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
 	if ctVolErr != nil {
 		if ctVolErr != db.ErrNoSuchObject {
-			return response.SmartError(ctVolErr)
+			return ctVolErr
 		}
 	}
 
 	// If a storage volume entry exists only proceed if force was specified.
-	if ctVolErr == nil && !req.Force {
-		return response.BadRequest(fmt.Errorf(`Storage volume for instance %q already exists in the database. Set "force" to overwrite`, backupConf.Container.Name))
+	if ctVolErr == nil && !force {
+		return fmt.Errorf(`Storage volume for instance %q already exists in the database. Set "force" to overwrite`, backupConf.Container.Name)
 	}
 
 	// Check if an entry for the instance already exists in the db.
 	_, instanceErr := d.cluster.GetInstanceID(projectName, backupConf.Container.Name)
 	if instanceErr != nil {
 		if instanceErr != db.ErrNoSuchObject {
-			return response.SmartError(instanceErr)
+			return instanceErr
 		}
 	}
 
 	// If a db entry exists only proceed if force was specified.
-	if instanceErr == nil && !req.Force {
-		return response.BadRequest(fmt.Errorf(`Entry for instance %q already exists in the database. Set "force" to overwrite`, backupConf.Container.Name))
+	if instanceErr == nil && !force {
+		return fmt.Errorf(`Entry for instance %q already exists in the database. Set "force" to overwrite`, backupConf.Container.Name)
 	}
 
 	if backupConf.Volume == nil {
-		return response.BadRequest(fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`))
+		return fmt.Errorf(`No storage volume struct in the backup file found. The storage volume needs to be recovered manually`)
 	}
 
 	if ctVolErr == nil {
 		if volume.Name != backupConf.Volume.Name {
-			return response.BadRequest(fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, volume.Name, backupConf.Container.Name))
+			return fmt.Errorf(`The name %q of the storage volume is not identical to the instance's name "%s"`, volume.Name, backupConf.Container.Name)
 		}
 
 		if volume.Type != backupConf.Volume.Type {
-			return response.BadRequest(fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backupConf.Volume.Type))
+			return fmt.Errorf(`The type %q of the storage volume is not identical to the instance's type %q`, volume.Type, backupConf.Volume.Type)
 		}
 
 		// Remove the storage volume db entry for the instance since force was specified.
 		err := d.cluster.RemoveStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	}
 
@@ -636,7 +630,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 		// Remove the storage volume db entry for the instance since force was specified.
 		err := d.cluster.DeleteInstance(projectName, backupConf.Container.Name)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 	}
 
@@ -644,7 +638,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 
 	profiles, err := d.State().Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Failed loading profiles for instance"))
+		return errors.Wrapf(err, "Failed loading profiles for instance")
 	}
 
 	// Add root device if needed.
@@ -660,7 +654,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 
 	arch, err := osarch.ArchitectureId(backupConf.Container.Architecture)
 	if err != nil {
-		return response.SmartError(err)
+		return err
 	}
 
 	revert := revert.New()
@@ -682,7 +676,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 		Stateful:     backupConf.Container.Stateful,
 	}, true, nil, revert)
 	if err != nil {
-		return response.SmartError(errors.Wrap(err, "Failed creating instance record"))
+		return errors.Wrap(err, "Failed creating instance record")
 	}
 
 	instancePath := storagePools.InstancePath(instanceType, projectName, backupConf.Container.Name, false)
@@ -692,7 +686,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 	}
 	err = storagePools.CreateContainerMountpoint(instanceMountPoint, instancePath, isPrivileged)
 	if err != nil {
-		return response.InternalError(err)
+		return err
 	}
 
 	for _, snap := range existingSnapshots {
@@ -702,39 +696,39 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 		_, snapErr := d.cluster.GetInstanceSnapshotID(projectName, backupConf.Container.Name, snap.Name)
 		if snapErr != nil {
 			if snapErr != db.ErrNoSuchObject {
-				return response.SmartError(snapErr)
+				return snapErr
 			}
 		}
 
 		// If a db entry exists only proceed if force was specified.
-		if snapErr == nil && !req.Force {
-			return response.BadRequest(fmt.Errorf(`Entry for snapshot %q already exists in the database. Set "force" to overwrite`, snapInstName))
+		if snapErr == nil && !force {
+			return fmt.Errorf(`Entry for snapshot %q already exists in the database. Set "force" to overwrite`, snapInstName)
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
 		_, _, csVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
 		if csVolErr != nil {
 			if csVolErr != db.ErrNoSuchObject {
-				return response.SmartError(csVolErr)
+				return csVolErr
 			}
 		}
 
 		// If a storage volume entry exists only proceed if force was specified.
-		if csVolErr == nil && !req.Force {
-			return response.BadRequest(fmt.Errorf(`Storage volume for snapshot %q already exists in the database. Set "force" to overwrite`, snapInstName))
+		if csVolErr == nil && !force {
+			return fmt.Errorf(`Storage volume for snapshot %q already exists in the database. Set "force" to overwrite`, snapInstName)
 		}
 
 		if snapErr == nil {
 			err := d.cluster.DeleteInstance(projectName, snapInstName)
 			if err != nil {
-				return response.SmartError(err)
+				return err
 			}
 		}
 
 		if csVolErr == nil {
 			err := d.cluster.RemoveStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
 			if err != nil {
-				return response.SmartError(err)
+				return err
 			}
 		}
 
@@ -742,12 +736,12 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 
 		arch, err := osarch.ArchitectureId(snap.Architecture)
 		if err != nil {
-			return response.SmartError(err)
+			return err
 		}
 
 		profiles, err := d.State().Cluster.GetProfiles(projectName, snap.Profiles)
 		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed loading profiles for instance snapshot %q", snapInstName))
+			return errors.Wrapf(err, "Failed loading profiles for instance snapshot %q", snapInstName)
 		}
 
 		// Add root device if needed.
@@ -777,7 +771,7 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 			Stateful:     snap.Stateful,
 		}, true, nil, revert)
 		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name))
+			return errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name)
 		}
 
 		// Recreate missing mountpoints and symlinks.
@@ -788,12 +782,12 @@ func internalImport(d *Daemon, projectName string, req *internalImportPost) resp
 
 		err = storagePools.CreateSnapshotMountpoint(snapshotMountPoint, snapshotTargetPath, snapshotPath)
 		if err != nil {
-			return response.InternalError(err)
+			return err
 		}
 	}
 
 	revert.Success()
-	return response.EmptySyncResponse
+	return nil
 }
 
 // internalImportRootDevicePopulate considers the local and expanded devices from backup.yaml as well as the
