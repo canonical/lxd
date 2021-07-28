@@ -694,15 +694,9 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		}
 		runRevert.Add(revertHook)
 
-		req := &internalImportPost{
-			Name:              bInfo.Name,
-			Force:             true,
-			AllowNameOverride: instanceName != "",
-		}
-
-		resp := internalImport(d, bInfo.Project, req)
-		if resp.String() != "success" {
-			return fmt.Errorf("Internal import request: %v", resp.String())
+		err = internalImportFromBackup(d, bInfo.Project, bInfo.Name, true, instanceName != "")
+		if err != nil {
+			return errors.Wrapf(err, "Failed importing backup")
 		}
 
 		inst, err := instance.LoadByProjectAndName(d.State(), bInfo.Project, bInfo.Name)
