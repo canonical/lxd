@@ -4,34 +4,11 @@
 
 Before trying to use it, however, first determine which image source you are
 about to use as not all images have cloud-init package installed.
-At the time of writing, images provided at images.linuxcontainers.org do not
-have the cloud-init package installed, therefore, any of the configuration
-options mentioned in this guide will not work. On the contrary, images
-provided at cloud-images.ubuntu.com have the necessary package installed
-and also have a templates directory in their archive populated with
 
- * `cloud-init-meta.tpl`
- * `cloud-init-user.tpl`
- * `cloud-init-vendor.tpl`
- * `cloud-init-network.tpl`
+The images from the `ubuntu` and `ubuntu-daily` remotes are all cloud-init enabled.
+Images from the `images` remote have cloud-init enabled variants using the `/cloud` suffix.
 
-and others not related to cloud-init.
-
-Templates provided with images at cloud-images.ubuntu.com have
-the following in their `metadata.yaml`:
-
-```yaml
-/var/lib/cloud/seed/nocloud-net/network-config:
-  when:
-    - create
-    - copy
-  template: cloud-init-network.tpl
-```
-
-Therefore, either when you create or copy an instance it gets a newly rendered
-network configuration from a pre-defined template.
-
-cloud-init uses the network-config file to render the relevant network
+cloud-init uses the network-config data to render the relevant network
 configuration on the system using either ifupdown or netplan depending
 on the Ubuntu release.
 
