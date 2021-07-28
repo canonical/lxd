@@ -3756,7 +3756,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 		}
 	}
 
-	// Delete snapshots that do not exist in backup config.
+	// Check (and optionally delete) snapshots that do not exist in backup config.
 	for _, driverSnapVol := range driverSnapshots {
 		_, driverSnapOnly, _ := shared.InstanceGetParentAndSnapshotName(driverSnapVol.Name())
 
