@@ -32,8 +32,8 @@ import (
 //go:generate mapper stmt -p db -e image objects-by-Cached
 //go:generate mapper stmt -p db -e image objects-by-AutoUpdate
 //
-//go:generate mapper method -p db -e image List
-//go:generate mapper method -p db -e image Get
+//go:generate mapper method -p db -e image GetMany
+//go:generate mapper method -p db -e image GetOne
 
 // Image is a value object holding db-related details about an image.
 type Image struct {

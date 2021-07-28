@@ -17,7 +17,7 @@ import (
 //go:generate mapper stmt -p db -e operation delete-by-UUID
 //go:generate mapper stmt -p db -e operation delete-by-NodeID
 
-//go:generate mapper method -p db -e operation List
+//go:generate mapper method -p db -e operation GetMany
 //go:generate mapper method -p db -e operation CreateOrReplace struct=Operation
 //go:generate mapper method -p db -e operation DeleteOne
 //go:generate mapper method -p db -e operation DeleteMany
