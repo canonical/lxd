@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-07-28 11:02+0100\n"
-"PO-Revision-Date: 2021-07-19 14:34+0000\n"
+"POT-Creation-Date: 2021-07-28 18:02-0400\n"
+"PO-Revision-Date: 2021-07-25 13:36+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -1699,9 +1699,8 @@ msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
 #: lxc/monitor.go:52
-#, fuzzy
 msgid "Format (json|pretty|yaml)"
-msgstr "フォーマット (man|md|rest|yaml)"
+msgstr "フォーマット (json|pretty|yaml)"
 
 #: lxc/manpage.go:25
 msgid "Format (man|md|rest|yaml)"
@@ -1990,9 +1989,9 @@ msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
 
 #: lxc/monitor.go:70
-#, fuzzy, c-format
+#, c-format
 msgid "Invalid format: %s"
-msgstr "不正なフォーマット %q"
+msgstr "不正なフォーマット %s"
 
 #: lxc/snapshot.go:72
 #, c-format
@@ -2115,7 +2114,7 @@ msgstr "エイリアスを一覧表示します"
 
 #: lxc/cluster.go:654 lxc/cluster.go:655
 msgid "List all active cluster member join tokens"
-msgstr "有効なクラスター加入トークンをすべて一覧表示します"
+msgstr "有効なクラスターへの join トークンをすべて一覧表示します"
 
 #: lxc/cluster.go:92 lxc/cluster.go:93
 msgid "List all the cluster members"
@@ -2972,7 +2971,8 @@ msgstr "指定するデバイスに適用する新しいキー/値"
 #: lxc/cluster.go:818
 #, c-format
 msgid "No cluster join token for member %s on remote: %s"
-msgstr "メンバー %s に対するクラスター加入トークンがリモート %s にありません"
+msgstr ""
+"メンバー %s に対するクラスターへの join トークンがリモート %s にありません"
 
 #: lxc/network.go:451 lxc/network.go:536
 msgid "No device found for this network"
@@ -3125,7 +3125,7 @@ msgstr ""
 
 #: lxc/monitor.go:48
 msgid "Pretty rendering (short for --format=pretty)"
-msgstr ""
+msgstr "Pretty レンダリング（--format=pretty の短縮系）"
 
 #: lxc/main.go:62
 msgid "Print help"
@@ -3446,9 +3446,8 @@ msgid "Render: %s (%s)"
 msgstr "レンダー: %s (%s)"
 
 #: lxc/cluster.go:592 lxc/cluster.go:593
-#, fuzzy
 msgid "Request a join token for adding a cluster member"
-msgstr "クラスタメンバの詳細を表示します"
+msgstr "クラスターメンバーに join するためのトークンを要求します"
 
 #: lxc/delete.go:36
 msgid "Require user confirmation"
@@ -3504,9 +3503,8 @@ msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
 #: lxc/cluster.go:752
-#, fuzzy
 msgid "Revoke cluster member join token"
-msgstr "クラスタのメンバをすべて一覧表示します"
+msgstr "クラスターメンバーに join するためのトークンを失効（Revoke）させます"
 
 #: lxc/action.go:112
 msgid "Run against all instances"
@@ -3629,12 +3627,10 @@ msgstr ""
 "    lxc config set [<remote>:][<instance>] <key> <value>"
 
 #: lxc/network_acl.go:345
-#, fuzzy
 msgid "Set network ACL configuration keys"
-msgstr "ネットワークの設定項目を設定します"
+msgstr "ネットワーク ACL の設定項目を設定します"
 
 #: lxc/network_acl.go:346
-#, fuzzy
 msgid ""
 "Set network ACL configuration keys\n"
 "\n"
@@ -3642,10 +3638,10 @@ msgid ""
 "with:\n"
 "    lxc network set [<remote>:]<ACL> <key> <value>"
 msgstr ""
-"ネットワークの設定を行います\n"
+"ネットワーク ACL の設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc network set [<remote>:]<network> <key> <value>"
+"    lxc network set [<remote>:]<ACL> <key> <value>"
 
 #: lxc/network.go:1042
 msgid "Set network configuration keys"
@@ -3770,7 +3766,7 @@ msgstr "バックグラウンド操作の詳細を表示します"
 
 #: lxc/monitor.go:49
 msgid "Show events from all projects"
-msgstr ""
+msgstr "すべてのプロジェクトのイベントを表示します"
 
 #: lxc/config_device.go:633 lxc/config_device.go:634
 msgid "Show full device configuration"
@@ -3801,9 +3797,8 @@ msgid "Show local and remote versions"
 msgstr "ローカルとリモートのバージョンを表示します"
 
 #: lxc/network_acl.go:160 lxc/network_acl.go:161
-#, fuzzy
 msgid "Show network ACL configurations"
-msgstr "ネットワークの設定を表示します"
+msgstr "ネットワーク ACL の設定を表示します"
 
 #: lxc/network.go:1112 lxc/network.go:1113
 msgid "Show network configurations"
@@ -3826,9 +3821,8 @@ msgid "Show storage volume configurations"
 msgstr "ストレージボリュームの設定を表示する"
 
 #: lxc/storage_volume.go:1098 lxc/storage_volume.go:1099
-#, fuzzy
 msgid "Show storage volume state information"
-msgstr "ストレージボリュームの設定を表示する"
+msgstr "ストレージボリュームの状態を表示します"
 
 #: lxc/remote.go:490 lxc/remote.go:491
 msgid "Show the default remote"
@@ -3855,9 +3849,8 @@ msgid "Show the used and free space in bytes"
 msgstr "使用量と空き容量を byte で表示します"
 
 #: lxc/config_trust.go:387 lxc/config_trust.go:388
-#, fuzzy
 msgid "Show trust configurations"
-msgstr "ネットワークの設定を表示します"
+msgstr "信頼済みクライアントの設定を表示します"
 
 #: lxc/image.go:844 lxc/image.go:845
 msgid "Show useful information about images"
@@ -4243,9 +4236,8 @@ msgid "URL"
 msgstr "URL"
 
 #: lxc/project.go:808 lxc/storage_volume.go:1283
-#, fuzzy
 msgid "USAGE"
-msgstr "CPU USAGE"
+msgstr "USAGE"
 
 #: lxc/network.go:903 lxc/network_acl.go:145 lxc/profile.go:625
 #: lxc/project.go:474 lxc/storage.go:578 lxc/storage_volume.go:1282
@@ -4253,9 +4245,8 @@ msgid "USED BY"
 msgstr "USED BY"
 
 #: lxc/warning.go:215
-#, fuzzy
 msgid "UUID"
-msgstr "UUID: %v"
+msgstr "UUID"
 
 #: lxc/info.go:131
 #, c-format
@@ -4295,9 +4286,8 @@ msgid "Unset instance or server configuration keys"
 msgstr "インスタンスもしくはサーバの設定を削除します"
 
 #: lxc/network_acl.go:405 lxc/network_acl.go:406
-#, fuzzy
 msgid "Unset network ACL configuration keys"
-msgstr "ネットワークの設定を削除します"
+msgstr "ネットワーク ACL の設定を削除します"
 
 #: lxc/network.go:1174 lxc/network.go:1175
 msgid "Unset network configuration keys"
@@ -4325,9 +4315,8 @@ msgid "Unsupported instance type: %s"
 msgstr "サポートされていないインスタンスタイプです: %s"
 
 #: lxc/cluster.go:831
-#, fuzzy
 msgid "Update cluster certificate"
-msgstr "証明書を受け入れます"
+msgstr "クラスター証明書を更新します"
 
 #: lxc/cluster.go:833
 msgid ""
@@ -4456,9 +4445,8 @@ msgid "[<remote>:] <backup file> [<instance name>]"
 msgstr "[<remote>:] <backup file> [<instance name>]"
 
 #: lxc/cluster.go:829
-#, fuzzy
 msgid "[<remote>:] <cert.crt> <cert.key>"
-msgstr "[<remote>:]<project> <key>"
+msgstr "[<remote>:] <cert.crt> <cert.key>"
 
 #: lxc/config_trust.go:75
 msgid "[<remote>:] <cert>"
@@ -4481,34 +4469,28 @@ msgid "[<remote>:] [<filters>...]"
 msgstr "[<remote>:] [<filters>...]"
 
 #: lxc/network_acl.go:159 lxc/network_acl.go:431 lxc/network_acl.go:610
-#, fuzzy
 msgid "[<remote>:]<ACL>"
-msgstr "[<remote>:]"
+msgstr "[<remote>:]<ACL>"
 
 #: lxc/network_acl.go:675 lxc/network_acl.go:796
-#, fuzzy
 msgid "[<remote>:]<ACL> <direction> <key>=<value>..."
-msgstr "[<remote>:]<project> <key>=<value>..."
+msgstr "[<remote>:]<ACL> <direction> <key>=<value>..."
 
 #: lxc/network_acl.go:212 lxc/network_acl.go:404
-#, fuzzy
 msgid "[<remote>:]<ACL> <key>"
-msgstr "[<remote>:]<pool> <key>"
+msgstr "[<remote>:]<ACL> <key>"
 
 #: lxc/network_acl.go:344
-#, fuzzy
 msgid "[<remote>:]<ACL> <key>=<value>..."
-msgstr "[<remote>:]<network> <key>=<value>..."
+msgstr "[<remote>:]<ACL> <key>=<value>..."
 
 #: lxc/network_acl.go:561
-#, fuzzy
 msgid "[<remote>:]<ACL> <new-name>"
-msgstr "[<remote>:]<alias> <new-name>"
+msgstr "[<remote>:]<ACL> <new-name>"
 
 #: lxc/network_acl.go:261
-#, fuzzy
 msgid "[<remote>:]<ACL> [key=value...]"
-msgstr "[<remote>:]<network> [key=value...]"
+msgstr "[<remote>:]<ACL> [key=value...]"
 
 #: lxc/query.go:30
 msgid "[<remote>:]<API path>"
@@ -4531,9 +4513,8 @@ msgid "[<remote>:]<cluster member>"
 msgstr "[<remote>:]<cluster member>"
 
 #: lxc/config_trust.go:151 lxc/config_trust.go:386
-#, fuzzy
 msgid "[<remote>:]<fingerprint>"
-msgstr "[<remote>:]<alias> <fingerprint>"
+msgstr "[<remote>:]<fingerprint>"
 
 #: lxc/image.go:339 lxc/image.go:843 lxc/image.go:1355
 msgid "[<remote>:]<image>"
@@ -4733,9 +4714,8 @@ msgstr ""
 "name>]"
 
 #: lxc/storage_volume.go:1097
-#, fuzzy
 msgid "[<remote>:]<pool> <volume>"
-msgstr "[<remote>:]<pool> <volume> <key>"
+msgstr "[<remote>:]<pool> <volume>"
 
 #: lxc/storage_volume.go:646
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>]"
@@ -4837,14 +4817,12 @@ msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 
 #: lxc/cluster.go:751
-#, fuzzy
 msgid "[<remote>:]<token>"
-msgstr "[<remote>:]<network>"
+msgstr "[<remote>:]<token>"
 
 #: lxc/warning.go:257 lxc/warning.go:299 lxc/warning.go:352
-#, fuzzy
 msgid "[<remote>:]<warning-uuid>"
-msgstr "[<remote>:]<alias>"
+msgstr "[<remote>:]<warning-uuid>"
 
 #: lxc/config.go:90 lxc/config.go:611
 msgid "[<remote>:][<instance>[/<snapshot>]]"
@@ -5258,9 +5236,8 @@ msgstr ""
 "示します。"
 
 #: lxc/remote.go:328
-#, fuzzy
 msgid "n"
-msgstr "no"
+msgstr "n"
 
 #: lxc/storage.go:452
 msgid "name"
