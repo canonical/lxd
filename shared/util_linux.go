@@ -110,7 +110,7 @@ func IsMountPoint(name string) bool {
 	// So for btrfs, we require a matching mount entry in mountinfo.
 	fs := unix.Statfs_t{}
 	err = unix.Statfs(name, &fs)
-	if err == nil && fs.Type == filesystemSuperMagicBtrfs {
+	if err == nil && fs.Type == unix.BTRFS_SUPER_MAGIC {
 		return false
 	}
 
