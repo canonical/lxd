@@ -91,6 +91,7 @@ DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM in
 `)
 
 // GetInstanceSnapshots returns all available instance_snapshots.
+// generator: instance_snapshot List
 func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
 	// Result slice.
 	objects := make([]InstanceSnapshot, 0)
@@ -206,6 +207,7 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 }
 
 // GetInstanceSnapshot returns the instance_snapshot with the given key.
+// generator: instance_snapshot Get
 func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name string) (*InstanceSnapshot, error) {
 	filter := InstanceSnapshotFilter{}
 	filter.Project = project
@@ -228,6 +230,7 @@ func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name st
 }
 
 // GetInstanceSnapshotID return the ID of the instance_snapshot with the given key.
+// generator: instance_snapshot ID
 func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name string) (int64, error) {
 	stmt := c.stmt(instanceSnapshotID)
 	rows, err := stmt.Query(project, instance, name)
@@ -257,6 +260,7 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 }
 
 // InstanceSnapshotExists checks if a instance_snapshot with the given key exists.
+// generator: instance_snapshot Exists
 func (c *ClusterTx) InstanceSnapshotExists(project string, instance string, name string) (bool, error) {
 	_, err := c.GetInstanceSnapshotID(project, instance, name)
 	if err != nil {
@@ -270,6 +274,7 @@ func (c *ClusterTx) InstanceSnapshotExists(project string, instance string, name
 }
 
 // CreateInstanceSnapshot adds a new instance_snapshot to the database.
+// generator: instance_snapshot Create
 func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, error) {
 	// Check if a instance_snapshot with the same key exists.
 	exists, err := c.InstanceSnapshotExists(object.Project, object.Instance, object.Name)
@@ -346,6 +351,7 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 }
 
 // InstanceSnapshotConfigRef returns entities used by instance_snapshots.
+// generator: instance_snapshot ConfigRef
 func (c *ClusterTx) InstanceSnapshotConfigRef(filter InstanceSnapshotFilter) (map[string]map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -443,6 +449,7 @@ func (c *ClusterTx) InstanceSnapshotConfigRef(filter InstanceSnapshotFilter) (ma
 }
 
 // InstanceSnapshotDevicesRef returns entities used by instance_snapshots.
+// generator: instance_snapshot DevicesRef
 func (c *ClusterTx) InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (map[string]map[string]map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -561,6 +568,7 @@ func (c *ClusterTx) InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (m
 }
 
 // RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.
+// generator: instance_snapshot Rename
 func (c *ClusterTx) RenameInstanceSnapshot(project string, instance string, name string, to string) error {
 	stmt := c.stmt(instanceSnapshotRename)
 	result, err := stmt.Exec(to, project, instance, name)
@@ -579,6 +587,7 @@ func (c *ClusterTx) RenameInstanceSnapshot(project string, instance string, name
 }
 
 // DeleteInstanceSnapshot deletes the instance_snapshot matching the given key parameters.
+// generator: instance_snapshot DeleteOne
 func (c *ClusterTx) DeleteInstanceSnapshot(filter InstanceSnapshotFilter) error {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}

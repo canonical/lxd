@@ -1067,6 +1067,7 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 	receiver := fmt.Sprintf("c %s", dbTxType(m.db))
 
 	buf.L("// %s %s", name, comment)
+	buf.L("// generator: %s %s", m.entity, m.kind)
 	buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
 }
 
