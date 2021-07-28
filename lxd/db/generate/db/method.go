@@ -47,10 +47,10 @@ func (m *Method) Generate(buf *file.Buffer) error {
 	switch m.kind {
 	case "URIs":
 		return m.uris(buf)
-	case "List":
-		return m.list(buf)
-	case "Get":
-		return m.get(buf)
+	case "GetMany":
+		return m.getMany(buf)
+	case "GetOne":
+		return m.getOne(buf)
 	case "ID":
 		return m.id(buf)
 	case "Exists":
@@ -153,7 +153,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 	return nil
 }
 
-func (m *Method) list(buf *file.Buffer) error {
+func (m *Method) getMany(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
@@ -259,7 +259,7 @@ func (m *Method) list(buf *file.Buffer) error {
 	return nil
 }
 
-func (m *Method) get(buf *file.Buffer) error {
+func (m *Method) getOne(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return errors.Wrap(err, "Parse entity struct")
@@ -1056,11 +1056,11 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		comment = fmt.Sprintf("returns all available %s URIs.", m.entity)
 		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
 		rets = "([]string, error)"
-	case "List":
+	case "GetMany":
 		comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
 		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
 		rets = fmt.Sprintf("(%s, error)", lex.Slice(entityType(m.pkg, m.entity)))
-	case "Get":
+	case "GetOne":
 		comment = fmt.Sprintf("returns the %s with the given key.", m.entity)
 		args = FieldArgs(mapping.NaturalKey())
 		rets = fmt.Sprintf("(%s, error)", lex.Star(entityType(m.pkg, m.entity)))
@@ -1122,9 +1122,9 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 	switch m.kind {
 	case "URIs":
 		name = fmt.Sprintf("Get%sURIs", entity)
-	case "List":
+	case "GetMany":
 		name = fmt.Sprintf("Get%s", lex.Plural(entity))
-	case "Get":
+	case "GetOne":
 		name = fmt.Sprintf("Get%s", entity)
 	case "ID":
 		name = fmt.Sprintf("Get%sID", entity)
