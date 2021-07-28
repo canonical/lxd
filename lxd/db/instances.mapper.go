@@ -223,6 +223,7 @@ UPDATE instances
 `)
 
 // GetInstances returns all available instances.
+// generator: instance List
 func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	// Result slice.
 	objects := make([]Instance, 0)
@@ -432,6 +433,7 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 }
 
 // GetInstance returns the instance with the given key.
+// generator: instance Get
 func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) {
 	filter := InstanceFilter{}
 	filter.Project = project
@@ -454,6 +456,7 @@ func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) 
 }
 
 // GetInstanceID return the ID of the instance with the given key.
+// generator: instance ID
 func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	stmt := c.stmt(instanceID)
 	rows, err := stmt.Query(project, name)
@@ -483,6 +486,7 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 }
 
 // InstanceExists checks if a instance with the given key exists.
+// generator: instance Exists
 func (c *ClusterTx) InstanceExists(project string, name string) (bool, error) {
 	_, err := c.GetInstanceID(project, name)
 	if err != nil {
@@ -496,6 +500,7 @@ func (c *ClusterTx) InstanceExists(project string, name string) (bool, error) {
 }
 
 // CreateInstance adds a new instance to the database.
+// generator: instance Create
 func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	// Check if a instance with the same key exists.
 	exists, err := c.InstanceExists(object.Project, object.Name)
@@ -581,6 +586,7 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 }
 
 // InstanceProfilesRef returns entities used by instances.
+// generator: instance ProfilesRef
 func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[string][]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -671,6 +677,7 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 }
 
 // InstanceConfigRef returns entities used by instances.
+// generator: instance ConfigRef
 func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -765,6 +772,7 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 }
 
 // InstanceDevicesRef returns entities used by instances.
+// generator: instance DevicesRef
 func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -880,6 +888,7 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 }
 
 // RenameInstance renames the instance matching the given key parameters.
+// generator: instance Rename
 func (c *ClusterTx) RenameInstance(project string, name string, to string) error {
 	stmt := c.stmt(instanceRename)
 	result, err := stmt.Exec(to, project, name)
@@ -898,6 +907,7 @@ func (c *ClusterTx) RenameInstance(project string, name string, to string) error
 }
 
 // DeleteInstance deletes the instance matching the given key parameters.
+// generator: instance DeleteOne
 func (c *ClusterTx) DeleteInstance(filter InstanceFilter) error {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
@@ -944,6 +954,7 @@ func (c *ClusterTx) DeleteInstance(filter InstanceFilter) error {
 }
 
 // UpdateInstance updates the instance matching the given key parameters.
+// generator: instance Update
 func (c *ClusterTx) UpdateInstance(project string, name string, object Instance) error {
 	id, err := c.GetInstanceID(project, name)
 	if err != nil {

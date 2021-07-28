@@ -126,9 +126,10 @@ func Criteria(pkg *ast.Package, entity string) ([]string, error) {
 	return criteria, nil
 }
 
-// Parse the structure declaration with the given name found in the given Go
-// package.
+// Parse the structure declaration with the given name found in the given Go package.
+// Any 'Entity' struct should also have an 'EntityFilter' struct defined in the same file.
 func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
+	// The main entity struct.
 	str := findStruct(pkg.Scope, name)
 	if str == nil {
 		return nil, fmt.Errorf("No declaration found for %q", name)
@@ -144,6 +145,44 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 		Name:    name,
 		Fields:  fields,
 	}
+
+	// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
+	filterName := name + "Filter"
+	filterStr := findStruct(pkg.Scope, filterName)
+	if filterStr == nil {
+		return nil, fmt.Errorf("No declaration found for %q", filterName)
+	}
+
+	filters, err := parseStruct(filterStr, kind)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse %q", name)
+	}
+
+	for i, filter := range filters {
+		// Any field in EntityFilter must be present in the original struct.
+		field := m.FieldByName(filter.Name)
+		if field == nil {
+			return nil, fmt.Errorf("Filter field %q is not in struct %q", filter.Name, name)
+		}
+
+		// Assign the config tags from the main entity struct to the Filter struct.
+		filters[i].Config = field.Config
+
+		// A Filter field and its indirect references must all be in the Filter struct.
+		if field.IsIndirect() {
+			indirectField := lex.Camel(field.Config.Get("via"))
+			for i, f := range filters {
+				if f.Name == indirectField {
+					break
+				}
+				if i == len(filters)-1 {
+					return nil, fmt.Errorf("Field %q requires field %q in struct %q", field.Name, indirectField, name+"Filter")
+				}
+			}
+		}
+	}
+
+	m.Filters = filters
 
 	return m, nil
 }

@@ -135,6 +135,7 @@ UPDATE profiles
 `)
 
 // GetProfileURIs returns all available profile URIs.
+// generator: profile URIs
 func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
@@ -172,6 +173,7 @@ func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 }
 
 // GetProfiles returns all available profiles.
+// generator: profile List
 func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	// Result slice.
 	objects := make([]Profile, 0)
@@ -294,6 +296,7 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 }
 
 // GetProfile returns the profile with the given key.
+// generator: profile Get
 func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 	filter := ProfileFilter{}
 	filter.Project = project
@@ -315,6 +318,7 @@ func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 }
 
 // ProfileExists checks if a profile with the given key exists.
+// generator: profile Exists
 func (c *ClusterTx) ProfileExists(project string, name string) (bool, error) {
 	_, err := c.GetProfileID(project, name)
 	if err != nil {
@@ -328,6 +332,7 @@ func (c *ClusterTx) ProfileExists(project string, name string) (bool, error) {
 }
 
 // GetProfileID return the ID of the profile with the given key.
+// generator: profile ID
 func (c *ClusterTx) GetProfileID(project string, name string) (int64, error) {
 	stmt := c.stmt(profileID)
 	rows, err := stmt.Query(project, name)
@@ -357,6 +362,7 @@ func (c *ClusterTx) GetProfileID(project string, name string) (int64, error) {
 }
 
 // ProfileConfigRef returns entities used by profiles.
+// generator: profile ConfigRef
 func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -440,6 +446,7 @@ func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[strin
 }
 
 // ProfileDevicesRef returns entities used by profiles.
+// generator: profile DevicesRef
 func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[string]map[string]map[string]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -544,6 +551,7 @@ func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[stri
 }
 
 // ProfileUsedByRef returns entities used by profiles.
+// generator: profile UsedByRef
 func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string]map[string][]string, error) {
 	// Result slice.
 	objects := make([]struct {
@@ -623,6 +631,7 @@ func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string]map[strin
 }
 
 // CreateProfile adds a new profile to the database.
+// generator: profile Create
 func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 	// Check if a profile with the same key exists.
 	exists, err := c.ProfileExists(object.Project, object.Name)
@@ -695,6 +704,7 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 }
 
 // RenameProfile renames the profile matching the given key parameters.
+// generator: profile Rename
 func (c *ClusterTx) RenameProfile(project string, name string, to string) error {
 	stmt := c.stmt(profileRename)
 	result, err := stmt.Exec(to, project, name)
@@ -713,6 +723,7 @@ func (c *ClusterTx) RenameProfile(project string, name string, to string) error 
 }
 
 // DeleteProfile deletes the profile matching the given key parameters.
+// generator: profile DeleteOne
 func (c *ClusterTx) DeleteProfile(filter ProfileFilter) error {
 	// Check which filter criteria are active.
 	criteria := map[string]interface{}{}
@@ -753,6 +764,7 @@ func (c *ClusterTx) DeleteProfile(filter ProfileFilter) error {
 }
 
 // UpdateProfile updates the profile matching the given key parameters.
+// generator: profile Update
 func (c *ClusterTx) UpdateProfile(project string, name string, object Profile) error {
 	id, err := c.GetProfileID(project, name)
 	if err != nil {
