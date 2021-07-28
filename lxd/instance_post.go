@@ -26,8 +26,8 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-var internalClusterContainerMovedCmd = APIEndpoint{
-	Path: "cluster/container-moved/{name}",
+var internalClusterInstanceMovedCmd = APIEndpoint{
+	Path: "cluster/instance-moved/{name}",
 
 	Post: APIEndpointAction{Handler: internalClusterInstanceMovedPost},
 }
@@ -623,7 +623,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			return errors.Wrap(err, "Failed to relink instance database data")
 		}
 
-		// Create the container mount point on the target node
+		// Create the instance mount point on the target node.
 		client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, newName, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
@@ -634,7 +634,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 				return errors.Wrap(err, "Failed creating mount point of instance on target node")
 			}
 		} else {
-			path := fmt.Sprintf("/internal/cluster/container-moved/%s?project=%s", newName, projectName)
+			path := fmt.Sprintf("/internal/cluster/instance-moved/%s?project=%s", newName, projectName)
 			resp, _, err := client.RawQuery("POST", path, nil, "")
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
