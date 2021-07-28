@@ -25,6 +25,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// genericVolumeBlockExtension extension used for generic block volume disk files.
+const genericVolumeBlockExtension = "img"
+
 // genericVolumeDiskFile used to indicate the file name used for block volume disk files.
 const genericVolumeDiskFile = "root.img"
 
@@ -516,7 +519,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					return err
 				}
 
-				name := fmt.Sprintf("%s.img", prefix)
+				name := fmt.Sprintf("%s.%s", prefix, genericVolumeBlockExtension)
 
 				logMsg = "Copying virtual machine block volume"
 				if vol.volType == VolumeTypeCustom {
@@ -674,7 +677,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 				return err
 			}
 
-			srcFile := fmt.Sprintf("%s.img", srcPrefix)
+			srcFile := fmt.Sprintf("%s.%s", srcPrefix, genericVolumeBlockExtension)
 			d.Logger().Debug("Unpacking virtual machine block volume", log.Ctx{"source": srcFile, "target": targetPath})
 
 			tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
