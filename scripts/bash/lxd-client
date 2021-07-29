@@ -220,10 +220,13 @@ _have lxc && {
           _lxd_names
         fi
         ;;
-      "delete")
+      "delete"|"info"|"move"|"publish"|"restart"|"restore"|"snapshot"|"rename")
         _lxd_names
         ;;
-      "exec")
+      "start")
+        _lxd_names "(STOPPED|FROZEN)"
+        ;;
+      "exec"|"console"|"stop"|"shell")
         _lxd_names "RUNNING"
         ;;
       "file")
@@ -235,17 +238,8 @@ _have lxc && {
       "image")
         COMPREPLY=( $(compgen -W "import copy delete refresh export info list show edit alias" -- $cur) )
         ;;
-      "info")
-        _lxd_names
-        ;;
-      "init")
+      "init"|"launch")
         _lxd_images
-        ;;
-      "launch")
-        _lxd_images
-        ;;
-      "move")
-        _lxd_names
         ;;
       "network")
         case $pos in
@@ -343,30 +337,9 @@ _have lxc && {
             ;;
         esac
         ;;
-      "publish")
-        _lxd_names
-        ;;
       "remote")
         COMPREPLY=( $(compgen -W \
           "add remove list rename set-url set-default get-default" -- $cur) )
-        ;;
-      "restart")
-        _lxd_names
-        ;;
-      "restore")
-        _lxd_names
-        ;;
-      "shell")
-        _lxd_names "RUNNING"
-        ;;
-      "snapshot")
-        _lxd_names
-        ;;
-      "start")
-        _lxd_names "(STOPPED|FROZEN)"
-        ;;
-      "stop")
-        _lxd_names "RUNNING"
         ;;
       "storage_pools")
         case $pos in
