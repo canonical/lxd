@@ -82,6 +82,8 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"boot.stop.priority":         validate.Optional(validate.IsInt64),
 	"boot.host_shutdown_timeout": validate.Optional(validate.IsInt64),
 
+	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "stop")),
+
 	"limits.cpu": func(value string) error {
 		if value == "" {
 			return nil
@@ -147,6 +149,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	// Volatile keys.
 	"volatile.apply_template":   validate.IsAny,
 	"volatile.base_image":       validate.IsAny,
+	"volatile.evacuate.origin":  validate.IsAny,
 	"volatile.last_state.idmap": validate.IsAny,
 	"volatile.last_state.power": validate.IsAny,
 	"volatile.idmap.base":       validate.IsAny,

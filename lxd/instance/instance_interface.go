@@ -71,6 +71,7 @@ type Instance interface {
 
 	Info() Info
 	IsPrivileged() bool
+	IsMigratable() bool
 
 	// Snapshots & migration & backups.
 	Restore(source Instance, stateful bool) error
