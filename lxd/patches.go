@@ -27,6 +27,7 @@ import (
 	driver "github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1534,7 +1535,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Unmount the logical volume.
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		if shared.IsMountPoint(oldContainerMntPoint) {
+		if filesystem.IsMountPoint(oldContainerMntPoint) {
 			err := storageDrivers.TryUnmount(oldContainerMntPoint, unix.MNT_DETACH)
 			if err != nil {
 				logger.Errorf("Failed to unmount LVM logical volume \"%s\": %s", oldContainerMntPoint, err)
@@ -1606,7 +1607,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 				err = func() error {
 					// In case the new LVM logical volume for the container is not mounted mount it.
-					if !shared.IsMountPoint(newContainerMntPoint) {
+					if !filesystem.IsMountPoint(newContainerMntPoint) {
 						_, err = pool.MountInstance(ctStruct, nil)
 						if err != nil {
 							logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", ct, err)
@@ -1712,7 +1713,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				oldLvDevPath := fmt.Sprintf("/dev/%s/%s", defaultPoolName, csLvName)
 				if shared.PathExists(oldLvDevPath) {
 					// Unmount the logical volume.
-					if shared.IsMountPoint(oldSnapshotMntPoint) {
+					if filesystem.IsMountPoint(oldSnapshotMntPoint) {
 						err := storageDrivers.TryUnmount(oldSnapshotMntPoint, unix.MNT_DETACH)
 						if err != nil {
 							logger.Errorf("Failed to unmount LVM logical volume \"%s\": %s", oldSnapshotMntPoint, err)
@@ -1769,7 +1770,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 					err = func() error {
 						// In case the new LVM logical volume for the snapshot is not mounted mount it.
-						if !shared.IsMountPoint(newSnapshotMntPoint) {
+						if !filesystem.IsMountPoint(newSnapshotMntPoint) {
 							_, err = pool.MountInstanceSnapshot(csStruct, nil)
 							if err != nil {
 								logger.Errorf("Failed to mount new empty LVM logical volume for container %s: %s", cs, err)
@@ -1824,7 +1825,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			}
 		}
 
-		if !shared.IsMountPoint(newContainerMntPoint) {
+		if !filesystem.IsMountPoint(newContainerMntPoint) {
 			err := storageDrivers.TryMount(containerLvDevPath, newContainerMntPoint, lvFsType, 0, mountOptions)
 			if err != nil {
 				logger.Errorf("Failed to mount LVM logical \"%s\" onto \"%s\" : %s", containerLvDevPath, newContainerMntPoint, err)
@@ -1872,7 +1873,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 
 		// Unmount the logical volume.
 		oldImageMntPoint := shared.VarPath("images", img+".lv")
-		if shared.IsMountPoint(oldImageMntPoint) {
+		if filesystem.IsMountPoint(oldImageMntPoint) {
 			err := storageDrivers.TryUnmount(oldImageMntPoint, unix.MNT_DETACH)
 			if err != nil {
 				return err
@@ -2069,7 +2070,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// around.
 		ctDataset := fmt.Sprintf("%s/containers/%s", defaultPoolName, ct)
 		oldContainerMntPoint := shared.VarPath("containers", ct)
-		if shared.IsMountPoint(oldContainerMntPoint) {
+		if filesystem.IsMountPoint(oldContainerMntPoint) {
 			_, err := shared.TryRunCommand("zfs", "unmount", "-f", ctDataset)
 			if err != nil {
 				logger.Warnf("Failed to unmount ZFS filesystem via zfs unmount, trying lazy umount (MNT_DETACH)...")
@@ -2217,7 +2218,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		// the on-disk name of the zfs pool when moving the datasets
 		// around.
 		imageDataset := fmt.Sprintf("%s/images/%s", defaultPoolName, img)
-		if shared.PathExists(oldImageMntPoint) && shared.IsMountPoint(oldImageMntPoint) {
+		if shared.PathExists(oldImageMntPoint) && filesystem.IsMountPoint(oldImageMntPoint) {
 			_, err := shared.TryRunCommand("zfs", "unmount", "-f", imageDataset)
 			if err != nil {
 				logger.Warnf("Failed to unmount ZFS filesystem via zfs unmount, trying lazy umount (MNT_DETACH)...")
