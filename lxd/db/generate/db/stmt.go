@@ -82,6 +82,11 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 	}
 }
 
+// GenerateSignature is not used for statements
+func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
+	return nil
+}
+
 func (s *Stmt) objects(buf *file.Buffer) error {
 	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
