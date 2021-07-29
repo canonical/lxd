@@ -506,7 +506,7 @@ func volumeBackupWriteIndex(s *state.State, projectName string, vol *api.Storage
 			snapshot := api.StorageVolumeSnapshot{}
 			snapshot.Config = snapVol.Config
 			snapshot.Description = snapVol.Description
-			snapshot.Name = snapVol.Name
+			snapshot.Name = snapName // Snapshot only name, not full name.
 			snapshot.ExpiresAt = &snapExpiry
 			snapshot.ContentType = snapVol.ContentType
 

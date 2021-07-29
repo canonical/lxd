@@ -4222,7 +4222,14 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	// Create database entries fro new storage volume snapshots.
 	for _, s := range srcBackup.Config.VolumeSnapshots {
 		snapshot := s // Local var for revert.
-		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+		snapName := snapshot.Name
+
+		// Due to a historical bug, the volume snapshot names were sometimes written in their full form
+		// (<parent>/<snap>) rather than the expexted snapshot name only form, so we need to handle both.
+		if shared.IsSnapshot(snapshot.Name) {
+			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+		}
+
 		fullSnapName := drivers.GetSnapshotVolumeName(srcBackup.Name, snapName)
 		snapVolStorageName := project.StorageVolume(srcBackup.Project, fullSnapName)
 		snapVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), snapVolStorageName, srcBackup.Config.Volume.Config)
