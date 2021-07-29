@@ -30,6 +30,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// ErrInstanceIsStopped indicates that the instance is stopped.
+var ErrInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
+
 // common provides structure common to all instance types.
 type common struct {
 	op    *operations.Operation
