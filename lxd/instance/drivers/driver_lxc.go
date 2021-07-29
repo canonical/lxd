@@ -2595,7 +2595,7 @@ func (d *lxc) Stop(stateful bool) error {
 
 	// Must be run prior to creating the operation lock.
 	if !d.IsRunning() {
-		return fmt.Errorf("The instance is already stopped")
+		return ErrInstanceIsStopped
 	}
 
 	// Setup a new operation
@@ -2748,7 +2748,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 			return fmt.Errorf("The instance cannot be cleanly shutdown as in %s status", statusCode)
 		}
 
-		return fmt.Errorf("The instance is already stopped")
+		return ErrInstanceIsStopped
 	}
 
 	// Setup a new operation
