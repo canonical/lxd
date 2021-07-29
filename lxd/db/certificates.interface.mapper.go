@@ -6,11 +6,11 @@ package db
 // CertificateGenerated is an interface of generated methods for Certificate
 type CertificateGenerated interface {
 	// GetCertificates returns all available certificates.
-	// generator: certificate List
+	// generator: certificate GetMany
 	GetCertificates(filter CertificateFilter) ([]Certificate, error)
 
 	// GetCertificate returns the certificate with the given key.
-	// generator: certificate Get
+	// generator: certificate GetOne
 	GetCertificate(fingerprint string) (*Certificate, error)
 
 	// GetCertificateID return the ID of the certificate with the given key.

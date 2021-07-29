@@ -54,7 +54,7 @@ DELETE FROM operations WHERE node_id = ?
 `)
 
 // GetOperations returns all available operations.
-// generator: operation List
+// generator: operation GetMany
 func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 	// Result slice.
 	objects := make([]Operation, 0)

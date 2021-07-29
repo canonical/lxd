@@ -10,11 +10,11 @@ type ProjectGenerated interface {
 	GetProjectURIs(filter ProjectFilter) ([]string, error)
 
 	// GetProjects returns all available projects.
-	// generator: project List
+	// generator: project GetMany
 	GetProjects(filter ProjectFilter) ([]Project, error)
 
 	// GetProject returns the project with the given key.
-	// generator: project Get
+	// generator: project GetOne
 	GetProject(name string) (*Project, error)
 
 	// ProjectConfigRef returns entities used by projects.

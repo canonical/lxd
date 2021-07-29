@@ -91,7 +91,7 @@ DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM in
 `)
 
 // GetInstanceSnapshots returns all available instance_snapshots.
-// generator: instance_snapshot List
+// generator: instance_snapshot GetMany
 func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
 	// Result slice.
 	objects := make([]InstanceSnapshot, 0)
@@ -207,7 +207,7 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 }
 
 // GetInstanceSnapshot returns the instance_snapshot with the given key.
-// generator: instance_snapshot Get
+// generator: instance_snapshot GetOne
 func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name string) (*InstanceSnapshot, error) {
 	filter := InstanceSnapshotFilter{}
 	filter.Project = project
