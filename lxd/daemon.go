@@ -52,6 +52,7 @@ import (
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
@@ -654,7 +655,7 @@ func setupSharedMounts() error {
 
 	// Check if already setup
 	path := shared.VarPath("shmounts")
-	if shared.IsMountPoint(path) {
+	if filesystem.IsMountPoint(path) {
 		daemon.SharedMountsSetup = true
 		return nil
 	}
@@ -943,7 +944,7 @@ func (d *Daemon) init() error {
 
 		// Attempt to Mount the devlxd tmpfs
 		devlxd := filepath.Join(d.os.VarDir, "devlxd")
-		if !shared.IsMountPoint(devlxd) {
+		if !filesystem.IsMountPoint(devlxd) {
 			unix.Mount("tmpfs", devlxd, "tmpfs", 0, "size=100k,mode=0755")
 		}
 	}
