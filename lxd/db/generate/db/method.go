@@ -72,6 +72,11 @@ func (m *Method) Generate(buf *file.Buffer) error {
 	}
 }
 
+// GenerateSignature generates an interface signature for the method.
+func (m *Method) GenerateSignature(buf *file.Buffer) error {
+	return m.signature(buf, true)
+}
+
 func (m *Method) uris(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -1032,6 +1037,98 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 
 	buf.N()
 	buf.L("return nil")
+	return nil
+}
+
+// signature generates a method or interface signature with comments, arguments, and return values.
+func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
+	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
+	if err != nil {
+		return errors.Wrap(err, "Parse entity struct")
+	}
+
+	if isInterface {
+		buf.N()
+		buf.L("// %sGenerated is an interface of generated methods for %s", lex.Camel(m.entity), lex.Camel(m.entity))
+		buf.L("type %sGenerated interface {", lex.Camel(m.entity))
+		defer m.end(buf)
+	}
+
+	comment := ""
+	args := ""
+	rets := ""
+
+	if strings.HasSuffix(m.kind, "Ref") {
+		comment = fmt.Sprintf("returns entities used by %s.", lex.Plural(m.entity))
+		field := mapping.FieldByName(m.kind[:len(m.kind)-len("Ref")])
+		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+		rets = fmt.Sprintf("(%s, error)", indexType(mapping.NaturalKey(), field.Type.Name))
+		m.begin(buf, comment, args, rets, isInterface)
+		return nil
+	}
+
+	switch m.kind {
+	case "URIs":
+		comment = fmt.Sprintf("returns all available %s URIs.", m.entity)
+		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+		rets = "([]string, error)"
+	case "List":
+		comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
+		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+		rets = fmt.Sprintf("(%s, error)", lex.Slice(entityType(m.pkg, m.entity)))
+	case "Get":
+		comment = fmt.Sprintf("returns the %s with the given key.", m.entity)
+		args = FieldArgs(mapping.NaturalKey())
+		rets = fmt.Sprintf("(%s, error)", lex.Star(entityType(m.pkg, m.entity)))
+	case "ID":
+		comment = fmt.Sprintf("return the ID of the %s with the given key.", m.entity)
+		args = FieldArgs(mapping.NaturalKey())
+		rets = "(int64, error)"
+	case "Exists":
+		comment = fmt.Sprintf("checks if a %s with the given key exists.", m.entity)
+		args = FieldArgs(mapping.NaturalKey())
+		rets = "(bool, error)"
+	case "Create":
+		entityCreate, ok := m.config["struct"]
+		if !ok {
+			entityCreate = entityPost(m.entity)
+		}
+		comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
+		args = fmt.Sprintf("object %s", entityType(m.pkg, entityCreate))
+		rets = "(int64, error)"
+	case "CreateOrReplace":
+		entityCreate, ok := m.config["struct"]
+		if !ok {
+			entityCreate = entityPost(m.entity)
+		}
+		comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
+		args = fmt.Sprintf("object %s", entityType(m.pkg, entityCreate))
+		rets = "(int64, error)"
+	case "Rename":
+		comment = fmt.Sprintf("renames the %s matching the given key parameters.", m.entity)
+		args = FieldArgs(mapping.NaturalKey()) + ", to string"
+		rets = "error"
+	case "Update":
+		entityUpdate, ok := m.config["struct"]
+		if !ok {
+			entityUpdate = entityPut(m.entity)
+		}
+		comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
+		args = FieldArgs(mapping.NaturalKey()) + fmt.Sprintf(", object %s", entityType(m.pkg, entityUpdate))
+		rets = "error"
+	case "DeleteOne":
+		comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
+		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+		rets = "error"
+	case "DeleteMany":
+		comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
+		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+		rets = "error"
+	default:
+		return fmt.Errorf("Unknown method kind '%s'", m.kind)
+	}
+
+	m.begin(buf, comment, args, rets, isInterface)
 	return nil
 }
 
