@@ -223,7 +223,7 @@ UPDATE instances
 `)
 
 // GetInstances returns all available instances.
-// generator: instance List
+// generator: instance GetMany
 func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	// Result slice.
 	objects := make([]Instance, 0)
@@ -433,7 +433,7 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 }
 
 // GetInstance returns the instance with the given key.
-// generator: instance Get
+// generator: instance GetOne
 func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) {
 	filter := InstanceFilter{}
 	filter.Project = project
