@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	log "github.com/lxc/lxd/shared/log15"
@@ -326,7 +327,7 @@ func (d *lvm) GetVolumeUsage(vol Volume) (int64, error) {
 	// This is because to get an accurate value we cannot use blocks allocated, as the filesystem will likely
 	// consume blocks and not free them when files are deleted in the volume. This avoids returning different
 	// values depending on whether the volume is mounted or not.
-	if vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
 		var stat unix.Statfs_t
 		err := unix.Statfs(vol.MountPath(), &stat)
 		if err != nil {
@@ -584,7 +585,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 	if vol.contentType == ContentTypeFS {
 		// Check if already mounted.
 		mountPath := vol.MountPath()
-		if !shared.IsMountPoint(mountPath) {
+		if !filesystem.IsMountPoint(mountPath) {
 			fsType := vol.ConfigBlockFilesystem()
 
 			if vol.mountFilesystemProbe {
@@ -636,7 +637,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 	// Check if already mounted.
 	if vol.contentType == ContentTypeFS {
 		mountPath := vol.MountPath()
-		if shared.IsMountPoint(mountPath) {
+		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
 				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
 				return false, ErrInUse
@@ -886,7 +887,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 	mountPath := snapVol.MountPath()
 
 	// Check if already mounted.
-	if snapVol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+	if snapVol.contentType == ContentTypeFS && !filesystem.IsMountPoint(mountPath) {
 		revert := revert.New()
 		defer revert.Fail()
 
@@ -997,7 +998,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	mountPath := snapVol.MountPath()
 
 	// Check if already mounted.
-	if snapVol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
+	if snapVol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
 		err = TryUnmount(mountPath, 0)
 		if err != nil {
 			return false, errors.Wrapf(err, "Failed to unmount LVM snapshot volume")

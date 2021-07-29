@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
@@ -122,7 +123,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 // DiskMountClear unmounts and removes the mount path used for disk shares.
 func DiskMountClear(mntPath string) error {
 	if shared.PathExists(mntPath) {
-		if shared.IsMountPoint(mntPath) {
+		if filesystem.IsMountPoint(mntPath) {
 			err := unix.Unmount(mntPath, unix.MNT_DETACH)
 			if err != nil {
 				return errors.Wrapf(err, "Failed unmounting %q", mntPath)

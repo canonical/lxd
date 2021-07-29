@@ -53,70 +53,6 @@ func GetPathMode(path string) (os.FileMode, error) {
 	return mode, nil
 }
 
-func parseMountinfo(name string) int {
-	// In case someone uses symlinks we need to look for the actual
-	// mountpoint.
-	actualPath, err := filepath.EvalSymlinks(name)
-	if err != nil {
-		return -1
-	}
-
-	f, err := os.Open("/proc/self/mountinfo")
-	if err != nil {
-		return -1
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		tokens := strings.Fields(line)
-		if len(tokens) < 5 {
-			return -1
-		}
-		cleanPath := filepath.Clean(tokens[4])
-		if cleanPath == actualPath {
-			return 1
-		}
-	}
-
-	return 0
-}
-
-func IsMountPoint(name string) bool {
-	// If we find a mount entry, it is obviously a mount point.
-	ret := parseMountinfo(name)
-	if ret == 1 {
-		return true
-	}
-
-	// Get the stat details.
-	stat, err := os.Stat(name)
-	if err != nil {
-		return false
-	}
-
-	rootStat, err := os.Lstat(name + "/..")
-	if err != nil {
-		return false
-	}
-
-	// If the directory has the same device as parent, then it's not a mountpoint.
-	if stat.Sys().(*syscall.Stat_t).Dev == rootStat.Sys().(*syscall.Stat_t).Dev {
-		return false
-	}
-
-	// Btrfs annoyingly uses a different Dev id for different subvolumes on the same mount.
-	// So for btrfs, we require a matching mount entry in mountinfo.
-	fs := unix.Statfs_t{}
-	err = unix.Statfs(name, &fs)
-	if err == nil && fs.Type == filesystemSuperMagicBtrfs {
-		return false
-	}
-
-	return true
-}
-
 func SetSize(fd int, width int, height int) (err error) {
 	var dimensions [4]uint16
 	dimensions[0] = uint16(height)
@@ -350,17 +286,6 @@ func intArrayToString(arr interface{}) string {
 	}
 
 	return s
-}
-
-func Statvfs(path string) (*unix.Statfs_t, error) {
-	var st unix.Statfs_t
-
-	err := unix.Statfs(path, &st)
-	if err != nil {
-		return nil, err
-	}
-
-	return &st, nil
 }
 
 func DeviceTotalMemory() (int64, error) {

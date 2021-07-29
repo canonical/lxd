@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -68,7 +69,7 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 			// If the volume is mounted we need to be careful how we rename it to avoid interrupting a
 			// running instance's attached volumes.
 			ourUnmount := false
-			if shared.IsMountPoint(oldMntPath) {
+			if filesystem.IsMountPoint(oldMntPath) {
 				logger.Infof("Lazy unmount custom volume %q in pool %q", curVol.Name, b.Name())
 				err = unix.Unmount(oldMntPath, unix.MNT_DETACH)
 				if err != nil {
