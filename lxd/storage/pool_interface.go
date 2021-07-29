@@ -88,6 +88,7 @@ type Pool interface {
 	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
 	MountCustomVolume(projectName string, volName string, op *operations.Operation) error
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
+	ImportCustomVolume(projectName string, poolVol backup.Config, op *operations.Operation) error
 
 	// Custom volume snapshots.
 	CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error
