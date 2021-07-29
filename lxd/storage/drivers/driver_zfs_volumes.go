@@ -1060,7 +1060,12 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 	var vols []Volume
 
 	// Get just filesystem and volume datasets, not snapshots.
-	cmd := exec.Command("zfs", "list", "-H", "-o", "name", "-r", "-t", "filesystem,volume", d.name)
+	// The ZFS driver uses two approaches to indicating block volumes; firstly for VM and image volumes it
+	// creates both a filesystem dataset and an associated volume ending in zfsBlockVolSuffix.
+	// However for custom block volumes it does not also end the volume name in zfsBlockVolSuffix (unlike the
+	// LVM and Ceph drivers), so we must also retrieve the dataset type here and look for "volume" types
+	// which also indicate this is a block volume.
+	cmd := exec.Command("zfs", "list", "-H", "-o", "name,type", "-r", "-t", "filesystem,volume", d.name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -1078,24 +1083,35 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
-		rawName := strings.TrimSpace(scanner.Text())
+		line := strings.TrimSpace(scanner.Text())
+
+		// Splitting fields on tab should be safe as ZFS doesn't appear to allow tabs in dataset names.
+		parts := strings.Split(line, "\t")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("Unexpected volume line %q", line)
+		}
+
+		zfsVolName := parts[0]
+		zfsContentType := parts[1]
+
 		var volType VolumeType
 		var volName string
 
 		for _, volumeType := range d.Info().VolumeTypes {
 			prefix := fmt.Sprintf("%s/%s/", d.name, volumeType)
-			if strings.HasPrefix(rawName, prefix) {
+			if strings.HasPrefix(zfsVolName, prefix) {
 				volType = volumeType
-				volName = strings.TrimPrefix(rawName, prefix)
+				volName = strings.TrimPrefix(zfsVolName, prefix)
 			}
 		}
 
 		if volType == "" {
-			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": rawName})
+			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": zfsVolName})
 			continue // Ignore unrecognised volume.
 		}
 
-		isBlock := strings.HasSuffix(volName, zfsBlockVolSuffix)
+		// Detect if a volume is block content type using both the defined suffix and the dataset type.
+		isBlock := strings.HasSuffix(volName, zfsBlockVolSuffix) || zfsContentType == "volume"
 
 		if volType == VolumeTypeVM && !isBlock {
 			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
