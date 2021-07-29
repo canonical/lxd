@@ -1,4 +1,4 @@
-package util
+package filesystem
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// Filesystem magic numbers
+// Filesystem magic numbers.
 const (
 	FilesystemSuperMagicTmpfs = 0x01021994
 	FilesystemSuperMagicExt4  = 0xEF53
@@ -17,8 +17,8 @@ const (
 	FilesystemSuperMagicZfs   = 0x2fc12fc1
 )
 
-// FilesystemDetect returns the filesystem on which the passed-in path sits.
-func FilesystemDetect(path string) (string, error) {
+// Detect returns the filesystem on which the passed-in path sits.
+func Detect(path string) (string, error) {
 	fs := unix.Statfs_t{}
 
 	err := unix.Statfs(path, &fs)
