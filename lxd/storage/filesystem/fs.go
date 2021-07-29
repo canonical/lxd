@@ -22,6 +22,18 @@ const (
 	FilesystemSuperMagicZfs   = 0x2fc12fc1
 )
 
+// StatVFS retrieves Virtual File System (VFS) info about a path.
+func StatVFS(path string) (*unix.Statfs_t, error) {
+	var st unix.Statfs_t
+
+	err := unix.Statfs(path, &st)
+	if err != nil {
+		return nil, err
+	}
+
+	return &st, nil
+}
+
 // Detect returns the filesystem on which the passed-in path sits.
 func Detect(path string) (string, error) {
 	fs := unix.Statfs_t{}
