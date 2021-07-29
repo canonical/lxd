@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-02 17:37-0400\n"
+"POT-Creation-Date: 2021-08-02 18:03-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -865,7 +865,7 @@ msgstr ""
 msgid "Copy instances within or in between LXD servers"
 msgstr ""
 
-#: lxc/config_device.go:338 lxc/config_device.go:339
+#: lxc/config_device.go:344 lxc/config_device.go:345
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr ""
 
@@ -1103,9 +1103,9 @@ msgstr ""
 #: lxc/cluster.go:591 lxc/cluster.go:653 lxc/cluster.go:751 lxc/cluster.go:830
 #: lxc/config.go:30 lxc/config.go:92 lxc/config.go:363 lxc/config.go:455
 #: lxc/config.go:613 lxc/config.go:733 lxc/config_device.go:24
-#: lxc/config_device.go:78 lxc/config_device.go:196 lxc/config_device.go:268
-#: lxc/config_device.go:339 lxc/config_device.go:432 lxc/config_device.go:523
-#: lxc/config_device.go:530 lxc/config_device.go:634 lxc/config_device.go:706
+#: lxc/config_device.go:78 lxc/config_device.go:196 lxc/config_device.go:274
+#: lxc/config_device.go:345 lxc/config_device.go:438 lxc/config_device.go:535
+#: lxc/config_device.go:542 lxc/config_device.go:651 lxc/config_device.go:723
 #: lxc/config_metadata.go:27 lxc/config_metadata.go:55
 #: lxc/config_metadata.go:177 lxc/config_template.go:28
 #: lxc/config_template.go:68 lxc/config_template.go:111
@@ -1171,12 +1171,12 @@ msgstr ""
 msgid "Device %s added to %s"
 msgstr "Dispositivo %s añadido a %s"
 
-#: lxc/config_device.go:409
+#: lxc/config_device.go:415
 #, c-format
 msgid "Device %s overridden for %s"
 msgstr ""
 
-#: lxc/config_device.go:504
+#: lxc/config_device.go:516
 #, c-format
 msgid "Device %s removed from %s"
 msgstr ""
@@ -1185,6 +1185,28 @@ msgstr ""
 #, c-format
 msgid "Device already exists: %s"
 msgstr "El dispostivo ya existe: %s"
+
+#: lxc/config_device.go:235 lxc/config_device.go:249 lxc/config_device.go:475
+#: lxc/config_device.go:495 lxc/config_device.go:589 lxc/config_device.go:610
+#, fuzzy
+msgid "Device doesn't exist"
+msgstr "El dispostivo ya existe: %s"
+
+#: lxc/config_device.go:613
+msgid ""
+"Device from profile(s) cannot be modified for individual instance. Override "
+"device or modify profile instead"
+msgstr ""
+
+#: lxc/config_device.go:498
+msgid ""
+"Device from profile(s) cannot be removed from individual instance. Override "
+"device or modify profile instead"
+msgstr ""
+
+#: lxc/config_device.go:252
+msgid "Device from profile(s) cannot be retrieved for individual instance"
+msgstr ""
 
 #: lxc/info.go:261 lxc/info.go:285
 #, fuzzy, c-format
@@ -1923,7 +1945,7 @@ msgid ""
 "    t - Type"
 msgstr ""
 
-#: lxc/config_device.go:267 lxc/config_device.go:268
+#: lxc/config_device.go:273 lxc/config_device.go:274
 msgid "List instance devices"
 msgstr ""
 
@@ -2262,9 +2284,9 @@ msgstr "Nombre del Miembro del Cluster"
 msgid "Missing instance name"
 msgstr "Nombre del contenedor es: %s"
 
-#: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:297
-#: lxc/config_device.go:363 lxc/config_device.go:456 lxc/config_device.go:558
-#: lxc/config_device.go:658
+#: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:303
+#: lxc/config_device.go:369 lxc/config_device.go:462 lxc/config_device.go:570
+#: lxc/config_device.go:675
 msgid "Missing name"
 msgstr ""
 
@@ -2482,7 +2504,7 @@ msgstr ""
 msgid "No storage pool for target volume specified"
 msgstr ""
 
-#: lxc/config_device.go:124 lxc/config_device.go:387
+#: lxc/config_device.go:124 lxc/config_device.go:393
 #, c-format
 msgid "No value found in %q"
 msgstr ""
@@ -2832,7 +2854,7 @@ msgstr ""
 msgid "Remove aliases"
 msgstr ""
 
-#: lxc/config_device.go:431 lxc/config_device.go:432
+#: lxc/config_device.go:437 lxc/config_device.go:438
 msgid "Remove instance devices"
 msgstr ""
 
@@ -3015,11 +3037,11 @@ msgstr ""
 msgid "Server version: %s\n"
 msgstr ""
 
-#: lxc/config_device.go:520
+#: lxc/config_device.go:532
 msgid "Set device configuration keys"
 msgstr ""
 
-#: lxc/config_device.go:523
+#: lxc/config_device.go:535
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -3028,7 +3050,7 @@ msgid ""
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 msgstr ""
 
-#: lxc/config_device.go:530
+#: lxc/config_device.go:542
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -3155,7 +3177,7 @@ msgstr ""
 msgid "Show events from all projects"
 msgstr ""
 
-#: lxc/config_device.go:633 lxc/config_device.go:634
+#: lxc/config_device.go:650 lxc/config_device.go:651
 msgid "Show full device configuration"
 msgstr ""
 
@@ -3404,13 +3426,8 @@ msgstr ""
 msgid "The destination LXD server is not clustered"
 msgstr ""
 
-#: lxc/config_device.go:140 lxc/config_device.go:157 lxc/config_device.go:375
+#: lxc/config_device.go:140 lxc/config_device.go:157 lxc/config_device.go:381
 msgid "The device already exists"
-msgstr ""
-
-#: lxc/config_device.go:235 lxc/config_device.go:247 lxc/config_device.go:469
-#: lxc/config_device.go:487 lxc/config_device.go:577 lxc/config_device.go:596
-msgid "The device doesn't exist"
 msgstr ""
 
 #: lxc/delete.go:105
@@ -3437,7 +3454,7 @@ msgstr ""
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
 
-#: lxc/config_device.go:380
+#: lxc/config_device.go:386
 msgid "The profile device doesn't exist"
 msgstr ""
 
@@ -3593,7 +3610,7 @@ msgstr ""
 msgid "Unset all profiles on the target instance"
 msgstr ""
 
-#: lxc/config_device.go:705 lxc/config_device.go:706
+#: lxc/config_device.go:722 lxc/config_device.go:723
 msgid "Unset device configuration keys"
 msgstr ""
 
@@ -3831,18 +3848,18 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:271 lxc/config_device.go:629 lxc/config_metadata.go:53
+#: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
 #: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:34
 #, fuzzy
 msgid "[<remote>:]<instance>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:191 lxc/config_device.go:701
+#: lxc/config_device.go:191 lxc/config_device.go:718
 #, fuzzy
 msgid "[<remote>:]<instance> <device> <key>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:522
+#: lxc/config_device.go:534
 #, fuzzy
 msgid "[<remote>:]<instance> <device> <key>=<value>..."
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -3852,12 +3869,12 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<instance> <device> <type> [key=value...]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:337
+#: lxc/config_device.go:343
 #, fuzzy
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:426
+#: lxc/config_device.go:432
 #, fuzzy
 msgid "[<remote>:]<instance> <name>..."
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -4074,18 +4091,18 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:273 lxc/config_device.go:631 lxc/profile.go:301
+#: lxc/config_device.go:279 lxc/config_device.go:648 lxc/profile.go:301
 #: lxc/profile.go:354 lxc/profile.go:405 lxc/profile.go:822
 #, fuzzy
 msgid "[<remote>:]<profile>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:193 lxc/config_device.go:703
+#: lxc/config_device.go:193 lxc/config_device.go:720
 #, fuzzy
 msgid "[<remote>:]<profile> <device> <key>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:529
+#: lxc/config_device.go:541
 #, fuzzy
 msgid "[<remote>:]<profile> <device> <key>=<value>..."
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -4105,7 +4122,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<profile> <key><value>..."
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/config_device.go:428
+#: lxc/config_device.go:434
 #, fuzzy
 msgid "[<remote>:]<profile> <name>..."
 msgstr "No se puede proveer el nombre del container a la lista"
