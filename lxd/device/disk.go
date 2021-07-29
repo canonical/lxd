@@ -24,6 +24,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -1656,7 +1657,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 	// Deal with per-filesystem oddities. We don't care about failures here
 	// because any non-special filesystem => directory backend.
-	fs, _ := util.FilesystemDetect(expPath)
+	fs, _ := filesystem.Detect(expPath)
 
 	if fs == "zfs" && shared.PathExists("/dev/zfs") {
 		// Accessible zfs filesystems
