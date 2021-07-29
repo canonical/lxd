@@ -1037,7 +1037,7 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 			volName = strings.TrimSuffix(volName, cephBlockVolSuffix)
 		}
 
-		vols = append(vols, NewVolume(d, d.name, volType, contentType, volName, nil, d.config))
+		vols = append(vols, NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config))
 	}
 
 	errMsg, err := ioutil.ReadAll(stderr)
