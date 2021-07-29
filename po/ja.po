@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-07-28 18:02-0400\n"
+"POT-Creation-Date: 2021-07-29 15:21+0200\n"
 "PO-Revision-Date: 2021-07-25 13:36+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -970,7 +970,7 @@ msgstr ""
 msgid "Copy instances within or in between LXD servers"
 msgstr "LXD サーバ内で、またはサーバ間でインスタンスをコピーします"
 
-#: lxc/config_device.go:338 lxc/config_device.go:339
+#: lxc/config_device.go:344 lxc/config_device.go:345
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr "プロファイルに継承されたデバイスをコピーし、設定キーを上書きします"
 
@@ -1227,9 +1227,9 @@ msgstr "警告を削除します"
 #: lxc/cluster.go:593 lxc/cluster.go:655 lxc/cluster.go:753 lxc/cluster.go:832
 #: lxc/config.go:30 lxc/config.go:92 lxc/config.go:363 lxc/config.go:455
 #: lxc/config.go:613 lxc/config.go:733 lxc/config_device.go:24
-#: lxc/config_device.go:78 lxc/config_device.go:196 lxc/config_device.go:268
-#: lxc/config_device.go:339 lxc/config_device.go:432 lxc/config_device.go:523
-#: lxc/config_device.go:530 lxc/config_device.go:634 lxc/config_device.go:706
+#: lxc/config_device.go:78 lxc/config_device.go:196 lxc/config_device.go:274
+#: lxc/config_device.go:345 lxc/config_device.go:438 lxc/config_device.go:535
+#: lxc/config_device.go:542 lxc/config_device.go:651 lxc/config_device.go:723
 #: lxc/config_metadata.go:27 lxc/config_metadata.go:55
 #: lxc/config_metadata.go:177 lxc/config_template.go:28
 #: lxc/config_template.go:68 lxc/config_template.go:111
@@ -1304,12 +1304,12 @@ msgstr "プロファイルからストレージボリュームを取り外しま
 msgid "Device %s added to %s"
 msgstr "デバイス %s が %s に追加されました"
 
-#: lxc/config_device.go:409
+#: lxc/config_device.go:415
 #, c-format
 msgid "Device %s overridden for %s"
 msgstr "デバイス %s が %s で上書きされました"
 
-#: lxc/config_device.go:504
+#: lxc/config_device.go:516
 #, c-format
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
@@ -1318,6 +1318,28 @@ msgstr "デバイス %s が %s から削除されました"
 #, c-format
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
+
+#: lxc/config_device.go:235 lxc/config_device.go:249 lxc/config_device.go:475
+#: lxc/config_device.go:495 lxc/config_device.go:589 lxc/config_device.go:610
+#, fuzzy
+msgid "Device doesn't exist"
+msgstr "デバイスが存在しません"
+
+#: lxc/config_device.go:613
+msgid ""
+"Device from profile(s) cannot be modified for individual instance. Override "
+"device or modify profile instead"
+msgstr ""
+
+#: lxc/config_device.go:498
+msgid ""
+"Device from profile(s) cannot be removed from individual instance. Override "
+"device or modify profile instead"
+msgstr ""
+
+#: lxc/config_device.go:252
+msgid "Device from profile(s) cannot be retrieved for individual instance"
+msgstr ""
 
 #: lxc/info.go:261 lxc/info.go:285
 #, c-format
@@ -2214,7 +2236,7 @@ msgstr ""
 "    u - アップロード日\n"
 "    t - タイプ"
 
-#: lxc/config_device.go:267 lxc/config_device.go:268
+#: lxc/config_device.go:273 lxc/config_device.go:274
 msgid "List instance devices"
 msgstr "インスタンスのデバイスを一覧表示します"
 
@@ -2735,9 +2757,9 @@ msgstr "クラスターメンバー名がありません"
 msgid "Missing instance name"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:297
-#: lxc/config_device.go:363 lxc/config_device.go:456 lxc/config_device.go:558
-#: lxc/config_device.go:658
+#: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:303
+#: lxc/config_device.go:369 lxc/config_device.go:462 lxc/config_device.go:570
+#: lxc/config_device.go:675
 msgid "Missing name"
 msgstr "名前を指定する必要があります"
 
@@ -2990,7 +3012,7 @@ msgstr "コピー元のボリュームに対するストレージプールが指
 msgid "No storage pool for target volume specified"
 msgstr "コピー先のボリュームに対するストレージプールが指定されていません"
 
-#: lxc/config_device.go:124 lxc/config_device.go:387
+#: lxc/config_device.go:124 lxc/config_device.go:393
 #, c-format
 msgid "No value found in %q"
 msgstr "%q に設定する値が指定されていません"
@@ -3373,7 +3395,7 @@ msgstr "エイリアスを削除します"
 msgid "Remove all rules that match"
 msgstr "マッチするルールをすべて削除します"
 
-#: lxc/config_device.go:431 lxc/config_device.go:432
+#: lxc/config_device.go:437 lxc/config_device.go:438
 msgid "Remove instance devices"
 msgstr "インスタンスのデバイスを削除します"
 
@@ -3575,11 +3597,11 @@ msgstr "サーバのプロトコル (lxd or simplestreams)"
 msgid "Server version: %s\n"
 msgstr "サーバのバージョン: %s\n"
 
-#: lxc/config_device.go:520
+#: lxc/config_device.go:532
 msgid "Set device configuration keys"
 msgstr "デバイスの設定項目を設定します"
 
-#: lxc/config_device.go:523
+#: lxc/config_device.go:535
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -3592,7 +3614,7 @@ msgstr ""
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
 "    lxc config device set [<remote>:]<instance> <device> <key> <value>"
 
-#: lxc/config_device.go:530
+#: lxc/config_device.go:542
 msgid ""
 "Set device configuration keys\n"
 "\n"
@@ -3768,7 +3790,7 @@ msgstr "バックグラウンド操作の詳細を表示します"
 msgid "Show events from all projects"
 msgstr "すべてのプロジェクトのイベントを表示します"
 
-#: lxc/config_device.go:633 lxc/config_device.go:634
+#: lxc/config_device.go:650 lxc/config_device.go:651
 msgid "Show full device configuration"
 msgstr "デバイスの設定をすべて表示します"
 
@@ -4046,14 +4068,9 @@ msgstr "--storage と --target は同時に指定できません"
 msgid "The destination LXD server is not clustered"
 msgstr "移動先の LXD サーバはクラスタに属していません"
 
-#: lxc/config_device.go:140 lxc/config_device.go:157 lxc/config_device.go:375
+#: lxc/config_device.go:140 lxc/config_device.go:157 lxc/config_device.go:381
 msgid "The device already exists"
 msgstr "デバイスはすでに存在します"
-
-#: lxc/config_device.go:235 lxc/config_device.go:247 lxc/config_device.go:469
-#: lxc/config_device.go:487 lxc/config_device.go:577 lxc/config_device.go:596
-msgid "The device doesn't exist"
-msgstr "デバイスが存在しません"
 
 #: lxc/delete.go:105
 msgid "The instance is currently running, stop it first or pass --force"
@@ -4084,7 +4101,7 @@ msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
 "ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
 
-#: lxc/config_device.go:380
+#: lxc/config_device.go:386
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
@@ -4273,7 +4290,7 @@ msgstr "未知のファイルタイプ '%s'"
 msgid "Unset all profiles on the target instance"
 msgstr "移動先のインスタンスのすべてのプロファイルを削除します"
 
-#: lxc/config_device.go:705 lxc/config_device.go:706
+#: lxc/config_device.go:722 lxc/config_device.go:723
 msgid "Unset device configuration keys"
 msgstr "デバイスの設定を削除します"
 
@@ -4544,16 +4561,16 @@ msgstr "[<remote>:]<image> [<target>]"
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
-#: lxc/config_device.go:271 lxc/config_device.go:629 lxc/config_metadata.go:53
+#: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
 #: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:34
 msgid "[<remote>:]<instance>"
 msgstr "[<remote>:]<instance>"
 
-#: lxc/config_device.go:191 lxc/config_device.go:701
+#: lxc/config_device.go:191 lxc/config_device.go:718
 msgid "[<remote>:]<instance> <device> <key>"
 msgstr "[<remote>:]<instance> <device> <key>"
 
-#: lxc/config_device.go:522
+#: lxc/config_device.go:534
 msgid "[<remote>:]<instance> <device> <key>=<value>..."
 msgstr "[<remote>:]<instance> <device> <key>=<value>..."
 
@@ -4561,11 +4578,11 @@ msgstr "[<remote>:]<instance> <device> <key>=<value>..."
 msgid "[<remote>:]<instance> <device> <type> [key=value...]"
 msgstr "[<remote>:]<instance> <device> <type> [key=value...]"
 
-#: lxc/config_device.go:337
+#: lxc/config_device.go:343
 msgid "[<remote>:]<instance> <device> [key=value...]"
 msgstr "[<remote>:]<instance> <device> [key=value...]"
 
-#: lxc/config_device.go:426
+#: lxc/config_device.go:432
 msgid "[<remote>:]<instance> <name>..."
 msgstr "[<remote>:]<instance> <name>..."
 
@@ -4758,16 +4775,16 @@ msgstr "[<remote>:]<pool> <volume>[/<snapshot>]"
 msgid "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 msgstr "[<remote>:]<pool> <volume>[/<snapshot>] <key>"
 
-#: lxc/config_device.go:273 lxc/config_device.go:631 lxc/profile.go:301
+#: lxc/config_device.go:279 lxc/config_device.go:648 lxc/profile.go:301
 #: lxc/profile.go:354 lxc/profile.go:405 lxc/profile.go:823
 msgid "[<remote>:]<profile>"
 msgstr "[<remote>:]<profile>"
 
-#: lxc/config_device.go:193 lxc/config_device.go:703
+#: lxc/config_device.go:193 lxc/config_device.go:720
 msgid "[<remote>:]<profile> <device> <key>"
 msgstr "[<remote>:]<profile> <device> <key>"
 
-#: lxc/config_device.go:529
+#: lxc/config_device.go:541
 msgid "[<remote>:]<profile> <device> <key>=<value>..."
 msgstr "[<remote>:]<profile> <device> <key>=<value>..."
 
@@ -4783,7 +4800,7 @@ msgstr "[<remote>:]<profile> <key>"
 msgid "[<remote>:]<profile> <key><value>..."
 msgstr "[<remote>:]<profile> <key><value>..."
 
-#: lxc/config_device.go:428
+#: lxc/config_device.go:434
 msgid "[<remote>:]<profile> <name>..."
 msgstr "[<remote>:]<profile> <name>..."
 
