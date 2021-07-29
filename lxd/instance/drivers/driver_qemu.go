@@ -46,6 +46,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	pongoTemplate "github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/vsock"
@@ -2888,7 +2889,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 		cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 	} else if shared.PathExists(driveConf.DevPath) && !shared.IsBlockdevPath(driveConf.DevPath) {
 		// Disk dev path is a file, check whether it is located on a ZFS filesystem.
-		fsType, err := util.FilesystemDetect(driveConf.DevPath)
+		fsType, err := filesystem.Detect(driveConf.DevPath)
 		if err != nil {
 			return errors.Wrapf(err, "Failed detecting filesystem type of %q", driveConf.DevPath)
 		}
