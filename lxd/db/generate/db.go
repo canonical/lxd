@@ -63,7 +63,7 @@ func newDbMapperReset() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "reset",
-		Short: "Reset target source file.",
+		Short: "Reset target source file and its interface file.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return file.Reset(target, db.Imports)
 		},
@@ -124,7 +124,7 @@ func newDbMapperMethod() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "method [kind] [param1=value1 ... paramN=valueN]",
 		Args:  cobra.MinimumNArgs(1),
-		Short: "Generate a particular transaction method.",
+		Short: "Generate a particular transaction method and interface signature.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kind := args[0]
 
