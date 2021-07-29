@@ -1057,10 +1057,15 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // ListVolumes returns a list of LXD volumes in storage pool.
 func (d *zfs) ListVolumes() ([]Volume, error) {
-	var vols []Volume
+	vols := make(map[string]Volume)
 
 	// Get just filesystem and volume datasets, not snapshots.
-	cmd := exec.Command("zfs", "list", "-H", "-o", "name", "-r", "-t", "filesystem,volume", d.name)
+	// The ZFS driver uses two approaches to indicating block volumes; firstly for VM and image volumes it
+	// creates both a filesystem dataset and an associated volume ending in zfsBlockVolSuffix.
+	// However for custom block volumes it does not also end the volume name in zfsBlockVolSuffix (unlike the
+	// LVM and Ceph drivers), so we must also retrieve the dataset type here and look for "volume" types
+	// which also indicate this is a block volume.
+	cmd := exec.Command("zfs", "list", "-H", "-o", "name,type", "-r", "-t", "filesystem,volume", d.name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
@@ -1078,24 +1083,35 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
-		rawName := strings.TrimSpace(scanner.Text())
+		line := strings.TrimSpace(scanner.Text())
+
+		// Splitting fields on tab should be safe as ZFS doesn't appear to allow tabs in dataset names.
+		parts := strings.Split(line, "\t")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("Unexpected volume line %q", line)
+		}
+
+		zfsVolName := parts[0]
+		zfsContentType := parts[1]
+
 		var volType VolumeType
 		var volName string
 
 		for _, volumeType := range d.Info().VolumeTypes {
 			prefix := fmt.Sprintf("%s/%s/", d.name, volumeType)
-			if strings.HasPrefix(rawName, prefix) {
+			if strings.HasPrefix(zfsVolName, prefix) {
 				volType = volumeType
-				volName = strings.TrimPrefix(rawName, prefix)
+				volName = strings.TrimPrefix(zfsVolName, prefix)
 			}
 		}
 
 		if volType == "" {
-			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": rawName})
+			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": zfsVolName})
 			continue // Ignore unrecognised volume.
 		}
 
-		isBlock := strings.HasSuffix(volName, zfsBlockVolSuffix)
+		// Detect if a volume is block content type using both the defined suffix and the dataset type.
+		isBlock := strings.HasSuffix(volName, zfsBlockVolSuffix) || zfsContentType == "volume"
 
 		if volType == VolumeTypeVM && !isBlock {
 			continue // Ignore VM filesystem volumes as we will just return the VM's block volume.
@@ -1107,7 +1123,17 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 			volName = strings.TrimSuffix(volName, zfsBlockVolSuffix)
 		}
 
-		vols = append(vols, NewVolume(d, d.name, volType, contentType, volName, nil, d.config))
+		// If a new volume has been found, or the volume will replace an existing image filesystem volume
+		// then proceed to add the volume to the map. We allow image volumes to overwrite existing
+		// filesystem volumes of the same name so that for VM images we only return the block content type
+		// volume (so that only the single "logical" volume is returned).
+		existingVol, foundExisting := vols[volName]
+		if !foundExisting || (existingVol.Type() == VolumeTypeImage && existingVol.ContentType() == ContentTypeFS) {
+			vols[volName] = NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+			continue
+		}
+
+		return nil, fmt.Errorf("Unexpected duplicate volume %q found", volName)
 	}
 
 	errMsg, err := ioutil.ReadAll(stderr)
@@ -1120,7 +1146,12 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		return nil, errors.Wrapf(err, "Failed getting volume list: %v", strings.TrimSpace(string(errMsg)))
 	}
 
-	return vols, nil
+	volList := make([]Volume, len(vols))
+	for _, v := range vols {
+		volList = append(volList, v)
+	}
+
+	return volList, nil
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.

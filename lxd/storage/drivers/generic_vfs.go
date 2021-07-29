@@ -999,7 +999,7 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 				contentType = ContentTypeBlock
 			}
 
-			vols = append(vols, NewVolume(d, poolName, volType, contentType, ent.Name(), nil, poolConfig))
+			vols = append(vols, NewVolume(d, poolName, volType, contentType, ent.Name(), make(map[string]string), poolConfig))
 		}
 	}
 
