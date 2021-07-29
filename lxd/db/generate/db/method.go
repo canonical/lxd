@@ -90,11 +90,10 @@ func (m *Method) uris(buf *file.Buffer) error {
 
 	filters := Filters(m.packages["db"], "objects", m.entity)
 
-	comment := fmt.Sprintf("returns all available %s URIs.", m.entity)
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
-	rets := "([]string, error)"
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	buf.L("// Check which filter criteria are active.")
@@ -170,11 +169,10 @@ func (m *Method) list(buf *file.Buffer) error {
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := entityType(m.pkg, m.entity)
 
-	comment := fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
-	rets := fmt.Sprintf("(%s, error)", lex.Slice(typ))
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	buf.L("// Result slice.")
@@ -267,15 +265,12 @@ func (m *Method) get(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse entity struct")
 	}
 
-	comment := fmt.Sprintf("returns the %s with the given key.", m.entity)
-
 	nk := mapping.NaturalKey()
-	typ := entityType(m.pkg, m.entity)
 
-	args := FieldArgs(nk)
-	rets := fmt.Sprintf("(%s, error)", lex.Star(typ))
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	buf.L("filter := %s{}", entityFilter(m.entity))
@@ -369,16 +364,14 @@ func (m *Method) ref(buf *file.Buffer) error {
 		return fmt.Errorf("Unsupported ref type %q", field.Type.Name)
 	}
 
-	comment := fmt.Sprintf("returns entities used by %s.", lex.Plural(m.entity))
-
 	// The type of the returned index takes into account composite natural
 	// keys.
 	indexTyp := indexType(nk, retTyp)
 
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
-	rets := fmt.Sprintf("(%s, error)", indexTyp)
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	criteria, err := Criteria(m.packages["db"], m.entity)
@@ -571,11 +564,10 @@ func (m *Method) id(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	comment := fmt.Sprintf("return the ID of the %s with the given key.", m.entity)
-	args := FieldArgs(nk)
-	rets := "(int64, error)"
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "ID"))
@@ -621,11 +613,10 @@ func (m *Method) exists(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	comment := fmt.Sprintf("checks if a %s with the given key exists.", m.entity)
-	args := FieldArgs(nk)
-	rets := "(bool, error)"
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
@@ -653,14 +644,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		return errors.Wrap(err, "Parse entity struct")
 	}
 
-	comment := fmt.Sprintf("adds a new %s to the database.", m.entity)
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	typ := entityType(m.pkg, entityCreate)
-
-	args := fmt.Sprintf("object %s", typ)
-	rets := "(int64, error)"
-
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	nk := mapping.NaturalKey()
@@ -776,11 +763,10 @@ func (m *Method) rename(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	comment := fmt.Sprintf("renames the %s matching the given key parameters.", m.entity)
-	args := FieldArgs(nk) + ", to string"
-	rets := "error"
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "rename"))
@@ -816,11 +802,10 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	nk := mapping.NaturalKey()
 
-	comment := fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
-	args := FieldArgs(nk) + fmt.Sprintf(", object %s", entityType(m.pkg, entityUpdate))
-	rets := "error"
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 
 	updateMapping, err := Parse(m.packages[m.pkg], entityUpdate, m.kind)
@@ -952,11 +937,10 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 
 	filters := Filters(m.packages["db"], "delete", m.entity)
 
-	comment := fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
-	args := fmt.Sprintf("filter %s", entityFilter(m.entity))
-	rets := "error"
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
 
-	m.begin(buf, comment, args, rets)
 	defer m.end(buf)
 	buf.L("// Check which filter criteria are active.")
 	buf.L("criteria := map[string]interface{}{}")
