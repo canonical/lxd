@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/validate"
@@ -273,7 +274,7 @@ func (d *cephfs) Update(changedConfig map[string]string) error {
 // Mount brings up the driver and sets it up to be used.
 func (d *cephfs) Mount() (bool, error) {
 	// Check if already mounted.
-	if shared.IsMountPoint(GetPoolMountPath(d.name)) {
+	if filesystem.IsMountPoint(GetPoolMountPath(d.name)) {
 		return false, nil
 	}
 

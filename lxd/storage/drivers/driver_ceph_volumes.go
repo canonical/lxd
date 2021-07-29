@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -780,7 +781,7 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 	isSnap := vol.IsSnapshot()
 
 	// If mounted, use the filesystem stats for pretty accurate usage information.
-	if !isSnap && vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
+	if !isSnap && vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
 		var stat unix.Statfs_t
 
 		err := unix.Statfs(vol.MountPath(), &stat)
@@ -1071,7 +1072,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 
 	if vol.contentType == ContentTypeFS {
 		mountPath := vol.MountPath()
-		if !shared.IsMountPoint(mountPath) {
+		if !filesystem.IsMountPoint(mountPath) {
 			err := vol.EnsureMountPath()
 			if err != nil {
 				return err
@@ -1122,7 +1123,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 	// Attempt to unmount the volume.
 	if vol.contentType == ContentTypeFS {
 		mountPath := vol.MountPath()
-		if shared.IsMountPoint(mountPath) {
+		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
 				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
 				return false, ErrInUse
@@ -1356,7 +1357,7 @@ func (d *ceph) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 	sourcePath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
 	snapshotName := fmt.Sprintf("snapshot_%s", snapshotOnlyName)
 
-	if shared.IsMountPoint(sourcePath) {
+	if filesystem.IsMountPoint(sourcePath) {
 		// This is costly but we need to ensure that all cached data has
 		// been committed to disk. If we don't then the rbd snapshot of
 		// the underlying filesystem can be inconsistent or - worst case
@@ -1467,7 +1468,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 	mountPath := snapVol.MountPath()
 
-	if snapVol.contentType == ContentTypeFS && !shared.IsMountPoint(mountPath) {
+	if snapVol.contentType == ContentTypeFS && !filesystem.IsMountPoint(mountPath) {
 		revert := revert.New()
 		defer revert.Fail()
 
@@ -1508,7 +1509,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 		revert.Add(func() { d.rbdUnmapVolume(cloneVol, true) })
 
-		if shared.IsMountPoint(mountPath) {
+		if filesystem.IsMountPoint(mountPath) {
 			return false, nil
 		}
 
@@ -1566,7 +1567,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 
 	mountPath := snapVol.MountPath()
 
-	if snapVol.contentType == ContentTypeFS && shared.IsMountPoint(mountPath) {
+	if snapVol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
 		err := TryUnmount(mountPath, unix.MNT_DETACH)
 		if err != nil {
 			return false, err
