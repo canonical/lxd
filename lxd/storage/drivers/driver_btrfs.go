@@ -293,7 +293,7 @@ func (d *btrfs) Update(changedConfig map[string]string) error {
 // Mount mounts the storage pool.
 func (d *btrfs) Mount() (bool, error) {
 	// Check if already mounted.
-	if shared.IsMountPoint(GetPoolMountPath(d.name)) {
+	if filesystem.IsMountPoint(GetPoolMountPath(d.name)) {
 		return false, nil
 	}
 

@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 )
@@ -66,7 +67,7 @@ func forceUnmount(path string) (bool, error) {
 
 	for {
 		// Check if already unmounted.
-		if !shared.IsMountPoint(path) {
+		if !filesystem.IsMountPoint(path) {
 			return unmounted, nil
 		}
 
@@ -87,7 +88,7 @@ func forceUnmount(path string) (bool, error) {
 // mountReadOnly performs a read-only bind-mount.
 func mountReadOnly(srcPath string, dstPath string) (bool, error) {
 	// Check if already mounted.
-	if shared.IsMountPoint(dstPath) {
+	if filesystem.IsMountPoint(dstPath) {
 		return false, nil
 	}
 
