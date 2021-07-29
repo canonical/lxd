@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
@@ -37,7 +38,7 @@ const VMConfigDriveMountDir = "config.mount"
 // genericVFSGetResources is a generic GetResources implementation for VFS-only drivers.
 func genericVFSGetResources(d Driver) (*api.ResourcesStoragePool, error) {
 	// Get the VFS information
-	st, err := shared.Statvfs(GetPoolMountPath(d.Name()))
+	st, err := filesystem.StatVFS(GetPoolMountPath(d.Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +139,7 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 	if shared.PathExists(oldPath) {
 		err := os.Rename(oldPath, newPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to rename '%s' to '%s'", oldPath, newPath)
+			return errors.Wrapf(err, "Failed to rename %q to %q", oldPath, newPath)
 		}
 	}
 

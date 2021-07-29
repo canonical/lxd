@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -707,7 +708,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 		return fmt.Errorf("No %s storage backends available", poolType)
 	}
 
-	backingFs, err := util.FilesystemDetect(shared.VarPath())
+	backingFs, err := filesystem.Detect(shared.VarPath())
 	if err != nil {
 		backingFs = "dir"
 	}
