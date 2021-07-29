@@ -53,7 +53,7 @@ UPDATE certificates
 `)
 
 // GetCertificates returns all available certificates.
-// generator: certificate List
+// generator: certificate GetMany
 func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, error) {
 	// Result slice.
 	objects := make([]Certificate, 0)
@@ -106,7 +106,7 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 }
 
 // GetCertificate returns the certificate with the given key.
-// generator: certificate Get
+// generator: certificate GetOne
 func (c *ClusterTx) GetCertificate(fingerprint string) (*Certificate, error) {
 	filter := CertificateFilter{}
 	filter.Fingerprint = fingerprint

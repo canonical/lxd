@@ -6,11 +6,11 @@ package db
 // InstanceGenerated is an interface of generated methods for Instance
 type InstanceGenerated interface {
 	// GetInstances returns all available instances.
-	// generator: instance List
+	// generator: instance GetMany
 	GetInstances(filter InstanceFilter) ([]Instance, error)
 
 	// GetInstance returns the instance with the given key.
-	// generator: instance Get
+	// generator: instance GetOne
 	GetInstance(project string, name string) (*Instance, error)
 
 	// GetInstanceID return the ID of the instance with the given key.

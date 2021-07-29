@@ -71,7 +71,7 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
 `)
 
 // GetImages returns all available images.
-// generator: image List
+// generator: image GetMany
 func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	// Result slice.
 	objects := make([]Image, 0)
@@ -179,7 +179,7 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 }
 
 // GetImage returns the image with the given key.
-// generator: image Get
+// generator: image GetOne
 func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error) {
 	filter := ImageFilter{}
 	filter.Project = project

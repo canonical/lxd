@@ -6,11 +6,11 @@ package db
 // InstanceSnapshotGenerated is an interface of generated methods for InstanceSnapshot
 type InstanceSnapshotGenerated interface {
 	// GetInstanceSnapshots returns all available instance_snapshots.
-	// generator: instance_snapshot List
+	// generator: instance_snapshot GetMany
 	GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error)
 
 	// GetInstanceSnapshot returns the instance_snapshot with the given key.
-	// generator: instance_snapshot Get
+	// generator: instance_snapshot GetOne
 	GetInstanceSnapshot(project string, instance string, name string) (*InstanceSnapshot, error)
 
 	// GetInstanceSnapshotID return the ID of the instance_snapshot with the given key.

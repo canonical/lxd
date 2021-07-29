@@ -173,7 +173,7 @@ func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 }
 
 // GetProfiles returns all available profiles.
-// generator: profile List
+// generator: profile GetMany
 func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	// Result slice.
 	objects := make([]Profile, 0)
@@ -296,7 +296,7 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 }
 
 // GetProfile returns the profile with the given key.
-// generator: profile Get
+// generator: profile GetOne
 func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 	filter := ProfileFilter{}
 	filter.Project = project
