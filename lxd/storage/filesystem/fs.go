@@ -36,9 +36,7 @@ func StatVFS(path string) (*unix.Statfs_t, error) {
 
 // Detect returns the filesystem on which the passed-in path sits.
 func Detect(path string) (string, error) {
-	fs := unix.Statfs_t{}
-
-	err := unix.Statfs(path, &fs)
+	fs, err := StatVFS(path)
 	if err != nil {
 		return "", err
 	}
