@@ -4329,22 +4329,17 @@ func (d *qemu) Delete(force bool) error {
 		return fmt.Errorf("Instance is protected")
 	}
 
-	// Check if we're dealing with "lxd import".
-	// TODO consider lxd import detection for VMs.
-	isImport := false
-
 	// Attempt to initialize storage interface for the instance.
 	pool, err := d.getStoragePool()
 	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
-			if !isImport {
-				// Remove snapshot volume and database record.
-				err = pool.DeleteInstanceSnapshot(d, nil)
-				if err != nil {
-					return err
-				}
+
+			// Remove snapshot volume and database record.
+			err = pool.DeleteInstanceSnapshot(d, nil)
+			if err != nil {
+				return err
 			}
 		} else {
 			// Remove all snapshots by initialising each snapshot as an Instance and
@@ -4354,12 +4349,10 @@ func (d *qemu) Delete(force bool) error {
 				return err
 			}
 
-			if !isImport {
-				// Remove the storage volume, snapshot volumes and database records.
-				err = pool.DeleteInstance(d, nil)
-				if err != nil {
-					return err
-				}
+			// Remove the storage volume, snapshot volumes and database records.
+			err = pool.DeleteInstance(d, nil)
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -4405,7 +4398,7 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	// If dealing with a snapshot, refresh the backup file on the parent.
-	if d.IsSnapshot() && !isImport {
+	if d.IsSnapshot() {
 		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
 
 		// Load the parent.
