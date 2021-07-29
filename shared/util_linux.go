@@ -288,17 +288,6 @@ func intArrayToString(arr interface{}) string {
 	return s
 }
 
-func Statvfs(path string) (*unix.Statfs_t, error) {
-	var st unix.Statfs_t
-
-	err := unix.Statfs(path, &st)
-	if err != nil {
-		return nil, err
-	}
-
-	return &st, nil
-}
-
 func DeviceTotalMemory() (int64, error) {
 	// Open /proc/meminfo
 	f, err := os.Open("/proc/meminfo")
