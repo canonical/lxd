@@ -232,7 +232,7 @@ func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return fmt.Errorf(i18n.G("The device doesn't exist"))
+			return fmt.Errorf(i18n.G("Device doesn't exist"))
 		}
 
 		fmt.Println(dev[key])
@@ -244,7 +244,13 @@ func (c *cmdConfigDeviceGet) Run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := inst.Devices[devname]
 		if !ok {
-			return fmt.Errorf(i18n.G("The device doesn't exist"))
+			_, ok = inst.ExpandedDevices[devname]
+			if !ok {
+				return fmt.Errorf(i18n.G("Device doesn't exist"))
+			}
+
+			return fmt.Errorf(i18n.G("Device from profile(s) cannot be retrieved for individual instance"))
+
 		}
 
 		fmt.Println(dev[key])
@@ -466,7 +472,7 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 		for _, devname := range args[1:] {
 			_, ok := profile.Devices[devname]
 			if !ok {
-				return fmt.Errorf(i18n.G("The device doesn't exist"))
+				return fmt.Errorf(i18n.G("Device doesn't exist"))
 			}
 			delete(profile.Devices, devname)
 		}
@@ -484,7 +490,13 @@ func (c *cmdConfigDeviceRemove) Run(cmd *cobra.Command, args []string) error {
 		for _, devname := range args[1:] {
 			_, ok := inst.Devices[devname]
 			if !ok {
-				return fmt.Errorf(i18n.G("The device doesn't exist"))
+				_, ok := inst.ExpandedDevices[devname]
+				if !ok {
+					return fmt.Errorf(i18n.G("Device doesn't exist"))
+				}
+
+				return fmt.Errorf(i18n.G("Device from profile(s) cannot be removed from individual instance. Override device or modify profile instead"))
+
 			}
 			delete(inst.Devices, devname)
 		}
@@ -574,7 +586,7 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 
 		dev, ok := profile.Devices[devname]
 		if !ok {
-			return fmt.Errorf(i18n.G("The device doesn't exist"))
+			return fmt.Errorf(i18n.G("Device doesn't exist"))
 		}
 
 		for k, v := range keys {
@@ -593,7 +605,12 @@ func (c *cmdConfigDeviceSet) Run(cmd *cobra.Command, args []string) error {
 		}
 		dev, ok := inst.Devices[devname]
 		if !ok {
-			return fmt.Errorf(i18n.G("The device doesn't exist"))
+			_, ok = inst.ExpandedDevices[devname]
+			if !ok {
+				return fmt.Errorf(i18n.G("Device doesn't exist"))
+			}
+
+			return fmt.Errorf(i18n.G("Device from profile(s) cannot be modified for individual instance. Override device or modify profile instead"))
 		}
 
 		for k, v := range keys {
