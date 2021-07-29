@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
@@ -115,7 +116,7 @@ func (s *OS) Init() ([]db.Warning, error) {
 
 	s.LxcPath = filepath.Join(s.VarDir, "containers")
 
-	s.BackingFS, err = util.FilesystemDetect(s.LxcPath)
+	s.BackingFS, err = filesystem.Detect(s.LxcPath)
 	if err != nil {
 		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
 	}
