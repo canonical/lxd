@@ -487,7 +487,7 @@ func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // ListVolumes returns a list of LXD volumes in storage pool.
 func (d *lvm) ListVolumes() ([]Volume, error) {
-	var vols []Volume
+	vols := make(map[string]Volume)
 
 	cmd := exec.Command("lvs", "--noheadings", "-o", "lv_name", d.config["lvm.vg_name"])
 	stdout, err := cmd.StdoutPipe()
@@ -548,7 +548,17 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 			volName = strings.TrimSuffix(volName, lvmBlockVolSuffix)
 		}
 
-		vols = append(vols, NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config))
+		// If a new volume has been found, or the volume will replace an existing image filesystem volume
+		// then proceed to add the volume to the map. We allow image volumes to overwrite existing
+		// filesystem volumes of the same name so that for VM images we only return the block content type
+		// volume (so that only the single "logical" volume is returned).
+		existingVol, foundExisting := vols[volName]
+		if !foundExisting || (existingVol.Type() == VolumeTypeImage && existingVol.ContentType() == ContentTypeFS) {
+			vols[volName] = NewVolume(d, d.name, volType, contentType, volName, make(map[string]string), d.config)
+			continue
+		}
+
+		return nil, fmt.Errorf("Unexpected duplicate volume %q found", volName)
 	}
 
 	errMsg, err := ioutil.ReadAll(stderr)
@@ -561,7 +571,12 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		return nil, errors.Wrapf(err, "Failed getting volume list: %v", strings.TrimSpace(string(errMsg)))
 	}
 
-	return vols, nil
+	volList := make([]Volume, len(vols))
+	for _, v := range vols {
+		volList = append(volList, v)
+	}
+
+	return volList, nil
 }
 
 // MountVolume mounts a volume and increments ref counter. Please call UnmountVolume() when done with the volume.
