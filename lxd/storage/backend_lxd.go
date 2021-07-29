@@ -291,8 +291,9 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 			if vol.Type() == drivers.VolumeTypeImage {
 				err := b.driver.DeleteVolume(vol, op)
 				if err != nil {
-					return errors.Wrapf(err, "Failed deleting image volume %q", vol.Name())
+					return errors.Wrapf(err, "Failed deleting left over image volume %q (%s)", vol.Name(), vol.ContentType())
 				}
+				logger.Warn("Deleted left over image volume", log.Ctx{"volName": vol.Name(), "contentType": vol.ContentType()})
 			}
 		}
 
