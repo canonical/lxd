@@ -4408,7 +4408,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		snapName := snapshot.Name
 
 		// Due to a historical bug, the volume snapshot names were sometimes written in their full form
-		// (<parent>/<snap>) rather than the expexted snapshot name only form, so we need to handle both.
+		// (<parent>/<snap>) rather than the expected snapshot name only form, so we need to handle both.
 		if shared.IsSnapshot(snapshot.Name) {
 			_, snapName, _ = shared.InstanceGetParentAndSnapshotName(snapshot.Name)
 		}
