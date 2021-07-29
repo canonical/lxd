@@ -253,6 +253,10 @@ func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op
 	return true, nil
 }
 
+func (b *mockBackend) ImportCustomVolume(projectName string, poolVol backup.Config, op *operations.Operation) error {
+	return nil
+}
+
 func (b *mockBackend) CreateCustomVolumeSnapshot(projectName string, volName string, newSnapshotName string, expiryDate time.Time, op *operations.Operation) error {
 	return nil
 }
