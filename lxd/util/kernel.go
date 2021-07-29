@@ -20,10 +20,10 @@ func LoadModule(module string) error {
 	return err
 }
 
-// HasFilesystem checks whether a given filesystem is already supported
+// SupportsFilesystem checks whether a given filesystem is already supported
 // by the kernel. Note that if the filesystem is a module, you may need to
 // load it first.
-func HasFilesystem(filesystem string) bool {
+func SupportsFilesystem(filesystem string) bool {
 	file, err := os.Open("/proc/filesystems")
 	if err != nil {
 		return false
