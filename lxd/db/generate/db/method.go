@@ -1132,7 +1132,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 	return nil
 }
 
-func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string) {
+func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string, isInterface bool) {
 	name := ""
 	entity := lex.Camel(m.entity)
 	switch m.kind {
@@ -1165,7 +1165,12 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 
 	buf.L("// %s %s", name, comment)
 	buf.L("// generator: %s %s", m.entity, m.kind)
-	buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
+
+	if isInterface {
+		buf.L("%s(%s) %s", name, args, rets)
+	} else {
+		buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
+	}
 }
 
 func (m *Method) end(buf *file.Buffer) {
