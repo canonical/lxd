@@ -12,7 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
@@ -155,12 +155,20 @@ func (d *btrfs) Create() error {
 			cleanSource := filepath.Clean(hostPath)
 			lxdDir := shared.VarPath()
 
-			if shared.PathExists(hostPath) && !hasFilesystem(hostPath, util.FilesystemSuperMagicBtrfs) {
-				return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
-			} else if strings.HasPrefix(cleanSource, lxdDir) {
+			if shared.PathExists(hostPath) {
+				hostPathFS, _ := filesystem.Detect(hostPath)
+				if hostPathFS != "btrfs" {
+					return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
+				}
+			}
+
+			if strings.HasPrefix(cleanSource, lxdDir) {
 				if cleanSource != GetPoolMountPath(d.name) {
 					return fmt.Errorf("Only allowed source path under %q is %q", shared.VarPath(), GetPoolMountPath(d.name))
-				} else if !hasFilesystem(shared.VarPath("storage-pools"), util.FilesystemSuperMagicBtrfs) {
+				}
+
+				storagePoolDirFS, _ := filesystem.Detect(shared.VarPath("storage-pools"))
+				if storagePoolDirFS != "btrfs" {
 					return fmt.Errorf("Provided path does not reside on a btrfs filesystem")
 				}
 
@@ -310,8 +318,9 @@ func (d *btrfs) Mount() (bool, error) {
 		if !shared.IsBlockdevPath(mntSrc) {
 			mntFilesystem = "none"
 
-			if !hasFilesystem(mntSrc, util.FilesystemSuperMagicBtrfs) {
-				return false, fmt.Errorf("Source path '%s' isn't btrfs", mntSrc)
+			mntSrcFS, _ := filesystem.Detect(mntSrc)
+			if mntSrcFS != "btrfs" {
+				return false, fmt.Errorf("Source path %q isn't btrfs", mntSrc)
 			}
 		}
 	} else {
