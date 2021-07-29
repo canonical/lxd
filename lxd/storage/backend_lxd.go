@@ -3187,6 +3187,74 @@ func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operat
 	return b.driver.UnmountVolume(vol, false, op)
 }
 
+// ImportCustomVolume takes an existing custom volume on the storage backend and ensures that the DB records,
+// volume directories and symlinks are restored as needed to make it operational with LXD.
+// Used during the recovery import stage.
+func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol backup.Config, op *operations.Operation) error {
+	if poolVol.Volume == nil {
+		return fmt.Errorf("Invalid pool volume config supplied")
+	}
+
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": poolVol.Volume.Name})
+	logger.Debug("ImportCustomVolume started")
+	defer logger.Debug("ImportCustomVolume finished")
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create the storage volume DB records.
+	err := VolumeDBCreate(b.state, b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, poolVol.Volume.Config, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType))
+	if err != nil {
+		return errors.Wrapf(err, "Failed creating custom volume %q record in project %q", poolVol.Volume.Name, projectName)
+	}
+
+	revert.Add(func() {
+		b.state.Cluster.RemoveStoragePoolVolume(projectName, poolVol.Volume.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+	})
+
+	// Create the storage volume snapshot DB records.
+	for _, poolVolSnap := range poolVol.VolumeSnapshots {
+		fullSnapName := drivers.GetSnapshotVolumeName(poolVol.Volume.Name, poolVolSnap.Name)
+
+		err = VolumeDBCreate(b.state, b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, poolVolSnap.Config, time.Time{}, drivers.ContentType(poolVolSnap.ContentType))
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			b.state.Cluster.RemoveStoragePoolVolume(projectName, fullSnapName, db.StoragePoolVolumeTypeCustom, b.ID())
+		})
+	}
+
+	// Get the volume name on storage.
+	volStorageName := project.StorageVolume(projectName, poolVol.Volume.Name)
+	vol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentType(poolVol.Volume.ContentType), volStorageName, poolVol.Volume.Config)
+
+	// Create the mount path if needed.
+	err = vol.EnsureMountPath()
+	if err != nil {
+		return err
+	}
+
+	// Create snapshot mount paths and snapshot parent directory if needed.
+	for _, poolVolSnap := range poolVol.VolumeSnapshots {
+		logger.Debug("Ensuring instance snapshot mount path", log.Ctx{"snapshot": poolVolSnap.Name})
+
+		snapVol, err := vol.NewSnapshot(poolVolSnap.Name)
+		if err != nil {
+			return err
+		}
+
+		err = snapVol.EnsureMountPath()
+		if err != nil {
+			return err
+		}
+	}
+
+	revert.Success()
+	return nil
+}
+
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
 func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newExpiryDate": newExpiryDate})
