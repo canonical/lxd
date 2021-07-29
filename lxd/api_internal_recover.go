@@ -362,7 +362,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 					inst, err := internalRecoverImportInstance(d.State(), pool, projectName, poolVol, profiles, revert)
 					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed importing instance %q in project %q", poolVol.Container.Name, projectName))
+						return response.SmartError(errors.Wrapf(err, "Failed creating instance %q record in project %q", poolVol.Container.Name, projectName))
 					}
 
 					// Recover instance snapshots.
@@ -378,14 +378,14 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 						err = internalRecoverImportInstanceSnapshot(d.State(), pool, projectName, poolVol, poolInstSnap, profiles, revert)
 						if err != nil {
-							return response.SmartError(errors.Wrapf(err, "Failed importing instance %q snapshot %q in project %q", poolVol.Container.Name, poolInstSnap.Name, projectName))
+							return response.SmartError(errors.Wrapf(err, "Failed creating instance %q snapshot %q record in project %q", poolVol.Container.Name, poolInstSnap.Name, projectName))
 						}
 					}
 
 					// Recreate instance mount path and symlinks (must come after snapshot recovery).
 					err = pool.ImportInstance(inst, nil)
 					if err != nil {
-						return response.SmartError(errors.Wrap(err, "Failed importing instance"))
+						return response.SmartError(errors.Wrapf(err, "Failed importing instance %q in project %q", poolVol.Container.Name, projectName))
 					}
 
 					// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
@@ -394,7 +394,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					if err == nil {
 						err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
 						if err != nil {
-							return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q", rootConfig["size"]))
+							return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q for instance %q in project %q", rootConfig["size"], poolVol.Container.Name, projectName))
 						}
 					}
 				} else if poolVol.Volume != nil {
