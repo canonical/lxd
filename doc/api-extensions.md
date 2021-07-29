@@ -1403,3 +1403,7 @@ Adds a new address field to lifecycle requestor.
 
 ## resources\_gpu\_usb
 Add a new USBAddress (usb\_address) field to ResourcesGPUCard (GPU entries) in the resources API.
+
+## clustering\_evacuation
+Adds `POST /1.0/cluster/members/<name>/state` endpoint for evacuating and restoring cluster members.
+It also adds the config keys `cluster.evacuate` and `volatile.evacuate.origin` for setting the evacuation method (`auto`, `stop` or `migrate`) and the origin of any migrated instance respectively.

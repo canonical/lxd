@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -34,6 +35,10 @@ import (
 )
 
 func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+	if d.cluster.LocalNodeIsEvacuated() {
+		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+	}
+
 	hash, err := instance.ResolveImage(d.State(), projectName, req.Source)
 	if err != nil {
 		return response.BadRequest(err)
@@ -141,6 +146,10 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 }
 
 func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+	if d.cluster.LocalNodeIsEvacuated() {
+		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+	}
+
 	dbType, err := instancetype.New(string(req.Type))
 	if err != nil {
 		return response.BadRequest(err)
@@ -186,6 +195,10 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 }
 
 func createFromMigration(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+	if d.cluster.LocalNodeIsEvacuated() && r.Context().Value(request.CtxProtocol) != "cluster" {
+		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+	}
+
 	// Validate migration mode.
 	if req.Source.Mode != "pull" && req.Source.Mode != "push" {
 		return response.NotImplemented(fmt.Errorf("Mode '%s' not implemented", req.Source.Mode))
@@ -394,6 +407,10 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 }
 
 func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
+	if d.cluster.LocalNodeIsEvacuated() {
+		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+	}
+
 	if req.Source.Source == "" {
 		return response.BadRequest(fmt.Errorf("Must specify a source instance"))
 	}

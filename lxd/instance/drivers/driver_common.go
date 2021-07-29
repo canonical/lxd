@@ -899,3 +899,60 @@ func (d *common) warningsDelete() error {
 
 	return nil
 }
+
+func (d *common) IsMigratable() bool {
+	config := d.ExpandedConfig()
+
+	val, ok := config["cluster.evacuate"]
+	if !ok {
+		val = "auto"
+	}
+
+	if val == "migrate" {
+		return true
+	}
+
+	if val == "stop" {
+		return false
+	}
+
+	devices := d.ExpandedDevices()
+
+	canMigrate := true
+
+	for _, dev := range devices {
+		switch dev["type"] {
+		case "disk":
+			// check pool
+			poolID, err := d.state.Cluster.GetStoragePoolID(dev["pool"])
+			if err != nil {
+				canMigrate = false
+				break
+			}
+
+			isRemote, err := d.state.Cluster.IsRemoteStorage(poolID)
+			if err != nil {
+				canMigrate = false
+				break
+			}
+
+			if !isRemote {
+				canMigrate = false
+				break
+			}
+		case "unix-char", "unix-block", "usb", "gpu":
+			canMigrate = false
+			break
+		}
+
+		if !canMigrate {
+			break
+		}
+	}
+
+	if !canMigrate {
+		return false
+	}
+
+	return true
+}
