@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -882,7 +883,7 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 		}
 
 		// Shortcut for mounted refquota filesystems.
-		if key == "referenced" && vol.contentType == ContentTypeFS && shared.IsMountPoint(vol.MountPath()) {
+		if key == "referenced" && vol.contentType == ContentTypeFS && filesystem.IsMountPoint(vol.MountPath()) {
 			var stat unix.Statfs_t
 			err := unix.Statfs(vol.MountPath(), &stat)
 			if err != nil {
@@ -1135,7 +1136,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 	// Check if filesystem volume already mounted.
 	if vol.contentType == ContentTypeFS {
 		mountPath := vol.MountPath()
-		if !shared.IsMountPoint(mountPath) {
+		if !filesystem.IsMountPoint(mountPath) {
 			err := vol.EnsureMountPath()
 			if err != nil {
 				return err
@@ -1199,7 +1200,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 	if vol.contentType == ContentTypeFS {
 		// Check if mounted.
 		mountPath := vol.MountPath()
-		if shared.IsMountPoint(mountPath) {
+		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
 				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
 				return false, ErrInUse
@@ -1705,7 +1706,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 
 	// Check if filesystem volume already mounted.
 	if snapVol.contentType == ContentTypeFS {
-		if !shared.IsMountPoint(mountPath) {
+		if !filesystem.IsMountPoint(mountPath) {
 			err := snapVol.EnsureMountPath()
 			if err != nil {
 				return false, err
@@ -1821,7 +1822,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	}
 
 	// Check if still mounted.
-	if shared.IsMountPoint(mountPath) {
+	if filesystem.IsMountPoint(mountPath) {
 		_, err := forceUnmount(mountPath)
 		if err != nil {
 			return false, err
