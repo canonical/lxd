@@ -697,7 +697,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 			return fmt.Errorf("The instance cannot be cleanly shutdown as in %s status", statusCode)
 		}
 
-		return fmt.Errorf("The instance is already stopped")
+		return ErrInstanceIsStopped
 	}
 
 	// Setup a new operation
@@ -3361,7 +3361,7 @@ func (d *qemu) Stop(stateful bool) error {
 	// Allow stop to proceed if statusCode is Error as we may need to forcefully kill the QEMU process.
 	statusCode := d.statusCode()
 	if !d.isRunningStatusCode(statusCode) && statusCode != api.Error {
-		return fmt.Errorf("The instance is already stopped")
+		return ErrInstanceIsStopped
 	}
 
 	// Check for stateful.
