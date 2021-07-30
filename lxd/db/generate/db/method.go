@@ -571,7 +571,7 @@ func (m *Method) id(buf *file.Buffer) error {
 	defer m.end(buf)
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "ID"))
-	buf.L("rows, err := stmt.Query(%s)", FieldParams(nk))
+	buf.L("rows, err := stmt.Query(%s)", mapping.FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        return -1, errors.Wrap(err, \"Failed to get %s ID\")", m.entity)
 	buf.L("}")
@@ -619,7 +619,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 
 	defer m.end(buf)
 
-	buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
+	buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        if err == ErrNoSuchObject {")
 	buf.L("                return false, nil")
@@ -770,7 +770,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 	defer m.end(buf)
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "rename"))
-	buf.L("result, err := stmt.Exec(%s)", "to, "+FieldParams(nk))
+	buf.L("result, err := stmt.Exec(%s)", "to, "+mapping.FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        return errors.Wrap(err, \"Rename %s\")", m.entity)
 	buf.L("}")
@@ -821,7 +821,7 @@ func (m *Method) update(buf *file.Buffer) error {
 	}
 
 	//buf.L("id, err := c.Get%s(%s)", lex.Camel(m.entity), FieldArgs(nk))
-	buf.L("id, err := c.Get%sID(%s)", lex.Camel(m.entity), FieldParams(nk))
+	buf.L("id, err := c.Get%sID(%s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 	buf.L("if err != nil {")
 	buf.L("        return errors.Wrap(err, \"Get %s\")", m.entity)
 	buf.L("}")
@@ -1062,15 +1062,15 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		rets = fmt.Sprintf("(%s, error)", lex.Slice(entityType(m.pkg, m.entity)))
 	case "Get":
 		comment = fmt.Sprintf("returns the %s with the given key.", m.entity)
-		args = FieldArgs(mapping.NaturalKey())
+		args = mapping.FieldArgs(mapping.NaturalKey())
 		rets = fmt.Sprintf("(%s, error)", lex.Star(entityType(m.pkg, m.entity)))
 	case "ID":
 		comment = fmt.Sprintf("return the ID of the %s with the given key.", m.entity)
-		args = FieldArgs(mapping.NaturalKey())
+		args = mapping.FieldArgs(mapping.NaturalKey())
 		rets = "(int64, error)"
 	case "Exists":
 		comment = fmt.Sprintf("checks if a %s with the given key exists.", m.entity)
-		args = FieldArgs(mapping.NaturalKey())
+		args = mapping.FieldArgs(mapping.NaturalKey())
 		rets = "(bool, error)"
 	case "Create":
 		entityCreate, ok := m.config["struct"]
@@ -1090,7 +1090,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		rets = "(int64, error)"
 	case "Rename":
 		comment = fmt.Sprintf("renames the %s matching the given key parameters.", m.entity)
-		args = FieldArgs(mapping.NaturalKey()) + ", to string"
+		args = mapping.FieldArgs(mapping.NaturalKey(), "to string")
 		rets = "error"
 	case "Update":
 		entityUpdate, ok := m.config["struct"]
@@ -1098,7 +1098,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 			entityUpdate = entityPut(m.entity)
 		}
 		comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
-		args = FieldArgs(mapping.NaturalKey()) + fmt.Sprintf(", object %s", entityType(m.pkg, entityUpdate))
+		args = mapping.FieldArgs(mapping.NaturalKey(), fmt.Sprintf("object %s", entityType(m.pkg, entityUpdate)))
 		rets = "error"
 	case "DeleteOne":
 		comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
