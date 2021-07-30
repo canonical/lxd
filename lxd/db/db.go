@@ -286,8 +286,7 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 		cluster.NodeID(nodeID)
 
 		// Delete any operation tied to this node
-		filter := OperationFilter{NodeID: nodeID}
-		err = tx.DeleteOperations(filter)
+		err = tx.DeleteOperations(nodeID)
 		if err != nil {
 			return err
 		}
