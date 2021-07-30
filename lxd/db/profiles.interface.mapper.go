@@ -10,11 +10,11 @@ type ProfileGenerated interface {
 	GetProfileURIs(filter ProfileFilter) ([]string, error)
 
 	// GetProfiles returns all available profiles.
-	// generator: profile List
+	// generator: profile GetMany
 	GetProfiles(filter ProfileFilter) ([]Profile, error)
 
 	// GetProfile returns the profile with the given key.
-	// generator: profile Get
+	// generator: profile GetOne
 	GetProfile(project string, name string) (*Profile, error)
 
 	// ProfileExists checks if a profile with the given key exists.
