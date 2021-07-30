@@ -907,37 +907,10 @@ func (c *ClusterTx) RenameInstance(project string, name string, to string) error
 }
 
 // DeleteInstance deletes the instance matching the given key parameters.
-// generator: instance DeleteOne
-func (c *ClusterTx) DeleteInstance(filter InstanceFilter) error {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-	if filter.Node != "" {
-		criteria["Node"] = filter.Node
-	}
-	if filter.Type != -1 {
-		criteria["Type"] = filter.Type
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if criteria["Project"] != nil && criteria["Name"] != nil {
-		stmt = c.stmt(instanceDeleteByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else {
-		return fmt.Errorf("No valid filter for instance delete")
-	}
-	result, err := stmt.Exec(args...)
+// generator: instance DeleteOne-by-Project-and-Name
+func (c *ClusterTx) DeleteInstance(project string, name string) error {
+	stmt := c.stmt(instanceDeleteByProjectAndName)
+	result, err := stmt.Exec(project, name)
 	if err != nil {
 		return errors.Wrap(err, "Delete instance")
 	}

@@ -208,39 +208,10 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
-// generator: certificate DeleteOne
-func (c *ClusterTx) DeleteCertificate(filter CertificateFilter) error {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Fingerprint != "" {
-		criteria["Fingerprint"] = filter.Fingerprint
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-	if filter.Type != -1 {
-		criteria["Type"] = filter.Type
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if criteria["Name"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(certificateDeleteByNameAndType)
-		args = []interface{}{
-			filter.Name,
-			filter.Type,
-		}
-	} else if criteria["Fingerprint"] != nil {
-		stmt = c.stmt(certificateDeleteByFingerprint)
-		args = []interface{}{
-			filter.Fingerprint,
-		}
-	} else {
-		return fmt.Errorf("No valid filter for certificate delete")
-	}
-	result, err := stmt.Exec(args...)
+// generator: certificate DeleteOne-by-Fingerprint
+func (c *ClusterTx) DeleteCertificate(fingerprint string) error {
+	stmt := c.stmt(certificateDeleteByFingerprint)
+	result, err := stmt.Exec(fingerprint)
 	if err != nil {
 		return errors.Wrap(err, "Delete certificate")
 	}
@@ -257,39 +228,10 @@ func (c *ClusterTx) DeleteCertificate(filter CertificateFilter) error {
 }
 
 // DeleteCertificates deletes the certificate matching the given key parameters.
-// generator: certificate DeleteMany
-func (c *ClusterTx) DeleteCertificates(filter CertificateFilter) error {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Fingerprint != "" {
-		criteria["Fingerprint"] = filter.Fingerprint
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-	if filter.Type != -1 {
-		criteria["Type"] = filter.Type
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if criteria["Name"] != nil && criteria["Type"] != nil {
-		stmt = c.stmt(certificateDeleteByNameAndType)
-		args = []interface{}{
-			filter.Name,
-			filter.Type,
-		}
-	} else if criteria["Fingerprint"] != nil {
-		stmt = c.stmt(certificateDeleteByFingerprint)
-		args = []interface{}{
-			filter.Fingerprint,
-		}
-	} else {
-		return fmt.Errorf("No valid filter for certificate delete")
-	}
-	result, err := stmt.Exec(args...)
+// generator: certificate DeleteMany-by-Name-and-Type
+func (c *ClusterTx) DeleteCertificates(name string, certificateType CertificateType) error {
+	stmt := c.stmt(certificateDeleteByNameAndType)
+	result, err := stmt.Exec(name, certificateType)
 	if err != nil {
 		return errors.Wrap(err, "Delete certificate")
 	}
