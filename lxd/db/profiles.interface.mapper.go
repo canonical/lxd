@@ -46,8 +46,8 @@ type ProfileGenerated interface {
 	RenameProfile(project string, name string, to string) error
 
 	// DeleteProfile deletes the profile matching the given key parameters.
-	// generator: profile DeleteOne
-	DeleteProfile(filter ProfileFilter) error
+	// generator: profile DeleteOne-by-Project-and-Name
+	DeleteProfile(project string, name string) error
 
 	// UpdateProfile updates the profile matching the given key parameters.
 	// generator: profile Update

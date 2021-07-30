@@ -42,8 +42,8 @@ type InstanceGenerated interface {
 	RenameInstance(project string, name string, to string) error
 
 	// DeleteInstance deletes the instance matching the given key parameters.
-	// generator: instance DeleteOne
-	DeleteInstance(filter InstanceFilter) error
+	// generator: instance DeleteOne-by-Project-and-Name
+	DeleteInstance(project string, name string) error
 
 	// UpdateInstance updates the instance matching the given key parameters.
 	// generator: instance Update
