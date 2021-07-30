@@ -66,6 +66,18 @@ func (m *Mapping) FieldByName(name string) *Field {
 	return nil
 }
 
+// ActiveFilters returns the active filter fields for the kind of method.
+func (m *Mapping) ActiveFilters(kind string) []*Field {
+	names := activeFilters(kind)
+	fields := []*Field{}
+	for _, name := range names {
+		if field := m.FieldByName(name); field != nil {
+			fields = append(fields, field)
+		}
+	}
+	return fields
+}
+
 // FieldColumnName returns the column name of the field with the given name,
 // prefixed with the entity's table name.
 func (m *Mapping) FieldColumnName(name string) string {
