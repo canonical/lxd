@@ -145,6 +145,42 @@ func (m *Mapping) RefFields() []*Field {
 	return fields
 }
 
+// FieldArgs converts the given fields to function arguments, rendering their
+// name and type.
+func (m *Mapping) FieldArgs(fields []*Field, extra ...string) string {
+	args := []string{}
+
+	for _, field := range fields {
+		name := lex.Minuscule(field.Name)
+		if name == "type" {
+			name = lex.Minuscule(m.Name) + field.Name
+		}
+		arg := fmt.Sprintf("%s %s", name, field.Type.Name)
+		args = append(args, arg)
+	}
+
+	for _, arg := range extra {
+		args = append(args, arg)
+	}
+
+	return strings.Join(args, ", ")
+}
+
+// FieldParams converts the given fields to function parameters, rendering their
+// name.
+func (m *Mapping) FieldParams(fields []*Field) string {
+	args := make([]string, len(fields))
+	for i, field := range fields {
+		name := lex.Minuscule(field.Name)
+		if name == "type" {
+			name = lex.Minuscule(m.Name) + field.Name
+		}
+		args[i] = name
+	}
+
+	return strings.Join(args, ", ")
+}
+
 // Field holds all information about a field in a Go struct that is relevant
 // for database code generation.
 type Field struct {
@@ -233,28 +269,6 @@ func FieldColumns(fields []*Field) string {
 	return strings.Join(columns, ", ")
 }
 
-// FieldArgs converts the given fields to function arguments, rendering their
-// name and type.
-func FieldArgs(fields []*Field) string {
-	args := make([]string, len(fields))
-	for i, field := range fields {
-		args[i] = fmt.Sprintf("%s %s", lex.Minuscule(field.Name), field.Type.Name)
-	}
-
-	return strings.Join(args, ", ")
-}
-
-// FieldParams converts the given fields to function parameters, rendering their
-// name.
-func FieldParams(fields []*Field) string {
-	args := make([]string, len(fields))
-	for i, field := range fields {
-		args[i] = lex.Minuscule(field.Name)
-	}
-
-	return strings.Join(args, ", ")
-}
-
 // FieldCriteria converts the given fields to AND-separated WHERE criteria.
 func FieldCriteria(fields []*Field) string {
 	criteria := make([]string, len(fields))
@@ -264,6 +278,15 @@ func FieldCriteria(fields []*Field) string {
 	}
 
 	return strings.Join(criteria, " AND ")
+}
+
+// FieldNames returns the names of the given fields.
+func FieldNames(fields []*Field) []string {
+	names := []string{}
+	for _, f := range fields {
+		names = append(names, f.Name)
+	}
+	return names
 }
 
 // Type holds all information about a field in a field type that is relevant
