@@ -19,8 +19,8 @@ import (
 
 //go:generate mapper method -p db -e operation List
 //go:generate mapper method -p db -e operation CreateOrReplace struct=Operation
-//go:generate mapper method -p db -e operation DeleteOne
-//go:generate mapper method -p db -e operation DeleteMany
+//go:generate mapper method -p db -e operation DeleteOne-by-UUID
+//go:generate mapper method -p db -e operation DeleteMany-by-NodeID
 
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.

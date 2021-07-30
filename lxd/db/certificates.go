@@ -32,8 +32,8 @@ import (
 //go:generate mapper method -p db -e certificate Exists struct=Certificate
 //go:generate mapper method -p db -e certificate Create struct=Certificate
 //go:generate mapper method -p db -e certificate ProjectsRef
-//go:generate mapper method -p db -e certificate DeleteOne
-//go:generate mapper method -p db -e certificate DeleteMany
+//go:generate mapper method -p db -e certificate DeleteOne-by-Fingerprint
+//go:generate mapper method -p db -e certificate DeleteMany-by-Name-and-Type
 //go:generate mapper method -p db -e certificate Update struct=Certificate
 
 // CertificateType indicates the type of the certificate.
