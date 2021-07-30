@@ -237,6 +237,25 @@ transition to the Blocked state, until you upgrade the very last
 one. At that point the blocked nodes will notice that there is no
 out-of-date node left and will become operational again.
 
+### Evacuating and restoring cluster members
+
+Whether it's for routine maintenance like applying system updates requiring
+a reboot or to perform hardware changes, you may sometimes want to empty a
+given server of all its instances.
+
+This can be done using `lxc cluster evacuate <NAME>` which will migrate all
+instances on that server, moving them to other cluster members. The evacuated
+cluster member will be transitioned to an "evacuated" state which will prevent
+the creation of any instances on it.
+
+Once maintenance is complete, `lxc cluster restore <NAME>` will move the server
+back into a normal running state and will move its instances back from the servers
+that were temporarily holding them.
+
+The behavior for a given instance can be configured through the `cluster.evacuate`
+instance configuration key. Instances will be shutdown cleanly, respecting the
+`boot.host_shutdown_timeout` configuration key.
+
 ### Failure domains
 
 Failure domains can be used to indicate which nodes should be given preference
