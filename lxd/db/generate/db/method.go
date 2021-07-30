@@ -44,7 +44,7 @@ func (m *Method) Generate(buf *file.Buffer) error {
 	if strings.HasSuffix(m.kind, "Ref") {
 		return m.ref(buf)
 	}
-	switch m.kind {
+	switch operation(m.kind) {
 	case "URIs":
 		return m.uris(buf)
 	case "GetMany":
@@ -1051,7 +1051,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		return nil
 	}
 
-	switch m.kind {
+	switch operation(m.kind) {
 	case "URIs":
 		comment = fmt.Sprintf("returns all available %s URIs.", m.entity)
 		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
@@ -1119,7 +1119,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string, isInterface bool) {
 	name := ""
 	entity := lex.Camel(m.entity)
-	switch m.kind {
+	switch operation(m.kind) {
 	case "URIs":
 		name = fmt.Sprintf("Get%sURIs", entity)
 	case "GetMany":
