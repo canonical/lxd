@@ -42,8 +42,8 @@ import (
 //go:generate mapper stmt -p db -e profile update struct=Profile
 //
 //go:generate mapper method -p db -e profile URIs
-//go:generate mapper method -p db -e profile List
-//go:generate mapper method -p db -e profile Get
+//go:generate mapper method -p db -e profile GetMany
+//go:generate mapper method -p db -e profile GetOne
 //go:generate mapper method -p db -e profile Exists struct=Profile
 //go:generate mapper method -p db -e profile ID struct=Profile
 //go:generate mapper method -p db -e profile ConfigRef

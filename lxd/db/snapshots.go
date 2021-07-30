@@ -31,8 +31,8 @@ import (
 //go:generate mapper stmt -p db -e instance_snapshot rename
 //go:generate mapper stmt -p db -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
-//go:generate mapper method -p db -e instance_snapshot List
-//go:generate mapper method -p db -e instance_snapshot Get
+//go:generate mapper method -p db -e instance_snapshot GetMany
+//go:generate mapper method -p db -e instance_snapshot GetOne
 //go:generate mapper method -p db -e instance_snapshot ID struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot Exists struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot Create struct=InstanceSnapshot

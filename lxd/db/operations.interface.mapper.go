@@ -6,7 +6,7 @@ package db
 // OperationGenerated is an interface of generated methods for Operation
 type OperationGenerated interface {
 	// GetOperations returns all available operations.
-	// generator: operation List
+	// generator: operation GetMany
 	GetOperations(filter OperationFilter) ([]Operation, error)
 
 	// CreateOrReplaceOperation adds a new operation to the database.
