@@ -43,7 +43,7 @@ import (
 //go:generate mapper method -p db -e project UsedByRef
 //go:generate mapper method -p db -e project ID struct=Project
 //go:generate mapper method -p db -e project Rename
-//go:generate mapper method -p db -e project DeleteOne
+//go:generate mapper method -p db -e project DeleteOne-by-Name
 
 // Project represents a LXD project
 type Project struct {
