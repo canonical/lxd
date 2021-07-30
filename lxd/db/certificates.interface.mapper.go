@@ -30,12 +30,12 @@ type CertificateGenerated interface {
 	CertificateProjectsRef(filter CertificateFilter) (map[string][]string, error)
 
 	// DeleteCertificate deletes the certificate matching the given key parameters.
-	// generator: certificate DeleteOne
-	DeleteCertificate(filter CertificateFilter) error
+	// generator: certificate DeleteOne-by-Fingerprint
+	DeleteCertificate(fingerprint string) error
 
 	// DeleteCertificates deletes the certificate matching the given key parameters.
-	// generator: certificate DeleteMany
-	DeleteCertificates(filter CertificateFilter) error
+	// generator: certificate DeleteMany-by-Name-and-Type
+	DeleteCertificates(name string, certificateType CertificateType) error
 
 	// UpdateCertificate updates the certificate matching the given key parameters.
 	// generator: certificate Update

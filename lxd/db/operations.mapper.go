@@ -146,38 +146,10 @@ func (c *ClusterTx) CreateOrReplaceOperation(object Operation) (int64, error) {
 }
 
 // DeleteOperation deletes the operation matching the given key parameters.
-// generator: operation DeleteOne
-func (c *ClusterTx) DeleteOperation(filter OperationFilter) error {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.ID != -1 {
-		criteria["ID"] = filter.ID
-	}
-	if filter.NodeID != -1 {
-		criteria["NodeID"] = filter.NodeID
-	}
-	if filter.UUID != "" {
-		criteria["UUID"] = filter.UUID
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if criteria["UUID"] != nil {
-		stmt = c.stmt(operationDeleteByUUID)
-		args = []interface{}{
-			filter.UUID,
-		}
-	} else if criteria["NodeID"] != nil {
-		stmt = c.stmt(operationDeleteByNodeID)
-		args = []interface{}{
-			filter.NodeID,
-		}
-	} else {
-		return fmt.Errorf("No valid filter for operation delete")
-	}
-	result, err := stmt.Exec(args...)
+// generator: operation DeleteOne-by-UUID
+func (c *ClusterTx) DeleteOperation(uUID string) error {
+	stmt := c.stmt(operationDeleteByUUID)
+	result, err := stmt.Exec(uUID)
 	if err != nil {
 		return errors.Wrap(err, "Delete operation")
 	}
@@ -194,38 +166,10 @@ func (c *ClusterTx) DeleteOperation(filter OperationFilter) error {
 }
 
 // DeleteOperations deletes the operation matching the given key parameters.
-// generator: operation DeleteMany
-func (c *ClusterTx) DeleteOperations(filter OperationFilter) error {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.ID != -1 {
-		criteria["ID"] = filter.ID
-	}
-	if filter.NodeID != -1 {
-		criteria["NodeID"] = filter.NodeID
-	}
-	if filter.UUID != "" {
-		criteria["UUID"] = filter.UUID
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if criteria["UUID"] != nil {
-		stmt = c.stmt(operationDeleteByUUID)
-		args = []interface{}{
-			filter.UUID,
-		}
-	} else if criteria["NodeID"] != nil {
-		stmt = c.stmt(operationDeleteByNodeID)
-		args = []interface{}{
-			filter.NodeID,
-		}
-	} else {
-		return fmt.Errorf("No valid filter for operation delete")
-	}
-	result, err := stmt.Exec(args...)
+// generator: operation DeleteMany-by-NodeID
+func (c *ClusterTx) DeleteOperations(nodeID int64) error {
+	stmt := c.stmt(operationDeleteByNodeID)
+	result, err := stmt.Exec(nodeID)
 	if err != nil {
 		return errors.Wrap(err, "Delete operation")
 	}
