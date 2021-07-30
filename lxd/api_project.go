@@ -570,8 +570,7 @@ func projectChange(d *Daemon, project *db.Project, req api.ProjectPut) response.
 				}
 			} else {
 				// Delete the project-specific default profile.
-				filter := db.ProfileFilter{Project: project.Name, Name: projecthelpers.Default}
-				err = tx.DeleteProfile(filter)
+				err = tx.DeleteProfile(project.Name, projecthelpers.Default)
 				if err != nil {
 					return errors.Wrap(err, "Delete project default profile")
 				}
@@ -731,7 +730,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrapf(err, "Fetch project id %q", name)
 		}
 
-		return tx.DeleteProject(db.ProjectFilter{Name: name})
+		return tx.DeleteProject(name)
 	})
 
 	if err != nil {
