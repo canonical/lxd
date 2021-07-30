@@ -930,74 +930,15 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		return errors.Wrap(err, "Parse entity struct")
 	}
 
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
-	}
-
-	filters := Filters(m.packages["db"], "delete", m.entity)
-
 	if err := m.signature(buf, false); err != nil {
 		return err
 	}
 
 	defer m.end(buf)
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
 
-	for _, name := range criteria {
-		var zero string
-		if name == "Parent" {
-			zero = `""`
-		} else {
-			field := mapping.FieldByName(name)
-			if field == nil {
-				return fmt.Errorf("No field named %q in filter struct", name)
-			}
-			zero = field.ZeroValue()
-		}
-		buf.L("if filter.%s != %s {", name, zero)
-		buf.L("        criteria[%q] = filter.%s", name, name)
-		buf.L("}")
-	}
-
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
-	buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-		buf.L("%s %s {", branch, activeCriteria(filter))
-
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "delete", filter...))
-		buf.L("args = []interface{}{")
-
-		for _, name := range filter {
-			if name == "Parent" {
-				buf.L("len(filter.Parent)+1,")
-				buf.L("filter.%s+\"/\",", name)
-			} else {
-				buf.L("filter.%s,", name)
-			}
-		}
-
-		buf.L("}")
-
-		// Last branch, no filter to use.
-		if i == len(filters)-1 {
-			buf.L("} else {")
-		}
-	}
-	// Else branch.
-	buf.L("return fmt.Errorf(\"No valid filter for %s delete\")", m.entity)
-	buf.L("}")
-
-	buf.L("result, err := stmt.Exec(args...)")
+	activeFilters := mapping.ActiveFilters(m.kind)
+	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
+	buf.L("result, err := stmt.Exec(%s)", mapping.FieldParams(activeFilters))
 	buf.L("if err != nil {")
 	buf.L("        return errors.Wrap(err, \"Delete %s\")", m.entity)
 	buf.L("}")
@@ -1102,11 +1043,11 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 		rets = "error"
 	case "DeleteOne":
 		comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
-		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+		args = mapping.FieldArgs(mapping.ActiveFilters(m.kind))
 		rets = "error"
 	case "DeleteMany":
 		comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
-		args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+		args = mapping.FieldArgs(mapping.ActiveFilters(m.kind))
 		rets = "error"
 	default:
 		return fmt.Errorf("Unknown method kind '%s'", m.kind)
