@@ -38,6 +38,6 @@ type InstanceSnapshotGenerated interface {
 	RenameInstanceSnapshot(project string, instance string, name string, to string) error
 
 	// DeleteInstanceSnapshot deletes the instance_snapshot matching the given key parameters.
-	// generator: instance_snapshot DeleteOne
-	DeleteInstanceSnapshot(filter InstanceSnapshotFilter) error
+	// generator: instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
+	DeleteInstanceSnapshot(project string, instance string, name string) error
 }

@@ -48,8 +48,7 @@ func TestOperation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].UUID)
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	err = tx.DeleteOperation(filter)
+	err = tx.DeleteOperation("abcd")
 	require.NoError(t, err)
 
 	filter = db.OperationFilter{UUID: "abcd"}
@@ -93,8 +92,7 @@ func TestOperationNoProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "abcd", ops[0].UUID)
 
-	filter = db.OperationFilter{UUID: "abcd"}
-	err = tx.DeleteOperation(filter)
+	err = tx.DeleteOperation("abcd")
 	require.NoError(t, err)
 
 	filter = db.OperationFilter{UUID: "abcd"}

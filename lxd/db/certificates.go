@@ -32,8 +32,8 @@ import (
 //go:generate mapper method -p db -e certificate Exists struct=Certificate
 //go:generate mapper method -p db -e certificate Create struct=Certificate
 //go:generate mapper method -p db -e certificate ProjectsRef
-//go:generate mapper method -p db -e certificate DeleteOne
-//go:generate mapper method -p db -e certificate DeleteMany
+//go:generate mapper method -p db -e certificate DeleteOne-by-Fingerprint
+//go:generate mapper method -p db -e certificate DeleteMany-by-Name-and-Type
 //go:generate mapper method -p db -e certificate Update struct=Certificate
 
 // CertificateType indicates the type of the certificate.
@@ -165,7 +165,7 @@ func (c *Cluster) CreateCertificate(cert Certificate) (int64, error) {
 // DeleteCertificate deletes a certificate from the db.
 func (c *Cluster) DeleteCertificate(fingerprint string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.DeleteCertificate(CertificateFilter{Fingerprint: fingerprint})
+		return tx.DeleteCertificate(fingerprint)
 	})
 	return err
 }
