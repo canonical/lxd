@@ -57,9 +57,9 @@ type InstanceSnapshot struct {
 
 // InstanceSnapshotFilter specifies potential query parameter fields.
 type InstanceSnapshotFilter struct {
-	Project  string
-	Instance string
-	Name     string
+	Project  *string
+	Instance *string
+	Name     *string
 }
 
 // InstanceSnapshotToInstance is a temporary convenience function to merge

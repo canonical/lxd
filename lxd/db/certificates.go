@@ -122,9 +122,9 @@ func (c *ClusterTx) UpdateCertificateProjects(id int, projects []string) error {
 
 // CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
-	Fingerprint string
-	Name        string
-	Type        CertificateType
+	Fingerprint *string
+	Name        *string
+	Type        *CertificateType
 }
 
 // GetCertificate gets an CertBaseInfo object from the database.

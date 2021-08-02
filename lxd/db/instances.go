@@ -100,10 +100,10 @@ type Instance struct {
 
 // InstanceFilter specifies potential query parameter fields.
 type InstanceFilter struct {
-	Project string
-	Name    string
-	Node    string
-	Type    instancetype.Type
+	Project *string
+	Name    *string
+	Node    *string
+	Type    *instancetype.Type
 }
 
 // InstanceFilterAllInstances returns a predefined filter for returning all instances.
