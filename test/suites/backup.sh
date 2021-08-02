@@ -12,6 +12,9 @@ test_container_recover() {
 
     ensure_import_testimage
 
+    poolName=$(lxc profile device get default root pool)
+    lxc storage set "${poolName}" user.foo=bah
+
     # Basic no-op check.
     cat <<EOF | lxd recover | grep "No unknown volumes found. Nothing to do."
 no
@@ -63,7 +66,6 @@ EOF
     lxc exec c1 -- ls
 
     # Test recover after pool DB config deletion too.
-    poolName=$(lxc profile device get default root pool)
     poolConfigBefore=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
     poolDriver=$(lxc storage show "${poolName}" | grep 'driver:' | awk '{print $2}')
     poolSource=$(lxc storage get "${poolName}" source)
