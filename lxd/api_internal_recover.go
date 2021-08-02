@@ -73,7 +73,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 	var err error
 	var projects map[string]*db.Project
 	var projectProfiles map[string][]*api.Profile
-	var projectNetworks map[string]map[int64]api.Network
+	var networks map[int64]api.Network
 
 	// Retrieve all project, profile and network info in a single transaction so we can use it for all
 	// imported instances and volumes, and avoid repeatedly querying the same information.
@@ -107,7 +107,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		}
 
 		// Load list of project/network names for validation.
-		projectNetworks, err = tx.GetCreatedNetworks()
+		networks, err = tx.GetCreatedNetworks()
 		if err != nil {
 			return err
 		}
@@ -211,11 +211,8 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 			// Look up effective project names for profiles and networks.
 			var profileProjectname string
-			var networkProjectName string
-
 			if projectInfo != nil {
 				profileProjectname = project.ProfileProjectFromRecord(projectInfo)
-				networkProjectName = project.NetworkProjectFromRecord(projectInfo)
 			} else {
 				addDependencyError(fmt.Errorf("Project %q", projectName))
 				continue // Skip further validation if project is missing.
@@ -251,7 +248,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					}
 
 					foundNetwork := false
-					for _, n := range projectNetworks[networkProjectName] {
+					for _, n := range networks {
 						if n.Name == devConfig["network"] {
 							foundNetwork = true
 							break
@@ -311,12 +308,10 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 				// Create missing storage pool DB record if neeed.
 				if pool.ID() == storagePools.PoolIDTemporary {
-					var poolID int64
-
 					if poolVol.Pool != nil {
 						// Create storage pool DB record from config in the instance.
 						logger.Info("Creating storage pool DB record from instance config", log.Ctx{"name": poolVol.Pool.Name, "description": poolVol.Pool.Description, "driver": poolVol.Pool.Driver, "config": poolVol.Pool.Config})
-						poolID, err = dbStoragePoolCreateAndUpdateCache(d.State(), poolVol.Pool.Name, poolVol.Pool.Description, poolVol.Pool.Driver, poolVol.Pool.Config)
+						_, err = dbStoragePoolCreateAndUpdateCache(d.State(), poolVol.Pool.Name, poolVol.Pool.Description, poolVol.Pool.Driver, poolVol.Pool.Config)
 						if err != nil {
 							return response.SmartError(errors.Wrapf(err, "Failed creating storage pool %q database entry", pool.Name()))
 						}
@@ -325,7 +320,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 						poolDriverName := pool.Driver().Info().Name
 						poolDriverConfig := pool.Driver().Config()
 						logger.Info("Creating storage pool DB record from user config", log.Ctx{"name": pool.Name(), "driver": poolDriverName, "config": poolDriverConfig})
-						poolID, err = dbStoragePoolCreateAndUpdateCache(d.State(), pool.Name(), "", poolDriverName, poolDriverConfig)
+						_, err = dbStoragePoolCreateAndUpdateCache(d.State(), pool.Name(), "", poolDriverName, poolDriverConfig)
 						if err != nil {
 							return response.SmartError(errors.Wrapf(err, "Failed creating storage pool %q database entry", pool.Name()))
 						}
@@ -335,14 +330,6 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 						dbStoragePoolDeleteAndUpdateCache(d.State(), pool.Name())
 					})
 
-					// Set storage pool node to storagePoolCreated.
-					// Must come before storage pool is loaded from the database.
-					err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
-						return tx.StoragePoolNodeCreated(poolID)
-					})
-					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed marking storage pool %q local status as created", pool.Name()))
-					}
 					logger.Debug("Marked storage pool local status as created", log.Ctx{"pool": pool.Name()})
 
 					newPool, err := storagePools.GetPoolByName(d.State(), pool.Name())
