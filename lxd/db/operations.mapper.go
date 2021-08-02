@@ -147,9 +147,9 @@ func (c *ClusterTx) CreateOrReplaceOperation(object Operation) (int64, error) {
 
 // DeleteOperation deletes the operation matching the given key parameters.
 // generator: operation DeleteOne-by-UUID
-func (c *ClusterTx) DeleteOperation(uUID string) error {
+func (c *ClusterTx) DeleteOperation(uuid string) error {
 	stmt := c.stmt(operationDeleteByUUID)
-	result, err := stmt.Exec(uUID)
+	result, err := stmt.Exec(uuid)
 	if err != nil {
 		return errors.Wrap(err, "Delete operation")
 	}
