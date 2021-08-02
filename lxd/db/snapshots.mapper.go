@@ -97,38 +97,28 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 	// Result slice.
 	objects := make([]InstanceSnapshot, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Instance != "" {
-		criteria["Instance"] = filter.Instance
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Instance"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
 		stmt = c.stmt(instanceSnapshotObjectsByProjectAndInstanceAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Instance,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil && criteria["Instance"] != nil {
+	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotObjectsByProjectAndInstance)
 		args = []interface{}{
 			filter.Project,
 			filter.Instance,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotObjects)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -211,9 +201,9 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 // generator: instance_snapshot GetOne
 func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name string) (*InstanceSnapshot, error) {
 	filter := InstanceSnapshotFilter{}
-	filter.Project = project
-	filter.Instance = instance
-	filter.Name = name
+	filter.Project = &project
+	filter.Instance = &instance
+	filter.Name = &name
 
 	objects, err := c.GetInstanceSnapshots(filter)
 	if err != nil {
@@ -363,38 +353,28 @@ func (c *ClusterTx) InstanceSnapshotConfigRef(filter InstanceSnapshotFilter) (ma
 		Value    string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Instance != "" {
-		criteria["Instance"] = filter.Instance
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Instance"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
 		stmt = c.stmt(instanceSnapshotConfigRefByProjectAndInstanceAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Instance,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil && criteria["Instance"] != nil {
+	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotConfigRefByProjectAndInstance)
 		args = []interface{}{
 			filter.Project,
 			filter.Instance,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotConfigRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -463,38 +443,28 @@ func (c *ClusterTx) InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (m
 		Value    string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Instance != "" {
-		criteria["Instance"] = filter.Instance
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Instance"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
 		stmt = c.stmt(instanceSnapshotDevicesRefByProjectAndInstanceAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Instance,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil && criteria["Instance"] != nil {
+	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotDevicesRefByProjectAndInstance)
 		args = []interface{}{
 			filter.Project,
 			filter.Instance,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotDevicesRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.

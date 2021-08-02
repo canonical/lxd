@@ -65,63 +65,47 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	// Result slice.
 	objects := make([]Image, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Fingerprint != "" {
-		criteria["Fingerprint"] = filter.Fingerprint
-	}
-	if filter.Public != false {
-		criteria["Public"] = filter.Public
-	}
-	if filter.Cached != false {
-		criteria["Cached"] = filter.Cached
-	}
-	if filter.AutoUpdate != false {
-		criteria["AutoUpdate"] = filter.AutoUpdate
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Public"] != nil {
+	if filter.Project != nil && filter.Public != nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		stmt = c.stmt(imageObjectsByProjectAndPublic)
 		args = []interface{}{
 			filter.Project,
 			filter.Public,
 		}
-	} else if criteria["Project"] != nil && criteria["Cached"] != nil {
+	} else if filter.Project != nil && filter.Cached != nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
 		stmt = c.stmt(imageObjectsByProjectAndCached)
 		args = []interface{}{
 			filter.Project,
 			filter.Cached,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		stmt = c.stmt(imageObjectsByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if criteria["Fingerprint"] != nil {
+	} else if filter.Fingerprint != nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		stmt = c.stmt(imageObjectsByFingerprint)
 		args = []interface{}{
 			filter.Fingerprint,
 		}
-	} else if criteria["Cached"] != nil {
+	} else if filter.Cached != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
 		stmt = c.stmt(imageObjectsByCached)
 		args = []interface{}{
 			filter.Cached,
 		}
-	} else if criteria["AutoUpdate"] != nil {
+	} else if filter.AutoUpdate != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
 		stmt = c.stmt(imageObjectsByAutoUpdate)
 		args = []interface{}{
 			filter.AutoUpdate,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
 		stmt = c.stmt(imageObjects)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -158,8 +142,8 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 // generator: image GetOne
 func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error) {
 	filter := ImageFilter{}
-	filter.Project = project
-	filter.Fingerprint = fingerprint
+	filter.Project = &project
+	filter.Fingerprint = &fingerprint
 
 	objects, err := c.GetImages(filter)
 	if err != nil {
