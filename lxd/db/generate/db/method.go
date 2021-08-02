@@ -78,16 +78,6 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 }
 
 func (m *Method) uris(buf *file.Buffer) error {
-	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
-	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
-	}
-
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
-	}
-
 	filters := FiltersFromStmt(m.packages["db"], "objects", m.entity)
 
 	if err := m.signature(buf, false); err != nil {
@@ -95,29 +85,8 @@ func (m *Method) uris(buf *file.Buffer) error {
 	}
 
 	defer m.end(buf)
-
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
-
-	for _, name := range criteria {
-		if name == "Parent" {
-			continue
-		}
-		field := mapping.FieldByName(name)
-		if field == nil {
-			return fmt.Errorf("No field named %q in filter struct", name)
-		}
-		buf.L("if filter.%s != %s {", name, field.ZeroValue())
-		buf.L("        criteria[%q] = filter.%s", name, name)
-		buf.L("}")
-	}
-
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
 	buf.L("var args []interface{}")
-	buf.N()
-
+	buf.L("var stmt *sql.Stmt")
 	for i, filter := range filters {
 		branch := "if"
 		if i > 0 {
@@ -177,29 +146,6 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
 		buf.L("args := []interface{}{}")
 	} else {
-		buf.L("// Check which filter criteria are active.")
-		buf.L("criteria := map[string]interface{}{}")
-		criteria, err := Criteria(m.packages["db"], m.entity)
-		if err != nil {
-			return errors.Wrap(err, "Parse filter struct")
-		}
-
-		for _, name := range criteria {
-			var zero string
-			if name == "Parent" {
-				zero = `""`
-			} else {
-				field := mapping.FieldByName(name)
-				if field == nil {
-					return fmt.Errorf("No field named %q in filter struct", name)
-				}
-				zero = field.ZeroValue()
-			}
-			buf.L("if filter.%s != %s {", name, zero)
-			buf.L("        criteria[%q] = filter.%s", name, name)
-			buf.L("}")
-		}
-
 		buf.N()
 		buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
 		buf.L("var stmt *sql.Stmt")
@@ -279,11 +225,7 @@ func (m *Method) getOne(buf *file.Buffer) error {
 
 	buf.L("filter := %s{}", entityFilter(m.entity))
 	for _, field := range nk {
-		buf.L("filter.%s = %s", field.Name, lex.Minuscule(field.Name))
-	}
-	// FIXME: snowflake
-	if m.entity == "instance" {
-		buf.L("filter.Type = -1")
+		buf.L("filter.%s = &%s", field.Name, lex.Minuscule(field.Name))
 	}
 	buf.N()
 	buf.L("objects, err := c.Get%s(filter)", lex.Plural(lex.Camel(m.entity)))
@@ -386,31 +328,6 @@ func (m *Method) ref(buf *file.Buffer) error {
 		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, m.kind))
 		buf.L("args := []interface{}{}")
 	} else {
-		criteria, err := Criteria(m.packages["db"], m.entity)
-		if err != nil {
-			return errors.Wrap(err, "Parse filter struct")
-		}
-
-		buf.L("// Check which filter criteria are active.")
-		buf.L("criteria := map[string]interface{}{}")
-
-		for _, name := range criteria {
-			var zero string
-			if name == "Parent" {
-				zero = `""`
-			} else {
-				field := mapping.FieldByName(name)
-				if !field.IsPrimary() {
-					continue
-				}
-				zero = field.ZeroValue()
-			}
-			buf.L("if filter.%s != %s {", name, zero)
-			buf.L("        criteria[%q] = filter.%s", name, name)
-			buf.L("}")
-		}
-
-		buf.N()
 		buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
 		buf.L("var stmt *sql.Stmt")
 		buf.L("var args []interface{}")
