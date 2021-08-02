@@ -56,7 +56,7 @@ func CertificateAPITypeToDBType(apiType string) (CertificateType, error) {
 // Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
 	ID          int
-	Fingerprint string `db:"primary=yes&comparison=like"`
+	Fingerprint string `db:"primary=yes"`
 	Type        CertificateType
 	Name        string
 	Certificate string
@@ -87,7 +87,7 @@ func (cert *Certificate) ToAPI() api.Certificate {
 
 // CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
-	Fingerprint string // Matched with LIKE
+	Fingerprint string
 	Name        string
 	Type        CertificateType
 }
