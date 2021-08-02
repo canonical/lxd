@@ -42,6 +42,6 @@ type ProjectGenerated interface {
 	RenameProject(name string, to string) error
 
 	// DeleteProject deletes the project matching the given key parameters.
-	// generator: project DeleteOne
-	DeleteProject(filter ProjectFilter) error
+	// generator: project DeleteOne-by-Name
+	DeleteProject(name string) error
 }

@@ -723,31 +723,10 @@ func (c *ClusterTx) RenameProfile(project string, name string, to string) error 
 }
 
 // DeleteProfile deletes the profile matching the given key parameters.
-// generator: profile DeleteOne
-func (c *ClusterTx) DeleteProfile(filter ProfileFilter) error {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if criteria["Project"] != nil && criteria["Name"] != nil {
-		stmt = c.stmt(profileDeleteByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else {
-		return fmt.Errorf("No valid filter for profile delete")
-	}
-	result, err := stmt.Exec(args...)
+// generator: profile DeleteOne-by-Project-and-Name
+func (c *ClusterTx) DeleteProfile(project string, name string) error {
+	stmt := c.stmt(profileDeleteByProjectAndName)
+	result, err := stmt.Exec(project, name)
 	if err != nil {
 		return errors.Wrap(err, "Delete profile")
 	}

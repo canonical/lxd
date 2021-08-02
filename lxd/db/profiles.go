@@ -51,7 +51,7 @@ import (
 //go:generate mapper method -p db -e profile UsedByRef
 //go:generate mapper method -p db -e profile Create struct=Profile
 //go:generate mapper method -p db -e profile Rename
-//go:generate mapper method -p db -e profile DeleteOne
+//go:generate mapper method -p db -e profile DeleteOne-by-Project-and-Name
 //go:generate mapper method -p db -e profile Update struct=Profile
 
 // Profile is a value object holding db-related details about a profile.

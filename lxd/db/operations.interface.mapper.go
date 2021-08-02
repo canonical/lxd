@@ -14,10 +14,10 @@ type OperationGenerated interface {
 	CreateOrReplaceOperation(object Operation) (int64, error)
 
 	// DeleteOperation deletes the operation matching the given key parameters.
-	// generator: operation DeleteOne
-	DeleteOperation(filter OperationFilter) error
+	// generator: operation DeleteOne-by-UUID
+	DeleteOperation(uUID string) error
 
 	// DeleteOperations deletes the operation matching the given key parameters.
-	// generator: operation DeleteMany
-	DeleteOperations(filter OperationFilter) error
+	// generator: operation DeleteMany-by-NodeID
+	DeleteOperations(nodeID int64) error
 }

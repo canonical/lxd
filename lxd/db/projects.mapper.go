@@ -451,27 +451,10 @@ func (c *ClusterTx) RenameProject(name string, to string) error {
 }
 
 // DeleteProject deletes the project matching the given key parameters.
-// generator: project DeleteOne
-func (c *ClusterTx) DeleteProject(filter ProjectFilter) error {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if criteria["Name"] != nil {
-		stmt = c.stmt(projectDeleteByName)
-		args = []interface{}{
-			filter.Name,
-		}
-	} else {
-		return fmt.Errorf("No valid filter for project delete")
-	}
-	result, err := stmt.Exec(args...)
+// generator: project DeleteOne-by-Name
+func (c *ClusterTx) DeleteProject(name string) error {
+	stmt := c.stmt(projectDeleteByName)
+	result, err := stmt.Exec(name)
 	if err != nil {
 		return errors.Wrap(err, "Delete project")
 	}

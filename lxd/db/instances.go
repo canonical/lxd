@@ -75,7 +75,7 @@ import (
 //go:generate mapper method -p db -e instance ConfigRef
 //go:generate mapper method -p db -e instance DevicesRef
 //go:generate mapper method -p db -e instance Rename
-//go:generate mapper method -p db -e instance DeleteOne
+//go:generate mapper method -p db -e instance DeleteOne-by-Project-and-Name
 //go:generate mapper method -p db -e instance Update struct=Instance
 
 // Instance is a value object holding db-related details about an instance.
@@ -726,22 +726,12 @@ SELECT storage_pools.name FROM storage_pools
 func (c *Cluster) DeleteInstance(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		filter := InstanceSnapshotFilter{
-			Project:  project,
-			Instance: parts[0],
-			Name:     parts[1],
-		}
 		return c.Transaction(func(tx *ClusterTx) error {
-			return tx.DeleteInstanceSnapshot(filter)
+			return tx.DeleteInstanceSnapshot(project, parts[0], parts[1])
 		})
 	}
-
-	filter := InstanceFilter{
-		Project: project,
-		Name:    name,
-	}
 	return c.Transaction(func(tx *ClusterTx) error {
-		return tx.DeleteInstance(filter)
+		return tx.DeleteInstance(project, name)
 	})
 }
 
