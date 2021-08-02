@@ -53,11 +53,11 @@ type Image struct {
 
 // ImageFilter can be used to filter results yielded by GetImages.
 type ImageFilter struct {
-	Project     string
-	Fingerprint string
-	Public      bool
-	Cached      bool
-	AutoUpdate  bool
+	Project     *string
+	Fingerprint *string
+	Public      *bool
+	Cached      *bool
+	AutoUpdate  *bool
 }
 
 // ImageSourceProtocol maps image source protocol codes to human-readable names.
