@@ -157,6 +157,8 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	fmt.Print("Scanning for unknown volumes...\n")
+
 	// Send /internal/recover/validate request to LXD.
 	reqValidate := internalRecoverValidatePost{
 		Pools: make([]api.StoragePoolsPost, 0, len(existingPools)+len(unknownPools)),
@@ -218,6 +220,8 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 	if !proceed {
 		return nil
 	}
+
+	fmt.Print("Starting recovery...\n")
 
 	// Send /internal/recover/import request to LXD.
 	reqImport := internalRecoverImportPost{
