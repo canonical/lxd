@@ -88,7 +88,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse filter struct")
 	}
 
-	filters := Filters(m.packages["db"], "objects", m.entity)
+	filters := FiltersFromStmt(m.packages["db"], "objects", m.entity)
 
 	if err := m.signature(buf, false); err != nil {
 		return err
@@ -164,7 +164,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse filter struct")
 	}
 
-	filters := Filters(m.packages["db"], "objects", m.entity)
+	filters := FiltersFromStmt(m.packages["db"], "objects", m.entity)
 
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := entityType(m.pkg, m.entity)
@@ -379,7 +379,7 @@ func (m *Method) ref(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse filter struct")
 	}
 
-	filters := RefFilters(m.packages["db"], m.entity, name)
+	filters := RefFiltersFromStmt(m.packages["db"], m.entity, name)
 
 	buf.L("// Result slice.")
 	buf.L("objects := make(%s, 0)", lex.Slice(destType))
