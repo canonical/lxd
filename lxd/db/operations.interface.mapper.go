@@ -15,7 +15,7 @@ type OperationGenerated interface {
 
 	// DeleteOperation deletes the operation matching the given key parameters.
 	// generator: operation DeleteOne-by-UUID
-	DeleteOperation(uUID string) error
+	DeleteOperation(uuid string) error
 
 	// DeleteOperations deletes the operation matching the given key parameters.
 	// generator: operation DeleteMany-by-NodeID
