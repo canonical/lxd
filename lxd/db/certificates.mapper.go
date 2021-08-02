@@ -8,6 +8,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -25,7 +26,7 @@ SELECT certificates.id, certificates.fingerprint, certificates.type, certificate
 var certificateObjectsByFingerprint = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate
   FROM certificates
-  WHERE certificates.fingerprint LIKE ? ORDER BY certificates.fingerprint
+  WHERE certificates.fingerprint = ? ORDER BY certificates.fingerprint
 `)
 
 var certificateID = cluster.RegisterStmt(`
