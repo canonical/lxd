@@ -100,32 +100,6 @@ func sortFilter(filter []string) []string {
 	return f
 }
 
-// Criteria returns a list of criteria
-func Criteria(pkg *ast.Package, entity string) ([]string, error) {
-	name := fmt.Sprintf("%sFilter", lex.Camel(entity))
-	str := findStruct(pkg.Scope, name)
-
-	if str == nil {
-		return nil, fmt.Errorf("No filter declared for %q", entity)
-	}
-
-	criteria := []string{}
-
-	for _, f := range str.Fields.List {
-		if len(f.Names) != 1 {
-			return nil, fmt.Errorf("Unexpected fields number")
-		}
-
-		if !f.Names[0].IsExported() {
-			return nil, fmt.Errorf("Unexported field name")
-		}
-
-		criteria = append(criteria, f.Names[0].Name)
-	}
-
-	return criteria, nil
-}
-
 // Parse the structure declaration with the given name found in the given Go package.
 // Any 'Entity' struct should also have an 'EntityFilter' struct defined in the same file.
 func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
