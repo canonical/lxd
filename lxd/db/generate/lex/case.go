@@ -11,8 +11,11 @@ func Capital(s string) string {
 	return strings.Title(s)
 }
 
-// Minuscule turns the first character to lower case ("Foo" -> "foo")
+// Minuscule turns the first character to lower case ("Foo" -> "foo") or the whole word if it is all uppercase ("UUID" -> "uuid")
 func Minuscule(s string) string {
+	if strings.ToUpper(s) == s {
+		return strings.ToLower(s)
+	}
 	return strings.ToLower(s[:1]) + s[1:]
 }
 
