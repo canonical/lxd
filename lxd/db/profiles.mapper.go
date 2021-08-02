@@ -138,33 +138,24 @@ UPDATE profiles
 // GetProfileURIs returns all available profile URIs.
 // generator: profile URIs
 func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
 	var args []interface{}
-
-	if criteria["Project"] != nil && criteria["Name"] != nil {
+	var stmt *sql.Stmt
+	if filter.Project != nil && filter.Name != nil {
 		stmt = c.stmt(profileNamesByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil {
 		stmt = c.stmt(profileNamesByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileNames)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	code := cluster.EntityTypes["profile"]
@@ -179,33 +170,26 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	// Result slice.
 	objects := make([]Profile, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Name != nil {
 		stmt = c.stmt(profileObjectsByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil {
 		stmt = c.stmt(profileObjectsByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjects)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -300,8 +284,8 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 // generator: profile GetOne
 func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 	filter := ProfileFilter{}
-	filter.Project = project
-	filter.Name = name
+	filter.Project = &project
+	filter.Name = &name
 
 	objects, err := c.GetProfiles(filter)
 	if err != nil {
@@ -373,33 +357,26 @@ func (c *ClusterTx) ProfileConfigRef(filter ProfileFilter) (map[string]map[strin
 		Value   string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Name != nil {
 		stmt = c.stmt(profileConfigRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil {
 		stmt = c.stmt(profileConfigRefByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileConfigRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -459,33 +436,26 @@ func (c *ClusterTx) ProfileDevicesRef(filter ProfileFilter) (map[string]map[stri
 		Value   string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Name != nil {
 		stmt = c.stmt(profileDevicesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil {
 		stmt = c.stmt(profileDevicesRefByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileDevicesRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -561,33 +531,26 @@ func (c *ClusterTx) ProfileUsedByRef(filter ProfileFilter) (map[string]map[strin
 		Value   string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Name != nil {
 		stmt = c.stmt(profileUsedByRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil {
 		stmt = c.stmt(profileUsedByRefByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileUsedByRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
