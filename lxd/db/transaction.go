@@ -53,3 +53,13 @@ func (c *ClusterTx) stmt(code int) *sql.Stmt {
 	}
 	return c.tx.Stmt(stmt)
 }
+
+// prepare prepares a new statement from a SQL string.
+func (c *ClusterTx) prepare(sql string) (*sql.Stmt, error) {
+	stmt, err := c.tx.Prepare(sql)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to prepare statement with error: %v", err)
+	}
+
+	return stmt, nil
+}
