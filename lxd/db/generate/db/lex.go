@@ -75,7 +75,7 @@ func activeCriteria(filter []string) string {
 		if i > 0 {
 			expr += " && "
 		}
-		expr += fmt.Sprintf("criteria[%q] != nil", name)
+		expr += fmt.Sprintf("filter.%s != nil", name)
 	}
 
 	return expr
