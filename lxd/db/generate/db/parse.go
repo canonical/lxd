@@ -36,9 +36,9 @@ var defaultPackages = []string{
 	"github.com/lxc/lxd/lxd/db",
 }
 
-// Filters parses all filtering statement defined for the given entity. It
+// FiltersFromStmt parses all filtering statement defined for the given entity. It
 // returns all supported combinations of filters, sorted by number of criteria.
-func Filters(pkg *ast.Package, kind string, entity string) [][]string {
+func FiltersFromStmt(pkg *ast.Package, kind string, entity string) [][]string {
 	objects := pkg.Scope.Objects
 	filters := [][]string{}
 
@@ -55,8 +55,8 @@ func Filters(pkg *ast.Package, kind string, entity string) [][]string {
 	return sortFilters(filters)
 }
 
-// RefFilters parses all filtering statement defined for the given entity reference.
-func RefFilters(pkg *ast.Package, entity string, ref string) [][]string {
+// RefFiltersFromStmt parses all filtering statement defined for the given entity reference.
+func RefFiltersFromStmt(pkg *ast.Package, entity string, ref string) [][]string {
 	objects := pkg.Scope.Objects
 	filters := [][]string{}
 
