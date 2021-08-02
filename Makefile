@@ -102,6 +102,7 @@ update-schema:
 	mv lxd/db/generate/lxd-generate $(GOPATH)/bin
 	go generate ./...
 	gofmt -s -w ./lxd/db/
+	goimports -w ./lxd/db/
 	@echo "Code generation completed"
 
 .PHONY: update-api
