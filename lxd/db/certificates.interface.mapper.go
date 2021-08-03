@@ -25,10 +25,6 @@ type CertificateGenerated interface {
 	// generator: certificate Create
 	CreateCertificate(object Certificate) (int64, error)
 
-	// CertificateProjectsRef returns entities used by certificates.
-	// generator: certificate ProjectsRef
-	CertificateProjectsRef(filter CertificateFilter) (map[string][]string, error)
-
 	// DeleteCertificate deletes the certificate matching the given key parameters.
 	// generator: certificate DeleteOne-by-Fingerprint
 	DeleteCertificate(fingerprint string) error
