@@ -14,7 +14,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -563,8 +563,7 @@ func LoadByProject(s *state.State, project string) ([]Instance, error) {
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
-			Project: project,
-			Type:    instancetype.Any,
+			Project: &project,
 		}
 		var err error
 		cts, err = tx.GetInstances(filter)
