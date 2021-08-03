@@ -1029,6 +1029,10 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 
 	// Optimized backup.
 
+	if vol.ContentType() == ContentTypeBlock && vol.Type() == VolumeTypeCustom {
+		return ErrNotImplemented
+	}
+
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
 		err := vol.SnapshotsMatch(snapshots, op)
