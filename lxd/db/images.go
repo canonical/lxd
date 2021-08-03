@@ -276,7 +276,8 @@ func (c *Cluster) GetExpiredImages(expiry int64) ([]ExpiredImage, error) {
 	var images []Image
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		images, err = tx.GetImages(ImageFilter{Cached: true})
+		cached := true
+		images, err = tx.GetImages(ImageFilter{Cached: &cached})
 		return err
 	})
 	if err != nil {

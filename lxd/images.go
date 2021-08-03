@@ -27,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/filter"
@@ -1373,7 +1373,8 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		images, err := tx.GetImages(db.ImageFilter{AutoUpdate: true})
+		autoUpdate := true
+		images, err := tx.GetImages(db.ImageFilter{AutoUpdate: &autoUpdate})
 		if err != nil {
 			return err
 		}
