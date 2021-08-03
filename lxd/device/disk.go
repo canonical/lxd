@@ -252,6 +252,8 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				if d.config["path"] != "" {
 					return fmt.Errorf("Custom block volumes cannot have a path defined")
 				}
+			} else if d.config["path"] == "" {
+				return fmt.Errorf("Custom filesystem volumes require a path to be defined")
 			}
 		}
 	}
