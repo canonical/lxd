@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -117,6 +118,11 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		return response.SmartError(errors.Wrapf(err, "Failed getting validate dependency check info"))
 	}
 
+	isClustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	res := internalRecoverValidateResult{}
 
 	revert := revert.New()
@@ -142,6 +148,12 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		pool, err := storagePools.GetPoolByName(d.State(), p.Name)
 		if err != nil {
 			if errors.Cause(err) == db.ErrNoSuchObject {
+				// If the pool DB record doesn't exist, and we are clustered, then don't proceed
+				// any further as we do not support pool DB record recovery when clustered.
+				if isClustered {
+					return response.BadRequest(fmt.Errorf("Storage pool recovery not supported when clustered"))
+				}
+
 				// If pool doesn't exist in DB, initialise a temporary pool with the supplied info.
 				poolInfo := api.StoragePool{
 					Name:           p.Name,
