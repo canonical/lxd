@@ -14,6 +14,10 @@ test_container_recover() {
 
     poolName=$(lxc profile device get default root pool)
     lxc storage set "${poolName}" user.foo=bah
+    lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
+    lxc profile device add default root disk path=/ pool="${poolName}" --project test
+    lxc profile device add default eth0 nic nictype=p2p --project test
+    lxc project switch test
 
     # Basic no-op check.
     cat <<EOF | lxd recover | grep "No unknown volumes found. Nothing to do."
@@ -38,12 +42,12 @@ EOF
     # Check snapshot exists and container can be started.
     lxc info c1 | grep snap0
     lxc start c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
 
     # Check snashot can be restored.
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
 
     # Recover container that is running.
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
@@ -60,10 +64,10 @@ yes
 EOF
 
     lxc info c1 | grep snap0
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
 
     # Test recover after pool DB config deletion too.
     poolConfigBefore=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
@@ -116,11 +120,13 @@ EOF
     lxc storage show "${poolName}"
 
     lxc info c1 | grep snap0
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- ls
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- ls
     lxc delete -f c1
+    lxc project switch default
+    lxc project delete test
   )
 
   # shellcheck disable=SC2031
