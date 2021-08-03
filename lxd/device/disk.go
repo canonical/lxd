@@ -235,6 +235,10 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			if remoteInstance != nil {
 				return fmt.Errorf("Custom volume is already attached to an instance on a different node")
 			}
+
+			if d.config["path"] == "" {
+				return fmt.Errorf("Custom filesystem volumes require a path to be defined")
+			}
 		}
 	}
 
