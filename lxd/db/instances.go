@@ -338,9 +338,8 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 	projectHasProfiles := map[string]bool{}
 	profilesByProjectAndName := map[string]map[string]Profile{}
 
-	// Default to listing all instances if no filter provided.
 	if filter == nil {
-		filter = InstanceFilterAllInstances()
+		filter = &InstanceFilter{}
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
@@ -550,9 +549,9 @@ func (c *ClusterTx) GetLocalInstancesInProject(projectName string, instanceType 
 	}
 
 	filter := InstanceFilter{
-		Project: projectName,
-		Node:    node,
-		Type:    instanceType,
+		Project: &projectName,
+		Node:    &node,
+		Type:    &instanceType,
 	}
 
 	return c.GetInstances(filter)
