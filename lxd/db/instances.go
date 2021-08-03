@@ -669,8 +669,8 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([
 		return nil, err
 	}
 	filter := InstanceSnapshotFilter{
-		Project:  project,
-		Instance: name,
+		Project:  &project,
+		Instance: &name,
 	}
 
 	snapshots, err := c.GetInstanceSnapshots(filter)
