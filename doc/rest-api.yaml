@@ -301,6 +301,18 @@ definitions:
         x-go-name: Roles
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  ClusterMemberStatePost:
+    properties:
+      action:
+        description: The action to be performed. Valid actions are "evacuate" and
+          "restore".
+        example: evacuate
+        type: string
+        x-go-name: Action
+    title: ClusterMemberStatePost represents the fields required to evacuate a cluster
+      member.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   ClusterMembersPost:
     properties:
       server_name:
@@ -3087,6 +3099,11 @@ definitions:
         x-go-name: ProductID
       sriov:
         $ref: '#/definitions/ResourcesGPUCardSRIOV'
+      usb_address:
+        description: USB address (for USB cards)
+        example: "2:7"
+        type: string
+        x-go-name: USBAddress
       vendor:
         description: Name of the vendor
         example: Intel Corporation
