@@ -349,7 +349,8 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		if err != nil {
 			return err
 		}
-		filter := db.OperationFilter{NodeID: tx.GetNodeID()}
+		nodeID := tx.GetNodeID()
+		filter := db.OperationFilter{NodeID: &nodeID}
 		operations, err = tx.GetOperations(filter)
 		if err != nil {
 			return err
