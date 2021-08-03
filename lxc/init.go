@@ -168,11 +168,31 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			return nil, "", err
 		}
 
-		if network.Type == "bridge" {
-			devicesMap[c.flagNetwork] = map[string]string{"type": "nic", "nictype": "bridged", "parent": c.flagNetwork}
+		// Prepare the instance's NIC device entry.
+		var device map[string]string
+
+		if network.Managed && d.HasExtension("instance_nic_network") {
+			// If network is managed, use the network property rather than nictype, so that the
+			// network's inherited properties are loaded into the NIC when started.
+			device = map[string]string{
+				"type":    "nic",
+				"network": network.Name,
+			}
 		} else {
-			devicesMap[c.flagNetwork] = map[string]string{"type": "nic", "nictype": "macvlan", "parent": c.flagNetwork}
+			// If network is unmanaged default to using a macvlan connected to the specified interface.
+			device = map[string]string{
+				"type":    "nic",
+				"nictype": "macvlan",
+				"parent":  c.flagNetwork,
+			}
+
+			if network.Type == "bridge" {
+				// If the network type is an unmanaged bridge, use bridged NIC type.
+				device["nictype"] = "bridged"
+			}
 		}
+
+		devicesMap[c.flagNetwork] = device
 	}
 
 	if len(stdinData.Config) > 0 {
