@@ -1010,8 +1010,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 	}
 
 	instances, err := tx.GetInstances(db.InstanceFilter{
-		Type:    instancetype.Any,
-		Project: projectName,
+		Project: &projectName,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch project instances from database")
