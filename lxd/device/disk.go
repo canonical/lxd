@@ -238,7 +238,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 				return fmt.Errorf("Custom volume is already attached to an instance on a different node")
 			}
 
-			// Check only block type volumes are attached to VM instances.
+			// Check that block volumes are *only* attached to VM instances.
 			contentType, err := storagePools.VolumeContentTypeNameToContentType(vol.ContentType)
 			if err != nil {
 				return err
