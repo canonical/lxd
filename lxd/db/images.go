@@ -270,7 +270,8 @@ func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]str
 	var images []Image
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		images, err = tx.GetImages(ImageFilter{Cached: true, Project: project})
+		cached := true
+		images, err = tx.GetImages(ImageFilter{Cached: &cached, Project: &project})
 		return err
 	})
 	if err != nil {
