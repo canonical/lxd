@@ -13,7 +13,13 @@ test_container_recover() {
     ensure_import_testimage
 
     poolName=$(lxc profile device get default root pool)
+    poolDriver=$(lxc storage show "${poolName}" | grep 'driver:' | awk '{print $2}')
+
     lxc storage set "${poolName}" user.foo=bah
+    lxc project create test -c features.images=false -c features.profiles=true -c features.storage.volumes=true
+    lxc profile device add default root disk path=/ pool="${poolName}" --project test
+    lxc profile device add default eth0 nic nictype=p2p --project test
+    lxc project switch test
 
     # Basic no-op check.
     cat <<EOF | lxd recover | grep "No unknown volumes found. Nothing to do."
@@ -21,13 +27,55 @@ no
 yes
 EOF
 
-    # Recover container that isn't running.
+    # Recover container and custom volume that isn't mounted.
     lxc init testimage c1
+    lxc storage volume create "${poolName}" vol1_test
+    lxc storage volume attach "${poolName}" vol1_test c1 /mnt
+    lxc start c1
+    lxc exec c1 --project test -- mount | grep /mnt
+    echo "hello world" | lxc exec c1 --project test -- tee /mnt/test.txt
+    lxc exec c1 --project test -- cat /mnt/test.txt | grep "hello world"
+    lxc stop -f c1
     lxc snapshot c1
     lxc info c1
+
+    lxc storage volume snapshot "${poolName}" vol1_test snap0
+    lxc storage volume ls "${poolName}" | grep vol1_test
+    lxc storage volume ls "${poolName}" | grep -c vol1_test | grep 2
+
+    # Remove container DB records and symlink.
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='c1'"
+    rm "${LXD_DIR}/containers/test_c1"
+
+    # Remove mount directories if block backed storage.
+    if [ "$poolDriver" != "dir" ] && [ "$poolDriver" != "btrfs" ] && [ "$poolDriver" != "cephfs" ]; then
+      rmdir "${LXD_DIR}/storage-pools/${poolName}/containers/test_c1"
+      rmdir "${LXD_DIR}/storage-pools/${poolName}/containers-snapshots/test_c1/snap0"
+      rmdir "${LXD_DIR}/storage-pools/${poolName}/containers-snapshots/test_c1"
+    fi
+
+    # Remove custom volume DB record.
+    lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM storage_volumes WHERE name='vol1_test'"
+
+    # Remove mount directories if block backed storage.
+    if [ "$poolDriver" != "dir" ] && [ "$poolDriver" != "btrfs" ] && [ "$poolDriver" != "cephfs" ]; then
+      rmdir "${LXD_DIR}/storage-pools/${poolName}/custom/test_vol1_test"
+      rmdir "${LXD_DIR}/storage-pools/${poolName}/custom-snapshots/test_vol1_test/snap0"
+      rmdir "${LXD_DIR}/storage-pools/${poolName}/custom-snapshots/test_vol1_test"
+    fi
+
+    # Check container appears removed.
+    ! ls "${LXD_DIR}/containers/test_c1" || false
     ! lxc info c1 || false
+
+    if [ "$poolDriver" != "dir" ] && [ "$poolDriver" != "btrfs" ] && [ "$poolDriver" != "cephfs" ]; then
+      ! ls "${LXD_DIR}/storage-pools/${poolName}/containers/test_c1" || false
+      ! ls "${LXD_DIR}/storage-pools/${poolName}/containers-snapshots/test_c1" || false
+    fi
+
+    # Check custom volume appears removed.
+    ! lxc storage volume ls "${poolName}" | grep vol1_test || false
 
     cat <<EOF | lxd recover
 no
@@ -35,15 +83,32 @@ yes
 yes
 EOF
 
+    # Check container mount directories have been restored.
+    ls "${LXD_DIR}/containers/test_c1"
+    ls "${LXD_DIR}/storage-pools/${poolName}/containers/test_c1"
+    ls "${LXD_DIR}/storage-pools/${poolName}/containers-snapshots/test_c1/snap0"
+
+    # Check custom volume mount directories have been restored.
+    ls "${LXD_DIR}/storage-pools/${poolName}/custom/test_vol1_test"
+    ls "${LXD_DIR}/storage-pools/${poolName}/custom-snapshots/test_vol1_test/snap0"
+
+    # Check custom volume record exists with snapshot.
+    lxc storage volume ls "${poolName}" | grep vol1_test
+    lxc storage volume ls "${poolName}" | grep -c vol1_test | grep 2
+
     # Check snapshot exists and container can be started.
     lxc info c1 | grep snap0
     lxc start c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
+
+    # Check custom volume accessible.
+    lxc exec c1 --project test -- mount | grep /mnt
+    lxc exec c1 --project test -- cat /mnt/test.txt | grep "hello world"
 
     # Check snashot can be restored.
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
 
     # Recover container that is running.
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
@@ -60,14 +125,13 @@ yes
 EOF
 
     lxc info c1 | grep snap0
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- hostname
 
     # Test recover after pool DB config deletion too.
     poolConfigBefore=$(lxd sql global "SELECT key,value FROM storage_pools_config JOIN storage_pools ON storage_pools.id = storage_pools_config.storage_pool_id WHERE storage_pools.name = '${poolName}' ORDER BY key")
-    poolDriver=$(lxc storage show "${poolName}" | grep 'driver:' | awk '{print $2}')
     poolSource=$(lxc storage get "${poolName}" source)
     poolExtraConfig=""
 
@@ -116,11 +180,14 @@ EOF
     lxc storage show "${poolName}"
 
     lxc info c1 | grep snap0
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- ls
     lxc restore c1 snap0
     lxc info c1
-    lxc exec c1 -- ls
+    lxc exec c1 --project test -- ls
     lxc delete -f c1
+    lxc storage volume delete "${poolName}" vol1_test
+    lxc project switch default
+    lxc project delete test
   )
 
   # shellcheck disable=SC2031

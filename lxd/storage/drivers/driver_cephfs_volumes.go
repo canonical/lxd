@@ -345,7 +345,7 @@ func (d *cephfs) GetVolumeDiskPath(vol Volume) (string, error) {
 
 // ListVolumes returns a list of LXD volumes in storage pool.
 func (d *cephfs) ListVolumes() ([]Volume, error) {
-	return nil, ErrNotImplemented
+	return genericVFSListVolumes(d)
 }
 
 // MountVolume sets up the volume for use.
