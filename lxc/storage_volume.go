@@ -160,7 +160,7 @@ type cmdStorageVolumeAttach struct {
 
 func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>] <path>"))
+	cmd.Use = usage("attach", i18n.G("[<remote>:]<pool> <volume> <instance> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to instances`))
@@ -172,7 +172,7 @@ func (c *cmdStorageVolumeAttach) Command() *cobra.Command {
 
 func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 4, 5)
+	exit, err := c.global.CheckArgs(cmd, args, 3, 5)
 	if exit {
 		return err
 	}
@@ -192,7 +192,9 @@ func (c *cmdStorageVolumeAttach) Run(cmd *cobra.Command, args []string) error {
 	// Attach the volume
 	devPath := ""
 	devName := ""
-	if len(args) == 4 {
+	if len(args) == 3 {
+		devName = args[1]
+	} else if len(args) == 4 {
 		// Only the path has been given to us.
 		devPath = args[3]
 		devName = args[1]
@@ -233,7 +235,7 @@ type cmdStorageVolumeAttachProfile struct {
 
 func (c *cmdStorageVolumeAttachProfile) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>] <path>"))
+	cmd.Use = usage("attach-profile", i18n.G("[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"))
 	cmd.Short = i18n.G("Attach new storage volumes to profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Attach new storage volumes to profiles`))
@@ -245,7 +247,7 @@ func (c *cmdStorageVolumeAttachProfile) Command() *cobra.Command {
 
 func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 4, 5)
+	exit, err := c.global.CheckArgs(cmd, args, 3, 5)
 	if exit {
 		return err
 	}
@@ -265,7 +267,9 @@ func (c *cmdStorageVolumeAttachProfile) Run(cmd *cobra.Command, args []string) e
 	// Attach the volume
 	devPath := ""
 	devName := ""
-	if len(args) == 4 {
+	if len(args) == 3 {
+		devName = args[1]
+	} else if len(args) == 4 {
 		// Only the path has been given to us.
 		devPath = args[3]
 		devName = args[1]
