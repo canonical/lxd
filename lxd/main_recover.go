@@ -49,6 +49,8 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	isClustered := d.IsClustered()
+
 	// Get list of existing storage pools to scan.
 	existingPools, err := d.GetStoragePools()
 	if err != nil {
@@ -60,83 +62,87 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 		fmt.Printf(" - %s (backend=%q, source=%q)\n", existingPool.Name, existingPool.Driver, existingPool.Config["source"])
 	}
 
-	// Build up a list of unknown pools to scan.
 	unknownPools := make([]api.StoragePoolsPost, 0, len(existingPools))
 
-	var supportedDriverNames []string
-
-	for {
-		addUnknownPool, err := cli.AskBool("Would you like to recover another storage pool? (yes/no) [default=no]: ", "no")
-		if err != nil {
-			return err
-		}
-
-		if !addUnknownPool {
-			break
-		}
-
-		// Get available storage drivers if not done already.
-		if supportedDriverNames == nil {
-			for _, supportedDriver := range server.Environment.StorageSupportedDrivers {
-				supportedDriverNames = append(supportedDriverNames, supportedDriver.Name)
-			}
-		}
-
-		unknownPool := api.StoragePoolsPost{
-			StoragePoolPut: api.StoragePoolPut{
-				Config: make(map[string]string),
-			},
-		}
-
-		unknownPool.Name, err = cli.AskString("Name of the storage pool: ", "", validate.Required(func(value string) error {
-			if value == "" {
-				return fmt.Errorf("Pool name cannot be empty")
-			}
-
-			for _, p := range unknownPools {
-				if value == p.Name {
-					return fmt.Errorf("Storage pool %q is already on recover list", value)
-				}
-			}
-
-			return nil
-		}))
-		if err != nil {
-			return err
-		}
-
-		unknownPool.Driver, err = cli.AskString(fmt.Sprintf("Name of the storage backend (%s): ", strings.Join(supportedDriverNames, ", ")), "", validate.IsOneOf(supportedDriverNames...))
-		if err != nil {
-			return err
-		}
-
-		unknownPool.Config["source"], err = cli.AskString("Source of the storage pool (block device, volume group, dataset, path, ... as applicable): ", "", validate.IsNotEmpty)
-		if err != nil {
-			return err
-		}
+	// Build up a list of unknown pools to scan.
+	// We don't offer this option if the server is clustered because we don't allow creating storage pools on
+	// an individual server when clustered.
+	if !isClustered {
+		var supportedDriverNames []string
 
 		for {
-			var configKey, configValue string
-			cli.AskString("Additional storage pool configuration property (KEY=VALUE, empty when done): ", "", validate.Optional(func(value string) error {
-				configParts := strings.SplitN(value, "=", 2)
-				if len(configParts) < 2 {
-					return fmt.Errorf("Config option should be in the format KEY=VALUE")
-				}
+			addUnknownPool, err := cli.AskBool("Would you like to recover another storage pool? (yes/no) [default=no]: ", "no")
+			if err != nil {
+				return err
+			}
 
-				configKey = configParts[0]
-				configValue = configParts[1]
-
-				return nil
-			}))
-
-			if configKey == "" {
+			if !addUnknownPool {
 				break
 			}
 
-			unknownPool.Config[configKey] = configValue
-		}
+			// Get available storage drivers if not done already.
+			if supportedDriverNames == nil {
+				for _, supportedDriver := range server.Environment.StorageSupportedDrivers {
+					supportedDriverNames = append(supportedDriverNames, supportedDriver.Name)
+				}
+			}
 
-		unknownPools = append(unknownPools, unknownPool)
+			unknownPool := api.StoragePoolsPost{
+				StoragePoolPut: api.StoragePoolPut{
+					Config: make(map[string]string),
+				},
+			}
+
+			unknownPool.Name, err = cli.AskString("Name of the storage pool: ", "", validate.Required(func(value string) error {
+				if value == "" {
+					return fmt.Errorf("Pool name cannot be empty")
+				}
+
+				for _, p := range unknownPools {
+					if value == p.Name {
+						return fmt.Errorf("Storage pool %q is already on recover list", value)
+					}
+				}
+
+				return nil
+			}))
+			if err != nil {
+				return err
+			}
+
+			unknownPool.Driver, err = cli.AskString(fmt.Sprintf("Name of the storage backend (%s): ", strings.Join(supportedDriverNames, ", ")), "", validate.IsOneOf(supportedDriverNames...))
+			if err != nil {
+				return err
+			}
+
+			unknownPool.Config["source"], err = cli.AskString("Source of the storage pool (block device, volume group, dataset, path, ... as applicable): ", "", validate.IsNotEmpty)
+			if err != nil {
+				return err
+			}
+
+			for {
+				var configKey, configValue string
+				cli.AskString("Additional storage pool configuration property (KEY=VALUE, empty when done): ", "", validate.Optional(func(value string) error {
+					configParts := strings.SplitN(value, "=", 2)
+					if len(configParts) < 2 {
+						return fmt.Errorf("Config option should be in the format KEY=VALUE")
+					}
+
+					configKey = configParts[0]
+					configValue = configParts[1]
+
+					return nil
+				}))
+
+				if configKey == "" {
+					break
+				}
+
+				unknownPool.Config[configKey] = configValue
+			}
+
+			unknownPools = append(unknownPools, unknownPool)
+		}
 	}
 
 	fmt.Printf("The recovery process will be scanning the following storage pools:\n")
