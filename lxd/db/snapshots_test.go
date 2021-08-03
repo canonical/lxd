@@ -70,7 +70,9 @@ func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
 	addInstanceSnapshot(t, tx, 2, "snap1")
 	addInstanceSnapshot(t, tx, 2, "snap2")
 
-	filter := db.InstanceSnapshotFilter{Project: "default", Instance: "c2"}
+	project := "default"
+	instance := "c2"
+	filter := db.InstanceSnapshotFilter{Project: &project, Instance: &instance}
 	snapshots, err := tx.GetInstanceSnapshots(filter)
 	require.NoError(t, err)
 	assert.Len(t, snapshots, 2)
@@ -137,7 +139,9 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	_, err = tx.CreateInstanceSnapshot(s1p1)
 	require.NoError(t, err)
 
-	filter := db.InstanceSnapshotFilter{Project: "p1", Instance: "i1"}
+	instance := "i1"
+	project := "p1"
+	filter := db.InstanceSnapshotFilter{Project: &project, Instance: &instance}
 	snapshots, err := tx.GetInstanceSnapshots(filter)
 	require.NoError(t, err)
 
