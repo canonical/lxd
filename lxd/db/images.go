@@ -449,10 +449,12 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 // The fingerprint argument will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint. However in case the
 // shortform matches more than one image, an error will be returned.
-func (c *Cluster) GetImage(project, fingerprint string, public bool) (int, *api.Image, error) {
+// publicOnly, when true, will return the image only if it is public;
+// a false value will return any image matching the fingerprint prefix.
+func (c *Cluster) GetImage(project string, fingerprintPrefix string, publicOnly bool) (int, *api.Image, error) {
 	var image api.Image
 	var object Image
-	if fingerprint == "" {
+	if fingerprintPrefix == "" {
 		return -1, nil, ErrNoSuchObject
 	}
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -467,12 +469,12 @@ func (c *Cluster) GetImage(project, fingerprint string, public bool) (int, *api.
 
 		// FIXME
 		// Properly check zero values of 'public', and don't include it in GetImage at all if it should be ignored.
-		publicOrNil := &public
-		if !public {
+		publicOrNil := &publicOnly
+		if !publicOnly {
 			publicOrNil = nil
 		}
 
-		images, err := tx.getImagesByFingerprintPrefix(fingerprint, &project, publicOrNil)
+		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, &project, publicOrNil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch images")
 		}
