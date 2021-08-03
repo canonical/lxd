@@ -373,12 +373,47 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				pool = newPool // Replace temporary pool handle with proper one from DB.
 			}
 
-			// Recover unknown volumes.
+			// Recover unknown custom volumes (do this first before recovering instances so that any
+			// instances that reference unknown custom volume disk devices can be created).
 			for _, poolVol := range poolVols {
-				// Recover instance volume.
 				if poolVol.Container != nil {
-					profiles := make([]api.Profile, 0, len(poolVol.Container.Profiles))
-					for _, profileName := range poolVol.Container.Profiles {
+					continue // Skip instance volumes.
+				} else if poolVol.Container == nil && poolVol.Volume == nil {
+					return response.SmartError(fmt.Errorf("Volume is neither instance nor custom volume"))
+				}
+
+				// Import custom volume and any snapshots.
+				err = pool.ImportCustomVolume(customStorageProjectName, *poolVol, nil)
+				if err != nil {
+					return response.SmartError(errors.Wrapf(err, "Failed importing custom volume %q in project %q", poolVol.Volume.Name, projectName))
+				}
+			}
+
+			// Recover unknown instance volumes.
+			for _, poolVol := range poolVols {
+				if poolVol.Container == nil && poolVol.Volume != nil {
+					continue // Skip custom volumes and invalid volumes.
+				}
+
+				// Recover instance volumes and any snapshots.
+				profiles := make([]api.Profile, 0, len(poolVol.Container.Profiles))
+				for _, profileName := range poolVol.Container.Profiles {
+					for i := range projectProfiles[profileProjectName] {
+						if projectProfiles[profileProjectName][i].Name == profileName {
+							profiles = append(profiles, *projectProfiles[profileProjectName][i])
+						}
+					}
+				}
+
+				inst, err := internalRecoverImportInstance(d.State(), pool, projectName, poolVol, profiles, revert)
+				if err != nil {
+					return response.SmartError(errors.Wrapf(err, "Failed creating instance %q record in project %q", poolVol.Container.Name, projectName))
+				}
+
+				// Recover instance volume snapshots.
+				for _, poolInstSnap := range poolVol.Snapshots {
+					profiles := make([]api.Profile, 0, len(poolInstSnap.Profiles))
+					for _, profileName := range poolInstSnap.Profiles {
 						for i := range projectProfiles[profileProjectName] {
 							if projectProfiles[profileProjectName][i].Name == profileName {
 								profiles = append(profiles, *projectProfiles[profileProjectName][i])
@@ -386,51 +421,26 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 						}
 					}
 
-					inst, err := internalRecoverImportInstance(d.State(), pool, projectName, poolVol, profiles, revert)
+					err = internalRecoverImportInstanceSnapshot(d.State(), pool, projectName, poolVol, poolInstSnap, profiles, revert)
 					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed creating instance %q record in project %q", poolVol.Container.Name, projectName))
+						return response.SmartError(errors.Wrapf(err, "Failed creating instance %q snapshot %q record in project %q", poolVol.Container.Name, poolInstSnap.Name, projectName))
 					}
+				}
 
-					// Recover instance volume snapshots.
-					for _, poolInstSnap := range poolVol.Snapshots {
-						profiles := make([]api.Profile, 0, len(poolInstSnap.Profiles))
-						for _, profileName := range poolInstSnap.Profiles {
-							for i := range projectProfiles[profileProjectName] {
-								if projectProfiles[profileProjectName][i].Name == profileName {
-									profiles = append(profiles, *projectProfiles[profileProjectName][i])
-								}
-							}
-						}
+				// Recreate instance mount path and symlinks (must come after snapshot recovery).
+				err = pool.ImportInstance(inst, nil)
+				if err != nil {
+					return response.SmartError(errors.Wrapf(err, "Failed importing instance %q in project %q", poolVol.Container.Name, projectName))
+				}
 
-						err = internalRecoverImportInstanceSnapshot(d.State(), pool, projectName, poolVol, poolInstSnap, profiles, revert)
-						if err != nil {
-							return response.SmartError(errors.Wrapf(err, "Failed creating instance %q snapshot %q record in project %q", poolVol.Container.Name, poolInstSnap.Name, projectName))
-						}
-					}
-
-					// Recreate instance mount path and symlinks (must come after snapshot recovery).
-					err = pool.ImportInstance(inst, nil)
+				// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
+				// opportunity to reinitialise the quota based on the new storage volume's DB ID).
+				_, rootConfig, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+				if err == nil {
+					err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
 					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed importing instance %q in project %q", poolVol.Container.Name, projectName))
+						return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q for instance %q in project %q", rootConfig["size"], poolVol.Container.Name, projectName))
 					}
-
-					// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
-					// opportunity to reinitialise the quota based on the new storage volume's DB ID).
-					_, rootConfig, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
-					if err == nil {
-						err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
-						if err != nil {
-							return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q for instance %q in project %q", rootConfig["size"], poolVol.Container.Name, projectName))
-						}
-					}
-				} else if poolVol.Volume != nil {
-					// Import custom volume and any snapshots.
-					err = pool.ImportCustomVolume(customStorageProjectName, *poolVol, nil)
-					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed importing custom volume %q in project %q", poolVol.Volume.Name, projectName))
-					}
-				} else {
-					return response.SmartError(fmt.Errorf("Volume is neither instance nor custom volume"))
 				}
 			}
 		}
