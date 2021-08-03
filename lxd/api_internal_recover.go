@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -194,11 +193,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		// Get list of unknown volumes on pool.
 		poolProjectVols, err := pool.ListUnknownVolumes(nil)
 		if err != nil {
-			if errors.Cause(err) == storageDrivers.ErrNotImplemented {
-				logger.Error("Pool driver hasn't implemented recovery yet, skipping", log.Ctx{"pool": pool.Name(), "err": err})
-			} else {
-				return response.SmartError(errors.Wrapf(err, "Failed validating volumes on pool %q", pool.Name()))
-			}
+			return response.SmartError(errors.Wrapf(err, "Failed checking volumes on pool %q", pool.Name()))
 		}
 
 		// Store for consumption after validation scan to avoid needing to reprocess.
