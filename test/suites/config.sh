@@ -138,16 +138,16 @@ test_config_profiles() {
   lxc profile create one
   lxc profile create two
   lxc profile assign foo one,two
-  [ "$(lxc info foo | grep Profiles)" = "Profiles: one, two" ]
+  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one two" ]
   lxc profile assign foo ""
-  [ "$(lxc info foo | grep Profiles)" = "Profiles: " ]
+  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "" ]
   lxc profile apply foo one # backwards compat check with `lxc profile apply`
-  [ "$(lxc info foo | grep Profiles)" = "Profiles: one" ]
+  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
   lxc profile assign foo ""
   lxc profile add foo one
-  [ "$(lxc info foo | grep Profiles)" = "Profiles: one" ]
+  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "one" ]
   lxc profile remove foo one
-  [ "$(lxc info foo | grep Profiles)" = "Profiles: " ]
+  [ "$(lxc list -f json foo | jq -r '.[0].profiles | join(" ")')" = "" ]
 
   lxc profile create stdintest
   echo "BADCONF" | lxc profile set stdintest user.user_data -
