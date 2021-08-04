@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
@@ -380,11 +379,12 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 		Stateful:     inst.IsStateful(),
 	}
 
-	// If we are moving the instance to a new name, then we need to create the copy of the instance on the new
-	// pool with a temporary name that is different from the source to avoid conflicts. Then after the source
-	// instance has been deleted we will rename the new instance back to the original name.
+	// If we are moving the instance to a new pool but keeping the same instace name, then we need to create
+	// the copy of the instance on the new pool with a temporary name that is different from the source to
+	// avoid conflicts. Then after the source instance has been deleted we will rename the new instance back
+	// to the original name.
 	if newName == inst.Name() {
-		args.Name = fmt.Sprintf("lxd-copy-of-%d", inst.ID())
+		args.Name = instance.MoveTemporaryName(inst)
 	}
 
 	// Copy instance to new target instance.
@@ -467,7 +467,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// name.
 		if destName == "" || destName == oldName {
 			isSameName = true
-			destName = fmt.Sprintf("move-%s", uuid.NewRandom().String())
+			destName = instance.MoveTemporaryName(inst)
 		}
 
 		// First make a copy on the new node of the container to be moved.
