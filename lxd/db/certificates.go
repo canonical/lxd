@@ -46,6 +46,9 @@ const CertificateTypeClient = CertificateType(1)
 // CertificateTypeServer indicates a server certificate type.
 const CertificateTypeServer = CertificateType(2)
 
+// CertificateTypeMetrics indicates a metrics certificate type.
+const CertificateTypeMetrics = CertificateType(3)
+
 // CertificateAPITypeToDBType converts an API type to the equivalent DB type.
 func CertificateAPITypeToDBType(apiType string) (CertificateType, error) {
 	switch apiType {
@@ -53,6 +56,8 @@ func CertificateAPITypeToDBType(apiType string) (CertificateType, error) {
 		return CertificateTypeClient, nil
 	case api.CertificateTypeServer:
 		return CertificateTypeServer, nil
+	case api.CertificateTypeMetrics:
+		return CertificateTypeMetrics, nil
 	}
 
 	return -1, fmt.Errorf("Invalid certificate type")
@@ -76,6 +81,8 @@ func (cert *Certificate) ToAPIType() string {
 		return api.CertificateTypeClient
 	case CertificateTypeServer:
 		return api.CertificateTypeServer
+	case CertificateTypeMetrics:
+		return api.CertificateTypeMetrics
 	}
 
 	return api.CertificateTypeUnknown
