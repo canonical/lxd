@@ -499,7 +499,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		if cs.Disk != nil {
 			for entry, disk := range cs.Disk {
 				if disk.Usage != 0 {
-					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeString(disk.Usage, 2))
+					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
 				}
 			}
 		}
@@ -523,19 +523,19 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		// Memory usage
 		memoryInfo := ""
 		if cs.Memory.Usage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeString(cs.Memory.Usage, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeStringIEC(cs.Memory.Usage, 2))
 		}
 
 		if cs.Memory.UsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeString(cs.Memory.UsagePeak, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeStringIEC(cs.Memory.UsagePeak, 2))
 		}
 
 		if cs.Memory.SwapUsage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeString(cs.Memory.SwapUsage, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeStringIEC(cs.Memory.SwapUsage, 2))
 		}
 
 		if cs.Memory.SwapUsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeString(cs.Memory.SwapUsagePeak, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeStringIEC(cs.Memory.SwapUsagePeak, 2))
 		}
 
 		if memoryInfo != "" {
