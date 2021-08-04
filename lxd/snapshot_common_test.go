@@ -18,7 +18,7 @@ func (suite *containerTestSuite) TestSnapshotScheduling() {
 		Name:      "hal9000",
 	}
 
-	c, err := instance.CreateInternal(suite.d.State(), args, true, nil, revert.New())
+	c, op, err := instance.CreateInternal(suite.d.State(), args, true, nil, revert.New())
 	suite.Req.Nil(err)
 	suite.Equal(true, snapshotIsScheduledNow("* * * * *",
 		int64(c.ID())),
@@ -33,6 +33,7 @@ func (suite *containerTestSuite) TestSnapshotScheduling() {
 		" * * * * *",
 		int64(c.ID())),
 		"snapshot.schedule config '* * * * *' should have matched now")
+	op.Done(nil)
 }
 
 func TestSnapshotCommon(t *testing.T) {

@@ -921,10 +921,11 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				_, err := instance.LoadByProjectAndName(state, args.Instance.Project(), snapArgs.Name)
 				if err != nil {
 					// Create the snapshot as it doesn't seem to exist.
-					_, err := instance.CreateInternal(state, snapArgs, true, nil, revert)
+					_, snapInstOp, err := instance.CreateInternal(state, snapArgs, true, nil, revert)
 					if err != nil {
 						return errors.Wrapf(err, "Failed creating instance snapshot record %q", snapArgs.Name)
 					}
+					defer snapInstOp.Done(err)
 				}
 			}
 		}
