@@ -331,7 +331,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	info.Fingerprint = fmt.Sprintf("%x", sha256.Sum(nil))
 	info.CreatedAt = time.Now().UTC()
 
-	_, _, err = d.cluster.GetImage(projectName, info.Fingerprint, false)
+	_, _, err = d.cluster.GetImage(info.Fingerprint, db.ImageFilter{Project: &projectName})
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return nil, err
@@ -386,7 +386,7 @@ func imgPostRemoteInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *opera
 		return nil, err
 	}
 
-	id, info, err := d.cluster.GetImage(project, info.Fingerprint, false)
+	id, info, err := d.cluster.GetImage(info.Fingerprint, db.ImageFilter{Project: &project})
 	if err != nil {
 		return nil, err
 	}
@@ -466,7 +466,7 @@ func imgPostURLInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operatio
 		return nil, err
 	}
 
-	id, info, err := d.cluster.GetImage(project, info.Fingerprint, false)
+	id, info, err := d.cluster.GetImage(info.Fingerprint, db.ImageFilter{Project: &project})
 	if err != nil {
 		return nil, err
 	}
@@ -927,7 +927,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Alias already exists: %s", alias.Name)
 			}
 
-			id, _, err := d.cluster.GetImage(projectName, info.Fingerprint, false)
+			id, _, err := d.cluster.GetImage(info.Fingerprint, db.ImageFilter{Project: &projectName})
 			if err != nil {
 				return errors.Wrapf(err, "Fetch image %q", info.Fingerprint)
 			}
@@ -1446,7 +1446,12 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 		var newImage *api.Image
 
 		for _, image := range images {
-			_, imageInfo, err := d.cluster.GetImage(image.Project, image.Fingerprint, image.Public)
+			filter := db.ImageFilter{Project: &image.Project}
+			if image.Public {
+				filter.Public = &image.Public
+			}
+
+			_, imageInfo, err := d.cluster.GetImage(image.Fingerprint, filter)
 			if err != nil {
 				logger.Error("Failed to get image", log.Ctx{"err": err, "project": image.Project, "fingerprint": image.Fingerprint})
 				continue
@@ -1772,7 +1777,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 			continue
 		}
 
-		newID, _, err := d.cluster.GetImage(projectName, hash, false)
+		newID, _, err := d.cluster.GetImage(hash, db.ImageFilter{Project: &projectName})
 		if err != nil {
 			logger.Error("Error loading image", log.Ctx{"err": err, "fingerprint": hash})
 			continue
@@ -2005,7 +2010,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation
 			}
 		}
 
-		imgID, _, err := d.cluster.GetImage(img.ProjectName, img.Fingerprint, false)
+		imgID, _, err := d.cluster.GetImage(img.Fingerprint, db.ImageFilter{Project: &img.ProjectName})
 		if err != nil {
 			return errors.Wrapf(err, "Error retrieving image info for fingerprint %q and project %q", img.Fingerprint, img.ProjectName)
 		}
@@ -2061,7 +2066,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	do := func(op *operations.Operation) error {
 		// Use the fingerprint we received in a LIKE query and use the full
 		// fingerprint we receive from the database in all further queries.
-		imgID, imgInfo, err := d.cluster.GetImage(projectName, fingerprint, false)
+		imgID, imgInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 		if err != nil {
 			return err
 		}
@@ -2184,8 +2189,13 @@ func imageDeleteFromDisk(fingerprint string) {
 	}
 }
 
-func doImageGet(db *db.Cluster, project, fingerprint string, public bool) (*api.Image, response.Response) {
-	_, imgInfo, err := db.GetImage(project, fingerprint, public)
+func doImageGet(cluster *db.Cluster, project, fingerprint string, public bool) (*api.Image, response.Response) {
+	filter := db.ImageFilter{Project: &project}
+	if public {
+		filter.Public = &public
+	}
+
+	_, imgInfo, err := cluster.GetImage(fingerprint, filter)
 	if err != nil {
 		return nil, response.SmartError(err)
 	}
@@ -2383,7 +2393,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
-	id, info, err := d.cluster.GetImage(projectName, fingerprint, false)
+	id, info, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2469,7 +2479,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
-	id, info, err := d.cluster.GetImage(projectName, fingerprint, false)
+	id, info, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2588,7 +2598,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Alias '%s' already exists", req.Name))
 	}
 
-	id, _, err := d.cluster.GetImage(projectName, req.Target, false)
+	id, _, err := d.cluster.GetImage(req.Target, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2923,7 +2933,7 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The target field is required"))
 	}
 
-	imageId, _, err := d.cluster.GetImage(projectName, req.Target, false)
+	imageId, _, err := d.cluster.GetImage(req.Target, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3013,7 +3023,7 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		alias.Description = description
 	}
 
-	imageId, _, err := d.cluster.GetImage(projectName, alias.Target, false)
+	imageId, _, err := d.cluster.GetImage(alias.Target, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3157,7 +3167,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	var err error
 	if r.RemoteAddr == "@devlxd" {
 		// /dev/lxd API requires exact match
-		_, imgInfo, err = d.cluster.GetImage(projectName, fingerprint, false)
+		_, imgInfo, err = d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3166,7 +3176,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 			return response.NotFound(fmt.Errorf("Image '%s' not found", fingerprint))
 		}
 	} else {
-		_, imgInfo, err = d.cluster.GetImage(projectName, fingerprint, false)
+		_, imgInfo, err = d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -3269,7 +3279,9 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
-	_, imgInfo, err := d.cluster.GetImage(projectName, fingerprint, false)
+
+	// Check if the image exists
+	_, imgInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3389,7 +3401,7 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
-	imageId, imageInfo, err := d.cluster.GetImage(projectName, fingerprint, false)
+	imageId, imageInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3541,7 +3553,7 @@ func imageSyncBetweenNodes(d *Daemon, r *http.Request, project string, fingerpri
 	source = source.UseProject(project)
 
 	// Get the image.
-	_, image, err := d.cluster.GetImage(project, fingerprint, false)
+	_, image, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &project})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get image")
 	}
