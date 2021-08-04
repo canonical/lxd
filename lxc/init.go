@@ -175,12 +175,14 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			// If network is managed, use the network property rather than nictype, so that the
 			// network's inherited properties are loaded into the NIC when started.
 			device = map[string]string{
+				"name":    "eth0",
 				"type":    "nic",
 				"network": network.Name,
 			}
 		} else {
 			// If network is unmanaged default to using a macvlan connected to the specified interface.
 			device = map[string]string{
+				"name":    "eth0",
 				"type":    "nic",
 				"nictype": "macvlan",
 				"parent":  c.flagNetwork,
@@ -192,7 +194,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 			}
 		}
 
-		devicesMap[c.flagNetwork] = device
+		devicesMap["eth0"] = device
 	}
 
 	if len(stdinData.Config) > 0 {
