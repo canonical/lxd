@@ -547,20 +547,31 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		networkInfo := ""
 		if cs.Network != nil {
 			for netName, net := range cs.Network {
-				vethStr := ""
-				if net.HostName != "" {
-					vethStr = fmt.Sprintf("\t%s", net.HostName)
-				}
-
 				networkInfo += fmt.Sprintf("    %s:\n", netName)
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Type"), net.Type)
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("State"), strings.ToUpper(net.State))
+				if net.HostName != "" {
+					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Host interface"), net.HostName)
+				}
+				if net.Hwaddr != "" {
+					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("MAC address"), net.Hwaddr)
+				}
+				if net.Mtu != 0 {
+					networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("MTU"), net.Mtu)
+				}
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(net.Counters.BytesReceived, 2))
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(net.Counters.BytesSent, 2))
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent)
 
 				networkInfo += fmt.Sprintf("      %s:\n", i18n.G("IP addresses"))
+
 				for _, addr := range net.Addresses {
-					networkInfo += fmt.Sprintf("        %s\t%s%s\n", addr.Family, addr.Address, vethStr)
+					if addr.Family == "inet" {
+						networkInfo += fmt.Sprintf("        %s:  %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
+					} else {
+						networkInfo += fmt.Sprintf("        %s: %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
+					}
 				}
 			}
 		}
