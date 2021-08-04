@@ -21,6 +21,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -264,6 +265,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	}
 
 	var inst instance.Instance
+	var instOp *operationlock.InstanceOperation
 
 	// Early check for refresh.
 	if req.Source.Refresh {
@@ -291,10 +293,11 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
 		// as part of the operation below.
-		inst, err = instance.CreateInternal(d.State(), args, true, nil, revert)
+		inst, instOp, err = instance.CreateInternal(d.State(), args, true, nil, revert)
 		if err != nil {
 			return response.InternalError(errors.Wrap(err, "Failed creating instance record"))
 		}
+		defer instOp.Done(err)
 	}
 
 	var cert *x509.Certificate
