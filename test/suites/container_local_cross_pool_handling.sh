@@ -15,6 +15,9 @@ test_container_local_cross_pool_handling() {
     LXD_DIR="${LXD_STORAGE_DIR}"
     ensure_import_testimage
 
+    brName="lxdt$$"
+    lxc network create "${brName}"
+
     if storage_backend_available "btrfs"; then
       lxc storage create "lxdtest-$(basename "${LXD_DIR}")-btrfs" btrfs size=100GB
     fi
@@ -57,6 +60,9 @@ test_container_local_cross_pool_handling() {
         fi
 
         lxc init testimage c1
+        lxc config device add c1 eth0 nic network="${brName}"
+        lxc config show c1
+
         originalPool=$(lxc profile device get default root pool)
 
         # Check volatile.apply_template is initialised during create.
@@ -111,6 +117,8 @@ test_container_local_cross_pool_handling() {
         lxc delete -f c2
       fi
     done
+
+    lxc network delete "${brName}"
   )
 
   # shellcheck disable=SC2031

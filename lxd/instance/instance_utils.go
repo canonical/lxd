@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/client"
@@ -946,6 +947,10 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 		args.Config["volatile.base_image"] = args.BaseImage
 	}
 
+	if args.Config["volatile.uuid"] == "" {
+		args.Config["volatile.uuid"] = uuid.New()
+	}
+
 	if args.Devices == nil {
 		args.Devices = deviceConfig.Devices{}
 	}
@@ -1188,4 +1193,21 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	}
 
 	return pattern, nil
+}
+
+// MoveTemporaryName returns a name derived from the instance's volatile.uuid, to use when moving an instance
+// across pools or cluster members which can be used for the naming the temporary copy before deleting the original
+// instance and renaming the copy to the original name.
+func MoveTemporaryName(inst Instance) string {
+	return fmt.Sprintf("lxd-move-of-%s", inst.LocalConfig()["volatile.uuid"])
+}
+
+// IsSameLocgicalInstance returns true if the supplied Instance and db.Instance have the same project, and either
+// the same name or volatile.uuid values.
+func IsSameLocgicalInstance(inst Instance, dbInst *db.Instance) bool {
+	if dbInst.Project == inst.Project() && (dbInst.Name == inst.Name() || dbInst.Config["volatile.uuid"] == inst.LocalConfig()["volatile.uuid"]) {
+		return true
+	}
+
+	return false
 }
