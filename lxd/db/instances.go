@@ -552,7 +552,9 @@ func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instanc
 		return nil, errors.Wrap(err, "Local node name")
 	}
 
-	filter.Node = &node
+	if node != "" {
+		filter.Node = &node
+	}
 
 	return c.GetInstances(filter)
 }
