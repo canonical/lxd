@@ -116,7 +116,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 				return err
 			}
 		} else {
-			_, info, err = d.cluster.GetImage(projectName, hash, false)
+			_, info, err = d.cluster.GetImage(hash, db.ImageFilter{Project: &projectName})
 			if err != nil {
 				return err
 			}

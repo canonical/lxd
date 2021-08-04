@@ -901,7 +901,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, volume := range volumeNames {
-			_, imgInfo, err := d.cluster.GetImage(projectName, volume, false)
+			_, imgInfo, err := d.cluster.GetImage(volume, db.ImageFilter{Project: &projectName})
 			if err != nil {
 				return response.InternalError(errors.Wrapf(err, "Failed getting image info for %q", volume))
 			}

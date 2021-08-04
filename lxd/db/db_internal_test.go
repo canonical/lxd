@@ -186,8 +186,9 @@ func (s *dbTestSuite) Test_deleting_an_image_cascades_on_related_tables() {
 func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 	var err error
 	var result *api.Image
+	project := "default"
 
-	_, result, err = s.db.GetImage("default", "fingerprint", false)
+	_, result, err = s.db.GetImage("fingerprint", ImageFilter{Project: &project})
 	s.Nil(err)
 	s.NotNil(result)
 	s.Equal(result.Filename, "filename")
@@ -197,9 +198,10 @@ func (s *dbTestSuite) Test_ImageGet_finds_image_for_fingerprint() {
 }
 
 func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
+	project := "default"
 	var err error
 
-	_, _, err = s.db.GetImage("default", "unknown", false)
+	_, _, err = s.db.GetImage("unknown", ImageFilter{Project: &project})
 	s.Equal(err, ErrNoSuchObject)
 }
 
@@ -246,7 +248,8 @@ func (s *dbTestSuite) Test_CreateImageAlias() {
 }
 
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
-	imageID, _, err := s.db.GetImage("default", "fingerprint", false)
+	project := "default"
+	imageID, _, err := s.db.GetImage("fingerprint", ImageFilter{Project: &project})
 	s.Nil(err)
 
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
@@ -258,7 +261,8 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint() {
 }
 
 func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
-	imageID, _, err := s.db.GetImage("default", "fingerprint", false)
+	project := "default"
+	imageID, _, err := s.db.GetImage("fingerprint", ImageFilter{Project: &project})
 	s.Nil(err)
 
 	err = s.db.CreateImageSource(imageID, "server.remote", "simplestreams", "", "test")
