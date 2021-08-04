@@ -2055,11 +2055,19 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, err
 	}
 
-	// Generate UUID if not present.
+	volatileSet := make(map[string]string)
+
+	// Generate UUID if not present (do this before UpdateBackupFile() call).
 	instUUID := d.localConfig["volatile.uuid"]
 	if instUUID == "" {
 		instUUID = uuid.New()
-		d.VolatileSet(map[string]string{"volatile.uuid": instUUID})
+		volatileSet["volatile.uuid"] = instUUID
+	}
+
+	// Apply any volatile changes that need to be made.
+	err = d.VolatileSet(volatileSet)
+	if err != nil {
+		return "", nil, errors.Wrapf(err, "Failed setting volatile keys")
 	}
 
 	// Create the devices

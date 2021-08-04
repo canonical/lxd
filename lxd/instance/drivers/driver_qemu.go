@@ -989,14 +989,14 @@ func (d *qemu) Start(stateful bool) error {
 
 	volatileSet := make(map[string]string)
 
-	// Update vsock ID in volatile if needed (for recovery).
+	// Update vsock ID in volatile if needed for recovery (do this before UpdateBackupFile() call).
 	oldVsockID := d.localConfig["volatile.vsock_id"]
 	newVsockID := strconv.Itoa(d.vsockID())
 	if oldVsockID != newVsockID {
 		volatileSet["volatile.vsock_id"] = newVsockID
 	}
 
-	// Generate UUID if not present.
+	// Generate UUID if not present (do this before UpdateBackupFile() call).
 	instUUID := d.localConfig["volatile.uuid"]
 	if instUUID == "" {
 		instUUID = uuid.New()
