@@ -257,12 +257,12 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		result, err = tx.GetInstanceNamesByNodeAddress(projectName, instanceType)
+		result, err = tx.GetInstanceNamesByNodeAddress(projectName, db.InstanceTypeFilter(instanceType))
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.GetInstanceToNodeMap(projectName, instanceType)
+		nodes, err = tx.GetInstanceToNodeMap(projectName, db.InstanceTypeFilter(instanceType))
 		if err != nil {
 			return err
 		}
