@@ -889,35 +889,35 @@ test_clustering_network() {
   # Check instance can be connected to created network and assign static DHCP allocations.
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}"
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c1
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv4.address=192.0.2.2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 eth0 ipv4.address=192.0.2.2
 
   # Check cannot assign static IPv6 without stateful DHCPv6 enabled.
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 eth0 ipv6.address=2001:db8::2 || false
   LXD_DIR="${LXD_ONE_DIR}" lxc network set "${net}" ipv6.dhcp.stateful=true
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 "${net}" ipv6.address=2001:db8::2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c1 eth0 ipv6.address=2001:db8::2
 
   # Check duplicate static DHCP allocation detection is working for same server as c1.
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node1 -n "${net}" testimage c2
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" ipv4.address=192.0.2.2 || false
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" ipv6.address=2001:db8::2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 eth0 ipv4.address=192.0.2.2 || false
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 eth0 ipv6.address=2001:db8::2 || false
 
   # Check duplicate static DHCP allocation is allowed for instance on a different server.
   LXD_DIR="${LXD_ONE_DIR}" lxc init --target node2 -n "${net}" testimage c3
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 "${net}" ipv4.address=192.0.2.2
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 "${net}" ipv6.address=2001:db8::2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 eth0 ipv4.address=192.0.2.2
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 eth0 ipv6.address=2001:db8::2
 
   # Check duplicate MAC address assignment detection is working using both network and parent keys.
-  c1MAC=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c1 volatile."${net}".hwaddr)
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 "${net}" hwaddr="${c1MAC}" || false
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 "${net}" hwaddr="${c1MAC}"
+  c1MAC=$(LXD_DIR="${LXD_ONE_DIR}" lxc config get c1 volatile.eth0.hwaddr)
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device set c2 eth0 hwaddr="${c1MAC}" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device set c3 eth0 hwaddr="${c1MAC}"
 
   # Check duplicate static MAC assignment detection is working for same server as c1.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c2 "${net}"
-  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device add c2 "${net}" nic hwaddr="${c1MAC}" nictype=bridged parent="${net}" || false
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c2 eth0
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc config device add c2 eth0 nic hwaddr="${c1MAC}" nictype=bridged parent="${net}" || false
 
   # Check duplicate static MAC assignment is allowed for instance on a different server.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c3 "${net}"
-  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c3 "${net}" nic hwaddr="${c1MAC}" nictype=bridged parent="${net}"
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device remove c3 eth0
+  LXD_DIR="${LXD_ONE_DIR}" lxc config device add c3 eth0 nic hwaddr="${c1MAC}" nictype=bridged parent="${net}"
 
   # Cleanup instances and image.
   LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1 c2 c3
