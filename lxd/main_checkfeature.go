@@ -496,7 +496,7 @@ static void is_close_range_aware(void)
 	if (fd < 0)
 		return;
 
-	if (close_range(fd, fd, CLOSE_RANGE_UNSHARE))
+	if (lxd_close_range(fd, fd, CLOSE_RANGE_UNSHARE))
 		return;
 
 	close_range_aware = true;
