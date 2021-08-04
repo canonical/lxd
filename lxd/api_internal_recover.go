@@ -490,7 +490,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 		volConfig = poolVol.Volume.Config
 	}
 
-	inst, err := instance.CreateInternal(s, db.InstanceArgs{
+	inst, instOp, err := instance.CreateInternal(s, db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    poolVol.Container.Config["volatile.base_image"],
@@ -508,6 +508,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
+	defer instOp.Done(err)
 
 	return inst, err
 }
@@ -539,7 +540,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		return err
 	}
 
-	_, err = instance.CreateInternal(s, db.InstanceArgs{
+	_, snapInstOp, err := instance.CreateInternal(s, db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    snap.Config["volatile.base_image"],
@@ -557,6 +558,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 	if err != nil {
 		return errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name)
 	}
+	defer snapInstOp.Done(err)
 
 	return nil
 }
