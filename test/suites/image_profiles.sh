@@ -2,7 +2,7 @@ test_image_nil_profile_list() {
   # Launch container with default profile list and check its profiles
   ensure_import_testimage
   lxc launch testimage c1
-  lxc info c1 | grep -q "Profiles: default" || false
+  lxc list -f json c1 | jq -r '.[0].profiles | join(" ")' | grep -q "default" || false
 
   # Cleanup
   lxc delete c1 -f
@@ -21,7 +21,7 @@ test_image_empty_profile_list() {
   # Launch the container and check its profiles
   storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
   lxc launch testimage c1 -s "$storage"
-  lxc info c1 | grep -q "Profiles: $" || false
+  lxc list -f json c1 | jq -r '.[0].profiles | join(" ")' | grep -q "^$" || false
 
   # Cleanup
   lxc delete c1 -f
@@ -46,7 +46,7 @@ test_image_alternate_profile_list() {
   storage=$(lxc storage list | grep "^| " | tail -n 1 | cut -d' ' -f2)
   lxc profile device add p1 root disk path=/ pool="$storage"
   lxc launch testimage c1
-  lxc info c1 | grep -q "Profiles: p1, p2, p3" || false
+  lxc list -f json c1 | jq -r '.[0].profiles | join(" ")' | grep -q "p1 p2 p3" || false
 
   # Cleanup
   lxc delete c1 -f
