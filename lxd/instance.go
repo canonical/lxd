@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -33,10 +34,11 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	defer revert.Fail()
 
 	// Create the instance record.
-	inst, err := instance.CreateInternal(d.State(), args, true, nil, revert)
+	inst, instOp, err := instance.CreateInternal(d.State(), args, true, nil, revert)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
+	defer instOp.Done(err)
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
@@ -143,10 +145,11 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	args.BaseImage = hash
 
 	// Create the instance.
-	inst, err := instance.CreateInternal(s, args, true, nil, revert)
+	inst, instOp, err := instance.CreateInternal(s, args, true, nil, revert)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
+	defer instOp.Done(nil)
 
 	err = s.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
 	if err != nil {
@@ -186,6 +189,7 @@ type instanceCreateAsCopyOpts struct {
 // instanceCreateAsCopy create a new instance by copying from an existing instance.
 func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *operations.Operation) (instance.Instance, error) {
 	var inst instance.Instance
+	var instOp *operationlock.InstanceOperation
 	var err error
 
 	revert := revert.New()
@@ -206,10 +210,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		// Create the instance.
-		inst, err = instance.CreateInternal(s, opts.targetInstance, true, nil, revert)
+		inst, instOp, err = instance.CreateInternal(s, opts.targetInstance, true, nil, revert)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed creating instance record")
 		}
+		defer instOp.Done(err)
 
 		// Override the storage volume to match the source (if exists on the same pool).
 		pool, err := storagePools.GetPoolByInstance(s, inst)
@@ -326,10 +331,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			snapInst, err := instance.CreateInternal(s, snapInstArgs, true, nil, revert)
+			snapInst, snapInstOp, err := instance.CreateInternal(s, snapInstArgs, true, nil, revert)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", newSnapName)
 			}
+			defer snapInstOp.Done(err)
 
 			// Set snapshot creation date to that of the source snapshot.
 			err = s.Cluster.UpdateInstanceSnapshotCreationDate(snapInst.ID(), srcSnap.CreationDate())
