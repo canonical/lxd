@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/client"
@@ -941,6 +942,10 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 
 	if args.BaseImage != "" {
 		args.Config["volatile.base_image"] = args.BaseImage
+	}
+
+	if args.Config["volatile.uuid"] == "" {
+		args.Config["volatile.uuid"] = uuid.New()
 	}
 
 	if args.Devices == nil {
