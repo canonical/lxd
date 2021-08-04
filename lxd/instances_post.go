@@ -1080,7 +1080,7 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 		var err error
 
 		// Load source node.
-		nodeAddress, err = tx.GetNodeAddressOfInstance(projectName, name, source.Type())
+		nodeAddress, err = tx.GetNodeAddressOfInstance(projectName, name, db.InstanceTypeFilter(source.Type()))
 		if err != nil {
 			return errors.Wrap(err, "Failed to get address of instance's node")
 		}

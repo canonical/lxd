@@ -36,7 +36,7 @@ func TestContainerList(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c3", "root", "disk", map[string]string{"x": "y"})
 
-	filter := db.InstanceFilter{Type: instancetype.Container}
+	filter := db.InstanceTypeFilter(instancetype.Container)
 	containers, err := tx.GetInstances(filter)
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
@@ -75,11 +75,11 @@ func TestContainerList_FilterByNode(t *testing.T) {
 	addContainer(t, tx, nodeID1, "c2")
 	addContainer(t, tx, nodeID2, "c3")
 
-	filter := db.InstanceFilter{
-		Project: "default",
-		Node:    "node2",
-		Type:    instancetype.Container,
-	}
+	filter := db.InstanceTypeFilter(instancetype.Container)
+	project := "default"
+	node := "node2"
+	filter.Project = &project
+	filter.Node = &node
 
 	containers, err := tx.GetInstances(filter)
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	_, err = tx.CreateInstance(c1p2)
 	require.NoError(t, err)
 
-	containers, err := tx.GetInstances(*db.InstanceFilterAllInstances())
+	containers, err := tx.GetInstances(db.InstanceFilter{})
 	require.NoError(t, err)
 
 	assert.Len(t, containers, 2)
@@ -332,7 +332,7 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.GetInstanceNamesByNodeAddress("default", instancetype.Container)
+	result, err := tx.GetInstanceNamesByNodeAddress("default", db.InstanceTypeFilter(instancetype.Container))
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -356,7 +356,7 @@ func TestGetInstanceToNodeMap(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.GetInstanceToNodeMap("default", instancetype.Container)
+	result, err := tx.GetInstanceToNodeMap("default", db.InstanceTypeFilter(instancetype.Container))
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -420,7 +420,7 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	addContainerDevice(t, tx, "c2", "eth0", "nic", nil)
 	addContainerDevice(t, tx, "c4", "root", "disk", map[string]string{"x": "y"})
 
-	containers, err := tx.GetLocalInstancesInProject("", instancetype.Container)
+	containers, err := tx.GetLocalInstancesInProject(db.InstanceTypeFilter(instancetype.Container))
 	require.NoError(t, err)
 	assert.Len(t, containers, 3)
 
