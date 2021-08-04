@@ -660,7 +660,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, err = instance.CreateInternal(d.State(), db.InstanceArgs{
+	_, instOp, err := instance.CreateInternal(d.State(), db.InstanceArgs{
 		Project:      projectName,
 		Architecture: arch,
 		BaseImage:    baseImage,
@@ -678,6 +678,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	if err != nil {
 		return errors.Wrap(err, "Failed creating instance record")
 	}
+	defer instOp.Done(err)
 
 	instancePath := storagePools.InstancePath(instanceType, projectName, backupConf.Container.Name, false)
 	isPrivileged := false
@@ -755,7 +756,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 		internalImportRootDevicePopulate(instancePoolName, snap.Devices, snap.ExpandedDevices, profiles)
 
-		_, err = instance.CreateInternal(d.State(), db.InstanceArgs{
+		_, snapInstOp, err := instance.CreateInternal(d.State(), db.InstanceArgs{
 			Project:      projectName,
 			Architecture: arch,
 			BaseImage:    baseImage,
@@ -773,6 +774,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		if err != nil {
 			return errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name)
 		}
+		defer snapInstOp.Done(err)
 
 		// Recreate missing mountpoints and symlinks.
 		volStorageName := project.Instance(projectName, snapInstName)
