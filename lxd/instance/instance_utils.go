@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
@@ -921,10 +922,12 @@ func ValidName(instanceName string, isSnapshot bool) error {
 // Accepts an (optionally nil) volumeConfig map that can be used to specify extra custom settings for the volume
 // record. Also accepts a reverter that revert steps this function does will be added to. It is up to the caller to
 // call the revert's Fail() or Success() function as needed.
-func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volumeConfig map[string]string, revert *revert.Reverter) (Instance, error) {
+// Returns the created instance, along with a "create" operation lock that needs to be marked as Done once the
+// instance is fully completed.
+func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volumeConfig map[string]string, revert *revert.Reverter) (Instance, *operationlock.InstanceOperation, error) {
 	// Check instance type requested is supported by this machine.
 	if _, supported := s.InstanceTypes[args.Type]; !supported {
-		return nil, fmt.Errorf("Instance type %q is not supported on this server", args.Type)
+		return nil, nil, fmt.Errorf("Instance type %q is not supported on this server", args.Type)
 	}
 
 	// Set default values.
@@ -958,7 +961,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 
 	err := ValidName(args.Name, args.Snapshot)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if !args.Snapshot {
@@ -969,39 +972,39 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 	// Validate container config.
 	err = ValidConfig(s.OS, args.Config, false, args.Type)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Validate container devices with the supplied container name and devices.
 	err = ValidDevices(s, s.Cluster, args.Project, args.Type, args.Devices, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "Invalid devices")
+		return nil, nil, errors.Wrap(err, "Invalid devices")
 	}
 
 	// Validate architecture.
 	_, err = osarch.ArchitectureName(args.Architecture)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if !shared.IntInSlice(args.Architecture, s.OS.Architectures) {
-		return nil, fmt.Errorf("Requested architecture isn't supported by this host")
+		return nil, nil, fmt.Errorf("Requested architecture isn't supported by this host")
 	}
 
 	// Validate profiles.
 	profiles, err := s.Cluster.GetProfileNames(args.Project)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	checkedProfiles := []string{}
 	for _, profile := range args.Profiles {
 		if !shared.StringInSlice(profile, profiles) {
-			return nil, fmt.Errorf("Requested profile %q doesn't exist", profile)
+			return nil, nil, fmt.Errorf("Requested profile %q doesn't exist", profile)
 		}
 
 		if shared.StringInSlice(profile, checkedProfiles) {
-			return nil, fmt.Errorf("Duplicate profile found in request")
+			return nil, nil, fmt.Errorf("Duplicate profile found in request")
 		}
 
 		checkedProfiles = append(checkedProfiles, profile)
@@ -1016,6 +1019,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 	}
 
 	var dbInst db.Instance
+	var op *operationlock.InstanceOperation
 
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		node, err := tx.GetLocalNodeName()
@@ -1103,6 +1107,13 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			return errors.Wrapf(err, "Unexpected instance database ID %d", dbInst.ID)
 		}
 
+		op, err = operationlock.Create(dbInst.ID, "create", false, false)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { op.Done(err) })
+
 		return nil
 	})
 	if err != nil {
@@ -1111,9 +1122,11 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			if shared.IsSnapshot(args.Name) {
 				thing = "Snapshot"
 			}
-			return nil, fmt.Errorf("%s %q already exists", thing, args.Name)
+
+			return nil, nil, fmt.Errorf("%s %q already exists", thing, args.Name)
 		}
-		return nil, err
+
+		return nil, nil, err
 	}
 
 	revert.Add(func() { s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
@@ -1122,7 +1135,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 	inst, err := Create(s, args, volumeConfig, revert)
 	if err != nil {
 		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
-		return nil, errors.Wrap(err, "Failed initialising instance")
+		return nil, nil, errors.Wrap(err, "Failed initialising instance")
 	}
 
 	// Wipe any existing log for this instance name.
@@ -1130,7 +1143,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 		os.RemoveAll(inst.LogPath())
 	}
 
-	return inst, nil
+	return inst, op, nil
 }
 
 // NextSnapshotName finds the next snapshot for an instance.
