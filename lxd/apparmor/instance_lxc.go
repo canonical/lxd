@@ -560,6 +560,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(ro,remount,bind,nosuid,noexec),
   mount options=(ro,remount,bind,nosuid,noexec,nodev),
   mount options=(ro,remount,bind,nosuid,noexec,strictatime),
+  mount options=(ro,remount,nosuid,noexec,strictatime),
 
   # Allow remounting things read-only
   mount options=(ro,remount) /,
