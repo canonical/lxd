@@ -611,7 +611,8 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	var insts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		insts, err = tx.GetLocalInstancesInProject("", instanceType)
+		filter := db.InstanceTypeFilter(instanceType)
+		insts, err = tx.GetLocalInstancesInProject(filter)
 		if err != nil {
 			return err
 		}

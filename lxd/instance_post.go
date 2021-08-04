@@ -118,7 +118,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			targetNodeOffline = node.IsOffline(config.OfflineThreshold())
 
 			// Load source node.
-			address, err := tx.GetNodeAddressOfInstance(projectName, name, instanceType)
+			address, err := tx.GetNodeAddressOfInstance(projectName, name, db.InstanceTypeFilter(instanceType))
 			if err != nil {
 				return errors.Wrap(err, "Failed to get address of instance's node")
 			}

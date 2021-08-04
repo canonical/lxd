@@ -193,10 +193,9 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 	// Check there isn't another NIC with any of the same addresses specified on the same cluster member.
 	// Can only validate this when the instance is supplied (and not doing profile validation).
 	if d.inst != nil {
+		node := d.inst.Location()
 		filter := db.InstanceFilter{
-			Project: "",                // All projects.
-			Node:    d.inst.Location(), // Managed bridge networks have a per-server DHCP daemon.
-			Type:    instancetype.Any,
+			Node: &node, // Managed bridge networks have a per-server DHCP daemon.
 		}
 
 		ourNICIPs := make(map[string]net.IP, 2)
