@@ -159,6 +159,15 @@ type InstanceArgs struct {
 	ExpiryDate   time.Time
 }
 
+// InstanceTypeFilter returns an InstanceFilter populated with a valid instance type,
+// or an empty filter if instance type is 'Any'.
+func InstanceTypeFilter(instanceType instancetype.Type) InstanceFilter {
+	if instanceType != instancetype.Any {
+		return InstanceFilter{Type: &instanceType}
+	}
+	return InstanceFilter{}
+}
+
 // GetInstanceNames returns the names of all containers the given project.
 func (c *ClusterTx) GetInstanceNames(project string) ([]string, error) {
 	stmt := `
