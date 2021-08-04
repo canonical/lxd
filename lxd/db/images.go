@@ -452,30 +452,29 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 // shortform matches more than one image, an error will be returned.
 // publicOnly, when true, will return the image only if it is public;
 // a false value will return any image matching the fingerprint prefix.
-func (c *Cluster) GetImage(project string, fingerprintPrefix string, publicOnly bool) (int, *api.Image, error) {
+func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *api.Image, error) {
 	var image api.Image
 	var object Image
 	if fingerprintPrefix == "" {
 		return -1, nil, ErrNoSuchObject
 	}
+
+	if filter.Project == nil {
+		return -1, nil, errors.New("no project specified for the image")
+	}
+
 	err := c.Transaction(func(tx *ClusterTx) error {
-		profileProject := project
-		enabled, err := tx.ProjectHasImages(project)
+		profileProject := *filter.Project
+		enabled, err := tx.ProjectHasImages(*filter.Project)
 		if err != nil {
 			return errors.Wrap(err, "Check if project has images")
 		}
 		if !enabled {
-			project = "default"
+			project := "default"
+			filter.Project = &project
 		}
 
-		// FIXME
-		// Properly check zero values of 'public', and don't include it in GetImage at all if it should be ignored.
-		publicOrNil := &publicOnly
-		if !publicOnly {
-			publicOrNil = nil
-		}
-
-		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, &project, publicOrNil)
+		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch images")
 		}
@@ -526,7 +525,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	var object Image
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		images, err := tx.getImagesByFingerprintPrefix(fingerprint, nil, nil)
+		images, err := tx.getImagesByFingerprintPrefix(fingerprint, ImageFilter{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch images")
 		}
@@ -563,7 +562,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 
 // getImagesByFingerprintPrefix returns the images with fingerprints matching the prefix.
 // Optional filters 'project' and 'public' will be included if not nil.
-func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, project *string, public *bool) ([]Image, error) {
+func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, filter ImageFilter) ([]Image, error) {
 	sql := `
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
 FROM images 
@@ -571,15 +570,15 @@ JOIN projects ON images.project_id = projects.id
 WHERE images.fingerprint LIKE ?
 `
 	args := []interface{}{fingerprintPrefix + "%"}
-	if project != nil {
+	if filter.Project != nil {
 		sql += `AND project = ?
 	`
-		args = append(args, *project)
+		args = append(args, *filter.Project)
 	}
-	if public != nil {
+	if filter.Public != nil {
 		sql += `AND images.public = ?
 	`
-		args = append(args, *public)
+		args = append(args, *filter.Public)
 	}
 	sql += `ORDER BY projects.id, images.fingerprint
 `
@@ -680,7 +679,7 @@ WHERE images.fingerprint = ?
 // AddImageToLocalNode creates a new entry in the images_nodes table for
 // tracking that the local node has the given image.
 func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
-	imageID, _, err := c.GetImage(project, fingerprint, false)
+	imageID, _, err := c.GetImage(fingerprint, ImageFilter{Project: &project})
 	if err != nil {
 		return err
 	}
