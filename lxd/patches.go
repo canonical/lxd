@@ -3328,13 +3328,14 @@ func patchStorageApiDirBindMount(name string, d *Daemon) error {
 }
 
 func patchFixUploadedAt(name string, d *Daemon) error {
-	images, err := d.cluster.GetImagesFingerprints("default", false)
+	projectName := project.Default
+	images, err := d.cluster.GetImagesFingerprints(projectName, false)
 	if err != nil {
 		return err
 	}
 
 	for _, fingerprint := range images {
-		id, image, err := d.cluster.GetImage("default", fingerprint, false)
+		id, image, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 		if err != nil {
 			return err
 		}

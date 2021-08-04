@@ -1236,6 +1236,8 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	args.Config = rootDiskConf
 	args.Name = inst.Name()
 
+	projectName := inst.Project()
+
 	// If migration header supplies a volume size, then use that as block volume size instead of pool default.
 	// This way if the volume being received is larger than the pool default size, the block volume created
 	// will still be able to accommodate it.
@@ -1247,7 +1249,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	// Get the volume name on storage.
-	volStorageName := project.Instance(inst.Project(), args.Name)
+	volStorageName := project.Instance(projectName, args.Name)
 
 	vol := b.newVolume(volType, contentType, volStorageName, args.Config)
 
@@ -1278,7 +1280,8 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
 
 			// Confirm that the image is present in the project.
-			_, _, err = b.state.Cluster.GetImage(inst.Project(), fingerprint, false)
+
+			_, _, err = b.state.Cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 			if err != db.ErrNoSuchObject && err != nil {
 				return err
 			}
