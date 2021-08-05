@@ -37,10 +37,11 @@ var defaultPackages = []string{
 }
 
 // FiltersFromStmt parses all filtering statement defined for the given entity. It
-// returns all supported combinations of filters, sorted by number of criteria.
-func FiltersFromStmt(pkg *ast.Package, kind string, entity string) [][]string {
+// returns all supported combinations of filters, sorted by number of criteria, and
+// the corresponding set of unused filters from the Filter struct.
+func FiltersFromStmt(pkg *ast.Package, kind string, entity string, filters []*Field) ([][]string, [][]string) {
 	objects := pkg.Scope.Objects
-	filters := [][]string{}
+	stmtFilters := [][]string{}
 
 	prefix := fmt.Sprintf("%s%sBy", lex.Minuscule(lex.Camel(entity)), lex.Camel(kind))
 
@@ -49,16 +50,29 @@ func FiltersFromStmt(pkg *ast.Package, kind string, entity string) [][]string {
 			continue
 		}
 		rest := name[len(prefix):]
-		filters = append(filters, strings.Split(rest, "And"))
+		stmtFilters = append(stmtFilters, strings.Split(rest, "And"))
 	}
 
-	return sortFilters(filters)
+	stmtFilters = sortFilters(stmtFilters)
+	ignoredFilters := [][]string{}
+
+	for _, filterGroup := range stmtFilters {
+		ignoredFilterGroup := []string{}
+		for _, filter := range filters {
+			if !shared.StringInSlice(filter.Name, filterGroup) {
+				ignoredFilterGroup = append(ignoredFilterGroup, filter.Name)
+			}
+		}
+		ignoredFilters = append(ignoredFilters, ignoredFilterGroup)
+	}
+
+	return stmtFilters, ignoredFilters
 }
 
 // RefFiltersFromStmt parses all filtering statement defined for the given entity reference.
-func RefFiltersFromStmt(pkg *ast.Package, entity string, ref string) [][]string {
+func RefFiltersFromStmt(pkg *ast.Package, entity string, ref string, filters []*Field) ([][]string, [][]string) {
 	objects := pkg.Scope.Objects
-	filters := [][]string{}
+	stmtFilters := [][]string{}
 
 	prefix := fmt.Sprintf("%s%sRefBy", lex.Minuscule(lex.Camel(entity)), lex.Capital(ref))
 
@@ -67,10 +81,23 @@ func RefFiltersFromStmt(pkg *ast.Package, entity string, ref string) [][]string 
 			continue
 		}
 		rest := name[len(prefix):]
-		filters = append(filters, strings.Split(rest, "And"))
+		stmtFilters = append(stmtFilters, strings.Split(rest, "And"))
 	}
 
-	return sortFilters(filters)
+	stmtFilters = sortFilters(stmtFilters)
+	ignoredFilters := [][]string{}
+
+	for _, filterGroup := range stmtFilters {
+		ignoredFilterGroup := []string{}
+		for _, filter := range filters {
+			if !shared.StringInSlice(filter.Name, filterGroup) {
+				ignoredFilterGroup = append(ignoredFilterGroup, filter.Name)
+			}
+		}
+		ignoredFilters = append(ignoredFilters, ignoredFilterGroup)
+	}
+
+	return stmtFilters, ignoredFilters
 }
 
 func sortFilters(filters [][]string) [][]string {
@@ -98,32 +125,6 @@ func sortFilter(filter []string) []string {
 	copy(f, filter)
 	sort.Sort(sort.Reverse(sort.StringSlice(f)))
 	return f
-}
-
-// Criteria returns a list of criteria
-func Criteria(pkg *ast.Package, entity string) ([]string, error) {
-	name := fmt.Sprintf("%sFilter", lex.Camel(entity))
-	str := findStruct(pkg.Scope, name)
-
-	if str == nil {
-		return nil, fmt.Errorf("No filter declared for %q", entity)
-	}
-
-	criteria := []string{}
-
-	for _, f := range str.Fields.List {
-		if len(f.Names) != 1 {
-			return nil, fmt.Errorf("Unexpected fields number")
-		}
-
-		if !f.Names[0].IsExported() {
-			return nil, fmt.Errorf("Unexported field name")
-		}
-
-		criteria = append(criteria, f.Names[0].Name)
-	}
-
-	return criteria, nil
 }
 
 // Parse the structure declaration with the given name found in the given Go package.

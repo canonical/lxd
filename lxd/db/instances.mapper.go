@@ -229,26 +229,11 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	// Result slice.
 	objects := make([]Instance, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-	if filter.Node != "" {
-		criteria["Node"] = filter.Node
-	}
-	if filter.Type != -1 {
-		criteria["Type"] = filter.Type
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Type"] != nil && criteria["Node"] != nil && criteria["Name"] != nil {
+	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNodeAndName)
 		args = []interface{}{
 			filter.Project,
@@ -256,93 +241,95 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 			filter.Node,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil && criteria["Type"] != nil && criteria["Node"] != nil {
+	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil && criteria["Type"] != nil && criteria["Name"] != nil {
+	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
 			filter.Name,
 		}
-	} else if criteria["Type"] != nil && criteria["Name"] != nil && criteria["Node"] != nil {
+	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.Project == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNameAndNode)
 		args = []interface{}{
 			filter.Type,
 			filter.Name,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil && criteria["Node"] != nil {
+	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNameAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil && criteria["Type"] != nil {
+	} else if filter.Project != nil && filter.Type != nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
 		}
-	} else if criteria["Type"] != nil && criteria["Node"] != nil {
+	} else if filter.Type != nil && filter.Node != nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNode)
 		args = []interface{}{
 			filter.Type,
 			filter.Node,
 		}
-	} else if criteria["Type"] != nil && criteria["Name"] != nil {
+	} else if filter.Type != nil && filter.Name != nil && filter.Project == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndName)
 		args = []interface{}{
 			filter.Type,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil && criteria["Node"] != nil {
+	} else if filter.Project != nil && filter.Node != nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Node"] != nil && criteria["Name"] != nil {
+	} else if filter.Node != nil && filter.Name != nil && filter.Project == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNodeAndName)
 		args = []interface{}{
 			filter.Node,
 			filter.Name,
 		}
-	} else if criteria["Type"] != nil {
+	} else if filter.Type != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByType)
 		args = []interface{}{
 			filter.Type,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if criteria["Node"] != nil {
+	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNode)
 		args = []interface{}{
 			filter.Node,
 		}
-	} else if criteria["Name"] != nil {
+	} else if filter.Name != nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByName)
 		args = []interface{}{
 			filter.Name,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjects)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -437,9 +424,8 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 // generator: instance GetOne
 func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) {
 	filter := InstanceFilter{}
-	filter.Project = project
-	filter.Name = name
-	filter.Type = -1
+	filter.Project = &project
+	filter.Name = &name
 
 	objects, err := c.GetInstances(filter)
 	if err != nil {
@@ -596,44 +582,37 @@ func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[s
 		Value   string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
+	if filter.Project != nil && filter.Node != nil && filter.Name == nil {
 		stmt = c.stmt(instanceProfilesRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil {
 		stmt = c.stmt(instanceProfilesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceProfilesRefByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if criteria["Node"] != nil {
+	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(instanceProfilesRefByNode)
 		args = []interface{}{
 			filter.Node,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceProfilesRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -688,44 +667,37 @@ func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[str
 		Value   string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
+	if filter.Project != nil && filter.Node != nil && filter.Name == nil {
 		stmt = c.stmt(instanceConfigRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil {
 		stmt = c.stmt(instanceConfigRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceConfigRefByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if criteria["Node"] != nil {
+	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(instanceConfigRefByNode)
 		args = []interface{}{
 			filter.Node,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceConfigRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -785,44 +757,37 @@ func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[st
 		Value   string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Project != "" {
-		criteria["Project"] = filter.Project
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Node"] != nil {
+	if filter.Project != nil && filter.Node != nil && filter.Name == nil {
 		stmt = c.stmt(instanceDevicesRefByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
 		}
-	} else if criteria["Project"] != nil && criteria["Name"] != nil {
+	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil {
 		stmt = c.stmt(instanceDevicesRefByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if criteria["Project"] != nil {
+	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceDevicesRefByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if criteria["Node"] != nil {
+	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(instanceDevicesRefByNode)
 		args = []interface{}{
 			filter.Node,
 		}
-	} else {
+	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceDevicesRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.

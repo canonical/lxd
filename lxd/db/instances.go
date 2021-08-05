@@ -100,15 +100,10 @@ type Instance struct {
 
 // InstanceFilter specifies potential query parameter fields.
 type InstanceFilter struct {
-	Project string
-	Name    string
-	Node    string
-	Type    instancetype.Type
-}
-
-// InstanceFilterAllInstances returns a predefined filter for returning all instances.
-func InstanceFilterAllInstances() *InstanceFilter {
-	return &InstanceFilter{Type: instancetype.Any}
+	Project *string
+	Name    *string
+	Node    *string
+	Type    *instancetype.Type `db:"omit=profiles-ref,config-ref,devices-ref"`
 }
 
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
@@ -164,6 +159,15 @@ type InstanceArgs struct {
 	ExpiryDate   time.Time
 }
 
+// InstanceTypeFilter returns an InstanceFilter populated with a valid instance type,
+// or an empty filter if instance type is 'Any'.
+func InstanceTypeFilter(instanceType instancetype.Type) InstanceFilter {
+	if instanceType != instancetype.Any {
+		return InstanceFilter{Type: &instanceType}
+	}
+	return InstanceFilter{}
+}
+
 // GetInstanceNames returns the names of all containers the given project.
 func (c *ClusterTx) GetInstanceNames(project string) ([]string, error) {
 	stmt := `
@@ -178,7 +182,7 @@ SELECT instances.name FROM instances
 // instance with the given name in the given project.
 //
 // It returns the empty string if the container is hosted on this node.
-func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, instanceType instancetype.Type) (string, error) {
+func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, filter InstanceFilter) (string, error) {
 	var stmt string
 
 	args := make([]interface{}, 0, 4) // Expect up to 4 filters.
@@ -189,9 +193,9 @@ func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, instan
 	args = append(args, project)
 
 	// Instance type filter.
-	if instanceType != instancetype.Any {
+	if filter.Type != nil {
 		filters.WriteString(" AND instances.type = ?")
-		args = append(args, instanceType)
+		args = append(args, *filter.Type)
 	}
 
 	if strings.Contains(name, shared.SnapshotDelimiter) {
@@ -267,7 +271,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, instanceType instancetype.Type) (map[string][]string, error) {
+func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, filter InstanceFilter) (map[string][]string, error) {
 	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -281,9 +285,9 @@ func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, instanceType i
 	args = append(args, project)
 
 	// Instance type filter.
-	if instanceType != instancetype.Any {
+	if filter.Type != nil {
 		filters.WriteString(" AND instances.type = ?")
-		args = append(args, instanceType)
+		args = append(args, *filter.Type)
 	}
 
 	stmt := fmt.Sprintf(`
@@ -338,9 +342,8 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 	projectHasProfiles := map[string]bool{}
 	profilesByProjectAndName := map[string]map[string]Profile{}
 
-	// Default to listing all instances if no filter provided.
 	if filter == nil {
-		filter = InstanceFilterAllInstances()
+		filter = &InstanceFilter{}
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
@@ -411,7 +414,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 
 // GetInstanceToNodeMap returns a map associating the name of each
 // instance in the given project to the name of the node hosting the instance.
-func (c *ClusterTx) GetInstanceToNodeMap(project string, instanceType instancetype.Type) (map[string]string, error) {
+func (c *ClusterTx) GetInstanceToNodeMap(project string, filter InstanceFilter) (map[string]string, error) {
 	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
@@ -420,9 +423,9 @@ func (c *ClusterTx) GetInstanceToNodeMap(project string, instanceType instancety
 	args = append(args, project)
 
 	// Instance type filter.
-	if instanceType != instancetype.Any {
+	if filter.Type != nil {
 		filters.WriteString(" AND instances.type = ?")
-		args = append(args, instanceType)
+		args = append(args, *filter.Type)
 	}
 
 	stmt := fmt.Sprintf(`
@@ -536,16 +539,14 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 
 // GetLocalInstancesInProject retuurns all instances of the given type on the local node within the given project.
 // If projectName is empty then all instances in all projects are returned.
-func (c *ClusterTx) GetLocalInstancesInProject(projectName string, instanceType instancetype.Type) ([]Instance, error) {
+func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instance, error) {
 	node, err := c.GetLocalNodeName()
 	if err != nil {
 		return nil, errors.Wrap(err, "Local node name")
 	}
 
-	filter := InstanceFilter{
-		Project: projectName,
-		Node:    node,
-		Type:    instanceType,
+	if node != "" {
+		filter.Node = &node
 	}
 
 	return c.GetInstances(filter)
@@ -662,8 +663,8 @@ func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([
 		return nil, err
 	}
 	filter := InstanceSnapshotFilter{
-		Project:  project,
-		Instance: name,
+		Project:  &project,
+		Instance: &name,
 	}
 
 	snapshots, err := c.GetInstanceSnapshots(filter)

@@ -67,30 +67,20 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	// Result slice.
 	objects := make([]Certificate, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Fingerprint != "" {
-		criteria["Fingerprint"] = filter.Fingerprint
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-	if filter.Type != -1 {
-		criteria["Type"] = filter.Type
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Fingerprint"] != nil {
+	if filter.Fingerprint != nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(certificateObjectsByFingerprint)
 		args = []interface{}{
 			filter.Fingerprint,
 		}
-	} else {
+	} else if filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(certificateObjects)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
@@ -133,7 +123,7 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 // generator: certificate GetOne
 func (c *ClusterTx) GetCertificate(fingerprint string) (*Certificate, error) {
 	filter := CertificateFilter{}
-	filter.Fingerprint = fingerprint
+	filter.Fingerprint = &fingerprint
 
 	objects, err := c.GetCertificates(filter)
 	if err != nil {
@@ -241,27 +231,20 @@ func (c *ClusterTx) CertificateProjectsRef(filter CertificateFilter) (map[string
 		Value       string
 	}, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.Fingerprint != "" {
-		criteria["Fingerprint"] = filter.Fingerprint
-	}
-	if filter.Name != "" {
-		criteria["Name"] = filter.Name
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Fingerprint"] != nil {
+	if filter.Fingerprint != nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(certificateProjectsRefByFingerprint)
 		args = []interface{}{
 			filter.Fingerprint,
 		}
-	} else {
+	} else if filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(certificateProjectsRef)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.

@@ -140,7 +140,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Check if the image already exists in this project (partial hash match).
-	_, imgInfo, err := d.cluster.GetImage(args.ProjectName, fp, false)
+	_, imgInfo, err := d.cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
 	if err == nil {
 		// Check if the image is available locally or it's on another node.
 		nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
@@ -179,7 +179,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			}
 
 			var id int
-			id, imgInfo, err = d.cluster.GetImage(args.ProjectName, fp, false)
+			id, imgInfo, err = d.cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
 			if err != nil {
 				return nil, err
 			}
@@ -488,7 +488,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.cluster.GetImage(args.ProjectName, fp, false)
+		id, _, err := d.cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
 		if err != nil {
 			return nil, err
 		}

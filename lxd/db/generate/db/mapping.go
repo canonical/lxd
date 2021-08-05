@@ -236,50 +236,6 @@ func (f *Field) Column() string {
 	return column
 }
 
-// ZeroValue returns the literal representing the zero value for this field. The type
-// code of the field must be TypeColumn.
-func (f *Field) ZeroValue() string {
-	if f.Type.Code != TypeColumn {
-		panic("attempt to get zero value of non-column field")
-	}
-
-	switch f.Type.Name {
-	case "string":
-		return `""`
-	case "int", "instancetype.Type", "int64", "OperationType", "CertificateType":
-		// FIXME: we use -1 since at the moment integer criteria are
-		// required to be positive.
-		return "-1"
-	case "bool":
-		return "false"
-	default:
-		panic("unsupported zero value")
-	}
-}
-
-// FieldColumns converts thegiven fields to list of column names separated
-// by a comma.
-func FieldColumns(fields []*Field) string {
-	columns := make([]string, len(fields))
-
-	for i, field := range fields {
-		columns[i] = field.Column()
-	}
-
-	return strings.Join(columns, ", ")
-}
-
-// FieldCriteria converts the given fields to AND-separated WHERE criteria.
-func FieldCriteria(fields []*Field) string {
-	criteria := make([]string, len(fields))
-
-	for i, field := range fields {
-		criteria[i] = fmt.Sprintf("%s = ?", field.Column())
-	}
-
-	return strings.Join(criteria, " AND ")
-}
-
 // FieldNames returns the names of the given fields.
 func FieldNames(fields []*Field) []string {
 	names := []string{}

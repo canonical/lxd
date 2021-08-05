@@ -14,7 +14,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -563,8 +563,7 @@ func LoadByProject(s *state.State, project string) ([]Instance, error) {
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
-			Project: project,
-			Type:    instancetype.Any,
+			Project: &project,
 		}
 		var err error
 		cts, err = tx.GetInstances(filter)
@@ -612,7 +611,8 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	var insts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		insts, err = tx.GetLocalInstancesInProject("", instanceType)
+		filter := db.InstanceTypeFilter(instanceType)
+		insts, err = tx.GetLocalInstancesInProject(filter)
 		if err != nil {
 			return err
 		}
@@ -716,7 +716,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 
 		var image *api.Image
 		for _, imageHash := range hashes {
-			_, img, err := s.Cluster.GetImage(project, imageHash, false)
+			_, img, err := s.Cluster.GetImage(imageHash, db.ImageFilter{Project: &project})
 			if err != nil {
 				continue
 			}
@@ -800,7 +800,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.Cluster.GetImage(project, hash, false)
+			_, img, err := s.Cluster.GetImage(hash, db.ImageFilter{Project: &project})
 			if err != nil {
 				return nil, err
 			}
