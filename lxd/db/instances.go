@@ -106,11 +106,6 @@ type InstanceFilter struct {
 	Type    *instancetype.Type `db:"omit=profiles-ref,config-ref,devices-ref"`
 }
 
-// InstanceFilterAllInstances returns a predefined filter for returning all instances.
-func InstanceFilterAllInstances() *InstanceFilter {
-	return &InstanceFilter{Type: instancetype.Any}
-}
-
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
 func InstanceToArgs(inst *Instance) InstanceArgs {
 	args := InstanceArgs{
