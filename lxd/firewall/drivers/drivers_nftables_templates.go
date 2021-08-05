@@ -49,8 +49,10 @@ chain in{{.chainSeparator}}{{.networkName}} {
 
 	{{- range .ipFamilies}}
 	{{if eq . "ip" -}}
+	iifname "{{$.networkName}}" icmp type {3, 11, 12} accept
 	iifname "{{$.networkName}}" udp dport 67 accept
 	{{else -}}
+	iifname "{{$.networkName}}" icmpv6 type {1, 2, 3, 4, 133, 135, 136, 143} accept
 	iifname "{{$.networkName}}" udp dport 547 accept
 	{{- end}}
 	{{- end}}
@@ -64,8 +66,10 @@ chain out{{.chainSeparator}}{{.networkName}} {
 
 	{{- range .ipFamilies}}
 	{{if eq . "ip" -}}
+	oifname "{{$.networkName}}" icmp type {3, 11, 12} accept
 	oifname "{{$.networkName}}" udp sport 67 accept
 	{{else -}}
+	oifname "{{$.networkName}}" icmpv6 type {1, 2, 3, 4, 128, 134, 135, 136, 143}  accept
 	oifname "{{$.networkName}}" udp sport 547 accept
 	{{- end}}
 	{{- end}}
