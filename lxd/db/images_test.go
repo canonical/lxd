@@ -59,3 +59,35 @@ func TestImageExists(t *testing.T) {
 
 	assert.True(t, exists)
 }
+
+func TestGetImage(t *testing.T) {
+	cluster, cleanup := db.NewTestCluster(t)
+	defer cleanup()
+
+	// public image with 'default' project
+	err := cluster.CreateImage("default", "abcd1", "x.gz", 16, true, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container")
+	require.NoError(t, err)
+
+	// 'public' is ignored if 'false'
+	id, img, err := cluster.GetImage("default", "a", false)
+	require.NoError(t, err)
+	assert.Equal(t, img.Public, true)
+	assert.NotEqual(t, id, -1)
+
+	// non-public image with 'default' project
+	err = cluster.CreateImage("default", "abcd2", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container")
+	require.NoError(t, err)
+
+	// empty project fails
+	_, _, err = cluster.GetImage("", "a", false)
+	require.Error(t, err)
+
+	// 'public' is ignored if 'false', returning both entries
+	_, _, err = cluster.GetImage("default", "a", false)
+	require.Error(t, err)
+
+	id, img, err = cluster.GetImage("default", "a", true)
+	require.NoError(t, err)
+	assert.Equal(t, img.Public, true)
+	assert.NotEqual(t, id, -1)
+}

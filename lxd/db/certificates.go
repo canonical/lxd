@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/pkg/errors"
 )
 
 // Code generation directives.
@@ -60,7 +61,7 @@ func CertificateAPITypeToDBType(apiType string) (CertificateType, error) {
 // Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
 	ID          int
-	Fingerprint string `db:"primary=yes&comparison=like"`
+	Fingerprint string `db:"primary=yes"`
 	Type        CertificateType
 	Name        string
 	Certificate string
@@ -121,7 +122,7 @@ func (c *ClusterTx) UpdateCertificateProjects(id int, projects []string) error {
 
 // CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
-	Fingerprint string // Matched with LIKE
+	Fingerprint string
 	Name        string
 	Type        CertificateType
 }
@@ -131,16 +132,47 @@ type CertificateFilter struct {
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one certificate with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) GetCertificate(fingerprint string) (*Certificate, error) {
+func (c *Cluster) GetCertificate(fingerprintPrefix string) (*Certificate, error) {
 	var err error
 	var cert *Certificate
+	objects := []Certificate{}
 	err = c.Transaction(func(tx *ClusterTx) error {
-		cert, err = tx.GetCertificate(fingerprint + "%")
+		sql := `
+SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+FROM certificates
+WHERE certificates.fingerprint LIKE ?
+ORDER BY certificates.fingerprint
+		`
+		stmt, err := tx.prepare(sql)
 		if err != nil {
 			return err
 		}
+		dest := func(i int) []interface{} {
+			objects = append(objects, Certificate{})
+			return []interface{}{
+				&objects[i].ID,
+				&objects[i].Fingerprint,
+				&objects[i].Type,
+				&objects[i].Name,
+				&objects[i].Certificate,
+				&objects[i].Restricted,
+			}
+		}
 
-		cert, err = tx.GetCertificate(cert.Fingerprint)
+		err = query.SelectObjects(stmt, dest, fingerprintPrefix+"%")
+		if err != nil {
+			return errors.Wrap(err, "Failed to fetch certificates")
+		}
+
+		if len(objects) > 1 {
+			return fmt.Errorf("More than one certificate matches")
+		}
+
+		if len(objects) == 0 {
+			return ErrNoSuchObject
+		}
+
+		cert, err = tx.GetCertificate(objects[0].Fingerprint)
 		return err
 	})
 	if err != nil {

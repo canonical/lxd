@@ -8,6 +8,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -40,22 +41,10 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
   WHERE project = ? AND images.public = ? ORDER BY projects.id, images.fingerprint
 `)
 
-var imageObjectsByProjectAndFingerprint = cluster.RegisterStmt(`
-SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
-  FROM images JOIN projects ON images.project_id = projects.id
-  WHERE project = ? AND images.fingerprint LIKE ? ORDER BY projects.id, images.fingerprint
-`)
-
-var imageObjectsByProjectAndFingerprintAndPublic = cluster.RegisterStmt(`
-SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
-  FROM images JOIN projects ON images.project_id = projects.id
-  WHERE project = ? AND images.fingerprint LIKE ? AND images.public = ? ORDER BY projects.id, images.fingerprint
-`)
-
 var imageObjectsByFingerprint = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
-  WHERE images.fingerprint LIKE ? ORDER BY projects.id, images.fingerprint
+  WHERE images.fingerprint = ? ORDER BY projects.id, images.fingerprint
 `)
 
 var imageObjectsByCached = cluster.RegisterStmt(`
@@ -98,24 +87,11 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["Project"] != nil && criteria["Fingerprint"] != nil && criteria["Public"] != nil {
-		stmt = c.stmt(imageObjectsByProjectAndFingerprintAndPublic)
-		args = []interface{}{
-			filter.Project,
-			filter.Fingerprint,
-			filter.Public,
-		}
-	} else if criteria["Project"] != nil && criteria["Public"] != nil {
+	if criteria["Project"] != nil && criteria["Public"] != nil {
 		stmt = c.stmt(imageObjectsByProjectAndPublic)
 		args = []interface{}{
 			filter.Project,
 			filter.Public,
-		}
-	} else if criteria["Project"] != nil && criteria["Fingerprint"] != nil {
-		stmt = c.stmt(imageObjectsByProjectAndFingerprint)
-		args = []interface{}{
-			filter.Project,
-			filter.Fingerprint,
 		}
 	} else if criteria["Project"] != nil && criteria["Cached"] != nil {
 		stmt = c.stmt(imageObjectsByProjectAndCached)
