@@ -371,8 +371,8 @@ func (d Xtables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 	return nil
 }
 
-// networkSetupDHCPDNSAccess sets up basic iptables overrides for DHCP/DNS.
-func (d Xtables) networkSetupDHCPDNSAccess(networkName string, ipVersion uint) error {
+// networkSetupICMPDHCPDNSAccess sets up basic iptables overrides for ICMP, DHCP and DNS.
+func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersion uint) error {
 	var rules [][]string
 	if ipVersion == 4 {
 		rules = [][]string{
@@ -382,6 +382,12 @@ func (d Xtables) networkSetupDHCPDNSAccess(networkName string, ipVersion uint) e
 			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "67", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
 			{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+
+		// Allow core ICMPv4 to/from LXD host.
+		for _, icmpType := range []int{3, 11, 12} {
+			rules = append(rules, []string{"4", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
+			rules = append(rules, []string{"4", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmp", "-m", "icmp", "--icmp-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
+		}
 	} else if ipVersion == 6 {
 		rules = [][]string{
 			{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "udp", "--dport", "547", "-j", "ACCEPT"},
@@ -390,6 +396,16 @@ func (d Xtables) networkSetupDHCPDNSAccess(networkName string, ipVersion uint) e
 			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "547", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "udp", "--sport", "53", "-j", "ACCEPT"},
 			{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "tcp", "--sport", "53", "-j", "ACCEPT"}}
+
+		// Allow core ICMPv6 to/from LXD host.
+		for _, icmpType := range []int{1, 2, 3, 4, 133, 135, 136, 143} {
+			rules = append(rules, []string{"6", networkName, "filter", "INPUT", "-i", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
+		}
+
+		// Allow ICMPv6 ping from host into network as dnsmasq uses this to probe IP allocations.
+		for _, icmpType := range []int{1, 2, 3, 4, 128, 134, 135, 136, 143} {
+			rules = append(rules, []string{"6", networkName, "filter", "OUTPUT", "-o", networkName, "-p", "icmpv6", "-m", "icmp6", "--icmpv6-type", fmt.Sprintf("%d", icmpType), "-j", "ACCEPT"})
+		}
 	} else {
 		return fmt.Errorf("Invalid IP version")
 	}
@@ -434,8 +450,8 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 	}
 
 	if opts.FeaturesV4 != nil {
-		if opts.FeaturesV4.DHCPDNSAccess {
-			err := d.networkSetupDHCPDNSAccess(networkName, 4)
+		if opts.FeaturesV4.ICMPDHCPDNSAccess {
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, 4)
 			if err != nil {
 				return err
 			}
@@ -453,8 +469,8 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 	}
 
 	if opts.FeaturesV6 != nil {
-		if opts.FeaturesV6.DHCPDNSAccess {
-			err := d.networkSetupDHCPDNSAccess(networkName, 6)
+		if opts.FeaturesV6.ICMPDHCPDNSAccess {
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, 6)
 			if err != nil {
 				return err
 			}
