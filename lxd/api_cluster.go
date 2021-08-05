@@ -2348,7 +2348,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
-		dbInstances, err = tx.GetInstances(db.InstanceFilter{Node: nodeName})
+		dbInstances, err = tx.GetInstances(db.InstanceFilter{Node: &nodeName})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get instances")
 		}
@@ -2502,7 +2502,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	var dbInstances []db.Instance
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		dbInstances, err = tx.GetInstances(*db.InstanceFilterAllInstances())
+		dbInstances, err = tx.GetInstances(db.InstanceFilter{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get instances")
 		}

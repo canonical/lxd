@@ -116,7 +116,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 				return err
 			}
 		} else {
-			_, info, err = d.cluster.GetImage(projectName, hash, false)
+			_, info, err = d.cluster.GetImage(hash, db.ImageFilter{Project: &projectName})
 			if err != nil {
 				return err
 			}
@@ -1080,7 +1080,7 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 		var err error
 
 		// Load source node.
-		nodeAddress, err = tx.GetNodeAddressOfInstance(projectName, name, source.Type())
+		nodeAddress, err = tx.GetNodeAddressOfInstance(projectName, name, db.InstanceTypeFilter(source.Type()))
 		if err != nil {
 			return errors.Wrap(err, "Failed to get address of instance's node")
 		}

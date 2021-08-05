@@ -148,7 +148,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	var result interface{}
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.ProfileFilter{
-			Project: projectName,
+			Project: &projectName,
 		}
 		if recursion {
 			profiles, err := tx.GetProfiles(filter)

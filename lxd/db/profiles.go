@@ -81,8 +81,8 @@ func ProfileToAPI(profile *Profile) *api.Profile {
 
 // ProfileFilter specifies potential query parameter fields.
 type ProfileFilter struct {
-	Project string
-	Name    string
+	Project *string
+	Name    *string
 }
 
 // GetProjectProfileNames returns slice of profile names keyed on the project they belong to.

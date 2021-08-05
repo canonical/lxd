@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/pci"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -57,9 +56,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	}
 
 	filter := db.InstanceFilter{
-		Project: "", // All projects.
-		Node:    localNode,
-		Type:    instancetype.Any,
+		Node: &localNode,
 	}
 
 	reservedDevices := map[string]struct{}{}

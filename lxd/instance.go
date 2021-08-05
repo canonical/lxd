@@ -87,7 +87,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	s := d.State()
 
 	// Get the image properties.
-	_, img, err := s.Cluster.GetImage(args.Project, hash, false)
+	_, img, err := s.Cluster.GetImage(hash, db.ImageFilter{Project: &args.Project})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}
@@ -390,7 +390,9 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 	var cts []db.Instance
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		cts, err = tx.GetLocalInstancesInProject(project, instanceType)
+		filter := db.InstanceTypeFilter(instanceType)
+		filter.Project = &project
+		cts, err = tx.GetLocalInstancesInProject(filter)
 		if err != nil {
 			return err
 		}

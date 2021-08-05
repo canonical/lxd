@@ -60,40 +60,30 @@ func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 	// Result slice.
 	objects := make([]Operation, 0)
 
-	// Check which filter criteria are active.
-	criteria := map[string]interface{}{}
-	if filter.ID != -1 {
-		criteria["ID"] = filter.ID
-	}
-	if filter.NodeID != -1 {
-		criteria["NodeID"] = filter.NodeID
-	}
-	if filter.UUID != "" {
-		criteria["UUID"] = filter.UUID
-	}
-
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if criteria["UUID"] != nil {
+	if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
 		stmt = c.stmt(operationObjectsByUUID)
 		args = []interface{}{
 			filter.UUID,
 		}
-	} else if criteria["NodeID"] != nil {
+	} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
 		stmt = c.stmt(operationObjectsByNodeID)
 		args = []interface{}{
 			filter.NodeID,
 		}
-	} else if criteria["ID"] != nil {
+	} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
 		stmt = c.stmt(operationObjectsByID)
 		args = []interface{}{
 			filter.ID,
 		}
-	} else {
+	} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
 		stmt = c.stmt(operationObjects)
 		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.

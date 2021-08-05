@@ -997,10 +997,11 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 	// If the project has the profiles feature enabled, we use its own
 	// profiles to expand the instances configs, otherwise we use the
 	// profiles from the default project.
+	defaultProject := Default
 	if projectName == Default || shared.IsTrue(project.Config["features.profiles"]) {
-		profilesFilter.Project = projectName
+		profilesFilter.Project = &projectName
 	} else {
-		profilesFilter.Project = Default
+		profilesFilter.Project = &defaultProject
 	}
 
 	profiles, err := tx.GetProfiles(profilesFilter)
@@ -1009,8 +1010,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 	}
 
 	instances, err := tx.GetInstances(db.InstanceFilter{
-		Type:    instancetype.Any,
-		Project: projectName,
+		Project: &projectName,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Fetch project instances from database")

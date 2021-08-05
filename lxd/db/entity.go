@@ -138,7 +138,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var instances []Instance
 
 		err = c.transaction(func(tx *ClusterTx) error {
-			instances, err = tx.GetInstances(*InstanceFilterAllInstances())
+			instances, err = tx.GetInstances(InstanceFilter{})
 			if err != nil {
 				return err
 			}
@@ -170,7 +170,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var instances []Instance
 
 		err = c.transaction(func(tx *ClusterTx) error {
-			instances, err = tx.GetInstances(*InstanceFilterAllInstances())
+			instances, err = tx.GetInstances(InstanceFilter{})
 			if err != nil {
 				return err
 			}
@@ -254,7 +254,8 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 		var op Operation
 
 		err = c.transaction(func(tx *ClusterTx) error {
-			filter := OperationFilter{ID: int64(entityID)}
+			id := int64(entityID)
+			filter := OperationFilter{ID: &id}
 			ops, err := tx.GetOperations(filter)
 			if err != nil {
 				return err
