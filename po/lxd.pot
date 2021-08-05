@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2021-08-04 19:04-0400\n"
+        "POT-Creation-Date: 2021-08-04 23:51-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -515,7 +515,7 @@ msgstr  ""
 msgid   "Backup exported successfully!"
 msgstr  ""
 
-#: lxc/info.go:651
+#: lxc/info.go:650
 msgid   "Backups:"
 msgstr  ""
 
@@ -1251,7 +1251,7 @@ msgid   "Execute commands in instances\n"
         "Mode defaults to non-interactive, interactive mode is selected if both stdin AND stdout are terminals (stderr is ignored)."
 msgstr  ""
 
-#: lxc/info.go:631 lxc/info.go:688
+#: lxc/info.go:631 lxc/info.go:687
 msgid   "Expires at"
 msgstr  ""
 
@@ -1642,7 +1642,7 @@ msgstr  ""
 msgid   "Input data"
 msgstr  ""
 
-#: lxc/info.go:689
+#: lxc/info.go:688
 msgid   "Instance Only"
 msgstr  ""
 
@@ -2047,7 +2047,7 @@ msgstr  ""
 msgid   "Location: %s"
 msgstr  ""
 
-#: lxc/info.go:717
+#: lxc/info.go:716
 msgid   "Log:"
 msgstr  ""
 
@@ -2398,7 +2398,7 @@ msgstr  ""
 msgid   "NVRM Version: %v"
 msgstr  ""
 
-#: lxc/info.go:629 lxc/info.go:686
+#: lxc/info.go:629 lxc/info.go:685
 msgid   "Name"
 msgstr  ""
 
@@ -2539,7 +2539,7 @@ msgstr  ""
 msgid   "Operation %s deleted"
 msgstr  ""
 
-#: lxc/info.go:690
+#: lxc/info.go:689
 msgid   "Optimized Storage"
 msgstr  ""
 
@@ -3462,7 +3462,7 @@ msgstr  ""
 msgid   "TYPE"
 msgstr  ""
 
-#: lxc/info.go:630 lxc/info.go:687
+#: lxc/info.go:630 lxc/info.go:686
 msgid   "Taken at"
 msgstr  ""
 
@@ -3719,7 +3719,7 @@ msgstr  ""
 msgid   "Unset storage volume configuration keys"
 msgstr  ""
 
-#: lxc/info.go:709
+#: lxc/info.go:708
 #, c-format
 msgid   "Unsupported instance type: %s"
 msgstr  ""
