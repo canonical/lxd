@@ -241,7 +241,7 @@ test_clustering_containers() {
 
   # Start the container via node1
   LXD_DIR="${LXD_ONE_DIR}" lxc start foo
-  LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: Running"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Status: RUNNING"
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q RUNNING
 
   # Trying to delete a node which has container results in an error
@@ -555,19 +555,19 @@ test_clustering_storage() {
 
     # Stop the container and create a snapshot
     LXD_DIR="${LXD_ONE_DIR}" lxc stop foo --force
-    LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo backup
+    LXD_DIR="${LXD_ONE_DIR}" lxc snapshot foo snap-test
 
     # Move the container to node1
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo --target node1
     LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "backup (taken at"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info foo | grep -q "snap-test"
 
     # Start and stop the container on its new node1 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start foo
     LXD_DIR="${LXD_TWO_DIR}" lxc stop foo --force
 
     # Init a new container on node2 using the the snapshot on node1
-    LXD_DIR="${LXD_ONE_DIR}" lxc copy foo/backup egg --target node2
+    LXD_DIR="${LXD_ONE_DIR}" lxc copy foo/snap-test egg --target node2
     LXD_DIR="${LXD_TWO_DIR}" lxc start egg
     LXD_DIR="${LXD_ONE_DIR}" lxc stop egg --force
     LXD_DIR="${LXD_ONE_DIR}" lxc delete egg
@@ -582,7 +582,7 @@ test_clustering_storage() {
     # Move the container to node3, renaming it
     LXD_DIR="${LXD_TWO_DIR}" lxc move foo bar --target node3
     LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "Location: node3"
-    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "backup (taken at"
+    LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "snap-test"
 
     # Shutdown node 3, and wait for it to be considered offline.
     LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
@@ -592,7 +592,7 @@ test_clustering_storage() {
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "Location: node2"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "backup (taken at"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info bar | grep -q "snap-test"
 
     # Start and stop the container on its new node2 host
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
@@ -1425,7 +1425,7 @@ test_clustering_shutdown_nodes() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage foo
 
   # Get container PID
-  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep Pid | cut -d' ' -f2 > foo.pid
+  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep PID | cut -d' ' -f2 > foo.pid
 
   # Get server PIDs
   LXD_DIR="${LXD_ONE_DIR}" lxc info | awk '/server_pid/{print $2}' > one.pid
@@ -2615,30 +2615,30 @@ test_clustering_evacuation() {
 
   # Check instance status
   if [ "${driver}" = "ceph" ]; then
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: Running"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
     ! LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: Stopped"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: STOPPED"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: Stopped"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: Running"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
     ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: Stopped"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
     ! LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: Running"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
   else
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: Stopped"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: STOPPED"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: Stopped"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: STOPPED"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: Stopped"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: Running"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
     ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: Stopped"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: Running"
+    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
     LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
   fi
 
@@ -2652,17 +2652,17 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Ensure the instances were moved back to the origin
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: Running"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
   LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: Running"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: RUNNING"
   LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: Running"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: RUNNING"
   LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: Running"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
   LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: Stopped"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
   LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1"
-  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: Running"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
   LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
 
   # Clean up
