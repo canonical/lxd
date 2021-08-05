@@ -40,7 +40,7 @@ chain pstrt{{.chainSeparator}}{{.networkName}} {
 }
 `))
 
-var nftablesNetDHCPDNS = template.Must(template.New("nftablesNetDHCPDNS").Parse(`
+var nftablesNetICMPDHCPDNS = template.Must(template.New("nftablesNetDHCPDNS").Parse(`
 chain in{{.chainSeparator}}{{.networkName}} {
 	type filter hook input priority 0; policy accept;
 
