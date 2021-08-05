@@ -26,8 +26,6 @@ import (
 //go:generate mapper stmt -p db -e image objects-by-Project
 //go:generate mapper stmt -p db -e image objects-by-Project-and-Cached
 //go:generate mapper stmt -p db -e image objects-by-Project-and-Public
-//go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint
-//go:generate mapper stmt -p db -e image objects-by-Project-and-Fingerprint-and-Public
 //go:generate mapper stmt -p db -e image objects-by-Fingerprint
 //go:generate mapper stmt -p db -e image objects-by-Cached
 //go:generate mapper stmt -p db -e image objects-by-AutoUpdate
@@ -39,7 +37,7 @@ import (
 type Image struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`
-	Fingerprint  string `db:"primary=yes&comparison=like"`
+	Fingerprint  string `db:"primary=yes"`
 	Type         int
 	Filename     string
 	Size         int64
@@ -56,7 +54,7 @@ type Image struct {
 // ImageFilter can be used to filter results yielded by GetImages.
 type ImageFilter struct {
 	Project     string
-	Fingerprint string // Matched with LIKE
+	Fingerprint string
 	Public      bool
 	Cached      bool
 	AutoUpdate  bool
@@ -451,10 +449,12 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 // The fingerprint argument will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint. However in case the
 // shortform matches more than one image, an error will be returned.
-func (c *Cluster) GetImage(project, fingerprint string, public bool) (int, *api.Image, error) {
+// publicOnly, when true, will return the image only if it is public;
+// a false value will return any image matching the fingerprint prefix.
+func (c *Cluster) GetImage(project string, fingerprintPrefix string, publicOnly bool) (int, *api.Image, error) {
 	var image api.Image
 	var object Image
-	if fingerprint == "" {
+	if fingerprintPrefix == "" {
 		return -1, nil, ErrNoSuchObject
 	}
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -466,11 +466,15 @@ func (c *Cluster) GetImage(project, fingerprint string, public bool) (int, *api.
 		if !enabled {
 			project = "default"
 		}
-		images, err := tx.GetImages(ImageFilter{
-			Project:     project,
-			Fingerprint: fingerprint + "%",
-			Public:      public,
-		})
+
+		// FIXME
+		// Properly check zero values of 'public', and don't include it in GetImage at all if it should be ignored.
+		publicOrNil := &publicOnly
+		if !publicOnly {
+			publicOrNil = nil
+		}
+
+		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, &project, publicOrNil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch images")
 		}
@@ -521,9 +525,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	var object Image
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		images, err := tx.GetImages(ImageFilter{
-			Fingerprint: fingerprint + "%",
-		})
+		images, err := tx.getImagesByFingerprintPrefix(fingerprint, nil, nil)
 		if err != nil {
 			return errors.Wrap(err, "Failed to fetch images")
 		}
@@ -556,6 +558,65 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	}
 
 	return object.ID, &image, nil
+}
+
+// getImagesByFingerprintPrefix returns the images with fingerprints matching the prefix.
+// Optional filters 'project' and 'public' will be included if not nil.
+func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, project *string, public *bool) ([]Image, error) {
+	sql := `
+SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
+FROM images 
+JOIN projects ON images.project_id = projects.id
+WHERE images.fingerprint LIKE ?
+`
+	args := []interface{}{fingerprintPrefix + "%"}
+	if project != nil {
+		sql += `AND project = ?
+	`
+		args = append(args, *project)
+	}
+	if public != nil {
+		sql += `AND images.public = ?
+	`
+		args = append(args, *public)
+	}
+	sql += `ORDER BY projects.id, images.fingerprint
+`
+
+	objects := []Image{}
+	// Dest function for scanning a row.
+	dest := func(i int) []interface{} {
+		objects = append(objects, Image{})
+		return []interface{}{
+			&objects[i].ID,
+			&objects[i].Project,
+			&objects[i].Fingerprint,
+			&objects[i].Type,
+			&objects[i].Filename,
+			&objects[i].Size,
+			&objects[i].Public,
+			&objects[i].Architecture,
+			&objects[i].CreationDate,
+			&objects[i].ExpiryDate,
+			&objects[i].UploadDate,
+			&objects[i].Cached,
+			&objects[i].LastUseDate,
+			&objects[i].AutoUpdate,
+		}
+	}
+
+	stmt, err := c.prepare(sql)
+	if err != nil {
+		return nil, err
+	}
+
+	// Select.
+	err = query.SelectObjects(stmt, dest, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to fetch images")
+	}
+
+	return objects, nil
 }
 
 // LocateImage returns the address of an online node that has a local copy of

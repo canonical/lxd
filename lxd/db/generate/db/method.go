@@ -88,7 +88,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse filter struct")
 	}
 
-	filters := Filters(m.packages["db"], "objects", m.entity)
+	filters := FiltersFromStmt(m.packages["db"], "objects", m.entity)
 
 	if err := m.signature(buf, false); err != nil {
 		return err
@@ -159,13 +159,6 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse entity struct")
 	}
 
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
-	}
-
-	filters := Filters(m.packages["db"], "objects", m.entity)
-
 	// Go type name the objects to return (e.g. api.Foo).
 	typ := entityType(m.pkg, m.entity)
 
@@ -178,61 +171,72 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	buf.L("// Result slice.")
 	buf.L("objects := make(%s, 0)", lex.Slice(typ))
 	buf.N()
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
 
-	for _, name := range criteria {
-		var zero string
-		if name == "Parent" {
-			zero = `""`
-		} else {
-			field := mapping.FieldByName(name)
-			if field == nil {
-				return fmt.Errorf("No field named %q in filter struct", name)
-			}
-			zero = field.ZeroValue()
+	filters := FiltersFromStmt(m.packages["db"], "objects", m.entity)
+	if len(filters) == 0 {
+		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
+		buf.L("args := []interface{}{}")
+	} else {
+		buf.L("// Check which filter criteria are active.")
+		buf.L("criteria := map[string]interface{}{}")
+		criteria, err := Criteria(m.packages["db"], m.entity)
+		if err != nil {
+			return errors.Wrap(err, "Parse filter struct")
 		}
-		buf.L("if filter.%s != %s {", name, zero)
-		buf.L("        criteria[%q] = filter.%s", name, name)
-		buf.L("}")
-	}
 
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
-	buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-		buf.L("%s %s {", branch, activeCriteria(filter))
-
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects", filter...))
-		buf.L("args = []interface{}{")
-
-		for _, name := range filter {
+		for _, name := range criteria {
+			var zero string
 			if name == "Parent" {
-				buf.L("len(filter.Parent)+1,")
-				buf.L("filter.%s+\"/\",", name)
+				zero = `""`
 			} else {
-				buf.L("filter.%s,", name)
+				field := mapping.FieldByName(name)
+				if field == nil {
+					return fmt.Errorf("No field named %q in filter struct", name)
+				}
+				zero = field.ZeroValue()
+			}
+			buf.L("if filter.%s != %s {", name, zero)
+			buf.L("        criteria[%q] = filter.%s", name, name)
+			buf.L("}")
+		}
+
+		buf.N()
+		buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
+		buf.L("var stmt *sql.Stmt")
+		buf.L("var args []interface{}")
+		buf.N()
+
+		for i, filter := range filters {
+			branch := "if"
+			if i > 0 {
+				branch = "} else if"
+			}
+			buf.L("%s %s {", branch, activeCriteria(filter))
+
+			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects", filter...))
+			buf.L("args = []interface{}{")
+
+			for _, name := range filter {
+				if name == "Parent" {
+					buf.L("len(filter.Parent)+1,")
+					buf.L("filter.%s+\"/\",", name)
+				} else {
+					buf.L("filter.%s,", name)
+				}
+			}
+
+			buf.L("}")
+
+			// Last branch, no filter to use.
+			if i == len(filters)-1 {
+				buf.L("} else {")
 			}
 		}
-
+		// Else branch.
+		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
+		buf.L("args = []interface{}{}")
 		buf.L("}")
-
-		// Last branch, no filter to use.
-		if i == len(filters)-1 {
-			buf.L("} else {")
-		}
 	}
-	// Else branch.
-	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
-	buf.L("args = []interface{}{}")
-	buf.L("}")
 
 	buf.N()
 	buf.L("// Dest function for scanning a row.")
@@ -374,67 +378,71 @@ func (m *Method) ref(buf *file.Buffer) error {
 
 	defer m.end(buf)
 
-	criteria, err := Criteria(m.packages["db"], m.entity)
-	if err != nil {
-		return errors.Wrap(err, "Parse filter struct")
-	}
-
-	filters := RefFilters(m.packages["db"], m.entity, name)
-
 	buf.L("// Result slice.")
 	buf.L("objects := make(%s, 0)", lex.Slice(destType))
 	buf.N()
-	buf.L("// Check which filter criteria are active.")
-	buf.L("criteria := map[string]interface{}{}")
+	filters := RefFiltersFromStmt(m.packages["db"], m.entity, name)
+	if len(filters) == 0 {
+		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, m.kind))
+		buf.L("args := []interface{}{}")
+	} else {
+		criteria, err := Criteria(m.packages["db"], m.entity)
+		if err != nil {
+			return errors.Wrap(err, "Parse filter struct")
+		}
 
-	for _, name := range criteria {
-		var zero string
-		if name == "Parent" {
-			zero = `""`
-		} else {
-			field := mapping.FieldByName(name)
-			if !field.IsPrimary() {
-				continue
+		buf.L("// Check which filter criteria are active.")
+		buf.L("criteria := map[string]interface{}{}")
+
+		for _, name := range criteria {
+			var zero string
+			if name == "Parent" {
+				zero = `""`
+			} else {
+				field := mapping.FieldByName(name)
+				if !field.IsPrimary() {
+					continue
+				}
+				zero = field.ZeroValue()
 			}
-			zero = field.ZeroValue()
+			buf.L("if filter.%s != %s {", name, zero)
+			buf.L("        criteria[%q] = filter.%s", name, name)
+			buf.L("}")
 		}
-		buf.L("if filter.%s != %s {", name, zero)
-		buf.L("        criteria[%q] = filter.%s", name, name)
+
+		buf.N()
+		buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
+		buf.L("var stmt *sql.Stmt")
+		buf.L("var args []interface{}")
+		buf.N()
+
+		for i, filter := range filters {
+			branch := "if"
+			if i > 0 {
+				branch = "} else if"
+			}
+			buf.L("%s %s {", branch, activeCriteria(filter))
+
+			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, m.kind, filter...))
+			buf.L("args = []interface{}{")
+
+			for _, name := range filter {
+				buf.L("filter.%s,", name)
+			}
+
+			buf.L("}")
+
+			// Last branch, no filter to use.
+			if i == len(filters)-1 {
+				buf.L("} else {")
+			}
+		}
+
+		// Else branch.
+		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, m.kind))
+		buf.L("args = []interface{}{}")
 		buf.L("}")
 	}
-
-	buf.N()
-	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
-	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
-	buf.N()
-
-	for i, filter := range filters {
-		branch := "if"
-		if i > 0 {
-			branch = "} else if"
-		}
-		buf.L("%s %s {", branch, activeCriteria(filter))
-
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, m.kind, filter...))
-		buf.L("args = []interface{}{")
-
-		for _, name := range filter {
-			buf.L("filter.%s,", name)
-		}
-
-		buf.L("}")
-
-		// Last branch, no filter to use.
-		if i == len(filters)-1 {
-			buf.L("} else {")
-		}
-	}
-
-	// Else branch.
-	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, m.kind))
-	buf.L("args = []interface{}{}")
-	buf.L("}")
 	buf.N()
 	buf.L("// Dest function for scanning a row.")
 	buf.L("dest := %s", destFunc("objects", destType, destFields))
