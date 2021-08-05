@@ -120,6 +120,8 @@ table {{.family}} {{.namespace}} {
 
 		# Allow core ICMPv4 to LXD host.
 		iifname "{{$.networkName}}" icmp type {3, 11, 12} accept
+
+		# Allow core ICMPv6 to LXD host.
 		iifname "{{$.networkName}}" icmpv6 type {1, 2, 3, 4, 133, 135, 136, 143} accept
 
 		iifname {{.networkName}} jump acl{{.chainSeparator}}{{.networkName}}
