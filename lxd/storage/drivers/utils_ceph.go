@@ -34,8 +34,40 @@ func CephMonitors(cluster string) ([]string, error) {
 				continue
 			}
 
+			// Parsing mon_host is quite tricky.
+			// It supports a comma separated list of:
+			//  - DNS names
+			//  - IPv4 addresses
+			//  - IPv6 addresses (square brackets)
+			//  - Optional version indicator
+			//  - Optional port numbers
+			//  - Optional data (after / separator)
+			//  - Tuples of addresses with all the above still applying inside the tuple
+			//
+			// As this function is primarily used for cephfs which
+			// doesn't take the version indication, trailing bits or supports those
+			// tuples, all of those effectively get stripped away to get a clean
+			// address list (with ports).
 			servers := strings.Split(fields[1], ",")
 			for _, server := range servers {
+				// Trim leading/trailing spaces.
+				server = strings.TrimSpace(server)
+
+				// Trim leading protocol version.
+				server = strings.TrimPrefix(server, "v1:")
+				server = strings.TrimPrefix(server, "v2:")
+				server = strings.TrimPrefix(server, "[v1:")
+				server = strings.TrimPrefix(server, "[v2:")
+
+				// Trim trailing divider.
+				server = strings.Split(server, "/")[0]
+
+				// Handle end of nested blocks.
+				server = strings.Replace(server, "]]", "]", 0)
+				if !strings.HasPrefix(server, "[") {
+					server = strings.TrimSuffix(server, "]")
+				}
+
 				cephMon = append(cephMon, strings.TrimSpace(server))
 			}
 			break
