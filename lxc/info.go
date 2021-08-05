@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
+	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -449,7 +450,6 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 	if err != nil {
 		return err
 	}
-
 	cs, _, err := d.GetInstanceState(name)
 	if err != nil {
 		return err
@@ -458,19 +458,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 	const layout = "2006/01/02 15:04 UTC"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
-	if ct.Location != "" {
-		fmt.Printf(i18n.G("Location: %s")+"\n", ct.Location)
-	}
-	if remote.Addr != "" {
-		fmt.Printf(i18n.G("Remote: %s")+"\n", remote.Addr)
-	}
 
-	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
-	if shared.TimeIsSet(ct.CreatedAt) {
-		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.UTC().Format(layout))
-	}
-
-	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status)
+	fmt.Printf(i18n.G("Status: %s")+"\n", strings.ToUpper(ct.Status))
 
 	if ct.Type == "" {
 		ct.Type = "container"
@@ -482,31 +471,26 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		fmt.Printf(i18n.G("Type: %s")+"\n", ct.Type)
 	}
 
-	fmt.Printf(i18n.G("Profiles: %s")+"\n", strings.Join(ct.Profiles, ", "))
+	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
+
+	if ct.Location != "" && d.IsClustered() {
+		fmt.Printf(i18n.G("Location: %s")+"\n", ct.Location)
+	}
+
 	if cs.Pid != 0 {
-		fmt.Printf(i18n.G("Pid: %d")+"\n", cs.Pid)
+		fmt.Printf(i18n.G("PID: %d")+"\n", cs.Pid)
+	}
 
-		// IP addresses
-		ipInfo := ""
-		if cs.Network != nil {
-			for netName, net := range cs.Network {
-				vethStr := ""
-				if net.HostName != "" {
-					vethStr = fmt.Sprintf("\t%s", net.HostName)
-				}
+	if shared.TimeIsSet(ct.CreatedAt) {
+		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.UTC().Format(layout))
+	}
 
-				for _, addr := range net.Addresses {
-					ipInfo += fmt.Sprintf("  %s:\t%s\t%s%s\n", netName, addr.Family, addr.Address, vethStr)
-				}
-			}
-		}
+	if shared.TimeIsSet(ct.LastUsedAt) {
+		fmt.Printf(i18n.G("Last Used: %s")+"\n", ct.LastUsedAt.UTC().Format(layout))
+	}
 
-		if ipInfo != "" {
-			fmt.Println(i18n.G("Ips:"))
-			fmt.Print(ipInfo)
-		}
-		fmt.Println(i18n.G("Resources:"))
-
+	if cs.Pid != 0 {
+		fmt.Println("\n" + i18n.G("Resources:"))
 		// Processes
 		fmt.Printf("  "+i18n.G("Processes: %d")+"\n", cs.Processes)
 
@@ -515,7 +499,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		if cs.Disk != nil {
 			for entry, disk := range cs.Disk {
 				if disk.Usage != 0 {
-					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeString(disk.Usage, 2))
+					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
 				}
 			}
 		}
@@ -539,19 +523,19 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		// Memory usage
 		memoryInfo := ""
 		if cs.Memory.Usage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeString(cs.Memory.Usage, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeStringIEC(cs.Memory.Usage, 2))
 		}
 
 		if cs.Memory.UsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeString(cs.Memory.UsagePeak, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeStringIEC(cs.Memory.UsagePeak, 2))
 		}
 
 		if cs.Memory.SwapUsage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeString(cs.Memory.SwapUsage, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeStringIEC(cs.Memory.SwapUsage, 2))
 		}
 
 		if cs.Memory.SwapUsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeString(cs.Memory.SwapUsagePeak, 2))
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeStringIEC(cs.Memory.SwapUsagePeak, 2))
 		}
 
 		if memoryInfo != "" {
@@ -559,15 +543,36 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			fmt.Print(memoryInfo)
 		}
 
-		// Network usage
+		// Network usage and IP info
 		networkInfo := ""
 		if cs.Network != nil {
 			for netName, net := range cs.Network {
 				networkInfo += fmt.Sprintf("    %s:\n", netName)
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Type"), net.Type)
+				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("State"), strings.ToUpper(net.State))
+				if net.HostName != "" {
+					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Host interface"), net.HostName)
+				}
+				if net.Hwaddr != "" {
+					networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("MAC address"), net.Hwaddr)
+				}
+				if net.Mtu != 0 {
+					networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("MTU"), net.Mtu)
+				}
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(net.Counters.BytesReceived, 2))
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(net.Counters.BytesSent, 2))
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets received"), net.Counters.PacketsReceived)
 				networkInfo += fmt.Sprintf("      %s: %d\n", i18n.G("Packets sent"), net.Counters.PacketsSent)
+
+				networkInfo += fmt.Sprintf("      %s:\n", i18n.G("IP addresses"))
+
+				for _, addr := range net.Addresses {
+					if addr.Family == "inet" {
+						networkInfo += fmt.Sprintf("        %s:  %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
+					} else {
+						networkInfo += fmt.Sprintf("        %s: %s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
+					}
+				}
 			}
 		}
 
@@ -584,30 +589,107 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		return nil
 	}
 
-	for _, snap := range snaps {
-		if firstSnapshot {
-			fmt.Println(i18n.G("Snapshots:"))
+	if len(snaps) > 0 {
+		snapData := [][]string{}
+
+		for _, snap := range snaps {
+			if firstSnapshot {
+				fmt.Println("\n" + i18n.G("Snapshots:"))
+			}
+
+			var row []string
+
+			fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
+			row = append(row, fields[len(fields)-1])
+
+			if shared.TimeIsSet(snap.CreatedAt) {
+				row = append(row, snap.CreatedAt.UTC().Format(layout))
+			} else {
+				row = append(row, " ")
+			}
+
+			if shared.TimeIsSet(snap.ExpiresAt) {
+				row = append(row, snap.ExpiresAt.UTC().Format(layout))
+			} else {
+				row = append(row, " ")
+			}
+
+			if snap.Stateful {
+				row = append(row, "YES")
+			} else {
+				row = append(row, "NO")
+			}
+
+			firstSnapshot = false
+			snapData = append(snapData, row)
 		}
 
-		fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
-		fmt.Printf("  %s", fields[len(fields)-1])
-
-		if shared.TimeIsSet(snap.CreatedAt) {
-			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreatedAt.UTC().Format(layout))
+		sort.Sort(byName(snapData))
+		snapHeader := []string{
+			i18n.G("Name"),
+			i18n.G("Taken at"),
+			i18n.G("Expires at"),
+			i18n.G("Stateful"),
 		}
 
-		if shared.TimeIsSet(snap.ExpiresAt) {
-			fmt.Printf(" ("+i18n.G("expires at %s")+")", snap.ExpiresAt.UTC().Format(layout))
+		_ = utils.RenderTable(utils.TableFormatTable, snapHeader, snapData, snaps)
+	}
+
+	// List backups
+	firstBackup := true
+	backups, err := d.GetInstanceBackups(name)
+	if err != nil {
+		return nil
+	}
+
+	if len(backups) > 0 {
+		backupData := [][]string{}
+
+		for _, backup := range backups {
+			if firstBackup {
+				fmt.Println("\n" + i18n.G("Backups:"))
+			}
+
+			var row []string
+			row = append(row, backup.Name)
+
+			if shared.TimeIsSet(backup.CreatedAt) {
+				row = append(row, backup.CreatedAt.UTC().Format(layout))
+			} else {
+				row = append(row, " ")
+			}
+
+			if shared.TimeIsSet(backup.ExpiresAt) {
+				row = append(row, backup.ExpiresAt.UTC().Format(layout))
+			} else {
+				row = append(row, " ")
+			}
+
+			if backup.InstanceOnly {
+				row = append(row, "YES")
+			} else {
+				row = append(row, "NO")
+			}
+
+			if backup.OptimizedStorage {
+				row = append(row, "YES")
+			} else {
+				row = append(row, "NO")
+			}
+
+			firstBackup = false
+			backupData = append(backupData, row)
 		}
 
-		if snap.Stateful {
-			fmt.Printf(" (" + i18n.G("stateful") + ")")
-		} else {
-			fmt.Printf(" (" + i18n.G("stateless") + ")")
+		backupHeader := []string{
+			i18n.G("Name"),
+			i18n.G("Taken at"),
+			i18n.G("Expires at"),
+			i18n.G("Instance Only"),
+			i18n.G("Optimized Storage"),
 		}
-		fmt.Printf("\n")
 
-		firstSnapshot = false
+		_ = utils.RenderTable(utils.TableFormatTable, backupHeader, backupData, backups)
 	}
 
 	if showLog {
