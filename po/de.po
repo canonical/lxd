@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-04 19:04-0400\n"
+"POT-Creation-Date: 2021-08-04 23:51-0400\n"
 "PO-Revision-Date: 2020-04-27 19:48+0000\n"
 "Last-Translator: Predatorix Phoenix <predatorix@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -719,7 +719,7 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid "Backup exported successfully!"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/info.go:651
+#: lxc/info.go:650
 msgid "Backups:"
 msgstr ""
 
@@ -1622,7 +1622,7 @@ msgstr ""
 "\n"
 "lxc exec <Container> [--env EDITOR=/usr/bin/vim]... <Befehl>\n"
 
-#: lxc/info.go:631 lxc/info.go:688
+#: lxc/info.go:631 lxc/info.go:687
 msgid "Expires at"
 msgstr ""
 
@@ -2049,7 +2049,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/info.go:689
+#: lxc/info.go:688
 msgid "Instance Only"
 msgstr ""
 
@@ -2496,7 +2496,7 @@ msgstr ""
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:717
+#: lxc/info.go:716
 msgid "Log:"
 msgstr ""
 
@@ -2912,7 +2912,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:629 lxc/info.go:686
+#: lxc/info.go:629 lxc/info.go:685
 msgid "Name"
 msgstr ""
 
@@ -3058,7 +3058,7 @@ msgstr ""
 msgid "Operation %s deleted"
 msgstr "Profil %s gelöscht\n"
 
-#: lxc/info.go:690
+#: lxc/info.go:689
 msgid "Optimized Storage"
 msgstr ""
 
@@ -4061,7 +4061,7 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/info.go:630 lxc/info.go:687
+#: lxc/info.go:630 lxc/info.go:686
 msgid "Taken at"
 msgstr ""
 
@@ -4345,7 +4345,7 @@ msgstr ""
 msgid "Unset storage volume configuration keys"
 msgstr "Alternatives config Verzeichnis."
 
-#: lxc/info.go:709
+#: lxc/info.go:708
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
@@ -5633,7 +5633,7 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Profiles: %s"
 #~ msgstr "Profil %s erstellt\n"
 

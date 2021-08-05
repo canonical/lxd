@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-04 19:04-0400\n"
+"POT-Creation-Date: 2021-08-04 23:51-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -714,7 +714,7 @@ msgstr "Copie de l'image : %s"
 msgid "Backup exported successfully!"
 msgstr "Image copiée avec succès !"
 
-#: lxc/info.go:651
+#: lxc/info.go:650
 msgid "Backups:"
 msgstr ""
 
@@ -1640,7 +1640,7 @@ msgstr ""
 "sélectionné si à la fois stdin et stdout sont des terminaux (stderr\n"
 "est ignoré)."
 
-#: lxc/info.go:631 lxc/info.go:688
+#: lxc/info.go:631 lxc/info.go:687
 #, fuzzy
 msgid "Expires at"
 msgstr "Expire : %s"
@@ -2079,7 +2079,7 @@ msgstr ""
 msgid "Input data"
 msgstr ""
 
-#: lxc/info.go:689
+#: lxc/info.go:688
 #, fuzzy
 msgid "Instance Only"
 msgstr "Le nom du conteneur est : %s"
@@ -2569,7 +2569,7 @@ msgstr ""
 msgid "Location: %s"
 msgstr ""
 
-#: lxc/info.go:717
+#: lxc/info.go:716
 msgid "Log:"
 msgstr "Journal : "
 
@@ -2985,7 +2985,7 @@ msgstr ""
 msgid "NVRM Version: %v"
 msgstr ""
 
-#: lxc/info.go:629 lxc/info.go:686
+#: lxc/info.go:629 lxc/info.go:685
 #, fuzzy
 msgid "Name"
 msgstr "Nom : %s"
@@ -3142,7 +3142,7 @@ msgstr "Seuls les réseaux gérés par LXD peuvent être modifiés."
 msgid "Operation %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/info.go:690
+#: lxc/info.go:689
 msgid "Optimized Storage"
 msgstr ""
 
@@ -4179,7 +4179,7 @@ msgstr ""
 msgid "TYPE"
 msgstr "TYPE"
 
-#: lxc/info.go:630 lxc/info.go:687
+#: lxc/info.go:630 lxc/info.go:686
 #, fuzzy
 msgid "Taken at"
 msgstr "pris à %s"
@@ -4472,7 +4472,7 @@ msgstr "Clé de configuration invalide"
 msgid "Unset storage volume configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/info.go:709
+#: lxc/info.go:708
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr ""
@@ -5873,15 +5873,12 @@ msgstr ""
 msgid "yes"
 msgstr "oui"
 
-#, c-format
 #~ msgid "Pid: %d"
 #~ msgstr "Pid : %d"
 
-#, c-format
 #~ msgid "Profiles: %s"
 #~ msgstr "Profils : %s"
 
-#, c-format
 #~ msgid "Remote: %s"
 #~ msgstr "Serveur distant : %s"
 

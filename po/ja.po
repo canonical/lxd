@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-04 19:04-0400\n"
-"PO-Revision-Date: 2021-07-25 13:36+0000\n"
+"POT-Creation-Date: 2021-08-04 23:51-0400\n"
+"PO-Revision-Date: 2021-08-02 11:27+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
 "containers/lxd/ja/>\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 4.7.2-dev\n"
+"X-Generator: Weblate 4.8-dev\n"
 
 #: lxc/storage.go:228
 msgid ""
@@ -603,6 +603,7 @@ msgstr "アーキテクチャ: %v"
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
+"本当に %s しますか? （対象: クラスターメンバー %q） (yes/no) [default=no]: "
 
 #: lxc/console.go:351
 msgid "As neither could be found, the raw SPICE socket can be found at:"
@@ -693,7 +694,7 @@ msgstr "ストレージボリュームのバックアップ中: %s"
 msgid "Backup exported successfully!"
 msgstr "バックアップのエクスポートが成功しました!"
 
-#: lxc/info.go:651
+#: lxc/info.go:650
 msgid "Backups:"
 msgstr ""
 
@@ -1330,7 +1331,6 @@ msgstr "デバイスは既に存在します: %s"
 
 #: lxc/config_device.go:235 lxc/config_device.go:249 lxc/config_device.go:475
 #: lxc/config_device.go:495 lxc/config_device.go:589 lxc/config_device.go:610
-#, fuzzy
 msgid "Device doesn't exist"
 msgstr "デバイスが存在しません"
 
@@ -1339,16 +1339,20 @@ msgid ""
 "Device from profile(s) cannot be modified for individual instance. Override "
 "device or modify profile instead"
 msgstr ""
+"プロファイルのデバイスは個々のインスタンスでは変更できません。デバイスを上書"
+"きするかプロファイルを変更してください"
 
 #: lxc/config_device.go:498
 msgid ""
 "Device from profile(s) cannot be removed from individual instance. Override "
 "device or modify profile instead"
 msgstr ""
+"プロファイルのデバイスは個々のインスタンスでは削除できません。デバイスを上書"
+"きするかプロファイルを変更してください"
 
 #: lxc/config_device.go:252
 msgid "Device from profile(s) cannot be retrieved for individual instance"
-msgstr ""
+msgstr "プロファイルのデバイスは個々のインスタンスでは取得できません"
 
 #: lxc/info.go:262 lxc/info.go:286
 #, c-format
@@ -1525,14 +1529,13 @@ msgid "Error updating template file: %s"
 msgstr "テンプレートファイル更新のエラー: %s"
 
 #: lxc/cluster.go:946 lxc/cluster.go:947
-#, fuzzy
 msgid "Evacuate cluster member"
-msgstr "クラスタのメンバを管理します"
+msgstr "クラスターのメンバーを待避させます"
 
 #: lxc/cluster.go:1023
-#, fuzzy, c-format
+#, c-format
 msgid "Evacuating cluster member: %s"
-msgstr "クラスタのメンバを管理します"
+msgstr "クラスターメンバーを待避させています: %s"
 
 #: lxc/monitor.go:50
 msgid "Event type to listen for"
@@ -1568,7 +1571,7 @@ msgstr ""
 "デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナル"
 "の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
-#: lxc/info.go:631 lxc/info.go:688
+#: lxc/info.go:631 lxc/info.go:687
 #, fuzzy
 msgid "Expires at"
 msgstr "%s に失効"
@@ -1677,9 +1680,8 @@ msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
 #: lxc/cluster.go:974
-#, fuzzy
 msgid "Force evacuation without user confirmation"
-msgstr "ユーザの確認を要求する"
+msgstr "ユーザーの確認なしで強制的に待避させます"
 
 #: lxc/exec.go:55
 msgid "Force pseudo-terminal allocation"
@@ -2006,7 +2008,7 @@ msgstr "Infiniband:"
 msgid "Input data"
 msgstr "入力するデータ"
 
-#: lxc/info.go:689
+#: lxc/info.go:688
 #, fuzzy
 msgid "Instance Only"
 msgstr "インスタンスタイプ"
@@ -2570,7 +2572,7 @@ msgstr "バックグラウンド操作の一覧表示、表示、削除を行い
 msgid "Location: %s"
 msgstr "ロケーション: %s"
 
-#: lxc/info.go:717
+#: lxc/info.go:716
 msgid "Log:"
 msgstr "ログ:"
 
@@ -2976,7 +2978,7 @@ msgstr "NVIDIA 情報:"
 msgid "NVRM Version: %v"
 msgstr "NVRM バージョン: %v"
 
-#: lxc/info.go:629 lxc/info.go:686
+#: lxc/info.go:629 lxc/info.go:685
 #, fuzzy
 msgid "Name"
 msgstr "名前: %s"
@@ -3119,7 +3121,7 @@ msgstr "管理対象のネットワークのみ変更できます"
 msgid "Operation %s deleted"
 msgstr "バックグラウンド操作 %s を削除しました"
 
-#: lxc/info.go:690
+#: lxc/info.go:689
 msgid "Optimized Storage"
 msgstr ""
 
@@ -3552,9 +3554,8 @@ msgstr ""
 "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
 #: lxc/cluster.go:965 lxc/cluster.go:966
-#, fuzzy
 msgid "Restore cluster member"
-msgstr "クラスタメンバの名前を変更します"
+msgstr "クラスターメンバーをリストアします"
 
 #: lxc/restore.go:23
 msgid "Restore instances from snapshots"
@@ -3575,9 +3576,9 @@ msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
 #: lxc/cluster.go:1021
-#, fuzzy, c-format
+#, c-format
 msgid "Restoring cluster member: %s"
-msgstr "クラスターメンバー名がありません"
+msgstr "クラスターメンバーをリストアしています: %s"
 
 #: lxc/config_trust.go:80
 msgid "Restrict the certificate to one or more projects"
@@ -4118,7 +4119,7 @@ msgstr "TOKEN"
 msgid "TYPE"
 msgstr "TYPE"
 
-#: lxc/info.go:630 lxc/info.go:687
+#: lxc/info.go:630 lxc/info.go:686
 #, fuzzy
 msgid "Taken at"
 msgstr "%s に取得しました"
@@ -4414,7 +4415,7 @@ msgstr "ストレージプールの設定を削除します"
 msgid "Unset storage volume configuration keys"
 msgstr "ストレージボリュームの設定を削除します"
 
-#: lxc/info.go:709
+#: lxc/info.go:708
 #, c-format
 msgid "Unsupported instance type: %s"
 msgstr "サポートされていないインスタンスタイプです: %s"
@@ -5383,15 +5384,12 @@ msgstr "y"
 msgid "yes"
 msgstr "yes"
 
-#, c-format
 #~ msgid "Pid: %d"
 #~ msgstr "Pid: %d"
 
-#, c-format
 #~ msgid "Profiles: %s"
 #~ msgstr "プロファイル: %s"
 
-#, c-format
 #~ msgid "Remote: %s"
 #~ msgstr "リモート名: %s"
 
