@@ -10,8 +10,8 @@ const FilterIPv4All = "0.0.0.0"
 
 // FeatureOpts specify how firewall features are setup.
 type FeatureOpts struct {
-	DHCPDNSAccess   bool // Add rules to allow DHCP and DNS access.
-	ForwardingAllow bool // Add rules to allow IP forwarding. Blocked if false.
+	ICMPDHCPDNSAccess bool // Add rules to allow ICMP, DHCP and DNS access.
+	ForwardingAllow   bool // Add rules to allow IP forwarding. Blocked if false.
 }
 
 // SNATOpts specify how SNAT rules are setup.

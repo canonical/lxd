@@ -711,7 +711,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	// Configure IPv4 firewall (includes fan).
 	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
 		if n.hasDHCPv4() && n.hasIPv4Firewall() {
-			fwOpts.FeaturesV4.DHCPDNSAccess = true
+			fwOpts.FeaturesV4.ICMPDHCPDNSAccess = true
 		}
 
 		// Allow forwarding.
@@ -894,7 +894,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		dnsmasqCmd = append(dnsmasqCmd, []string{fmt.Sprintf("--listen-address=%s", ipAddress.String()), "--enable-ra"}...)
 		if n.DHCPv6Subnet() != nil {
 			if n.hasIPv6Firewall() {
-				fwOpts.FeaturesV6.DHCPDNSAccess = true
+				fwOpts.FeaturesV6.ICMPDHCPDNSAccess = true
 			}
 
 			// Build DHCP configuration.

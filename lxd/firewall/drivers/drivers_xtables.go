@@ -250,8 +250,8 @@ func (d Xtables) networkSetupOutboundNAT(networkName string, subnet *net.IPNet, 
 	return nil
 }
 
-// networkSetupDHCPDNSAccess sets up basic iptables overrides for DHCP/DNS.
-func (d Xtables) networkSetupDHCPDNSAccess(networkName string, ipVersion uint) error {
+// networkSetupICMPDHCPDNSAccess sets up basic iptables overrides for ICMP, DHCP and DNS.
+func (d Xtables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersion uint) error {
 	var rules [][]string
 	if ipVersion == 4 {
 		rules = [][]string{
@@ -313,8 +313,8 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 	}
 
 	if opts.FeaturesV4 != nil {
-		if opts.FeaturesV4.DHCPDNSAccess {
-			err := d.networkSetupDHCPDNSAccess(networkName, 4)
+		if opts.FeaturesV4.ICMPDHCPDNSAccess {
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, 4)
 			if err != nil {
 				return err
 			}
@@ -332,8 +332,8 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 	}
 
 	if opts.FeaturesV6 != nil {
-		if opts.FeaturesV6.DHCPDNSAccess {
-			err := d.networkSetupDHCPDNSAccess(networkName, 6)
+		if opts.FeaturesV6.ICMPDHCPDNSAccess {
+			err := d.networkSetupICMPDHCPDNSAccess(networkName, 6)
 			if err != nil {
 				return err
 			}
