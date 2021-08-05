@@ -103,7 +103,7 @@ type InstanceFilter struct {
 	Project *string
 	Name    *string
 	Node    *string
-	Type    *instancetype.Type
+	Type    *instancetype.Type `db:"omit=profiles-ref,config-ref,devices-ref"`
 }
 
 // InstanceFilterAllInstances returns a predefined filter for returning all instances.
