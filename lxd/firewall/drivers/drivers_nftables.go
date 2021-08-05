@@ -261,8 +261,8 @@ func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, 
 	return nil
 }
 
-// networkSetupDHCPDNSAccess sets up basic nftables overrides for DHCP/DNS.
-func (d Nftables) networkSetupDHCPDNSAccess(networkName string, ipVersions []uint) error {
+// networkSetupICMPDHCPDNSAccess sets up basic nftables overrides for ICMP, DHCP and DNS.
+func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersions []uint) error {
 	ipFamilies := []string{}
 	for _, ipVersion := range ipVersions {
 		switch ipVersion {
@@ -281,9 +281,9 @@ func (d Nftables) networkSetupDHCPDNSAccess(networkName string, ipVersions []uin
 		"ipFamilies":     ipFamilies,
 	}
 
-	err := d.applyNftConfig(nftablesNetDHCPDNS, tplFields)
+	err := d.applyNftConfig(nftablesNetICMPDHCPDNS, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding DHCP/DNS access rules for network %q (%s)", networkName, tplFields["family"])
+		return errors.Wrapf(err, "Failed adding ICMP, DHCP and DNS access rules for network %q (%s)", networkName, tplFields["family"])
 	}
 
 	return nil
@@ -333,7 +333,7 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 
 	if opts.FeaturesV4 != nil || opts.FeaturesV6 != nil {
 		if opts.FeaturesV4 != nil {
-			if opts.FeaturesV4.DHCPDNSAccess {
+			if opts.FeaturesV4.ICMPDHCPDNSAccess {
 				dhcpDNSAccess = append(dhcpDNSAccess, 4)
 			}
 
@@ -341,7 +341,7 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 		}
 
 		if opts.FeaturesV6 != nil {
-			if opts.FeaturesV6.DHCPDNSAccess {
+			if opts.FeaturesV6.ICMPDHCPDNSAccess {
 				dhcpDNSAccess = append(dhcpDNSAccess, 6)
 			}
 
@@ -353,7 +353,7 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 			return err
 		}
 
-		err = d.networkSetupDHCPDNSAccess(networkName, dhcpDNSAccess)
+		err = d.networkSetupICMPDHCPDNSAccess(networkName, dhcpDNSAccess)
 		if err != nil {
 			return err
 		}
