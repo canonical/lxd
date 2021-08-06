@@ -60,6 +60,7 @@ func main() {
 	migrateCmd := cmdMigrate{}
 	app := migrateCmd.Command()
 	app.SilenceUsage = true
+	app.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 
 	// Workaround for main command
 	app.Args = cobra.ArbitraryArgs

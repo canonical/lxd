@@ -36,7 +36,6 @@ func (c *cmdDaemon) Command() *cobra.Command {
   the local LXD daemon and which may not be performed through the REST API alone.
 `
 	cmd.RunE = c.Run
-	cmd.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 	cmd.Flags().StringVar(&c.flagGroup, "group", "", "The group of users that will be allowed to talk to LXD"+"``")
 
 	return cmd

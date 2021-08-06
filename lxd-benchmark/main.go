@@ -94,6 +94,7 @@ func main() {
   # Delete all test containers using dynamic batch size
   lxd-benchmark delete`
 	app.SilenceUsage = true
+	app.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 
 	// Global flags
 	globalCmd := cmdGlobal{}
