@@ -1065,7 +1065,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 	// However for custom block volumes it does not also end the volume name in zfsBlockVolSuffix (unlike the
 	// LVM and Ceph drivers), so we must also retrieve the dataset type here and look for "volume" types
 	// which also indicate this is a block volume.
-	cmd := exec.Command("zfs", "list", "-H", "-o", "name,type", "-r", "-t", "filesystem,volume", d.name)
+	cmd := exec.Command("zfs", "list", "-H", "-o", "name,type", "-r", "-t", "filesystem,volume", d.config["zfs.pool_name"])
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
