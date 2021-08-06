@@ -25,6 +25,11 @@ func (d *nicMACVLAN) CanHotPlug() bool {
 	return true
 }
 
+// CanMigrate returns whether the device can be migrated to any other cluster member.
+func (d *nicMACVLAN) CanMigrate() bool {
+	return d.config["network"] != ""
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {

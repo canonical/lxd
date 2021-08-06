@@ -25,6 +25,11 @@ type tpm struct {
 	deviceCommon
 }
 
+// CanMigrate returns whether the device can be migrated to any other cluster member.
+func (d *tpm) CanMigrate() bool {
+	return true
+}
+
 // validateConfig checks the supplied config for correctness.
 func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
