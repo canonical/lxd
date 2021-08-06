@@ -18,8 +18,11 @@ type VolatileGetter func() map[string]string
 
 // Type represents a LXD device type.
 type Type interface {
-	// CanHotPlug returns true if device can be managed whilst instance is running.
+	// CanHotPlug returns true if the device can be managed whilst instance is running.
 	CanHotPlug() bool
+
+	// CanMigrate returns true if the device should work properly on any cluster member.
+	CanMigrate() bool
 
 	// UpdatableFields returns a slice of config fields that can be updated. If only fields in this list have
 	// changed then Update() is called rather triggering a device remove & add.
