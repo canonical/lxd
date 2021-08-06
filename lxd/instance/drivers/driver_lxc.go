@@ -1283,25 +1283,6 @@ func (d *lxc) initLXC(config bool) error {
 		return err
 	}
 
-	// Apply raw.lxc
-	if lxcConfig, ok := d.expandedConfig["raw.lxc"]; ok {
-		f, err := ioutil.TempFile("", "lxd_config_")
-		if err != nil {
-			return err
-		}
-
-		err = shared.WriteAll(f, []byte(lxcConfig))
-		f.Close()
-		defer os.Remove(f.Name())
-		if err != nil {
-			return err
-		}
-
-		if err := cc.LoadConfigFile(f.Name()); err != nil {
-			return fmt.Errorf("Failed to load raw.lxc")
-		}
-	}
-
 	if d.c != nil {
 		d.c.Release()
 	}
@@ -2251,6 +2232,28 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		err = lxcSetConfigItem(d.c, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
 		if err != nil {
 			return "", nil, errors.Wrapf(err, "Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment")
+		}
+	}
+
+	// Load the LXC raw config.
+	if lxcConfig, ok := d.expandedConfig["raw.lxc"]; ok {
+		// Write to temp config file.
+		f, err := ioutil.TempFile("", "lxd_config_")
+		if err != nil {
+			return "", nil, err
+		}
+
+		err = shared.WriteAll(f, []byte(lxcConfig))
+		f.Close()
+		defer os.Remove(f.Name())
+		if err != nil {
+			return "", nil, err
+		}
+
+		// Load the config.
+		err = d.c.LoadConfigFile(f.Name())
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed to load raw.lxc")
 		}
 	}
 
@@ -4073,6 +4076,37 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	cg, err := d.cgroup(nil)
 	if err != nil {
 		return err
+	}
+
+	// If raw.lxc changed, re-validate the config.
+	if shared.StringInSlice("raw.lxc", changedConfig) && d.expandedConfig["raw.lxc"] != "" {
+		// Get a new liblxc instance.
+		cc, err := liblxc.NewContainer(d.name, d.state.OS.LxcPath)
+		if err != nil {
+			return err
+		}
+
+		// Write the raw config.
+		f, err := ioutil.TempFile("", "lxd_config_")
+		if err != nil {
+			return err
+		}
+
+		err = shared.WriteAll(f, []byte(d.expandedConfig["raw.lxc"]))
+		f.Close()
+		defer os.Remove(f.Name())
+		if err != nil {
+			return err
+		}
+
+		// Load the raw config.
+		err = cc.LoadConfigFile(f.Name())
+		if err != nil {
+			return fmt.Errorf("Failed to load raw.lxc")
+		}
+
+		// Release the liblxc instance.
+		cc.Release()
 	}
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
