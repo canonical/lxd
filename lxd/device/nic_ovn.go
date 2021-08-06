@@ -42,6 +42,11 @@ type nicOVN struct {
 	network ovnNet // Populated in validateConfig().
 }
 
+// CanMigrate returns whether the device can be migrated to any other cluster member.
+func (d *nicOVN) CanMigrate() bool {
+	return true
+}
+
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
 func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 	// Check old and new device types match.
