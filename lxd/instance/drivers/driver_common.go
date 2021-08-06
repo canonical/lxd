@@ -275,7 +275,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 		})
 	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to volatile config")
+		return errors.Wrap(err, "Failed to set volatile config")
 	}
 
 	// Apply the change locally.
