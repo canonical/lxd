@@ -21,6 +21,7 @@ func main() {
 	agentCmd := cmdAgent{}
 	app := agentCmd.Command()
 	app.SilenceUsage = true
+	app.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 
 	// Workaround for main command
 	app.Args = cobra.ArbitraryArgs
