@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -16,6 +18,7 @@ func main() {
 	shiftCmd := cmdShift{}
 	app := shiftCmd.Command()
 	app.SilenceUsage = true
+	app.CompletionOptions = cobra.CompletionOptions{DisableDefaultCmd: true}
 
 	// Global flags
 	globalCmd := cmdGlobal{}
