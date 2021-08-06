@@ -902,8 +902,8 @@ func (d *common) warningsDelete() error {
 }
 
 func (d *common) IsMigratable() bool {
+	// Check policy for the instance.
 	config := d.ExpandedConfig()
-
 	val, ok := config["cluster.evacuate"]
 	if !ok {
 		val = "auto"
@@ -917,42 +917,33 @@ func (d *common) IsMigratable() bool {
 		return false
 	}
 
-	devices := d.ExpandedDevices()
-
-	canMigrate := true
-
-	for _, dev := range devices {
+	// Look at attached devices.
+	for _, dev := range d.ExpandedDevices() {
 		switch dev["type"] {
 		case "disk":
-			// check pool
-			poolID, err := d.state.Cluster.GetStoragePoolID(dev["pool"])
-			if err != nil {
-				canMigrate = false
-				break
+			// Always consider the rootfs to be migratable.
+			if dev["path"] == "/" {
+				continue
 			}
 
+			// Load the storage pool.
+			poolID, err := d.state.Cluster.GetStoragePoolID(dev["pool"])
+			if err != nil {
+				return false
+			}
+
+			// Check if the storage pool is remote.
 			isRemote, err := d.state.Cluster.IsRemoteStorage(poolID)
 			if err != nil {
-				canMigrate = false
-				break
+				return false
 			}
 
 			if !isRemote {
-				canMigrate = false
-				break
+				return false
 			}
-		case "unix-char", "unix-block", "usb", "gpu":
-			canMigrate = false
-			break
+		case "unix-char", "unix-block", "usb", "gpu", "pci":
+			return false
 		}
-
-		if !canMigrate {
-			break
-		}
-	}
-
-	if !canMigrate {
-		return false
 	}
 
 	return true
