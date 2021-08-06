@@ -2614,33 +2614,18 @@ test_clustering_evacuation() {
   LXD_DIR="${LXD_TWO_DIR}" lxc list
 
   # Check instance status
-  if [ "${driver}" = "ceph" ]; then
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: STOPPED"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
-  else
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: STOPPED"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: STOPPED"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
-    ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1" || false
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
-    LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
-  fi
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Status: RUNNING"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c1 | grep -q "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Status: RUNNING"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c2 | grep -q "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Status: STOPPED"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c3 | grep -q "Location: node1"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Status: RUNNING"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c4 | grep -q "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Status: STOPPED"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc info c5 | grep -q "Location: node1" || false
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Status: RUNNING"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info c6 | grep -q "Location: node2"
 
   # Ensure instances cannot be created on the evacuated node
   ! LXD_DIR="${LXD_TWO_DIR}" lxc launch testimage c7 --target=node1 || false
