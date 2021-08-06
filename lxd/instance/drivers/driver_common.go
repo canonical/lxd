@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
@@ -901,7 +902,7 @@ func (d *common) warningsDelete() error {
 	return nil
 }
 
-func (d *common) IsMigratable() bool {
+func (d *common) isMigratable(inst instance.Instance) bool {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]
@@ -918,30 +919,15 @@ func (d *common) IsMigratable() bool {
 	}
 
 	// Look at attached devices.
-	for _, dev := range d.ExpandedDevices() {
-		switch dev["type"] {
-		case "disk":
-			// Always consider the rootfs to be migratable.
-			if dev["path"] == "/" {
-				continue
-			}
+	volatileGet := func() map[string]string { return map[string]string{} }
+	volatileSet := func(_ map[string]string) error { return nil }
+	for deviceName, rawConfig := range d.ExpandedDevices() {
+		dev, err := device.New(inst, d.state, deviceName, rawConfig, volatileGet, volatileSet)
+		if err != nil {
+			return false
+		}
 
-			// Load the storage pool.
-			poolID, err := d.state.Cluster.GetStoragePoolID(dev["pool"])
-			if err != nil {
-				return false
-			}
-
-			// Check if the storage pool is remote.
-			isRemote, err := d.state.Cluster.IsRemoteStorage(poolID)
-			if err != nil {
-				return false
-			}
-
-			if !isRemote {
-				return false
-			}
-		case "unix-char", "unix-block", "usb", "gpu", "pci":
+		if !dev.CanMigrate() {
 			return false
 		}
 	}

@@ -6587,6 +6587,11 @@ func (d *lxc) IsRunning() bool {
 	return d.isRunningStatusCode(d.statusCode())
 }
 
+// IsMigratable returns whether the instance can be migrated.
+func (d *lxc) IsMigratable() bool {
+	return d.isMigratable(d)
+}
+
 // InitPID returns PID of init process.
 func (d *lxc) InitPID() int {
 	// Load the go-lxc struct
