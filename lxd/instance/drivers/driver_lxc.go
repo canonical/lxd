@@ -1283,25 +1283,6 @@ func (d *lxc) initLXC(config bool) error {
 		return err
 	}
 
-	// Apply raw.lxc
-	if lxcConfig, ok := d.expandedConfig["raw.lxc"]; ok {
-		f, err := ioutil.TempFile("", "lxd_config_")
-		if err != nil {
-			return err
-		}
-
-		err = shared.WriteAll(f, []byte(lxcConfig))
-		f.Close()
-		defer os.Remove(f.Name())
-		if err != nil {
-			return err
-		}
-
-		if err := cc.LoadConfigFile(f.Name()); err != nil {
-			return fmt.Errorf("Failed to load raw.lxc")
-		}
-	}
-
 	if d.c != nil {
 		d.c.Release()
 	}
@@ -2251,6 +2232,25 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		err = lxcSetConfigItem(d.c, "lxc.environment", fmt.Sprintf("NVIDIA_VISIBLE_DEVICES=%s", strings.Join(nvidiaDevices, ",")))
 		if err != nil {
 			return "", nil, errors.Wrapf(err, "Unable to set NVIDIA_VISIBLE_DEVICES in LXC environment")
+		}
+	}
+
+	// Apply raw.lxc.
+	if lxcConfig, ok := d.expandedConfig["raw.lxc"]; ok {
+		f, err := ioutil.TempFile("", "lxd_config_")
+		if err != nil {
+			return "", nil, err
+		}
+
+		err = shared.WriteAll(f, []byte(lxcConfig))
+		f.Close()
+		defer os.Remove(f.Name())
+		if err != nil {
+			return "", nil, err
+		}
+
+		if err := d.c.LoadConfigFile(f.Name()); err != nil {
+			return "", nil, fmt.Errorf("Failed to load raw.lxc")
 		}
 	}
 
