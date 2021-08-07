@@ -2380,7 +2380,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Stop the instance if needed.
 			isRunning := inst.IsRunning()
 			if isRunning {
-				metadata["evacuation_progress"] = "Wait up to the host shutdown timeout before forcing instance stop"
+				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
 				op.UpdateMetadata(metadata)
 
 				// Get the shutdown timeout for the instance.
@@ -2409,11 +2409,6 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			// Start migrating the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %s", inst.Name())
-			op.UpdateMetadata(metadata)
-			inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
-
 			// Find the least loaded cluster member which supports the architecture.
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				targetNodeName, err = tx.GetNodeWithLeastInstances([]int{node.Architecture}, -1)
@@ -2431,6 +2426,11 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return err
 			}
+
+			// Start migrating the instance.
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project(), targetNodeName)
+			op.UpdateMetadata(metadata)
+			inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
 
 			// Migrate the instance.
 			req := api.InstancePost{
@@ -2453,7 +2453,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 			dest = dest.UseProject(inst.Project())
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
 			op.UpdateMetadata(metadata)
 
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
@@ -2556,7 +2556,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		// Migrate instances
 		for _, inst := range instances {
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %s", inst.Name())
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project(), inst.Location())
 			op.UpdateMetadata(metadata)
 
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -2586,7 +2586,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			isRunning := apiInst.StatusCode == api.Running
 
 			if isRunning {
-				metadata["evacuation_progress"] = "Wait up to the host shutdown timeout before forcing instance stop"
+				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
 				op.UpdateMetadata(metadata)
 
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -2655,7 +2655,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
 			op.UpdateMetadata(metadata)
 
 			err = inst.Start(false)
@@ -2676,7 +2676,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Start the instance.
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
 			op.UpdateMetadata(metadata)
 
 			err = inst.Start(false)
