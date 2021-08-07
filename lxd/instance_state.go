@@ -141,6 +141,11 @@ func instanceStatePut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
+	// Check if the cluster member is evacuated.
+	if d.cluster.LocalNodeIsEvacuated() {
+		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+	}
+
 	req := api.InstanceStatePut{}
 
 	// We default to -1 (i.e. no timeout) here instead of 0 (instant timeout).

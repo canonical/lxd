@@ -5353,6 +5353,11 @@ func (d *qemu) IsFrozen() bool {
 	return d.statusCode() == api.Frozen
 }
 
+// IsMigratable returns whether the instance can be migrated.
+func (d *qemu) IsMigratable() bool {
+	return d.isMigratable(d)
+}
+
 // DeviceEventHandler handles events occurring on the instance's devices.
 func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return fmt.Errorf("DeviceEventHandler Not implemented")
