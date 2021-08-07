@@ -2597,15 +2597,15 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 				stopOp, err := source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: false, Timeout: val}, "")
 				if err != nil {
-					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
-					if err != nil || errors.Cause(err) != drivers.ErrInstanceIsStopped {
-						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
-					}
+					return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
 				}
 
 				err = stopOp.Wait()
 				if err != nil {
-					return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
+					if err != nil || errors.Cause(err) != drivers.ErrInstanceIsStopped {
+						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+					}
 				}
 			}
 
