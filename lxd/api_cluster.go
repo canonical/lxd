@@ -2376,41 +2376,45 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 	run := func(op *operations.Operation) error {
 		metadata := make(map[string]interface{})
 
-		// Stop all instances if needed
 		for _, inst := range instances {
+			// Stop the instance if needed.
 			isRunning := inst.IsRunning()
-
 			if isRunning {
 				metadata["evacuation_progress"] = "Wait up to the host shutdown timeout before forcing instance stop"
 				op.UpdateMetadata(metadata)
 
-				// Be nice
+				// Get the shutdown timeout for the instance.
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				val, err := strconv.Atoi(timeout)
 				if err != nil {
 					val = 30
 				}
 
+				// Start with a clean shutdown.
 				err = inst.Shutdown(time.Duration(val) * time.Second)
 				if err != nil {
+					// Fallback to forced stop.
 					err = inst.Stop(false)
 					if err != nil && errors.Cause(err) != drivers.ErrInstanceIsStopped {
 						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
 					}
 				}
 
+				// Mark the instance as RUNNING in volatile so its state can be properly restored.
 				inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
 			}
 
+			// If not migratable, the instance is just stopped.
 			if !inst.IsMigratable() {
 				continue
 			}
 
+			// Start migrating the instance.
 			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %s", inst.Name())
 			op.UpdateMetadata(metadata)
-
 			inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
 
+			// Find the least loaded cluster member which supports the architecture.
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				targetNodeName, err = tx.GetNodeWithLeastInstances([]int{node.Architecture}, -1)
 				if err != nil {
@@ -2428,6 +2432,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			// Migrate the instance.
 			req := api.InstancePost{
 				Name: inst.Name(),
 			}
@@ -2441,6 +2446,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
+			// Start it back up on target.
 			dest, err := cluster.Connect(targetNode.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
 				return errors.Wrap(err, "Failed to connect to destination")
@@ -2658,10 +2664,12 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, inst := range localInstances {
+			// Don't start instances which were stopped by the user.
 			if inst.LocalConfig()["volatile.last_state.power"] != "RUNNING" {
 				continue
 			}
 
+			// Start the instance.
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
 			op.UpdateMetadata(metadata)
 
