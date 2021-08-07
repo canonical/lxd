@@ -9,6 +9,12 @@ type none struct {
 	deviceCommon
 }
 
+// CanMigrate returns whether the device can be migrated to any other cluster member.
+func (d *none) CanMigrate() bool {
+	return true
+}
+
+// validateConfig checks the supplied config for correctness.
 // validateConfig checks the supplied config for correctness.
 func (d *none) validateConfig(instConf instance.ConfigReader) error {
 	rules := map[string]func(string) error{} // No fields allowed.

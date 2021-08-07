@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
@@ -276,7 +277,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 		})
 	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to volatile config")
+		return errors.Wrap(err, "Failed to set volatile config")
 	}
 
 	// Apply the change locally.
@@ -901,9 +902,9 @@ func (d *common) warningsDelete() error {
 	return nil
 }
 
-func (d *common) IsMigratable() bool {
+func (d *common) isMigratable(inst instance.Instance) bool {
+	// Check policy for the instance.
 	config := d.ExpandedConfig()
-
 	val, ok := config["cluster.evacuate"]
 	if !ok {
 		val = "auto"
@@ -917,42 +918,18 @@ func (d *common) IsMigratable() bool {
 		return false
 	}
 
-	devices := d.ExpandedDevices()
-
-	canMigrate := true
-
-	for _, dev := range devices {
-		switch dev["type"] {
-		case "disk":
-			// check pool
-			poolID, err := d.state.Cluster.GetStoragePoolID(dev["pool"])
-			if err != nil {
-				canMigrate = false
-				break
-			}
-
-			isRemote, err := d.state.Cluster.IsRemoteStorage(poolID)
-			if err != nil {
-				canMigrate = false
-				break
-			}
-
-			if !isRemote {
-				canMigrate = false
-				break
-			}
-		case "unix-char", "unix-block", "usb", "gpu":
-			canMigrate = false
-			break
+	// Look at attached devices.
+	volatileGet := func() map[string]string { return map[string]string{} }
+	volatileSet := func(_ map[string]string) error { return nil }
+	for deviceName, rawConfig := range d.ExpandedDevices() {
+		dev, err := device.New(inst, d.state, deviceName, rawConfig, volatileGet, volatileSet)
+		if err != nil {
+			return false
 		}
 
-		if !canMigrate {
-			break
+		if !dev.CanMigrate() {
+			return false
 		}
-	}
-
-	if !canMigrate {
-		return false
 	}
 
 	return true

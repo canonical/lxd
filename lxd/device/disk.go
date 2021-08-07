@@ -54,6 +54,28 @@ type disk struct {
 	deviceCommon
 }
 
+// CanMigrate returns whether the device can be migrated to any other cluster member.
+func (d *disk) CanMigrate() bool {
+	// Root disk is always migratable.
+	if d.config["path"] == "/" {
+		return true
+	}
+
+	// Load the storage pool.
+	pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
+	if err != nil {
+		return false
+	}
+
+	// Remote disks are migratable.
+	if pool.Driver().Info().Remote {
+		return true
+	}
+
+	return false
+}
+
+// validateConfig checks the supplied config for correctness.
 // isRequired indicates whether the supplied device config requires this device to start OK.
 func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	// Defaults to required.

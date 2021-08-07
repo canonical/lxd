@@ -2576,7 +2576,9 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrapf(err, "Failed to get instance %q", inst.Name())
 			}
 
-			if apiInst.StatusCode == api.Running {
+			isRunning := apiInst.StatusCode == api.Running
+
+			if isRunning {
 				metadata["evacuation_progress"] = "Wait up to the host shutdown timeout before forcing instance stop"
 				op.UpdateMetadata(metadata)
 
@@ -2617,6 +2619,12 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrap(err, "Failed to wait for migration to finish")
 			}
 
+			// Reload the instance after migration.
+			inst, err := instance.LoadByProjectAndName(d.State(), inst.Project(), inst.Name())
+			if err != nil {
+				return errors.Wrap(err, "Failed to load instance")
+			}
+
 			config := inst.LocalConfig()
 			delete(config, "volatile.evacuate.origin")
 
@@ -2636,7 +2644,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrapf(err, "Failed to update instance %q", inst.Name())
 			}
 
-			if inst.LocalConfig()["volatile.last_state.power"] != "RUNNING" {
+			if !isRunning {
 				continue
 			}
 

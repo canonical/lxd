@@ -1403,7 +1403,9 @@ func (d *Daemon) Ready() error {
 	s := d.State()
 
 	// Restore containers
-	instancesRestart(s)
+	if !d.cluster.LocalNodeIsEvacuated() {
+		instancesRestart(s)
+	}
 
 	// Re-balance in case things changed while LXD was down
 	deviceTaskBalance(s)
