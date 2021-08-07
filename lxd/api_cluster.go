@@ -2554,7 +2554,29 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		metadata := make(map[string]interface{})
 
-		// Migrate instances
+		// Restart the local instances.
+		for _, inst := range localInstances {
+			// Don't start instances which were stopped by the user.
+			if inst.LocalConfig()["volatile.last_state.power"] != "RUNNING" {
+				continue
+			}
+
+			// Don't attempt to start instances which are already running.
+			if inst.IsRunning() {
+				continue
+			}
+
+			// Start the instance.
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
+			op.UpdateMetadata(metadata)
+
+			err = inst.Start(false)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to start instance %q", inst.Name())
+			}
+		}
+
+		// Migrate back the remote instances.
 		for _, inst := range instances {
 			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project(), inst.Location())
 			op.UpdateMetadata(metadata)
@@ -2655,27 +2677,6 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
-			op.UpdateMetadata(metadata)
-
-			err = inst.Start(false)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to start instance %q", inst.Name())
-			}
-		}
-
-		for _, inst := range localInstances {
-			// Don't start instances which were stopped by the user.
-			if inst.LocalConfig()["volatile.last_state.power"] != "RUNNING" {
-				continue
-			}
-
-			// Don't attempt to start instances which are already running.
-			if inst.IsRunning() {
-				continue
-			}
-
-			// Start the instance.
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
 			op.UpdateMetadata(metadata)
 
