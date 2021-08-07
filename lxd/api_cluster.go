@@ -2451,6 +2451,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return errors.Wrap(err, "Failed to connect to destination")
 			}
+			dest = dest.UseProject(inst.Project())
 
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
 			op.UpdateMetadata(metadata)
