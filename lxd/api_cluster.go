@@ -2670,6 +2670,11 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
+			// Don't attempt to start instances which are already running.
+			if inst.IsRunning() {
+				continue
+			}
+
 			// Start the instance.
 			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
 			op.UpdateMetadata(metadata)
