@@ -2376,41 +2376,40 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 	run := func(op *operations.Operation) error {
 		metadata := make(map[string]interface{})
 
-		// Stop all instances if needed
 		for _, inst := range instances {
+			// Stop the instance if needed.
 			isRunning := inst.IsRunning()
-
 			if isRunning {
-				metadata["evacuation_progress"] = "Wait up to the host shutdown timeout before forcing instance stop"
+				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
 				op.UpdateMetadata(metadata)
 
-				// Be nice
+				// Get the shutdown timeout for the instance.
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 				val, err := strconv.Atoi(timeout)
 				if err != nil {
 					val = 30
 				}
 
+				// Start with a clean shutdown.
 				err = inst.Shutdown(time.Duration(val) * time.Second)
 				if err != nil {
+					// Fallback to forced stop.
 					err = inst.Stop(false)
 					if err != nil && errors.Cause(err) != drivers.ErrInstanceIsStopped {
 						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
 					}
 				}
 
+				// Mark the instance as RUNNING in volatile so its state can be properly restored.
 				inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
 			}
 
+			// If not migratable, the instance is just stopped.
 			if !inst.IsMigratable() {
 				continue
 			}
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %s", inst.Name())
-			op.UpdateMetadata(metadata)
-
-			inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
-
+			// Find the least loaded cluster member which supports the architecture.
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				targetNodeName, err = tx.GetNodeWithLeastInstances([]int{node.Architecture}, -1)
 				if err != nil {
@@ -2428,6 +2427,12 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
+			// Start migrating the instance.
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project(), targetNodeName)
+			op.UpdateMetadata(metadata)
+			inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
+
+			// Migrate the instance.
 			req := api.InstancePost{
 				Name: inst.Name(),
 			}
@@ -2441,12 +2446,14 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
+			// Start it back up on target.
 			dest, err := cluster.Connect(targetNode.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
 				return errors.Wrap(err, "Failed to connect to destination")
 			}
+			dest = dest.UseProject(inst.Project())
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
 			op.UpdateMetadata(metadata)
 
 			startOp, err := dest.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "start"}, "")
@@ -2547,9 +2554,31 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		metadata := make(map[string]interface{})
 
-		// Migrate instances
+		// Restart the local instances.
+		for _, inst := range localInstances {
+			// Don't start instances which were stopped by the user.
+			if inst.LocalConfig()["volatile.last_state.power"] != "RUNNING" {
+				continue
+			}
+
+			// Don't attempt to start instances which are already running.
+			if inst.IsRunning() {
+				continue
+			}
+
+			// Start the instance.
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
+			op.UpdateMetadata(metadata)
+
+			err = inst.Start(false)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to start instance %q", inst.Name())
+			}
+		}
+
+		// Migrate back the remote instances.
 		for _, inst := range instances {
-			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %s", inst.Name())
+			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project(), inst.Location())
 			op.UpdateMetadata(metadata)
 
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -2579,7 +2608,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			isRunning := apiInst.StatusCode == api.Running
 
 			if isRunning {
-				metadata["evacuation_progress"] = "Wait up to the host shutdown timeout before forcing instance stop"
+				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
 				op.UpdateMetadata(metadata)
 
 				timeout := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -2590,15 +2619,15 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 				stopOp, err := source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: false, Timeout: val}, "")
 				if err != nil {
-					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
-					if err != nil || errors.Cause(err) != drivers.ErrInstanceIsStopped {
-						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
-					}
+					return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
 				}
 
 				err = stopOp.Wait()
 				if err != nil {
-					return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
+					if err != nil || errors.Cause(err) != drivers.ErrInstanceIsStopped {
+						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+					}
 				}
 			}
 
@@ -2648,21 +2677,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
-			op.UpdateMetadata(metadata)
-
-			err = inst.Start(false)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to start instance %q", inst.Name())
-			}
-		}
-
-		for _, inst := range localInstances {
-			if inst.LocalConfig()["volatile.last_state.power"] != "RUNNING" {
-				continue
-			}
-
-			metadata["evacuation_progress"] = fmt.Sprintf("Starting %s", inst.Name())
+			metadata["evacuation_progress"] = fmt.Sprintf("Starting %q in project %q", inst.Name(), inst.Project())
 			op.UpdateMetadata(metadata)
 
 			err = inst.Start(false)
