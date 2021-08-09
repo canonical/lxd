@@ -266,7 +266,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 				// Skip our own device. This avoids triggering duplicate device errors during
 				// updates or when making temporary copies of our instance during migrations.
-				if instance.IsSameLocgicalInstance(d.inst, &inst) && d.Name() == devName {
+				if instance.IsSameLogicalInstance(d.inst, &inst) && d.Name() == devName {
 					continue
 				}
 
