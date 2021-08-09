@@ -114,7 +114,7 @@ volatile.idmap.next                         | string    | -             | The id
 volatile.last\_state.idmap                  | string    | -             | Serialized instance uid/gid map
 volatile.last\_state.power                  | string    | -             | Instance state as of last host shutdown
 volatile.vsock\_id                          | string    | -             | Instance vsock ID used as of last start
-volatile.uuid                               | string    | -             | Instance UUID
+volatile.uuid                               | string    | -             | Instance UUID (globally unique across all servers and projects)
 volatile.\<name\>.apply\_quota              | string    | -             | Disk quota to be applied on next instance start
 volatile.\<name\>.ceph\_rbd                 | string    | -             | RBD device path for Ceph disk devices
 volatile.\<name\>.host\_name                | string    | -             | Network device name on the host
