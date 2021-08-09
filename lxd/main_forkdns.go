@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/miekg/dns"
 	"github.com/spf13/cobra"
-	"gopkg.in/fsnotify.v0"
 
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/shared"
@@ -43,7 +43,7 @@ func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
 
 	for {
 		select {
-		case ev := <-watcher.Event:
+		case ev := <-watcher.Events:
 			// Ignore files events that dont concern the servers list file.
 			if !strings.HasSuffix(ev.Name, network.ForkdnsServersListPath+"/"+network.ForkdnsServersListFile) {
 				continue
@@ -53,7 +53,7 @@ func serversFileMonitor(watcher *fsnotify.Watcher, networkName string) {
 				logger.Errorf("Server list load error: %v", err)
 				continue
 			}
-		case err := <-watcher.Error:
+		case err := <-watcher.Errors:
 			logger.Errorf("Inotify error: %v", err)
 		}
 	}
@@ -359,7 +359,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 
 	networkName := args[2]
 	path := shared.VarPath("networks", networkName, network.ForkdnsServersListPath)
-	err = watcher.Watch(path)
+	err = watcher.Add(path)
 	if err != nil {
 		return fmt.Errorf("Unable to setup fsnotify watch on %s: %s", path, err)
 	}
