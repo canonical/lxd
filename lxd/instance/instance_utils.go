@@ -1202,10 +1202,18 @@ func MoveTemporaryName(inst Instance) string {
 	return fmt.Sprintf("lxd-move-of-%s", inst.LocalConfig()["volatile.uuid"])
 }
 
-// IsSameLocgicalInstance returns true if the supplied Instance and db.Instance have the same project, and either
-// the same name or volatile.uuid values.
+// IsSameLocgicalInstance returns true if the supplied Instance and db.Instance have the same project and name or
+// if they have the same volatile.uuid values.
 func IsSameLocgicalInstance(inst Instance, dbInst *db.Instance) bool {
-	if dbInst.Project == inst.Project() && (dbInst.Name == inst.Name() || dbInst.Config["volatile.uuid"] == inst.LocalConfig()["volatile.uuid"]) {
+	// Instance name is unique within a project.
+	if dbInst.Project == inst.Project() && dbInst.Name == inst.Name() {
+		return true
+	}
+
+	// Instance UUID is expected to be globally unique (which then allows for the *temporary* existence of
+	// duplicate instances of different names with the same volatile.uuid in order to accommodate moving
+	// instances between projects and storage pools without triggering duplicate resource errors).
+	if dbInst.Config["volatile.uuid"] == inst.LocalConfig()["volatile.uuid"] {
 		return true
 	}
 
