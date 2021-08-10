@@ -63,6 +63,9 @@ test_container_devices_nic_routed() {
     mtu=1600
   lxc start "${ctName}"
 
+  # Check IP is assigned and doesn't have a broadcast address set.
+  lxc exec "${ctName}" -- ip a | grep "inet 192.0.2.1${ipRand}/32 scope global eth0"
+
   # Check custom MTU is applied.
   if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1600" ; then
     echo "mtu invalid"
