@@ -263,7 +263,10 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	if d.config["ipv4.address"] != "" {
 		for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
 			addr = strings.TrimSpace(addr)
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32", addr)})
+			// Specify the broadcast address as 0.0.0.0 as there is no broadcast address on this link.
+			// This stops liblxc from trying to calculate a broadcast address (and getting it wrong)
+			// which can prevent instances communicating with each other using adjacent IP addresses.
+			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addr)})
 		}
 
 		if nicHasAutoGateway(d.config["ipv4.gateway"]) {
