@@ -98,6 +98,7 @@ var api10 = []APIEndpoint{
 	storagePoolVolumeTypeStateCmd,
 	warningsCmd,
 	warningCmd,
+	metricsCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
