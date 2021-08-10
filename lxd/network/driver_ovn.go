@@ -2532,7 +2532,6 @@ func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) ([]*
 func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.Instance, deviceName string, portExternalRoutes []*net.IPNet) error {
 	var err error
 	var p *db.Project
-	var projectNetworks map[string]map[int64]api.Network
 
 	// Get uplink routes.
 	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
@@ -2564,23 +2563,13 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 			return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
 		}
 
-		// Get all managed networks across all projects.
-		projectNetworks, err = tx.GetCreatedNetworks()
-		if err != nil {
-			return errors.Wrapf(err, "Failed to load all networks")
-		}
-
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	// Get OVN networks that use the same uplink as us.
-	ovnProjectNetworksWithOurUplink := n.ovnProjectNetworksWithUplink(n.config["network"], projectNetworks)
-
-	// Get external subnets used by other OVN networks using our uplink.
-	ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets("", "", ovnProjectNetworksWithOurUplink, uplinkRoutes)
+	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
 	if err != nil {
 		return err
 	}
@@ -2589,17 +2578,6 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
 	if err != nil {
 		return err
-	}
-
-	// If validating with an instance, get external routes configured on OVN NICs (excluding ours) using
-	// networks that use our uplink. If we are validating a profile and no instance is provided, skip
-	// validating OVN NIC overlaps at this stage.
-	var ovnNICExternalRoutes []*net.IPNet
-	if deviceInstance != nil {
-		ovnNICExternalRoutes, err = n.ovnNICExternalRoutes(deviceInstance, deviceName, ovnProjectNetworksWithOurUplink)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Check if uplink has routed ingress anycast mode enabled, as this relaxes the overlap checks.
@@ -2624,20 +2602,24 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		}
 
 		// Check the external port route doesn't fall within any existing OVN network external subnets.
-		for _, ovnNetworkExternalSubnet := range ovnNetworkExternalSubnets {
-			if SubnetContains(ovnNetworkExternalSubnet, portExternalRoute) || SubnetContains(portExternalRoute, ovnNetworkExternalSubnet) {
-				// This error is purposefully vague so that it doesn't reveal any names of
-				// resources potentially outside of the NIC's project.
-				return fmt.Errorf("External route %q overlaps with another OVN network's external subnet", portExternalRoute.String())
+		for _, externalSubnetUser := range externalSubnetsInUse {
+			if deviceInstance == nil {
+				// Skip checking instance devices during profile validation, only do this when
+				// an instance is supplied.
+				if externalSubnetUser.instanceDevice != "" {
+					continue
+				}
+			} else {
+				// Skip our own NIC device.
+				if externalSubnetUser.instanceProject == deviceInstance.Project() && externalSubnetUser.instanceName == deviceInstance.Name() && externalSubnetUser.instanceDevice == deviceName {
+					continue
+				}
 			}
-		}
 
-		// Check the external port route doesn't fall within any existing OVN NIC external routes.
-		for _, ovnNICExternalRoute := range ovnNICExternalRoutes {
-			if SubnetContains(ovnNICExternalRoute, portExternalRoute) || SubnetContains(portExternalRoute, ovnNICExternalRoute) {
+			if SubnetContains(externalSubnetUser.subnet, portExternalRoute) || SubnetContains(portExternalRoute, externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
-				// resources potentially outside of the NIC's project.
-				return fmt.Errorf("External route %q overlaps with another OVN NIC's external route", portExternalRoute.String())
+				// resources potentially outside of the network's project.
+				return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", portExternalRoute.String())
 			}
 		}
 	}
