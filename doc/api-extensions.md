@@ -1407,3 +1407,8 @@ Add a new USBAddress (usb\_address) field to ResourcesGPUCard (GPU entries) in t
 ## clustering\_evacuation
 Adds `POST /1.0/cluster/members/<name>/state` endpoint for evacuating and restoring cluster members.
 It also adds the config keys `cluster.evacuate` and `volatile.evacuate.origin` for setting the evacuation method (`auto`, `stop` or `migrate`) and the origin of any migrated instance respectively.
+
+## network\_ovn\_nat\_address
+This introduces the `ipv4.nat.address` and `ipv6.nat.address` configuration keys for LXD `ovn` networks.
+Those keys control the source address used for outbound traffic from the OVN virtual network.
+These keys can only be specified when the OVN network's uplink network has `ovn.ingress_mode=routed`.
