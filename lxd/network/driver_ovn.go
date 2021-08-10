@@ -258,7 +258,9 @@ func (n *ovn) Validate(config map[string]string) error {
 		"ipv6.dhcp":                            validate.Optional(validate.IsBool),
 		"ipv6.dhcp.stateful":                   validate.Optional(validate.IsBool),
 		"ipv4.nat":                             validate.Optional(validate.IsBool),
+		"ipv4.nat.address":                     validate.Optional(validate.IsNetworkAddressV4),
 		"ipv6.nat":                             validate.Optional(validate.IsBool),
+		"ipv6.nat.address":                     validate.Optional(validate.IsNetworkAddressV6),
 		"dns.domain":                           validate.IsAny,
 		"dns.search":                           validate.IsAny,
 		"security.acls":                        validate.IsAny,
@@ -331,7 +333,31 @@ func (n *ovn) Validate(config map[string]string) error {
 		}
 	}
 
-	if len(externalSubnets) > 0 {
+	// Check SNAT addresses specified are allowed to be used based on uplink's ovn.ingress_mode setting.
+	var externalSNATSubnets []*net.IPNet // Subnets to check for conflicts with other networks/NICs.
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		snatAddressKey := fmt.Sprintf("%s.nat.address", keyPrefix)
+		if config[snatAddressKey] != "" {
+			if uplink.Config["ovn.ingress_mode"] != "routed" {
+				return fmt.Errorf(`Cannot specify %q when uplink ovn.ingress_mode is not "routed"`, snatAddressKey)
+			}
+
+			subnetSize := 128
+			if keyPrefix == "ipv4" {
+				subnetSize = 32
+			}
+
+			_, snatIPNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", config[snatAddressKey], subnetSize))
+			if err != nil {
+				return errors.Wrapf(err, "Failed parsing %q", snatAddressKey)
+			}
+
+			// Add to list to check for conflicts.
+			externalSNATSubnets = append(externalSNATSubnets, snatIPNet)
+		}
+	}
+
+	if len(externalSubnets) > 0 || len(externalSNATSubnets) > 0 {
 		externalSubnetsInUse, err := n.getExternalSubnetInUse(config["network"])
 		if err != nil {
 			return err
@@ -369,6 +395,40 @@ func (n *ovn) Validate(config map[string]string) error {
 					// This error is purposefully vague so that it doesn't reveal any names of
 					// resources potentially outside of the network's project.
 					return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", externalSubnet.String())
+				}
+			}
+		}
+
+		for _, externalSNATSubnet := range externalSNATSubnets {
+			// Check the external subnet is allowed within both the uplink's external routes and any
+			// project restricted subnets.
+			err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, externalSNATSubnet)
+			if err != nil {
+				return err
+			}
+
+			// Skip overlap checks if external subnet's protocol has anycast mode enabled on uplink.
+			if externalSNATSubnet.IP.To4() == nil {
+				if ipv6UplinkAnycast == true {
+					continue
+				}
+			} else if ipv4UplinkAnycast == true {
+				continue
+			}
+
+			// Check the external subnet doesn't fall within any existing OVN network external subnets.
+			for _, externalSubnetUser := range externalSubnetsInUse {
+				// Skip our own network (including NIC devices on our own network).
+				// Because we may want to specify the SNAT address as the same address as one of
+				// the NICs in our network.
+				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+					continue
+				}
+
+				if SubnetContains(externalSubnetUser.subnet, externalSNATSubnet) || SubnetContains(externalSNATSubnet, externalSubnetUser.subnet) {
+					// This error is purposefully vague so that it doesn't reveal any names of
+					// resources potentially outside of the network's project.
+					return fmt.Errorf("NAT address %q overlaps with another OVN network or NIC", externalSNATSubnet.IP.String())
 				}
 			}
 		}
@@ -1723,14 +1783,32 @@ func (n *ovn) setup(update bool) error {
 
 		// Add SNAT rules.
 		if shared.IsTrue(n.config["ipv4.nat"]) && routerIntPortIPv4Net != nil && routerExtPortIPv4 != nil {
-			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, routerExtPortIPv4, update)
+			snatIP := routerExtPortIPv4
+
+			if n.config["ipv4.nat.address"] != "" {
+				snatIP = net.ParseIP(n.config["ipv4.nat.address"])
+				if snatIP == nil {
+					return fmt.Errorf("Failed parsing %q", "ipv4.nat.address")
+				}
+			}
+
+			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv4Net, snatIP, update)
 			if err != nil {
 				return errors.Wrapf(err, "Failed adding router IPv4 SNAT rule")
 			}
 		}
 
 		if shared.IsTrue(n.config["ipv6.nat"]) && routerIntPortIPv6Net != nil && routerExtPortIPv6 != nil {
-			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, routerExtPortIPv6, update)
+			snatIP := routerExtPortIPv6
+
+			if n.config["ipv6.nat.address"] != "" {
+				snatIP = net.ParseIP(n.config["ipv6.nat.address"])
+				if snatIP == nil {
+					return fmt.Errorf("Failed parsing %q", "ipv6.nat.address")
+				}
+			}
+
+			err = client.LogicalRouterSNATAdd(n.getRouterName(), routerIntPortIPv6Net, snatIP, update)
 			if err != nil {
 				return errors.Wrapf(err, "Failed adding router IPv6 SNAT rule")
 			}
