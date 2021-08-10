@@ -279,6 +279,7 @@ var APIExtensions = []string{
 	"event_lifecycle_requestor_address",
 	"resources_gpu_usb",
 	"clustering_evacuation",
+	"network_ovn_nat_address",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
