@@ -332,31 +332,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	if len(externalSubnets) > 0 {
-		var projectNetworks map[string]map[int64]api.Network
-		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			// Get all managed networks across all projects.
-			projectNetworks, err = tx.GetCreatedNetworks()
-			if err != nil {
-				return errors.Wrapf(err, "Failed to load all networks")
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-
-		// Get OVN networks that use the same uplink as us.
-		ovnProjectNetworksWithOurUplink := n.ovnProjectNetworksWithUplink(config["network"], projectNetworks)
-
-		// Get external subnets used by other OVN networks using our uplink.
-		ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets(n.project, n.name, ovnProjectNetworksWithOurUplink, uplinkRoutes)
-		if err != nil {
-			return err
-		}
-
-		// Get external routes configured on OVN NICs using networks that use our uplink.
-		ovnNICExternalRoutes, err := n.ovnNICExternalRoutes(nil, "", ovnProjectNetworksWithOurUplink)
+		externalSubnetsInUse, err := n.getExternalSubnetInUse(config["network"])
 		if err != nil {
 			return err
 		}
@@ -383,20 +359,16 @@ func (n *ovn) Validate(config map[string]string) error {
 			}
 
 			// Check the external subnet doesn't fall within any existing OVN network external subnets.
-			for _, ovnNetworkExternalSubnet := range ovnNetworkExternalSubnets {
-				if SubnetContains(ovnNetworkExternalSubnet, externalSubnet) || SubnetContains(externalSubnet, ovnNetworkExternalSubnet) {
+			for _, externalSubnetUser := range externalSubnetsInUse {
+				// Skip our own network (but not NIC devices on our own network).
+				if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
+					continue
+				}
+
+				if SubnetContains(externalSubnetUser.subnet, externalSubnet) || SubnetContains(externalSubnet, externalSubnetUser.subnet) {
 					// This error is purposefully vague so that it doesn't reveal any names of
 					// resources potentially outside of the network's project.
-					return fmt.Errorf("External subnet %q overlaps with another OVN network's external subnet", externalSubnet.String())
-				}
-			}
-
-			// Check the external subnet doesn't fall within any existing OVN NIC external routes.
-			for _, ovnNICExternalRoute := range ovnNICExternalRoutes {
-				if SubnetContains(ovnNICExternalRoute, externalSubnet) || SubnetContains(externalSubnet, ovnNICExternalRoute) {
-					// This error is purposefully vague so that it doesn't reveal any names of
-					// resources potentially outside of the networks's project.
-					return fmt.Errorf("External subnet %q overlaps with another OVN NIC's external route", externalSubnet.String())
+					return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", externalSubnet.String())
 				}
 			}
 		}
