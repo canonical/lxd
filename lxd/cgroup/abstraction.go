@@ -3,6 +3,7 @@ package cgroup
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -558,4 +559,60 @@ func (cg *CGroup) SetCpuset(limit string) error {
 	}
 
 	return ErrUnknownVersion
+}
+
+// GetMemoryStats returns memory stats
+func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
+	var (
+		err   error
+		stats string
+	)
+
+	out := make(map[string]uint64)
+
+	version := cgControllers["memory"]
+	switch version {
+	case Unavailable:
+		return nil, ErrControllerMissing
+	case V1, V2:
+		stats, err = cg.rw.Get(version, "memory", "memory.stat")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	for _, stat := range strings.Split(stats, "\n") {
+		field := strings.Split(stat, " ")
+
+		switch field[0] {
+		case "total_active_anon", "active_anon":
+			out["active_anon"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_active_file", "active_file":
+			out["active_file"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_inactive_anon", "inactive_anon":
+			out["inactive_anon"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_inactive_file", "inactive_file":
+			out["inactive_file"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_unevictable", "unevictable":
+			out["unevictable"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_writeback", "file_writeback":
+			out["writeback"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_dirty", "file_dirty":
+			out["dirty"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_mapped_file", "file_mapped":
+			out["mapped"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_rss": // v1 only
+			out["rss"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_shmem", "shmem":
+			out["shmem"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_cache": // v1 only
+			out["cache"], _ = strconv.ParseUint(field[1], 10, 64)
+		}
+	}
+
+	// Calculated values
+	out["active"] = out["active_anon"] + out["active_file"]
+	out["inactive"] = out["inactive_anon"] + out["inactive_file"]
+
+	return out, nil
 }
