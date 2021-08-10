@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,13 +37,16 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/lifecycle"
+	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/template"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -6818,4 +6822,329 @@ func (d *lxc) Info() instance.Info {
 		Type:    instancetype.Container,
 		Error:   nil,
 	}
+}
+
+func (d *lxc) Metrics() (*metrics.MetricSet, error) {
+	out := metrics.NewMetricSet(map[string]string{"project": d.project, "name": d.name})
+
+	// Load cgroup abstraction
+	cg, err := d.cgroup(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get Memory metrics
+	memStats, err := cg.GetMemoryStats()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get memory stats")
+	}
+
+	for k, v := range memStats {
+		var metricType metrics.MetricType
+
+		switch k {
+		case "active_anon":
+			metricType = metrics.MemoryActiveAnonBytes
+		case "active_file":
+			metricType = metrics.MemoryActiveFileBytes
+		case "active":
+			metricType = metrics.MemoryActiveBytes
+		case "inactive_anon":
+			metricType = metrics.MemoryInactiveAnonBytes
+		case "inactive_file":
+			metricType = metrics.MemoryInactiveFileBytes
+		case "inactive":
+			metricType = metrics.MemoryInactiveBytes
+		case "unevictable":
+			metricType = metrics.MemoryUnevictableBytes
+		case "writeback":
+			metricType = metrics.MemoryWritebackBytes
+		case "dirty":
+			metricType = metrics.MemoryDirtyBytes
+		case "mapped":
+			metricType = metrics.MemoryDirtyBytes
+		case "rss":
+			metricType = metrics.MemoryRSSBytes
+		case "shmem":
+			metricType = metrics.MemoryShmemBytes
+		case "cache":
+			metricType = metrics.MemoryCachedBytes
+		}
+
+		out.AddSamples(metricType, metrics.Sample{Value: v})
+	}
+
+	memoryUsage, err := cg.GetMemoryUsage()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get memory usage")
+	}
+
+	out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: uint64(memoryUsage)})
+
+	memoryLimit := uint64(0)
+
+	limit, err := cg.GetMemoryLimit()
+	if err != nil {
+		// Check /proc/meminfo
+		meminfo, err := ioutil.ReadFile("/proc/meminfo")
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get memory limit")
+		}
+
+		scanner := bufio.NewScanner(bytes.NewReader(meminfo))
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.Fields(line)
+
+			if len(parts) == 0 {
+				continue
+			}
+
+			key := parts[0][:len(parts[0])-1]
+
+			if key != "MemTotal" {
+				continue
+			}
+
+			val, err := strconv.ParseUint(parts[1], 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get total memory")
+			}
+
+			switch len(parts) {
+			case 2: // no unit
+			case 3: // has unit, we presume kB
+				val *= 1024
+			default:
+				return nil, errors.Wrap(err, "Failed to get total memory")
+			}
+
+			memoryLimit = val
+			break
+		}
+	} else {
+		memoryLimit = uint64(limit)
+	}
+
+	out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: memoryLimit})
+
+	out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: memoryLimit - uint64(memoryUsage)})
+
+	swapUsage, err := cg.GetMemorySwapUsage()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get swap usage")
+	}
+
+	out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: uint64(swapUsage)})
+
+	// Get CPU stats
+	usage, err := cg.GetCPUAcctUsageAll()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get CPU usage")
+	}
+
+	for cpu, stats := range usage {
+		out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.System / 1000000), Labels: map[string]string{"mode": "system", "cpu": strconv.Itoa(int(cpu))}})
+		out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.User / 1000000), Labels: map[string]string{"mode": "user", "cpu": strconv.Itoa(int(cpu))}})
+	}
+
+	// Get disk stats
+	diskStats, err := cg.GetIOStats()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get disk stats")
+	}
+
+	for disk, stats := range diskStats {
+		out.AddSamples(metrics.DiskReadBytesTotal, metrics.Sample{Value: stats.ReadBytes, Labels: map[string]string{"device": disk}})
+		out.AddSamples(metrics.DiskReadsCompletedTotal, metrics.Sample{Value: stats.ReadsCompleted, Labels: map[string]string{"device": disk}})
+		out.AddSamples(metrics.DiskWrittenBytesTotal, metrics.Sample{Value: stats.WrittenBytes, Labels: map[string]string{"device": disk}})
+		out.AddSamples(metrics.DiskWritesCompletedTotal, metrics.Sample{Value: stats.WritesCompleted, Labels: map[string]string{"device": disk}})
+	}
+
+	// Get filesystem stats
+	fsStats, err := d.getFSStats()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get fs stats")
+	}
+
+	out.Merge(fsStats)
+
+	// Get network stats
+	networkState := d.networkState()
+
+	for name, state := range networkState {
+		out.AddSamples(metrics.NetworkReceiveBytesTotal, metrics.Sample{Value: uint64(state.Counters.BytesReceived), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkReceivePacketsTotal, metrics.Sample{Value: uint64(state.Counters.PacketsReceived), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitBytesTotal, metrics.Sample{Value: uint64(state.Counters.BytesSent), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitPacketsTotal, metrics.Sample{Value: uint64(state.Counters.PacketsSent), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkReceiveErrsTotal, metrics.Sample{Value: uint64(state.Counters.ErrorsReceived), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitErrsTotal, metrics.Sample{Value: uint64(state.Counters.ErrorsSent), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkReceiveDropTotal, metrics.Sample{Value: uint64(state.Counters.PacketsDroppedInbound), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitDropTotal, metrics.Sample{Value: uint64(state.Counters.PacketsDroppedOutbound), Labels: map[string]string{"device": name}})
+
+	}
+
+	// Get number of processes
+	pids, err := cg.GetTotalProcesses()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get total number of processes")
+	}
+
+	out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: uint64(pids)})
+
+	return out, nil
+}
+
+func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
+	type mountInfo struct {
+		Mountpoint string
+		FSType     string
+	}
+
+	out := metrics.NewMetricSet(map[string]string{"project": d.project, "name": d.name})
+
+	mounts, err := ioutil.ReadFile("/proc/mounts")
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read /proc/mounts")
+	}
+
+	mountMap := make(map[string]mountInfo)
+	scanner := bufio.NewScanner(bytes.NewReader(mounts))
+
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+
+		mountMap[fields[0]] = mountInfo{Mountpoint: fields[1], FSType: fields[2]}
+	}
+
+	// Get disk devices
+	for _, dev := range d.expandedDevices {
+		if dev["type"] != "disk" || dev["path"] == "" {
+			continue
+		}
+
+		var statfs *unix.Statfs_t
+		labels := make(map[string]string)
+		realDev := ""
+
+		if dev["pool"] != "" {
+			// Storage pool volume
+			pool, err := storage.GetPoolByName(d.state, dev["pool"])
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get pool")
+			}
+
+			volumes, err := pool.Driver().ListVolumes()
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to list volumes")
+			}
+
+			mountpoint := ""
+
+			for _, vol := range volumes {
+				// Skip all non-custom volumes
+				if vol.Type() != storageDrivers.VolumeTypeCustom || vol.Name() == "" {
+					continue
+				}
+
+				projectName, volName := project.StorageVolumeParts(vol.Name())
+
+				// Find the correct volume
+				if dev["source"] != volName || d.project != projectName {
+					continue
+				}
+
+				mountpoint = vol.MountPath()
+
+				break
+			}
+
+			if mountpoint == "" {
+				continue
+			}
+
+			statfs, err = filesystem.StatVFS(mountpoint)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to stat %s", mountpoint)
+			}
+
+			isMounted := false
+
+			// Check if mountPath is in mountMap
+			for mountDev, mountInfo := range mountMap {
+				if mountInfo.Mountpoint != mountpoint {
+					continue
+				}
+
+				isMounted = true
+				realDev = mountDev
+				break
+			}
+
+			if !isMounted {
+				realDev = dev["source"]
+			}
+		} else {
+			statfs, err = filesystem.StatVFS(dev["source"])
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to stat %s", dev["source"])
+			}
+
+			isMounted := false
+
+			// Check if mountPath is in mountMap
+			for mountDev, mountInfo := range mountMap {
+				if mountInfo.Mountpoint != dev["source"] {
+					continue
+				}
+
+				isMounted = true
+				stat := unix.Stat_t{}
+
+				// Check if dev has a backing file
+				err = unix.Stat(dev["source"], &stat)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to stat %s", dev["source"])
+				}
+
+				backingFilePath := fmt.Sprintf("/sys/dev/block/%d:%d/loop/backing_file", unix.Major(stat.Dev), unix.Minor(stat.Dev))
+
+				if shared.PathExists(backingFilePath) {
+					// Read backing file
+					backingFile, err := ioutil.ReadFile(backingFilePath)
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed to read %s", backingFilePath)
+					}
+
+					realDev = string(backingFile)
+				} else {
+					// Use dev as device
+					realDev = mountDev
+				}
+
+				break
+			}
+
+			if !isMounted {
+				realDev = dev["source"]
+			}
+		}
+
+		// Add labels
+		labels["device"] = realDev
+		labels["mountpoint"] = dev["path"]
+
+		fsType, err := filesystem.FSTypeToName(statfs.Type)
+		if err == nil {
+			labels["fstype"] = fsType
+		}
+
+		// Add sample
+		out.AddSamples(metrics.FilesystemSizeBytes, metrics.Sample{Value: statfs.Blocks * uint64(statfs.Bsize), Labels: labels})
+		out.AddSamples(metrics.FilesystemAvailBytes, metrics.Sample{Value: statfs.Bavail * uint64(statfs.Bsize), Labels: labels})
+		out.AddSamples(metrics.FilesystemFreeBytes, metrics.Sample{Value: statfs.Bfree * uint64(statfs.Bsize), Labels: labels})
+	}
+
+	return out, nil
 }
