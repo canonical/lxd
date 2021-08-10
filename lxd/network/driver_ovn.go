@@ -273,7 +273,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
 			_, ipNet, err := net.ParseCIDR(config[addressKey])
 			if err != nil {
-				return errors.Wrapf(err, "Failed parsing %s", addressKey)
+				return errors.Wrapf(err, "Failed parsing %q", addressKey)
 			}
 
 			externalSubnets = append(externalSubnets, ipNet)
