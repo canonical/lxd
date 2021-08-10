@@ -3170,11 +3170,10 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 	return externalSubnets, nil
 }
 
-// ovnNICExternalRoutes returns a list of external routes currently used by OVN NICs (optionally excluding our
-// own if both ourDeviceInstance and ourDeviceName are non-empty) that are connected to OVN networks that share
-// the same uplink as this network uses.
-func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDeviceName string, ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]*net.IPNet, error) {
-	externalRoutes := make([]*net.IPNet, 0)
+// ovnNICExternalRoutes returns a list of external routes currently used by OVN NICs that are connected to OVN
+// networks that share the same uplink as this network uses.
+func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
+	externalRoutes := make([]externalSubnetUsage, 0)
 
 	// nicUsesNetwork returns true if the nicDev's "network" property matches one of the projectNetworks names
 	// and the instNetworkProject matches the projectNetworks's project. As we only use network name and
@@ -3203,11 +3202,6 @@ func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDevic
 				continue
 			}
 
-			// Skip our own device (if instance and device name were supplied).
-			if ourDeviceInstance != nil && ourDeviceName != "" && inst.Name == ourDeviceInstance.Name() && inst.Project == ourDeviceInstance.Project() && ourDeviceName == devName {
-				continue
-			}
-
 			// Check whether the NIC device references one of the OVN networks supplied.
 			if !nicUsesNetwork(instNetworkProject, devConfig, ovnProjectNetworksWithOurUplink) {
 				continue
@@ -3222,7 +3216,14 @@ func (n *ovn) ovnNICExternalRoutes(ourDeviceInstance instance.Instance, ourDevic
 					continue
 				}
 
-				externalRoutes = append(externalRoutes, ipNet)
+				externalRoutes = append(externalRoutes, externalSubnetUsage{
+					subnet:          ipNet,
+					networkProject:  instNetworkProject,
+					networkName:     devConfig["network"],
+					instanceProject: inst.Project,
+					instanceName:    inst.Name,
+					instanceDevice:  devName,
+				})
 			}
 		}
 
