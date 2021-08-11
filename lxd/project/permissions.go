@@ -409,12 +409,12 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 	allowContainerLowLevel := false
 	allowVMLowLevel := false
 
-	for _, key := range AllRestrictions {
+	for key, defaultValue := range allRestrictions {
 		// Check if this particular restriction is defined explicitly
 		// in the project config. If not, use the default value.
 		restrictionValue, ok := project.Config[key]
 		if !ok {
-			restrictionValue = defaultRestrictionsValues[key]
+			restrictionValue = defaultValue
 		}
 
 		switch key {
@@ -628,26 +628,8 @@ var allAggregateLimits = []string{
 	"limits.processes",
 }
 
-// AllRestrictions lists all available 'restrict.*' config keys.
-var AllRestrictions = []string{
-	"restricted.backups",
-	"restricted.cluster.target",
-	"restricted.containers.nesting",
-	"restricted.containers.lowlevel",
-	"restricted.containers.privilege",
-	"restricted.virtual-machines.lowlevel",
-	"restricted.devices.unix-char",
-	"restricted.devices.unix-block",
-	"restricted.devices.unix-hotplug",
-	"restricted.devices.infiniband",
-	"restricted.devices.gpu",
-	"restricted.devices.usb",
-	"restricted.devices.nic",
-	"restricted.devices.disk",
-	"restricted.snapshots",
-}
-
-var defaultRestrictionsValues = map[string]string{
+// allRestrictions lists all available 'restrict.*' config keys along with their default setting.
+var allRestrictions = map[string]string{
 	"restricted.backups":                   "block",
 	"restricted.cluster.target":            "block",
 	"restricted.containers.nesting":        "block",
@@ -1262,7 +1244,7 @@ func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, projectNam
 	key := "restricted.cluster.target"
 	restrictionValue, ok := project.Config[key]
 	if !ok {
-		restrictionValue = defaultRestrictionsValues[key]
+		restrictionValue = allRestrictions[key]
 	}
 
 	if restrictionValue == "block" && targetFlag != "" {
@@ -1281,7 +1263,7 @@ func projectHasRestriction(project *db.Project, restrictionKey string, blockValu
 
 	restrictionValue, ok := project.Config[restrictionKey]
 	if !ok {
-		restrictionValue = defaultRestrictionsValues[restrictionKey]
+		restrictionValue = allRestrictions[restrictionKey]
 	}
 
 	if restrictionValue == blockValue {
