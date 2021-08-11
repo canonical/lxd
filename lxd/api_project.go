@@ -793,6 +793,8 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted.devices.infiniband":        isEitherAllowOrBlock,
 		"restricted.devices.gpu":               isEitherAllowOrBlock,
 		"restricted.devices.usb":               isEitherAllowOrBlock,
+		"restricted.devices.pci":               isEitherAllowOrBlock,
+		"restricted.devices.proxy":             isEitherAllowOrBlock,
 		"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
 		"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
 	}
