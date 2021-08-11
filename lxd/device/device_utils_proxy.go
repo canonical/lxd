@@ -13,11 +13,15 @@ import (
 
 // ProxyParseAddr validates a proxy address and parses it into its constituent parts.
 func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
+	if addr == "" {
+		return nil, fmt.Errorf("Address is required")
+	}
+
 	// Split into <protocol> and <address>.
 	fields := strings.SplitN(addr, ":", 2)
 
 	if !shared.StringInSlice(fields[0], []string{"tcp", "udp", "unix"}) {
-		return nil, fmt.Errorf("Unknown connection type '%s'", fields[0])
+		return nil, fmt.Errorf("Unknown protocol type %q", fields[0])
 	}
 
 	newProxyAddr := &deviceConfig.ProxyAddress{
