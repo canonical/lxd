@@ -574,6 +574,8 @@ var allRestrictions = map[string]string{
 	"restricted.devices.infiniband":        "block",
 	"restricted.devices.gpu":               "block",
 	"restricted.devices.usb":               "block",
+	"restricted.devices.pci":               "block",
+	"restricted.devices.proxy":             "block",
 	"restricted.devices.nic":               "managed",
 	"restricted.devices.disk":              "managed",
 }
