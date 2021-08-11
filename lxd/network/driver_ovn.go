@@ -3136,7 +3136,7 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 
 // ovnNetworkExternalSubnets returns a list of external subnets used by OVN networks using the same uplink as this
 // OVN network. OVN networks are considered to be using external subnets for their ipv4.address and/or ipv6.address
-// if they have NAT disabled.
+// if they have NAT disabled, and/or if they have external NAT addresses specified.
 func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalSubnets := make([]externalSubnetUsage, 0)
 	for netProject, networks := range ovnProjectNetworksWithOurUplink {
@@ -3155,6 +3155,28 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 						subnet:         ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
+					})
+				}
+
+				// Find any external subnets used for network SNAT.
+				if netInfo.Config[fmt.Sprintf("%s.nat.address", keyPrefix)] != "" {
+					key := fmt.Sprintf("%s.nat.address", keyPrefix)
+
+					subnetSize := 128
+					if keyPrefix == "ipv4" {
+						subnetSize = 32
+					}
+
+					_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", netInfo.Config[key], subnetSize))
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed parsing %q of %q in project %q", key, netInfo.Name, netProject)
+					}
+
+					externalSubnets = append(externalSubnets, externalSubnetUsage{
+						subnet:         ipNet,
+						networkProject: netProject,
+						networkName:    netInfo.Name,
+						networkSNAT:    true,
 					})
 				}
 			}
