@@ -101,7 +101,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if len(connectAddr.Addr) > len(listenAddr.Addr) {
-		// Cannot support single port -> multiple port
+		// Cannot support single port -> multiple port.
 		return fmt.Errorf("Cannot map a single port to multiple ports")
 	}
 
@@ -119,7 +119,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Only host-bound proxies can use NAT")
 		}
 
-		// Support TCP <-> TCP and UDP <-> UDP
+		// Support TCP <-> TCP and UDP <-> UDP only.
 		if listenAddr.ConnType == "unix" || connectAddr.ConnType == "unix" || listenAddr.ConnType != connectAddr.ConnType {
 			return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT", listenAddr.ConnType, connectAddr.ConnType)
 		}
