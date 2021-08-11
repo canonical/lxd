@@ -131,7 +131,8 @@ _have lxc && {
       restricted restricted.containers.nesting restricted.containers.lowlevel \
       restricted.containers.privilege restricted.virtual-machines.lowlevel restricted.devices.unix-char \
       restricted.devices.unix-block restricted.devices.unix-hotplug restricted.devices.infiniband \
-      restricted.devices.gpu restricted.devices.usb restricted.devices.nic restricted.devices.disk"
+      restricted.devices.gpu restricted.devices.usb restricted.devices.nic restricted.devices.disk \
+      restricted.devices.pci restricted.devices.proxy"
 
     storage_pool_keys="source size btrfs.mount_options ceph.cluster_name \
       ceph.osd.force_reuse ceph.osd.pg_num ceph.osd.pool_name ceph.osd.data_pool_name \
