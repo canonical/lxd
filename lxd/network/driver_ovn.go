@@ -277,7 +277,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// If NAT disabled, parse the external subnets that are being requested.
-	var externalSubnets []*net.IPNet
+	var externalSubnets []*net.IPNet // Subnets to check for conflicts with other networks/NICs.
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		addressKey := fmt.Sprintf("%s.address", keyPrefix)
 		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
@@ -286,6 +286,7 @@ func (n *ovn) Validate(config map[string]string) error {
 				return errors.Wrapf(err, "Failed parsing %q", addressKey)
 			}
 
+			// Add to list to check for conflicts.
 			externalSubnets = append(externalSubnets, ipNet)
 		}
 	}
