@@ -61,7 +61,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	// Supported bind types are: "host" or "instance" (or "guest" or "container", legacy options equivalent to "instance").
 	// If an empty value is supplied the default behavior is to assume "host" bind mode.
 	validateBind := func(input string) error {
-		if !shared.StringInSlice(d.config["bind"], []string{"", "host", "instance", "guest", "container"}) {
+		if !shared.StringInSlice(d.config["bind"], []string{"host", "instance", "guest", "container"}) {
 			return fmt.Errorf("Invalid binding side given. Must be \"host\" or \"instance\"")
 		}
 
@@ -69,15 +69,15 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"listen":         validateAddr,
-		"connect":        validateAddr,
-		"bind":           validateBind,
-		"mode":           unixValidOctalFileMode,
+		"listen":         validate.Required(validateAddr),
+		"connect":        validate.Required(validateAddr),
+		"bind":           validate.Optional(validateBind),
+		"mode":           validate.Optional(unixValidOctalFileMode),
 		"nat":            validate.Optional(validate.IsBool),
-		"gid":            unixValidUserID,
-		"uid":            unixValidUserID,
-		"security.uid":   unixValidUserID,
-		"security.gid":   unixValidUserID,
+		"gid":            validate.Optional(unixValidUserID),
+		"uid":            validate.Optional(unixValidUserID),
+		"security.uid":   validate.Optional(unixValidUserID),
+		"security.gid":   validate.Optional(unixValidUserID),
 		"proxy_protocol": validate.Optional(validate.IsBool),
 	}
 
