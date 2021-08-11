@@ -45,6 +45,8 @@ restricted.devices.disk              | string    | -                     | manag
 restricted.devices.gpu               | string    | -                     | block                     | Prevents use of devices of type "gpu"
 restricted.devices.infiniband        | string    | -                     | block                     | Prevents use of devices of type "infiniband"
 restricted.devices.nic               | string    | -                     | managed                   | If "block" prevent use of all network devices. If "managed" allow use of network devices only if "network=" is set. If "allow", no restrictions apply.
+restricted.devices.pci               | string    | -                     | block                     | Prevents use of devices of type "pci"
+restricted.devices.proxy             | string    | -                     | block                     | Prevents use of devices of type "proxy"
 restricted.devices.unix-block        | string    | -                     | block                     | Prevents use of devices of type "unix-block"
 restricted.devices.unix-char         | string    | -                     | block                     | Prevents use of devices of type "unix-char"
 restricted.devices.unix-hotplug      | string    | -                     | block                     | Prevents use of devices of type "unix-hotplug"
