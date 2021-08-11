@@ -27,6 +27,7 @@ import (
 type Info struct {
 	Projects           bool // Indicates if driver can be used in network enabled projects.
 	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
+	AddressForwards    bool // Indicates if driver supports address forwards.
 }
 
 // common represents a generic LXD network.
@@ -169,6 +170,7 @@ func (n *common) Info() Info {
 	return Info{
 		Projects:           false,
 		NodeSpecificConfig: true,
+		AddressForwards:    false,
 	}
 }
 
