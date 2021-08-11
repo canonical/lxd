@@ -184,6 +184,16 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 	return nil
 }
 
+type externalSubnetUsage struct {
+	subnet          *net.IPNet
+	networkProject  string
+	networkName     string
+	networkSNAT     bool
+	instanceProject string
+	instanceName    string
+	instanceDevice  string
+}
+
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
