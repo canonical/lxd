@@ -1,7 +1,10 @@
 package cgroup
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -615,4 +618,134 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 	out["inactive"] = out["inactive_anon"] + out["inactive_file"]
 
 	return out, nil
+}
+
+// GetIOStats returns disk stats.
+func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
+	partitions, err := ioutil.ReadFile("/proc/partitions")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read /proc/partitions: %w", err)
+	}
+
+	// partMap maps major:minor to device names, e.g. 259:0 -> nvme0n1
+	partMap := make(map[string]string)
+	scanner := bufio.NewScanner(bytes.NewReader(partitions))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "" {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		// Ignore the header
+		if fields[0] == "major" {
+			continue
+		}
+
+		partMap[fmt.Sprintf("%s:%s", fields[0], fields[1])] = fields[3]
+	}
+
+	// ioMap contains io stats for each device
+	ioMap := make(map[string]*IOStats)
+
+	version := cgControllers["blkio"]
+	switch version {
+	case Unavailable:
+		return nil, ErrControllerMissing
+	case V1:
+		val, err := cg.rw.Get(version, "blkio", "blkio.throttle.io_service_bytes_recursive")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			if len(fields) != 3 {
+				continue
+			}
+
+			if ioMap[partMap[fields[0]]] == nil {
+				ioMap[partMap[fields[0]]] = &IOStats{}
+			}
+
+			switch fields[1] {
+			case "Read":
+				ioMap[partMap[fields[0]]].ReadBytes, err = strconv.ParseUint(fields[2], 10, 64)
+			case "Write":
+				ioMap[partMap[fields[0]]].WrittenBytes, err = strconv.ParseUint(fields[2], 10, 64)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		val, err = cg.rw.Get(version, "blkio", "blkio.throttle.io_serviced_recursive")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner = bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			if len(fields) != 3 {
+				continue
+			}
+
+			if ioMap[partMap[fields[0]]] == nil {
+				ioMap[partMap[fields[0]]] = &IOStats{}
+			}
+
+			switch fields[1] {
+			case "Read":
+				ioMap[partMap[fields[0]]].ReadsCompleted, err = strconv.ParseUint(fields[2], 10, 64)
+			case "Write":
+				ioMap[partMap[fields[0]]].WritesCompleted, err = strconv.ParseUint(fields[2], 10, 64)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return ioMap, nil
+	case V2:
+		val, err := cg.rw.Get(version, "io", "io.stat")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			var (
+				devID           string
+				readBytes       uint64
+				readsCompleted  uint64
+				writtenBytes    uint64
+				writesCompleted uint64
+			)
+
+			_, err = fmt.Sscanf(scanner.Text(), "%s rbytes=%d wbytes=%d rios=%d wios=%d dbytes=%d", &devID, readBytes, writtenBytes, readsCompleted, writesCompleted)
+			if err != nil {
+				return nil, err
+			}
+
+			ioMap[partMap[devID]] = &IOStats{
+				ReadBytes:       readBytes,
+				ReadsCompleted:  readsCompleted,
+				WrittenBytes:    writtenBytes,
+				WritesCompleted: writesCompleted,
+			}
+		}
+
+		return ioMap, nil
+	}
+
+	return nil, ErrUnknownVersion
 }

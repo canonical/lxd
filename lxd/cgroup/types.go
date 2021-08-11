@@ -21,3 +21,11 @@ type ReadWriter interface {
 	Get(backend Backend, controller string, key string) (string, error)
 	Set(backend Backend, controller string, key string, value string) error
 }
+
+// IOStats represent IO stats.
+type IOStats struct {
+	ReadBytes       uint64
+	ReadsCompleted  uint64
+	WrittenBytes    uint64
+	WritesCompleted uint64
+}
