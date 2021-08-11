@@ -343,12 +343,12 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 	allowContainerLowLevel := false
 	allowVMLowLevel := false
 
-	for _, key := range AllRestrictions {
+	for key, defaultValue := range allRestrictions {
 		// Check if this particular restriction is defined explicitly
 		// in the project config. If not, use the default value.
 		restrictionValue, ok := project.Config[key]
 		if !ok {
-			restrictionValue = defaultRestrictionsValues[key]
+			restrictionValue = defaultValue
 		}
 
 		switch key {
@@ -562,23 +562,8 @@ var allAggregateLimits = []string{
 	"limits.processes",
 }
 
-// AllRestrictions lists all available 'restrict.*' config keys.
-var AllRestrictions = []string{
-	"restricted.containers.nesting",
-	"restricted.containers.lowlevel",
-	"restricted.containers.privilege",
-	"restricted.virtual-machines.lowlevel",
-	"restricted.devices.unix-char",
-	"restricted.devices.unix-block",
-	"restricted.devices.unix-hotplug",
-	"restricted.devices.infiniband",
-	"restricted.devices.gpu",
-	"restricted.devices.usb",
-	"restricted.devices.nic",
-	"restricted.devices.disk",
-}
-
-var defaultRestrictionsValues = map[string]string{
+// allRestrictions lists all available 'restrict.*' config keys along with their default setting.
+var allRestrictions = map[string]string{
 	"restricted.containers.nesting":        "block",
 	"restricted.containers.lowlevel":       "block",
 	"restricted.containers.privilege":      "unprivileged",
