@@ -83,6 +83,22 @@ func IsUint32(value string) error {
 	return nil
 }
 
+// IsInRange checks whether an integer is within a specific range.
+func IsInRange(min int64, max int64) func(value string) error {
+	return func(value string) error {
+		valueInt, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("Invalid value for an integer %q", value)
+		}
+
+		if valueInt < min || valueInt > max {
+			return fmt.Errorf("Value isn't within valid range. Must be between %d and %d", min, max)
+		}
+
+		return nil
+	}
+}
+
 // IsPriority validates priority number.
 func IsPriority(value string) error {
 	valueInt, err := strconv.ParseInt(value, 10, 64)
