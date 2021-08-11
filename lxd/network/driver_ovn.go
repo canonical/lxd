@@ -3140,33 +3140,28 @@ func (n *ovn) DHCPv6Subnet() *net.IPNet {
 	return subnet
 }
 
-// ovnNetworkExternalSubnets returns a list of external subnets used by OVN networks (optionally exluding our own
-// if both ourProject and ourNetwork are non-empty) using the same uplink as this OVN network. OVN networks are
-// considered to be using external subnets if their ipv4.address and/or ipv6.address are in the uplink's external
-// routes and the associated NAT is disabled for the IP family.
-func (n *ovn) ovnNetworkExternalSubnets(ourProject string, ourNetwork string, ovnProjectNetworksWithOurUplink map[string][]*api.Network, uplinkRoutes []*net.IPNet) ([]*net.IPNet, error) {
-	externalSubnets := make([]*net.IPNet, 0)
+// ovnNetworkExternalSubnets returns a list of external subnets used by OVN networks using the same uplink as this
+// OVN network. OVN networks are considered to be using external subnets for their ipv4.address and/or ipv6.address
+// if they have NAT disabled.
+func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
+	externalSubnets := make([]externalSubnetUsage, 0)
 	for netProject, networks := range ovnProjectNetworksWithOurUplink {
 		for _, netInfo := range networks {
-			if netProject == ourProject && netInfo.Name == ourNetwork {
-				continue
-			}
-
 			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+				// If NAT is disabled, then network subnet is an external subnet.
 				if !shared.IsTrue(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
-					_, ipNet, _ := net.ParseCIDR(netInfo.Config[fmt.Sprintf("%s.address", keyPrefix)])
-					if ipNet == nil {
-						// If the network doesn't have a valid IP, skip it.
-						continue
-					}
+					key := fmt.Sprintf("%s.address", keyPrefix)
 
-					// Check the network's subnet is a valid external route on uplink.
-					err := n.validateExternalSubnet(uplinkRoutes, nil, ipNet)
+					_, ipNet, err := net.ParseCIDR(netInfo.Config[key])
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed checking if OVN network external subnet %q is valid external route on uplink %q", ipNet.String(), n.config["network"])
+						continue // Skip invalid/unspecified network addresses.
 					}
 
-					externalSubnets = append(externalSubnets, ipNet)
+					externalSubnets = append(externalSubnets, externalSubnetUsage{
+						subnet:         ipNet,
+						networkProject: netProject,
+						networkName:    netInfo.Name,
+					})
 				}
 			}
 		}
