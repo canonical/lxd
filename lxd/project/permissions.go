@@ -431,6 +431,22 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 
 				return nil
 			}
+		case "restricted.devices.pci":
+			devicesChecks["pci"] = func(device map[string]string) error {
+				if restrictionValue != "allow" {
+					return fmt.Errorf("PCI devices are forbidden")
+				}
+
+				return nil
+			}
+		case "restricted.devices.proxy":
+			devicesChecks["proxy"] = func(device map[string]string) error {
+				if restrictionValue != "allow" {
+					return fmt.Errorf("Proxy devices are forbidden")
+				}
+
+				return nil
+			}
 		case "restricted.devices.nic":
 			devicesChecks["nic"] = func(device map[string]string) error {
 				switch restrictionValue {
