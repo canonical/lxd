@@ -194,6 +194,46 @@ type externalSubnetUsage struct {
 	instanceDevice  string
 }
 
+// getExternalSubnetInUse returns information about usage of external subnets by OVN networks and NICs connected to
+// the specified uplinkNetworkName.
+func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnetUsage, error) {
+	var err error
+	var projectNetworks map[string]map[int64]api.Network
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get all managed networks across all projects.
+		projectNetworks, err = tx.GetCreatedNetworks()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load all networks")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get OVN networks that use the same uplink as us.
+	ovnProjectNetworksWithOurUplink := n.ovnProjectNetworksWithUplink(uplinkNetworkName, projectNetworks)
+
+	// Get external subnets used by other OVN networks using our uplink.
+	ovnNetworkExternalSubnets, err := n.ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get external routes configured on OVN NICs using networks that use our uplink.
+	ovnNICExternalRoutes, err := n.ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink)
+	if err != nil {
+		return nil, err
+	}
+
+	externalSubnets := make([]externalSubnetUsage, 0, len(ovnNetworkExternalSubnets)+len(ovnNICExternalRoutes))
+	externalSubnets = append(externalSubnets, ovnNetworkExternalSubnets...)
+	externalSubnets = append(externalSubnets, ovnNICExternalRoutes...)
+
+	return externalSubnets, nil
+}
+
 // Validate network config.
 func (n *ovn) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
