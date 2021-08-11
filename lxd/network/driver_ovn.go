@@ -2681,6 +2681,11 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 
 		// Check the external port route doesn't fall within any existing OVN network external subnets.
 		for _, externalSubnetUser := range externalSubnetsInUse {
+			// Skip our own network's SNAT address (as it can be used for NICs in the network).
+			if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+				continue
+			}
+
 			if deviceInstance == nil {
 				// Skip checking instance devices during profile validation, only do this when
 				// an instance is supplied.
