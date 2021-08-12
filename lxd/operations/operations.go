@@ -134,7 +134,7 @@ func OperationCreate(s *state.State, projectName string, opClass OperationClass,
 	// Main attributes
 	op := Operation{}
 	op.projectName = projectName
-	op.id = uuid.NewRandom().String()
+	op.id = uuid.New()
 	op.description = opType.Description()
 	op.permission = opType.Permission()
 	op.dbOpType = opType

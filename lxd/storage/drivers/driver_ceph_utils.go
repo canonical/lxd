@@ -653,7 +653,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				return 1, nil
 			}
 
-			newVolumeName := fmt.Sprintf("%s_%s", vol.name, uuid.NewRandom().String())
+			newVolumeName := fmt.Sprintf("%s_%s", vol.name, uuid.New())
 			err := d.rbdMarkVolumeDeleted(vol, newVolumeName)
 			if err != nil {
 				return -1, err
@@ -835,7 +835,7 @@ func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error
 			return -1, err
 		}
 
-		newSnapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.NewRandom().String())
+		newSnapshotName := fmt.Sprintf("zombie_snapshot_%s", uuid.New())
 		err = d.rbdRenameVolumeSnapshot(vol, snapshotName, newSnapshotName)
 		if err != nil {
 			return -1, err

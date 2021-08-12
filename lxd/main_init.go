@@ -29,6 +29,7 @@ type cmdInit struct {
 	global *cmdGlobal
 
 	flagAuto    bool
+	flagMinimal bool
 	flagPreseed bool
 	flagDump    bool
 
@@ -48,14 +49,16 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Long = `Description:
   Configure the LXD daemon
 `
-	cmd.Example = `  init --preseed
+	cmd.Example = `  init --minimal
   init --auto [--network-address=IP] [--network-port=8443] [--storage-backend=dir]
               [--storage-create-device=DEVICE] [--storage-create-loop=SIZE]
               [--storage-pool=POOL] [--trust-password=PASSWORD]
+  init --preseed
   init --dump
 `
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVar(&c.flagAuto, "auto", false, "Automatic (non-interactive) mode")
+	cmd.Flags().BoolVar(&c.flagMinimal, "minimal", false, "Minimal configuration (non-interactive)")
 	cmd.Flags().BoolVar(&c.flagPreseed, "preseed", false, "Pre-seed mode, expects YAML config from stdin")
 	cmd.Flags().BoolVar(&c.flagDump, "dump", false, "Dump YAML config to stdout")
 
@@ -76,6 +79,14 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Can't use --auto and --preseed together")
 	}
 
+	if c.flagMinimal && c.flagPreseed {
+		return fmt.Errorf("Can't use --minimal and --preseed together")
+	}
+
+	if c.flagMinimal && c.flagAuto {
+		return fmt.Errorf("Can't use --minimal and --auto together")
+	}
+
 	if !c.flagAuto && (c.flagNetworkAddress != "" || c.flagNetworkPort != -1 ||
 		c.flagStorageBackend != "" || c.flagStorageDevice != "" ||
 		c.flagStorageLoopSize != -1 || c.flagStoragePool != "" ||
@@ -83,7 +94,8 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Configuration flags require --auto")
 	}
 
-	if c.flagDump && (c.flagAuto || c.flagPreseed || c.flagNetworkAddress != "" ||
+	if c.flagDump && (c.flagAuto || c.flagMinimal ||
+		c.flagPreseed || c.flagNetworkAddress != "" ||
 		c.flagNetworkPort != -1 || c.flagStorageBackend != "" ||
 		c.flagStorageDevice != "" || c.flagStorageLoopSize != -1 ||
 		c.flagStoragePool != "" || c.flagTrustPassword != "") {
@@ -123,7 +135,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Auto mode
-	if c.flagAuto {
+	if c.flagAuto || c.flagMinimal {
 		config, err = c.RunAuto(cmd, args, d, server)
 		if err != nil {
 			return err
@@ -131,7 +143,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Interactive mode
-	if !c.flagAuto && !c.flagPreseed {
+	if !c.flagAuto && !c.flagMinimal && !c.flagPreseed {
 		config, err = c.RunInteractive(cmd, args, d, server)
 		if err != nil {
 			return err

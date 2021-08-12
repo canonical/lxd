@@ -132,7 +132,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 				Project:        projectName,
 				EntityTypeCode: entityTypeCode,
 				EntityID:       entityID,
-				UUID:           uuid.NewRandom().String(),
+				UUID:           uuid.New(),
 				TypeCode:       typeCode,
 				Status:         WarningStatusNew,
 				FirstSeenDate:  now,
