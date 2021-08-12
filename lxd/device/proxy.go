@@ -65,7 +65,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	// Supported bind types are: "host" or "instance" (or "guest" or "container", legacy options equivalent to "instance").
 	// If an empty value is supplied the default behavior is to assume "host" bind mode.
 	validateBind := func(input string) error {
-		if !shared.StringInSlice(d.config["bind"], []string{"", "host", "instance", "guest", "container"}) {
+		if !shared.StringInSlice(d.config["bind"], []string{"host", "instance", "guest", "container"}) {
 			return fmt.Errorf("Invalid binding side given. Must be \"host\" or \"instance\"")
 		}
 
@@ -73,15 +73,15 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"listen":         validateAddr,
-		"connect":        validateAddr,
-		"bind":           validateBind,
-		"mode":           unixValidOctalFileMode,
+		"listen":         validate.Required(validateAddr),
+		"connect":        validate.Required(validateAddr),
+		"bind":           validate.Optional(validateBind),
+		"mode":           validate.Optional(unixValidOctalFileMode),
 		"nat":            validate.Optional(validate.IsBool),
-		"gid":            unixValidUserID,
-		"uid":            unixValidUserID,
-		"security.uid":   unixValidUserID,
-		"security.gid":   unixValidUserID,
+		"gid":            validate.Optional(unixValidUserID),
+		"uid":            validate.Optional(unixValidUserID),
+		"security.uid":   validate.Optional(unixValidUserID),
+		"security.gid":   validate.Optional(unixValidUserID),
 		"proxy_protocol": validate.Optional(validate.IsBool),
 	}
 
@@ -105,7 +105,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if len(connectAddr.Addr) > len(listenAddr.Addr) {
-		// Cannot support single port -> multiple port
+		// Cannot support single port -> multiple port.
 		return fmt.Errorf("Cannot map a single port to multiple ports")
 	}
 
@@ -119,11 +119,28 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if shared.IsTrue(d.config["nat"]) {
+		if d.inst != nil {
+			projectName := d.inst.Project()
+			if projectName != project.Default {
+				// Prevent use of NAT mode on non-default projects with networks feature.
+				// This is because OVN networks don't allow the host to communicate directly with
+				// instance NICs and so DNAT rules on the host won't work.
+				p, err := d.state.Cluster.GetProject(projectName)
+				if err != nil {
+					return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+				}
+
+				if shared.IsTrue(p.Config["features.networks"]) {
+					return fmt.Errorf("NAT mode cannot be used in projects that have the networks feature")
+				}
+			}
+		}
+
 		if d.config["bind"] != "" && d.config["bind"] != "host" {
 			return fmt.Errorf("Only host-bound proxies can use NAT")
 		}
 
-		// Support TCP <-> TCP and UDP <-> UDP
+		// Support TCP <-> TCP and UDP <-> UDP only.
 		if listenAddr.ConnType == "unix" || connectAddr.ConnType == "unix" || listenAddr.ConnType != connectAddr.ConnType {
 			return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT", listenAddr.ConnType, connectAddr.ConnType)
 		}
