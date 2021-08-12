@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -52,7 +53,7 @@ func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 	// Split <ports> into individual ports and port ranges.
 	ports := strings.SplitN(port, ",", -1)
 	for _, p := range ports {
-		portFirst, portRange, err := networkParsePortRange(p)
+		portFirst, portRange, err := network.ParsePortRange(p)
 		if err != nil {
 			return nil, err
 		}
