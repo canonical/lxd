@@ -26,13 +26,13 @@ func (d *zfs) dataset(vol Volume, deleted bool) string {
 
 	if snapName != "" {
 		if deleted {
-			name = fmt.Sprintf("%s@deleted-%s", name, uuid.NewRandom().String())
+			name = fmt.Sprintf("%s@deleted-%s", name, uuid.New())
 		} else {
 			name = fmt.Sprintf("%s@snapshot-%s", name, snapName)
 		}
 	} else if deleted {
 		if vol.volType != VolumeTypeImage {
-			name = uuid.NewRandom().String()
+			name = uuid.New()
 		}
 
 		return filepath.Join(d.config["zfs.pool_name"], "deleted", string(vol.volType), name)
