@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -28,6 +29,14 @@ type Info struct {
 	Projects           bool // Indicates if driver can be used in network enabled projects.
 	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
 	AddressForwards    bool // Indicates if driver supports address forwards.
+}
+
+// forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
+type forwardPortMap struct {
+	listenPorts   []uint64
+	targetPorts   []uint64
+	targetAddress net.IP
+	protocol      string
 }
 
 // common represents a generic LXD network.
@@ -667,4 +676,180 @@ func (n *common) bgpGetPeers(config map[string]string) []string {
 	}
 
 	return peers
+}
+
+// forwardValidate valites the forward request.
+func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwardPut) ([]*forwardPortMap, error) {
+	if listenAddress == nil {
+		return nil, fmt.Errorf("Invalid listen address")
+	}
+
+	listenIsIP4 := listenAddress.To4() != nil
+
+	// For checking target addresses are within network's subnet.
+	netIPKey := "ipv4.address"
+	if !listenIsIP4 {
+		netIPKey = "ipv6.address"
+	}
+
+	netIPAddress := n.config[netIPKey]
+
+	var err error
+	var netSubnet *net.IPNet
+	if netIPAddress != "" {
+		_, netSubnet, err = net.ParseCIDR(n.config[netIPKey])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Look for any unknown config fields.
+	for k := range forward.Config {
+		if k == "target_address" {
+			continue
+		}
+
+		// User keys are not validated.
+		if shared.IsUserConfig(k) {
+			continue
+		}
+
+		return nil, fmt.Errorf("Invalid option option %q", k)
+	}
+
+	// Validate default target address.
+	defaultTargetAddress := net.ParseIP(forward.Config["target_address"])
+
+	if forward.Config["target_address"] != "" {
+		if defaultTargetAddress == nil {
+			return nil, fmt.Errorf("Invalid default target address")
+		}
+
+		defaultTargetIsIP4 := defaultTargetAddress.To4() != nil
+		if listenIsIP4 != defaultTargetIsIP4 {
+			return nil, fmt.Errorf("Cannot mix IP versions in listen address and default target address")
+		}
+
+		// Check default target address is within network's subnet.
+		if netSubnet != nil && !SubnetContainsIP(netSubnet, defaultTargetAddress) {
+			return nil, fmt.Errorf("Default target address is not within the network subnet")
+		}
+	}
+
+	// Validate port rules.
+	validPortProcols := []string{"tcp", "udp"}
+
+	// Used to ensure that each listen port is only used once.
+	listenPorts := map[string]map[int64]struct{}{
+		"tcp": make(map[int64]struct{}),
+		"udp": make(map[int64]struct{}),
+	}
+
+	// Maps portSpecID to a portMap struct.
+	portSpecsMap := make(map[int]*forwardPortMap)
+
+	for portSpecID, portSpec := range forward.Ports {
+		if !shared.StringInSlice(portSpec.Protocol, validPortProcols) {
+			return nil, fmt.Errorf("Invalid port protocol in port specification %d, protocol must be one of: %s", portSpecID, strings.Join(validPortProcols, ", "))
+		}
+
+		targetAddress := net.ParseIP(portSpec.TargetAddress)
+		if targetAddress == nil {
+			return nil, fmt.Errorf("Invalid target address in port specification %d", portSpecID)
+		}
+
+		if targetAddress.Equal(defaultTargetAddress) {
+			return nil, fmt.Errorf("Target address is same as default target address in port specification %d", portSpecID)
+		}
+
+		targetIsIP4 := targetAddress.To4() != nil
+		if listenIsIP4 != targetIsIP4 {
+			return nil, fmt.Errorf("Cannot mix IP versions in listen address and port specification %d target address", portSpecID)
+		}
+
+		// Check target address is within network's subnet.
+		if netSubnet != nil && !SubnetContainsIP(netSubnet, targetAddress) {
+			return nil, fmt.Errorf("Target address is not within the network subnet in port specification %d", portSpecID)
+		}
+
+		// Check valid listen port(s) supplied.
+		listenPortRanges := util.SplitNTrimSpace(portSpec.ListenPort, ",", -1, true)
+		if len(listenPortRanges) <= 0 {
+			return nil, fmt.Errorf("Missing listen port in port specification %d", portSpecID)
+		}
+
+		portMap := forwardPortMap{
+			listenPorts:   make([]uint64, 0),
+			targetAddress: targetAddress,
+			protocol:      portSpec.Protocol,
+		}
+
+		for _, pr := range listenPortRanges {
+			portFirst, portRange, err := ParsePortRange(pr)
+			if err != nil {
+				return nil, fmt.Errorf("Invalid listen port in port specification %d: %w", portSpecID, err)
+			}
+
+			for i := int64(0); i < portRange; i++ {
+				port := portFirst + i
+				if _, found := listenPorts[portSpec.Protocol][port]; found {
+					return nil, fmt.Errorf("Duplicate listen port %d for protocol %q in port specification %d", port, portSpec.Protocol, portSpecID)
+				}
+
+				listenPorts[portSpec.Protocol][port] = struct{}{}
+				portMap.listenPorts = append(portMap.listenPorts, uint64(port))
+			}
+		}
+
+		// Check valid target port(s) supplied.
+		targetPortRanges := util.SplitNTrimSpace(portSpec.TargetPort, ",", -1, true)
+
+		if len(targetPortRanges) > 0 {
+			// Target ports can be at maximum the same length as listen ports.
+			portMap.targetPorts = make([]uint64, 0, len(portMap.listenPorts))
+
+			for _, pr := range targetPortRanges {
+				portFirst, portRange, err := ParsePortRange(pr)
+				if err != nil {
+					return nil, fmt.Errorf("Invalid target port in port specification %d", portSpecID)
+				}
+
+				for i := int64(0); i < portRange; i++ {
+					port := portFirst + i
+					portMap.targetPorts = append(portMap.targetPorts, uint64(port))
+				}
+			}
+
+			// Only check if the target port count matches the listen port count if the target ports
+			// don't equal 1, because we allow many-to-one type mapping.
+			portSpectTargetPortsLen := len(portMap.targetPorts)
+			if portSpectTargetPortsLen != 1 && len(portMap.listenPorts) != portSpectTargetPortsLen {
+				return nil, fmt.Errorf("Mismatch of listen port(s) and target port(s) count in port specification %d", portSpecID)
+			}
+		}
+
+		portSpecsMap[portSpecID] = &portMap
+	}
+
+	portMaps := make([]*forwardPortMap, 0)
+	for _, portMap := range portSpecsMap {
+		portMaps = append(portMaps, portMap)
+	}
+
+	return portMaps, err
+}
+
+// ForwardCreate returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) ForwardCreate(forward api.NetworkForwardsPost) error {
+	return ErrNotImplemented
+}
+
+// ForwardUpdate returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut) error {
+	return ErrNotImplemented
+}
+
+// ForwardDelete returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) ForwardDelete(listenAddress string) error {
+	return ErrNotImplemented
 }
