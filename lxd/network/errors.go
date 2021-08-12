@@ -4,5 +4,5 @@ import (
 	"fmt"
 )
 
-// ErrUnknownDriver is the "Unknown driver" error
+// ErrUnknownDriver is the "Unknown driver" error.
 var ErrUnknownDriver = fmt.Errorf("Unknown driver")
