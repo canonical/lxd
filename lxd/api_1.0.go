@@ -73,6 +73,8 @@ var api10 = []APIEndpoint{
 	networkStateCmd,
 	networkACLCmd,
 	networkACLsCmd,
+	networkForwardCmd,
+	networkForwardsCmd,
 	operationCmd,
 	operationsCmd,
 	operationWait,
