@@ -82,7 +82,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 			// be restored in the future and a new cached image volume will be created instead.
 			if volSizeBytes != poolVolSizeBytes {
 				d.logger.Debug("Renaming deleted cached image volume so that regeneration is used", "fingerprint", vol.Name())
-				randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, uuid.NewRandom().String(), vol.config, vol.poolConfig)
+				randomVol := NewVolume(d, d.name, vol.volType, vol.contentType, uuid.New(), vol.config, vol.poolConfig)
 
 				_, err := shared.RunCommand("/proc/self/exe", "forkzfs", "--", "rename", d.dataset(vol, true), d.dataset(randomVol, true))
 				if err != nil {
@@ -479,7 +479,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 		srcSnapshot = d.dataset(srcVol, false)
 	} else {
 		// Create a new snapshot for copy.
-		srcSnapshot = fmt.Sprintf("%s@copy-%s", d.dataset(srcVol, false), uuid.NewRandom().String())
+		srcSnapshot = fmt.Sprintf("%s@copy-%s", d.dataset(srcVol, false), uuid.New())
 
 		_, err := shared.RunCommand("zfs", "snapshot", srcSnapshot)
 		if err != nil {
@@ -1416,7 +1416,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 	srcSnapshot := d.dataset(vol, false)
 	if !vol.IsSnapshot() {
 		// Create a temporary read-only snapshot.
-		srcSnapshot = fmt.Sprintf("%s@migration-%s", d.dataset(vol, false), uuid.NewRandom().String())
+		srcSnapshot = fmt.Sprintf("%s@migration-%s", d.dataset(vol, false), uuid.New())
 		_, err := shared.RunCommand("zfs", "snapshot", srcSnapshot)
 		if err != nil {
 			return err
@@ -1471,7 +1471,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 			}
 
 			// Create a temporary snapshot.
-			srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol, false), uuid.NewRandom().String())
+			srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol, false), uuid.New())
 			_, err = shared.RunCommand("zfs", "snapshot", srcSnapshot)
 			if err != nil {
 				return err
@@ -1606,7 +1606,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 	}
 
 	// Create a temporary read-only snapshot.
-	srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol, false), uuid.NewRandom().String())
+	srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol, false), uuid.New())
 	_, err := shared.RunCommand("zfs", "snapshot", srcSnapshot)
 	if err != nil {
 		return err

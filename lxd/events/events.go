@@ -44,7 +44,7 @@ func (s *Server) AddListener(group string, connection *websocket.Conn, messageTy
 		location:     location,
 		noForward:    noForward,
 		active:       make(chan bool, 1),
-		id:           uuid.NewRandom().String(),
+		id:           uuid.New(),
 	}
 
 	s.lock.Lock()
