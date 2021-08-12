@@ -1077,3 +1077,29 @@ func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
 
 	return globalUnicastIPs, isUp, nil
 }
+
+// ParsePortRange validates a port range in the form n-n.
+func ParsePortRange(r string) (int64, int64, error) {
+	entries := strings.Split(r, "-")
+	if len(entries) > 2 {
+		return -1, -1, fmt.Errorf("Invalid port range %q", r)
+	}
+
+	base, err := strconv.ParseInt(entries[0], 10, 64)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	size := int64(1)
+	if len(entries) > 1 {
+		size, err = strconv.ParseInt(entries[1], 10, 64)
+		if err != nil {
+			return -1, -1, err
+		}
+
+		size -= base
+		size++
+	}
+
+	return base, size, nil
+}
