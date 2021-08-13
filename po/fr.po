@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-04 23:51-0400\n"
+"POT-Creation-Date: 2021-08-13 14:30-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -5084,8 +5084,8 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:945
-#: lxc/cluster.go:964
+#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:760
+#: lxc/cluster.go:945 lxc/cluster.go:964
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr ""
@@ -5467,14 +5467,6 @@ msgstr ""
 "\n"
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
-
-#: lxc/cluster.go:760
-#, fuzzy
-msgid "[<remote>:]<token>"
-msgstr ""
-"Change l'état d'un ou plusieurs conteneurs à %s.\n"
-"\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/warning.go:257 lxc/warning.go:299 lxc/warning.go:352
 #, fuzzy
@@ -5872,6 +5864,13 @@ msgstr ""
 #: lxc/image.go:1074
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy
+#~ msgid "[<remote>:]<token>"
+#~ msgstr ""
+#~ "Change l'état d'un ou plusieurs conteneurs à %s.\n"
+#~ "\n"
+#~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #~ msgid "Pid: %d"
 #~ msgstr "Pid : %d"

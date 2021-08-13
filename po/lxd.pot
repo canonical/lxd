@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2021-08-07 00:09-0400\n"
+        "POT-Creation-Date: 2021-08-13 14:30-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4019,7 +4019,7 @@ msgstr  ""
 msgid   "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 msgstr  ""
 
-#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:945 lxc/cluster.go:964
+#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:760 lxc/cluster.go:945 lxc/cluster.go:964
 msgid   "[<remote>:]<member>"
 msgstr  ""
 
@@ -4189,10 +4189,6 @@ msgstr  ""
 
 #: lxc/copy.go:37
 msgid   "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
-msgstr  ""
-
-#: lxc/cluster.go:760
-msgid   "[<remote>:]<token>"
 msgstr  ""
 
 #: lxc/warning.go:257 lxc/warning.go:299 lxc/warning.go:352
