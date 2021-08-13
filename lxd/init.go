@@ -26,6 +26,10 @@ type initDataCluster struct {
 	// The path to the cluster certificate
 	// Example: /tmp/cluster.crt
 	ClusterCertificatePath string `json:"cluster_certificate_path" yaml:"cluster_certificate_path"`
+
+	// A cluster join token
+	// Example: BASE64-TOKEN
+	ClusterToken string `json:"cluster_token" yaml:"cluster_token"`
 }
 
 // Helper to initialize node-specific entities on a LXD instance using the
