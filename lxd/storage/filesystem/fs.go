@@ -41,7 +41,12 @@ func Detect(path string) (string, error) {
 		return "", err
 	}
 
-	switch fs.Type {
+	return FSTypeToName(fs.Type)
+}
+
+// FSTypeToName returns the name of the given fs type.
+func FSTypeToName(fsType int64) (string, error) {
+	switch fsType {
 	case FilesystemSuperMagicBtrfs:
 		return "btrfs", nil
 	case FilesystemSuperMagicZfs:
@@ -54,10 +59,10 @@ func Detect(path string) (string, error) {
 		return "xfs", nil
 	case FilesystemSuperMagicNfs:
 		return "nfs", nil
-	default:
-		logger.Debugf("Unknown backing filesystem type: 0x%x", fs.Type)
-		return fmt.Sprintf("0x%x", fs.Type), nil
 	}
+
+	logger.Debugf("Unknown backing filesystem type: 0x%x", fsType)
+	return fmt.Sprintf("0x%x", fsType), nil
 }
 
 func parseMountinfo(name string) int {
