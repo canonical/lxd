@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"net"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -12,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 type poolType string
@@ -161,6 +164,51 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		config.Cluster.ClusterCertificate = string(content)
+	}
+
+	// Check if we got a cluster join token, if so, fill in the config with it.
+	if config.Cluster != nil && config.Cluster.ClusterToken != "" {
+		joinToken, err := clusterMemberJoinTokenDecode(config.Cluster.ClusterToken)
+		if err != nil {
+			return errors.Wrapf(err, "Invalid cluster join token")
+		}
+
+		// Set server name from join token
+		config.Cluster.ServerName = joinToken.ServerName
+
+		// Attempt to find a working cluster member to use for joining by retrieving the
+		// cluster certificate from each address in the join token until we succeed.
+		for _, clusterAddress := range joinToken.Addresses {
+			// Cluster URL
+			_, _, err := net.SplitHostPort(clusterAddress)
+			if err != nil {
+				clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
+			}
+			config.Cluster.ClusterAddress = clusterAddress
+
+			// Cluster certificate
+			cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
+			if err != nil {
+				fmt.Printf("Error connecting to existing cluster node %q: %v\n", clusterAddress, err)
+				continue
+			}
+
+			certDigest := shared.CertFingerprint(cert)
+			if joinToken.Fingerprint != certDigest {
+				return fmt.Errorf("Certificate fingerprint mismatch between join token and cluster member %q", clusterAddress)
+			}
+
+			config.Cluster.ClusterCertificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+			break // We've found a working cluster member.
+		}
+
+		if config.Cluster.ClusterCertificate == "" {
+			return fmt.Errorf("Unable to connect to any of the cluster members specified in join token")
+		}
+
+		// Raw join token used as cluster password so it can be validated.
+		config.Cluster.ClusterPassword = config.Cluster.ClusterToken
 	}
 
 	// If clustering is enabled, and no cluster.https_address network address

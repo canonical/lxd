@@ -145,6 +145,15 @@ opyQ1VRpAg2sV2C4W8irbNqeUsTeZZxhLqp4vNOXXBBrSqUCdPu1JXADV0kavg1l
     value: ""
 ```
 
+When joining a cluster using a cluster join token, the following fields can be omitted:
+
+ - server\_name
+ - cluster\_address
+ - cluster\_certificate
+ - cluster\_password
+
+And instead the full token be passed through the `cluster_token` field.
+
 ## Managing a cluster
 
 Once your cluster is formed you can see a list of its nodes and their
