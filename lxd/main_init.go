@@ -189,7 +189,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 			// Cluster certificate
 			cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
 			if err != nil {
-				fmt.Printf("Error connecting to existing cluster node %q: %v\n", clusterAddress, err)
+				fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
 				continue
 			}
 
