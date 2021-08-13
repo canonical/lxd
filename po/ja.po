@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-04 23:51-0400\n"
+"POT-Creation-Date: 2021-08-13 14:30-0400\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
-"Language-Team: Japanese <https://hosted.weblate.org/projects/"
-"linux-containers/lxd/ja/>\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
+"containers/lxd/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -4730,8 +4730,8 @@ msgid ""
 msgstr ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 
-#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:945
-#: lxc/cluster.go:964
+#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:760
+#: lxc/cluster.go:945 lxc/cluster.go:964
 msgid "[<remote>:]<member>"
 msgstr "[<remote>:]<member>"
 
@@ -4911,10 +4911,6 @@ msgstr "[<remote>:]<project> <new-name>"
 #: lxc/copy.go:37
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
-
-#: lxc/cluster.go:760
-msgid "[<remote>:]<token>"
-msgstr "[<remote>:]<token>"
 
 #: lxc/warning.go:257 lxc/warning.go:299 lxc/warning.go:352
 msgid "[<remote>:]<warning-uuid>"
@@ -5370,6 +5366,9 @@ msgstr "y"
 #: lxc/image.go:1074
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "[<remote>:]<token>"
+#~ msgstr "[<remote>:]<token>"
 
 #~ msgid "Pid: %d"
 #~ msgstr "Pid: %d"
