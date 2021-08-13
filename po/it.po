@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-04 23:51-0400\n"
+"POT-Creation-Date: 2021-08-13 14:30-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -4499,8 +4499,8 @@ msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:945
-#: lxc/cluster.go:964
+#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:760
+#: lxc/cluster.go:945 lxc/cluster.go:964
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr "Creazione del container in corso"
@@ -4720,11 +4720,6 @@ msgstr "Creazione del container in corso"
 #: lxc/copy.go:37
 #, fuzzy
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
-msgstr "Creazione del container in corso"
-
-#: lxc/cluster.go:760
-#, fuzzy
-msgid "[<remote>:]<token>"
 msgstr "Creazione del container in corso"
 
 #: lxc/warning.go:257 lxc/warning.go:299 lxc/warning.go:352
@@ -5070,6 +5065,10 @@ msgstr ""
 #: lxc/image.go:1074
 msgid "yes"
 msgstr "si"
+
+#, fuzzy
+#~ msgid "[<remote>:]<token>"
+#~ msgstr "Creazione del container in corso"
 
 #~ msgid "stateless"
 #~ msgstr "senza stato"
