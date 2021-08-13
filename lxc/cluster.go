@@ -746,7 +746,7 @@ type cmdClusterRevokeToken struct {
 
 func (c *cmdClusterRevokeToken) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("revoke-token", i18n.G("[<remote>:]<token>"))
+	cmd.Use = usage("revoke-token", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Revoke cluster member join token")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
 
