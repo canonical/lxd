@@ -252,7 +252,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 	// Add dynamic validation rules.
 	for k := range config {
-		// Tunnel keys have the remote name in their name, so extract the real key
+		// Tunnel keys have the remote name in their name, extract the suffix.
 		if strings.HasPrefix(k, "tunnel.") {
 			// Validate remote name in key.
 			fields := strings.Split(k, ".")
