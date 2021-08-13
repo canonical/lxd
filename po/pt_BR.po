@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-04 23:51-0400\n"
+"POT-Creation-Date: 2021-08-13 14:30-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -4535,8 +4535,8 @@ msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 msgstr ""
 
-#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:945
-#: lxc/cluster.go:964
+#: lxc/cluster.go:181 lxc/cluster.go:280 lxc/cluster.go:600 lxc/cluster.go:760
+#: lxc/cluster.go:945 lxc/cluster.go:964
 msgid "[<remote>:]<member>"
 msgstr ""
 
@@ -4720,11 +4720,6 @@ msgstr ""
 #: lxc/copy.go:37
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
-
-#: lxc/cluster.go:760
-#, fuzzy
-msgid "[<remote>:]<token>"
-msgstr "Criar perfis"
 
 #: lxc/warning.go:257 lxc/warning.go:299 lxc/warning.go:352
 #, fuzzy
@@ -5063,6 +5058,10 @@ msgstr ""
 #: lxc/image.go:1074
 msgid "yes"
 msgstr "sim"
+
+#, fuzzy
+#~ msgid "[<remote>:]<token>"
+#~ msgstr "Criar perfis"
 
 #, fuzzy
 #~ msgid "The --instance-only flag can't be used with --storage"
