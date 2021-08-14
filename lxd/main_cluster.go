@@ -47,6 +47,46 @@ func (c *cmdCluster) Command() *cobra.Command {
 	return cmd
 }
 
+// ClusterMember is a more human-readable representation of the db.RaftNode struct.
+type ClusterMember struct {
+	ID      uint64 `yaml:"id"`
+	Address string `yaml:"address"`
+	Role    string `yaml:"role"`
+}
+
+// ClusterConfig is a representation of the current cluster configuration.
+type ClusterConfig struct {
+	Segment string          `yaml:"latest_segment"`
+	Members []ClusterMember `yaml:"members"`
+}
+
+// ToRaftNode converts a ClusterConfig struct to a RaftNode struct.
+func (c ClusterMember) ToRaftNode() (*db.RaftNode, error) {
+	node := &db.RaftNode{
+		ID:      c.ID,
+		Address: c.Address,
+	}
+
+	var role db.RaftRole
+	switch c.Role {
+	case "voter":
+		role = db.RaftVoter
+		break
+	case "stand-by":
+		role = db.RaftStandBy
+		break
+	case "spare":
+		role = db.RaftSpare
+		break
+	default:
+		return nil, fmt.Errorf("unknown raft role: %q", c.Role)
+	}
+
+	node.Role = role
+
+	return node, nil
+}
+
 type cmdClusterListDatabase struct {
 	global *cmdGlobal
 }
