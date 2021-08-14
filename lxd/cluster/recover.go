@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"time"
 
@@ -86,6 +87,64 @@ func Recover(database *db.Node) error {
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to update database nodes")
+	}
+
+	return nil
+}
+
+// Reconfigure replaces the entire cluster configuration.
+// Addresses and node roles may be updated. Node IDs are read-only.
+func Reconfigure(database *db.Node, nodes []db.RaftNode) error {
+	var info *db.RaftNode
+	err := database.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		info, err = node.DetermineRaftNode(tx)
+
+		return err
+	})
+	if err != nil || info == nil {
+		return errors.Wrap(err, "Failed to determine node role")
+	}
+
+	// Update cluster.https_address if changed.
+	for _, n := range nodes {
+		if n.ID == info.ID && n.Address != info.Address {
+			err := updateLocalAddress(database, n.Address)
+			if err != nil {
+				return err
+			}
+
+			break
+		}
+	}
+
+	dir := filepath.Join(database.Dir(), "global")
+	// Replace cluster configuration in dqlite.
+	err = dqlite.ReconfigureMembershipExt(dir, nodes)
+	if err != nil {
+		return errors.Wrap(err, "Failed to recover database state")
+	}
+
+	// Replace cluster configuration in local raft_nodes database.
+	err = database.Transaction(func(tx *db.NodeTx) error {
+		return tx.ReplaceRaftNodes(nodes)
+	})
+	if err != nil {
+		return err
+	}
+
+	// Create patch file for global nodes database.
+	content := ""
+	for _, node := range nodes {
+		content += fmt.Sprintf("UPDATE nodes SET address = %q WHERE id = %d;\n", node.Address, node.ID)
+	}
+
+	if len(content) > 0 {
+		dir := filepath.Join(database.Dir(), "patch.global.sql")
+		err := ioutil.WriteFile(dir, []byte(content), 0644)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
