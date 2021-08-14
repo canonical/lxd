@@ -92,6 +92,30 @@ func Recover(database *db.Node) error {
 	return nil
 }
 
+// updateLocalAddress updates the cluster.https_address for this node.
+func updateLocalAddress(database *db.Node, address string) error {
+	err := database.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		config, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+
+		newConfig := map[string]interface{}{"cluster.https_address": address}
+		_, err = config.Patch(newConfig)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed to update node configuration")
+	}
+
+	return nil
+}
+
 // Reconfigure replaces the entire cluster configuration.
 // Addresses and node roles may be updated. Node IDs are read-only.
 func Reconfigure(database *db.Node, nodes []db.RaftNode) error {
