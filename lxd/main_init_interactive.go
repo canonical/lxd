@@ -234,7 +234,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 					// Cluster certificate
 					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
 					if err != nil {
-						fmt.Printf("Error connecting to existing cluster node %q: %v\n", clusterAddress, err)
+						fmt.Printf("Error connecting to existing cluster member %q: %v\n", clusterAddress, err)
 						continue
 					}
 
@@ -263,7 +263,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 
 				for {
 					// Cluster URL
-					clusterAddress, err := cli.AskString("IP address or FQDN of an existing cluster node: ", "", nil)
+					clusterAddress, err := cli.AskString("IP address or FQDN of an existing cluster member: ", "", nil)
 					if err != nil {
 						return err
 					}
@@ -278,7 +278,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 					// Cluster certificate
 					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
 					if err != nil {
-						fmt.Printf("Error connecting to existing cluster node: %v\n", err)
+						fmt.Printf("Error connecting to existing cluster member: %v\n", err)
 						continue
 					}
 
@@ -340,7 +340,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 			// again and if using a one-time join token, will fail.
 			config.Cluster.ClusterPassword = ""
 
-			// Client parameters to connect to the target cluster node.
+			// Client parameters to connect to the target cluster member.
 			args := &lxd.ConnectionArgs{
 				TLSClientCert: string(serverCert.PublicKey()),
 				TLSClientKey:  string(serverCert.PrivateKey()),
