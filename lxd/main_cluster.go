@@ -184,7 +184,10 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 			// Ensure new configuration is valid.
 			if err == nil {
-				err = cluster.Reconfigure(database, newNodes)
+				err = validateNewConfig(nodes, newNodes)
+				if err == nil {
+					err = cluster.Reconfigure(database, newNodes)
+				}
 			}
 		}
 
@@ -205,6 +208,42 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		break
+	}
+
+	return nil
+}
+
+func validateNewConfig(oldNodes []db.RaftNode, newNodes []db.RaftNode) error {
+	if len(oldNodes) > len(newNodes) {
+		return fmt.Errorf("Removing cluster members is not supported")
+	}
+
+	if len(oldNodes) < len(newNodes) {
+		return fmt.Errorf("Adding cluster members is not supported")
+	}
+
+	numNewVoters := 0
+	for i, newNode := range newNodes {
+		oldNode := oldNodes[i]
+
+		// IDs should not be reordered among cluster members.
+		if oldNode.ID != newNode.ID {
+			return fmt.Errorf("Changing cluster member ID is not supported")
+		}
+
+		if oldNode.Role == db.RaftSpare && newNode.Role == db.RaftVoter {
+			return fmt.Errorf("A %q cluster member cannot become a %q", db.RaftSpare.String(), db.RaftVoter.String())
+		}
+
+		if newNode.Role == db.RaftVoter {
+			numNewVoters++
+		}
+	}
+
+	if numNewVoters < 2 && len(newNodes) > 2 {
+		return fmt.Errorf("Number of %q must be 2 or more", db.RaftVoter.String())
+	} else if numNewVoters < 1 {
+		return fmt.Errorf("At least one member must be a %q", db.RaftVoter.String())
 	}
 
 	return nil
