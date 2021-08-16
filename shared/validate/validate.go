@@ -661,7 +661,7 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 		}
 
 		// Validate wildcard.
-		if stringInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
+		if stringInSlice(host, []string{"", "::", "[::]", "0.0.0.0"}) {
 			if !allowWildcard {
 				return fmt.Errorf("Wildcard addresses aren't allowed")
 			}
