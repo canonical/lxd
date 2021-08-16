@@ -2486,3 +2486,150 @@ test_clustering_image_refresh() {
   # shellcheck disable=SC2034
   LXD_NETNS=
 }
+
+test_clustering_edit_configuration() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  # Bootstrap the first node
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML as weird rules..
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Spawn 6 nodes in total for role coverage.
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FOUR_DIR}"
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
+
+  setup_clustering_netns 5
+  LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FIVE_DIR}"
+  ns5="${prefix}5"
+  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}"
+
+  setup_clustering_netns 6
+  LXD_SIX_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_SIX_DIR}"
+  ns6="${prefix}6"
+  spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 1 "${LXD_SIX_DIR}"
+
+  # Ensure successful communication
+  LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_SIX_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+
+  # Shut down all nodes, de-syncing the roles tables
+  shutdown_lxd "${LXD_ONE_DIR}"
+  shutdown_lxd "${LXD_TWO_DIR}"
+  shutdown_lxd "${LXD_THREE_DIR}"
+  shutdown_lxd "${LXD_FOUR_DIR}"
+
+  # Force-kill the last two to prevent leadership loss.
+  daemon_pid=$(cat "${LXD_FIVE_DIR}/lxd.pid")
+  kill -9 "${daemon_pid}" 2>/dev/null || true
+  daemon_pid=$(cat "${LXD_SIX_DIR}/lxd.pid")
+  kill -9 "${daemon_pid}" 2>/dev/null || true
+
+  config=$(mktemp -p "${TEST_DIR}" XXX)
+  # Update the cluster configuration with new port numbers
+  EDITOR="cat" LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit > "${config}"
+  sed -e "s/:8443/:9393/" -i "${config}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit < "${config}"
+
+  EDITOR="cat" LXD_DIR="${LXD_TWO_DIR}" lxd cluster edit > "${config}"
+  sed -e "s/:8443/:9393/" -i "${config}"
+  LXD_DIR="${LXD_TWO_DIR}" lxd cluster edit < "${config}"
+
+  EDITOR="cat" LXD_DIR="${LXD_THREE_DIR}" lxd cluster edit > "${config}"
+  sed -e "s/:8443/:9393/" -i "${config}"
+  LXD_DIR="${LXD_THREE_DIR}" lxd cluster edit < "${config}"
+
+  EDITOR="cat" LXD_DIR="${LXD_FOUR_DIR}" lxd cluster edit > "${config}"
+  sed -e "s/:8443/:9393/" -i "${config}"
+  LXD_DIR="${LXD_FOUR_DIR}" lxd cluster edit < "${config}"
+
+  EDITOR="cat" LXD_DIR="${LXD_FIVE_DIR}" lxd cluster edit > "${config}"
+  sed -e "s/:8443/:9393/" -i "${config}"
+  LXD_DIR="${LXD_FIVE_DIR}" lxd cluster edit < "${config}"
+
+  EDITOR="cat" LXD_DIR="${LXD_SIX_DIR}" lxd cluster edit > "${config}"
+  sed -e "s/:8443/:9393/" -i "${config}"
+  LXD_DIR="${LXD_SIX_DIR}" lxd cluster edit < "${config}"
+
+  # Respawn the nodes
+  LXD_NETNS="${ns1}" respawn_lxd "${LXD_ONE_DIR}" false
+  LXD_NETNS="${ns2}" respawn_lxd "${LXD_TWO_DIR}" false
+  LXD_NETNS="${ns3}" respawn_lxd "${LXD_THREE_DIR}" false
+  LXD_NETNS="${ns4}" respawn_lxd "${LXD_FOUR_DIR}" false
+  LXD_NETNS="${ns5}" respawn_lxd "${LXD_FIVE_DIR}" false
+  # Only wait on the last node, because we don't know who the voters are
+  LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
+
+  # Let the heartbeats catch up
+  sleep 20
+
+  # Ensure successful communication
+  LXD_DIR="${LXD_ONE_DIR}"   lxc info --target node2 | grep -q "server_name: node2"
+  LXD_DIR="${LXD_TWO_DIR}"   lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FOUR_DIR}"  lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_FIVE_DIR}"  lxc info --target node1 | grep -q "server_name: node1"
+  LXD_DIR="${LXD_SIX_DIR}"   lxc info --target node1 | grep -q "server_name: node1"
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls | grep -q "No heartbeat" || false
+
+  # Clean up
+  shutdown_lxd "${LXD_ONE_DIR}"
+  shutdown_lxd "${LXD_TWO_DIR}"
+  shutdown_lxd "${LXD_THREE_DIR}"
+  shutdown_lxd "${LXD_FOUR_DIR}"
+
+  # Force-kill the last two to prevent leadership loss.
+  daemon_pid=$(cat "${LXD_FIVE_DIR}/lxd.pid")
+  kill -9 "${daemon_pid}" 2>/dev/null || true
+  daemon_pid=$(cat "${LXD_SIX_DIR}/lxd.pid")
+  kill -9 "${daemon_pid}" 2>/dev/null || true
+
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
+  rm -f "${LXD_SIX_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_FIVE_DIR}"
+  kill_lxd "${LXD_SIX_DIR}"
+}
