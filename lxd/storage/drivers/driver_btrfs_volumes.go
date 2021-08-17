@@ -765,14 +765,25 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 			d.logger.Debug("Accounting for VM image file size", "sizeBytes", sizeBytes)
 		}
 
-		// Apply the limit.
-		_, err := shared.RunCommand("btrfs", "qgroup", "limit", fmt.Sprintf("%d", sizeBytes), volPath)
+		// Apply the limit to referenced data in qgroup.
+		_, err = shared.RunCommand("btrfs", "qgroup", "limit", fmt.Sprintf("%d", sizeBytes), qgroup, volPath)
+		if err != nil {
+			return err
+		}
+
+		// Remove any former exclusive data limit.
+		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "-e", "none", qgroup, volPath)
 		if err != nil {
 			return err
 		}
 	} else if qgroup != "" {
-		// Remove the limit.
-		_, err := shared.RunCommand("btrfs", "qgroup", "limit", "none", qgroup, volPath)
+		// Remove all limits.
+		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "none", qgroup, volPath)
+		if err != nil {
+			return err
+		}
+
+		_, err = shared.RunCommand("btrfs", "qgroup", "limit", "none", "-e", qgroup, volPath)
 		if err != nil {
 			return err
 		}
