@@ -439,7 +439,7 @@ test_backup_rename() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: not found" ; then
+  if ! lxc query -X POST /1.0/containers/c1/backups/backupmissing -d '{\"name\": \"backupnewname\"}' --wait 2>&1 | grep -q "Error: Not Found" ; then
     echo "invalid rename response for missing container"
     false
   fi
