@@ -310,6 +310,7 @@ func (d *dir) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 		// Add that to the requested filesystem size (to ignore it from the quota).
 		sizeBytes += blockSize
+		d.logger.Debug("Accounting for VM image file size", "sizeBytes", sizeBytes)
 	}
 
 	return d.setQuota(vol.MountPath(), volID, sizeBytes)
