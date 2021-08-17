@@ -63,3 +63,22 @@ func (c *ClusterTx) prepare(sql string) (*sql.Stmt, error) {
 
 	return stmt, nil
 }
+
+// QueryScan runs a query with inArgs and provides the rowFunc with the scan function for each row.
+// It handles closing the rows and errors from the result set.
+func (c *ClusterTx) QueryScan(sql string, rowFunc func(scan func(dest ...interface{}) error) error, inArgs ...interface{}) error {
+	rows, err := c.tx.Query(sql, inArgs...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rowFunc(rows.Scan)
+		if err != nil {
+			return err
+		}
+	}
+
+	return rows.Err()
+}
