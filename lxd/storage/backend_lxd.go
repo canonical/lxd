@@ -1770,7 +1770,11 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 
 	// Apply the filesystem volume quota (only when main volume is block).
 	if vol.IsVMBlock() {
-		if vmStateSize == "" {
+		// Apply default VM config filesystem size if main volume size is specified and no custom
+		// vmStateSize is specified. This way if the main volume size is empty (i.e removing quota) then
+		// this will also pass empty quota for the config filesystem volume as well, allowing a former
+		// quota to be removed from both volumes.
+		if vmStateSize == "" && size != "" {
 			vmStateSize = drivers.DefaultVMBlockFilesystemSize
 		}
 
