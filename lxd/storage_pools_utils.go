@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -20,7 +21,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	// Check that the storage pool does not already exist.
 	_, err := s.Cluster.GetStoragePoolID(poolName)
 	if err == nil {
-		return -1, fmt.Errorf("The storage pool already exists")
+		return -1, fmt.Errorf("The storage pool already exists: %w", db.ErrAlreadyDefined)
 	}
 
 	// Make sure that we don't pass a nil to the next function.
@@ -41,7 +42,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	// Create the database entry for the storage pool.
 	id, err := dbStoragePoolCreateAndUpdateCache(s, poolName, poolDescription, driver, config)
 	if err != nil {
-		return -1, fmt.Errorf("Error inserting %s into database: %s", poolName, err)
+		return -1, fmt.Errorf("Error inserting %s into database: %w", poolName, err)
 	}
 
 	return id, nil
