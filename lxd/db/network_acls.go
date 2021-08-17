@@ -19,21 +19,28 @@ func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
 		WHERE project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
 		ORDER BY id
 	`
-	inargs := []interface{}{project}
 
-	var name string
-	outfmt := []interface{}{name}
-	result, err := queryScan(c, q, inargs, outfmt)
+	var aclNames []string
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+			var aclName string
+
+			err := scan(&aclName)
+			if err != nil {
+				return err
+			}
+
+			aclNames = append(aclNames, aclName)
+
+			return nil
+		}, project)
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	response := make([]string, 0, len(result))
-	for _, r := range result {
-		response = append(response, r[0].(string))
-	}
-
-	return response, nil
+	return aclNames, nil
 }
 
 // GetNetworkACLIDsByNames returns a map of names to IDs of existing Network ACLs.
@@ -42,22 +49,29 @@ func (c *Cluster) GetNetworkACLIDsByNames(project string) (map[string]int64, err
 		WHERE project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
 		ORDER BY id
 	`
-	inargs := []interface{}{project}
 
-	var id int64
-	var name string
-	outfmt := []interface{}{id, name}
-	result, err := queryScan(c, q, inargs, outfmt)
+	acls := make(map[string]int64)
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+			var aclID int64
+			var aclName string
+
+			err := scan(&aclID, &aclName)
+			if err != nil {
+				return err
+			}
+
+			acls[aclName] = aclID
+
+			return nil
+		}, project)
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	response := make(map[string]int64, len(result))
-	for _, r := range result {
-		response[r[1].(string)] = r[0].(int64)
-	}
-
-	return response, nil
+	return acls, nil
 }
 
 // GetNetworkACL returns the Network ACL with the given name in the given project.
@@ -78,10 +92,20 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 		WHERE project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1) AND name=?
 		LIMIT 1
 	`
-	arg1 := []interface{}{projectName, name}
-	arg2 := []interface{}{&id, &acl.Description, &ingressJSON, &egressJSON}
 
-	err := dbQueryRowScan(c, q, arg1, arg2)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		err := tx.tx.QueryRow(q, projectName, name).Scan(&id, &acl.Description, &ingressJSON, &egressJSON)
+		if err != nil {
+			return err
+		}
+
+		err = c.networkACLConfig(tx, id, &acl)
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading config")
+		}
+
+		return nil
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, nil, ErrNoSuchObject
@@ -106,11 +130,6 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 		}
 	}
 
-	acl.Config, err = c.networkACLConfig(id)
-	if err != nil {
-		return -1, nil, errors.Wrapf(err, "Failed loading config")
-	}
-
 	return id, &acl, nil
 }
 
@@ -121,10 +140,9 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 
 	q := `SELECT networks_acls.name, projects.name FROM networks_acls JOIN projects ON projects.id=networks.project_id WHERE networks_acls.id=?`
 
-	inargs := []interface{}{networkACLID}
-	outargs := []interface{}{&networkACLName, &projectName}
-
-	err := dbQueryRowScan(c, q, inargs, outargs)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.tx.QueryRow(q, networkACLID).Scan(&networkACLName, &projectName)
+	})
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return "", "", ErrNoSuchObject
@@ -136,36 +154,32 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 	return networkACLName, projectName, nil
 }
 
-// networkACLConfig returns the config map of the Network ACL with the given ID.
-func (c *Cluster) networkACLConfig(id int64) (map[string]string, error) {
-	var key, value string
-	query := `
+// networkACLConfig populates the config map of the Network ACL with the given ID.
+func (c *Cluster) networkACLConfig(tx *ClusterTx, id int64, acl *api.NetworkACL) error {
+	q := `
 		SELECT key, value
 		FROM networks_acls_config
 		WHERE network_acl_id=?
 	`
-	inargs := []interface{}{id}
-	outfmt := []interface{}{key, value}
-	results, err := queryScan(c, query, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
 
-	config := make(map[string]string, len(results))
+	acl.Config = make(map[string]string)
+	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		var key, value string
 
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-
-		_, found := config[key]
-		if found {
-			return nil, fmt.Errorf("Duplicate config row found for key %q for network ACL ID %d", key, id)
+		err := scan(&key, &value)
+		if err != nil {
+			return err
 		}
 
-		config[key] = value
-	}
+		_, found := acl.Config[key]
+		if found {
+			return fmt.Errorf("Duplicate config row found for key %q for network ACL ID %d", key, id)
+		}
 
-	return config, nil
+		acl.Config[key] = value
+
+		return nil
+	}, id)
 }
 
 // CreateNetworkACL creates a new Network ACL.
