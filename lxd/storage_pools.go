@@ -340,7 +340,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	// Create new single node storage pool.
 	err = storagePoolCreateGlobal(d.State(), req, clientType)
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.StoragePoolCreated.Event(req.Name, projectName, requestor, ctx))
