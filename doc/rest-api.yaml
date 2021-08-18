@@ -2218,6 +2218,126 @@ definitions:
     title: NetworkACLsPost used for creating an ACL.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  NetworkForward:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Forward configuration map (refer to doc/network-forwards.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the forward listen IP
+        example: My public IP forward
+        type: string
+        x-go-name: Description
+      listen_address:
+        description: The listen address of the forward
+        example: 192.0.2.1
+        type: string
+        x-go-name: ListenAddress
+      location:
+        description: What cluster member this record was found on
+        example: lxd01
+        type: string
+        x-go-name: Location
+      ports:
+        description: Port forwards (optional)
+        items:
+          $ref: '#/definitions/NetworkForwardPort'
+        type: array
+        x-go-name: Ports
+    title: NetworkForward used for displaying an network address forward.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkForwardPort:
+    description: NetworkForwardPort represents a port specification in a network address
+      forward
+    properties:
+      description:
+        description: Description of the forward port
+        example: My web server forward
+        type: string
+        x-go-name: Description
+      listen_port:
+        description: ListenPort(s) to forward (comma delimited ranges)
+        example: 80,81,8080-8090
+        type: string
+        x-go-name: ListenPort
+      protocol:
+        description: Protocol for port forward (either tcp or udp)
+        example: tcp
+        type: string
+        x-go-name: Protocol
+      target_address:
+        description: TargetAddress to forward ListenPorts to
+        example: 198.51.100.2
+        type: string
+        x-go-name: TargetAddress
+      target_port:
+        description: TargetPort(s) to forward ListenPorts to (allows for many-to-one)
+        example: 80,81,8080-8090
+        type: string
+        x-go-name: TargetPort
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkForwardPut:
+    description: NetworkForwardPut represents the modifiable fields of a LXD network
+      address forward
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Forward configuration map (refer to doc/network-forwards.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the forward listen IP
+        example: My public IP forward
+        type: string
+        x-go-name: Description
+      ports:
+        description: Port forwards (optional)
+        items:
+          $ref: '#/definitions/NetworkForwardPort'
+        type: array
+        x-go-name: Ports
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkForwardsPost:
+    description: NetworkForwardsPost represents the fields of a new LXD network address
+      forward
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Forward configuration map (refer to doc/network-forwards.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the forward listen IP
+        example: My public IP forward
+        type: string
+        x-go-name: Description
+      listen_address:
+        description: The listen address of the forward
+        example: 192.0.2.1
+        type: string
+        x-go-name: ListenAddress
+      ports:
+        description: Port forwards (optional)
+        items:
+          $ref: '#/definitions/NetworkForwardPort'
+        type: array
+        x-go-name: Ports
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   NetworkLease:
     description: NetworkLease represents a DHCP lease
     properties:
