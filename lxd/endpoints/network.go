@@ -117,14 +117,14 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
 				e.listeners[network] = networkTLSListener(*listener, e.cert)
-				e.serveHTTP(network)
+				e.serve(network)
 			}
 
 			return err
 		}
 
 		e.listeners[network] = networkTLSListener(*listener, e.cert)
-		e.serveHTTP(network)
+		e.serve(network)
 	}
 
 	return nil
