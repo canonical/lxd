@@ -1279,7 +1279,7 @@ func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
 	return globalUnicastIPs, isUp, nil
 }
 
-// ParsePortRange validates a port range in the form n-n.
+// ParsePortRange validates a port range in the form start-end.
 func ParsePortRange(r string) (int64, int64, error) {
 	entries := strings.Split(r, "-")
 	if len(entries) > 2 {
@@ -1296,6 +1296,10 @@ func ParsePortRange(r string) (int64, int64, error) {
 		size, err = strconv.ParseInt(entries[1], 10, 64)
 		if err != nil {
 			return -1, -1, err
+		}
+
+		if size <= base {
+			return -1, -1, fmt.Errorf("End port should be higher than start port")
 		}
 
 		size -= base
