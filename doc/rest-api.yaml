@@ -3099,6 +3099,11 @@ definitions:
         x-go-name: ProductID
       sriov:
         $ref: '#/definitions/ResourcesGPUCardSRIOV'
+      usb_address:
+        description: USB address (for USB cards)
+        example: "2:7"
+        type: string
+        x-go-name: USBAddress
       vendor:
         description: Name of the vendor
         example: Intel Corporation
