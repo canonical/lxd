@@ -1625,3 +1625,29 @@ func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNR
 
 	return nil
 }
+
+// LoadBalancerDelete deletes the specified load balancer(s).
+func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
+	var args []string
+
+	for _, loadBalancerName := range loadBalancerNames {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
+		lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
+
+		// Remove load balancers for loadBalancerName if they exist.
+		args = append(args, "--if-exists", "lb-del", lbTCPName, "--", "lb-del", lbUDPName)
+	}
+
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
