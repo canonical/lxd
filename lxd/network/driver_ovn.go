@@ -200,11 +200,19 @@ type externalSubnetUsage struct {
 func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnetUsage, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
+	var projectNetworksForwardsOnUplink map[string]map[int64][]string
+
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load all networks")
+		}
+
+		// Get all network forward listen addresses for all networks (of any type) connected to our uplink.
+		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesByUplink(uplinkNetworkName)
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading network forward listen addresses")
 		}
 
 		return nil
@@ -231,6 +239,28 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 	externalSubnets := make([]externalSubnetUsage, 0, len(ovnNetworkExternalSubnets)+len(ovnNICExternalRoutes))
 	externalSubnets = append(externalSubnets, ovnNetworkExternalSubnets...)
 	externalSubnets = append(externalSubnets, ovnNICExternalRoutes...)
+
+	// Add forward listen addresses to this list.
+	for projectName, networks := range projectNetworksForwardsOnUplink {
+		for networkID, listenAddresses := range networks {
+			for _, listenAddress := range listenAddresses {
+				// Convert listen address to subnet.
+				listenAddressNet, err := ParseIPToNet(listenAddress)
+				if err != nil {
+					return nil, fmt.Errorf("Invalid existing forward listen address %q", listenAddress)
+				}
+
+				// Create an externalSubnetUsage for the listen address by using the network ID
+				// of the listen address to retrieve the already loaded network name from the
+				// projectNetworks map.
+				externalSubnets = append(externalSubnets, externalSubnetUsage{
+					subnet:         listenAddressNet,
+					networkProject: projectName,
+					networkName:    projectNetworks[projectName][networkID].Name,
+				})
+			}
+		}
+	}
 
 	return externalSubnets, nil
 }
