@@ -866,7 +866,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	// removeFromRules removes a single rule that matches the filters supplied. If multiple rules match then
-	// no an error is returned unless c.flagRemoveForce is true, in which case all matching rules are removed.
+	// an error is returned unless c.flagRemoveForce is true, in which case all matching rules are removed.
 	removeFromRules := func(rules []api.NetworkACLRule, filters map[string]string) ([]api.NetworkACLRule, error) {
 		removed := false
 		newRules := make([]api.NetworkACLRule, 0, len(rules))
@@ -874,7 +874,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 		for _, r := range rules {
 			if isFilterMatch(&r, filters) {
 				if removed && !c.flagRemoveForce {
-					return newRules, fmt.Errorf("Multiple rules match. Use --force to remove them all")
+					return nil, fmt.Errorf("Multiple rules match. Use --force to remove them all")
 				}
 
 				removed = true
@@ -885,7 +885,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 		}
 
 		if !removed {
-			return newRules, fmt.Errorf("No matching rule(s) found")
+			return nil, fmt.Errorf("No matching rule(s) found")
 		}
 
 		return newRules, nil

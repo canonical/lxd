@@ -1178,6 +1178,30 @@ func SubnetContains(outerSubnet *net.IPNet, innerSubnet *net.IPNet) bool {
 	return true
 }
 
+// SubnetContainsIP returns true if outsetSubnet contains IP address.
+func SubnetContainsIP(outerSubnet *net.IPNet, ip net.IP) bool {
+	// Convert ip to ipNet.
+	ipIsIP4 := ip.To4() != nil
+
+	prefix := 32
+	if !ipIsIP4 {
+		prefix = 128
+	}
+
+	_, ipSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ip.String(), prefix))
+	if err != nil {
+		return false
+	}
+
+	ipSubnet.IP = ip
+
+	if SubnetContains(outerSubnet, ipSubnet) {
+		return true
+	}
+
+	return false
+}
+
 // SubnetIterate iterates through each IP in a subnet calling a function for each IP.
 // If the ipFunc returns a non-nil error then the iteration stops and the error is returned.
 func SubnetIterate(subnet *net.IPNet, ipFunc func(ip net.IP) error) error {
@@ -1279,7 +1303,7 @@ func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
 	return globalUnicastIPs, isUp, nil
 }
 
-// ParsePortRange validates a port range in the form n-n.
+// ParsePortRange validates a port range in the form start-end.
 func ParsePortRange(r string) (int64, int64, error) {
 	entries := strings.Split(r, "-")
 	if len(entries) > 2 {
@@ -1296,6 +1320,10 @@ func ParsePortRange(r string) (int64, int64, error) {
 		size, err = strconv.ParseInt(entries[1], 10, 64)
 		if err != nil {
 			return -1, -1, err
+		}
+
+		if size <= base {
+			return -1, -1, fmt.Errorf("End port should be higher than start port")
 		}
 
 		size -= base
