@@ -2279,6 +2279,22 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 				return errors.Wrapf(err, "Failed removing unused OVN port groups")
 			}
 		}
+
+		// Delete any network forwards.
+		listenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID())
+		if err != nil {
+			return fmt.Errorf("Failed loading network forwards: %w", err)
+		}
+
+		loadBalancers := make([]openvswitch.OVNLoadBalancer, 0, len(listenAddresses))
+		for _, listenAddress := range listenAddresses {
+			loadBalancers = append(loadBalancers, n.getLoadBalancerName(listenAddress))
+		}
+
+		err = client.LoadBalancerDelete(loadBalancers...)
+		if err != nil {
+			return fmt.Errorf("Failed deleting network forwards: %w", err)
+		}
 	}
 
 	return n.common.delete(clientType)
