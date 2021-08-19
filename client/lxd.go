@@ -3,7 +3,6 @@ package lxd
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -167,7 +166,7 @@ func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 
 	// Handle errors
 	if response.Type == api.ErrorResponse {
-		return nil, "", errors.New(response.Error)
+		return nil, "", api.StatusErrorf(resp.StatusCode, response.Error)
 	}
 
 	return &response, etag, nil
