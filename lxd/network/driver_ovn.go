@@ -350,18 +350,29 @@ func (n *ovn) Validate(config map[string]string) error {
 		return err
 	}
 
-	// If NAT disabled, parse the external subnets that are being requested.
-	var externalSubnets []*net.IPNet // Subnets to check for conflicts with other networks/NICs.
+	// Parse the network's address subnets for further checks.
+	netSubnets := make(map[string]*net.IPNet)
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		addressKey := fmt.Sprintf("%s.address", keyPrefix)
-		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
+		if validate.IsOneOf("", "none", "auto")(config[addressKey]) != nil {
 			_, ipNet, err := net.ParseCIDR(config[addressKey])
 			if err != nil {
 				return errors.Wrapf(err, "Failed parsing %q", addressKey)
 			}
 
+			netSubnets[addressKey] = ipNet
+		}
+	}
+
+	// If NAT disabled, parse the external subnets that are being requested.
+	var externalSubnets []*net.IPNet // Subnets to check for conflicts with other networks/NICs.
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		addressKey := fmt.Sprintf("%s.address", keyPrefix)
+		netSubnet := netSubnets[addressKey]
+
+		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && netSubnet != nil {
 			// Add to list to check for conflicts.
-			externalSubnets = append(externalSubnets, ipNet)
+			externalSubnets = append(externalSubnets, netSubnet)
 		}
 	}
 
@@ -462,6 +473,40 @@ func (n *ovn) Validate(config map[string]string) error {
 					// resources potentially outside of the network's project.
 					return fmt.Errorf("NAT address %q overlaps with another OVN network or NIC", externalSNATSubnet.IP.String())
 				}
+			}
+		}
+	}
+
+	// Check any existing network forward target addresses are suitable for this network's subnet.
+	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID())
+	if err != nil {
+		return fmt.Errorf("Failed loading network forwards: %w", err)
+	}
+
+	for _, forward := range forwards {
+		if forward.Config["target_address"] != "" {
+			defaultTargetIP := net.ParseIP(forward.Config["target_address"])
+
+			netSubnet := netSubnets["ipv4.address"]
+			if defaultTargetIP.To4() == nil {
+				netSubnet = netSubnets["ipv6.address"]
+			}
+
+			if !SubnetContainsIP(netSubnet, defaultTargetIP) {
+				return api.StatusErrorf(http.StatusBadRequest, "Network forward for %q has a default target address %q that is not within the network subnet", forward.ListenAddress, defaultTargetIP.String())
+			}
+		}
+
+		for _, port := range forward.Ports {
+			targetIP := net.ParseIP(port.TargetAddress)
+
+			netSubnet := netSubnets["ipv4.address"]
+			if targetIP.To4() == nil {
+				netSubnet = netSubnets["ipv6.address"]
+			}
+
+			if !SubnetContainsIP(netSubnet, targetIP) {
+				return api.StatusErrorf(http.StatusBadRequest, "Network forward for %q has a port target address %q that is not within the network subnet", forward.ListenAddress, targetIP.String())
 			}
 		}
 	}
