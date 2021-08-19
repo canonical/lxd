@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -178,7 +179,7 @@ func (n *ovn) validateExternalSubnet(uplinkRoutes []*net.IPNet, projectRestricte
 	}
 
 	if !foundMatch {
-		return fmt.Errorf("Uplink network doesn't contain %q in its routes", ipNet.String())
+		return api.StatusErrorf(http.StatusBadRequest, "Uplink network doesn't contain %q in its routes", ipNet.String())
 	}
 
 	return nil
