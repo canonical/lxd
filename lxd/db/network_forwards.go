@@ -296,6 +296,55 @@ func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64) (map[int64]s
 	return forwards, nil
 }
 
+// GetProjectNetworkForwardListenAddressesByUplink returns map of Network Forward Listen Addresses that belong to
+// networks connected to the specified uplinkNetworkName.
+// Returns a map keyed on project name network name containing a slice of listen addresses.
+func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetworkName string) (map[string]map[int64][]string, error) {
+	// As uplink networks can only be in default project, it is safe to look for networks that reference the
+	// specified uplinkNetworkName in their "network" config property.
+	q := `
+	SELECT
+		projects.name,
+		networks.id,
+		networks_forwards.listen_address
+	FROM networks_forwards
+	JOIN networks on networks.id = networks_forwards.network_id
+	JOIN networks_config on networks.id = networks_config.network_id
+	JOIN projects ON projects.id = networks.project_id
+	WHERE networks_config.key = "network"
+	AND networks_config.value = ?
+`
+	forwards := make(map[string]map[int64][]string)
+
+	err := c.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		var projectName string
+		var networkID int64 = int64(-1)
+		var listenAddress string
+
+		err := scan(&projectName, &networkID, &listenAddress)
+		if err != nil {
+			return err
+		}
+
+		if forwards[projectName] == nil {
+			forwards[projectName] = make(map[int64][]string)
+		}
+
+		if forwards[projectName][networkID] == nil {
+			forwards[projectName][networkID] = make([]string, 0)
+		}
+
+		forwards[projectName][networkID] = append(forwards[projectName][networkID], listenAddress)
+
+		return nil
+	}, uplinkNetworkName)
+	if err != nil {
+		return nil, err
+	}
+
+	return forwards, nil
+}
+
 // GetNetworkForwards returns map of Network Forwards for the given network ID keyed on Forward ID.
 func (c *Cluster) GetNetworkForwards(networkID int64) (map[int64]*api.NetworkForward, error) {
 	q := `
