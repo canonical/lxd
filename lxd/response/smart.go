@@ -9,6 +9,7 @@ import (
 	pkgErrors "github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/shared/api"
 )
 
 var httpResponseErrors = map[int][]error{
@@ -22,6 +23,12 @@ var httpResponseErrors = map[int][]error{
 func SmartError(err error) Response {
 	if err == nil {
 		return EmptySyncResponse
+	}
+
+	var statusErr *api.StatusError
+
+	if errors.As(err, &statusErr) {
+		return &errorResponse{statusErr.Status(), err.Error()}
 	}
 
 	for httpStatusCode, checkErrs := range httpResponseErrors {
