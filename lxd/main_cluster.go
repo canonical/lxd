@@ -50,6 +50,10 @@ func (c *cmdCluster) Command() *cobra.Command {
 	clusterEdit := cmdClusterEdit{global: c.global}
 	cmd.AddCommand(clusterEdit.Command())
 
+	// Show cluster configuration.
+	clusterShow := cmdClusterShow{global: c.global}
+	cmd.AddCommand(clusterShow.Command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
@@ -245,6 +249,62 @@ func validateNewConfig(oldNodes []db.RaftNode, newNodes []db.RaftNode) error {
 	} else if numNewVoters < 1 {
 		return fmt.Errorf("At least one member must be a %q", db.RaftVoter.String())
 	}
+
+	return nil
+}
+
+type cmdClusterShow struct {
+	global *cmdGlobal
+}
+
+func (c *cmdClusterShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "show"
+	cmd.Short = "Show cluster configuration as YAML"
+	cmd.Long = `Description:
+	Show cluster configuration as YAML.`
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
+	database, _, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var nodes []db.RaftNode
+	err = database.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		nodes, err = tx.GetRaftNodes()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	segmentID, err := db.DqliteLatestSegment()
+	if err != nil {
+		return err
+	}
+
+	config := ClusterConfig{
+		Segment: segmentID,
+		Members: []ClusterMember{},
+	}
+
+	for _, node := range nodes {
+		member := ClusterMember{ID: node.ID, Address: node.Address, Role: node.Role.String()}
+		config.Members = append(config.Members, member)
+	}
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
 
 	return nil
 }
