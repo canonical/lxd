@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -151,16 +152,14 @@ func (r *Server) StartStatusCheck() {
 					return
 				}
 
-				logger.Errorf("Failed to hit new RBAC URL, falling back: %v", err)
-				r.oldStatusCheck()
-				return
-			}
+				// Handle server/load-balancer timeouts, errors aren't properly wrapped so checking string.
+				if strings.HasSuffix(err.Error(), "EOF") {
+					continue
+				}
 
-			if resp.StatusCode == 404 {
-				resp.Body.Close()
-				logger.Debugf("RBAC server doesn't support new monitoring API, falling back.")
-				r.oldStatusCheck()
-				return
+				logger.Errorf("Failed to connect to RBAC, re-trying: %v", err)
+				time.Sleep(5 * time.Second)
+				continue
 			}
 
 			if resp.StatusCode == 504 {
@@ -188,25 +187,6 @@ func (r *Server) StartStatusCheck() {
 			r.lastChange = status.LastChange
 			logger.Debugf("RBAC change detected, flushing cache")
 			r.flushCache()
-		}
-	}()
-}
-
-func (r *Server) oldStatusCheck() {
-	// NOTE: Can be dropped once new RBAC hits stable.
-	r.hasStatusChanged()
-
-	go func() {
-		for {
-			select {
-			case <-r.ctx.Done():
-				return
-			case <-time.After(time.Minute):
-				if r.hasStatusChanged() {
-					logger.Debugf("RBAC change detected, flushing cache")
-					r.flushCache()
-				}
-			}
 		}
 	}()
 }
@@ -346,43 +326,6 @@ func (r *Server) UserAccess(username string) (*UserAccess, error) {
 	}
 
 	return &access, nil
-}
-
-func (r *Server) hasStatusChanged() bool {
-	var status rbacStatus
-
-	u, err := url.Parse(r.apiURL)
-	if err != nil {
-		return true
-	}
-
-	u.Path = path.Join(u.Path, "/api/service/v1/status")
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return true
-	}
-
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return true
-	}
-	defer resp.Body.Close()
-
-	err = json.NewDecoder(resp.Body).Decode(&status)
-	if err != nil {
-		return true
-	}
-
-	if r.lastChange == "" {
-		r.lastChange = status.LastChange
-		return true
-	}
-
-	hasChanged := r.lastChange != status.LastChange
-	r.lastChange = status.LastChange
-
-	return hasChanged
 }
 
 func (r *Server) flushCache() {
