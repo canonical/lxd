@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -461,6 +464,48 @@ func TxCommit(tx *sql.Tx) error {
 		return nil
 	}
 	return err
+}
+
+// DqliteLatestSegment returns the latest segment ID in the global database.
+func DqliteLatestSegment() (string, error) {
+	dir := shared.VarPath("database", "global")
+	file, err := os.Open(dir)
+	if err != nil {
+		return "", fmt.Errorf("Unable to open directory %s with error %v", dir, err)
+	}
+	defer file.Close()
+
+	fileNames, err := file.Readdirnames(0)
+	if err != nil {
+		return "", fmt.Errorf("Unable to read file names in directory %s with error %v", dir, err)
+	}
+
+	if len(fileNames) == 0 {
+		return "none", nil
+	}
+
+	sort.Strings(fileNames)
+
+	r, _ := regexp.Compile("^[0-9]*-[0-9]*$")
+
+	for i := range fileNames {
+		fileName := fileNames[len(fileNames)-1-i]
+		if r.MatchString(fileName) {
+			segment := strings.Split(fileName, "-")[1]
+			// Trim leading o's.
+			index := 0
+			for i, c := range segment {
+				index = i
+				if c != '0' {
+					break
+				}
+			}
+
+			return segment[index:], nil
+		}
+	}
+
+	return "none", nil
 }
 
 func dbQueryRowScan(c *Cluster, q string, args []interface{}, outargs []interface{}) error {
