@@ -319,7 +319,36 @@ func (b *lxdBackend) Mount() (bool, error) {
 	logger.Debug("Mount started")
 	defer logger.Debug("Mount finished")
 
-	return b.driver.Mount()
+	path := drivers.GetPoolMountPath(b.name)
+
+	// Create the storage path if needed.
+	if !shared.IsDir(path) {
+		err := os.MkdirAll(path, 0711)
+		if err != nil {
+			return false, fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
+		}
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	ourMount, err := b.driver.Mount()
+	if err != nil {
+		return false, err
+	}
+
+	if ourMount {
+		revert.Add(func() { b.Unmount() })
+	}
+
+	// Create the directory structure (if needed) after mounted.
+	err = b.createStorageStructure(path)
+	if err != nil {
+		return false, err
+	}
+
+	revert.Success()
+	return ourMount, nil
 }
 
 // Unmount unmounts the storage pool.
