@@ -77,6 +77,17 @@ EOF
     # Check custom volume appears removed.
     ! lxc storage volume ls "${poolName}" | grep vol1_test || false
 
+    # Shutdown LXD so pools are unmounted.
+    shutdown_lxd "${LXD_DIR}"
+
+    # Remove empty directory structures for pool drivers that don't have a mounted root.
+    # This is so we can test the restoration of the storage pool directory structure.
+    if [ "$poolDriver" != "dir" ] && [ "$poolDriver" != "btrfs" ] && [ "$poolDriver" != "cephfs" ]; then
+      rm -rvf "${LXD_DIR}/storage-pools/${poolName}"
+    fi
+
+    respawn_lxd "${LXD_DIR}" true
+
     cat <<EOF | lxd recover
 no
 yes
