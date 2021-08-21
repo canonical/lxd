@@ -510,6 +510,8 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	runConf := deviceConfig.RunConfig{}
+	runConf.PostHooks = []func() error{d.postStart}
+
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "type", Value: "phys"},
 		{Key: "name", Value: d.config["name"]},
@@ -527,6 +529,16 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	revert.Success()
 	return &runConf, nil
+}
+
+// postStart is run after the device is added to the instance.
+func (d *nicBridged) postStart() error {
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Update applies configuration changes to a started device.
@@ -616,11 +628,29 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 	}
 
+	// If an external address changed, update the BGP advertisements.
+	err = bgpRemovePrefix(&d.deviceCommon, oldConfig)
+	if err != nil {
+		return err
+	}
+
+	err = bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Stop is run when the device is removed from the instance.
 func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
+	// Remove BGP announcements.
+	err := bgpRemovePrefix(&d.deviceCommon, d.config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup post-stop actions.
 	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
@@ -1436,4 +1466,14 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	}
 
 	return &network, nil
+}
+
+// Register sets up anything needed on LXD startup.
+func (d *nicBridged) Register() error {
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
