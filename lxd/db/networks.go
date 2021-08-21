@@ -843,6 +843,8 @@ func (c *Cluster) RenameNetwork(project string, oldName string, newName string) 
 
 // NodeSpecificNetworkConfig lists all network config keys which are node-specific.
 var NodeSpecificNetworkConfig = []string{
+	"bgp.ipv4.nexthop",
+	"bgp.ipv6.nexthop",
 	"bridge.external_interfaces",
 	"parent",
 }

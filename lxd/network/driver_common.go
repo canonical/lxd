@@ -425,3 +425,34 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 func (n *common) handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error {
 	return nil
 }
+
+// bgpValidate
+func (n *common) bgpValidationRules(config map[string]string) (map[string]func(value string) error, error) {
+	rules := map[string]func(value string) error{}
+	for k := range config {
+		// BGP keys have the peer name in their name, extract the suffix.
+		if !strings.HasPrefix(k, "bgp.") {
+			continue
+		}
+
+		// Validate remote name in key.
+		fields := strings.Split(k, ".")
+		if len(fields) != 4 {
+			return nil, fmt.Errorf("Invalid network configuration key: %s", k)
+		}
+
+		bgpKey := fields[3]
+
+		// Add the correct validation rule for the dynamic field based on last part of key.
+		switch bgpKey {
+		case "address":
+			rules[k] = validate.Optional(validate.IsNetworkAddress)
+		case "asn":
+			rules[k] = validate.Optional(validate.IsInRange(1, 4294967294))
+		case "password":
+			rules[k] = validate.Optional(validate.IsAny)
+		}
+	}
+
+	return rules, nil
+}
