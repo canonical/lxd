@@ -1649,6 +1649,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Setup BGP.
+	err = n.bgpSetup(oldConfig)
+	if err != nil {
+		return err
+	}
+
 	revert.Success()
 	return nil
 }
@@ -1659,6 +1665,12 @@ func (n *bridge) Stop() error {
 
 	if !n.isRunning() {
 		return nil
+	}
+
+	// Clear BGP.
+	err := n.bgpClear(n.config)
+	if err != nil {
+		return err
 	}
 
 	// Destroy the bridge interface
@@ -1696,7 +1708,7 @@ func (n *bridge) Stop() error {
 	}
 
 	// Kill any existing dnsmasq and forkdns daemon for this network
-	err := dnsmasq.Kill(n.name, false)
+	err = dnsmasq.Kill(n.name, false)
 	if err != nil {
 		return err
 	}
