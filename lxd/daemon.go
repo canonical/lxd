@@ -8,6 +8,7 @@ import (
 	sqldriver "database/sql/driver"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,6 +31,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
+	"github.com/lxc/lxd/lxd/bgp"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
@@ -69,6 +71,7 @@ type Daemon struct {
 	db           *db.Node
 	firewall     firewall.Firewall
 	maas         *maas.Controller
+	bgp          *bgp.Server
 	rbac         *rbac.Server
 	cluster      *db.Cluster
 	setupChan    chan struct{} // Closed when basic Daemon setup is completed
@@ -413,6 +416,7 @@ func (d *Daemon) State() *state.State {
 		Node:                   d.db,
 		Cluster:                d.cluster,
 		MAAS:                   d.maas,
+		BGP:                    d.bgp,
 		OS:                     d.os,
 		Endpoints:              d.endpoints,
 		Events:                 d.events,
@@ -1143,6 +1147,11 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Get daemon configuration.
+	bgpAddress := ""
+	bgpRouterID := ""
+	bgpASN := int64(0)
+
 	candidAPIURL := ""
 	candidAPIKey := ""
 	candidDomains := ""
@@ -1168,6 +1177,8 @@ func (d *Daemon) init() error {
 		}
 
 		maasMachine = config.MAASMachine()
+		bgpAddress = config.BGPAddress()
+		bgpRouterID = config.BGPRouterID()
 		return nil
 	})
 	if err != nil {
@@ -1179,6 +1190,8 @@ func (d *Daemon) init() error {
 		if err != nil {
 			return err
 		}
+
+		bgpASN = config.BGPASN()
 
 		d.proxy = shared.ProxyFromConfig(
 			config.ProxyHTTPS(), config.ProxyHTTP(), config.ProxyIgnoreHosts(),
@@ -1211,6 +1224,16 @@ func (d *Daemon) init() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Setup BGP listener.
+	d.bgp = bgp.NewServer()
+	if bgpAddress != "" && bgpASN != 0 && bgpRouterID != "" {
+		err := d.bgp.Start(bgpAddress, uint32(bgpASN), net.ParseIP(bgpRouterID))
+		if err != nil {
+			return err
+		}
+		logger.Info("Started BGP server")
 	}
 
 	// Setup the networks.
