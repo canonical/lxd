@@ -33,7 +33,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/i18n"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
@@ -2640,7 +2639,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			migrationOp, err := source.MigrateInstance(inst.Name(), req)
 			if err != nil {
-				return errors.Wrap(err, i18n.G("Migration API failure"))
+				return errors.Wrap(err, "Migration API failure")
 			}
 
 			err = migrationOp.Wait()
