@@ -56,7 +56,18 @@ func (n *physical) Validate(config map[string]string) error {
 		"volatile.last_state.created": validate.Optional(validate.IsBool),
 	}
 
-	err := n.validate(config, rules)
+	// Add the BGP validation rules.
+	bgpRules, err := n.bgpValidationRules(config)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range bgpRules {
+		rules[k] = v
+	}
+
+	// Validate the configuration.
+	err = n.validate(config, rules)
 	if err != nil {
 		return err
 	}

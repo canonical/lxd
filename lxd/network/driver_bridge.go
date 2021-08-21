@@ -186,6 +186,9 @@ func (n *bridge) ValidateName(name string) error {
 func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
 	rules := map[string]func(value string) error{
+		"bgp.ipv4.nexthop": validate.Optional(validate.IsNetworkAddressV4),
+		"bgp.ipv6.nexthop": validate.Optional(validate.IsNetworkAddressV6),
+
 		"bridge.driver": validate.Optional(validate.IsOneOf("native", "openvswitch")),
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
@@ -299,7 +302,18 @@ func (n *bridge) Validate(config map[string]string) error {
 		}
 	}
 
-	err := n.validate(config, rules)
+	// Add the BGP validation rules.
+	bgpRules, err := n.bgpValidationRules(config)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range bgpRules {
+		rules[k] = v
+	}
+
+	// Validate the configuration.
+	err = n.validate(config, rules)
 	if err != nil {
 		return err
 	}
