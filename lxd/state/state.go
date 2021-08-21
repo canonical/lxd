@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/lxc/lxd/lxd/bgp"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
@@ -31,6 +32,9 @@ type State struct {
 
 	// MAAS server
 	MAAS *maas.Controller
+
+	// BGP server
+	BGP *bgp.Server
 
 	// OS access
 	OS    *sys.OS

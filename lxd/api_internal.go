@@ -57,6 +57,7 @@ var apiInternal = []APIEndpoint{
 	internalImageRefreshCmd,
 	internalImageOptimizeCmd,
 	internalWarningCreateCmd,
+	internalBGPStateCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
@@ -124,6 +125,12 @@ var internalWarningCreateCmd = APIEndpoint{
 	Path: "testing/warnings",
 
 	Post: APIEndpointAction{Handler: internalCreateWarning},
+}
+
+var internalBGPStateCmd = APIEndpoint{
+	Path: "testing/bgp",
+
+	Get: APIEndpointAction{Handler: internalBGPState},
 }
 
 type internalImageOptimizePost struct {
@@ -970,4 +977,8 @@ func internalRAFTSnapshot(d *Daemon, r *http.Request) response.Response {
 	logger.Infof("Completed forced RAFT snapshot")
 
 	return response.EmptySyncResponse
+}
+
+func internalBGPState(d *Daemon, r *http.Request) response.Response {
+	return response.SyncResponse(true, d.State().BGP.Debug())
 }
