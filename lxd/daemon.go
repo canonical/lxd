@@ -1143,17 +1143,6 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	// Setup the networks.
-	logger.Infof("Initializing networks")
-	err = networkStartup(d.State())
-	if err != nil {
-		return err
-	}
-
-	// Cleanup leftover images.
-	pruneLeftoverImages(d)
-
-	// Setup the proxy handler, external authentication and MAAS.
 	candidAPIURL := ""
 	candidAPIKey := ""
 	candidDomains := ""
@@ -1171,6 +1160,7 @@ func (d *Daemon) init() error {
 	maasAPIKey := ""
 	maasMachine := ""
 
+	logger.Info("Loading daemon configuration")
 	err = d.db.Transaction(func(tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
@@ -1184,7 +1174,6 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	logger.Info("Loading daemon configuration")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
@@ -1208,6 +1197,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Setup RBAC authentication.
 	if rbacAPIURL != "" {
 		err = d.setupRBACServer(rbacAPIURL, rbacAPIKey, rbacExpiry, rbacAgentURL, rbacAgentUsername, rbacAgentPrivateKey, rbacAgentPublicKey)
 		if err != nil {
@@ -1215,12 +1205,23 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	// Setup Candid authentication.
 	if candidAPIURL != "" {
 		err = d.setupExternalAuthentication(candidAPIURL, candidAPIKey, candidExpiry, candidDomains)
 		if err != nil {
 			return err
 		}
 	}
+
+	// Setup the networks.
+	logger.Infof("Initializing networks")
+	err = networkStartup(d.State())
+	if err != nil {
+		return err
+	}
+
+	// Cleanup leftover images.
+	pruneLeftoverImages(d)
 
 	if !d.os.MockMode {
 		// Start the scheduler

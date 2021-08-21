@@ -691,6 +691,9 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			candidChanged = true
 		case "cluster.images_minimal_replica":
 			autoSyncImages(d.ctx, d)
+		case "cluster.offline_threshold":
+			d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
+			d.taskClusterHeartbeat.Reset()
 		case "images.auto_update_interval":
 			fallthrough
 		case "images.remote_cache_expiry":
@@ -714,15 +717,17 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
-	// Look for changed values. We do it sequentially because some keys are
+	for key := range nodeChanged {
+		switch key {
+		case "maas.machine":
+			maasChanged = true
+		}
+	}
+
+	// Process some additional keys. We do it sequentially because some keys are
 	// correlated with others, and need to be processed first (for example
 	// core.https_address need to be processed before
 	// cluster.https_address).
-
-	_, ok := nodeChanged["maas.machine"]
-	if ok {
-		maasChanged = true
-	}
 
 	value, ok := nodeChanged["core.https_address"]
 	if ok {
@@ -801,12 +806,6 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		if err != nil {
 			return err
 		}
-	}
-
-	_, ok = clusterChanged["cluster.offline_threshold"]
-	if ok {
-		d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
-		d.taskClusterHeartbeat.Reset()
 	}
 
 	return nil
