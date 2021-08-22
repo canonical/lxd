@@ -2309,6 +2309,12 @@ func (n *ovn) start() error {
 		return err
 	}
 
+	// Setup BGP.
+	err = n.bgpSetup(nil)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -2325,6 +2331,12 @@ func (n *ovn) Stop() error {
 
 	// Delete local uplink port if not used by other OVN networks.
 	err = n.deleteUplinkPort()
+	if err != nil {
+		return err
+	}
+
+	// Clear BGP.
+	err = n.bgpClear(n.config)
 	if err != nil {
 		return err
 	}
@@ -2565,6 +2577,12 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		if err != nil {
 			return err
 		}
+	}
+
+	// Setup BGP.
+	err = n.bgpSetup(oldNetwork.Config)
+	if err != nil {
+		return err
 	}
 
 	revert.Success()
