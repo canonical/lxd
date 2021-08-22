@@ -146,9 +146,9 @@ func (n *physical) Rename(newName string) error {
 	return nil
 }
 
-// Start starts is a no-op.
+// Start sets up some global configuration.
 func (n *physical) Start() error {
-	err := n.start()
+	err := n.setup(nil)
 	if err != nil {
 		err := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
 		if err != nil {
@@ -164,7 +164,7 @@ func (n *physical) Start() error {
 	return err
 }
 
-func (n *physical) start() error {
+func (n *physical) setup(oldConfig map[string]string) error {
 	n.logger.Debug("Start")
 
 	revert := revert.New()
@@ -306,7 +306,7 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 		return err
 	}
 
-	err = n.Start()
+	err = n.setup(oldNetwork.Config)
 	if err != nil {
 		return err
 	}
