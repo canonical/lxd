@@ -211,6 +211,12 @@ func (n *physical) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Setup BGP.
+	err = n.bgpSetup(oldConfig)
+	if err != nil {
+		return err
+	}
+
 	revert.Success()
 	return nil
 }
@@ -218,6 +224,12 @@ func (n *physical) setup(oldConfig map[string]string) error {
 // Stop stops is a no-op.
 func (n *physical) Stop() error {
 	n.logger.Debug("Stop")
+
+	// Clear BGP.
+	err := n.bgpClear(n.config)
+	if err != nil {
+		return err
+	}
 
 	hostName := GetHostDevice(n.config["parent"], n.config["vlan"])
 
@@ -241,7 +253,7 @@ func (n *physical) Stop() error {
 
 	// Remove last state config.
 	delete(n.config, "volatile.last_state.created")
-	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.UpdateNetwork(n.id, n.description, n.config)
 	})
 	if err != nil {
