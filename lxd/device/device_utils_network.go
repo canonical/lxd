@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -512,6 +513,78 @@ func networkValidVLANList(value string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// bgpAddPrefix adds external routes to the BGP server.
+func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) error {
+	// BGP is only valid when tied to a managed network.
+	if config["network"] == "" {
+		return nil
+	}
+
+	// Parse nexthop configuration.
+	nexthopV4 := net.ParseIP(n.Config()["bgp.ipv4.nexthop"])
+	if nexthopV4 == nil {
+		nexthopV4 = net.ParseIP(n.Config()["volatile.network.ipv4.address"])
+		if nexthopV4 == nil {
+			nexthopV4 = net.ParseIP("0.0.0.0")
+		}
+	}
+
+	nexthopV6 := net.ParseIP(n.Config()["bgp.ipv6.nexthop"])
+	if nexthopV6 == nil {
+		nexthopV6 = net.ParseIP(n.Config()["volatile.network.ipv6.address"])
+		if nexthopV6 == nil {
+			nexthopV6 = net.ParseIP("::")
+		}
+	}
+
+	// Add the prefixes.
+	bgpOwner := fmt.Sprintf("instance_%d_%s", d.inst.ID(), d.name)
+	if config["ipv4.routes.external"] != "" {
+		for _, prefix := range util.SplitNTrimSpace(config["ipv4.routes.external"], ",", -1, true) {
+			_, prefixNet, err := net.ParseCIDR(prefix)
+			if err != nil {
+				return err
+			}
+
+			err = d.state.BGP.AddPrefix(*prefixNet, nexthopV4, bgpOwner)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if config["ipv6.routes.external"] != "" {
+		for _, prefix := range util.SplitNTrimSpace(config["ipv6.routes.external"], ",", -1, true) {
+			_, prefixNet, err := net.ParseCIDR(prefix)
+			if err != nil {
+				return err
+			}
+
+			err = d.state.BGP.AddPrefix(*prefixNet, nexthopV6, bgpOwner)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func bgpRemovePrefix(d *deviceCommon, config map[string]string) error {
+	// BGP is only valid when tied to a managed network.
+	if config["network"] == "" {
+		return nil
+	}
+
+	// Load the network configuration.
+	err := d.state.BGP.RemovePrefixByOwner(fmt.Sprintf("instance_%d_%s", d.inst.ID(), d.name))
+	if err != nil {
+		return err
 	}
 
 	return nil
