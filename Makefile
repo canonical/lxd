@@ -9,14 +9,18 @@ HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(HOME)/go
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
-export GO111MODULE=off
 
+ifneq "$(wildcard vendor)" ""
+	RAFT_PATH=$(CURDIR)/vendor/raft
+	DQLITE_PATH=$(CURDIR)/vendor/dqlite
+else
+	RAFT_PATH=$(GOPATH)/deps/raft
+	DQLITE_PATH=$(GOPATH)/deps/dqlite
+endif
+
+	# raft
 .PHONY: default
-default: get build
-
-.PHONY: get
-get:
-	go get -t -v -d ./...
+default: build
 
 .PHONY: build
 build:
@@ -32,7 +36,6 @@ endif
 
 .PHONY: client
 client:
-	go get -t -v -d ./...
 	go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./lxc
 	@echo "LXD client built successfully"
 
@@ -48,48 +51,41 @@ lxd-p2c:
 
 .PHONY: deps
 deps:
-	# raft
-	@if [ -d "$(GOPATH)/deps/raft" ]; then \
-		if [ -d "$(GOPATH)/deps/raft/.git" ]; then \
-			cd "$(GOPATH)/deps/raft"; \
-			git pull; \
-		fi; \
-	else \
-		git clone --depth=1 "https://github.com/canonical/raft" "$(GOPATH)/deps/raft"; \
+	@if [ ! -e "$(RAFT_PATH)" ]; then \
+		git clone --depth=1 "https://github.com/canonical/raft" "$(RAFT_PATH)"; \
+	elif [ -e "$(RAFT_PATH)/.git" ]; then \
+		cd "$(RAFT_PATH)"; git pull; \
 	fi
 
-	cd "$(GOPATH)/deps/raft" && \
+	cd "$(RAFT_PATH)" && \
 		autoreconf -i && \
 		./configure && \
 		make
 
 	# dqlite
-	@if [ -d "$(GOPATH)/deps/dqlite" ]; then \
-		if [ -d "$(GOPATH)/deps/dqlite/.git" ]; then \
-			cd "$(GOPATH)/deps/dqlite"; \
-			git pull; \
-		fi; \
-	else \
-		git clone --depth=1 "https://github.com/canonical/dqlite" "$(GOPATH)/deps/dqlite"; \
+	@if [ ! -e "$(DQLITE_PATH)" ]; then \
+		git clone --depth=1 "https://github.com/canonical/dqlite" "$(DQLITE_PATH)"; \
+	elif [ -e "$(DQLITE_PATH)/.git" ]; then \
+		cd "$(DQLITE_PATH)"; git pull; \
 	fi
 
-	cd "$(GOPATH)/deps/dqlite" && \
+	cd "$(DQLITE_PATH)" && \
 		autoreconf -i && \
-		PKG_CONFIG_PATH="$(GOPATH)/deps/raft/" ./configure && \
-		make CFLAGS="-I$(GOPATH)/deps/raft/include/" LDFLAGS="-L$(GOPATH)/deps/raft/.libs/"
+		PKG_CONFIG_PATH="$(RAFT_PATH)" ./configure && \
+		make CFLAGS="-I$(RAFT_PATH)/include/" LDFLAGS="-L$(RAFT_PATH)/.libs/"
 
 	# environment
 	@echo ""
 	@echo "Please set the following in your environment (possibly ~/.bashrc)"
-	@echo "export CGO_CFLAGS=\"-I$(GOPATH)/deps/raft/include/ -I$(GOPATH)/deps/dqlite/include/\""
-	@echo "export CGO_LDFLAGS=\"-L$(GOPATH)/deps/raft/.libs -L$(GOPATH)/deps/dqlite/.libs/\""
-	@echo "export LD_LIBRARY_PATH=\"$(GOPATH)/deps/raft/.libs/:$(GOPATH)/deps/dqlite/.libs/\""
+	@echo "export CGO_CFLAGS=\"-I$(RAFT_PATH)/include/ -I$(DQLITE_PATH)/include/\""
+	@echo "export CGO_LDFLAGS=\"-L$(RAFT_PATH)/.libs -L$(DQLITE_PATH)/.libs/\""
+	@echo "export LD_LIBRARY_PATH=\"$(RAFT_PATH)/.libs/:$(DQLITE_PATH)/.libs/\""
 	@echo "export CGO_LDFLAGS_ALLOW=\"(-Wl,-wrap,pthread_create)|(-Wl,-z,now)\""
-
 
 .PHONY: update
 update:
 	go get -t -v -d -u ./...
+	go mod tidy
 	@echo "Dependencies updated"
 
 .PHONY: update-protobuf
@@ -107,7 +103,7 @@ update-schema:
 
 .PHONY: update-api
 update-api:
-	GO111MODULE=on go get -v -x github.com/go-swagger/go-swagger/cmd/swagger
+	(cd / ; go get -v -x github.com/go-swagger/go-swagger/cmd/swagger)
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
 .PHONY: debug
@@ -117,7 +113,6 @@ ifeq ($(TAG_SQLITE3),)
 	exit 1
 endif
 
-	go get -t -v -d ./...
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags "netgo,logdebug" ./lxd-p2c
 	CGO_ENABLED=0 go install -v -tags "agent,netgo,logdebug" ./lxd-agent
@@ -130,7 +125,6 @@ ifeq ($(TAG_SQLITE3),)
 	exit 1
 endif
 
-	go get -t -v -d ./...
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -a -v -tags netgo ./lxd-p2c
 	CGO_ENABLED=0 go install -a -v -tags agent,netgo ./lxd-agent
@@ -142,7 +136,6 @@ ifeq ($(TAG_SQLITE3),)
 	exit 1
 endif
 
-	go get -t -v -d ./...
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
@@ -150,9 +143,9 @@ endif
 
 .PHONY: check
 check: default
-	go get -v -x github.com/rogpeppe/godeps
-	go get -v -x github.com/tsenart/deadcode
-	go get -v -x golang.org/x/lint/golint
+	(cd / ; go get -v -x github.com/rogpeppe/godeps)
+	(cd / ; go get -v -x github.com/tsenart/deadcode)
+	(cd / ; go get -v -x golang.org/x/lint/golint)
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
@@ -164,24 +157,19 @@ dist:
 	# Create build dir
 	$(eval TMP := $(shell mktemp -d))
 	git archive --prefix=lxd-$(VERSION)/ HEAD | tar -x -C $(TMP)
-	mkdir -p $(TMP)/_dist/src/github.com/lxc
-	ln -s ../../../../lxd-$(VERSION) $(TMP)/_dist/src/github.com/lxc/lxd
+	git show-ref HEAD | cut -d' ' -f1 > $(TMP)/lxd-$(VERSION)/.gitref
 
 	# Download dependencies
-	cd $(TMP)/lxd-$(VERSION) && GOPATH=$(TMP)/_dist go get -t -v -d ./...
+	(cd $(TMP)/lxd-$(VERSION) ; go mod vendor)
 
-	# Download the cluster-enabled sqlite/dqlite
-	mkdir $(TMP)/_dist/deps/
-	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/_dist/deps/dqlite
-	git clone --depth=1 https://github.com/canonical/raft $(TMP)/_dist/deps/raft
+	# Download the dqlite libraries
+	git clone --depth=1 https://github.com/canonical/dqlite $(TMP)/lxd-$(VERSION)/vendor/dqlite
+	(cd $(TMP)/lxd-$(VERSION)/vendor/dqlite ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
-	# Write a manifest
-	cd $(TMP)/_dist && find . -type d -name .git | while read line; do GITDIR=$$(dirname $$line); echo "$${GITDIR}: $$(cd $${GITDIR} && git show-ref HEAD $${GITDIR} | cut -d' ' -f1)"; done | sort > $(TMP)/_dist/MANIFEST
+	git clone --depth=1 https://github.com/canonical/raft $(TMP)/lxd-$(VERSION)/vendor/raft
+	(cd $(TMP)/lxd-$(VERSION)/vendor/raft ; git show-ref HEAD | cut -d' ' -f1 > .gitref)
 
 	# Assemble tarball
-	rm $(TMP)/_dist/src/github.com/lxc/lxd
-	ln -s ../../../../ $(TMP)/_dist/src/github.com/lxc/lxd
-	mv $(TMP)/_dist $(TMP)/lxd-$(VERSION)/
 	tar --exclude-vcs -C $(TMP) -zcf $(ARCHIVE).gz lxd-$(VERSION)/
 
 	# Cleanup
@@ -205,7 +193,7 @@ update-po:
 
 .PHONY: update-pot
 update-pot:
-	go get -v -x github.com/snapcore/snapd/i18n/xgettext-go/
+	(cd / ; go get -v -x github.com/snapcore/snapd/i18n/xgettext-go)
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxc-devel@lists.linuxcontainers.org --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 
 .PHONY: build-mo
