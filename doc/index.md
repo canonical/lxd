@@ -74,39 +74,28 @@ of LXD, or build a specific release of LXD which may not be offered by their Lin
 integration into Linux distributions are not covered here and may be covered in detail in a separate document in the
 future.
 
-When building from source, it is customary to configure a `GOPATH` which contains the to-be-built source code. When 
-the sources are done building, the `lxc` and `lxd` binaries will be available at `$GOPATH/bin`, and with a little
-`LD_LIBRARY_PATH` magic (described later), these binaries can be run directly from the built source tree. 
-
-The following lines demonstrate how to configure a `GOPATH` with the most recent LXD sources from GitHub:
-
 ```bash
-mkdir -p ~/go
-export GOPATH=~/go
-go get -d -v github.com/lxc/lxd/lxd
-cd $GOPATH/src/github.com/lxc/lxd
+git clone https://github.com/lxc/lxd
+cd lxd
 ```
 
-When the build process starts, the Makefile will use `go get` and `git clone` to grab all necessary dependencies 
-needed for building.
+This will download the current development tree of LXD and place you in the source tree.
+Then proceed to the instructions below to actually build and install LXD.
 
 ### From Source: Building a Release
 
-To build an official release of LXD, download and extract a release tarball, and then set up GOPATH to point to the
-`_dist` directory inside it, which is configured to be used as a GOPATH and contains snapshots of all necessary sources. LXD
-will then build using these snapshots rather than grabbing 'live' sources using `go get` and `git clone`. Once the release
-tarball is downloaded and extracted, set the `GOPATH` as follows:
+The LXD release tarballs bundle a complete dependency tree as well as a
+local copy of libraft and libdqlite for LXD's database setup.
 
 ```bash
-cd lxd-3.18
-export GOPATH=$(pwd)/_dist
-export GOBIN=$GOPATH/bin
+tar zxvf lxd-4.18.tar.gz
+cd lxd-4.18
 ```
 
-### Starting the Build
+This will unpack the release tarball and place you inside of the source tree.
+Then proceed to the instructions below to actually build and install LXD.
 
-Once the `GOPATH` is configured, either to build the latest GitHub version or an official release, the following steps
-can be used to build LXD.
+### Starting the Build
 
 The actual building is done by two separate invocations of the Makefile: `make deps` -- which builds libraries required 
 by LXD -- and `make`, which builds LXD itself. At the end of `make deps`, a message will be displayed which will specify environment variables that should be set prior to invoking `make`. As new versions of LXD are released, these environment
@@ -115,29 +104,27 @@ below (shown for example purposes) may not exactly match what your version of LX
 
 ```bash
 make deps
-# Use the export statements printed in the output of 'make deps' -- these are examples: 
-export CGO_CFLAGS="${CGO_CFLAGS} -I${GOPATH}/deps/dqlite/include/ -I${GOPATH}/deps/raft/include/"
-export CGO_LDFLAGS="${CGO_LDFLAGS} -L${GOPATH}/deps/dqlite/.libs/ -L${GOPATH}/deps/raft/.libs/"
-export LD_LIBRARY_PATH="${GOPATH}/deps/dqlite/.libs/:${GOPATH}/deps/raft/.libs/:${LD_LIBRARY_PATH}"
-export CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
+# Follow the instructions from `make deps` to export the required environment variables.
+# For example:
+#  export CGO_CFLAGS="${CGO_CFLAGS} -I${HOME}/go/deps/dqlite/include/ -I${HOME}/go/deps/raft/include/"
+#  export CGO_LDFLAGS="${CGO_LDFLAGS} -L${HOME}/go/deps/dqlite/.libs/ -L${HOME}/go/deps/raft/.libs/"
+#  export LD_LIBRARY_PATH="${HOME}/go/deps/dqlite/.libs/:${HOME}/go/deps/raft/.libs/:${LD_LIBRARY_PATH}"
+#  export CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
 make
 ```
 
 ### From Source: Installing
 
-Once the build completes, you simply keep the source tree, add the directory referenced by `$GOPATH/bin` to 
+Once the build completes, you simply keep the source tree, add the directory referenced by `${HOME}/go/bin` to 
 your shell path, and set the `LD_LIBRARY_PATH` variable printed by `make deps` to your environment. This might look
 something like this for a `~/.bashrc` file:
 
 ```bash
-# No need to export GOPATH:
-GOPATH=~/go
-# But we need to export these:
-export PATH="$PATH:$GOPATH/bin"
-export LD_LIBRARY_PATH="${GOPATH}/deps/dqlite/.libs/:${GOPATH}/deps/raft/.libs/:${LD_LIBRARY_PATH}"
+export PATH="${PATH}:${HOME}/go/bin"
+export LD_LIBRARY_PATH="${HOME}/go/deps/dqlite/.libs/:${HOME}/go/deps/raft/.libs/:${LD_LIBRARY_PATH}"
 ```
 
-Now, the `lxd` and `lxc` binaries will be available to you and can be used to set up LXD. The binaries will automatically find and use the dependencies built in `$GOPATH/deps` thanks to the `LD_LIBRARY_PATH` environment variable.
+Now, the `lxd` and `lxc` binaries will be available to you and can be used to set up LXD. The binaries will automatically find and use the dependencies built in `${HOME}/go/deps` thanks to the `LD_LIBRARY_PATH` environment variable.
 
 ### Machine Setup
 You'll need sub{u,g}ids for root, so that LXD can create the unprivileged containers:
@@ -150,7 +137,7 @@ Now you can run the daemon (the `--group sudo` bit allows everyone in the `sudo`
 group to talk to LXD; you can create your own group if you want):
 
 ```bash
-sudo -E PATH=$PATH LD_LIBRARY_PATH=$LD_LIBRARY_PATH $GOPATH/bin/lxd --group sudo
+sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ${HOME}/go/bin/lxd --group sudo
 ```
 
 ## Security
@@ -279,7 +266,7 @@ lxc-devel, and we can escalate to CRIU lists as necessary.
 Yes. This can be done using a disk device:
 
 ```bash
-lxc config device add container-name home disk source=/home/$USER path=/home/ubuntu
+lxc config device add container-name home disk source=/home/${USER} path=/home/ubuntu
 ```
 
 For unprivileged containers, you will also need one of:
