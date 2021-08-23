@@ -213,7 +213,7 @@ build-mo: $(MOFILES)
 
 .PHONY: static-analysis
 static-analysis:
-	(cd test;  /bin/sh -x -c ". suites/static_analysis.sh; test_static_analysis")
+	(cd test; sh -c ". suites/static_analysis.sh; test_static_analysis")
 
 .PHONY: tags
 tags: *.go lxd/*.go shared/*.go lxc/*.go
