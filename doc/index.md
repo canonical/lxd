@@ -266,9 +266,9 @@ sudo apt install criu
 Then, launch your container with the following,
 
 ```bash
-lxc launch ubuntu $somename
+lxc launch ubuntu SOME-NAME
 sleep 5s # let the container get to an interesting state
-lxc move host1:$somename host2:$somename
+lxc move host1:SOME-NAME host2:SOME-NAME
 ```
 
 And with luck you'll have migrated the container :). Migration is still in
