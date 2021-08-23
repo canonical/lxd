@@ -25,11 +25,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Get Go dependencies
-        run: |
-          go mod init github.com/lxc/lxd
-          go get -t -d ./client ./lxc ./shared
-
       - name: Test client package
         env:
           CGO_ENABLED: 0
@@ -53,7 +48,6 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: |
-          go get -d ./lxc
           go build -o bin ./lxc
 
       - name: Build static lxd-p2c
@@ -61,7 +55,6 @@ jobs:
         env:
           CGO_ENABLED: 0
         run: |
-          go get -d ./lxc
           go build -o bin ./lxd-p2c
 
       - name: Upload artifacts
