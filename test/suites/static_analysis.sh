@@ -27,21 +27,21 @@ test_static_analysis() {
     fi
 
     ## Functions starting by empty line
-    OUT=$(grep -r "^$" -B1 . | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
+    OUT=$(grep -r "^$" -B1 . 2>/dev/null | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: Functions must not start with an empty line: ${OUT}"
       false
     fi
 
     ## Mixed tabs/spaces in scripts
-    OUT=$(grep -Pr '\t' . | grep '\.sh:' || true)
+    OUT=$(grep -Pr '\t' . 2>/dev/null | grep '\.sh:' || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: mixed tabs and spaces in script: ${OUT}"
       false
     fi
 
     ## Trailing space in scripts
-    OUT=$(grep -r " $" . | grep '\.sh:' || true)
+    OUT=$(grep -r " $" . 2>/dev/null | grep '\.sh:' || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: trailing space in script: ${OUT}"
       false
