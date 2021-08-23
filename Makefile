@@ -187,7 +187,7 @@ dist:
 	# Cleanup
 	rm -Rf $(TMP)
 
-.PHONY: i18n update-po update-pot build-mo static-analysis
+.PHONY: i18n
 i18n: update-pot update-po
 
 po/%.mo: po/%.po
@@ -196,20 +196,25 @@ po/%.mo: po/%.po
 po/%.po: po/$(DOMAIN).pot
 	msgmerge -U po/$*.po po/$(DOMAIN).pot
 
+.PHONY: update-po
 update-po:
 	for lang in $(LINGUAS); do\
 	    msgmerge -U $$lang.po po/$(DOMAIN).pot; \
 	    rm -f $$lang.po~; \
 	done
 
+.PHONY: update-pot
 update-pot:
 	go get -v -x github.com/snapcore/snapd/i18n/xgettext-go/
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxc-devel@lists.linuxcontainers.org --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 
+.PHONY: build-mo
 build-mo: $(MOFILES)
 
+.PHONY: static-analysis
 static-analysis:
 	(cd test;  /bin/sh -x -c ". suites/static_analysis.sh; test_static_analysis")
 
+.PHONY: tags
 tags: *.go lxd/*.go shared/*.go lxc/*.go
 	find . | grep \.go | grep -v git | grep -v .swp | grep -v vagrant | xargs gotags > tags
