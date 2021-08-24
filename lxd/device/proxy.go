@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/apparmor"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
+	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
@@ -100,9 +101,9 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if len(connectAddr.Addr) > len(listenAddr.Addr) {
-		// Cannot support single port -> multiple port.
-		return fmt.Errorf("Cannot map a single port to multiple ports")
+	if (listenAddr.ConnType != "unix" && len(connectAddr.Ports) > len(listenAddr.Ports)) || (listenAddr.ConnType == "unix" && len(connectAddr.Ports) > 1) {
+		// Cannot support single address (or port) -> multiple port.
+		return fmt.Errorf("Mismatch between listen port(s) and connect port(s) count")
 	}
 
 	if shared.IsTrue(d.config["proxy_protocol"]) && (!strings.HasPrefix(d.config["connect"], "tcp") || shared.IsTrue(d.config["nat"])) {
@@ -141,41 +142,27 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Proxying %s <-> %s is not supported when using NAT", listenAddr.ConnType, connectAddr.ConnType)
 		}
 
-		var ipVersion uint // Records which IP version we are using, as these cannot be mixed in NAT mode.
+		listenAddress := net.ParseIP(listenAddr.Address)
 
-		for _, listenAddrStr := range listenAddr.Addr {
-			ipStr, _, err := net.SplitHostPort(listenAddrStr)
-			if err != nil {
-				return err
-			}
-
-			ip := net.ParseIP(ipStr)
-
-			if ip.Equal(net.IPv4zero) || ip.Equal(net.IPv6zero) {
-				return fmt.Errorf("Cannot listen on wildcard address %q when in nat mode", ip)
-			}
-
-			// Record the listen IP version if not record already.
-			if ipVersion == 0 {
-				if ip.To4() == nil {
-					ipVersion = 6
-				} else {
-					ipVersion = 4
-				}
-			}
+		if listenAddress.Equal(net.IPv4zero) || listenAddress.Equal(net.IPv6zero) {
+			return fmt.Errorf("Cannot listen on wildcard address %q when in nat mode", listenAddress.String())
 		}
 
-		// Check each connect address against the listen IP version and check they match.
-		for _, connectAddrStr := range connectAddr.Addr {
-			ipStr, _, err := net.SplitHostPort(connectAddrStr)
-			if err != nil {
-				return err
-			}
+		// Records which listen address IP version, as these cannot be mixed in NAT mode.
+		listenIPVersion := uint(4)
+		if listenAddress.To4() == nil {
+			listenIPVersion = 6
+		}
 
-			ipTo4 := net.ParseIP(ipStr).To4()
-			if ipTo4 == nil && ipVersion != 6 || ipTo4 != nil && ipVersion != 4 {
-				return fmt.Errorf("Cannot mix IP versions between listen and connect in nat mode")
-			}
+		// Check connect address against the listen address IP version and check they match.
+		connectAddress := net.ParseIP(connectAddr.Address)
+		connectIPVersion := uint(4)
+		if connectAddress.To4() == nil {
+			connectIPVersion = 6
+		}
+
+		if listenIPVersion != connectIPVersion {
+			return fmt.Errorf("Cannot mix IP versions between listen and connect in nat mode")
 		}
 	}
 
@@ -361,13 +348,8 @@ func (d *proxy) setupNAT() error {
 		return err
 	}
 
-	connectHost, _, err := net.SplitHostPort(connectAddr.Addr[0])
-	if err != nil {
-		return err
-	}
-
 	ipFamily := "ipv4"
-	if strings.Contains(connectHost, ":") {
+	if strings.Contains(listenAddr.Address, ":") {
 		ipFamily = "ipv6"
 	}
 
@@ -392,11 +374,11 @@ func (d *proxy) setupNAT() error {
 		// instance's network traffic. If the wildcard address is supplied as the connect host then the
 		// first bridged NIC which has a static IP address defined is selected as the connect host IP.
 		if ipFamily == "ipv4" && devConfig["ipv4.address"] != "" {
-			if connectHost == devConfig["ipv4.address"] || connectHost == "0.0.0.0" {
+			if connectAddr.Address == devConfig["ipv4.address"] || connectAddr.Address == "0.0.0.0" {
 				connectIP = net.ParseIP(devConfig["ipv4.address"])
 			}
 		} else if ipFamily == "ipv6" && devConfig["ipv6.address"] != "" {
-			if connectHost == devConfig["ipv6.address"] || connectHost == "::" {
+			if connectAddr.Address == devConfig["ipv6.address"] || connectAddr.Address == "::" {
 				connectIP = net.ParseIP(devConfig["ipv6.address"])
 			}
 		}
@@ -413,19 +395,7 @@ func (d *proxy) setupNAT() error {
 	}
 
 	// Override the host part of the connectAddr.Addr to the chosen connect IP.
-	for i, addr := range connectAddr.Addr {
-		_, port, err := net.SplitHostPort(addr)
-		if err != nil {
-			return err
-		}
-
-		if ipFamily == "ipv4" {
-			connectAddr.Addr[i] = fmt.Sprintf("%s:%s", connectIP.String(), port)
-		} else if ipFamily == "ipv6" {
-			// IPv6 addresses need to be enclosed in square brackets.
-			connectAddr.Addr[i] = fmt.Sprintf("[%s]:%s", connectIP.String(), port)
-		}
-	}
+	connectAddr.Address = connectIP.String()
 
 	err = d.checkBridgeNetfilterEnabled(ipFamily)
 	if err != nil {
@@ -445,7 +415,16 @@ func (d *proxy) setupNAT() error {
 		}
 	}
 
-	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, listenAddr, connectAddr)
+	// Convert proxy listen & connect addresses for firewall AddressForward.
+	addressForward := firewallDrivers.AddressForward{
+		Protocol:      listenAddr.ConnType,
+		ListenAddress: net.ParseIP(listenAddr.Address),
+		ListenPorts:   listenAddr.Ports,
+		TargetAddress: net.ParseIP(connectAddr.Address),
+		TargetPorts:   connectAddr.Ports,
+	}
+
+	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, &addressForward)
 	if err != nil {
 		return err
 	}
