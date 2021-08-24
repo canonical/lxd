@@ -24,7 +24,7 @@ default: build
 
 .PHONY: build
 build:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
@@ -108,7 +108,7 @@ update-api:
 
 .PHONY: debug
 debug:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
 	exit 1
 endif
@@ -120,7 +120,7 @@ endif
 
 .PHONY: nocache
 nocache:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
 	exit 1
 endif
@@ -131,7 +131,7 @@ endif
 	@echo "LXD built successfully"
 
 race:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
 	exit 1
 endif
