@@ -3,9 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v2"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
@@ -14,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/termios"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -41,10 +46,267 @@ func (c *cmdCluster) Command() *cobra.Command {
 	removeRaftNode := cmdClusterRemoveRaftNode{global: c.global}
 	cmd.AddCommand(removeRaftNode.Command())
 
+	// Edit cluster configuration.
+	clusterEdit := cmdClusterEdit{global: c.global}
+	cmd.AddCommand(clusterEdit.Command())
+
+	// Show cluster configuration.
+	clusterShow := cmdClusterShow{global: c.global}
+	cmd.AddCommand(clusterShow.Command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
 	return cmd
+}
+
+// ClusterMember is a more human-readable representation of the db.RaftNode struct.
+type ClusterMember struct {
+	ID      uint64 `yaml:"id"`
+	Address string `yaml:"address"`
+	Role    string `yaml:"role"`
+}
+
+// ClusterConfig is a representation of the current cluster configuration.
+type ClusterConfig struct {
+	Segment string          `yaml:"latest_segment"`
+	Members []ClusterMember `yaml:"members"`
+}
+
+// ToRaftNode converts a ClusterConfig struct to a RaftNode struct.
+func (c ClusterMember) ToRaftNode() (*db.RaftNode, error) {
+	node := &db.RaftNode{
+		ID:      c.ID,
+		Address: c.Address,
+	}
+
+	var role db.RaftRole
+	switch c.Role {
+	case "voter":
+		role = db.RaftVoter
+		break
+	case "stand-by":
+		role = db.RaftStandBy
+		break
+	case "spare":
+		role = db.RaftSpare
+		break
+	default:
+		return nil, fmt.Errorf("unknown raft role: %q", c.Role)
+	}
+
+	node.Role = role
+
+	return node, nil
+}
+
+type cmdClusterEdit struct {
+	global *cmdGlobal
+}
+
+func (c *cmdClusterEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "edit"
+	cmd.Short = "Edit cluster configuration as YAML"
+	cmd.Long = `Description:
+	Edit cluster configuration as YAML.`
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
+	// Make sure that the daemon is not running.
+	_, err := lxd.ConnectLXDUnix("", nil)
+	if err == nil {
+		return fmt.Errorf("The LXD daemon is running, please stop it first.")
+	}
+
+	database, _, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var nodes []db.RaftNode
+	err = database.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		nodes, err = tx.GetRaftNodes()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	segmentID, err := db.DqliteLatestSegment()
+	if err != nil {
+		return err
+	}
+
+	config := ClusterConfig{
+		Segment: segmentID,
+		Members: []ClusterMember{},
+	}
+
+	for _, node := range nodes {
+		member := ClusterMember{ID: node.ID, Address: node.Address, Role: node.Role.String()}
+		config.Members = append(config.Members, member)
+	}
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	var content []byte
+	if !termios.IsTerminal(unix.Stdin) {
+		content, err = ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+	} else {
+		content, err = shared.TextEditor("", data)
+		if err != nil {
+			return err
+		}
+	}
+
+	for {
+		newConfig := ClusterConfig{}
+		err = yaml.Unmarshal(content, &newConfig)
+		if err == nil {
+			// Convert ClusterConfig back to RaftNodes.
+			newNodes := []db.RaftNode{}
+			var newNode *db.RaftNode
+			for _, node := range newConfig.Members {
+				newNode, err = node.ToRaftNode()
+				if err != nil {
+					break
+				}
+
+				newNodes = append(newNodes, *newNode)
+			}
+
+			// Ensure new configuration is valid.
+			if err == nil {
+				err = validateNewConfig(nodes, newNodes)
+				if err == nil {
+					err = cluster.Reconfigure(database, newNodes)
+				}
+			}
+		}
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Config validation error: %s\n", err)
+			fmt.Println("Press enter to open the editor again or ctrl+c to abort change")
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	return nil
+}
+
+func validateNewConfig(oldNodes []db.RaftNode, newNodes []db.RaftNode) error {
+	if len(oldNodes) > len(newNodes) {
+		return fmt.Errorf("Removing cluster members is not supported")
+	}
+
+	if len(oldNodes) < len(newNodes) {
+		return fmt.Errorf("Adding cluster members is not supported")
+	}
+
+	numNewVoters := 0
+	for i, newNode := range newNodes {
+		oldNode := oldNodes[i]
+
+		// IDs should not be reordered among cluster members.
+		if oldNode.ID != newNode.ID {
+			return fmt.Errorf("Changing cluster member ID is not supported")
+		}
+
+		if oldNode.Role == db.RaftSpare && newNode.Role == db.RaftVoter {
+			return fmt.Errorf("A %q cluster member cannot become a %q", db.RaftSpare.String(), db.RaftVoter.String())
+		}
+
+		if newNode.Role == db.RaftVoter {
+			numNewVoters++
+		}
+	}
+
+	if numNewVoters < 2 && len(newNodes) > 2 {
+		return fmt.Errorf("Number of %q must be 2 or more", db.RaftVoter.String())
+	} else if numNewVoters < 1 {
+		return fmt.Errorf("At least one member must be a %q", db.RaftVoter.String())
+	}
+
+	return nil
+}
+
+type cmdClusterShow struct {
+	global *cmdGlobal
+}
+
+func (c *cmdClusterShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = "show"
+	cmd.Short = "Show cluster configuration as YAML"
+	cmd.Long = `Description:
+	Show cluster configuration as YAML.`
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
+	database, _, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var nodes []db.RaftNode
+	err = database.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		nodes, err = tx.GetRaftNodes()
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	segmentID, err := db.DqliteLatestSegment()
+	if err != nil {
+		return err
+	}
+
+	config := ClusterConfig{
+		Segment: segmentID,
+		Members: []ClusterMember{},
+	}
+
+	for _, node := range nodes {
+		member := ClusterMember{ID: node.ID, Address: node.Address, Role: node.Role.String()}
+		config.Members = append(config.Members, member)
+	}
+
+	data, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
 }
 
 type cmdClusterListDatabase struct {
