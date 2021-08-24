@@ -317,17 +317,21 @@ func rearmUDPFd(epFd C.int, connFd C.int) {
 }
 
 func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *deviceConfig.ProxyAddress, connFd C.int, lStruct *lStruct, proxy bool) error {
-	if lAddr.ConnType == "udp" {
-		// This only handles udp <-> udp. The C constructor will have
-		// verified this before.
-		go func() {
-			// single or multiple port -> single port
-			connectAddr := cAddr.Addr[0]
-			if len(cAddr.Addr) > 1 {
-				// multiple port -> multiple port
-				connectAddr = cAddr.Addr[(*lStruct).lAddrIndex]
-			}
+	// Single or multiple port -> single port
+	connectAddr := cAddr.Address
+	if cAddr.ConnType != "unix" {
+		connectPort := cAddr.Ports[0]
+		if lAddr.ConnType != "unix" && cAddr.ConnType != "unix" && len(cAddr.Ports) > 1 {
+			// multiple port -> multiple port
+			connectPort = cAddr.Ports[(*lStruct).lAddrIndex]
+		}
 
+		connectAddr = net.JoinHostPort(cAddr.Address, fmt.Sprintf("%d", connectPort))
+	}
+
+	if lAddr.ConnType == "udp" {
+		// This only handles udp <-> udp. The C constructor will have verified this before
+		go func() {
 			srcConn, err := net.FileConn((*lStruct).f)
 			if err != nil {
 				fmt.Printf("Warning: Failed to re-assemble listener: %s\n", err)
@@ -357,12 +361,6 @@ func listenerInstance(epFd C.int, lAddr *deviceConfig.ProxyAddress, cAddr *devic
 		return err
 	}
 
-	// single or multiple port -> single port
-	connectAddr := cAddr.Addr[0]
-	if lAddr.ConnType != "unix" && cAddr.ConnType != "unix" && len(cAddr.Addr) > 1 {
-		// multiple port -> multiple port
-		connectAddr = cAddr.Addr[(*lStruct).lAddrIndex]
-	}
 	dstConn, err := net.Dial(cAddr.ConnType, connectAddr)
 	if err != nil {
 		srcConn.Close()
@@ -449,10 +447,10 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 
 	if (lAddr.ConnType == "udp" || lAddr.ConnType == "tcp") && cAddr.ConnType == "udp" || cAddr.ConnType == "tcp" {
 		err := fmt.Errorf("Invalid port range")
-		if len(lAddr.Addr) > 1 && len(cAddr.Addr) > 1 && (len(cAddr.Addr) != len(lAddr.Addr)) {
+		if len(lAddr.Ports) > 1 && len(cAddr.Ports) > 1 && (len(cAddr.Ports) != len(lAddr.Ports)) {
 			fmt.Println(err)
 			return err
-		} else if len(lAddr.Addr) == 1 && len(cAddr.Addr) > 1 {
+		} else if len(lAddr.Ports) == 1 && len(cAddr.Ports) > 1 {
 			fmt.Println(err)
 			return err
 		}
@@ -462,14 +460,26 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		defer unix.Close(forkproxyUDSSockFDNum)
 
 		if lAddr.ConnType == "unix" && !lAddr.Abstract {
-			err := os.Remove(lAddr.Addr[0])
+			err := os.Remove(lAddr.Address)
 			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
 		}
 
-		for _, addr := range lAddr.Addr {
-			file, err := getListenerFile(lAddr.ConnType, addr)
+		var listenAddresses []string
+		if lAddr.ConnType == "unix" {
+			listenAddresses = []string{lAddr.Address}
+		} else {
+			listenPortCount := len(lAddr.Ports)
+			listenAddresses = make([]string, 0, listenPortCount)
+
+			for i := 0; i < listenPortCount; i++ {
+				listenAddresses = append(listenAddresses, net.JoinHostPort(lAddr.Address, fmt.Sprintf("%d", lAddr.Ports[i])))
+			}
+		}
+
+		for _, listenAddress := range listenAddresses {
+			file, err := getListenerFile(lAddr.ConnType, listenAddress)
 			if err != nil {
 				return err
 			}
@@ -483,6 +493,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				}
 				break
 			}
+
 			file.Close()
 		}
 
@@ -506,7 +517,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			if listenAddrGID != -1 || listenAddrUID != -1 {
-				err = os.Chown(lAddr.Addr[0], listenAddrUID, listenAddrGID)
+				err = os.Chown(lAddr.Address, listenAddrUID, listenAddrGID)
 				if err != nil {
 					return err
 				}
@@ -520,7 +531,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 				}
 
 				listenAddrMode = os.FileMode(tmp)
-				err = os.Chmod(lAddr.Addr[0], listenAddrMode)
+				err = os.Chmod(lAddr.Address, listenAddrMode)
 				if err != nil {
 					return err
 				}
@@ -530,8 +541,13 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	addrRecvCount := 1
+	if lAddr.ConnType != "unix" {
+		addrRecvCount = len(lAddr.Ports)
+	}
+
 	files := []*os.File{}
-	for range lAddr.Addr {
+	for i := 0; i < addrRecvCount; i++ {
 	rAgain:
 		f, err := netutils.AbstractUnixReceiveFd(forkproxyUDSSockFDNum, netutils.UnixFdsAcceptExact)
 		if err != nil {
@@ -558,7 +574,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	var listenerMap map[int]*lStruct
 
 	isUDPListener := lAddr.ConnType == "udp"
-	listenerMap = make(map[int]*lStruct, len(lAddr.Addr))
+	listenerMap = make(map[int]*lStruct, addrRecvCount)
 	if isUDPListener {
 		for i, f := range files {
 			listenerMap[int(f.Fd())] = &lStruct{
@@ -609,7 +625,7 @@ func (c *cmdForkproxy) Run(cmd *cobra.Command, args []string) error {
 	signal.Notify(sigs, unix.SIGTERM)
 
 	if lAddr.ConnType == "unix" && !lAddr.Abstract {
-		defer os.Remove(lAddr.Addr[0])
+		defer os.Remove(lAddr.Address)
 	}
 
 	epFd := C.epoll_create1(C.EPOLL_CLOEXEC)
