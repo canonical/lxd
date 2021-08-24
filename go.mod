@@ -7,6 +7,8 @@ require (
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
 	github.com/canonical/candid v1.10.2
 	github.com/canonical/go-dqlite v1.9.0
+	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/digitalocean/go-libvirt v0.0.0-20210723161134-761cfeeb5968 // indirect
 	github.com/digitalocean/go-qemu v0.0.0-20210326154740-ac9e0b687001
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
@@ -22,13 +24,19 @@ require (
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/jaypipes/pcidb v0.6.0
 	github.com/jkeiser/iter v0.0.0-20200628201005-c8aa0ae784d1 // indirect
-	github.com/juju/collections v0.0.0-20200605021417-0d0ec82b7271 // indirect
+	github.com/juju/errors v0.0.0-20210818161939-5560c4c073ff // indirect
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
 	github.com/juju/httprequest v1.0.1
+	github.com/juju/loggo v0.0.0-20210728185423-eebad3a902c4 // indirect
+	github.com/juju/mgo/v2 v2.0.0-20210414025616-e854c672032f // indirect
 	github.com/juju/persistent-cookiejar v0.0.0-20171026135701-d5e5a8405ef9
 	github.com/juju/schema v1.0.1-0.20190814234152-1f8aaeef0989
+	github.com/juju/utils v0.0.0-20200604140309-9d78121a29e0 // indirect
+	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
+	github.com/juju/webbrowser v1.0.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mattn/go-colorable v0.1.8
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
@@ -43,8 +51,10 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+	golang.org/x/net v0.0.0-20210907225631-ff17edfbf26d // indirect
 	golang.org/x/sys v0.0.0-20210906170528-6f6e22806c34
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/juju/environschema.v1 v1.0.0
 	gopkg.in/lxc/go-lxc.v2 v2.0.0-20210307013912-d9b9f727ce0f
 	gopkg.in/macaroon-bakery.v2 v2.3.0
