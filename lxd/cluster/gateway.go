@@ -845,9 +845,8 @@ func (g *Gateway) init(bootstrap bool) error {
 	return nil
 }
 
-// Wait for the raft node to become leader. Should only be used by Bootstrap,
-// since we know that we'll self elect.
-func (g *Gateway) waitLeadership() error {
+// WaitLeadership waits for the raft node to become leader.
+func (g *Gateway) WaitLeadership() error {
 	n := 80
 	sleep := 250 * time.Millisecond
 	for i := 0; i < n; i++ {
