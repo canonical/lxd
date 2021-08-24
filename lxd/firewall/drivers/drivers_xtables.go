@@ -13,7 +13,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -506,19 +505,33 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 }
 
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
-func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, listen *deviceConfig.ProxyAddress, connect *deviceConfig.ProxyAddress) error {
-	connectAddrCount := len(connect.Addr)
-	if connectAddrCount < 1 {
-		return fmt.Errorf("At least 1 connect address must be supplied")
-	}
-
-	if len(listen.Addr) < 1 {
+func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
+	if forward.ListenAddress == nil {
 		return fmt.Errorf("At least 1 listen address must be supplied")
 	}
 
-	if connectAddrCount > 1 && len(listen.Addr) != connectAddrCount {
-		return fmt.Errorf("More than 1 connect addresses have been supplied, but insufficient for listen addresses")
+	if forward.TargetAddress == nil {
+		return fmt.Errorf("At least 1 target address must be supplied")
 	}
+
+	listenPortsLen := len(forward.ListenPorts)
+	if listenPortsLen <= 0 {
+		return fmt.Errorf("At least 1 listen port must be supplied")
+	}
+
+	// Check target port is singular, or if multiple ports supplied, they match the listen port(s) count.
+	targetPortsLen := len(forward.TargetPorts)
+	if targetPortsLen != 1 && targetPortsLen != listenPortsLen {
+		return fmt.Errorf("Mismatch between listen port(s) and target port(s) count")
+	}
+
+	ipVersion := uint(4)
+	if forward.ListenAddress.To4() == nil {
+		ipVersion = 6
+	}
+
+	listenAddressStr := forward.ListenAddress.String()
+	targetAddressStr := forward.TargetAddress.String()
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -526,48 +539,38 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
-	for i, lAddr := range listen.Addr {
-		listenHost, listenPort, err := net.SplitHostPort(lAddr)
-		if err != nil {
-			return err
+	for i := range forward.ListenPorts {
+		// Use the target port that corresponds to the listen port (unless only 1 is specified, in which
+		// case use the same target port for all listen ports).
+		targetIndex := 0
+		if targetPortsLen > 1 {
+			targetIndex = i
 		}
 
-		// Use the connect address that corresponds to the listen address (unless only 1 is specified).
-		connectIndex := 0
-		if connectAddrCount > 1 {
-			connectIndex = i
-		}
+		targetPortStr := fmt.Sprintf("%d", forward.TargetPorts[targetIndex])
 
-		connectHost, connectPort, err := net.SplitHostPort(connect.Addr[connectIndex])
-		if err != nil {
-			return err
-		}
-
-		// Decide if we are using iptables/ip6tables and format the destination host/port as appropriate.
-		ipVersion := uint(4)
-		connectDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
-		connectIP := net.ParseIP(connectHost)
-		if connectIP.To4() == nil {
-			ipVersion = 6
-			connectDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
+		// Format the destination host/port as appropriate.
+		targetDest := fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
+		if ipVersion == 6 {
+			targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
 		}
 
 		// outbound <-> instance.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", connectDest)
+		err := d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", targetPortStr, "-j", "DNAT", "--to-destination", targetDest)
 		if err != nil {
 			return err
 		}
 
 		// host <-> instance.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", listen.ConnType, "--destination", listenHost, "--dport", listenPort, "-j", "DNAT", "--to-destination", connectDest)
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", targetPortStr, "-j", "DNAT", "--to-destination", targetDest)
 		if err != nil {
 			return err
 		}
 
-		if connectIndex == i {
+		if targetIndex == i {
 			// instance <-> instance.
 			// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
-			err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", listen.ConnType, "--source", connectHost, "--destination", connectHost, "--dport", connectPort, "-j", "MASQUERADE")
+			err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", forward.Protocol, "--source", targetAddressStr, "--destination", targetAddressStr, "--dport", targetPortStr, "-j", "MASQUERADE")
 			if err != nil {
 				return err
 			}
