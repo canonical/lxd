@@ -28,3 +28,12 @@ type Opts struct {
 	SNATV4     *SNATOpts    // Enable IPv4 SNAT with specified options. Off if not provided.
 	SNATV6     *SNATOpts    // Enable IPv6 SNAT with specified options. Off if not provided.
 }
+
+// AddressForward represents a NAT address forward.
+type AddressForward struct {
+	ListenAddress net.IP
+	TargetAddress net.IP
+	Protocol      string
+	ListenPorts   []uint64
+	TargetPorts   []uint64
+}
