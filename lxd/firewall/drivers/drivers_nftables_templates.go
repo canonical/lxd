@@ -80,14 +80,14 @@ var nftablesNetProxyNAT = template.Must(template.New("nftablesNetProxyNAT").Pars
 chain prert{{.chainSeparator}}{{.deviceLabel}} {
 	type nat hook prerouting priority -100; policy accept;
 	{{- range .rules}}
-	{{.ipFamily}} daddr {{.listenHost}} {{.connType}} dport {{.listenPort}} dnat to {{.connectDest}}
+	{{.ipFamily}} daddr {{.listenAddress}} {{.protocol}} dport {{.listenPort}} dnat to {{.targetDest}}
 	{{- end}}
 }
 
 chain out{{.chainSeparator}}{{.deviceLabel}} {
 	type nat hook output priority -100; policy accept;
 	{{- range .rules}}
-	{{.ipFamily}} daddr {{.listenHost}} {{.connType}} dport {{.listenPort}} dnat to {{.connectDest}}
+	{{.ipFamily}} daddr {{.listenAddress}} {{.protocol}} dport {{.listenPort}} dnat to {{.targetDest}}
 	{{- end}}
 }
 
@@ -95,7 +95,7 @@ chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
 	type nat hook postrouting priority 100; policy accept;
 	{{- range .rules}}
 	{{if .addHairpinNat}}
-	{{.ipFamily}} saddr {{.connectHost}} {{.ipFamily}} daddr {{.connectHost}} {{.connType}} dport {{.connectPort}} masquerade
+	{{.ipFamily}} saddr {{.targetHost}} {{.ipFamily}} daddr {{.targetHost}} {{.protocol}} dport {{.targetPort}} masquerade
 	{{- end}}
 	{{- end}}
 }

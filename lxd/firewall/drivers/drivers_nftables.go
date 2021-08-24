@@ -13,7 +13,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
@@ -412,58 +411,62 @@ func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName str
 }
 
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
-func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, listen, connect *deviceConfig.ProxyAddress) error {
-	connectAddrCount := len(connect.Addr)
-	if connectAddrCount < 1 {
-		return fmt.Errorf("At least 1 connect address must be supplied")
-	}
-
-	if len(listen.Addr) < 1 {
+func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
+	if forward.ListenAddress == nil {
 		return fmt.Errorf("At least 1 listen address must be supplied")
 	}
 
-	if connectAddrCount > 1 && len(listen.Addr) != connectAddrCount {
-		return fmt.Errorf("More than 1 connect addresses have been supplied, but insufficient for listen addresses")
+	if forward.TargetAddress == nil {
+		return fmt.Errorf("At least 1 target address must be supplied")
 	}
+
+	listenPortsLen := len(forward.ListenPorts)
+	if listenPortsLen <= 0 {
+		return fmt.Errorf("At least 1 listen port must be supplied")
+	}
+
+	// Check target port is singular, or if multiple ports supplied, they match the listen port(s) count.
+	targetPortsLen := len(forward.TargetPorts)
+	if targetPortsLen != 1 && targetPortsLen != listenPortsLen {
+		return fmt.Errorf("Mismatch between listen port(s) and target port(s) count")
+	}
+
+	ipFamily := "ip"
+	if forward.ListenAddress.To4() == nil {
+		ipFamily = "ip6"
+	}
+
+	listenAddressStr := forward.ListenAddress.String()
+	targetAddressStr := forward.TargetAddress.String()
 
 	// Generate a slice of rules to add.
 	var rules []map[string]interface{}
-	for i, lAddr := range listen.Addr {
-		listenHost, listenPort, err := net.SplitHostPort(lAddr)
-		if err != nil {
-			return err
+	for i := range forward.ListenPorts {
+		// Use the target port that corresponds to the listen port (unless only 1 is specified, in which
+		// case use the same target port for all listen ports).
+		targetIndex := 0
+		if targetPortsLen > 1 {
+			targetIndex = i
 		}
 
-		// Use the connect address that corresponds to the listen address (unless only 1 is specified).
-		connectIndex := 0
-		if connectAddrCount > 1 {
-			connectIndex = i
-		}
+		targetPort := forward.TargetPorts[targetIndex]
 
-		connectHost, connectPort, err := net.SplitHostPort(connect.Addr[connectIndex])
-		if err != nil {
-			return err
-		}
-
-		// Figure out which IP family we are using and format the destination host/port as appropriate.
-		ipFamily := "ip"
-		connectDest := fmt.Sprintf("%s:%s", connectHost, connectPort)
-		connectIP := net.ParseIP(connectHost)
-		if connectIP.To4() == nil {
-			ipFamily = "ip6"
-			connectDest = fmt.Sprintf("[%s]:%s", connectHost, connectPort)
+		// Format the destination host/port as appropriate.
+		targetDest := fmt.Sprintf("%s:%d", targetAddressStr, targetPort)
+		if ipFamily == "ip6" {
+			targetDest = fmt.Sprintf("[%s]:%d", targetAddressStr, targetPort)
 		}
 
 		rules = append(rules, map[string]interface{}{
 			"family":        "inet",
 			"ipFamily":      ipFamily,
-			"connType":      listen.ConnType,
-			"listenHost":    listenHost,
-			"listenPort":    listenPort,
-			"connectDest":   connectDest,
-			"connectHost":   connectHost,
-			"connectPort":   connectPort,
-			"addHairpinNat": connectIndex == i, // Only add >1 hairpin NAT rules if connect range used.
+			"protocol":      forward.Protocol,
+			"listenAddress": listenAddressStr,
+			"listenPort":    forward.ListenPorts[i],
+			"targetDest":    targetDest,
+			"targetHost":    targetAddressStr,
+			"targetPort":    targetPort,
+			"addHairpinNat": targetIndex == i, // Only add >1 hairpin NAT rules if connect range used.
 		})
 	}
 
