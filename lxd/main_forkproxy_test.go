@@ -23,7 +23,8 @@ func TestParseAddr(t *testing.T) {
 			"tcp:127.0.0.1:2000",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr:     []string{"127.0.0.1:2000"},
+				Address:  "127.0.0.1",
+				Ports:    []uint64{2000},
 				Abstract: false,
 			},
 			false,
@@ -33,9 +34,10 @@ func TestParseAddr(t *testing.T) {
 			"tcp:127.0.0.1:2000,2002",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr: []string{
-					"127.0.0.1:2000",
-					"127.0.0.1:2002",
+				Address:  "127.0.0.1",
+				Ports: []uint64{
+					2000,
+					2002,
 				},
 				Abstract: false,
 			},
@@ -46,10 +48,11 @@ func TestParseAddr(t *testing.T) {
 			"tcp:127.0.0.1:2000-2002",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr: []string{
-					"127.0.0.1:2000",
-					"127.0.0.1:2001",
-					"127.0.0.1:2002",
+				Address:  "127.0.0.1",
+				Ports: []uint64{
+					2000,
+					2001,
+					2002,
 				},
 				Abstract: false,
 			},
@@ -60,17 +63,18 @@ func TestParseAddr(t *testing.T) {
 			"tcp:127.0.0.1:2000,2002,3000-3003,4000-4003",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr: []string{
-					"127.0.0.1:2000",
-					"127.0.0.1:2002",
-					"127.0.0.1:3000",
-					"127.0.0.1:3001",
-					"127.0.0.1:3002",
-					"127.0.0.1:3003",
-					"127.0.0.1:4000",
-					"127.0.0.1:4001",
-					"127.0.0.1:4002",
-					"127.0.0.1:4003",
+				Address:  "127.0.0.1",
+				Ports: []uint64{
+					2000,
+					2002,
+					3000,
+					3001,
+					3002,
+					3003,
+					4000,
+					4001,
+					4002,
+					4003,
 				},
 				Abstract: false,
 			},
@@ -82,7 +86,8 @@ func TestParseAddr(t *testing.T) {
 			"udp:127.0.0.1:2000",
 			&deviceConfig.ProxyAddress{
 				ConnType: "udp",
-				Addr:     []string{"127.0.0.1:2000"},
+				Address:  "127.0.0.1",
+				Ports:    []uint64{2000},
 				Abstract: false,
 			},
 			false,
@@ -92,7 +97,7 @@ func TestParseAddr(t *testing.T) {
 			"unix:/foobar",
 			&deviceConfig.ProxyAddress{
 				ConnType: "unix",
-				Addr:     []string{"/foobar"},
+				Address:  "/foobar",
 				Abstract: false,
 			},
 			false,
@@ -102,7 +107,7 @@ func TestParseAddr(t *testing.T) {
 			"unix:@/foobar",
 			&deviceConfig.ProxyAddress{
 				ConnType: "unix",
-				Addr:     []string{"@/foobar"},
+				Address:  "@/foobar",
 				Abstract: true,
 			},
 			false,
@@ -119,7 +124,8 @@ func TestParseAddr(t *testing.T) {
 			"tcp:[fd39:2561:7238:91b5:0:0:0:0]:2000",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr:     []string{"[fd39:2561:7238:91b5:0:0:0:0]:2000"},
+				Address:  "fd39:2561:7238:91b5:0:0:0:0",
+				Ports:    []uint64{2000},
 				Abstract: false,
 			},
 			false,
@@ -129,7 +135,8 @@ func TestParseAddr(t *testing.T) {
 			"tcp:[fd39:2561:7238:91b5::0]:2000",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr:     []string{"[fd39:2561:7238:91b5::0]:2000"},
+				Address:  "fd39:2561:7238:91b5::0",
+				Ports:    []uint64{2000},
 				Abstract: false,
 			},
 			false,
@@ -139,7 +146,8 @@ func TestParseAddr(t *testing.T) {
 			"tcp:[::1]:2000",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr:     []string{"[::1]:2000"},
+				Address:  "::1",
+				Ports:    []uint64{2000},
 				Abstract: false,
 			},
 			false,
@@ -149,7 +157,8 @@ func TestParseAddr(t *testing.T) {
 			"tcp:[::]:2000",
 			&deviceConfig.ProxyAddress{
 				ConnType: "tcp",
-				Addr:     []string{"[::]:2000"},
+				Address:  "::",
+				Ports:    []uint64{2000},
 				Abstract: false,
 			},
 			false,
