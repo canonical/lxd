@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
@@ -29,6 +30,7 @@ import (
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
@@ -61,6 +63,14 @@ func (n *bridge) Type() string {
 // DBType returns the network type DB ID.
 func (n *bridge) DBType() db.NetworkType {
 	return db.NetworkTypeBridge
+}
+
+// Config returns the network driver info.
+func (n *bridge) Info() Info {
+	info := n.common.Info()
+	info.AddressForwards = true
+
+	return info
 }
 
 // checkClusterWideMACSafe returns whether it is safe to use the same MAC address for the bridge interface on all
@@ -1649,6 +1659,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Setup network address forwards.
+	err = n.forwardsSetup()
+	if err != nil {
+		return err
+	}
+
 	// Setup BGP.
 	err = n.bgpSetup(oldConfig)
 	if err != nil {
@@ -2251,4 +2267,541 @@ func (n *bridge) DHCPv6Subnet() *net.IPNet {
 	}
 
 	return subnet
+}
+
+// forwardConvertToFirewallForward converts forwards into format compatible with the firewall package.
+func (n *bridge) forwardConvertToFirewallForwards(listenAddress net.IP, defaultTargetAddress net.IP, portMaps []*forwardPortMap) []firewallDrivers.AddressForward {
+	var vips []firewallDrivers.AddressForward
+
+	if defaultTargetAddress != nil {
+		vips = append(vips, firewallDrivers.AddressForward{
+			ListenAddress: listenAddress,
+			TargetAddress: defaultTargetAddress,
+		})
+	}
+
+	for _, portMap := range portMaps {
+		vips = append(vips, firewallDrivers.AddressForward{
+			ListenAddress: listenAddress,
+			Protocol:      portMap.protocol,
+			TargetAddress: portMap.targetAddress,
+			ListenPorts:   portMap.listenPorts,
+			TargetPorts:   portMap.targetPorts,
+		})
+	}
+
+	return vips
+}
+
+// bridgeProjectNetworks takes a map of all networks in all projects and returns a filtered map of bridge networks.
+func (n *bridge) bridgeProjectNetworks(projectNetworks map[string]map[int64]api.Network) map[string][]*api.Network {
+	bridgeProjectNetworks := make(map[string][]*api.Network)
+	for netProject, networks := range projectNetworks {
+		for _, ni := range networks {
+			network := ni // Local var creating pointer to rather than iterator.
+
+			// Skip non-bridge networks.
+			if network.Type != "bridge" {
+				continue
+			}
+
+			if bridgeProjectNetworks[netProject] == nil {
+				bridgeProjectNetworks[netProject] = []*api.Network{&network}
+			} else {
+				bridgeProjectNetworks[netProject] = append(bridgeProjectNetworks[netProject], &network)
+			}
+		}
+	}
+
+	return bridgeProjectNetworks
+}
+
+// bridgeNetworkExternalSubnets returns a list of external subnets used by bridge networks. Networks are considered
+// to be using external subnets for their ipv4.address and/or ipv6.address if they have NAT disabled, and/or if
+// they have external NAT addresses specified.
+func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
+	externalSubnets := make([]externalSubnetUsage, 0)
+	for netProject, networks := range bridgeProjectNetworks {
+		for _, netInfo := range networks {
+			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+				// If NAT is disabled, then network subnet is an external subnet.
+				if !shared.IsTrue(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
+					key := fmt.Sprintf("%s.address", keyPrefix)
+
+					_, ipNet, err := net.ParseCIDR(netInfo.Config[key])
+					if err != nil {
+						continue // Skip invalid/unspecified network addresses.
+					}
+
+					externalSubnets = append(externalSubnets, externalSubnetUsage{
+						subnet:         *ipNet,
+						networkProject: netProject,
+						networkName:    netInfo.Name,
+					})
+				}
+
+				// Find any external subnets used for network SNAT.
+				if netInfo.Config[fmt.Sprintf("%s.nat.address", keyPrefix)] != "" {
+					key := fmt.Sprintf("%s.nat.address", keyPrefix)
+
+					subnetSize := 128
+					if keyPrefix == "ipv4" {
+						subnetSize = 32
+					}
+
+					_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", netInfo.Config[key], subnetSize))
+					if err != nil {
+						return nil, errors.Wrapf(err, "Failed parsing %q of %q in project %q", key, netInfo.Name, netProject)
+					}
+
+					externalSubnets = append(externalSubnets, externalSubnetUsage{
+						subnet:         *ipNet,
+						networkProject: netProject,
+						networkName:    netInfo.Name,
+						networkSNAT:    true,
+					})
+				}
+
+				// Find any routes being used by the network.
+				for _, cidr := range util.SplitNTrimSpace(netInfo.Config[fmt.Sprintf("%s.routes", keyPrefix)], ",", -1, true) {
+					_, ipNet, err := net.ParseCIDR(cidr)
+					if err != nil {
+						continue // Skip invalid/unspecified network addresses.
+					}
+
+					externalSubnets = append(externalSubnets, externalSubnetUsage{
+						subnet:         *ipNet,
+						networkProject: netProject,
+						networkName:    netInfo.Name,
+					})
+				}
+			}
+		}
+	}
+
+	return externalSubnets, nil
+}
+
+// bridgedNICExternalRoutes returns a list of external routes currently used by bridged NICs that are connected to
+// networks specified.
+func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
+	externalRoutes := make([]externalSubnetUsage, 0)
+
+	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+		// Get the instance's effective network project name.
+		instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+		if instNetworkProject != project.Default {
+			return nil // Managed bridge networks can only exist in default project.
+		}
+
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+
+		// Iterate through each of the instance's devices, looking for bridged NICs that are linked to
+		// networks specified.
+		for devName, devConfig := range devices {
+			if devConfig["type"] != "nic" {
+				continue
+			}
+
+			// Check whether the NIC device references one of the networks supplied.
+			if !NICUsesNetwork(devConfig, bridgeProjectNetworks[instNetworkProject]...) {
+				continue
+			}
+
+			// For bridged NICs that are connected to networks specified, check if they have any
+			// routes or external routes configured, and if so add them to the list to return.
+			for _, key := range []string{"ipv4.routes", "ipv6.routes", "ipv4.routes.external", "ipv6.routes.external"} {
+				for _, cidr := range util.SplitNTrimSpace(devConfig[key], ",", -1, true) {
+					_, ipNet, _ := net.ParseCIDR(cidr)
+					if ipNet == nil {
+						// Skip if NIC device doesn't have a valid route.
+						continue
+					}
+
+					externalRoutes = append(externalRoutes, externalSubnetUsage{
+						subnet:          *ipNet,
+						networkProject:  instNetworkProject,
+						networkName:     devConfig["network"],
+						instanceProject: inst.Project,
+						instanceName:    inst.Name,
+						instanceDevice:  devName,
+					})
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return externalRoutes, nil
+}
+
+// getExternalSubnetInUse returns information about usage of external subnets by bridge networks (and NICs
+// connected to them) on this member.
+func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
+	var err error
+	var projectNetworks map[string]map[int64]api.Network
+	var projectNetworksForwardsOnUplink map[string]map[int64][]string
+
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get all managed networks across all projects.
+		projectNetworks, err = tx.GetCreatedNetworks()
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load all networks")
+		}
+
+		// Get all network forward listen addresses for forwards assigned to this specific cluster member.
+		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesOnMember()
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading network forward listen addresses")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get managed bridge networks.
+	bridgeProjectNetworks := n.bridgeProjectNetworks(projectNetworks)
+
+	// Get external subnets used by other managed bridge networks.
+	bridgeNetworkExternalSubnets, err := n.bridgeNetworkExternalSubnets(bridgeProjectNetworks)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get external routes configured on bridged NICs.
+	bridgedNICExternalRoutes, err := n.bridgedNICExternalRoutes(bridgeProjectNetworks)
+	if err != nil {
+		return nil, err
+	}
+
+	externalSubnets := make([]externalSubnetUsage, 0, len(bridgeNetworkExternalSubnets)+len(bridgedNICExternalRoutes))
+	externalSubnets = append(externalSubnets, bridgeNetworkExternalSubnets...)
+	externalSubnets = append(externalSubnets, bridgedNICExternalRoutes...)
+
+	// Add forward listen addresses to this list.
+	for projectName, networks := range projectNetworksForwardsOnUplink {
+		for networkID, listenAddresses := range networks {
+			for _, listenAddress := range listenAddresses {
+				// Convert listen address to subnet.
+				listenAddressNet, err := ParseIPToNet(listenAddress)
+				if err != nil {
+					return nil, fmt.Errorf("Invalid existing forward listen address %q", listenAddress)
+				}
+
+				// Create an externalSubnetUsage for the listen address by using the network ID
+				// of the listen address to retrieve the already loaded network name from the
+				// projectNetworks map.
+				externalSubnets = append(externalSubnets, externalSubnetUsage{
+					subnet:         *listenAddressNet,
+					networkProject: projectName,
+					networkName:    projectNetworks[projectName][networkID].Name,
+				})
+			}
+		}
+	}
+
+	return externalSubnets, nil
+}
+
+// ForwardCreate creates a network forward.
+func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost) error {
+	// Convert listen address to subnet so we can check its valid and can be used.
+	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
+	if err != nil {
+		return errors.Wrapf(err, "Failed parsing address forward listen address %q", forward.ListenAddress)
+	}
+
+	_, err = n.forwardValidate(listenAddressNet.IP, &forward.NetworkForwardPut)
+	if err != nil {
+		return err
+	}
+
+	externalSubnetsInUse, err := n.getExternalSubnetInUse()
+	if err != nil {
+		return err
+	}
+
+	// Check the listen address subnet doesn't fall within any existing network external subnets.
+	for _, externalSubnetUser := range externalSubnetsInUse {
+		// Skip our own network's SNAT address (as it can be used for NICs in the network).
+		if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+			continue
+		}
+
+		// Skip our own network (but not NIC devices on our own network).
+		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
+			continue
+		}
+
+		if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
+			// This error is purposefully vague so that it doesn't reveal any names of
+			// resources potentially outside of the network.
+			return fmt.Errorf("Forward listen address %q overlaps with another network or NIC", listenAddressNet.String())
+		}
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create forward DB record.
+	memberSpecific := true // bridge supports per-member forwards.
+	forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+		n.forwardsSetup()
+	})
+
+	err = n.forwardsSetup()
+	if err != nil {
+		return err
+	}
+
+	// Check if hairpin mode needs to be enabled on active NIC bridge ports.
+	if n.config["bridge.driver"] != "openvswitch" {
+		brNetfilterEnabled := false
+		for _, ipVersion := range []uint{4, 6} {
+			if BridgeNetfilterEnabled(ipVersion) == nil {
+				brNetfilterEnabled = true
+				break
+			}
+		}
+
+		// If br_netfilter is enabled and bridge has forwards, we enable hairpin mode on each NIC's bridge
+		// port in case any of the forwards target the NIC and the instance attempts to connect to the
+		// forward's listener. Without hairpin mode on the target of the forward will not be able to
+		// connect to the listener.
+		if brNetfilterEnabled {
+			listenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID(), true)
+			if err != nil {
+				return fmt.Errorf("Failed loading network forwards: %w", err)
+			}
+
+			// If we are the first forward on this bridge, enable hairpin mode on active NIC ports.
+			if len(listenAddresses) <= 1 {
+				var localNode string
+
+				err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+					localNode, err = tx.GetLocalNodeName()
+					if err != nil {
+						return errors.Wrapf(err, "Failed to get local member name")
+					}
+
+					return err
+				})
+				if err != nil {
+					return err
+				}
+
+				filter := db.InstanceFilter{
+					Node: &localNode,
+				}
+
+				err = n.state.Cluster.InstanceList(&filter, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+					// Get the instance's effective network project name.
+					instNetworkProject := project.NetworkProjectFromRecord(&p)
+
+					if instNetworkProject != project.Default {
+						return nil // Managed bridge networks can only exist in default project.
+					}
+
+					devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+
+					// Iterate through each of the instance's devices, looking for bridged NICs
+					// that are linked to this network.
+					for devName, devConfig := range devices {
+						if devConfig["type"] != "nic" {
+							continue
+						}
+
+						// Check whether the NIC device references our network..
+						if !NICUsesNetwork(devConfig, &api.Network{Name: n.Name()}) {
+							continue
+						}
+
+						hostName := inst.Config[fmt.Sprintf("volatile.%s.host_name", devName)]
+						if InterfaceExists(hostName) {
+							link := &ip.Link{Name: hostName}
+							err = link.BridgeLinkSetHairpin(true)
+							if err != nil {
+								return errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", link.Name)
+							}
+							n.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"inst": inst.Name, "project": inst.Project, "device": devName, "dev": link.Name})
+						}
+					}
+
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	revert.Success()
+	return nil
+}
+
+// ForwardUpdate updates a network forward.
+func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) error {
+	memberSpecific := true // bridge supports per-member forwards.
+	curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+	if err != nil {
+		return err
+	}
+
+	_, err = n.forwardValidate(net.ParseIP(curForward.ListenAddress), &req)
+	if err != nil {
+		return err
+	}
+
+	curForwardEtagHash, err := util.EtagHash(curForward.Etag())
+	if err != nil {
+		return err
+	}
+
+	newForward := api.NetworkForward{
+		ListenAddress:     curForward.ListenAddress,
+		NetworkForwardPut: req,
+	}
+
+	newForwardEtagHash, err := util.EtagHash(newForward.Etag())
+	if err != nil {
+		return err
+	}
+
+	if curForwardEtagHash == newForwardEtagHash {
+		return nil // Nothing has changed.
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	err = n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
+		n.forwardsSetup()
+	})
+
+	err = n.forwardsSetup()
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
+}
+
+// ForwardDelete deletes a network forward.
+func (n *bridge) ForwardDelete(listenAddress string) error {
+	memberSpecific := true // bridge supports per-member forwards.
+	forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+	if err != nil {
+		return err
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	err = n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		newForward := api.NetworkForwardsPost{
+			NetworkForwardPut: forward.NetworkForwardPut,
+			ListenAddress:     forward.ListenAddress,
+		}
+		n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
+		n.forwardsSetup()
+	})
+
+	err = n.forwardsSetup()
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
+}
+
+// forwardsSetup applies all network address forwards defined for this network and this member.
+func (n *bridge) forwardsSetup() error {
+	memberSpecific := true // Get all forwards for this cluster member.
+	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
+	if err != nil {
+		return fmt.Errorf("Failed loading network forwards: %w", err)
+	}
+
+	var fwForwards []firewallDrivers.AddressForward
+	ipVersions := make(map[uint]struct{})
+
+	for _, forward := range forwards {
+		// Convert listen address to subnet so we can check its valid and can be used.
+		listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
+		if err != nil {
+			return errors.Wrapf(err, "Failed parsing address forward listen address %q", forward.ListenAddress)
+		}
+
+		// Track which IP versions we are using.
+		if listenAddressNet.IP.To4() == nil {
+			ipVersions[6] = struct{}{}
+		} else {
+			ipVersions[4] = struct{}{}
+		}
+
+		portMaps, err := n.forwardValidate(listenAddressNet.IP, &forward.NetworkForwardPut)
+		if err != nil {
+			return fmt.Errorf("Failed validating firewall address forward for listen address %q: %w", forward.ListenAddress, err)
+		}
+
+		fwForwards = append(fwForwards, n.forwardConvertToFirewallForwards(listenAddressNet.IP, net.ParseIP(forward.Config["target_address"]), portMaps)...)
+	}
+
+	if len(forwards) > 0 {
+		// Check if br_netfilter is enabled to, and warn if not.
+		brNetfilterWarning := false
+		for ipVersion := range ipVersions {
+			err = BridgeNetfilterEnabled(ipVersion)
+			if err != nil {
+				brNetfilterWarning = true
+				msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the forward listen IPs", ipVersion)
+				n.logger.Warn(msg, log.Ctx{"err": err})
+				err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
+				if err != nil {
+					n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+				}
+			}
+		}
+
+		if !brNetfilterWarning {
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningProxyBridgeNetfilterNotEnabled, dbCluster.TypeNetwork, int(n.id))
+			if err != nil {
+				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+			}
+		}
+	}
+
+	err = n.state.Firewall.NetworkApplyForwards(n.name, fwForwards)
+	if err != nil {
+		return fmt.Errorf("Failed applying firewall address forwards: %w", err)
+	}
+
+	return nil
 }
