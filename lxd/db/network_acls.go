@@ -99,7 +99,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 			return err
 		}
 
-		err = c.networkACLConfig(tx, id, &acl)
+		err = networkACLConfig(tx, id, &acl)
 		if err != nil {
 			return errors.Wrapf(err, "Failed loading config")
 		}
@@ -155,7 +155,7 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 }
 
 // networkACLConfig populates the config map of the Network ACL with the given ID.
-func (c *Cluster) networkACLConfig(tx *ClusterTx, id int64, acl *api.NetworkACL) error {
+func networkACLConfig(tx *ClusterTx, id int64, acl *api.NetworkACL) error {
 	q := `
 		SELECT key, value
 		FROM networks_acls_config
@@ -283,41 +283,18 @@ func (c *Cluster) UpdateNetworkACL(id int64, config *api.NetworkACLPut) error {
 			return err
 		}
 
-		err = networkACLConfigUpdate(tx.tx, id, config.Config)
+		_, err = tx.tx.Exec("DELETE FROM networks_acls_config WHERE network_acl_id=?", id)
+		if err != nil {
+			return err
+		}
+
+		err = networkACLConfigAdd(tx.tx, id, config.Config)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	})
-}
-
-// networkACLConfigUpdate updates Network ACL config keys.
-func networkACLConfigUpdate(tx *sql.Tx, id int64, config map[string]string) error {
-	_, err := tx.Exec("DELETE FROM networks_acls_config WHERE network_acl_id=?", id)
-	if err != nil {
-		return err
-	}
-
-	str := fmt.Sprintf("INSERT INTO networks_acls_config (network_acl_id, key, value) VALUES(?, ?, ?)")
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err = stmt.Exec(id, k, v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // RenameNetworkACL renames a Network ACL.
