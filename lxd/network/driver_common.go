@@ -95,7 +95,7 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 		}
 
 		// User keys are not validated.
-		if strings.HasPrefix(k, "user.") {
+		if shared.IsUserConfig(k) {
 			continue
 		}
 
