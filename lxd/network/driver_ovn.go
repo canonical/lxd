@@ -93,11 +93,12 @@ func (n *ovn) DBType() db.NetworkType {
 
 // Config returns the network driver info.
 func (n *ovn) Info() Info {
-	return Info{
-		Projects:           true,
-		NodeSpecificConfig: false,
-		AddressForwards:    true,
-	}
+	info := n.common.Info()
+	info.Projects = true
+	info.NodeSpecificConfig = false
+	info.AddressForwards = true
+
+	return info
 }
 
 // uplinkRoutes parses ipv4.routes and ipv6.routes settings for an uplink network into a slice of *net.IPNet.
