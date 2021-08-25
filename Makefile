@@ -24,7 +24,7 @@ default: build
 
 .PHONY: build
 build:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing dqlite, run \"make deps\" to setup."
 	exit 1
 endif
@@ -84,6 +84,10 @@ deps:
 
 .PHONY: update
 update:
+ifneq "$(LXD_OFFLINE)" ""
+	@echo "The update target cannot be run in offline mode."
+	exit 1
+endif
 	go get -t -v -d -u ./...
 	go mod tidy
 	@echo "Dependencies updated"
@@ -103,12 +107,14 @@ update-schema:
 
 .PHONY: update-api
 update-api:
+ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; go get -v -x github.com/go-swagger/go-swagger/cmd/swagger)
+endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
 .PHONY: debug
 debug:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
 	exit 1
 endif
@@ -120,7 +126,7 @@ endif
 
 .PHONY: nocache
 nocache:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
 	exit 1
 endif
@@ -131,7 +137,7 @@ endif
 	@echo "LXD built successfully"
 
 race:
-ifeq ($(TAG_SQLITE3),)
+ifeq "$(TAG_SQLITE3)" ""
 	@echo "Missing custom libsqlite3, run \"make deps\" to setup."
 	exit 1
 endif
@@ -143,9 +149,11 @@ endif
 
 .PHONY: check
 check: default
+ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; go get -v -x github.com/rogpeppe/godeps)
 	(cd / ; go get -v -x github.com/tsenart/deadcode)
 	(cd / ; go get -v -x golang.org/x/lint/golint)
+endif
 	CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go test -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
 	cd test && ./main.sh
 
@@ -193,7 +201,9 @@ update-po:
 
 .PHONY: update-pot
 update-pot:
+ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; go get -v -x github.com/snapcore/snapd/i18n/xgettext-go)
+endif
 	xgettext-go -o po/$(DOMAIN).pot --add-comments-tag=TRANSLATORS: --sort-output --package-name=$(DOMAIN) --msgid-bugs-address=lxc-devel@lists.linuxcontainers.org --keyword=i18n.G --keyword-plural=i18n.NG lxc/*.go lxc/*/*.go
 
 .PHONY: build-mo
