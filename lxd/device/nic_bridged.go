@@ -37,6 +37,8 @@ import (
 
 type nicBridged struct {
 	deviceCommon
+
+	network network.Network // Populated in validateConfig().
 }
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running. Returns true.
@@ -125,9 +127,6 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		return nil
 	}
 
-	// Managed network if specified in config (either via parent or network keys), left nil if not.
-	var n network.Network
-
 	// Check that if network proeperty is set that conflicting keys are not present.
 	if d.config["network"] != "" {
 		requiredFields = append(requiredFields, "network")
@@ -141,19 +140,19 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 		// Load managed network. project.Default is used here as bridge networks don't support projects.
 		var err error
-		n, err = network.LoadByName(d.state, d.config["network"])
+		d.network, err = network.LoadByName(d.state, d.config["network"])
 		if err != nil {
 			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
 		}
 
 		// Validate NIC settings with managed network.
-		err = checkWithManagedNetwork(n)
+		err = checkWithManagedNetwork(d.network)
 		if err != nil {
 			return err
 		}
 
 		// Apply network settings to NIC.
-		netConfig := n.Config()
+		netConfig := d.network.Config()
 
 		// Link device to network bridge.
 		d.config["parent"] = d.config["network"]
@@ -176,10 +175,10 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 		// Check if parent is a managed network.
 		// project.Default is used here as bridge networks don't support projects.
-		n, _ = network.LoadByName(d.state, d.config["parent"])
-		if n != nil {
+		d.network, _ = network.LoadByName(d.state, d.config["parent"])
+		if d.network != nil {
 			// Validate NIC settings with managed network.
-			err := checkWithManagedNetwork(n)
+			err := checkWithManagedNetwork(d.network)
 			if err != nil {
 				return err
 			}
@@ -239,13 +238,13 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 				// but the other NIC doesn't reference the same network name via either its network
 				// or parent keys then we can say it is connected to a different network, so the
 				// duplicate checks can be skipped.
-				if n != nil && n.Name() != devConfig["network"] && n.Name() != devConfig["parent"] {
+				if d.network != nil && d.network.Name() != devConfig["network"] && d.network.Name() != devConfig["parent"] {
 					continue
 				}
 
 				// Skip NICs that are connected to a managed network or different unmanaged parent
 				// when we are not connected to a managed network.
-				if n == nil && (devConfig["network"] != "" || d.config["parent"] != devConfig["parent"]) {
+				if d.network == nil && (devConfig["network"] != "" || d.config["parent"] != devConfig["parent"]) {
 					continue
 				}
 
@@ -751,14 +750,8 @@ func (d *nicBridged) setFilters() (err error) {
 	IPv4 := net.ParseIP(d.config["ipv4.address"])
 	IPv6 := net.ParseIP(d.config["ipv6.address"])
 
-	// Check if the parent is managed and load config. If parent is unmanaged continue anyway.
-	n, err := network.LoadByName(d.state, d.config["parent"])
-	if err != nil && err != db.ErrNoSuchObject {
-		return err
-	}
-
 	// If parent bridge is unmanaged check that a manually specified IP is available if IP filtering enabled.
-	if err == db.ErrNoSuchObject || n == nil {
+	if d.network == nil {
 		if shared.IsTrue(d.config["security.ipv4_filtering"]) && d.config["ipv4.address"] == "" {
 			return fmt.Errorf("IPv4 filtering requires a manually specified ipv4.address when using an unmanaged parent bridge")
 		}
@@ -769,12 +762,12 @@ func (d *nicBridged) setFilters() (err error) {
 	}
 
 	// If parent bridge is managed, allocate the static IPs (if needed).
-	if n != nil && (IPv4 == nil || IPv6 == nil) {
+	if d.network != nil && (IPv4 == nil || IPv6 == nil) {
 		opts := &dhcpalloc.Options{
 			ProjectName: d.inst.Project(),
 			HostName:    d.inst.Name(),
 			HostMAC:     mac,
-			Network:     n,
+			Network:     d.network,
 		}
 
 		err = dhcpalloc.AllocateTask(opts, func(t *dhcpalloc.Transaction) error {
@@ -818,7 +811,7 @@ func (d *nicBridged) setFilters() (err error) {
 		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
 	}
 
-	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6, n != nil)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6, d.network != nil)
 	if err != nil {
 		return err
 	}
@@ -1097,12 +1090,9 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 		ips = append(ips, newIP)
 	}
 
-	// Check if parent is managed network and load config.
-	// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
-	n, err := network.LoadByName(d.state, d.config["parent"])
-	if err == nil {
+	if d.network != nil {
 		// Extract subnet sizes from bridge addresses if available.
-		netConfig := n.Config()
+		netConfig := d.network.Config()
 		_, v4subnet, _ := net.ParseCIDR(netConfig["ipv4.address"])
 		_, v6subnet, _ := net.ParseCIDR(netConfig["ipv6.address"])
 
@@ -1118,14 +1108,14 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 
 		if d.config["hwaddr"] != "" {
 			// Parse the leases file if parent network is managed.
-			leaseIPs, err := network.GetLeaseAddresses(n.Name(), d.config["hwaddr"])
+			leaseIPs, err := network.GetLeaseAddresses(d.network.Name(), d.config["hwaddr"])
 			if err == nil {
 				for _, leaseIP := range leaseIPs {
 					ipStore(leaseIP)
 				}
 			}
 
-			if !shared.IsTrue(n.Config()["ipv6.dhcp.stateful"]) && v6subnet != nil {
+			if !shared.IsTrue(d.network.Config()["ipv6.dhcp.stateful"]) && v6subnet != nil {
 				// If stateful DHCPv6 is disabled, and IPv6 is enabled on the bridge, the the NIC
 				// is likely to use its MAC and SLAAC to configure its address.
 				hwAddr, err := net.ParseMAC(d.config["hwaddr"])
