@@ -3,7 +3,6 @@ package lxd
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -14,22 +13,16 @@ func (r *ProtocolLXD) GetNetworkNames() ([]string, error) {
 		return nil, fmt.Errorf("The server is missing the required \"network\" API extension")
 	}
 
+	// Fetch the raw values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/networks", nil, "", &urls)
+	baseURL := "/networks"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/networks/")
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetNetworks returns a list of Network struct

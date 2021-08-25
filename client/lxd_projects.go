@@ -3,7 +3,6 @@ package lxd
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -16,22 +15,16 @@ func (r *ProtocolLXD) GetProjectNames() ([]string, error) {
 		return nil, fmt.Errorf("The server is missing the required \"projects\" API extension")
 	}
 
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/projects", nil, "", &urls)
+	baseURL := "/projects"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/projects/")
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetProjects returns a list of available Project structs

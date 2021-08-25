@@ -3,7 +3,6 @@ package lxd
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -14,22 +13,16 @@ func (r *ProtocolLXD) GetNetworkACLNames() ([]string, error) {
 		return nil, fmt.Errorf(`The server is missing the required "network_acl" API extension`)
 	}
 
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value.
-	_, err := r.queryStruct("GET", "/network-acls", nil, "", &urls)
+	baseURL := "/network-acls"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse it.
-	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/network-acls/")
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetNetworkACLs returns a list of Network ACL structs.
