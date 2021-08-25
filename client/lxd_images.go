@@ -35,22 +35,16 @@ func (r *ProtocolLXD) GetImages() ([]api.Image, error) {
 
 // GetImageFingerprints returns a list of available image fingerprints
 func (r *ProtocolLXD) GetImageFingerprints() ([]string, error) {
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/images", nil, "", &urls)
+	baseURL := "/images"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	fingerprints := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/images/")
-		fingerprints = append(fingerprints, fields[len(fields)-1])
-	}
-
-	return fingerprints, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetImage returns an Image struct for the provided fingerprint
@@ -298,22 +292,16 @@ func (r *ProtocolLXD) GetImageAliases() ([]api.ImageAliasesEntry, error) {
 
 // GetImageAliasNames returns the list of available alias names
 func (r *ProtocolLXD) GetImageAliasNames() ([]string, error) {
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/images/aliases", nil, "", &urls)
+	baseURL := "/images/aliases"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/images/aliases/")
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetImageAlias returns an existing alias as an ImageAliasesEntry struct

@@ -3,7 +3,6 @@ package lxd
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -12,22 +11,20 @@ import (
 
 // GetWarningUUIDs returns a list of operation uuids
 func (r *ProtocolLXD) GetWarningUUIDs() ([]string, error) {
-	urls := []string{}
+	if !r.HasExtension("warnings") {
+		return nil, fmt.Errorf("The server is missing the required \"warnings\" API extension")
+	}
 
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/warnings", nil, "", &urls)
+	// Fetch the raw values.
+	urls := []string{}
+	baseURL := "/warnings"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	uuids := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/warnings/")
-		uuids = append(uuids, fields[len(fields)-1])
-	}
-
-	return uuids, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetWarnings returns a list of warnings.

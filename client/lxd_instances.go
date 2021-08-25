@@ -47,28 +47,20 @@ func (r *ProtocolLXD) instanceTypeToPath(instanceType api.InstanceType) (string,
 
 // GetInstanceNames returns a list of instance names.
 func (r *ProtocolLXD) GetInstanceNames(instanceType api.InstanceType) ([]string, error) {
+	baseURL, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	path, v, err := r.instanceTypeToPath(instanceType)
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", baseURL, v.Encode()), nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch the raw value
-	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &urls)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse it
-	names := []string{}
-	prefix := path + "/"
-	for _, url := range urls {
-		fields := strings.Split(url, prefix)
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetInstances returns a list of instances.
@@ -1095,22 +1087,16 @@ func (r *ProtocolLXD) GetInstanceSnapshotNames(instanceName string) ([]string, e
 		return nil, err
 	}
 
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err = r.queryStruct("GET", fmt.Sprintf("%s/%s/snapshots", path, url.PathEscape(instanceName)), nil, "", &urls)
+	baseURL := fmt.Sprintf("%s/%s/snapshots", path, url.PathEscape(instanceName))
+	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("%s/%s/snapshots/", path, url.PathEscape(instanceName)))
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetInstanceSnapshots returns a list of snapshots for the instance.
@@ -1572,22 +1558,16 @@ func (r *ProtocolLXD) GetInstanceLogfiles(name string) ([]string, error) {
 		return nil, err
 	}
 
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err = r.queryStruct("GET", fmt.Sprintf("%s/%s/logs", path, url.PathEscape(name)), nil, "", &urls)
+	baseURL := fmt.Sprintf("%s/%s/logs", path, url.PathEscape(name))
+	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	logfiles := make([]string, 0, len(urls))
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("%s/%s/logs/", path, url.PathEscape(name)))
-		logfiles = append(logfiles, fields[len(fields)-1])
-	}
-
-	return logfiles, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetInstanceLogfile returns the content of the requested logfile.
@@ -2035,30 +2015,25 @@ func (r *ProtocolLXD) DeleteInstanceConsoleLog(instanceName string, args *Instan
 
 // GetInstanceBackupNames returns a list of backup names for the instance.
 func (r *ProtocolLXD) GetInstanceBackupNames(instanceName string) ([]string, error) {
+	if !r.HasExtension("container_backup") {
+		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
+	}
+
 	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 	if err != nil {
 		return nil, err
 	}
 
-	if !r.HasExtension("container_backup") {
-		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
-	}
-
-	// Fetch the raw value
+	// Fetch the raw URL values.
 	urls := []string{}
-	_, err = r.queryStruct("GET", fmt.Sprintf("%s/%s/backups", path, url.PathEscape(instanceName)), nil, "", &urls)
+	baseURL := fmt.Sprintf("%s/%s/backups", path, url.PathEscape(instanceName))
+	_, err = r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("%s/%s/backups/", path, url.PathEscape(instanceName)))
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetInstanceBackups returns a list of backups for the instance.
