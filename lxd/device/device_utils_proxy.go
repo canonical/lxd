@@ -3,7 +3,6 @@ package device
 import (
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -13,16 +12,16 @@ import (
 )
 
 // ProxyParseAddr validates a proxy address and parses it into its constituent parts.
-func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
-	if addr == "" {
-		return nil, fmt.Errorf("Address is required")
-	}
-
+func ProxyParseAddr(data string) (*deviceConfig.ProxyAddress, error) {
 	// Split into <protocol> and <address>.
-	fields := strings.SplitN(addr, ":", 2)
+	fields := strings.SplitN(data, ":", 2)
 
 	if !shared.StringInSlice(fields[0], []string{"tcp", "udp", "unix"}) {
 		return nil, fmt.Errorf("Unknown protocol type %q", fields[0])
+	}
+
+	if len(fields) < 2 || fields[1] == "" {
+		return nil, fmt.Errorf("Missing address")
 	}
 
 	newProxyAddr := &deviceConfig.ProxyAddress{
@@ -32,7 +31,8 @@ func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 
 	// unix addresses cannot have ports.
 	if newProxyAddr.ConnType == "unix" {
-		newProxyAddr.Addr = []string{fields[1]}
+		newProxyAddr.Address = fields[1]
+
 		return newProxyAddr, nil
 	}
 
@@ -50,8 +50,13 @@ func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 		}
 	}
 
+	newProxyAddr.Address = address
+
 	// Split <ports> into individual ports and port ranges.
 	ports := strings.SplitN(port, ",", -1)
+
+	newProxyAddr.Ports = make([]uint64, 0, len(ports))
+
 	for _, p := range ports {
 		portFirst, portRange, err := network.ParsePortRange(p)
 		if err != nil {
@@ -59,9 +64,12 @@ func ProxyParseAddr(addr string) (*deviceConfig.ProxyAddress, error) {
 		}
 
 		for i := int64(0); i < portRange; i++ {
-			newAddr := net.JoinHostPort(address, strconv.Itoa(int(portFirst+i)))
-			newProxyAddr.Addr = append(newProxyAddr.Addr, newAddr)
+			newProxyAddr.Ports = append(newProxyAddr.Ports, uint64(portFirst+i))
 		}
+	}
+
+	if len(newProxyAddr.Ports) <= 0 {
+		return nil, fmt.Errorf("At least one port is required")
 	}
 
 	return newProxyAddr, nil
