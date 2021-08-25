@@ -39,6 +39,11 @@ func ConfigLoad(tx *db.ClusterTx) (*Config, error) {
 	return &Config{tx: tx, m: m}, nil
 }
 
+// BGPASN returns the BGP ASN setting.
+func (c *Config) BGPASN() int64 {
+	return c.m.GetInt64("core.bgp_asn")
+}
+
 // HTTPSAllowedHeaders returns the relevant CORS setting.
 func (c *Config) HTTPSAllowedHeaders() string {
 	return c.m.GetString("core.https_allowed_headers")
@@ -242,6 +247,7 @@ var ConfigSchema = config.Schema{
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
 	"cluster.max_voters":             {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
 	"cluster.max_standby":            {Type: config.Int64, Default: "2", Validator: maxStandByValidator},
+	"core.bgp_asn":                   {Type: config.Int64, Default: "0", Validator: validate.Optional(validate.IsInRange(0, 4294967294))},
 	"core.https_allowed_headers":     {},
 	"core.https_allowed_methods":     {},
 	"core.https_allowed_origin":      {},

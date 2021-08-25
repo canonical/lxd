@@ -75,6 +75,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		"ipv6.address",
 		"ipv4.routes",
 		"ipv6.routes",
+		"ipv4.routes.external",
+		"ipv6.routes.external",
 		"security.mac_filtering",
 		"security.ipv4_filtering",
 		"security.ipv6_filtering",
@@ -386,7 +388,7 @@ func (d *nicBridged) UpdatableFields(oldDevice Type) []string {
 		return []string{}
 	}
 
-	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
+	return []string{"limits.ingress", "limits.egress", "limits.max", "ipv4.routes", "ipv6.routes", "ipv4.routes.external", "ipv6.routes.external", "ipv4.address", "ipv6.address", "security.mac_filtering", "security.ipv4_filtering", "security.ipv6_filtering"}
 }
 
 // Add is run when a device is added to a non-snapshot instance whether or not the instance is running.
@@ -439,7 +441,12 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	networkVethFillFromVolatile(d.config, saveData)
 
 	// Apply host-side routes to bridge interface.
-	err = networkNICRouteAdd(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
+	routes := []string{}
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+	err = networkNICRouteAdd(d.config["parent"], routes...)
 	if err != nil {
 		return nil, err
 	}
@@ -503,6 +510,8 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	runConf := deviceConfig.RunConfig{}
+	runConf.PostHooks = []func() error{d.postStart}
+
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "type", Value: "phys"},
 		{Key: "name", Value: d.config["name"]},
@@ -520,6 +529,16 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	revert.Success()
 	return &runConf, nil
+}
+
+// postStart is run after the device is added to the instance.
+func (d *nicBridged) postStart() error {
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Update applies configuration changes to a started device.
@@ -556,10 +575,21 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 
 		// Remove old host-side routes from bridge interface.
-		networkNICRouteDelete(oldConfig["parent"], append(util.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)...)
+
+		oldRoutes := []string{}
+		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true)...)
+		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)
+		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv4.routes.external"], ",", -1, true)...)
+		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv6.routes.external"], ",", -1, true)...)
+		networkNICRouteDelete(oldConfig["parent"], oldRoutes...)
 
 		// Apply host-side routes to bridge interface.
-		err = networkNICRouteAdd(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
+		routes := []string{}
+		routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
+		routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
+		routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+		routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+		err = networkNICRouteAdd(d.config["parent"], routes...)
 		if err != nil {
 			return err
 		}
@@ -598,11 +628,29 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 	}
 
+	// If an external address changed, update the BGP advertisements.
+	err = bgpRemovePrefix(&d.deviceCommon, oldConfig)
+	if err != nil {
+		return err
+	}
+
+	err = bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Stop is run when the device is removed from the instance.
 func (d *nicBridged) Stop() (*deviceConfig.RunConfig, error) {
+	// Remove BGP announcements.
+	err := bgpRemovePrefix(&d.deviceCommon, d.config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup post-stop actions.
 	runConf := deviceConfig.RunConfig{
 		PostHooks: []func() error{d.postStop},
 	}
@@ -635,7 +683,12 @@ func (d *nicBridged) postStop() error {
 	}
 
 	// Remove host-side routes from bridge interface.
-	networkNICRouteDelete(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
+	routes := []string{}
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+	networkNICRouteDelete(d.config["parent"], routes...)
 	d.removeFilters(d.config)
 
 	return nil
@@ -1413,4 +1466,14 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	}
 
 	return &network, nil
+}
+
+// Register sets up anything needed on LXD startup.
+func (d *nicBridged) Register() error {
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -344,6 +344,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	runConf := deviceConfig.RunConfig{}
+	runConf.PostHooks = []func() error{d.postStart}
 	runConf.NetworkInterface = []deviceConfig.RunConfigItem{
 		{Key: "type", Value: "phys"},
 		{Key: "name", Value: d.config["name"]},
@@ -361,6 +362,16 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	revert.Success()
 	return &runConf, nil
+}
+
+// postStart is run after the device is added to the instance.
+func (d *nicOVN) postStart() error {
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Update applies configuration changes to a started device.
@@ -432,6 +443,17 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		}
 	}
 
+	// If an external address changed, update the BGP advertisements.
+	err := bgpRemovePrefix(&d.deviceCommon, oldConfig)
+	if err != nil {
+		return err
+	}
+
+	err = bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -461,6 +483,12 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
 		d.logger.Error("Failed to remove OVN device port", log.Ctx{"err": err})
+	}
+
+	// Remove BGP announcements.
+	err = bgpRemovePrefix(&d.deviceCommon, d.config)
+	if err != nil {
+		return nil, err
 	}
 
 	return &runConf, nil
@@ -636,4 +664,14 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 	}
 
 	return &network, nil
+}
+
+// Register sets up anything needed on LXD startup.
+func (d *nicOVN) Register() error {
+	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

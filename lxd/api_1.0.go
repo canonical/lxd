@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -666,6 +667,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	maasChanged := false
 	candidChanged := false
 	rbacChanged := false
+	bgpChanged := false
 
 	for key := range clusterChanged {
 		switch key {
@@ -714,6 +716,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "rbac.expiry":
 			rbacChanged = true
+		case "core.bgp_asn":
+			bgpChanged = true
 		}
 	}
 
@@ -721,6 +725,10 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		switch key {
 		case "maas.machine":
 			maasChanged = true
+		case "core.bgp_address":
+			fallthrough
+		case "core.bgp_routerid":
+			bgpChanged = true
 		}
 	}
 
@@ -803,6 +811,17 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 
 		err := d.setupRBACServer(apiURL, apiKey, apiExpiry, agentURL, agentUsername, agentPrivateKey, agentPublicKey)
+		if err != nil {
+			return err
+		}
+	}
+
+	if bgpChanged {
+		address := nodeConfig.BGPAddress()
+		asn := clusterConfig.BGPASN()
+		routerid := nodeConfig.BGPRouterID()
+
+		err := s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
 		if err != nil {
 			return err
 		}

@@ -280,6 +280,7 @@ var APIExtensions = []string{
 	"resources_gpu_usb",
 	"clustering_evacuation",
 	"network_ovn_nat_address",
+	"network_bgp",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

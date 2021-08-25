@@ -64,6 +64,11 @@ The exception being tunnel local and remote addresses which are just plain addre
 
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--
+bgp.peers.NAME.address               | string    | bgp server            | -                         | Peer address (IPv4 or IPv6)
+bgp.peers.NAME.asn                   | integer   | bgp server            | -                         | Peer AS number
+bgp.peers.NAME.password              | string    | bgp server            | - (no password)           | Peer session password (optional)
+bgp.ipv4.nexthop                     | string    | bgp server            | local address             | Override the next-hop for advertised prefixes
+bgp.ipv6.nexthop                     | string    | bgp server            | local address             | Override the next-hop for advertised prefixes
 bridge.driver                        | string    | -                     | native                    | Bridge driver ("native" or "openvswitch")
 bridge.external\_interfaces          | string    | -                     | -                         | Comma separate list of unconfigured network interfaces to include in the bridge
 bridge.hwaddr                        | string    | -                     | -                         | MAC address for the bridge
@@ -385,6 +390,9 @@ Network configuration properties:
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
+bgp.peers.NAME.address          | string    | bgp server            | -                         | Peer address (IPv4 or IPv6) for use by `ovn` downstream networks
+bgp.peers.NAME.asn              | integer   | bgp server            | -                         | Peer AS number for use by `ovn` downstream networks
+bgp.peers.NAME.password         | string    | bgp server            | - (no password)           | Peer session password (optional) for use by `ovn` downstream networks
 maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
 mtu                             | integer   | -                     | -                         | The MTU of the new interface
@@ -401,3 +409,22 @@ ipv6.routes                     | string    | ipv6 address          | -         
 ipv6.routes.anycast             | boolean   | ipv6 address          | false                     | Allow the overlapping routes to be used on multiple networks/NIC at the same time.
 dns.nameservers                 | string    | standard mode         | -                         | List of DNS server IPs on physical network
 ovn.ingress\_mode               | string    | standard mode         | l2proxy                   | Sets the method that OVN NIC external IPs will be advertised on uplink network. Either `l2proxy` (proxy ARP/NDP) or `routed`.
+
+# BGP integration
+LXD can act as a BGP server, effectively allowing to establish sessions with upstream BGP routers and announce the addresses and subnets that it's using.
+
+This can be used to allow a LXD server or cluster to directly use internal/external address space, getting the specific subnets or addresses routed to the correct host for it to forward onto the target instance.
+
+For this to work, `core.bgp_address`, `core.bgp_asn` and `core.bgp_routerid` must be set.
+Once those are set, LXD will start listening for BGP sessions.
+
+Peers can be defined on both `bridged` and `physical` managed networks. Additionally in the `bridged` case, a set of per-server configuration keys are also available to override the next-hop. When those aren't specified, the next-hop defaults to the address used for the BGP session.
+
+The `physical` network case is used for `ovn` networks where the uplink network is the one holding the list of allowed subnets and the BGP configuration. Once that parent network is configured, children OVN networks will get their external subnets and addresses announced over BGP with the next-hop set to the OVN router address for the network in question.
+
+The addresses and networks currently being advertised are:
+ - Network `ipv4.address` or `ipv6.address` subnets when the matching `nat` property isn't set to `true`
+ - Network `ipv4.nat.address` and `ipv6.nat.address` when those are set
+ - Instance NIC routes defined through `ipv4.routes.external` or `ipv6.routes.external`
+
+At this time, there isn't a way to only announce some specific routes/addresses to particular peers. Instead it's currently recommended to filter prefixes on the upstream routers.
