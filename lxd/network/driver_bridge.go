@@ -186,6 +186,9 @@ func (n *bridge) ValidateName(name string) error {
 func (n *bridge) Validate(config map[string]string) error {
 	// Build driver specific rules dynamically.
 	rules := map[string]func(value string) error{
+		"bgp.ipv4.nexthop": validate.Optional(validate.IsNetworkAddressV4),
+		"bgp.ipv6.nexthop": validate.Optional(validate.IsNetworkAddressV6),
+
 		"bridge.driver": validate.Optional(validate.IsOneOf("native", "openvswitch")),
 		"bridge.external_interfaces": validate.Optional(func(value string) error {
 			for _, entry := range strings.Split(value, ",") {
@@ -299,7 +302,18 @@ func (n *bridge) Validate(config map[string]string) error {
 		}
 	}
 
-	err := n.validate(config, rules)
+	// Add the BGP validation rules.
+	bgpRules, err := n.bgpValidationRules(config)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range bgpRules {
+		rules[k] = v
+	}
+
+	// Validate the configuration.
+	err = n.validate(config, rules)
 	if err != nil {
 		return err
 	}
@@ -1635,6 +1649,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Setup BGP.
+	err = n.bgpSetup(oldConfig)
+	if err != nil {
+		return err
+	}
+
 	revert.Success()
 	return nil
 }
@@ -1645,6 +1665,12 @@ func (n *bridge) Stop() error {
 
 	if !n.isRunning() {
 		return nil
+	}
+
+	// Clear BGP.
+	err := n.bgpClear(n.config)
+	if err != nil {
+		return err
 	}
 
 	// Destroy the bridge interface
@@ -1682,7 +1708,7 @@ func (n *bridge) Stop() error {
 	}
 
 	// Kill any existing dnsmasq and forkdns daemon for this network
-	err := dnsmasq.Kill(n.name, false)
+	err = dnsmasq.Kill(n.name, false)
 	if err != nil {
 		return err
 	}

@@ -56,7 +56,18 @@ func (n *physical) Validate(config map[string]string) error {
 		"volatile.last_state.created": validate.Optional(validate.IsBool),
 	}
 
-	err := n.validate(config, rules)
+	// Add the BGP validation rules.
+	bgpRules, err := n.bgpValidationRules(config)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range bgpRules {
+		rules[k] = v
+	}
+
+	// Validate the configuration.
+	err = n.validate(config, rules)
 	if err != nil {
 		return err
 	}
@@ -200,6 +211,12 @@ func (n *physical) setup(oldConfig map[string]string) error {
 		}
 	}
 
+	// Setup BGP.
+	err = n.bgpSetup(oldConfig)
+	if err != nil {
+		return err
+	}
+
 	revert.Success()
 	return nil
 }
@@ -207,6 +224,12 @@ func (n *physical) setup(oldConfig map[string]string) error {
 // Stop stops is a no-op.
 func (n *physical) Stop() error {
 	n.logger.Debug("Stop")
+
+	// Clear BGP.
+	err := n.bgpClear(n.config)
+	if err != nil {
+		return err
+	}
 
 	hostName := GetHostDevice(n.config["parent"], n.config["vlan"])
 
@@ -230,7 +253,7 @@ func (n *physical) Stop() error {
 
 	// Remove last state config.
 	delete(n.config, "volatile.last_state.created")
-	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		return tx.UpdateNetwork(n.id, n.description, n.config)
 	})
 	if err != nil {
