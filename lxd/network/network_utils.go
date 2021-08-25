@@ -1131,3 +1131,33 @@ func ParsePortRange(r string) (int64, int64, error) {
 
 	return base, size, nil
 }
+
+// ParseIPToNet parses a standalone IP address into a net.IPNet (with the IP field set to the IP supplied).
+// The address family is detected and the subnet size set to /32 for IPv4 or /128 for IPv6.
+func ParseIPToNet(ipAddress string) (*net.IPNet, error) {
+	subnetSize := 32
+	if strings.Contains(ipAddress, ":") {
+		subnetSize = 128
+	}
+
+	listenAddress, listenAddressNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", ipAddress, subnetSize))
+	if err != nil {
+		return nil, err
+	}
+
+	listenAddressNet.IP = listenAddress // Add IP back into parsed subnet.
+
+	return listenAddressNet, err
+}
+
+// ParseIPCIDRToNet parses an IP in CIDR format into a net.IPNet (with the IP field set to the IP supplied).
+func ParseIPCIDRToNet(ipAddressCIDR string) (*net.IPNet, error) {
+	listenAddress, listenAddressNet, err := net.ParseCIDR(ipAddressCIDR)
+	if err != nil {
+		return nil, err
+	}
+
+	listenAddressNet.IP = listenAddress // Add IP back into parsed subnet.
+
+	return listenAddressNet, err
+}
