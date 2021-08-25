@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -22,22 +21,16 @@ func (r *ProtocolLXD) GetStoragePoolVolumeNames(pool string) ([]string, error) {
 		return nil, fmt.Errorf("The server is missing the required \"storage\" API extension")
 	}
 
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes", url.PathEscape(pool)), nil, "", &urls)
+	baseURL := fmt.Sprintf("/storage-pools/%s/volumes", url.PathEscape(pool))
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("/storage-pools/%s/volumes/", url.PathEscape(pool)))
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetStoragePoolVolumes returns a list of StorageVolume entries for the provided pool
@@ -134,26 +127,16 @@ func (r *ProtocolLXD) GetStoragePoolVolumeSnapshotNames(pool string, volumeType 
 		return nil, fmt.Errorf("The server is missing the required \"storage_api_volume_snapshots\" API extension")
 	}
 
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Send the request
-	path := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots",
-		url.PathEscape(pool),
-		url.PathEscape(volumeType),
-		url.PathEscape(volumeName))
-	_, err := r.queryStruct("GET", path, nil, "", &urls)
+	baseURL := fmt.Sprintf("/storage-pools/%s/volumes/%s/%s/snapshots", url.PathEscape(pool), url.PathEscape(volumeType), url.PathEscape(volumeName))
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, uri := range urls {
-		fields := strings.Split(uri, path)
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetStoragePoolVolumeSnapshots returns a list of snapshots for the storage
@@ -667,21 +650,16 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupNames(pool string, volName strin
 		return nil, fmt.Errorf("The server is missing the required \"custom_volume_backup\" API extension")
 	}
 
-	// Fetch the raw value
+	// Fetch the raw URL values.
 	urls := []string{}
-	_, err := r.queryStruct("GET", fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups", url.PathEscape(pool), url.PathEscape(volName)), nil, "", &urls)
+	baseURL := fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups", url.PathEscape(pool), url.PathEscape(volName))
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("/storage-pools/%s/volumes/custom/%s/backups", url.PathEscape(pool), url.PathEscape(volName)))
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetStoragePoolVolumeBackups returns a list of custom volume backups.
