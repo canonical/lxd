@@ -3,7 +3,6 @@ package lxd
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -12,22 +11,16 @@ import (
 
 // GetProfileNames returns a list of available profile names
 func (r *ProtocolLXD) GetProfileNames() ([]string, error) {
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/profiles", nil, "", &urls)
+	baseURL := "/profiles"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/profiles/")
-		names = append(names, strings.Split(fields[len(fields)-1], "?")[0])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetProfiles returns a list of available Profile structs
