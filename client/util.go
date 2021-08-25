@@ -187,3 +187,25 @@ func setQueryParam(uri, param, value string) (string, error) {
 
 	return fields.String(), nil
 }
+
+// urlsToResourceNames returns a list of resource names extracted from one or more URLs of the same resource type.
+// The resource type path prefix to match is provided by the matchPathPrefix argument.
+func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, error) {
+	var resourceNames []string
+
+	for _, urlRaw := range urls {
+		u, err := url.Parse(urlRaw)
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing URL %q: %w", urlRaw, err)
+		}
+
+		fields := strings.Split(u.Path, fmt.Sprintf("%s/", matchPathPrefix))
+		if len(fields) != 2 {
+			return nil, fmt.Errorf("Unexpected URL path %q", u)
+		}
+
+		resourceNames = append(resourceNames, fields[len(fields)-1])
+	}
+
+	return resourceNames, nil
+}
