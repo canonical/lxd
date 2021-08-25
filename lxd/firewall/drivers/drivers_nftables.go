@@ -439,8 +439,10 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	listenAddressStr := forward.ListenAddress.String()
 	targetAddressStr := forward.TargetAddress.String()
 
-	// Generate a slice of rules to add.
-	var rules []map[string]interface{}
+	// Generate slices of rules to add.
+	var dnatRules []map[string]interface{}
+	var snatRules []map[string]interface{}
+
 	for i := range forward.ListenPorts {
 		// Use the target port that corresponds to the listen port (unless only 1 is specified, in which
 		// case use the same target port for all listen ports).
@@ -457,8 +459,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 			targetDest = fmt.Sprintf("[%s]:%d", targetAddressStr, targetPort)
 		}
 
-		rules = append(rules, map[string]interface{}{
-			"family":        "inet",
+		dnatRules = append(dnatRules, map[string]interface{}{
 			"ipFamily":      ipFamily,
 			"protocol":      forward.Protocol,
 			"listenAddress": listenAddressStr,
@@ -466,17 +467,27 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 			"targetDest":    targetDest,
 			"targetHost":    targetAddressStr,
 			"targetPort":    targetPort,
-			"addHairpinNat": targetIndex == i, // Only add >1 hairpin NAT rules if connect range used.
 		})
+
+		// Only add >1 hairpin NAT rules if connect range used.
+		if targetIndex == i {
+			snatRules = append(snatRules, map[string]interface{}{
+				"ipFamily":   ipFamily,
+				"protocol":   forward.Protocol,
+				"targetHost": targetAddressStr,
+				"targetPort": targetPort,
+			})
+		}
 	}
 
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 	tplFields := map[string]interface{}{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
-		"family":         rules[0]["family"], // Family should be same for all rules, so use 1st as global.
+		"family":         "inet",
 		"deviceLabel":    deviceLabel,
-		"rules":          rules,
+		"dnatRules":      dnatRules,
+		"snatRules":      snatRules,
 	}
 
 	err := d.applyNftConfig(nftablesNetProxyNAT, tplFields)
