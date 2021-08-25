@@ -44,3 +44,12 @@ type ACLRule struct {
 	ICMPType        string
 	ICMPCode        string
 }
+
+// AddressForward represents a NAT address forward.
+type AddressForward struct {
+	ListenAddress net.IP
+	TargetAddress net.IP
+	Protocol      string
+	ListenPorts   []uint64
+	TargetPorts   []uint64
+}
