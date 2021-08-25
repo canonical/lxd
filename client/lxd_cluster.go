@@ -2,7 +2,6 @@ package lxd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -70,20 +69,16 @@ func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 		return nil, fmt.Errorf("The server is missing the required \"clustering\" API extension")
 	}
 
+	// Fetch the raw URL values.
 	urls := []string{}
-	_, err := r.queryStruct("GET", "/cluster/members", nil, "", &urls)
+	baseURL := "/cluster/members"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/cluster/members/")
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetClusterMembers returns the current members of the cluster

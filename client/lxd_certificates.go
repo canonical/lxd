@@ -3,7 +3,6 @@ package lxd
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -12,22 +11,16 @@ import (
 
 // GetCertificateFingerprints returns a list of certificate fingerprints
 func (r *ProtocolLXD) GetCertificateFingerprints() ([]string, error) {
-	certificates := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", "/certificates", nil, "", &certificates)
+	// Fetch the raw URL values.
+	urls := []string{}
+	baseURL := "/certificates"
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	fingerprints := []string{}
-	for _, fingerprint := range certificates {
-		fields := strings.Split(fingerprint, "/certificates/")
-		fingerprints = append(fingerprints, fields[len(fields)-1])
-	}
-
-	return fingerprints, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetCertificates returns a list of certificates

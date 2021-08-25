@@ -21,22 +21,16 @@ import (
 
 // GetContainerNames returns a list of container names
 func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
+	baseURL := "/containers"
 	_, err := r.queryStruct("GET", "/containers", nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, url := range urls {
-		fields := strings.Split(url, "/containers/")
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetContainers returns a list of containers
@@ -911,22 +905,16 @@ func (r *ProtocolLXD) DeleteContainerFile(containerName string, path string) err
 
 // GetContainerSnapshotNames returns a list of snapshot names for the container
 func (r *ProtocolLXD) GetContainerSnapshotNames(containerName string) ([]string, error) {
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/snapshots", url.PathEscape(containerName)), nil, "", &urls)
+	baseURL := fmt.Sprintf("/containers/%s/snapshots", url.PathEscape(containerName))
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("/containers/%s/snapshots/", url.PathEscape(containerName)))
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetContainerSnapshots returns a list of snapshots for the container
@@ -1321,22 +1309,16 @@ func (r *ProtocolLXD) UpdateContainerState(name string, state api.ContainerState
 
 // GetContainerLogfiles returns a list of logfiles for the container
 func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
+	// Fetch the raw URL values.
 	urls := []string{}
-
-	// Fetch the raw value
-	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/logs", url.PathEscape(name)), nil, "", &urls)
+	baseURL := fmt.Sprintf("/containers/%s/logs", url.PathEscape(name))
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	logfiles := make([]string, 0, len(urls))
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("/containers/%s/logs/", url.PathEscape(name)))
-		logfiles = append(logfiles, fields[len(fields)-1])
-	}
-
-	return logfiles, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetContainerLogfile returns the content of the requested logfile
@@ -1642,23 +1624,16 @@ func (r *ProtocolLXD) GetContainerBackupNames(containerName string) ([]string, e
 		return nil, fmt.Errorf("The server is missing the required \"container_backup\" API extension")
 	}
 
-	// Fetch the raw value
+	// Fetch the raw URL values.
 	urls := []string{}
-	_, err := r.queryStruct("GET", fmt.Sprintf("/containers/%s/backups",
-		url.PathEscape(containerName)), nil, "", &urls)
+	baseURL := fmt.Sprintf("/containers/%s/backups", url.PathEscape(containerName))
+	_, err := r.queryStruct("GET", baseURL, nil, "", &urls)
 	if err != nil {
 		return nil, err
 	}
 
-	// Parse it
-	names := []string{}
-	for _, uri := range urls {
-		fields := strings.Split(uri, fmt.Sprintf("/containers/%s/backups/",
-			url.PathEscape(containerName)))
-		names = append(names, fields[len(fields)-1])
-	}
-
-	return names, nil
+	// Parse it.
+	return urlsToResourceNames(baseURL, urls...)
 }
 
 // GetContainerBackups returns a list of backups for the container
