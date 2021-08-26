@@ -9,7 +9,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	pkg, err := lex.Parse("github.com/lxc/lxd/lxd/db/generate/lex")
+	pkg, err := lex.Parse("./lxd/db/generate/lex")
 	require.NoError(t, err)
 
 	obj := pkg.Scope.Lookup("Parse")
