@@ -5,18 +5,17 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/lxc/lxd/shared"
 )
 
-// Parse runs the Go parser against the given package name.
-func Parse(name string) (*ast.Package, error) {
-	base := os.Getenv("GOPATH")
-	if base == "" {
-		base = "~/go"
+// Parse runs the Go parser against the given package directory.
+func Parse(dir string) (*ast.Package, error) {
+	if !shared.IsDir(dir) {
+		return nil, fmt.Errorf("Package directory does not exist %q", dir)
 	}
-	dir := filepath.Join(base, "src", name)
 
 	fset := token.NewFileSet()
 
