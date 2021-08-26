@@ -7,7 +7,7 @@ VERSION=$(shell grep "var Version" shared/version/flex.go | cut -d'"' -f2)
 ARCHIVE=lxd-$(VERSION).tar
 HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
-GOPATH ?= $(HOME)/go
+GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
 
 ifneq "$(wildcard vendor)" ""
@@ -98,8 +98,7 @@ update-protobuf:
 
 .PHONY: update-schema
 update-schema:
-	cd lxd/db/generate && go build -o lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
-	mv lxd/db/generate/lxd-generate $(GOPATH)/bin
+	cd lxd/db/generate && go build -o $(GOPATH)/bin/lxd-generate -tags "$(TAG_SQLITE3)" $(DEBUG) && cd -
 	go generate ./...
 	gofmt -s -w ./lxd/db/
 	goimports -w ./lxd/db/
