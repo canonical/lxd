@@ -455,7 +455,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		return err
 	}
 
-	const layout = "2006/01/02 15:04 UTC"
+	const layout = "2006/01/02 15:04 MST"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
 	if ct.Location != "" {
@@ -467,7 +467,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 
 	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
 	if shared.TimeIsSet(ct.CreatedAt) {
-		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.UTC().Format(layout))
+		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.Local().Format(layout))
 	}
 
 	fmt.Printf(i18n.G("Status: %s")+"\n", ct.Status)
@@ -593,11 +593,11 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		fmt.Printf("  %s", fields[len(fields)-1])
 
 		if shared.TimeIsSet(snap.CreatedAt) {
-			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreatedAt.UTC().Format(layout))
+			fmt.Printf(" ("+i18n.G("taken at %s")+")", snap.CreatedAt.Local().Format(layout))
 		}
 
 		if shared.TimeIsSet(snap.ExpiresAt) {
-			fmt.Printf(" ("+i18n.G("expires at %s")+")", snap.ExpiresAt.UTC().Format(layout))
+			fmt.Printf(" ("+i18n.G("expires at %s")+")", snap.ExpiresAt.Local().Format(layout))
 		}
 
 		if snap.Stateful {
