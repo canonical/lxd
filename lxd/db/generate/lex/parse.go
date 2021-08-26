@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // Parse runs the Go parser against the given package name.
@@ -24,7 +22,7 @@ func Parse(name string) (*ast.Package, error) {
 
 	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
-		return nil, errors.Wrap(err, "Search source file")
+		return nil, fmt.Errorf("Search source file: %w", err)
 	}
 
 	files := map[string]*ast.File{}
