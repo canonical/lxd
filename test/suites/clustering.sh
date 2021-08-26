@@ -2559,27 +2559,27 @@ test_clustering_edit_configuration() {
 
   config=$(mktemp -p "${TEST_DIR}" XXX)
   # Update the cluster configuration with new port numbers
-  EDITOR="cat" LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit > "${config}"
+  LXD_DIR="${LXD_ONE_DIR}" lxd cluster show > "${config}"
   sed -e "s/:8443/:9393/" -i "${config}"
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster edit < "${config}"
 
-  EDITOR="cat" LXD_DIR="${LXD_TWO_DIR}" lxd cluster edit > "${config}"
+  LXD_DIR="${LXD_TWO_DIR}" lxd cluster show > "${config}"
   sed -e "s/:8443/:9393/" -i "${config}"
   LXD_DIR="${LXD_TWO_DIR}" lxd cluster edit < "${config}"
 
-  EDITOR="cat" LXD_DIR="${LXD_THREE_DIR}" lxd cluster edit > "${config}"
+  LXD_DIR="${LXD_THREE_DIR}" lxd cluster show > "${config}"
   sed -e "s/:8443/:9393/" -i "${config}"
   LXD_DIR="${LXD_THREE_DIR}" lxd cluster edit < "${config}"
 
-  EDITOR="cat" LXD_DIR="${LXD_FOUR_DIR}" lxd cluster edit > "${config}"
+  LXD_DIR="${LXD_FOUR_DIR}" lxd cluster show > "${config}"
   sed -e "s/:8443/:9393/" -i "${config}"
   LXD_DIR="${LXD_FOUR_DIR}" lxd cluster edit < "${config}"
 
-  EDITOR="cat" LXD_DIR="${LXD_FIVE_DIR}" lxd cluster edit > "${config}"
+  LXD_DIR="${LXD_FIVE_DIR}" lxd cluster show > "${config}"
   sed -e "s/:8443/:9393/" -i "${config}"
   LXD_DIR="${LXD_FIVE_DIR}" lxd cluster edit < "${config}"
 
-  EDITOR="cat" LXD_DIR="${LXD_SIX_DIR}" lxd cluster edit > "${config}"
+  LXD_DIR="${LXD_SIX_DIR}" lxd cluster show > "${config}"
   sed -e "s/:8443/:9393/" -i "${config}"
   LXD_DIR="${LXD_SIX_DIR}" lxd cluster edit < "${config}"
 
