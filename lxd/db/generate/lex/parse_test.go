@@ -1,6 +1,8 @@
 package lex_test
 
 import (
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db/generate/lex"
@@ -9,7 +11,8 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	pkg, err := lex.Parse("./lxd/db/generate/lex")
+	_, filename, _, _ := runtime.Caller(0)
+	pkg, err := lex.Parse(filepath.Dir(filename))
 	require.NoError(t, err)
 
 	obj := pkg.Scope.Lookup("Parse")
