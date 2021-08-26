@@ -455,7 +455,7 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		return err
 	}
 
-	const layout = "2006/01/02 15:04 UTC"
+	const layout = "2006/01/02 15:04 MST"
 
 	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
 
@@ -482,11 +482,11 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 	}
 
 	if shared.TimeIsSet(ct.CreatedAt) {
-		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.UTC().Format(layout))
+		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.Local().Format(layout))
 	}
 
 	if shared.TimeIsSet(ct.LastUsedAt) {
-		fmt.Printf(i18n.G("Last Used: %s")+"\n", ct.LastUsedAt.UTC().Format(layout))
+		fmt.Printf(i18n.G("Last Used: %s")+"\n", ct.LastUsedAt.Local().Format(layout))
 	}
 
 	if cs.Pid != 0 {
@@ -603,13 +603,13 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			row = append(row, fields[len(fields)-1])
 
 			if shared.TimeIsSet(snap.CreatedAt) {
-				row = append(row, snap.CreatedAt.UTC().Format(layout))
+				row = append(row, snap.CreatedAt.Local().Format(layout))
 			} else {
 				row = append(row, " ")
 			}
 
 			if shared.TimeIsSet(snap.ExpiresAt) {
-				row = append(row, snap.ExpiresAt.UTC().Format(layout))
+				row = append(row, snap.ExpiresAt.Local().Format(layout))
 			} else {
 				row = append(row, " ")
 			}
@@ -654,13 +654,13 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			row = append(row, backup.Name)
 
 			if shared.TimeIsSet(backup.CreatedAt) {
-				row = append(row, backup.CreatedAt.UTC().Format(layout))
+				row = append(row, backup.CreatedAt.Local().Format(layout))
 			} else {
 				row = append(row, " ")
 			}
 
 			if shared.TimeIsSet(backup.ExpiresAt) {
-				row = append(row, backup.ExpiresAt.UTC().Format(layout))
+				row = append(row, backup.ExpiresAt.Local().Format(layout))
 			} else {
 				row = append(row, " ")
 			}
