@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"go/ast"
 	"net/url"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -19,8 +21,10 @@ import (
 func Packages() (map[string]*ast.Package, error) {
 	packages := map[string]*ast.Package{}
 
+	_, filename, _, _ := runtime.Caller(0)
+
 	for _, name := range defaultPackages {
-		pkg, err := lex.Parse(name)
+		pkg, err := lex.Parse(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", name))
 		if err != nil {
 			return nil, errors.Wrapf(err, "Parse %q", name)
 		}
@@ -32,8 +36,8 @@ func Packages() (map[string]*ast.Package, error) {
 }
 
 var defaultPackages = []string{
-	"github.com/lxc/lxd/shared/api",
-	"github.com/lxc/lxd/lxd/db",
+	"shared/api",
+	"lxd/db",
 }
 
 // FiltersFromStmt parses all filtering statement defined for the given entity. It
