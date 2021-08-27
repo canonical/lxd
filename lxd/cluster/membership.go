@@ -140,7 +140,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		return errors.Wrap(err, "Failed to re-initialize gRPC SQL gateway")
 	}
 
-	err = gateway.waitLeadership()
+	err = gateway.WaitLeadership()
 	if err != nil {
 		return err
 	}

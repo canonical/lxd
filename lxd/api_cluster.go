@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	dqlitedriver "github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
@@ -739,31 +738,20 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 		return response.SmartError(err)
 	}
 
-	// Re-open the cluster database
-	address, err := node.HTTPSAddress(d.db)
-	if err != nil {
-		return response.SmartError(err)
-	}
-	store := d.gateway.NodeStore()
-	d.cluster, err = db.OpenCluster(
-		"db.bin", store, address, "/unused/db/dir",
-		d.config.DqliteSetupTimeout,
-		nil,
-		dqlitedriver.WithDialFunc(d.gateway.DialFunc()),
-		dqlitedriver.WithContext(d.gateway.Context()),
-	)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Stop the clustering tasks
-	d.stopClusterTasks()
-
-	// Remove the cluster flag from the agent
-	version.UserAgentFeatures(nil)
-
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterDisabled.Event(req.ServerName, requestor, nil))
+
+	// Restart the daemon with clustering disabled.
+	go func() {
+		// Sleep just enough to return a response first.
+		time.Sleep(3 * time.Second)
+
+		logger.Info("Restarting LXD following removal from cluster")
+		err := util.ReplaceDaemon()
+		if err != nil {
+			logger.Warnf("Failed to restart LXD with error: %v", err)
+		}
+	}()
 
 	return response.EmptySyncResponse
 }
@@ -1525,10 +1513,49 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
+
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	var leaderInfo db.NodeInfo
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		leaderInfo, err = tx.GetNodeByAddress(leader)
+		return err
+	})
+	if err != nil {
+		return response.SmartError(errors.Wrap(err, "Unable to inspect leader"))
+	}
+
+	// Get information about the cluster.
+	var nodes []db.RaftNode
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		nodes, err = tx.GetRaftNodes()
+		return err
+	})
+	if err != nil {
+		return response.SmartError(errors.Wrap(err, "Unable to get raft nodes"))
+	}
+
+	// If we are removing the leader of a 2 node cluster, ensure the other node can be a leader.
+	if name == leaderInfo.Name && len(nodes) == 2 {
+		for i := range nodes {
+			if nodes[i].Address != leader && nodes[i].Role == db.RaftStandBy {
+				// Promote the remaining node.
+				nodes[i].Role = db.RaftVoter
+				err := changeMemberRole(d, r, nodes[i].Address, nodes)
+				if err != nil {
+					return response.SmartError(errors.Wrap(err, "Unable to promote remaining cluster member to leader"))
+				}
+
+				break
+			}
+		}
+	}
+
 	if localAddress != leader {
 		logger.Debugf("Redirect member delete request to %s", leader)
 		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), r, false)
@@ -1538,6 +1565,17 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		err = client.DeleteClusterMember(name, force == 1)
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		// If we are the only remaining node, wait until promotion to leader,
+		// then update cluster certs.
+		if name == leaderInfo.Name && len(nodes) == 2 {
+			err = d.gateway.WaitLeadership()
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			updateCertificateCache(d)
 		}
 
 		return response.EmptySyncResponse
@@ -1615,17 +1653,15 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrap(err, "Failed to remove member from database"))
 	}
 
-	// Refresh the trusted certificate cache now that the member certificate has been removed.
-	// We do not need to notify the other members here because the next heartbeat will trigger member change
-	// detection and updateCertificateCache is called as part of that.
-	updateCertificateCache(d)
-
 	err = rebalanceMemberRoles(d, r)
 	if err != nil {
 		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
 
-	if force != 1 {
+	// If this leader node removed itself, just disable clustering.
+	if address == localAddress {
+		return clusterPutDisable(d, r, api.ClusterPut{})
+	} else if force != 1 {
 		// Try to gracefully reset the database on the node.
 		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
@@ -1639,6 +1675,11 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(errors.Wrap(err, "Failed to cleanup the member"))
 		}
 	}
+
+	// Refresh the trusted certificate cache now that the member certificate has been removed.
+	// We do not need to notify the other members here because the next heartbeat will trigger member change
+	// detection and updateCertificateCache is called as part of that.
+	updateCertificateCache(d)
 
 	// Ensure all images are available after this node has been deleted.
 	err = autoSyncImages(d.ctx, d)
