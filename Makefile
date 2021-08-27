@@ -107,7 +107,7 @@ update-schema:
 .PHONY: update-api
 update-api:
 ifeq "$(LXD_OFFLINE)" ""
-	(cd / ; go get -v -x github.com/go-swagger/go-swagger/cmd/swagger)
+	(cd / ; GO111MODULE=on go get -v -x github.com/go-swagger/go-swagger/cmd/swagger)
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
 
