@@ -6,8 +6,8 @@ import (
 )
 
 // StatusErrorf returns a new StatusError containing the specified status and message.
-func StatusErrorf(status int, format string, a ...interface{}) *StatusError {
-	return &StatusError{
+func StatusErrorf(status int, format string, a ...interface{}) StatusError {
+	return StatusError{
 		status: status,
 		msg:    fmt.Sprintf(format, a...),
 	}
@@ -20,7 +20,7 @@ type StatusError struct {
 }
 
 // Error returns the error message or the http.StatusText() of the status code if message is empty.
-func (e *StatusError) Error() string {
+func (e StatusError) Error() string {
 	if e.msg != "" {
 		return e.msg
 	}
@@ -29,6 +29,6 @@ func (e *StatusError) Error() string {
 }
 
 // Status returns the HTTP status code.
-func (e *StatusError) Status() int {
+func (e StatusError) Status() int {
 	return e.status
 }
