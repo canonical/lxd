@@ -25,10 +25,8 @@ func SmartError(err error) Response {
 		return EmptySyncResponse
 	}
 
-	var statusErr *api.StatusError
-
-	if errors.As(err, &statusErr) {
-		return &errorResponse{statusErr.Status(), err.Error()}
+	if statusCode, found := api.StatusErrorMatch(err); found {
+		return &errorResponse{statusCode, err.Error()}
 	}
 
 	for httpStatusCode, checkErrs := range httpResponseErrors {
