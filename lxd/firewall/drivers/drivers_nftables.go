@@ -413,11 +413,11 @@ func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName str
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
-		return fmt.Errorf("At least 1 listen address must be supplied")
+		return fmt.Errorf("Listen address is required")
 	}
 
 	if forward.TargetAddress == nil {
-		return fmt.Errorf("At least 1 target address must be supplied")
+		return fmt.Errorf("Target address is required")
 	}
 
 	listenPortsLen := len(forward.ListenPorts)
@@ -425,7 +425,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 		return fmt.Errorf("At least 1 listen port must be supplied")
 	}
 
-	// Check target port is singular, or if multiple ports supplied, they match the listen port(s) count.
+	// If multiple target ports supplied, check they match the listen port(s) count.
 	targetPortsLen := len(forward.TargetPorts)
 	if targetPortsLen != 1 && targetPortsLen != listenPortsLen {
 		return fmt.Errorf("Mismatch between listen port(s) and target port(s) count")
@@ -469,7 +469,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 			"targetPort":    targetPort,
 		})
 
-		// Only add >1 hairpin NAT rules if connect range used.
+		// Only add >1 hairpin NAT rules if target range used.
 		if targetIndex == i {
 			snatRules = append(snatRules, map[string]interface{}{
 				"ipFamily":   ipFamily,
@@ -484,15 +484,22 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	tplFields := map[string]interface{}{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
+		"chainPrefix":    "", // Empty prefix for backwards compatibility with existing device chains.
 		"family":         "inet",
-		"deviceLabel":    deviceLabel,
+		"label":          deviceLabel,
 		"dnatRules":      dnatRules,
 		"snatRules":      snatRules,
 	}
 
-	err := d.applyNftConfig(nftablesNetProxyNAT, tplFields)
+	config := &strings.Builder{}
+	err := nftablesNetProxyNAT.Execute(config, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding proxy rules for instance device %q", deviceLabel)
+		return errors.Wrapf(err, "Failed running %q template", nftablesNetProxyNAT.Name())
+	}
+
+	_, err = shared.RunCommand("nft", config.String())
+	if err != nil {
+		return err
 	}
 
 	return nil
