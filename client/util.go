@@ -191,7 +191,7 @@ func setQueryParam(uri, param, value string) (string, error) {
 // urlsToResourceNames returns a list of resource names extracted from one or more URLs of the same resource type.
 // The resource type path prefix to match is provided by the matchPathPrefix argument.
 func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, error) {
-	var resourceNames []string
+	resourceNames := make([]string, 0, len(urls))
 
 	for _, urlRaw := range urls {
 		u, err := url.Parse(urlRaw)
