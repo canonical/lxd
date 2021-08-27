@@ -77,25 +77,35 @@ chain out{{.chainSeparator}}{{.networkName}} {
 `))
 
 var nftablesNetProxyNAT = template.Must(template.New("nftablesNetProxyNAT").Parse(`
-chain prert{{.chainSeparator}}{{.deviceLabel}} {
-	type nat hook prerouting priority -100; policy accept;
-	{{- range .dnatRules}}
-	{{.ipFamily}} daddr {{.listenAddress}} {{.protocol}} dport {{.listenPort}} dnat to {{.targetDest}}
-	{{- end}}
-}
+add table {{.family}} {{.namespace}}
+add chain {{.family}} {{.namespace}} {{.chainPrefix}}prert{{.chainSeparator}}{{.label}} {type nat hook prerouting priority -100; policy accept;}
+add chain {{.family}} {{.namespace}} {{.chainPrefix}}out{{.chainSeparator}}{{.label}} {type nat hook output priority -100; policy accept;}
+add chain {{.family}} {{.namespace}} {{.chainPrefix}}pstrt{{.chainSeparator}}{{.label}} {type nat hook postrouting priority 100; policy accept;}
+flush chain {{.family}} {{.namespace}} {{.chainPrefix}}prert{{.chainSeparator}}{{.label}}
+flush chain {{.family}} {{.namespace}} {{.chainPrefix}}out{{.chainSeparator}}{{.label}}
+flush chain {{.family}} {{.namespace}} {{.chainPrefix}}pstrt{{.chainSeparator}}{{.label}}
 
-chain out{{.chainSeparator}}{{.deviceLabel}} {
-	type nat hook output priority -100; policy accept;
-	{{- range .dnatRules}}
-	{{.ipFamily}} daddr {{.listenAddress}} {{.protocol}} dport {{.listenPort}} dnat to {{.targetDest}}
-	{{- end}}
-}
+table {{.family}} {{.namespace}} {
+	chain {{.chainPrefix}}prert{{.chainSeparator}}{{.label}} {
+		type nat hook prerouting priority -100; policy accept;
+		{{- range .dnatRules}}
+		{{.ipFamily}} daddr {{.listenAddress}} {{if .protocol}}{{.protocol}} dport {{.listenPort}}{{end}} dnat to {{.targetDest}}
+		{{- end}}
+	}
 
-chain pstrt{{.chainSeparator}}{{.deviceLabel}} {
-	type nat hook postrouting priority 100; policy accept;
-	{{- range .snatRules}}
-	{{.ipFamily}} saddr {{.targetHost}} {{.ipFamily}} daddr {{.targetHost}} {{.protocol}} dport {{.targetPort}} masquerade
-	{{- end}}
+	chain {{.chainPrefix}}out{{.chainSeparator}}{{.label}} {
+		type nat hook output priority -100; policy accept;
+		{{- range .dnatRules}}
+		{{.ipFamily}} daddr {{.listenAddress}} {{if .protocol}}{{.protocol}} dport {{.listenPort}}{{end}} dnat to {{.targetDest}}
+		{{- end}}
+	}
+
+	chain {{.chainPrefix}}pstrt{{.chainSeparator}}{{.label}} {
+		type nat hook postrouting priority 100; policy accept;
+		{{- range .snatRules}}
+		{{.ipFamily}} saddr {{.targetHost}} {{.ipFamily}} daddr {{.targetHost}} {{if .protocol}}{{.protocol}} dport {{.targetPort}}{{end}} masquerade
+		{{- end}}
+	}
 }
 `))
 
