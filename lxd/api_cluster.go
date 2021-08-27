@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
-	dqlitedriver "github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
@@ -707,31 +707,20 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 		return response.SmartError(err)
 	}
 
-	// Re-open the cluster database
-	address, err := node.HTTPSAddress(d.db)
-	if err != nil {
-		return response.SmartError(err)
-	}
-	store := d.gateway.NodeStore()
-	d.cluster, err = db.OpenCluster(
-		"db.bin", store, address, "/unused/db/dir",
-		d.config.DqliteSetupTimeout,
-		nil,
-		dqlitedriver.WithDialFunc(d.gateway.DialFunc()),
-		dqlitedriver.WithContext(d.gateway.Context()),
-	)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Stop the clustering tasks
-	d.stopClusterTasks()
-
-	// Remove the cluster flag from the agent
-	version.UserAgentFeatures(nil)
-
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterDisabled.Event(req.ServerName, requestor, nil))
+
+	// Restart the daemon with clustering disabled.
+	go func() {
+		// Sleep just enough to return a response first.
+		time.Sleep(3 * time.Second)
+
+		logger.Info("Restarting LXD following removal from cluster")
+		err := util.ReplaceDaemon()
+		if err != nil {
+			logger.Warnf("Failed to restart LXD with error: %v", err)
+		}
+	}()
 
 	return response.EmptySyncResponse
 }
