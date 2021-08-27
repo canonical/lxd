@@ -326,6 +326,10 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 		address := config.HTTPSAddress()
 
+		if util.IsWildCardAddress(address) {
+			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", address)
+		}
+
 		_, err = config.Patch(map[string]interface{}{
 			"cluster.https_address": address,
 		})
