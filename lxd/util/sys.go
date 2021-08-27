@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	log "github.com/lxc/lxd/shared/log15"
+	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared/idmap"
@@ -172,4 +173,14 @@ func GetExecPath() string {
 	// The execPath from /proc/self/exe can end with " (deleted)" if the lxd binary has been removed/changed
 	// since the lxd process was started, strip this so that we only return a valid path.
 	return strings.TrimSuffix(execPath, " (deleted)")
+}
+
+// ReplaceDaemon replaces the LXD process.
+func ReplaceDaemon() error {
+	err := unix.Exec(GetExecPath(), os.Args, os.Environ())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
