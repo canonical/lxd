@@ -2857,13 +2857,15 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
-	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{})
-	if err != nil {
-		return err
-	}
+	if !args.Refresh || !b.driver.HasVolume(vol) {
+		// Create database entry for new storage volume.
+		err = VolumeDBCreate(b.state, b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{})
+		if err != nil {
+			return err
+		}
 
-	revertDBVolumes = append(revertDBVolumes, args.Name)
+		revertDBVolumes = append(revertDBVolumes, args.Name)
+	}
 
 	if len(args.Snapshots) > 0 {
 		for _, snapName := range args.Snapshots {
