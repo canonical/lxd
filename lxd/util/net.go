@@ -231,6 +231,22 @@ func IsAddressCovered(address1, address2 string) bool {
 	return false
 }
 
+// IsWildCardAddress returns whether the given address is a wildcard.
+func IsWildCardAddress(address string) bool {
+	address = CanonicalNetworkAddress(address)
+
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return false
+	}
+
+	if host == "0.0.0.0" || host == "::" || host == "" {
+		return true
+	}
+
+	return false
+}
+
 // SysctlGet retrieves the value of a sysctl file in /proc/sys.
 func SysctlGet(path string) (string, error) {
 	// Read the current content
