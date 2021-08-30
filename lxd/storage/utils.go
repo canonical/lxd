@@ -197,7 +197,7 @@ func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName st
 	// Check that a storage volume of the same storage volume type does not already exist.
 	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(projectName, volumeName, volDBType, pool.ID())
 	if volumeID > 0 {
-		return fmt.Errorf("A storage volume of type %q already exists", volumeType)
+		return fmt.Errorf("A storage volume %q of type %q already exists", fmt.Sprintf("%s_%s", projectName, volumeName), volumeType)
 	}
 
 	// Make sure that we don't pass a nil to the next function.
