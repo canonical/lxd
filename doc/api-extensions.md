@@ -1435,3 +1435,7 @@ And the following NIC-specific configuration keys (`bridged` nictype):
 
  - `ipv4.routes.external`
  - `ipv6.routes.external`
+
+## network\_forward
+This introduces the networking address forward functionality. Allowing for `bridge` and `ovn` networks to define
+external IP addresses that can be forwarded to internal IP(s) inside their respective networks.

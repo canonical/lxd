@@ -226,6 +226,14 @@ type InstanceServer interface {
 	RenameNetwork(name string, network api.NetworkPost) (err error)
 	DeleteNetwork(name string) (err error)
 
+	// Network forward functions ("network_forward" API extension)
+	GetNetworkForwardAddresses(networkName string) ([]string, error)
+	GetNetworkForwards(networkName string) ([]api.NetworkForward, error)
+	GetNetworkForward(networkName string, listenAddress string) (acl *api.NetworkForward, ETag string, err error)
+	CreateNetworkForward(networkName string, forward api.NetworkForwardsPost) error
+	UpdateNetworkForward(networkName string, listenAddress string, forward api.NetworkForwardPut, ETag string) (err error)
+	DeleteNetworkForward(networkName string, listenAddress string) (err error)
+
 	// Network ACL functions ("network_acl" API extension)
 	GetNetworkACLNames() (names []string, err error)
 	GetNetworkACLs() (acls []api.NetworkACL, err error)

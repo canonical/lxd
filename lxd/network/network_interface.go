@@ -52,4 +52,9 @@ type Network interface {
 	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error
 	Delete(clientType request.ClientType) error
 	handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error
+
+	// Address Forwards.
+	ForwardCreate(forward api.NetworkForwardsPost) error
+	ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut) error
+	ForwardDelete(listenAddress string) error
 }
