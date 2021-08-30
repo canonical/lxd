@@ -88,6 +88,38 @@ var updates = map[int]schema.Update{
 	47: updateFromV46,
 	48: updateFromV47,
 	49: updateFromV48,
+	50: updateFromV49,
+}
+
+// updateFromV49 creates the networks_forwards and networks_forwards_config tables.
+func updateFromV49(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "networks_forwards" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+	node_id INTEGER,
+	listen_address TEXT NOT NULL,
+	description TEXT NOT NULL,
+	ports TEXT NOT NULL,
+	UNIQUE (network_id, node_id, listen_address),
+	FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
+	FOREIGN KEY (node_id) REFERENCES "nodes" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "networks_forwards_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_forward_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_forward_id, key),
+	FOREIGN KEY (network_forward_id) REFERENCES "networks_forwards" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return errors.Wrap(err, `Failed creating network forwards tables`)
+	}
+
+	return nil
 }
 
 // updateFromV48 renames the "pending" column to "state" in the "nodes" table.

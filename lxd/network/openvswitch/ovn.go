@@ -45,6 +45,9 @@ type OVNPortGroup string
 // OVNPortGroupUUID OVN port group UUID.
 type OVNPortGroupUUID string
 
+// OVNLoadBalancer OVN load balancer name.
+type OVNLoadBalancer string
+
 // OVNIPAllocationOpts defines IP allocation settings that can be applied to a logical switch.
 type OVNIPAllocationOpts struct {
 	PrefixIPv4  *net.IPNet
@@ -124,6 +127,15 @@ type OVNACLRule struct {
 	Priority  int    // Priority (between 0 and 32767, inclusive). Higher values take precedence.
 	Log       bool   // Whether or not to log matched packets.
 	LogName   string // Log label name (requires Log be true).
+}
+
+// OVNLoadBalancerVIP represents a OVN load balancer Virtual IP entry.
+type OVNLoadBalancerVIP struct {
+	Protocol      string // Either "tcp" or "udp". But only applies to port based VIPs.
+	ListenAddress net.IP
+	ListenPort    uint64
+	TargetAddress net.IP
+	TargetPort    uint64
 }
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
@@ -1518,6 +1530,120 @@ func (o *OVN) PortGroupPortClearACLRules(portGroupName OVNPortGroup, portName OV
 
 	if len(args) > 0 {
 		_, err = o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LoadBalancerApply creates a new load balancer (if doesn't exist) on the specified routers and switches.
+// Providing an empty set of vips will delete the load balancer.
+func (o *OVN) LoadBalancerApply(loadBalancerName OVNLoadBalancer, routers []OVNRouter, switches []OVNSwitch, vips ...OVNLoadBalancerVIP) error {
+	lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
+	lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
+
+	// Remove existing load balancers if they exist.
+	args := []string{"--if-exists", "lb-del", lbTCPName, "--", "lb-del", lbUDPName}
+
+	// ipToString wraps IPv6 addresses in square brackets.
+	ipToString := func(ip net.IP) string {
+		if ip.To4() == nil {
+			return fmt.Sprintf("[%s]", ip.String())
+		}
+
+		return ip.String()
+	}
+
+	// We have to use a separate load balancer for UDP rules so use this to keep track of whether we need it.
+	lbNames := make(map[string]struct{})
+
+	// Build up the commands to add VIPs to the load balancer.
+	for _, r := range vips {
+		if r.ListenAddress == nil {
+			return fmt.Errorf("Missing VIP listen address")
+		}
+
+		if r.TargetAddress == nil {
+			return fmt.Errorf("Missing VIP target address")
+		}
+
+		if (r.ListenPort > 0 && r.TargetPort <= 0) || (r.TargetPort > 0 && r.ListenPort <= 0) {
+			return fmt.Errorf("The listen and target ports must be specified together")
+		}
+
+		if r.Protocol == "udp" {
+			args = append(args, "--", "lb-add", lbUDPName)
+			lbNames[lbUDPName] = struct{}{} // Record that UDP load balancer is created.
+		} else {
+			args = append(args, "--", "lb-add", lbTCPName)
+			lbNames[lbTCPName] = struct{}{} // Record that TCP load balancer is created.
+		}
+
+		if r.ListenPort > 0 {
+			args = append(args,
+				fmt.Sprintf("%s:%d", ipToString(r.ListenAddress), r.ListenPort),
+				fmt.Sprintf("%s:%d", ipToString(r.TargetAddress), r.TargetPort),
+				r.Protocol,
+			)
+		} else {
+			args = append(args,
+				fmt.Sprintf("%s", ipToString(r.ListenAddress)),
+				fmt.Sprintf("%s", ipToString(r.TargetAddress)),
+			)
+		}
+	}
+
+	// If there are some VIP rules then associate the load balancer to the requested routers and switches.
+	if len(vips) > 0 {
+		for _, r := range routers {
+			if _, found := lbNames[lbTCPName]; found {
+				args = append(args, "--", "lr-lb-add", string(r), lbTCPName)
+			}
+
+			if _, found := lbNames[lbUDPName]; found {
+				args = append(args, "--", "lr-lb-add", string(r), lbUDPName)
+			}
+		}
+
+		for _, s := range switches {
+			if _, found := lbNames[lbTCPName]; found {
+				args = append(args, "--", "ls-lb-add", string(s), lbTCPName)
+			}
+
+			if _, found := lbNames[lbUDPName]; found {
+				args = append(args, "--", "ls-lb-add", string(s), lbUDPName)
+			}
+		}
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LoadBalancerDelete deletes the specified load balancer(s).
+func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
+	var args []string
+
+	for _, loadBalancerName := range loadBalancerNames {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		lbTCPName := fmt.Sprintf("%s-tcp", loadBalancerName)
+		lbUDPName := fmt.Sprintf("%s-udp", loadBalancerName)
+
+		// Remove load balancers for loadBalancerName if they exist.
+		args = append(args, "--if-exists", "lb-del", lbTCPName, "--", "lb-del", lbUDPName)
+	}
+
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
 		if err != nil {
 			return err
 		}

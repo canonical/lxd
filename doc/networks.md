@@ -360,6 +360,12 @@ lxc ls
 +------+---------+---------------------+----------------------------------------------+-----------+-----------+
 ```
 
+Network forwards:
+
+OVN networks support [network forwards](network-forwards.md#network-ovn).
+
+Network configuration properties:
+
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--
 bridge.hwaddr                        | string    | -                     | -                         | MAC address for the bridge

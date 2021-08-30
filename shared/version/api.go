@@ -281,6 +281,7 @@ var APIExtensions = []string{
 	"clustering_evacuation",
 	"network_ovn_nat_address",
 	"network_bgp",
+	"network_forward",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
