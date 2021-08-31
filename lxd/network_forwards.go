@@ -159,7 +159,7 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, forwards)
 	}
 
-	listenAddresses, err := d.State().Cluster.GetNetworkForwardListenAddresses(n.ID())
+	listenAddresses, err := d.State().Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network forwards: %w", err))
 	}
