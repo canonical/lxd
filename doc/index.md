@@ -102,6 +102,8 @@ by LXD -- and `make`, which builds LXD itself. At the end of `make deps`, a mess
 variable settings may change, so be sure to use the ones displayed at the end of the `make deps` process, as the ones
 below (shown for example purposes) may not exactly match what your version of LXD requires:
 
+We recommend having at least 2GB of RAM to allow the build to complete.
+
 ```bash
 make deps
 # Follow the instructions from `make deps` to export the required environment variables.
