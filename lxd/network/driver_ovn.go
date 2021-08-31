@@ -2318,7 +2318,8 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		}
 
 		// Delete any network forwards.
-		listenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID())
+		memberSpecific := false // OVN doesn't support per-member forwards.
+		listenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forwards: %w", err)
 		}
