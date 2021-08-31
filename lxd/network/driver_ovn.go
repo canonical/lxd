@@ -246,7 +246,7 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 				// of the listen address to retrieve the already loaded network name from the
 				// projectNetworks map.
 				externalSubnets = append(externalSubnets, externalSubnetUsage{
-					subnet:         listenAddressNet,
+					subnet:         *listenAddressNet,
 					networkProject: projectName,
 					networkName:    projectNetworks[projectName][networkID].Name,
 				})
@@ -425,7 +425,7 @@ func (n *ovn) Validate(config map[string]string) error {
 					continue
 				}
 
-				if SubnetContains(externalSubnetUser.subnet, externalSubnet) || SubnetContains(externalSubnet, externalSubnetUser.subnet) {
+				if SubnetContains(&externalSubnetUser.subnet, externalSubnet) || SubnetContains(externalSubnet, &externalSubnetUser.subnet) {
 					// This error is purposefully vague so that it doesn't reveal any names of
 					// resources potentially outside of the network's project.
 					return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", externalSubnet.String())
@@ -459,7 +459,7 @@ func (n *ovn) Validate(config map[string]string) error {
 					continue
 				}
 
-				if SubnetContains(externalSubnetUser.subnet, externalSNATSubnet) || SubnetContains(externalSNATSubnet, externalSubnetUser.subnet) {
+				if SubnetContains(&externalSubnetUser.subnet, externalSNATSubnet) || SubnetContains(externalSNATSubnet, &externalSubnetUser.subnet) {
 					// This error is purposefully vague so that it doesn't reveal any names of
 					// resources potentially outside of the network's project.
 					return fmt.Errorf("NAT address %q overlaps with another OVN network or NIC", externalSNATSubnet.IP.String())
@@ -2806,7 +2806,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 				}
 			}
 
-			if SubnetContains(externalSubnetUser.subnet, portExternalRoute) || SubnetContains(portExternalRoute, externalSubnetUser.subnet) {
+			if SubnetContains(&externalSubnetUser.subnet, portExternalRoute) || SubnetContains(portExternalRoute, &externalSubnetUser.subnet) {
 				// This error is purposefully vague so that it doesn't reveal any names of
 				// resources potentially outside of the network's project.
 				return fmt.Errorf("External subnet %q overlaps with another OVN network or NIC", portExternalRoute.String())
@@ -3342,7 +3342,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 					}
 
 					externalSubnets = append(externalSubnets, externalSubnetUsage{
-						subnet:         ipNet,
+						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
 					})
@@ -3363,7 +3363,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 					}
 
 					externalSubnets = append(externalSubnets, externalSubnetUsage{
-						subnet:         ipNet,
+						subnet:         *ipNet,
 						networkProject: netProject,
 						networkName:    netInfo.Name,
 						networkSNAT:    true,
@@ -3424,7 +3424,7 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 					}
 
 					externalRoutes = append(externalRoutes, externalSubnetUsage{
-						subnet:          ipNet,
+						subnet:          *ipNet,
 						networkProject:  instNetworkProject,
 						networkName:     devConfig["network"],
 						instanceProject: inst.Project,
@@ -3677,7 +3677,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost) error {
 			continue
 		}
 
-		if SubnetContains(externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, externalSubnetUser.subnet) {
+		if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
 			// This error is purposefully vague so that it doesn't reveal any names of
 			// resources potentially outside of the network's project.
 			return fmt.Errorf("Forward listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
