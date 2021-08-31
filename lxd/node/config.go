@@ -5,6 +5,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -35,13 +36,23 @@ func ConfigLoad(tx *db.NodeTx) (*Config, error) {
 // HTTPSAddress returns the address and port this LXD node should expose its
 // API to, if any.
 func (c *Config) HTTPSAddress() string {
-	return c.m.GetString("core.https_address")
+	networkAddress := c.m.GetString("core.https_address")
+	if networkAddress != "" {
+		return util.CanonicalNetworkAddress(networkAddress)
+	}
+
+	return networkAddress
 }
 
 // ClusterAddress returns the address and port this LXD node should use for
 // cluster communication.
 func (c *Config) ClusterAddress() string {
-	return c.m.GetString("cluster.https_address")
+	clusterAddress := c.m.GetString("cluster.https_address")
+	if clusterAddress != "" {
+		return util.CanonicalNetworkAddress(clusterAddress)
+	}
+
+	return clusterAddress
 }
 
 // DebugAddress returns the address and port to setup the pprof listener on
