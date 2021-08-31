@@ -143,8 +143,10 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
+	memberSpecific := false // Get forwards for all cluster members.
+
 	if util.IsRecursionRequest(r) {
-		records, err := d.State().Cluster.GetNetworkForwards(n.ID())
+		records, err := d.State().Cluster.GetNetworkForwards(n.ID(), memberSpecific)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed loading network forwards: %w", err))
 		}
