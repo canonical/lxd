@@ -360,8 +360,13 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetwor
 }
 
 // GetNetworkForwards returns map of Network Forwards for the given network ID keyed on Forward ID.
-func (c *Cluster) GetNetworkForwards(networkID int64) (map[int64]*api.NetworkForward, error) {
-	q := `
+// If memberSpecific is true, then the search is restricted to forwards that belong to this member or belong to
+// all members.
+func (c *Cluster) GetNetworkForwards(networkID int64, memberSpecific bool) (map[int64]*api.NetworkForward, error) {
+	var q *strings.Builder = &strings.Builder{}
+	args := []interface{}{networkID}
+
+	q.WriteString(`
 	SELECT
 		networks_forwards.id,
 		networks_forwards.listen_address,
@@ -371,13 +376,18 @@ func (c *Cluster) GetNetworkForwards(networkID int64) (map[int64]*api.NetworkFor
 	FROM networks_forwards
 	LEFT JOIN nodes ON nodes.id = networks_forwards.node_id
 	WHERE networks_forwards.network_id = ?
-	`
+	`)
+
+	if memberSpecific {
+		q.WriteString("AND (networks_forwards.node_id = ? OR networks_forwards.node_id IS NULL) ")
+		args = append(args, c.nodeID)
+	}
 
 	var err error
 	forwards := make(map[int64]*api.NetworkForward)
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		err = tx.QueryScan(q.String(), func(scan func(dest ...interface{}) error) error {
 			var forwardID int64 = int64(-1)
 			var portsJSON string
 			var forward api.NetworkForward
@@ -398,7 +408,7 @@ func (c *Cluster) GetNetworkForwards(networkID int64) (map[int64]*api.NetworkFor
 			forwards[forwardID] = &forward
 
 			return nil
-		}, networkID)
+		}, args...)
 		if err != nil {
 			return err
 		}
