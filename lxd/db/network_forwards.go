@@ -298,7 +298,7 @@ func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64) (map[int64]s
 
 // GetProjectNetworkForwardListenAddressesByUplink returns map of Network Forward Listen Addresses that belong to
 // networks connected to the specified uplinkNetworkName.
-// Returns a map keyed on project name network name containing a slice of listen addresses.
+// Returns a map keyed on project name and network ID containing a slice of listen addresses.
 func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetworkName string) (map[string]map[int64][]string, error) {
 	// As uplink networks can only be in default project, it is safe to look for networks that reference the
 	// specified uplinkNetworkName in their "network" config property.
@@ -313,7 +313,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetwor
 	JOIN projects ON projects.id = networks.project_id
 	WHERE networks_config.key = "network"
 	AND networks_config.value = ?
-`
+	`
 	forwards := make(map[string]map[int64][]string)
 
 	err := c.QueryScan(q, func(scan func(dest ...interface{}) error) error {
