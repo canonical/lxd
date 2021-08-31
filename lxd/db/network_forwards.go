@@ -15,6 +15,8 @@ import (
 )
 
 // CreateNetworkForward creates a new Network Forward.
+// If memberSpecific is true, then the forward is associated to the current member, rather than being associated to
+// all members.
 func (c *Cluster) CreateNetworkForward(networkID int64, memberSpecific bool, info *api.NetworkForwardsPost) (int64, error) {
 	var err error
 	var forwardID int64
@@ -168,6 +170,8 @@ func (c *Cluster) DeleteNetworkForward(networkID int64, forwardID int64) error {
 }
 
 // GetNetworkForward returns the Network Forward ID and info for the given network ID and listen address.
+// If memberSpecific is true, then the search is restricted to forwards that belong to this member or belong to
+// all members.
 func (c *Cluster) GetNetworkForward(networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkForward, error) {
 	var q *strings.Builder = &strings.Builder{}
 	args := []interface{}{networkID, listenAddress}
