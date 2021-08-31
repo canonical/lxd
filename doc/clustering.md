@@ -287,8 +287,51 @@ run the command:
 lxc cluster remove <name> --force
 ```
 
-Note that this time you have to use the regular ```lxc``` command line tool, not
-```lxd```.
+Note that this time you have to use the regular ``lxc`` command line tool, not
+``lxd``.
+
+### Recover cluster members with changed addresses
+
+If some members of your cluster are no longer reachable, or if the cluster itself
+is unreachable due to a change in IP address or listening port number, the
+cluster can be reconfigured.
+
+On each member of the cluster, with LXD not running, run the following command:
+
+```
+lxd cluster edit
+```
+
+Note that all commands in this section will use ``lxd`` instead of ``lxc``.
+
+This will present a YAML representation of this node's last recorded information
+about the rest of the cluster:
+
+```yaml
+latest_segment: "12345"     # The last transaction id of this node (Read-only)
+members:
+  - id: 1	            # Internal ID of the node (Read-only)
+    address: 10.0.0.10:8443 # Last known address of the node (Writeable)
+    role: voter             # Last known role of the node (Writeable)
+  - id: 2
+    address: 10.0.0.11:8443
+    role: stand-by
+  - id: 3
+    address: 10.0.0.12:8443
+    role: spare
+```
+
+Members may not be removed from this configuration, and a spare node cannot become
+a voter, as it may lack a global database. Importantly, keep in mind that at least
+2 nodes must remain voters (except in the case of a 2-member cluster, where 1 voter
+suffices), or there will be no quorum.
+
+Once the necessary changes have been made, repeat the process on each member of the
+cluster. Upon reloading LXD on each member, the cluster in its entirety should be
+back online with all nodes reporting in.
+
+Note that no information has been deleted from the database, all information
+about the cluster members and their instances is still there.
 
 ## Instances
 
