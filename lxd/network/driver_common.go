@@ -39,6 +39,17 @@ type forwardPortMap struct {
 	protocol      string
 }
 
+// externalSubnetUsage represents usage of a subnet by a network or NIC.
+type externalSubnetUsage struct {
+	subnet          net.IPNet
+	networkProject  string
+	networkName     string
+	networkSNAT     bool
+	instanceProject string
+	instanceName    string
+	instanceDevice  string
+}
+
 // common represents a generic LXD network.
 type common struct {
 	logger      logger.Logger
