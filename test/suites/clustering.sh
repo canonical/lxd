@@ -6,11 +6,13 @@ test_clustering_enable() {
   chmod +x "${LXD_INIT_DIR}"
   spawn_lxd "${LXD_INIT_DIR}" false
 
+  # Test specified core.https_address with no cluster.https_address
   (
     set -e
     # shellcheck disable=SC2034,SC2030
     LXD_DIR=${LXD_INIT_DIR}
 
+    lxc config show | grep "core.https_address" | grep -qE "127.0.0.1:[0-9]{4,5}$"
     # Launch a container.
     ensure_import_testimage
     lxc storage create default dir
@@ -31,6 +33,127 @@ test_clustering_enable() {
     # Delete the container
     lxc stop c1 --force
     lxc delete c1
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+
+  # Test wildcard core.https_address with no cluster.https_address
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config set core.https_address ::
+    # Enable clustering.
+    ! lxc cluster enable node1 || false
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+
+  # Test default port core.https_address with no cluster.https_address
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config set core.https_address 127.0.0.1
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q 127.0.0.1:8443
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+
+  # Test wildcard core.https_address with valid cluster.https_address
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config set core.https_address ::
+    lxc config set cluster.https_address 127.0.0.1:8443
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q 127.0.0.1:8443
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+
+  # Test empty core.https_address with no cluster.https_address
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config unset core.https_address
+    # Enable clustering.
+    ! lxc cluster enable node1 || false
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+
+  # Test empty core.https_address with valid cluster.https_address
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config unset core.https_address
+    lxc config set cluster.https_address 127.0.0.1:8443
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q 127.0.0.1:8443
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+
+  # Test empty core.https_address with default port cluster.https_address
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config unset core.https_address
+    lxc config set cluster.https_address 127.0.0.1
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q 127.0.0.1:8443
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
+
+  # Test covered cluster.https_address
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config set core.https_address 127.0.0.1:8443
+    lxc config set cluster.https_address 127.0.0.1:8443
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q 127.0.0.1:8443
   )
 
   kill_lxd "${LXD_INIT_DIR}"
