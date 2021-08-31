@@ -3425,21 +3425,23 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 
 			// For OVN NICs that are connected to networks that use the same uplink as we do, check
 			// if they have any external routes configured, and if so add them to the list to return.
-			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-				_, ipNet, _ := net.ParseCIDR(devConfig[fmt.Sprintf("%s.routes.external", keyPrefix)])
-				if ipNet == nil {
-					// If the NIC device doesn't have a valid external route setting, skip.
-					continue
-				}
+			for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
+				for _, cidr := range util.SplitNTrimSpace(devConfig[key], ",", -1, true) {
+					_, ipNet, _ := net.ParseCIDR(cidr)
+					if ipNet == nil {
+						// Sip if NIC device doesn't have a valid route.
+						continue
+					}
 
-				externalRoutes = append(externalRoutes, externalSubnetUsage{
-					subnet:          ipNet,
-					networkProject:  instNetworkProject,
-					networkName:     devConfig["network"],
-					instanceProject: inst.Project,
-					instanceName:    inst.Name,
-					instanceDevice:  devName,
-				})
+					externalRoutes = append(externalRoutes, externalSubnetUsage{
+						subnet:          ipNet,
+						networkProject:  instNetworkProject,
+						networkName:     devConfig["network"],
+						instanceProject: inst.Project,
+						instanceName:    inst.Name,
+						instanceDevice:  devName,
+					})
+				}
 			}
 		}
 
