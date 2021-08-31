@@ -267,19 +267,29 @@ func networkForwardConfig(tx *ClusterTx, forwardID int64, forward *api.NetworkFo
 
 // GetNetworkForwardListenAddresses returns map of Network Forward Listen Addresses for the given network ID keyed
 // on Forward ID.
-func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64) (map[int64]string, error) {
-	q := `
+// If memberSpecific is true, then the search is restricted to forwards that belong to this member or belong to
+// all members.
+func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64, memberSpecific bool) (map[int64]string, error) {
+	var q *strings.Builder = &strings.Builder{}
+	args := []interface{}{networkID}
+
+	q.WriteString(`
 	SELECT
 		id,
 		listen_address
 	FROM networks_forwards
 	WHERE networks_forwards.network_id = ?
-	`
+	`)
+
+	if memberSpecific {
+		q.WriteString("AND (networks_forwards.node_id = ? OR networks_forwards.node_id IS NULL) ")
+		args = append(args, c.nodeID)
+	}
 
 	forwards := make(map[int64]string)
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q.String(), func(scan func(dest ...interface{}) error) error {
 			var forwardID int64 = int64(-1)
 			var listenAddress string
 
@@ -291,7 +301,7 @@ func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64) (map[int64]s
 			forwards[forwardID] = listenAddress
 
 			return nil
-		}, networkID)
+		}, args...)
 	})
 	if err != nil {
 		return nil, err
