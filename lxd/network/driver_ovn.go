@@ -3381,21 +3381,6 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	// nicUsesNetwork returns true if the nicDev's "network" property matches one of the projectNetworks names
-	// and the instNetworkProject matches the projectNetworks's project. As we only use network name and
-	// project to match we rely on projectNetworks only including OVN networks that use our uplink.
-	nicUsesNetwork := func(instNetworkProject string, nicDev map[string]string, projectNetworks map[string][]*api.Network) bool {
-		for netProject, networks := range projectNetworks {
-			for _, network := range networks {
-				if netProject == instNetworkProject && network.Name == nicDev["network"] {
-					return true
-				}
-			}
-		}
-
-		return false
-	}
-
 	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
@@ -3409,7 +3394,7 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 			}
 
 			// Check whether the NIC device references one of the OVN networks supplied.
-			if !nicUsesNetwork(instNetworkProject, devConfig, ovnProjectNetworksWithOurUplink) {
+			if !nicUsesNetwork(devConfig, ovnProjectNetworksWithOurUplink[instNetworkProject]...) {
 				continue
 			}
 
