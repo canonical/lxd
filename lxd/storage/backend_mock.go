@@ -145,6 +145,10 @@ func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteC
 	return nil
 }
 
+func (b *mockBackend) RefreshCustomVolume(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
+	return nil
+}
+
 func (b *mockBackend) RefreshInstance(i instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error {
 	return nil
 }

@@ -202,7 +202,7 @@ func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName st
 	// Check that a storage volume of the same storage volume type does not already exist.
 	volumeID, _ := s.Cluster.GetStoragePoolNodeVolumeID(projectName, volumeName, volDBType, pool.ID())
 	if volumeID > 0 {
-		return fmt.Errorf("A storage volume of type %q already exists", volumeType)
+		return fmt.Errorf("A storage volume %q of type %q already exists", fmt.Sprintf("%s_%s", projectName, volumeName), volumeType)
 	}
 
 	// Make sure that we don't pass a nil to the next function.
@@ -904,4 +904,60 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 	}
 
 	return blockDiskSize, nil
+}
+
+func syncSnapshotsVolumeGet(srcSnapshots []db.StorageVolumeArgs, destSnapshots []db.StorageVolumeArgs) ([]db.StorageVolumeArgs, []db.StorageVolumeArgs) {
+	// There is currently no recorded creation timestamp, so we can only detect changes based on name.
+
+	// Maps to track based on snapshot name (instead of vol/snapshot).
+	srcSnapshotNames := map[string]db.StorageVolumeArgs{}
+	destSnapshotNames := map[string]db.StorageVolumeArgs{}
+
+	// Fill in the source snapshots.
+	for _, snapshot := range srcSnapshots {
+		// Strip the volume name.
+		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+
+		srcSnapshotNames[snapshotName] = snapshot
+	}
+
+	// Fill in the destination snapshots.
+	for _, snapshot := range destSnapshots {
+		// Strip the volume name.
+		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+
+		destSnapshotNames[snapshotName] = snapshot
+	}
+
+	// Result slices.
+	syncSnapshots := []db.StorageVolumeArgs{}
+	deleteSnapshots := []db.StorageVolumeArgs{}
+
+	// Find destination snapshots to delete.
+	for _, snapshot := range destSnapshots {
+		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+
+		_, exists := srcSnapshotNames[snapshotName]
+		if exists {
+			continue
+		}
+
+		// Doesn't exist on source anymore, delete it.
+		deleteSnapshots = append(deleteSnapshots, snapshot)
+	}
+
+	// Find source snapshots to sync.
+	for _, snapshot := range srcSnapshots {
+		_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
+
+		_, exists := destSnapshotNames[snapshotName]
+		if exists {
+			continue
+		}
+
+		// Doesn't exist on the target, sync it.
+		syncSnapshots = append(syncSnapshots, snapshot)
+	}
+
+	return syncSnapshots, deleteSnapshots
 }
