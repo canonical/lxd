@@ -469,7 +469,8 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Check any existing network forward target addresses are suitable for this network's subnet.
-	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID())
+	memberSpecific := false // OVN doesn't support per-member forwards.
+	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
 	if err != nil {
 		return fmt.Errorf("Failed loading network forwards: %w", err)
 	}
