@@ -313,7 +313,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetwor
 	JOIN projects ON projects.id = networks.project_id
 	WHERE networks_config.key = "network"
 	AND networks_config.value = ?
-`
+	`
 	forwards := make(map[string]map[int64][]string)
 
 	err := c.QueryScan(q, func(scan func(dest ...interface{}) error) error {
