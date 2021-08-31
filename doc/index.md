@@ -108,25 +108,25 @@ We recommend having at least 2GB of RAM to allow the build to complete.
 make deps
 # Follow the instructions from `make deps` to export the required environment variables.
 # For example:
-#  export CGO_CFLAGS="${CGO_CFLAGS} -I${HOME}/go/deps/dqlite/include/ -I${HOME}/go/deps/raft/include/"
-#  export CGO_LDFLAGS="${CGO_LDFLAGS} -L${HOME}/go/deps/dqlite/.libs/ -L${HOME}/go/deps/raft/.libs/"
-#  export LD_LIBRARY_PATH="${HOME}/go/deps/dqlite/.libs/:${HOME}/go/deps/raft/.libs/:${LD_LIBRARY_PATH}"
+#  export CGO_CFLAGS="${CGO_CFLAGS} -I$(go env GOPATH)/deps/dqlite/include/ -I$(go env GOPATH)/deps/raft/include/"
+#  export CGO_LDFLAGS="${CGO_LDFLAGS} -L$(go env GOPATH)/deps/dqlite/.libs/ -L$(go env GOPATH)/deps/raft/.libs/"
+#  export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/:$(go env GOPATH)/deps/raft/.libs/:${LD_LIBRARY_PATH}"
 #  export CGO_LDFLAGS_ALLOW="(-Wl,-wrap,pthread_create)|(-Wl,-z,now)"
 make
 ```
 
 ### From Source: Installing
 
-Once the build completes, you simply keep the source tree, add the directory referenced by `${HOME}/go/bin` to 
+Once the build completes, you simply keep the source tree, add the directory referenced by `$(go env GOPATH)/bin` to
 your shell path, and set the `LD_LIBRARY_PATH` variable printed by `make deps` to your environment. This might look
 something like this for a `~/.bashrc` file:
 
 ```bash
-export PATH="${PATH}:${HOME}/go/bin"
-export LD_LIBRARY_PATH="${HOME}/go/deps/dqlite/.libs/:${HOME}/go/deps/raft/.libs/:${LD_LIBRARY_PATH}"
+export PATH="${PATH}:$(go env GOPATH)/bin"
+export LD_LIBRARY_PATH="$(go env GOPATH)/deps/dqlite/.libs/:$(go env GOPATH)/deps/raft/.libs/:${LD_LIBRARY_PATH}"
 ```
 
-Now, the `lxd` and `lxc` binaries will be available to you and can be used to set up LXD. The binaries will automatically find and use the dependencies built in `${HOME}/go/deps` thanks to the `LD_LIBRARY_PATH` environment variable.
+Now, the `lxd` and `lxc` binaries will be available to you and can be used to set up LXD. The binaries will automatically find and use the dependencies built in `$(go env GOPATH)/deps` thanks to the `LD_LIBRARY_PATH` environment variable.
 
 ### Machine Setup
 You'll need sub{u,g}ids for root, so that LXD can create the unprivileged containers:
@@ -139,7 +139,7 @@ Now you can run the daemon (the `--group sudo` bit allows everyone in the `sudo`
 group to talk to LXD; you can create your own group if you want):
 
 ```bash
-sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ${HOME}/go/bin/lxd --group sudo
+sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd --group sudo
 ```
 
 ## Security
