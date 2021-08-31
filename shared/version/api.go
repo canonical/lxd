@@ -282,6 +282,7 @@ var APIExtensions = []string{
 	"network_ovn_nat_address",
 	"network_bgp",
 	"network_forward",
+	"custom_volume_refresh",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

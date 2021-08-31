@@ -131,6 +131,10 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		ContentType:   vol.ContentType,
 	}
 
+	if respHeader.GetRefresh() {
+		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
+	}
+
 	err = pool.MigrateCustomVolume(projectName, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
 		go s.sendControl(err)
@@ -155,11 +159,12 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 func newStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
-		src:    migrationFields{volumeOnly: args.VolumeOnly},
-		dest:   migrationFields{volumeOnly: args.VolumeOnly},
-		url:    args.Url,
-		dialer: args.Dialer,
-		push:   args.Push,
+		src:     migrationFields{volumeOnly: args.VolumeOnly},
+		dest:    migrationFields{volumeOnly: args.VolumeOnly},
+		url:     args.Url,
+		dialer:  args.Dialer,
+		push:    args.Push,
+		refresh: args.Refresh,
 	}
 
 	if sink.push {
@@ -281,6 +286,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	respHeader := migration.TypesToHeader(respTypes...)
 	respHeader.SnapshotNames = offerHeader.SnapshotNames
 	respHeader.Snapshots = offerHeader.Snapshots
+	respHeader.Refresh = &c.refresh
 
 	// Translate the legacy MigrationSinkArgs to a VolumeTargetArgs suitable for use
 	// with the new storage layer.
@@ -292,6 +298,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			MigrationType: respTypes[0],
 			TrackProgress: true,
 			ContentType:   req.ContentType,
+			Refresh:       args.Refresh,
 		}
 
 		// A zero length Snapshots slice indicates volume only migration in
@@ -304,6 +311,45 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		}
 
 		return pool.CreateCustomVolumeFromMigration(projectName, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+	}
+
+	if c.refresh {
+		// Get our existing snapshots.
+		targetSnapshots := []string{}
+		snaps, err := storagePools.VolumeSnapshotsGet(state, projectName, poolName, req.Name, db.StoragePoolVolumeTypeCustom)
+		if err == nil {
+			for _, snap := range snaps {
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
+				targetSnapshots = append(targetSnapshots, snapName)
+			}
+		}
+
+		// Get the remote snapshots.
+		sourceSnapshots := offerHeader.GetSnapshotNames()
+
+		// Compare the two sets.
+		syncSnapshotNames, deleteSnapshotNames := migrationStorageCompareSnapshots(sourceSnapshots, targetSnapshots)
+
+		// Delete the extra local ones.
+		for _, snapshot := range deleteSnapshotNames {
+			err := pool.DeleteCustomVolumeSnapshot(projectName, fmt.Sprintf("%s/%s", req.Name, snapshot), op)
+			if err != nil {
+				controller(err)
+				return err
+			}
+		}
+
+		syncSnapshots := []*migration.Snapshot{}
+		for _, snapshot := range offerHeader.Snapshots {
+			if shared.StringInSlice(snapshot.GetName(), syncSnapshotNames) {
+				syncSnapshots = append(syncSnapshots, snapshot)
+			}
+		}
+
+		respHeader.Snapshots = syncSnapshots
+		respHeader.SnapshotNames = syncSnapshotNames
+		offerHeader.Snapshots = syncSnapshots
+		offerHeader.SnapshotNames = syncSnapshotNames
 	}
 
 	err = sender(respHeader)
@@ -337,6 +383,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 				RsyncFeatures: rsyncFeatures,
 				Snapshots:     respHeader.Snapshots,
 				VolumeOnly:    c.src.volumeOnly,
+				Refresh:       c.refresh,
 			}
 
 			err = myTarget(fsConn, op, args)
@@ -421,4 +468,25 @@ func volumeSnapshotToProtobuf(vol *api.StorageVolume) *migration.Snapshot {
 		LastUsedDate: proto.Int64(0),
 		ExpiryDate:   proto.Int64(0),
 	}
+}
+
+func migrationStorageCompareSnapshots(sourceSnapshots []string, targetSnapshots []string) ([]string, []string) {
+	syncSnapshots := []string{}
+	deleteSnapshots := []string{}
+
+	// Find target snapshots to delete.
+	for _, snapshot := range targetSnapshots {
+		if !shared.StringInSlice(snapshot, sourceSnapshots) {
+			deleteSnapshots = append(deleteSnapshots, snapshot)
+		}
+	}
+
+	// Find source snapshots to sync.
+	for _, snapshot := range sourceSnapshots {
+		if !shared.StringInSlice(snapshot, targetSnapshots) {
+			syncSnapshots = append(syncSnapshots, snapshot)
+		}
+	}
+
+	return syncSnapshots, deleteSnapshots
 }
