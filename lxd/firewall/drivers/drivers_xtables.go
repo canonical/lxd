@@ -26,6 +26,9 @@ const iptablesChainNICFilterPrefix = "lxd_nic"
 // iptablesChainACLFilterPrefix chain used for ACL specific filtering rules.
 const iptablesChainACLFilterPrefix = "lxd_acl"
 
+// iptablesCommentPrefix is used to prefix the rule comment.
+const iptablesCommentPrefix = "generated for"
+
 // ebtablesMu used for locking concurrent operations against ebtables.
 // As its own locking mechanism isn't always available.
 var ebtablesMu sync.Mutex
@@ -1165,7 +1168,7 @@ func (d Xtables) iptablesAdd(ipVersion uint, comment string, table string, metho
 
 	args := append(baseArgs, []string{method, chain}...)
 	args = append(args, rule...)
-	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("generated for %s", comment))
+	args = append(args, "-m", "comment", "--comment", fmt.Sprintf("%s %s", iptablesCommentPrefix, comment))
 
 	_, err = shared.TryRunCommand(cmd, args...)
 	if err != nil {
@@ -1241,7 +1244,7 @@ func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...
 
 		for _, line := range strings.Split(output, "\n") {
 			for _, comment := range comments {
-				if !strings.Contains(line, fmt.Sprintf("generated for %s", comment)) {
+				if !strings.Contains(line, fmt.Sprintf("%s %s", iptablesCommentPrefix, comment)) {
 					continue
 				}
 
