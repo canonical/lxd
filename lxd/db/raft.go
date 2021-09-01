@@ -101,9 +101,9 @@ func (n *NodeTx) CreateRaftNode(address string) (int64, error) {
 	return query.UpsertObject(n.tx, "raft_nodes", columns, values)
 }
 
-// RemoteRaftNode removes a node from the current list of LXD nodes that are
+// RemoveRaftNode removes a node from the current list of LXD nodes that are
 // part of the dqlite Raft cluster.
-func (n *NodeTx) RemoteRaftNode(id int64) error {
+func (n *NodeTx) RemoveRaftNode(id int64) error {
 	deleted, err := query.DeleteObject(n.tx, "raft_nodes", id)
 	if err != nil {
 		return err
