@@ -164,16 +164,16 @@ container_devices_proxy_tcp() {
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.validNAT
-    ! nft -nn list chain inet lxd out.nattest.validNAT
+    ! nft -nn list chain inet lxd prert.nattest.validNAT || false
+    ! nft -nn list chain inet lxd out.nattest.validNAT || false
   fi
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234" connect="tcp:${v4_addr}:1234" bind=host
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.validNAT
-    ! nft -nn list chain inet lxd out.nattest.validNAT
+    ! nft -nn list chain inet lxd prert.nattest.validNAT || false
+    ! nft -nn list chain inet lxd out.nattest.validNAT || false
   fi
 
   # enable NAT
@@ -209,8 +209,8 @@ container_devices_proxy_tcp() {
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.validNAT
-    ! nft -nn list chain inet lxd out.nattest.validNAT
+    ! nft -nn list chain inet lxd prert.nattest.validNAT || false
+    ! nft -nn list chain inet lxd out.nattest.validNAT || false
   fi
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234-1235" connect="tcp:${v4_addr}:1234-1235" bind=host nat=true
@@ -227,8 +227,8 @@ container_devices_proxy_tcp() {
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.validNAT
-    ! nft -nn list chain inet lxd out.nattest.validNAT
+    ! nft -nn list chain inet lxd prert.nattest.validNAT || false
+    ! nft -nn list chain inet lxd out.nattest.validNAT || false
   fi
 
   # IPv6 test
@@ -244,8 +244,8 @@ container_devices_proxy_tcp() {
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(ip6tables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.validNAT
-    ! nft -nn list chain inet lxd out.nattest.validNAT
+    ! nft -nn list chain inet lxd prert.nattest.validNAT || false
+    ! nft -nn list chain inet lxd out.nattest.validNAT || false
   fi
 
   lxc config device remove nattest validNAT
@@ -255,16 +255,16 @@ container_devices_proxy_tcp() {
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (invalidNAT)")" -eq 0 ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.invalidNAT
-    ! nft -nn list chain inet lxd out.nattest.invalidNAT
+    ! nft -nn list chain inet lxd prert.nattest.invalidNAT || false
+    ! nft -nn list chain inet lxd out.nattest.invalidNAT || false
   fi
 
   lxc delete -f nattest
   if [ "$firewallDriver" = "xtables" ]; then
     [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 0 ]
   else
-    ! nft -nn list chain inet lxd prert.nattest.validNAT
-    ! nft -nn list chain inet lxd out.nattest.validNAT
+    ! nft -nn list chain inet lxd prert.nattest.validNAT || false
+    ! nft -nn list chain inet lxd out.nattest.validNAT || false
   fi
 
   lxc network delete lxdt$$
