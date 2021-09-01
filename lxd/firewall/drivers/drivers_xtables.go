@@ -375,8 +375,8 @@ func (d Xtables) NetworkSetup(networkName string, opts Opts) error {
 // If delete is true then network-specific chains are also removed.
 func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
 	for _, ipVersion := range ipVersions {
-		// Clear any rules associated to the network.
-		err := d.iptablesClear(ipVersion, d.networkIPTablesComment(networkName), "filter", "mangle", "nat")
+		// Clear any rules associated to the network and network address forwards.
+		err := d.iptablesClear(ipVersion, []string{d.networkIPTablesComment(networkName)}, "filter", "mangle", "nat")
 		if err != nil {
 			return err
 		}
@@ -492,7 +492,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	ebtablesMu.Unlock()
 
 	// Remove any ip6tables rules added as part of bridge filtering.
-	err = d.iptablesClear(6, comment, "filter")
+	err = d.iptablesClear(6, []string{comment}, "filter")
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -586,14 +586,12 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 func (d Xtables) InstanceClearProxyNAT(projectName string, instanceName string, deviceName string) error {
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 	errs := []error{}
-	err := d.iptablesClear(4, comment, "nat")
-	if err != nil {
-		errs = append(errs, err)
-	}
 
-	err = d.iptablesClear(6, comment, "nat")
-	if err != nil {
-		errs = append(errs, err)
+	for _, ipVersion := range []uint{4, 6} {
+		err := d.iptablesClear(ipVersion, []string{comment}, "nat")
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	if len(errs) > 0 {
@@ -794,7 +792,7 @@ func (d Xtables) iptablesPrepend(ipVersion uint, comment string, table string, c
 }
 
 // iptablesClear clears iptables rules matching the supplied comment in the specified tables.
-func (d Xtables) iptablesClear(ipVersion uint, comment string, fromTables ...string) error {
+func (d Xtables) iptablesClear(ipVersion uint, comments []string, fromTables ...string) error {
 	var cmd string
 	var tablesFile string
 	if ipVersion == 4 {
@@ -844,22 +842,24 @@ func (d Xtables) iptablesClear(ipVersion uint, comment string, fromTables ...str
 		args := append(baseArgs, "-S")
 		output, err := shared.TryRunCommand(cmd, args...)
 		if err != nil {
-			return fmt.Errorf("Failed to list IPv%d rules for %s (table %s)", ipVersion, comment, fromTable)
+			return fmt.Errorf("Failed to list IPv%d rules (table %s)", ipVersion, fromTable)
 		}
 
 		for _, line := range strings.Split(output, "\n") {
-			if !strings.Contains(line, fmt.Sprintf("generated for %s", comment)) {
-				continue
-			}
+			for _, comment := range comments {
+				if !strings.Contains(line, fmt.Sprintf("generated for %s", comment)) {
+					continue
+				}
 
-			// Remove the entry.
-			fields := strings.Fields(line)
-			fields[0] = "-D"
+				// Remove the entry.
+				fields := strings.Fields(line)
+				fields[0] = "-D"
 
-			args = append(baseArgs, fields...)
-			_, err = shared.TryRunCommand("sh", "-c", fmt.Sprintf("%s %s", cmd, strings.Join(args, " ")))
-			if err != nil {
-				return err
+				args = append(baseArgs, fields...)
+				_, err = shared.TryRunCommand("sh", "-c", fmt.Sprintf("%s %s", cmd, strings.Join(args, " ")))
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -896,14 +896,12 @@ func (d Xtables) InstanceSetupRPFilter(projectName string, instanceName string, 
 func (d Xtables) InstanceClearRPFilter(projectName string, instanceName string, deviceName string) error {
 	comment := fmt.Sprintf("%s rpfilter", d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName))
 	errs := []error{}
-	err := d.iptablesClear(4, comment, "raw")
-	if err != nil {
-		errs = append(errs, err)
-	}
 
-	err = d.iptablesClear(6, comment, "raw")
-	if err != nil {
-		errs = append(errs, err)
+	for _, ipVersion := range []uint{4, 6} {
+		err := d.iptablesClear(ipVersion, []string{comment}, "raw")
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	if len(errs) > 0 {
