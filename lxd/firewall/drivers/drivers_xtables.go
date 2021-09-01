@@ -158,6 +158,11 @@ func (d Xtables) networkIPTablesComment(networkName string) string {
 	return fmt.Sprintf("LXD network %s", networkName)
 }
 
+// networkForwardIPTablesComment returns the iptables comment that is added to each network forward related rule.
+func (d Xtables) networkForwardIPTablesComment(networkName string) string {
+	return fmt.Sprintf("LXD network-forward %s", networkName)
+}
+
 // networkSetupNICFilteringChain creates the NIC filtering chain if it doesn't exist, and adds the jump rules to
 // the INPUT and FORWARD filter chains. Must be called after networkSetupForwardingPolicy so that the rules are
 // prepended before the default fowarding policy rules.
@@ -744,9 +749,14 @@ func (d Xtables) aclRulePortToACLMatch(direction string, portCriteria ...string)
 // NetworkClear removes network rules from filter, mangle and nat tables.
 // If delete is true then network-specific chains are also removed.
 func (d Xtables) NetworkClear(networkName string, delete bool, ipVersions []uint) error {
+	comments := []string{
+		d.networkIPTablesComment(networkName),
+		d.networkForwardIPTablesComment(networkName),
+	}
+
 	for _, ipVersion := range ipVersions {
 		// Clear any rules associated to the network and network address forwards.
-		err := d.iptablesClear(ipVersion, []string{d.networkIPTablesComment(networkName)}, "filter", "mangle", "nat")
+		err := d.iptablesClear(ipVersion, comments, "filter", "mangle", "nat")
 		if err != nil {
 			return err
 		}
