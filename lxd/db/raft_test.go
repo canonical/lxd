@@ -72,7 +72,7 @@ func TestCreateFirstRaftNode(t *testing.T) {
 	err := tx.CreateFirstRaftNode("1.2.3.4:666")
 	assert.NoError(t, err)
 
-	err = tx.RemoteRaftNode(1)
+	err = tx.RemoveRaftNode(1)
 	assert.NoError(t, err)
 
 	err = tx.CreateFirstRaftNode("5.6.7.8:666")
@@ -94,23 +94,23 @@ func TestCreateRaftNode(t *testing.T) {
 }
 
 // Delete an existing raft node.
-func TestRemoteRaftNode(t *testing.T) {
+func TestRemoveRaftNode(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
 	id, err := tx.CreateRaftNode("1.2.3.4:666")
 	require.NoError(t, err)
 
-	err = tx.RemoteRaftNode(id)
+	err = tx.RemoveRaftNode(id)
 	assert.NoError(t, err)
 }
 
 // Delete a non-existing raft node returns an error.
-func TestRemoteRaftNode_NonExisting(t *testing.T) {
+func TestRemoveRaftNode_NonExisting(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	err := tx.RemoteRaftNode(1)
+	err := tx.RemoveRaftNode(1)
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
