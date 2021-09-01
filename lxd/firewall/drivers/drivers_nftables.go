@@ -364,9 +364,15 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 // NetworkClear removes the LXD network related chains.
 // The delete and ipeVersions arguments have no effect for nftables driver.
 func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
+	removeChains := []string{
+		"fwd", "pstrt", "in", "out", // Chains used for network operation rules.
+		"aclin", "aclout", "aclfwd", "acl", // Chains used by ACL rules.
+		"fwdprert", "fwdout", "fwdpstrt", // Chains used by Address Forward rules.
+	}
+
 	// Remove chains created by network rules.
-	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
-	err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, "fwd", "pstrt", "in", "out", "aclin", "aclout", "aclfwd", "acl")
+	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table
+	err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, removeChains...)
 	if err != nil {
 		return errors.Wrapf(err, "Failed clearing nftables rules for network %q", networkName)
 	}
