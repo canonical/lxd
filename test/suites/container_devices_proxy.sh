@@ -179,10 +179,12 @@ container_devices_proxy_tcp() {
   # enable NAT
   lxc config device set nattest validNAT nat true
   if [ "$firewallDriver" = "xtables" ]; then
-    [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 3 ]
+    iptables -w -t nat -S | grep -- "-A PREROUTING -d 127.0.0.1/32 -p tcp -m tcp --dport 1234 -m comment --comment \"generated for LXD container nattest (validNAT)\" -j DNAT --to-destination ${v4_addr}:1234"
+    iptables -w -t nat -S | grep -- "-A OUTPUT -d 127.0.0.1/32 -p tcp -m tcp --dport 1234 -m comment --comment \"generated for LXD container nattest (validNAT)\" -j DNAT --to-destination ${v4_addr}:1234"
+    iptables -w -t nat -S | grep -- "-A POSTROUTING -s ${v4_addr}/32 -d ${v4_addr}/32 -p tcp -m tcp --dport 1234 -m comment --comment \"generated for LXD container nattest (validNAT)\" -j MASQUERADE"
   else
-      [ "$(nft -nn list chain inet lxd prert.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234 dnat ip to ${v4_addr}:1234")" -eq 1 ]
-      [ "$(nft -nn list chain inet lxd out.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234 dnat ip to ${v4_addr}:1234")" -eq 1 ]
+    [ "$(nft -nn list chain inet lxd prert.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234 dnat ip to ${v4_addr}:1234")" -eq 1 ]
+    [ "$(nft -nn list chain inet lxd out.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234 dnat ip to ${v4_addr}:1234")" -eq 1 ]
   fi
 
   lxc config device remove nattest validNAT
