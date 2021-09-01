@@ -49,7 +49,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool) {
 	var origArgs []string
 
 	for _, arg := range args[1:] {
-		if arg[0] != '-' {
+		if !strings.HasPrefix(arg, "-") {
 			break
 		}
 
