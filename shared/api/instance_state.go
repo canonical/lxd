@@ -182,4 +182,12 @@ type InstanceStateNetworkCounters struct {
 	// Number of packets sent
 	// Example: 964
 	PacketsSent int64 `json:"packets_sent" yaml:"packets_sent"`
+
+	// Number of errors received
+	// Example: 14
+	ErrorsReceived int64 `json:"errors_received" yaml:"errors_received"`
+
+	// Number of errors sent
+	// Example: 41
+	ErrorsSent int64 `json:"errors_sent" yaml:"errors_sent"`
 }
