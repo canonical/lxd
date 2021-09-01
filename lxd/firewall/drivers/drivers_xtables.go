@@ -507,11 +507,11 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 // InstanceSetupProxyNAT creates DNAT rules for proxy devices.
 func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, deviceName string, forward *AddressForward) error {
 	if forward.ListenAddress == nil {
-		return fmt.Errorf("At least 1 listen address must be supplied")
+		return fmt.Errorf("Listen address is required")
 	}
 
 	if forward.TargetAddress == nil {
-		return fmt.Errorf("At least 1 target address must be supplied")
+		return fmt.Errorf("Target address is required")
 	}
 
 	listenPortsLen := len(forward.ListenPorts)
@@ -519,7 +519,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 		return fmt.Errorf("At least 1 listen port must be supplied")
 	}
 
-	// Check target port is singular, or if multiple ports supplied, they match the listen port(s) count.
+	// If multiple target ports supplied, check they match the listen port(s) count.
 	targetPortsLen := len(forward.TargetPorts)
 	if targetPortsLen != 1 && targetPortsLen != listenPortsLen {
 		return fmt.Errorf("Mismatch between listen port(s) and target port(s) count")
@@ -547,6 +547,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 			targetIndex = i
 		}
 
+		listenPortStr := fmt.Sprintf("%d", forward.ListenPorts[i])
 		targetPortStr := fmt.Sprintf("%d", forward.TargetPorts[targetIndex])
 
 		// Format the destination host/port as appropriate.
@@ -556,13 +557,13 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 		}
 
 		// outbound <-> instance.
-		err := d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", targetPortStr, "-j", "DNAT", "--to-destination", targetDest)
+		err := d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to-destination", targetDest)
 		if err != nil {
 			return err
 		}
 
 		// host <-> instance.
-		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", targetPortStr, "-j", "DNAT", "--to-destination", targetDest)
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to-destination", targetDest)
 		if err != nil {
 			return err
 		}
