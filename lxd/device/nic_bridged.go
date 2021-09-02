@@ -484,7 +484,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	// Attempt to enable port isolation
+	// Attempt to enable port isolation.
 	if shared.IsTrue(d.config["security.port_isolation"]) {
 		link := &ip.Link{Name: saveData["host_name"]}
 		err = link.BridgeLinkSetIsolated(true)
