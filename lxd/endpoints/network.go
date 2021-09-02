@@ -140,17 +140,15 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 	defer e.mu.Unlock()
 	e.cert = cert
 	listener, ok := e.listeners[network]
-	if !ok {
-		return
+	if ok {
+		listener.(*networkListener).Config(cert)
 	}
-	listener.(*networkListener).Config(cert)
 
 	// Update the cluster listener too, if enabled.
 	listener, ok = e.listeners[cluster]
-	if !ok {
-		return
+	if ok {
+		listener.(*networkListener).Config(cert)
 	}
-	listener.(*networkListener).Config(cert)
 }
 
 // NetworkUpdateTrustedProxy updates the https trusted proxy used by the network
@@ -168,17 +166,15 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	listener, ok := e.listeners[network]
-	if !ok || listener == nil {
-		return
+	if ok && listener != nil {
+		listener.(*networkListener).TrustedProxy(proxies)
 	}
-	listener.(*networkListener).TrustedProxy(proxies)
 
 	// Update the cluster listener too, if enabled.
 	listener, ok = e.listeners[cluster]
-	if !ok || listener == nil {
-		return
+	if ok && listener != nil {
+		listener.(*networkListener).TrustedProxy(proxies)
 	}
-	listener.(*networkListener).TrustedProxy(proxies)
 }
 
 // Create a new net.Listener bound to the tcp socket of the network endpoint.

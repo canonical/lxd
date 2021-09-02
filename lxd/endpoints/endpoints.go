@@ -220,26 +220,10 @@ func (e *Endpoints) up(config *Config) error {
 
 					return networkAddressErr
 				}
-			} else {
-			againCluster:
-				e.listeners[cluster], err = networkCreateListener(config.ClusterAddress, e.cert)
-				if err != nil {
-					if attempts == 0 {
-						logger.Infof("Unable to bind cluster address %q, re-trying for a minute", config.ClusterAddress)
-					}
 
-					attempts++
-					if attempts < 60 {
-						time.Sleep(1 * time.Second)
-						goto againCluster
-					}
-
-					return err
-				}
+				logger.Infof("Starting cluster handler:")
+				e.serve(cluster)
 			}
-
-			logger.Infof("Starting cluster handler:")
-			e.serve(cluster)
 		} else if networkAddressErr != nil {
 			logger.Error("Cannot currently listen on https socket, re-trying once in 30s...", log.Ctx{"err": networkAddressErr})
 
@@ -251,6 +235,29 @@ func (e *Endpoints) up(config *Config) error {
 				}
 			}()
 		}
+	}
+
+	isCovered := util.IsAddressCovered(config.ClusterAddress, config.NetworkAddress)
+	if config.ClusterAddress != "" && !isCovered {
+		attempts := 0
+	againCluster:
+		e.listeners[cluster], err = networkCreateListener(config.ClusterAddress, e.cert)
+		if err != nil {
+			if attempts == 0 {
+				logger.Infof("Unable to bind cluster address %q, re-trying for a minute", config.ClusterAddress)
+			}
+
+			attempts++
+			if attempts < 60 {
+				time.Sleep(1 * time.Second)
+				goto againCluster
+			}
+
+			return err
+		}
+
+		logger.Infof("Starting cluster handler:")
+		e.serve(cluster)
 	}
 
 	if config.DebugAddress != "" {

@@ -45,7 +45,12 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 	e.closeListener(cluster)
 
 	// If turning off listening, we're done
-	if address == "" || util.IsAddressCovered(address, networkAddress) {
+	if address == "" {
+		return nil
+	}
+
+	// If networkAddress is set and address is covered, we don't need a new listener.
+	if networkAddress != "" && util.IsAddressCovered(address, networkAddress) {
 		return nil
 	}
 
