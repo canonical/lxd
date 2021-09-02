@@ -1851,6 +1851,18 @@ definitions:
         format: int64
         type: integer
         x-go-name: BytesSent
+      errors_received:
+        description: Number of errors received
+        example: 14
+        format: int64
+        type: integer
+        x-go-name: ErrorsReceived
+      errors_sent:
+        description: Number of errors sent
+        example: 41
+        format: int64
+        type: integer
+        x-go-name: ErrorsSent
       packets_received:
         description: Number of packets received
         example: 1748
