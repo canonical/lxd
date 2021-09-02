@@ -1,6 +1,8 @@
 package node
 
 import (
+	"github.com/canonical/go-dqlite/client"
+
 	"github.com/lxc/lxd/lxd/db"
 )
 
@@ -36,7 +38,8 @@ func DetermineRaftNode(tx *db.NodeTx) (*db.RaftNode, error) {
 	// If cluster.https_address is the empty string, then this LXD instance is
 	// not running in clustering mode.
 	if address == "" {
-		return &db.RaftNode{ID: 1}, nil
+		nodeInfo := client.NodeInfo{ID: 1}
+		return &db.RaftNode{NodeInfo: nodeInfo, Name: ""}, nil
 	}
 
 	nodes, err := tx.GetRaftNodes()
@@ -47,7 +50,8 @@ func DetermineRaftNode(tx *db.NodeTx) (*db.RaftNode, error) {
 	// If cluster.https_address and the raft_nodes table is not populated,
 	// this must be a joining node.
 	if len(nodes) == 0 {
-		return &db.RaftNode{ID: 1}, nil
+		nodeInfo := client.NodeInfo{ID: 1}
+		return &db.RaftNode{NodeInfo: nodeInfo, Name: ""}, nil
 	}
 
 	// Try to find a matching node.
