@@ -493,15 +493,48 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	// Detect bridge type and setup VLAN settings on bridge port.
-	if network.IsNativeBridge(d.config["parent"]) {
+	// Detect bridge type.
+	nativeBridge := network.IsNativeBridge(d.config["parent"])
+
+	// Setup VLAN settings on bridge port.
+	if nativeBridge {
 		err = d.setupNativeBridgePortVLANs(saveData["host_name"])
 	} else {
 		err = d.setupOVSBridgePortVLANs(saveData["host_name"])
 	}
-
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if hairpin mode needs to be enabled.
+	if nativeBridge && d.network != nil {
+		brNetfilterEnabled := false
+		for _, ipVersion := range []uint{4, 6} {
+			if network.BridgeNetfilterEnabled(ipVersion) == nil {
+				brNetfilterEnabled = true
+				break
+			}
+		}
+
+		if brNetfilterEnabled {
+			listenAddresses, err := d.state.Cluster.GetNetworkForwardListenAddresses(d.network.ID(), true)
+			if err != nil {
+				return nil, fmt.Errorf("Failed loading network forwards: %w", err)
+			}
+
+			// If br_netfilter is enabled and bridge has forwards, we enable hairpin mode on NIC's
+			// bridge port in case any of the forwards target this NIC and the instance attempts to
+			// connect to the forward's listener. Without hairpin mode on the target of the forward
+			// will not be able to connect to the listener.
+			if len(listenAddresses) > 0 {
+				link := &ip.Link{Name: saveData["host_name"]}
+				err = link.BridgeLinkSetHairpin(true)
+				if err != nil {
+					return nil, errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", link.Name)
+				}
+				d.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"dev": link.Name})
+			}
+		}
 	}
 
 	err = d.volatileSet(saveData)
