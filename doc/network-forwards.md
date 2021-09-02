@@ -38,7 +38,15 @@ description       | string     | no       | Description of port(s)
 
 The following network types support forwards. See each network type section for more details.
 
+ - [bridge](#network-bridge)
  - [ovn](#network-ovn)
+
+
+## network: bridge
+
+Any non-conflicting listen address is allowed.
+
+The listen address used cannot overlap with a subnet that is in use with another network.
 
 ## network: ovn
 
