@@ -44,6 +44,10 @@ devices:
      type: nic
 ```
 
+Network forwards:
+
+Bridge networks support [network forwards](network-forwards.md#network-bridge).
+
 Network configuration properties:
 
 A complete list of configuration settings for LXD networks can be found below.

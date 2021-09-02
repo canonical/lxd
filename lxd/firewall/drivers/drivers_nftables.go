@@ -364,9 +364,15 @@ func (d Nftables) NetworkSetup(networkName string, opts Opts) error {
 // NetworkClear removes the LXD network related chains.
 // The delete and ipeVersions arguments have no effect for nftables driver.
 func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
+	removeChains := []string{
+		"fwd", "pstrt", "in", "out", // Chains used for network operation rules.
+		"aclin", "aclout", "aclfwd", "acl", // Chains used by ACL rules.
+		"fwdprert", "fwdout", "fwdpstrt", // Chains used by Address Forward rules.
+	}
+
 	// Remove chains created by network rules.
-	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
-	err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, "fwd", "pstrt", "in", "out", "aclin", "aclout", "aclfwd", "acl")
+	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table
+	err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, removeChains...)
 	if err != nil {
 		return errors.Wrapf(err, "Failed clearing nftables rules for network %q", networkName)
 	}
@@ -898,4 +904,144 @@ func (d Nftables) aclRulePortToACLMatch(direction string, portCriteria ...string
 	}
 
 	return []string{"th", direction, fmt.Sprintf("{%s}", strings.Join(fieldParts, ","))}
+}
+
+// NetworkApplyForwards apply network address forward rules to firewall.
+func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForward) error {
+	var dnatRules []map[string]interface{}
+	var snatRules []map[string]interface{}
+
+	// Build up rules, ordering by port specific listen rules first, followed by default target rules.
+	// This is so the generated firewall rules will apply the port specific rules first.
+	for _, listenPortsOnly := range []bool{true, false} {
+		for ruleIndex, rule := range rules {
+			if rule.ListenAddress == nil {
+				return fmt.Errorf("Invalid rule %d, listen address is required", ruleIndex)
+			}
+
+			if rule.TargetAddress == nil {
+				return fmt.Errorf("Invalid rule %d, target address is required", ruleIndex)
+			}
+
+			listenPortsLen := len(rule.ListenPorts)
+
+			// Process the rules in order of outer loop.
+			if (listenPortsOnly && listenPortsLen < 1) || (!listenPortsOnly && listenPortsLen > 0) {
+				continue
+			}
+
+			// If multiple target ports supplied, check they match the listen port(s) count.
+			targetPortsLen := len(rule.TargetPorts)
+			if targetPortsLen > 1 && targetPortsLen != listenPortsLen {
+				return fmt.Errorf("Invalid rule %d, mismatch between listen port(s) and target port(s) count", ruleIndex)
+			}
+
+			ipFamily := "ip"
+			if rule.ListenAddress.To4() == nil {
+				ipFamily = "ip6"
+			}
+
+			listenAddressStr := rule.ListenAddress.String()
+			targetAddressStr := rule.TargetAddress.String()
+
+			if listenPortsLen > 0 {
+				for i := range rule.ListenPorts {
+					// Use the target port that corresponds to the listen port (unless only 1
+					// is specified, in which case use same target port for all listen ports).
+					var targetPort uint64
+
+					switch {
+					case targetPortsLen <= 0:
+						// No target ports specified, use same port as listen port index.
+						targetPort = rule.ListenPorts[i]
+					case targetPortsLen == 1:
+						// Single target port specified, use that for all listen ports.
+						targetPort = rule.TargetPorts[0]
+					case targetPortsLen > 1:
+						// Multiple target ports specified, user port associated with
+						// listen port index.
+						targetPort = rule.TargetPorts[i]
+					}
+
+					// Format the destination host/port as appropriate.
+					targetDest := fmt.Sprintf("%s:%d", targetAddressStr, targetPort)
+					if ipFamily == "ip6" {
+						targetDest = fmt.Sprintf("[%s]:%d", targetAddressStr, targetPort)
+					}
+
+					dnatRules = append(dnatRules, map[string]interface{}{
+						"ipFamily":      ipFamily,
+						"protocol":      rule.Protocol,
+						"listenAddress": listenAddressStr,
+						"listenPort":    rule.ListenPorts[i],
+						"targetDest":    targetDest,
+						"targetHost":    targetAddressStr,
+						"targetPort":    targetPort,
+					})
+
+					// Only add >1 hairpin NAT rules if multiple target ports being used.
+					if i == 0 || targetPortsLen != 1 {
+						snatRules = append(snatRules, map[string]interface{}{
+							"ipFamily":   ipFamily,
+							"protocol":   rule.Protocol,
+							"targetHost": targetAddressStr,
+							"targetPort": targetPort,
+						})
+
+					}
+				}
+			} else if rule.Protocol == "" {
+				// Format the destination host/port as appropriate.
+				targetDest := targetAddressStr
+				if ipFamily == "ip6" {
+					targetDest = fmt.Sprintf("[%s]", targetAddressStr)
+				}
+
+				dnatRules = append(dnatRules, map[string]interface{}{
+					"ipFamily":      ipFamily,
+					"listenAddress": listenAddressStr,
+					"targetDest":    targetDest,
+					"targetHost":    targetAddressStr,
+				})
+
+				snatRules = append(snatRules, map[string]interface{}{
+					"ipFamily":   ipFamily,
+					"targetHost": targetAddressStr,
+				})
+			} else {
+				return fmt.Errorf("Invalid rule %d, default target rule but non-empty protocol", ruleIndex)
+			}
+		}
+	}
+
+	tplFields := map[string]interface{}{
+		"namespace":      nftablesNamespace,
+		"chainSeparator": nftablesChainSeparator,
+		"chainPrefix":    "fwd", // Differentiate from proxy device forwards.
+		"family":         "inet",
+		"label":          networkName,
+		"dnatRules":      dnatRules,
+		"snatRules":      snatRules,
+	}
+
+	// Apply rules or remove chains if no rules generated.
+	if len(dnatRules) > 0 || len(snatRules) > 0 {
+		config := &strings.Builder{}
+		err := nftablesNetProxyNAT.Execute(config, tplFields)
+		if err != nil {
+			return fmt.Errorf("Failed running %q template: %w", nftablesNetProxyNAT.Name(), err)
+		}
+
+		_, err = shared.RunCommand("nft", config.String())
+		if err != nil {
+			return err
+		}
+	} else {
+		err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, "fwdprert", "fwdout", "fwdpstrt")
+		if err != nil {
+			return fmt.Errorf("Failed clearing nftables forward rules for network %q: %w", networkName, err)
+		}
+	}
+
+	return nil
 }
