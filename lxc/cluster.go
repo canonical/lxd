@@ -55,7 +55,7 @@ func (c *cmdCluster) Command() *cobra.Command {
 	clusterEditCmd := cmdClusterEdit{global: c.global, cluster: c}
 	cmd.AddCommand(clusterEditCmd.Command())
 
-	// Add
+	// Add token
 	cmdClusterAdd := cmdClusterAdd{global: c.global, cluster: c}
 	cmd.AddCommand(cmdClusterAdd.Command())
 
