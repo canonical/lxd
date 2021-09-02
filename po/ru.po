@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-29 23:35-0400\n"
+"POT-Creation-Date: 2021-09-02 11:32-0400\n"
 "PO-Revision-Date: 2020-10-08 08:16+0000\n"
 "Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -463,15 +463,19 @@ msgstr ""
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
-#: lxc/copy.go:151
+#: lxc/copy.go:156
 msgid "--instance-only can't be passed when the source is a snapshot"
+msgstr ""
+
+#: lxc/copy.go:85
+msgid "--no-profiles cannot be used with --refresh"
 msgstr ""
 
 #: lxc/query.go:71
 msgid "--project cannot be used with the query command"
 msgstr ""
 
-#: lxc/copy.go:162
+#: lxc/copy.go:167
 msgid "--refresh can only be used with instances"
 msgstr ""
 
@@ -758,7 +762,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:121 lxc/init.go:208 lxc/project.go:129 lxc/publish.go:179
+#: lxc/copy.go:126 lxc/init.go:208 lxc/project.go:129 lxc/publish.go:179
 #: lxc/storage.go:126 lxc/storage_volume.go:544
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -769,7 +773,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr ""
 
-#: lxc/copy.go:132
+#: lxc/copy.go:137
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -1717,7 +1721,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:402
+#: lxc/copy.go:407
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -2062,7 +2066,7 @@ msgstr "Имя контейнера: %s"
 msgid "Instance name is mandatory"
 msgstr "Имя контейнера является обязательным"
 
-#: lxc/copy.go:408 lxc/init.go:364
+#: lxc/copy.go:413 lxc/init.go:364
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Имя контейнера: %s"
@@ -3334,7 +3338,7 @@ msgstr "Копирование образа: %s"
 msgid "Refresh images"
 msgstr "Копирование образа: %s"
 
-#: lxc/copy.go:369
+#: lxc/copy.go:374
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -4190,7 +4194,7 @@ msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
-#: lxc/copy.go:114 lxc/info.go:332 lxc/network.go:785 lxc/storage.go:428
+#: lxc/copy.go:119 lxc/info.go:332 lxc/network.go:785 lxc/storage.go:428
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -4221,7 +4225,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:335 lxc/move.go:284
+#: lxc/copy.go:340 lxc/move.go:284
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
