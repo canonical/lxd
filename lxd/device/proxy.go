@@ -22,8 +22,8 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
@@ -194,7 +194,12 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 	runConf.PostHooks = []func() error{
 		func() error {
 			if shared.IsTrue(d.config["nat"]) {
-				return d.setupNAT()
+				err = d.setupNAT()
+				if err != nil {
+					return fmt.Errorf("Failed to start device %q: %w", d.name, err)
+				}
+
+				return nil // Don't proceed with forkproxy setup.
 			}
 
 			proxyValues, err := d.setupProxyProcInfo()
@@ -210,7 +215,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			// Load the apparmor profile
 			err = apparmor.ForkproxyLoad(d.state, d.inst, d)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed to start device %q: %w", d.name, err)
 			}
 
 			// Spawn the daemon using subprocess
@@ -233,14 +238,14 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 
 			p, err := subprocess.NewProcess(command, forkproxyargs, logPath, logPath)
 			if err != nil {
-				return fmt.Errorf("Failed to create subprocess: %s", err)
+				return fmt.Errorf("Failed to start device %q: Failed to creating subprocess: %w", d.name, err)
 			}
 
 			p.SetApparmor(apparmor.ForkproxyProfileName(d.inst, d))
 
 			err = p.StartWithFiles(proxyValues.inheritFds)
 			if err != nil {
-				return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(forkproxyargs, " "), err)
+				return fmt.Errorf("Failed to start device %q: Failed running: %s %s: %w", d.name, command, strings.Join(forkproxyargs, " "), err)
 			}
 
 			for _, file := range proxyValues.inheritFds {
@@ -264,7 +269,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 							return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
 						}
 
-						return fmt.Errorf("Failed to save subprocess details: %s", err)
+						return fmt.Errorf("Failed to start device %q: Failed saving subprocess details: %w", d.name, err)
 					}
 
 					return nil
@@ -274,7 +279,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			p.Stop()
-			return fmt.Errorf("Error occurred when starting proxy device, please look in %s", logPath)
+			return fmt.Errorf("Failed to start device %q: Please look in %s", d.name, logPath)
 		},
 	}
 
@@ -352,9 +357,9 @@ func (d *proxy) setupNAT() error {
 		return err
 	}
 
-	ipFamily := "ipv4"
+	ipVersion := uint(4)
 	if strings.Contains(listenAddr.Address, ":") {
-		ipFamily = "ipv6"
+		ipVersion = 6
 	}
 
 	var connectIP net.IP
@@ -377,11 +382,11 @@ func (d *proxy) setupNAT() error {
 		// Ensure the connect IP matches one of the NIC's static IPs otherwise we could mess with other
 		// instance's network traffic. If the wildcard address is supplied as the connect host then the
 		// first bridged NIC which has a static IP address defined is selected as the connect host IP.
-		if ipFamily == "ipv4" && devConfig["ipv4.address"] != "" {
+		if ipVersion == 4 && devConfig["ipv4.address"] != "" {
 			if connectAddr.Address == devConfig["ipv4.address"] || connectAddr.Address == "0.0.0.0" {
 				connectIP = net.ParseIP(devConfig["ipv4.address"])
 			}
-		} else if ipFamily == "ipv6" && devConfig["ipv6.address"] != "" {
+		} else if ipVersion == 6 && devConfig["ipv6.address"] != "" {
 			if connectAddr.Address == devConfig["ipv6.address"] || connectAddr.Address == "::" {
 				connectIP = net.ParseIP(devConfig["ipv6.address"])
 			}
@@ -395,19 +400,21 @@ func (d *proxy) setupNAT() error {
 	}
 
 	if connectIP == nil {
-		return fmt.Errorf("Proxy connect IP cannot be used with any of the instance NICs static IPs")
+		if connectAddr.Address == "0.0.0.0" || connectAddr.Address == "::" {
+			return fmt.Errorf("Instance has no static IPv%d address assigned to be used as the connect IP", ipVersion)
+		}
+
+		return fmt.Errorf("Connect IP %q must be one of the instance's static IPv%d addresses", connectAddr.Address, ipVersion)
 	}
 
 	// Override the host part of the connectAddr.Addr to the chosen connect IP.
 	connectAddr.Address = connectIP.String()
 
-	err = d.checkBridgeNetfilterEnabled(ipFamily)
+	err = network.BridgeNetfilterEnabled(ipVersion)
 	if err != nil {
-		msg := fmt.Sprintf("%v. Instances using the bridge will not be able to connect to the proxy's listen IP", err)
-
-		logger.Warnf("Proxy bridge netfilter not enabled: %s", msg)
-
-		err := d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, msg)
+		msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the proxy listen IP", ipVersion)
+		d.logger.Warn(msg, log.Ctx{"err": err})
+		err := d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 		if err != nil {
 			logger.Warn("Failed to create warning", log.Ctx{"err": err})
 		}
@@ -443,30 +450,6 @@ func (d *proxy) setupNAT() error {
 	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, &addressForward)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// checkBridgeNetfilterEnabled checks whether the bridge netfilter feature is loaded and enabled.
-// If it is not an error is returned. This is needed in order for instances connected to a bridge to access the
-// proxy's listen IP on the LXD host, as otherwise the packets from the bridge do not go through the netfilter
-// NAT SNAT/MASQUERADE rules.
-func (d *proxy) checkBridgeNetfilterEnabled(ipFamily string) error {
-	sysctlName := "iptables"
-	if ipFamily == "ipv6" {
-		sysctlName = "ip6tables"
-	}
-
-	sysctlPath := fmt.Sprintf("net/bridge/bridge-nf-call-%s", sysctlName)
-	sysctlVal, err := util.SysctlGet(sysctlPath)
-	if err != nil {
-		return errors.Wrap(err, "br_netfilter not loaded")
-	}
-
-	sysctlVal = strings.TrimSpace(sysctlVal)
-	if sysctlVal != "1" {
-		return fmt.Errorf("br_netfilter sysctl net.bridge.bridge-nf-call-%s=%s", sysctlName, sysctlVal)
 	}
 
 	return nil
