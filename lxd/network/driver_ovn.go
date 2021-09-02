@@ -3396,7 +3396,7 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 			}
 
 			// Check whether the NIC device references one of the OVN networks supplied.
-			if !nicUsesNetwork(devConfig, ovnProjectNetworksWithOurUplink[instNetworkProject]...) {
+			if !NICUsesNetwork(devConfig, ovnProjectNetworksWithOurUplink[instNetworkProject]...) {
 				continue
 			}
 
