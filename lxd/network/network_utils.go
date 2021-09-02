@@ -1172,3 +1172,26 @@ func nicUsesNetwork(nicDev map[string]string, networks ...*api.Network) bool {
 
 	return false
 }
+
+// BridgeNetfilterEnabled checks whether the bridge netfilter feature is loaded and enabled.
+// If it is not an error is returned. This is needed in order for instances connected to a bridge to access DNAT
+// listeners on the LXD host, as otherwise the packets from the bridge do have the SNAT netfilter rules applied.
+func BridgeNetfilterEnabled(ipVersion uint) error {
+	sysctlName := "iptables"
+	if ipVersion == 6 {
+		sysctlName = "ip6tables"
+	}
+
+	sysctlPath := fmt.Sprintf("net/bridge/bridge-nf-call-%s", sysctlName)
+	sysctlVal, err := util.SysctlGet(sysctlPath)
+	if err != nil {
+		return fmt.Errorf("br_netfilter kernel module not loaded")
+	}
+
+	sysctlVal = strings.TrimSpace(sysctlVal)
+	if sysctlVal != "1" {
+		return fmt.Errorf("sysctl net.bridge.bridge-nf-call-%s not enabled", sysctlName)
+	}
+
+	return nil
+}
