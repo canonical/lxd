@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-08 00:50-0400\n"
+"POT-Creation-Date: 2021-09-08 00:58-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -366,17 +366,22 @@ msgstr "--refresh só pode ser usado com containers"
 msgid "--expanded cannot be used with a server"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/copy.go:151
+#: lxc/copy.go:156
 #, fuzzy
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr "--container-only não pode ser passado quando a fonte é um snapshot"
+
+#: lxc/copy.go:85
+#, fuzzy
+msgid "--no-profiles cannot be used with --refresh"
+msgstr "--refresh só pode ser usado com containers"
 
 #: lxc/query.go:71
 #, fuzzy
 msgid "--project cannot be used with the query command"
 msgstr "--refresh só pode ser usado com containers"
 
-#: lxc/copy.go:162
+#: lxc/copy.go:167
 #, fuzzy
 msgid "--refresh can only be used with instances"
 msgstr "--refresh só pode ser usado com containers"
@@ -621,7 +626,7 @@ msgstr "Backup exportado com sucesso!"
 msgid "Bad key/value pair: %s"
 msgstr "par de chave/valor inválido %s"
 
-#: lxc/copy.go:121 lxc/init.go:208 lxc/project.go:124 lxc/publish.go:175
+#: lxc/copy.go:126 lxc/init.go:208 lxc/project.go:124 lxc/publish.go:175
 #: lxc/storage.go:126 lxc/storage_volume.go:513
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -632,7 +637,7 @@ msgstr "par de chave=valor inválido %s"
 msgid "Bad property: %s"
 msgstr "Propriedade ruim: %s"
 
-#: lxc/copy.go:132
+#: lxc/copy.go:137
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr "Erro de sintaxe, esperado <dispositivo>,<chave>=<valor>: %s"
@@ -1471,7 +1476,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:402
+#: lxc/copy.go:407
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -1764,7 +1769,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:408 lxc/init.go:364
+#: lxc/copy.go:413 lxc/init.go:364
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2823,7 +2828,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:369
+#: lxc/copy.go:374
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Editar arquivos no container"
@@ -3564,7 +3569,7 @@ msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 msgstr ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
-#: lxc/copy.go:114 lxc/info.go:331 lxc/network.go:774 lxc/storage.go:428
+#: lxc/copy.go:119 lxc/info.go:331 lxc/network.go:774 lxc/storage.go:428
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -3595,7 +3600,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:335
+#: lxc/copy.go:340
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Editar arquivos no container"
