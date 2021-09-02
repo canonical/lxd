@@ -203,6 +203,8 @@ func NetnsGetifaddrs(initPID int32) (map[string]api.InstanceStateNetwork, error)
 			addNetwork.Counters.PacketsSent = int64(addr.ifa_stats64.tx_packets)
 			addNetwork.Counters.ErrorsReceived = int64(addr.ifa_stats64.rx_errors)
 			addNetwork.Counters.ErrorsSent = int64(addr.ifa_stats64.tx_errors)
+			addNetwork.Counters.PacketsDroppedInbound = int64(addr.ifa_stats64.rx_dropped)
+			addNetwork.Counters.PacketsDroppedOutbound = int64(addr.ifa_stats64.tx_dropped)
 		}
 		ifName := C.GoString(addr.ifa_name)
 
