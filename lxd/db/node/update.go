@@ -98,6 +98,7 @@ var updates = map[int]schema.Update{
 	39: updateFromV38,
 	40: updateFromV39,
 	41: updateFromV40,
+	42: updateFromV41,
 }
 
 // UpdateFromPreClustering is the last schema version where clustering support
@@ -105,6 +106,14 @@ var updates = map[int]schema.Update{
 const UpdateFromPreClustering = 36
 
 // Schema updates begin here
+
+func updateFromV41(tx *sql.Tx) error {
+	stmt := `
+	ALTER TABLE raft_nodes ADD COLUMN name TEXT NOT NULL default "";
+	`
+	_, err := tx.Exec(stmt)
+	return err
+}
 
 func updateFromV40(tx *sql.Tx) error {
 	stmt := `
