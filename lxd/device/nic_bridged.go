@@ -639,14 +639,9 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) error {
 	// Check br_netfilter kernel module is loaded and enabled for IPv6 before clearing existing rules.
 	// We won't try to load it as its default mode can cause unwanted traffic blocking.
 	if shared.IsTrue(d.config["security.ipv6_filtering"]) {
-		sysctlPath := "net/bridge/bridge-nf-call-ip6tables"
-		sysctlVal, err := util.SysctlGet(sysctlPath)
+		err := network.BridgeNetfilterEnabled(6)
 		if err != nil {
-			return errors.Wrapf(err, "security.ipv6_filtering requires br_netfilter be loaded")
-		}
-
-		if sysctlVal != "1\n" {
-			return fmt.Errorf("security.ipv6_filtering requires br_netfilter sysctl net.bridge.bridge-nf-call-ip6tables=1")
+			return fmt.Errorf("security.ipv6_filtering requires bridge netfilter: %w", err)
 		}
 	}
 
