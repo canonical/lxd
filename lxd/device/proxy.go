@@ -20,8 +20,8 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
@@ -353,10 +353,8 @@ func (d *proxy) setupNAT() error {
 		return err
 	}
 
-	ipFamily := "ipv4"
 	ipVersion := uint(4)
 	if strings.Contains(listenAddr.Address, ":") {
-		ipFamily = "ipv6"
 		ipVersion = 6
 	}
 
@@ -380,11 +378,11 @@ func (d *proxy) setupNAT() error {
 		// Ensure the connect IP matches one of the NIC's static IPs otherwise we could mess with other
 		// instance's network traffic. If the wildcard address is supplied as the connect host then the
 		// first bridged NIC which has a static IP address defined is selected as the connect host IP.
-		if ipFamily == "ipv4" && devConfig["ipv4.address"] != "" {
+		if ipVersion == 4 && devConfig["ipv4.address"] != "" {
 			if connectAddr.Address == devConfig["ipv4.address"] || connectAddr.Address == "0.0.0.0" {
 				connectIP = net.ParseIP(devConfig["ipv4.address"])
 			}
-		} else if ipFamily == "ipv6" && devConfig["ipv6.address"] != "" {
+		} else if ipVersion == 6 && devConfig["ipv6.address"] != "" {
 			if connectAddr.Address == devConfig["ipv6.address"] || connectAddr.Address == "::" {
 				connectIP = net.ParseIP(devConfig["ipv6.address"])
 			}
@@ -408,7 +406,7 @@ func (d *proxy) setupNAT() error {
 	// Override the host part of the connectAddr.Addr to the chosen connect IP.
 	connectAddr.Address = connectIP.String()
 
-	err = d.checkBridgeNetfilterEnabled(ipFamily)
+	err = network.BridgeNetfilterEnabled(ipVersion)
 	if err != nil {
 		logger.Warnf("Proxy bridge netfilter not enabled: %v. Instances using the bridge will not be able to connect to the proxy's listen IP", err)
 	} else {
@@ -438,30 +436,6 @@ func (d *proxy) setupNAT() error {
 	err = d.state.Firewall.InstanceSetupProxyNAT(d.inst.Project(), d.inst.Name(), d.name, &addressForward)
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// checkBridgeNetfilterEnabled checks whether the bridge netfilter feature is loaded and enabled.
-// If it is not an error is returned. This is needed in order for instances connected to a bridge to access the
-// proxy's listen IP on the LXD host, as otherwise the packets from the bridge do not go through the netfilter
-// NAT SNAT/MASQUERADE rules.
-func (d *proxy) checkBridgeNetfilterEnabled(ipFamily string) error {
-	sysctlName := "iptables"
-	if ipFamily == "ipv6" {
-		sysctlName = "ip6tables"
-	}
-
-	sysctlPath := fmt.Sprintf("net/bridge/bridge-nf-call-%s", sysctlName)
-	sysctlVal, err := util.SysctlGet(sysctlPath)
-	if err != nil {
-		return errors.Wrap(err, "br_netfilter not loaded")
-	}
-
-	sysctlVal = strings.TrimSpace(sysctlVal)
-	if sysctlVal != "1" {
-		return fmt.Errorf("br_netfilter sysctl net.bridge.bridge-nf-call-%s=%s", sysctlName, sysctlVal)
 	}
 
 	return nil
