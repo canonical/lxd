@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/canonical/go-dqlite/client"
+
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
@@ -139,11 +141,11 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		ids[node.ID] = true
 	}
 
-	client, err := gateway.getClient()
+	dqliteClient, err := gateway.getClient()
 	if err != nil {
 		return errors.Wrap(err, "Failed to connect to local dqlite node")
 	}
-	defer client.Close()
+	defer dqliteClient.Close()
 
 	// Check that each member is present in the raft configuration, and add
 	// it if not.
@@ -179,16 +181,19 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		ids[id] = true
 
 		info := db.RaftNode{
-			ID:      id,
-			Address: member.Address,
-			Role:    db.RaftSpare,
+			NodeInfo: client.NodeInfo{
+				ID:      id,
+				Address: member.Address,
+				Role:    db.RaftSpare,
+			},
+			Name: "",
 		}
 
 		logger.Info("Add spare dqlite node", log15.Ctx{"id": info.ID, "address": info.Address})
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		err = client.Add(ctx, info)
+		err = dqliteClient.Add(ctx, info.NodeInfo)
 		if err != nil {
 			return errors.Wrap(err, "Failed to add dqlite node")
 		}

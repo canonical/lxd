@@ -11,6 +11,7 @@ import (
 
 	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/node"
@@ -57,7 +58,7 @@ func Bootstrap(state *state.State, gateway *Gateway, serverName string) error {
 		}
 
 		// Add ourselves as first raft node
-		err = tx.CreateFirstRaftNode(address)
+		err = tx.CreateFirstRaftNode(address, serverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to insert first raft node")
 		}
@@ -280,7 +281,16 @@ func Accept(state *state.State, gateway *Gateway, name, address string, schema, 
 			standbys++
 		}
 	}
-	node := db.RaftNode{ID: uint64(id), Address: address, Role: db.RaftSpare}
+
+	node := db.RaftNode{
+		NodeInfo: client.NodeInfo{
+			ID:      uint64(id),
+			Address: address,
+			Role:    db.RaftSpare,
+		},
+		Name: name,
+	}
+
 	if count > 1 && voters < int(maxVoters) {
 		node.Role = db.RaftVoter
 	} else if standbys < int(maxStandBy) {
@@ -416,7 +426,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	logger.Info("Adding node to cluster", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	err = client.Add(ctx, *info)
+	err = client.Add(ctx, info.NodeInfo)
 	if err != nil {
 		return errors.Wrap(err, "Failed to join cluster")
 	}
@@ -910,9 +920,9 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) 
 
 	for _, node := range nodes {
 		if HasConnectivity(gateway.networkCert, gateway.serverCert(), node.Address) {
-			cluster[node] = &client.NodeMetadata{}
+			cluster[node.NodeInfo] = &client.NodeMetadata{}
 		} else {
-			cluster[node] = nil
+			cluster[node.NodeInfo] = nil
 		}
 
 	}
