@@ -412,11 +412,9 @@ func (d *proxy) setupNAT() error {
 
 	err = network.BridgeNetfilterEnabled(ipVersion)
 	if err != nil {
-		msg := fmt.Sprintf("%v. Instances using the bridge will not be able to connect to the proxy's listen IP", err)
-
-		logger.Warnf("Proxy bridge netfilter not enabled: %s", msg)
-
-		err := d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, msg)
+		msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the proxy listen IP", ipVersion)
+		d.logger.Warn(msg, log.Ctx{"err": err})
+		err := d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 		if err != nil {
 			logger.Warn("Failed to create warning", log.Ctx{"err": err})
 		}
