@@ -80,6 +80,11 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 		return fmt.Errorf(i18n.G("You must specify a destination instance name when using --target"))
 	}
 
+	// Don't allow refreshing without profiles.
+	if c.flagRefresh && c.flagNoProfiles {
+		return fmt.Errorf(i18n.G("--no-profiles cannot be used with --refresh"))
+	}
+
 	// If no destination name was provided, use the same as the source
 	if destName == "" && destResource != "" {
 		destName = sourceName
