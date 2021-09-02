@@ -1442,3 +1442,6 @@ external IP addresses that can be forwarded to internal IP(s) inside their respe
 
 ## custom\_volume\_refresh
 Adds support for refresh during volume migration.
+
+## network\_counters\_errors
+This adds the received and sent errors to the network counters.
