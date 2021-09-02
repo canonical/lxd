@@ -238,7 +238,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 				// but the other NIC doesn't reference the same network name via either its network
 				// or parent keys then we can say it is connected to a different network, so the
 				// duplicate checks can be skipped.
-				if d.network != nil && d.network.Name() != devConfig["network"] && d.network.Name() != devConfig["parent"] {
+				if d.network != nil && !network.NICUsesNetwork(devConfig, &api.Network{Name: d.network.Name()}) {
 					continue
 				}
 
