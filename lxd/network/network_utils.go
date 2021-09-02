@@ -1162,8 +1162,8 @@ func ParseIPCIDRToNet(ipAddressCIDR string) (*net.IPNet, error) {
 	return listenAddressNet, err
 }
 
-// nicUsesNetwork returns true if the nicDev's "network" or "parent" property matches one of the networks names.
-func nicUsesNetwork(nicDev map[string]string, networks ...*api.Network) bool {
+// NICUsesNetwork returns true if the nicDev's "network" or "parent" property matches one of the networks names.
+func NICUsesNetwork(nicDev map[string]string, networks ...*api.Network) bool {
 	for _, network := range networks {
 		if network.Name == nicDev["network"] || network.Name == nicDev["parent"] {
 			return true
