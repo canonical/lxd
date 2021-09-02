@@ -1851,6 +1851,18 @@ definitions:
         format: int64
         type: integer
         x-go-name: BytesSent
+      dropped_inbound:
+        description: Number of inbound packets dropped
+        example: 179
+        format: int64
+        type: integer
+        x-go-name: DroppedInbound
+      dropped_outbound:
+        description: Number of outbound packets dropped
+        example: 541
+        format: int64
+        type: integer
+        x-go-name: DroppedOutbound
       errors_received:
         description: Number of errors received
         example: 14
