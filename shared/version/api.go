@@ -283,6 +283,7 @@ var APIExtensions = []string{
 	"network_bgp",
 	"network_forward",
 	"custom_volume_refresh",
+	"network_counters_errors",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
