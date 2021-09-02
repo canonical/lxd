@@ -1897,6 +1897,7 @@ type internalRaftNode struct {
 	ID      uint64 `json:"id" yaml:"id"`
 	Address string `json:"address" yaml:"address"`
 	Role    int    `json:"role" yaml:"role"`
+	Name    string `json:"name" yaml:"name"`
 }
 
 // Used to update the cluster after a database node has been removed, and
@@ -2007,6 +2008,7 @@ func changeMemberRole(d *Daemon, r *http.Request, address string, nodes []db.Raf
 			ID:      node.ID,
 			Address: node.Address,
 			Role:    int(node.Role),
+			Name:    node.Name,
 		})
 	}
 
@@ -2099,6 +2101,7 @@ func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
 		nodes[i].ID = node.ID
 		nodes[i].Address = node.Address
 		nodes[i].Role = db.RaftRole(node.Role)
+		nodes[i].Name = node.Name
 	}
 	err = cluster.Assign(d.State(), d.gateway, nodes)
 	if err != nil {
