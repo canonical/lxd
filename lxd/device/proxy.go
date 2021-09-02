@@ -190,7 +190,12 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 	runConf.PostHooks = []func() error{
 		func() error {
 			if shared.IsTrue(d.config["nat"]) {
-				return d.setupNAT()
+				err = d.setupNAT()
+				if err != nil {
+					return fmt.Errorf("Failed to start device %q: %w", d.name, err)
+				}
+
+				return nil // Don't proceed with forkproxy setup.
 			}
 
 			proxyValues, err := d.setupProxyProcInfo()
@@ -206,7 +211,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			// Load the apparmor profile
 			err = apparmor.ForkproxyLoad(d.state, d.inst, d)
 			if err != nil {
-				return err
+				return fmt.Errorf("Failed to start device %q: %w", d.name, err)
 			}
 
 			// Spawn the daemon using subprocess
@@ -229,14 +234,14 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 
 			p, err := subprocess.NewProcess(command, forkproxyargs, logPath, logPath)
 			if err != nil {
-				return fmt.Errorf("Failed to create subprocess: %s", err)
+				return fmt.Errorf("Failed to start device %q: Failed to creating subprocess: %w", d.name, err)
 			}
 
 			p.SetApparmor(apparmor.ForkproxyProfileName(d.inst, d))
 
 			err = p.StartWithFiles(proxyValues.inheritFds)
 			if err != nil {
-				return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(forkproxyargs, " "), err)
+				return fmt.Errorf("Failed to start device %q: Failed running: %s %s: %w", d.name, command, strings.Join(forkproxyargs, " "), err)
 			}
 
 			for _, file := range proxyValues.inheritFds {
@@ -260,7 +265,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 							return fmt.Errorf("Could not kill subprocess while handling saving error: %s: %s", err, err2)
 						}
 
-						return fmt.Errorf("Failed to save subprocess details: %s", err)
+						return fmt.Errorf("Failed to start device %q: Failed saving subprocess details: %w", d.name, err)
 					}
 
 					return nil
@@ -270,7 +275,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			p.Stop()
-			return fmt.Errorf("Error occurred when starting proxy device, please look in %s", logPath)
+			return fmt.Errorf("Failed to start device %q: Please look in %s", d.name, logPath)
 		},
 	}
 
@@ -349,8 +354,10 @@ func (d *proxy) setupNAT() error {
 	}
 
 	ipFamily := "ipv4"
+	ipVersion := uint(4)
 	if strings.Contains(listenAddr.Address, ":") {
 		ipFamily = "ipv6"
+		ipVersion = 6
 	}
 
 	var connectIP net.IP
