@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -989,6 +990,8 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, urls)
 }
 
+var clusterNodesPostMu sync.Mutex // Used to prevent races when creating cluster join tokens.
+
 // swagger:operation POST /1.0/cluster/members cluster cluster_members_post
 //
 // Request a join token
@@ -1071,6 +1074,11 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	if len(onlineNodeAddresses) < 1 {
 		return response.InternalError(fmt.Errorf("There are no online cluster members"))
 	}
+
+	// Lock to prevent concurrent requests racing the operationsGetByType function and creating duplicates.
+	// We have to do this because collecting all of the operations from existing cluster members can take time.
+	clusterNodesPostMu.Lock()
+	defer clusterNodesPostMu.Unlock()
 
 	// Remove any existing join tokens for the requested cluster member, this way we only ever have one active
 	// join token for each potential new member, and it has the most recent active members list for joining.
