@@ -9,6 +9,7 @@ import (
 
 	dqlite "github.com/canonical/go-dqlite"
 	client "github.com/canonical/go-dqlite/client"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/pkg/errors"
@@ -81,8 +82,15 @@ func Recover(database *db.Node) error {
 	// Update the list of raft nodes.
 	err = database.Transaction(func(tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
-			{ID: info.ID, Address: info.Address},
+			{
+				NodeInfo: client.NodeInfo{
+					ID:      info.ID,
+					Address: info.Address,
+				},
+				Name: info.Name,
+			},
 		}
+
 		return tx.ReplaceRaftNodes(nodes)
 	})
 	if err != nil {
@@ -118,7 +126,7 @@ func updateLocalAddress(database *db.Node, address string) error {
 
 // Reconfigure replaces the entire cluster configuration.
 // Addresses and node roles may be updated. Node IDs are read-only.
-func Reconfigure(database *db.Node, nodes []db.RaftNode) error {
+func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	var info *db.RaftNode
 	err := database.Transaction(func(tx *db.NodeTx) error {
 		var err error
@@ -130,15 +138,23 @@ func Reconfigure(database *db.Node, nodes []db.RaftNode) error {
 		return errors.Wrap(err, "Failed to determine node role")
 	}
 
-	// Update cluster.https_address if changed.
-	for _, n := range nodes {
-		if n.ID == info.ID && n.Address != info.Address {
-			err := updateLocalAddress(database, n.Address)
-			if err != nil {
-				return err
-			}
+	localAddress := info.Address
+	nodes := []client.NodeInfo{}
 
-			break
+	for _, raftNode := range raftNodes {
+		nodes = append(nodes, raftNode.NodeInfo)
+
+		// Get the new address for this node.
+		if raftNode.ID == info.ID {
+			localAddress = raftNode.Address
+		}
+	}
+
+	// Update cluster.https_address if changed.
+	if localAddress != info.Address {
+		err := updateLocalAddress(database, localAddress)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -151,7 +167,7 @@ func Reconfigure(database *db.Node, nodes []db.RaftNode) error {
 
 	// Replace cluster configuration in local raft_nodes database.
 	err = database.Transaction(func(tx *db.NodeTx) error {
-		return tx.ReplaceRaftNodes(nodes)
+		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
 		return err
