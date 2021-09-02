@@ -391,7 +391,11 @@ func (d *proxy) setupNAT() error {
 	}
 
 	if connectIP == nil {
-		return fmt.Errorf("Proxy connect IP cannot be used with any of the instance NICs static IPs")
+		if connectAddr.Address == "0.0.0.0" || connectAddr.Address == "::" {
+			return fmt.Errorf("Instance has no static IPv%d address assigned to be used as the connect IP", ipVersion)
+		}
+
+		return fmt.Errorf("Connect IP %q must be one of the instance's static IPv%d addresses", connectAddr.Address, ipVersion)
 	}
 
 	// Override the host part of the connectAddr.Addr to the chosen connect IP.
