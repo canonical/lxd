@@ -1139,5 +1139,5 @@ Adds a new address field to lifecycle requestor.
 ## resources\_gpu\_usb
 Add a new USBAddress (usb\_address) field to ResourcesGPUCard (GPU entries) in the resources API.
 
-## network\_counters\_errors
-This adds the received and sent errors to the network counters.
+## network\_counters\_errors\_dropped
+This adds the received and sent errors as well as inbound and outbound dropped packets to the network counters.
