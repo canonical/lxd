@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -434,7 +435,7 @@ func GetNetworkState(name string) (*api.NetworkState, error) {
 	// Get some information
 	netIf, err := net.InterfaceByName(name)
 	if err != nil {
-		return nil, fmt.Errorf("Network interface %q not found", name)
+		return nil, api.StatusErrorf(http.StatusNotFound, "Network interface %q not found", name)
 	}
 
 	netState := "down"
