@@ -237,7 +237,11 @@ func (e *Endpoints) up(config *Config) error {
 		}
 	}
 
-	isCovered := util.IsAddressCovered(config.ClusterAddress, config.NetworkAddress)
+	isCovered := false
+	if config.NetworkAddress != "" {
+		isCovered = util.IsAddressCovered(config.ClusterAddress, config.NetworkAddress)
+	}
+
 	if config.ClusterAddress != "" && !isCovered {
 		attempts := 0
 	againCluster:

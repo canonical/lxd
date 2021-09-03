@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 
 	_ "net/http/pprof" // pprof magic
@@ -45,7 +46,7 @@ func (e *Endpoints) PprofAddress() string {
 // PprofUpdateAddress updates the address for the pprof endpoint, shutting it down and restarting it.
 func (e *Endpoints) PprofUpdateAddress(address string) error {
 	if address != "" {
-		address = util.CanonicalNetworkAddress(address)
+		address = util.CanonicalNetworkAddress(address, shared.HTTPDefaultPort)
 	}
 
 	oldAddress := e.NetworkAddress()
