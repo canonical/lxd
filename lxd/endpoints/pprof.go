@@ -46,7 +46,7 @@ func (e *Endpoints) PprofAddress() string {
 // PprofUpdateAddress updates the address for the pprof endpoint, shutting it down and restarting it.
 func (e *Endpoints) PprofUpdateAddress(address string) error {
 	if address != "" {
-		address = util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+		address = util.CanonicalNetworkAddress(address, shared.HTTPDefaultPort)
 	}
 
 	oldAddress := e.NetworkAddress()
