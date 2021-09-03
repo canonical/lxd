@@ -69,7 +69,8 @@ func (a *inMemoryAddr) String() string {
 }
 
 // CanonicalNetworkAddress parses the given network address and returns a string of the form "host:port",
-// possibly filling it with the default port if it's missing.
+// possibly filling it with the default port if it's missing. It will also wrap a bare IPv6 address with square
+// brackets if needed.
 func CanonicalNetworkAddress(address string) string {
 	_, _, err := net.SplitHostPort(address)
 	if err != nil {
