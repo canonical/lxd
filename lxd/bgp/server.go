@@ -104,7 +104,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 		addrHost = "::"
 	}
 
-	addrPortInt, err := strconv.ParseInt(addrPort, 10, 32)
+	addrPortInt, err := strconv.ParseInt(addrPort, 10, 16)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 
 		// Listen address.
 		ListenAddresses: []string{addrHost},
-		ListenPort:      int32(addrPortInt),
+		ListenPort:      int16(addrPortInt),
 	}
 
 	// Start the listener.
