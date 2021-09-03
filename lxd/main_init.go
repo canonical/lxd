@@ -66,7 +66,7 @@ func (c *cmdInit) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&c.flagDump, "dump", false, "Dump YAML config to stdout")
 
 	cmd.Flags().StringVar(&c.flagNetworkAddress, "network-address", "", "Address to bind LXD to (default: none)"+"``")
-	cmd.Flags().IntVar(&c.flagNetworkPort, "network-port", -1, fmt.Sprintf("Port to bind LXD to (default: %d)"+"``", shared.DefaultPort))
+	cmd.Flags().IntVar(&c.flagNetworkPort, "network-port", -1, fmt.Sprintf("Port to bind LXD to (default: %d)"+"``", shared.HTTPSDefaultPort))
 	cmd.Flags().StringVar(&c.flagStorageBackend, "storage-backend", "", "Storage backend to use (btrfs, dir, lvm or zfs, default: dir)"+"``")
 	cmd.Flags().StringVar(&c.flagStorageDevice, "storage-create-device", "", "Setup device based storage using DEVICE"+"``")
 	cmd.Flags().IntVar(&c.flagStorageLoopSize, "storage-create-loop", -1, "Setup loop based storage with SIZE in GB"+"``")
@@ -180,7 +180,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		// cluster certificate from each address in the join token until we succeed.
 		for _, clusterAddress := range joinToken.Addresses {
 			// Cluster URL
-			config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress)
+			config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 			// Cluster certificate
 			cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
@@ -219,8 +219,8 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// cluster join API format, and use the dedicated API if so.
 	if config.Cluster != nil && config.Cluster.ClusterAddress != "" && config.Cluster.ServerAddress != "" {
 		// Ensure the server and cluster addresses are in canonical form.
-		config.Cluster.ServerAddress = util.CanonicalNetworkAddress(config.Cluster.ServerAddress)
-		config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(config.Cluster.ClusterAddress)
+		config.Cluster.ServerAddress = util.CanonicalNetworkAddress(config.Cluster.ServerAddress, shared.HTTPSDefaultPort)
+		config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(config.Cluster.ClusterAddress, shared.HTTPSDefaultPort)
 
 		op, err := d.UpdateCluster(config.Cluster.ClusterPut, "")
 		if err != nil {
