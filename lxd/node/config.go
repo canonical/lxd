@@ -58,7 +58,12 @@ func (c *Config) ClusterAddress() string {
 
 // DebugAddress returns the address and port to setup the pprof listener on
 func (c *Config) DebugAddress() string {
-	return c.m.GetString("core.debug_address")
+	debugAddress := c.m.GetString("core.debug_address")
+	if debugAddress != "" {
+		return util.CanonicalNetworkAddress(debugAddress, shared.HTTPDefaultPort)
+	}
+
+	return debugAddress
 }
 
 // MAASMachine returns the MAAS machine this instance is associated with, if
