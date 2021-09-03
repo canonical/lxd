@@ -135,7 +135,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 		// Cluster server address
 		address := util.NetworkInterfaceAddress()
 		validateServerAddress := func(value string) error {
-			address := util.CanonicalNetworkAddress(value)
+			address := util.CanonicalNetworkAddress(value, shared.HTTPSDefaultPort)
 
 			host, _, _ := net.SplitHostPort(address)
 			if shared.StringInSlice(host, []string{"", "[::]", "0.0.0.0"}) {
@@ -163,7 +163,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 			return err
 		}
 
-		serverAddress = util.CanonicalNetworkAddress(serverAddress)
+		serverAddress = util.CanonicalNetworkAddress(serverAddress, shared.HTTPSDefaultPort)
 		config.Node.Config["core.https_address"] = serverAddress
 
 		clusterJoin, err := cli.AskBool("Are you joining an existing cluster? (yes/no) [default=no]: ", "no")
@@ -208,7 +208,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 				// Attempt to find a working cluster member to use for joining by retrieving the
 				// cluster certificate from each address in the join token until we succeed.
 				for _, clusterAddress := range joinToken.Addresses {
-					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress)
+					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 					// Cluster certificate
 					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
@@ -247,7 +247,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 						return err
 					}
 
-					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress)
+					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 					// Cluster certificate
 					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)

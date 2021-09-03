@@ -6,6 +6,7 @@ import (
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -38,7 +39,7 @@ func ConfigLoad(tx *db.NodeTx) (*Config, error) {
 func (c *Config) HTTPSAddress() string {
 	networkAddress := c.m.GetString("core.https_address")
 	if networkAddress != "" {
-		return util.CanonicalNetworkAddress(networkAddress)
+		return util.CanonicalNetworkAddress(networkAddress, shared.HTTPSDefaultPort)
 	}
 
 	return networkAddress
@@ -49,7 +50,7 @@ func (c *Config) HTTPSAddress() string {
 func (c *Config) ClusterAddress() string {
 	clusterAddress := c.m.GetString("cluster.https_address")
 	if clusterAddress != "" {
-		return util.CanonicalNetworkAddress(clusterAddress)
+		return util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 	}
 
 	return clusterAddress
