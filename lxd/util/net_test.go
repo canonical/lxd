@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +46,7 @@ func TestCanonicalNetworkAddress(t *testing.T) {
 	}
 	for in, out := range cases {
 		t.Run(in, func(t *testing.T) {
-			assert.Equal(t, out, util.CanonicalNetworkAddress(in))
+			assert.Equal(t, out, util.CanonicalNetworkAddress(in, shared.HTTPSDefaultPort))
 		})
 	}
 

@@ -440,7 +440,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	address := util.CanonicalNetworkAddress(args[0])
+	address := util.CanonicalNetworkAddress(args[0], shared.HTTPSDefaultPort)
 
 	// Prompt for confirmation unless --quiet was passed.
 	if !c.flagNonInteractive {
