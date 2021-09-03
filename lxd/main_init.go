@@ -4,7 +4,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"net"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -12,6 +11,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -180,11 +180,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		// cluster certificate from each address in the join token until we succeed.
 		for _, clusterAddress := range joinToken.Addresses {
 			// Cluster URL
-			_, _, err := net.SplitHostPort(clusterAddress)
-			if err != nil {
-				clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
-			}
-			config.Cluster.ClusterAddress = clusterAddress
+			config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress)
 
 			// Cluster certificate
 			cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
