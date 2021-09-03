@@ -157,6 +157,25 @@ test_clustering_enable() {
   )
 
   kill_lxd "${LXD_INIT_DIR}"
+
+  # Test cluster listener after reload
+  LXD_INIT_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_INIT_DIR}"
+  spawn_lxd "${LXD_INIT_DIR}" false
+
+  (
+    set -e
+    # shellcheck disable=SC2034,SC2030
+    LXD_DIR=${LXD_INIT_DIR}
+    lxc config set cluster.https_address 127.0.0.1:8443
+    kill -9 "$(cat "${LXD_DIR}/lxd.pid")"
+    respawn_lxd "${LXD_DIR}" true
+    # Enable clustering.
+    lxc cluster enable node1
+    lxc cluster list | grep -q 127.0.0.1:8443
+  )
+
+  kill_lxd "${LXD_INIT_DIR}"
 }
 
 test_clustering_membership() {
