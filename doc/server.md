@@ -26,7 +26,7 @@ cluster.max\_voters                 | integer   | global    | 3                 
 cluster.offline\_threshold          | integer   | global    | 20                                | Number of seconds after which an unresponsive node is considered offline
 core.bgp\_address                   | string    | local     | -                                 | Address to bind the BGP server to (BGP)
 core.bgp\_asn                       | string    | global    | -                                 | The BGP Autonomous System Number to use for the local server
-core.bgp\_routerid                  | string    | local     | Primary IPv4 address              | A unique identifier for this BGP server (formatted as an IPv4 address)
+core.bgp\_routerid                  | string    | local     | -                                 | A unique identifier for this BGP server (formatted as an IPv4 address)
 core.debug\_address                 | string    | local     | -                                 | Address to bind the pprof debug server to (HTTP)
 core.https\_address                 | string    | local     | -                                 | Address to bind for the remote API (HTTPS)
 core.https\_allowed\_credentials    | boolean   | global    | -                                 | Whether to set Access-Control-Allow-Credentials http header value to "true"
