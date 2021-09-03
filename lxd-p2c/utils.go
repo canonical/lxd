@@ -205,7 +205,7 @@ func parseURL(URL string) (string, error) {
 
 	// If no port was provided, use default port
 	if u.Port() == "" {
-		u.Host = fmt.Sprintf("%s:%d", u.Hostname(), shared.DefaultPort)
+		u.Host = fmt.Sprintf("%s:%d", u.Hostname(), shared.HTTPSDefaultPort)
 	}
 
 	return u.String(), nil

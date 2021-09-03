@@ -41,7 +41,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 
 			// Retry for up to 1s at 100ms interval to handle various failures.
 			for i := 0; i < 10; i++ {
-				conn, err = Dial(uint32(vsockID), shared.DefaultPort)
+				conn, err = Dial(uint32(vsockID), shared.HTTPSDefaultPort)
 				if err == nil {
 					break
 				} else {
@@ -49,7 +49,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 					msg := err.Error()
 					if strings.Contains(msg, "connection timed out") {
 						// Retry once.
-						conn, err = Dial(uint32(vsockID), shared.DefaultPort)
+						conn, err = Dial(uint32(vsockID), shared.HTTPSDefaultPort)
 						break
 					} else if strings.Contains(msg, "connection refused") {
 						break

@@ -980,7 +980,7 @@ they otherwise would.
 				netAddr = fmt.Sprintf("[%s]", netAddr)
 			}
 
-			netPort, err := cli.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.DefaultPort), 1, 65535, fmt.Sprintf("%d", shared.DefaultPort), func(netPort int64) error {
+			netPort, err := cli.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
 				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort))
 
 				if err == nil {
