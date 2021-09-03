@@ -208,12 +208,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 				// Attempt to find a working cluster member to use for joining by retrieving the
 				// cluster certificate from each address in the join token until we succeed.
 				for _, clusterAddress := range joinToken.Addresses {
-					// Cluster URL
-					_, _, err := net.SplitHostPort(clusterAddress)
-					if err != nil {
-						clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
-					}
-					config.Cluster.ClusterAddress = clusterAddress
+					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress)
 
 					// Cluster certificate
 					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
@@ -252,12 +247,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 						return err
 					}
 
-					_, _, err = net.SplitHostPort(clusterAddress)
-					if err != nil {
-						clusterAddress = fmt.Sprintf("%s:%d", clusterAddress, shared.DefaultPort)
-					}
-
-					config.Cluster.ClusterAddress = clusterAddress
+					config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress)
 
 					// Cluster certificate
 					cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
