@@ -1011,7 +1011,7 @@ they otherwise would.
 			}
 
 			netPort, err := cli.AskInt(fmt.Sprintf("Port to bind LXD to [default=%d]: ", shared.HTTPSDefaultPort), 1, 65535, fmt.Sprintf("%d", shared.HTTPSDefaultPort), func(netPort int64) error {
-				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort))
+				address := util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort), shared.HTTPSDefaultPort)
 
 				if err == nil {
 					if server.Config["cluster.https_address"] == address || server.Config["core.https_address"] == address {
@@ -1032,7 +1032,7 @@ they otherwise would.
 				return err
 			}
 
-			config.Node.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort))
+			config.Node.Config["core.https_address"] = util.CanonicalNetworkAddressFromAddressAndPort(netAddr, int(netPort), shared.HTTPSDefaultPort)
 			config.Node.Config["core.trust_password"] = cli.AskPassword("Trust password for new clients: ")
 			if config.Node.Config["core.trust_password"] == "" {
 				fmt.Printf("No password set, client certificates will have to be manually trusted.")
