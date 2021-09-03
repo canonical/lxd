@@ -31,6 +31,9 @@ navigation:
         - title: Network ACLs
           location: network-acls.md
 
+        - title: Network Forwards
+          location: network-forwards.md
+
         - title: Preseed files
           location: preseed.md
 
