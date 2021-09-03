@@ -103,7 +103,7 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("cannot listen on https socket: %v", err)
+			return nil, fmt.Errorf("Cannot listen on network HTTPS socket %q: %w", address, err)
 		}
 
 		return &listener, nil
