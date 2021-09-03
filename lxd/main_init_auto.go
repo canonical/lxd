@@ -59,7 +59,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 	}
 
 	if c.flagNetworkPort == -1 {
-		c.flagNetworkPort = shared.DefaultPort
+		c.flagNetworkPort = shared.HTTPSDefaultPort
 	}
 
 	// Fill in the node configuration
