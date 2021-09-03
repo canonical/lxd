@@ -78,11 +78,11 @@ func CanonicalNetworkAddress(address string) string {
 		if ip != nil {
 			// If the input address is a bare IP address, then convert it to a proper listen address
 			// using the canonical IP with default port and wrap IPv6 addresses in square brackets.
-			address = net.JoinHostPort(ip.String(), fmt.Sprintf("%d", shared.DefaultPort))
+			address = net.JoinHostPort(ip.String(), fmt.Sprintf("%d", shared.HTTPSDefaultPort))
 		} else {
 			// Otherwise assume this is either a host name or a partial address (e.g `[::]`) without
 			// a port number, so append the default port.
-			address = fmt.Sprintf("%s:%d", address, shared.DefaultPort)
+			address = fmt.Sprintf("%s:%d", address, shared.HTTPSDefaultPort)
 		}
 	}
 
