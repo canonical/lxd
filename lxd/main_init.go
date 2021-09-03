@@ -180,7 +180,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 		// cluster certificate from each address in the join token until we succeed.
 		for _, clusterAddress := range joinToken.Addresses {
 			// Cluster URL
-			config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress)
+			config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(clusterAddress, shared.HTTPSDefaultPort)
 
 			// Cluster certificate
 			cert, err := shared.GetRemoteCertificate(fmt.Sprintf("https://%s", config.Cluster.ClusterAddress), version.UserAgent)
@@ -219,8 +219,8 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// cluster join API format, and use the dedicated API if so.
 	if config.Cluster != nil && config.Cluster.ClusterAddress != "" && config.Cluster.ServerAddress != "" {
 		// Ensure the server and cluster addresses are in canonical form.
-		config.Cluster.ServerAddress = util.CanonicalNetworkAddress(config.Cluster.ServerAddress)
-		config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(config.Cluster.ClusterAddress)
+		config.Cluster.ServerAddress = util.CanonicalNetworkAddress(config.Cluster.ServerAddress, shared.HTTPSDefaultPort)
+		config.Cluster.ClusterAddress = util.CanonicalNetworkAddress(config.Cluster.ClusterAddress, shared.HTTPSDefaultPort)
 
 		op, err := d.UpdateCluster(config.Cluster.ClusterPut, "")
 		if err != nil {

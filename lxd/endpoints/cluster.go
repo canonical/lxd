@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -28,7 +29,7 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 	networkAddress := e.NetworkAddress()
 
 	if address != "" {
-		address = util.CanonicalNetworkAddress(address)
+		address = util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
 	}
 
 	oldAddress := e.ClusterAddress()

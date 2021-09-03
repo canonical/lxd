@@ -59,7 +59,7 @@ func (e *Endpoints) NetworkAddress() string {
 // it down and restarting it.
 func (e *Endpoints) NetworkUpdateAddress(address string) error {
 	if address != "" {
-		address = util.CanonicalNetworkAddress(address)
+		address = util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
 	}
 
 	oldAddress := e.NetworkAddress()
@@ -179,7 +179,7 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 
 // Create a new net.Listener bound to the tcp socket of the network endpoint.
 func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
-	listener, err := net.Listen("tcp", util.CanonicalNetworkAddress(address))
+	listener, err := net.Listen("tcp", util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort))
 	if err != nil {
 		return nil, errors.Wrap(err, "Bind network address")
 	}
