@@ -181,33 +181,47 @@ func IsAddressCovered(address1, address2 string) bool {
 
 	// If address1 contains a host name, let's try to resolve it, in order
 	// to compare the actual IPs.
-	addresses1 := []string{host1}
+	var addresses1 []net.IP
 	if host1 != "" {
-		ip1 := net.ParseIP(host1)
-		if ip1 == nil {
+		ip := net.ParseIP(host1)
+		if ip != nil {
+			addresses1 = append(addresses1, ip)
+		} else {
 			ips, err := net.LookupHost(host1)
 			if err == nil && len(ips) > 0 {
-				addresses1 = ips
+				for _, ipStr := range ips {
+					ip := net.ParseIP(ipStr)
+					if ip != nil {
+						addresses1 = append(addresses1, ip)
+					}
+				}
 			}
 		}
 	}
 
 	// If address2 contains a host name, let's try to resolve it, in order
 	// to compare the actual IPs.
-	addresses2 := []string{host2}
+	var addresses2 []net.IP
 	if host2 != "" {
-		ip2 := net.ParseIP(host2)
-		if ip2 == nil {
+		ip := net.ParseIP(host2)
+		if ip != nil {
+			addresses2 = append(addresses2, ip)
+		} else {
 			ips, err := net.LookupHost(host2)
 			if err == nil && len(ips) > 0 {
-				addresses2 = ips
+				for _, ipStr := range ips {
+					ip := net.ParseIP(ipStr)
+					if ip != nil {
+						addresses2 = append(addresses2, ip)
+					}
+				}
 			}
 		}
 	}
 
 	for _, a1 := range addresses1 {
 		for _, a2 := range addresses2 {
-			if a1 == a2 {
+			if a1.Equal(a2) {
 				return true
 			}
 		}
