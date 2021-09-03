@@ -73,10 +73,11 @@ func (a *inMemoryAddr) String() string {
 func CanonicalNetworkAddress(address string) string {
 	_, _, err := net.SplitHostPort(address)
 	if err != nil {
-		if net.ParseIP(address) != nil {
+		ip := net.ParseIP(address)
+		if ip != nil {
 			// If the input address is a bare IP address, then convert it to a proper listen address
-			// using the default port and wrap IPv6 addresses in square brackets.
-			address = net.JoinHostPort(address, fmt.Sprintf("%d", shared.DefaultPort))
+			// using the canonical IP with default port and wrap IPv6 addresses in square brackets.
+			address = net.JoinHostPort(ip.String(), fmt.Sprintf("%d", shared.DefaultPort))
 		} else {
 			// Otherwise assume this is either a host name or a partial address (e.g `[::]`) without
 			// a port number, so append the default port.
