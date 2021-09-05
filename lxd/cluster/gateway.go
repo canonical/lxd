@@ -216,10 +216,25 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 			raftNodes := make([]db.RaftNode, 0)
 			for _, node := range heartbeatData.Members {
 				if node.RaftID > 0 {
+					nodeInfo := db.NodeInfo{}
+					if g.Cluster != nil {
+						err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+							var err error
+							nodeInfo, err = tx.GetNodeByAddress(node.Address)
+							return err
+						})
+						if err != nil {
+							logger.Warn("Failed to retrieve cluster member", log.Ctx{"err": err})
+						}
+					}
+
 					raftNodes = append(raftNodes, db.RaftNode{
-						ID:      node.RaftID,
-						Address: node.Address,
-						Role:    db.RaftRole(node.RaftRole),
+						NodeInfo: client.NodeInfo{
+							ID:      node.RaftID,
+							Address: node.Address,
+							Role:    db.RaftRole(node.RaftRole),
+						},
+						Name: nodeInfo.Name,
 					})
 				}
 			}
@@ -788,7 +803,7 @@ func (g *Gateway) init(bootstrap bool) error {
 			}
 			g.memoryDial = dqliteMemoryDial(g.bindAddress)
 			g.store.inMemory = client.NewInmemNodeStore()
-			g.store.Set(context.Background(), []client.NodeInfo{*info})
+			g.store.Set(context.Background(), []client.NodeInfo{info.NodeInfo})
 		} else {
 			go runDqliteProxy(g.stopCh, g.bindAddress, g.acceptCh)
 			g.store.inMemory = nil
@@ -914,14 +929,39 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	raftNodes := []db.RaftNode{}
 	for i, server := range servers {
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to fetch raft server address")
 		}
 		servers[i].Address = address
+
+		raftNode := db.RaftNode{NodeInfo: servers[i]}
+		raftNodes = append(raftNodes, raftNode)
 	}
-	return servers, nil
+
+	// Get the names of the raft nodes from the global database.
+	if g.Cluster != nil {
+		err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			for i, server := range servers {
+				node, err := tx.GetNodeByAddress(server.Address)
+				if err != nil {
+					return err
+				}
+
+				raftNodes[i].Name = node.Name
+
+			}
+			return nil
+		})
+		if err != nil {
+			logger.Warn("Failed to retrieve cluster member", log.Ctx{"err": err})
+		}
+	}
+
+	return raftNodes, nil
 }
 
 // Translate a raft address to a node address. They are always the same except
