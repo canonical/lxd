@@ -11,6 +11,8 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
+	"github.com/canonical/go-dqlite/client"
+
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -63,6 +65,7 @@ func (c *cmdCluster) Command() *cobra.Command {
 // ClusterMember is a more human-readable representation of the db.RaftNode struct.
 type ClusterMember struct {
 	ID      uint64 `yaml:"id"`
+	Name    string `yaml:"name,omitempty"`
 	Address string `yaml:"address"`
 	Role    string `yaml:"role"`
 }
@@ -76,8 +79,11 @@ type ClusterConfig struct {
 // ToRaftNode converts a ClusterConfig struct to a RaftNode struct.
 func (c ClusterMember) ToRaftNode() (*db.RaftNode, error) {
 	node := &db.RaftNode{
-		ID:      c.ID,
-		Address: c.Address,
+		NodeInfo: client.NodeInfo{
+			ID:      c.ID,
+			Address: c.Address,
+		},
+		Name: c.Name,
 	}
 
 	var role db.RaftRole
@@ -148,7 +154,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, node := range nodes {
-		member := ClusterMember{ID: node.ID, Address: node.Address, Role: node.Role.String()}
+		member := ClusterMember{ID: node.ID, Name: node.Name, Address: node.Address, Role: node.Role.String()}
 		config.Members = append(config.Members, member)
 	}
 
@@ -235,6 +241,11 @@ func validateNewConfig(oldNodes []db.RaftNode, newNodes []db.RaftNode) error {
 			return fmt.Errorf("Changing cluster member ID is not supported")
 		}
 
+		// If the name field could not be populated, just ignore the new value.
+		if oldNode.Name != "" && newNode.Name != "" && oldNode.Name != newNode.Name {
+			return fmt.Errorf("Changing cluster member name is not supported")
+		}
+
 		if oldNode.Role == db.RaftSpare && newNode.Role == db.RaftVoter {
 			return fmt.Errorf("A %q cluster member cannot become a %q", db.RaftSpare.String(), db.RaftVoter.String())
 		}
@@ -295,7 +306,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, node := range nodes {
-		member := ClusterMember{ID: node.ID, Address: node.Address, Role: node.Role.String()}
+		member := ClusterMember{ID: node.ID, Name: node.Name, Address: node.Address, Role: node.Role.String()}
 		config.Members = append(config.Members, member)
 	}
 
