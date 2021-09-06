@@ -2,11 +2,61 @@ package warnings
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 )
+
+// ResolveWarningsOlderThan resolves all warnings which are older than the provided time.
+func ResolveWarningsOlderThan(cluster *db.Cluster, date time.Time) error {
+	var err error
+	var localName string
+
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		localName, err = tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting local member name")
+	}
+
+	if localName == "" {
+		return fmt.Errorf("Local member name not available")
+	}
+
+	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+		warnings, err := tx.GetWarnings()
+		if err != nil {
+			return err
+		}
+
+		for _, w := range warnings {
+			if w.Node != localName {
+				continue
+			}
+
+			if w.LastSeenDate.Before(date) {
+				err = tx.UpdateWarningStatus(w.UUID, db.WarningStatusResolved)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve warnings")
+	}
+
+	return nil
+}
 
 // ResolveWarningsByLocalNodeAndType resolves warnings with the local node and type code.
 // Returns error if no local node name.
