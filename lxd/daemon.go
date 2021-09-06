@@ -708,6 +708,8 @@ func setupSharedMounts() error {
 }
 
 func (d *Daemon) Init() error {
+	d.startTime = time.Now()
+
 	err := d.init()
 
 	// If an error occurred synchronously while starting up, let's try to
@@ -1318,27 +1320,10 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	// Resolve warnings; exclude those just created
-	for i := range db.WarningTypeNames {
-		resolveWarning := true
-
-		for _, w := range dbWarnings {
-			if i == w.TypeCode {
-				// Do not resolve the warning as it's still valid
-				resolveWarning = false
-				break
-			}
-		}
-
-		if !resolveWarning {
-			continue
-		}
-
-		// Resolve warnings with the given type
-		err := warnings.ResolveWarningsByLocalNodeAndType(d.cluster, i)
-		if err != nil {
-			logger.Warn("Failed to resolve warnings", log.Ctx{"err": err})
-		}
+	// Resolve warnings older than the daemon start time
+	warnings.ResolveWarningsOlderThan(d.cluster, d.startTime)
+	if err != nil {
+		logger.Warn("Failed to resolve warnings", log.Ctx{"err": err})
 	}
 
 	// Run the post initialization actions
@@ -1379,8 +1364,6 @@ func (d *Daemon) Ready() error {
 	if clustered {
 		d.startClusterTasks()
 	}
-
-	d.startTime = time.Now()
 
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
