@@ -708,6 +708,8 @@ func setupSharedMounts() error {
 }
 
 func (d *Daemon) Init() error {
+	d.startTime = time.Now()
+
 	err := d.init()
 
 	// If an error occurred synchronously while starting up, let's try to
@@ -1379,8 +1381,6 @@ func (d *Daemon) Ready() error {
 	if clustered {
 		d.startClusterTasks()
 	}
-
-	d.startTime = time.Now()
 
 	// FIXME: There's no hard reason for which we should not run these
 	//        tasks in mock mode. However it requires that we tweak them so
