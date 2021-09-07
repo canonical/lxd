@@ -71,9 +71,9 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool) {
 	}
 	hasReplacedArgsVar := false
 
-	for i, aliasArg := range aliasValue {
-		if aliasArg == "@ARGS@" && len(origArgs) > i {
-			newArgs = append(newArgs, origArgs[i+1:]...)
+	for _, aliasArg := range aliasValue {
+		if aliasArg == "@ARGS@" && len(origArgs) > 2 {
+			newArgs = append(newArgs, origArgs[2:]...)
 			hasReplacedArgsVar = true
 		} else {
 			newArgs = append(newArgs, aliasArg)
