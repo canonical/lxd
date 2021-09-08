@@ -399,7 +399,7 @@ func (h *membershipFixtures) ClusterAddress(address string) {
 // Add the given address to the raft_nodes table.
 func (h *membershipFixtures) RaftNode(address string) {
 	err := h.state.Node.Transaction(func(tx *db.NodeTx) error {
-		_, err := tx.CreateRaftNode(address)
+		_, err := tx.CreateRaftNode(address, "rusp")
 		return err
 	})
 	require.NoError(h.t, err)
