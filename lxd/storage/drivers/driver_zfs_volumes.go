@@ -1098,7 +1098,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		var volName string
 
 		for _, volumeType := range d.Info().VolumeTypes {
-			prefix := fmt.Sprintf("%s/%s/", d.name, volumeType)
+			prefix := fmt.Sprintf("%s/%s/", d.config["zfs.pool_name"], volumeType)
 			if strings.HasPrefix(zfsVolName, prefix) {
 				volType = volumeType
 				volName = strings.TrimPrefix(zfsVolName, prefix)
