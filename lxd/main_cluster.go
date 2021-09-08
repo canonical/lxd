@@ -62,6 +62,8 @@ func (c *cmdCluster) Command() *cobra.Command {
 	return cmd
 }
 
+const SegmentComment = "# Latest dqlite segment ID: %s"
+
 // ClusterMember is a more human-readable representation of the db.RaftNode struct.
 type ClusterMember struct {
 	ID      uint64 `yaml:"id"`
@@ -72,7 +74,6 @@ type ClusterMember struct {
 
 // ClusterConfig is a representation of the current cluster configuration.
 type ClusterConfig struct {
-	Segment string          `yaml:"latest_segment"`
 	Members []ClusterMember `yaml:"members"`
 }
 
@@ -148,10 +149,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	config := ClusterConfig{
-		Segment: segmentID,
-		Members: []ClusterMember{},
-	}
+	config := ClusterConfig{Members: []ClusterMember{}}
 
 	for _, node := range nodes {
 		member := ClusterMember{ID: node.ID, Name: node.Name, Address: node.Address, Role: node.Role.String()}
@@ -170,6 +168,10 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
+		if len(config.Members) > 0 {
+			data = []byte(fmt.Sprintf(SegmentComment, segmentID) + "\n\n" + string(data))
+		}
+
 		content, err = shared.TextEditor("", data)
 		if err != nil {
 			return err
@@ -300,10 +302,7 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	config := ClusterConfig{
-		Segment: segmentID,
-		Members: []ClusterMember{},
-	}
+	config := ClusterConfig{Members: []ClusterMember{}}
 
 	for _, node := range nodes {
 		member := ClusterMember{ID: node.ID, Name: node.Name, Address: node.Address, Role: node.Role.String()}
@@ -315,7 +314,11 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("%s", data)
+	if len(config.Members) > 0 {
+		fmt.Printf(SegmentComment+"\n\n%s", segmentID, data)
+	} else {
+		fmt.Printf("%s", data)
+	}
 
 	return nil
 }
