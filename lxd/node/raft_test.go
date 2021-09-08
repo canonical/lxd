@@ -3,11 +3,13 @@ package node_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/node"
+	"github.com/canonical/go-dqlite/client"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 )
 
 // The raft identity (ID and address) of a node depends on the value of
@@ -23,25 +25,25 @@ func TestDetermineRaftNode(t *testing.T) {
 			`no cluster.https_address set`,
 			"",
 			[]string{},
-			&db.RaftNode{ID: 1},
+			&db.RaftNode{NodeInfo: client.NodeInfo{ID: 1}},
 		},
 		{
 			`cluster.https_address set and no raft_nodes rows`,
 			"1.2.3.4:8443",
 			[]string{},
-			&db.RaftNode{ID: 1},
+			&db.RaftNode{NodeInfo: client.NodeInfo{ID: 1}},
 		},
 		{
 			`cluster.https_address set and matching the one and only raft_nodes row`,
 			"1.2.3.4:8443",
 			[]string{"1.2.3.4:8443"},
-			&db.RaftNode{ID: 1, Address: "1.2.3.4:8443"},
+			&db.RaftNode{NodeInfo: client.NodeInfo{ID: 1, Address: "1.2.3.4:8443"}},
 		},
 		{
 			`cluster.https_address set and matching one of many raft_nodes rows`,
 			"5.6.7.8:999",
 			[]string{"1.2.3.4:666", "5.6.7.8:999"},
-			&db.RaftNode{ID: 2, Address: "5.6.7.8:999"},
+			&db.RaftNode{NodeInfo: client.NodeInfo{ID: 2, Address: "5.6.7.8:999"}},
 		},
 		{
 			`core.cluster set and no matching raft_nodes row`,
@@ -60,7 +62,7 @@ func TestDetermineRaftNode(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, address := range c.addresses {
-				_, err := tx.CreateRaftNode(address)
+				_, err := tx.CreateRaftNode(address, "test")
 				require.NoError(t, err)
 			}
 
