@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/canonical/go-dqlite/client"
+	"github.com/stretchr/testify/require"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
-	"github.com/stretchr/testify/require"
 )
 
 // Set the cluster.https_address config key to the given address, and insert the
@@ -22,7 +23,7 @@ func setRaftRole(t *testing.T, database *db.Node, address string) client.NodeSto
 		if err != nil {
 			return err
 		}
-		_, err = tx.CreateRaftNode(address)
+		_, err = tx.CreateRaftNode(address, "test")
 		return err
 	}))
 
