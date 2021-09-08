@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-08-02 18:03-0400\n"
+"POT-Creation-Date: 2021-09-08 00:50-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -344,7 +344,7 @@ msgstr ""
 msgid "--console only works with a single instance"
 msgstr "non tutti i profili dell'origine esistono nella destinazione"
 
-#: lxc/init.go:123
+#: lxc/init.go:124
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
@@ -520,7 +520,7 @@ msgstr "Architettura: %s"
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:275
+#: lxc/init.go:298
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -597,7 +597,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:121 lxc/init.go:185 lxc/project.go:124 lxc/publish.go:175
+#: lxc/copy.go:121 lxc/init.go:208 lxc/project.go:124 lxc/publish.go:175
 #: lxc/storage.go:126 lxc/storage_volume.go:513
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -760,7 +760,7 @@ msgid "Cluster join token for %s:%s deleted"
 msgstr ""
 
 #: lxc/config.go:98 lxc/config.go:367 lxc/config.go:470 lxc/config.go:617
-#: lxc/config.go:736 lxc/copy.go:52 lxc/info.go:46 lxc/init.go:54
+#: lxc/config.go:736 lxc/copy.go:52 lxc/info.go:46 lxc/init.go:55
 #: lxc/move.go:57 lxc/network.go:272 lxc/network.go:687 lxc/network.go:745
 #: lxc/network.go:1032 lxc/network.go:1099 lxc/network.go:1161
 #: lxc/storage.go:95 lxc/storage.go:339 lxc/storage.go:400 lxc/storage.go:596
@@ -798,7 +798,7 @@ msgstr ""
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr ""
 
-#: lxc/copy.go:44 lxc/init.go:48
+#: lxc/copy.go:44 lxc/init.go:49
 msgid "Config key/value to apply to the new instance"
 msgstr ""
 
@@ -927,7 +927,7 @@ msgstr "Certificato del client salvato dal server: "
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
 
-#: lxc/init.go:57
+#: lxc/init.go:58
 #, fuzzy
 msgid "Create a virtual machine"
 msgstr "Creazione del container in corso"
@@ -936,7 +936,7 @@ msgstr "Creazione del container in corso"
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/init.go:56
+#: lxc/init.go:57
 #, fuzzy
 msgid "Create an empty instance"
 msgstr "Creazione del container in corso"
@@ -963,7 +963,7 @@ msgid ""
 "running state, including process memory state, TCP connections, ..."
 msgstr ""
 
-#: lxc/init.go:39 lxc/init.go:40
+#: lxc/init.go:40 lxc/init.go:41
 #, fuzzy
 msgid "Create instances from images"
 msgstr "Creazione del container in corso"
@@ -993,7 +993,7 @@ msgstr ""
 msgid "Create storage pools"
 msgstr ""
 
-#: lxc/copy.go:54 lxc/init.go:55
+#: lxc/copy.go:54 lxc/init.go:56
 msgid "Create the instance with no profiles applied"
 msgstr ""
 
@@ -1002,12 +1002,12 @@ msgstr ""
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/init.go:155
+#: lxc/init.go:156
 #, c-format
 msgid "Creating %s"
 msgstr "Creazione di %s in corso"
 
-#: lxc/init.go:153
+#: lxc/init.go:154
 #, fuzzy
 msgid "Creating the instance"
 msgstr "Creazione del container in corso"
@@ -1106,7 +1106,7 @@ msgstr ""
 #: lxc/image.go:322 lxc/image.go:447 lxc/image.go:606 lxc/image.go:826
 #: lxc/image.go:961 lxc/image.go:1259 lxc/image.go:1338 lxc/image_alias.go:25
 #: lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153
-#: lxc/image_alias.go:255 lxc/import.go:28 lxc/info.go:34 lxc/init.go:40
+#: lxc/image_alias.go:255 lxc/import.go:28 lxc/info.go:34 lxc/init.go:41
 #: lxc/launch.go:25 lxc/list.go:46 lxc/main.go:50 lxc/manpage.go:22
 #: lxc/monitor.go:32 lxc/move.go:36 lxc/network.go:32 lxc/network.go:111
 #: lxc/network.go:196 lxc/network.go:269 lxc/network.go:341 lxc/network.go:391
@@ -1201,7 +1201,7 @@ msgstr ""
 msgid "Device: %s"
 msgstr ""
 
-#: lxc/init.go:334
+#: lxc/init.go:357
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
 
@@ -1340,7 +1340,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:47 lxc/init.go:50
+#: lxc/copy.go:47 lxc/init.go:51
 msgid "Ephemeral instance"
 msgstr ""
 
@@ -1721,7 +1721,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:408 lxc/init.go:341
+#: lxc/copy.go:408 lxc/init.go:364
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Il nome del container è: %s"
@@ -1731,7 +1731,7 @@ msgstr "Il nome del container è: %s"
 msgid "Instance published with fingerprint: %s"
 msgstr ""
 
-#: lxc/init.go:53
+#: lxc/init.go:54
 msgid "Instance type"
 msgstr ""
 
@@ -2455,7 +2455,7 @@ msgstr ""
 msgid "Network %s renamed to %s"
 msgstr ""
 
-#: lxc/init.go:51
+#: lxc/init.go:52
 msgid "Network name"
 msgstr ""
 
@@ -2672,7 +2672,7 @@ msgstr ""
 msgid "Profile %s renamed to %s"
 msgstr ""
 
-#: lxc/copy.go:46 lxc/init.go:49
+#: lxc/copy.go:46 lxc/init.go:50
 msgid "Profile to apply to the new instance"
 msgstr ""
 
@@ -2955,7 +2955,7 @@ msgstr ""
 msgid "Retrieve the instance's console log"
 msgstr ""
 
-#: lxc/init.go:289
+#: lxc/init.go:312
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -3334,7 +3334,7 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:52 lxc/move.go:56
+#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:53 lxc/move.go:56
 msgid "Storage pool name"
 msgstr ""
 
@@ -3435,16 +3435,16 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:392
+#: lxc/init.go:415
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
-#: lxc/init.go:376
+#: lxc/init.go:399
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:372
+#: lxc/init.go:395
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -3495,11 +3495,11 @@ msgstr ""
 msgid "Timestamps:"
 msgstr ""
 
-#: lxc/init.go:394
+#: lxc/init.go:417
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:393
+#: lxc/init.go:416
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -3955,7 +3955,7 @@ msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:170 lxc/cluster.go:269 lxc/cluster.go:589
+#: lxc/cluster.go:170 lxc/cluster.go:269 lxc/cluster.go:589 lxc/cluster.go:749
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr "Creazione del container in corso"
@@ -4162,11 +4162,6 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:749
-#, fuzzy
-msgid "[<remote>:]<token>"
-msgstr "Creazione del container in corso"
-
 #: lxc/config.go:90 lxc/config.go:611
 #, fuzzy
 msgid "[<remote>:][<instance>[/<snapshot>]]"
@@ -4191,7 +4186,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>] <IP|FQDN|URL>"
 msgstr ""
 
-#: lxc/init.go:38
+#: lxc/init.go:39
 #, fuzzy
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr "Creazione del container in corso"
@@ -4322,7 +4317,7 @@ msgid ""
 "    For LXD server information."
 msgstr ""
 
-#: lxc/init.go:41
+#: lxc/init.go:42
 msgid ""
 "lxc init ubuntu:18.04 u1\n"
 "\n"
@@ -4512,6 +4507,10 @@ msgstr ""
 #: lxc/image.go:1055
 msgid "yes"
 msgstr "si"
+
+#, fuzzy
+#~ msgid "[<remote>:]<token>"
+#~ msgstr "Creazione del container in corso"
 
 #, fuzzy
 #~ msgid "create [<remote>:]<instance> <template>"
