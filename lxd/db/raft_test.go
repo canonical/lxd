@@ -6,9 +6,11 @@ package db_test
 import (
 	"testing"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/canonical/go-dqlite/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db"
 )
 
 // Fetch all raft nodes.
@@ -16,10 +18,10 @@ func TestRaftNodes(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	id1, err := tx.CreateRaftNode("1.2.3.4:666")
+	id1, err := tx.CreateRaftNode("1.2.3.4:666", "test")
 	require.NoError(t, err)
 
-	id2, err := tx.CreateRaftNode("5.6.7.8:666")
+	id2, err := tx.CreateRaftNode("5.6.7.8:666", "test")
 	require.NoError(t, err)
 
 	nodes, err := tx.GetRaftNodes()
@@ -36,10 +38,10 @@ func TestGetRaftNodeAddresses(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	_, err := tx.CreateRaftNode("1.2.3.4:666")
+	_, err := tx.CreateRaftNode("1.2.3.4:666", "test")
 	require.NoError(t, err)
 
-	_, err = tx.CreateRaftNode("5.6.7.8:666")
+	_, err = tx.CreateRaftNode("5.6.7.8:666", "test")
 	require.NoError(t, err)
 
 	addresses, err := tx.GetRaftNodeAddresses()
@@ -53,10 +55,10 @@ func TestGetRaftNodeAddress(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	_, err := tx.CreateRaftNode("1.2.3.4:666")
+	_, err := tx.CreateRaftNode("1.2.3.4:666", "test")
 	require.NoError(t, err)
 
-	id, err := tx.CreateRaftNode("5.6.7.8:666")
+	id, err := tx.CreateRaftNode("5.6.7.8:666", "test")
 	require.NoError(t, err)
 
 	address, err := tx.GetRaftNodeAddress(id)
@@ -69,13 +71,13 @@ func TestCreateFirstRaftNode(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	err := tx.CreateFirstRaftNode("1.2.3.4:666")
+	err := tx.CreateFirstRaftNode("1.2.3.4:666", "test")
 	assert.NoError(t, err)
 
-	err = tx.RemoteRaftNode(1)
+	err = tx.RemoveRaftNode(1)
 	assert.NoError(t, err)
 
-	err = tx.CreateFirstRaftNode("5.6.7.8:666")
+	err = tx.CreateFirstRaftNode("5.6.7.8:666", "test")
 	assert.NoError(t, err)
 
 	address, err := tx.GetRaftNodeAddress(1)
@@ -88,29 +90,29 @@ func TestCreateRaftNode(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	id, err := tx.CreateRaftNode("1.2.3.4:666")
+	id, err := tx.CreateRaftNode("1.2.3.4:666", "test")
 	assert.Equal(t, int64(1), id)
 	assert.NoError(t, err)
 }
 
 // Delete an existing raft node.
-func TestRemoteRaftNode(t *testing.T) {
+func TestRemoveRaftNode(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	id, err := tx.CreateRaftNode("1.2.3.4:666")
+	id, err := tx.CreateRaftNode("1.2.3.4:666", "test")
 	require.NoError(t, err)
 
-	err = tx.RemoteRaftNode(id)
+	err = tx.RemoveRaftNode(id)
 	assert.NoError(t, err)
 }
 
 // Delete a non-existing raft node returns an error.
-func TestRemoteRaftNode_NonExisting(t *testing.T) {
+func TestRemoveRaftNode_NonExisting(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	err := tx.RemoteRaftNode(1)
+	err := tx.RemoveRaftNode(1)
 	assert.Equal(t, db.ErrNoSuchObject, err)
 }
 
@@ -119,12 +121,12 @@ func TestReplaceRaftNodes(t *testing.T) {
 	tx, cleanup := db.NewTestNodeTx(t)
 	defer cleanup()
 
-	_, err := tx.CreateRaftNode("1.2.3.4:666")
+	_, err := tx.CreateRaftNode("1.2.3.4:666", "test")
 	require.NoError(t, err)
 
 	nodes := []db.RaftNode{
-		{ID: 2, Address: "2.2.2.2:666"},
-		{ID: 3, Address: "3.3.3.3:666"},
+		{NodeInfo: client.NodeInfo{ID: 2, Address: "2.2.2.2:666"}},
+		{NodeInfo: client.NodeInfo{ID: 3, Address: "3.3.3.3:666"}},
 	}
 	err = tx.ReplaceRaftNodes(nodes)
 	assert.NoError(t, err)

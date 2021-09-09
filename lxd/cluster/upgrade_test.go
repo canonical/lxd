@@ -11,13 +11,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // A node can unblock other nodes that were waiting for a cluster upgrade to
@@ -65,8 +67,8 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 
 	state.Node.Transaction(func(tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
-			{ID: 1, Address: "0.0.0.0:666"},
-			{ID: 2, Address: "1.2.3.4:666"},
+			{NodeInfo: client.NodeInfo{ID: 1, Address: "0.0.0.0:666"}},
+			{NodeInfo: client.NodeInfo{ID: 2, Address: "1.2.3.4:666"}},
 		}
 		err := tx.ReplaceRaftNodes(nodes)
 		require.NoError(t, err)
