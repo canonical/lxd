@@ -338,15 +338,19 @@ This will present a YAML representation of this node's last recorded information
 about the rest of the cluster:
 
 ```yaml
-latest_segment: "12345"     # The last transaction id of this node (Read-only)
+# Latest dqlite segment ID: 1234
+
 members:
-  - id: 1	            # Internal ID of the node (Read-only)
+  - id: 1             # Internal ID of the node (Read-only)
+    name: node1       # Name of the cluster member (Read-only)
     address: 10.0.0.10:8443 # Last known address of the node (Writeable)
     role: voter             # Last known role of the node (Writeable)
   - id: 2
+   name: node2
     address: 10.0.0.11:8443
     role: stand-by
   - id: 3
+   name: node3
     address: 10.0.0.12:8443
     role: spare
 ```
