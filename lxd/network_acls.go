@@ -236,7 +236,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, url)
 }
 
-// swagger:operation DELETE /1.0/network-acls/{name} network-acls network_acls_delete
+// swagger:operation DELETE /1.0/network-acls/{name} network-acls network_acl_delete
 //
 // Delete the network ACL
 //
@@ -281,7 +281,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// swagger:operation GET /1.0/network-acls/{name} network-acls network_acls_get
+// swagger:operation GET /1.0/network-acls/{name} network-acls network_acl_get
 //
 // Get the network ACL
 //
@@ -341,7 +341,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, info, netACL.Etag())
 }
 
-// swagger:operation PATCH /1.0/network-acls/{name} network-acls network_acls_patch
+// swagger:operation PATCH /1.0/network-acls/{name} network-acls network_acl_patch
 //
 // Partially update the network ACL
 //
@@ -376,7 +376,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 
-// swagger:operation PUT /1.0/network-acls/{name} network-acls network_acls_put
+// swagger:operation PUT /1.0/network-acls/{name} network-acls network_acl_put
 //
 // Update the network ACL
 //
@@ -459,7 +459,7 @@ func networkACLPut(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// swagger:operation POST /1.0/network-acls/{name} network-acls network_acls_post
+// swagger:operation POST /1.0/network-acls/{name} network-acls network_acl_post
 //
 // Rename the network ACL
 //
