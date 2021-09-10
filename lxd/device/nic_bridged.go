@@ -106,6 +106,21 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			if dhcpv4Subnet != nil && !dhcpalloc.DHCPValidIP(dhcpv4Subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], n.Name())
 			}
+
+			parentAddress := netConfig["ipv4.address"]
+			if shared.StringInSlice(parentAddress, []string{"", "none"}) {
+				return nil
+			}
+
+			ip, _, err := net.ParseCIDR(parentAddress)
+			if err != nil {
+				return errors.Wrapf(err, "Invalid network ipv4.address")
+			}
+
+			// IP should not be the same as the parent managed network address.
+			if ip.Equal(net.ParseIP(d.config["ipv4.address"])) {
+				return fmt.Errorf("IP address %q is assigned to parent managed network device %q", d.config["ipv4.address"], d.config["parent"])
+			}
 		}
 
 		if d.config["ipv6.address"] != "" {
@@ -121,6 +136,21 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			// network's subnet, but not necessarily part of the dynamic allocation ranges.
 			if dhcpv6Subnet != nil && !dhcpalloc.DHCPValidIP(dhcpv6Subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
 				return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], n.Name())
+			}
+
+			parentAddress := netConfig["ipv6.address"]
+			if shared.StringInSlice(parentAddress, []string{"", "none"}) {
+				return nil
+			}
+
+			ip, _, err := net.ParseCIDR(parentAddress)
+			if err != nil {
+				return errors.Wrapf(err, "Invalid network ipv6.address")
+			}
+
+			// IP should not be the same as the parent managed network address.
+			if ip.Equal(net.ParseIP(d.config["ipv6.address"])) {
+				return fmt.Errorf("IP address %q is assigned to parent managed network device %q", d.config["ipv6.address"], d.config["parent"])
 			}
 		}
 
