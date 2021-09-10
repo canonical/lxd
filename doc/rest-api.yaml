@@ -1851,18 +1851,6 @@ definitions:
         format: int64
         type: integer
         x-go-name: BytesSent
-      dropped_inbound:
-        description: Number of inbound packets dropped
-        example: 179
-        format: int64
-        type: integer
-        x-go-name: DroppedInbound
-      dropped_outbound:
-        description: Number of outbound packets dropped
-        example: 541
-        format: int64
-        type: integer
-        x-go-name: DroppedOutbound
       errors_received:
         description: Number of errors received
         example: 14
@@ -1875,6 +1863,18 @@ definitions:
         format: int64
         type: integer
         x-go-name: ErrorsSent
+      packets_dropped_inbound:
+        description: Number of inbound packets dropped
+        example: 179
+        format: int64
+        type: integer
+        x-go-name: PacketsDroppedInbound
+      packets_dropped_outbound:
+        description: Number of outbound packets dropped
+        example: 541
+        format: int64
+        type: integer
+        x-go-name: PacketsDroppedOutbound
       packets_received:
         description: Number of packets received
         example: 1748
@@ -6700,7 +6700,7 @@ paths:
   /1.0/images?public&recursion=1:
     get:
       description: Returns a list of publicly available images (structs).
-      operationId: images_get_recursion1
+      operationId: images_get_recursion1_untrusted
       parameters:
       - description: Project name
         example: default
@@ -8428,7 +8428,7 @@ paths:
   /1.0/network-acls/{name}:
     delete:
       description: Removes the network ACL.
-      operationId: network_acls_delete
+      operationId: network_acl_delete
       parameters:
       - description: Project name
         example: default
@@ -8451,7 +8451,7 @@ paths:
       - network-acls
     get:
       description: Gets a specific network ACL.
-      operationId: network_acls_get
+      operationId: network_acl_get
       parameters:
       - description: Project name
         example: default
@@ -8492,7 +8492,7 @@ paths:
       consumes:
       - application/json
       description: Updates a subset of the network ACL configuration.
-      operationId: network_acls_patch
+      operationId: network_acl_patch
       parameters:
       - description: Project name
         example: default
@@ -8525,7 +8525,7 @@ paths:
       consumes:
       - application/json
       description: Renames an existing network ACL.
-      operationId: network_acls_post
+      operationId: network_acl_post
       parameters:
       - description: Project name
         example: default
@@ -8556,7 +8556,7 @@ paths:
       consumes:
       - application/json
       description: Updates the entire network ACL configuration.
-      operationId: network_acls_put
+      operationId: network_acl_put
       parameters:
       - description: Project name
         example: default
@@ -9064,7 +9064,7 @@ paths:
   /1.0/networks/{networkName}/forwards/{listenAddress}:
     delete:
       description: Removes the network forward.
-      operationId: network_forwards_delete
+      operationId: network_forward_delete
       parameters:
       - description: Project name
         example: default
@@ -9087,7 +9087,7 @@ paths:
       - network-forwards
     get:
       description: Gets a specific network forward.
-      operationId: network_forwards_get
+      operationId: network_forward_get
       parameters:
       - description: Project name
         example: default
@@ -9128,7 +9128,7 @@ paths:
       consumes:
       - application/json
       description: Updates a subset of the network forward configuration.
-      operationId: network_forwards_patch
+      operationId: network_forward_patch
       parameters:
       - description: Project name
         example: default
@@ -9161,7 +9161,7 @@ paths:
       consumes:
       - application/json
       description: Updates the entire network forward configuration.
-      operationId: network_forwards_put
+      operationId: network_forward_put
       parameters:
       - description: Project name
         example: default
@@ -9193,7 +9193,7 @@ paths:
   /1.0/networks/{networkName}/forwards?recursion=1:
     get:
       description: Returns a list of network forwards (structs).
-      operationId: network_forwards_get_recursion1
+      operationId: network_forward_get_recursion1
       parameters:
       - description: Project name
         example: default
