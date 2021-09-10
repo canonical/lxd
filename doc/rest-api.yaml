@@ -6646,7 +6646,7 @@ paths:
   /1.0/images?public&recursion=1:
     get:
       description: Returns a list of publicly available images (structs).
-      operationId: images_get_recursion1
+      operationId: images_get_recursion1_untrusted
       parameters:
       - description: Project name
         example: default
