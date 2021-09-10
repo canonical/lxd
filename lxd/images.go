@@ -1157,7 +1157,7 @@ func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/images?public&recursion=1 images images_get_recursion1
+// swagger:operation GET /1.0/images?public&recursion=1 images images_get_recursion1_untrusted
 //
 // Get the public images
 //
