@@ -1440,6 +1440,11 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
+			// DHCPv6 leases can't be tracked down to a MAC so clear the field.
+			if strings.Contains(fields[2], ":") {
+				macStr = ""
+			}
+
 			// Add the lease to the list.
 			leases = append(leases, api.NetworkLease{
 				Hostname: fields[3],
@@ -1474,7 +1479,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		// Filter based on project.
 		filteredLeases := []api.NetworkLease{}
 		for _, lease := range leases {
-			if !shared.StringInSlice(lease.Hwaddr, projectMacs) {
+			if lease.Hwaddr != "" && !shared.StringInSlice(lease.Hwaddr, projectMacs) {
 				continue
 			}
 
