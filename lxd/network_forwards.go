@@ -85,7 +85,7 @@ var networkForwardCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 
-// swagger:operation GET /1.0/networks/{networkName}/forwards?recursion=1 network-forwards network_forwards_get_recursion1
+// swagger:operation GET /1.0/networks/{networkName}/forwards?recursion=1 network-forwards network_forward_get_recursion1
 //
 // Get the networks
 //
@@ -255,7 +255,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseLocation(true, nil, url)
 }
 
-// swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forwards_delete
+// swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_delete
 //
 // Delete the network forward
 //
@@ -311,7 +311,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 	return response.EmptySyncResponse
 }
 
-// swagger:operation GET /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forwards_get
+// swagger:operation GET /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_get
 //
 // Get the network forward
 //
@@ -383,7 +383,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, forward, forward.Etag())
 }
 
-// swagger:operation PATCH /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forwards_patch
+// swagger:operation PATCH /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_patch
 //
 // Partially update the network forward
 //
@@ -418,7 +418,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 
-// swagger:operation PUT /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forwards_put
+// swagger:operation PUT /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_put
 //
 // Update the network forward
 //
