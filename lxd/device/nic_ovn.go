@@ -138,7 +138,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Cannot specify %q when DHCP is disabled on network %q", "ipv4.address", d.config["network"])
 		}
 
-		_, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
+		ip, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
 		if err != nil {
 			return errors.Wrapf(err, "Invalid network ipv4.address")
 		}
@@ -148,6 +148,11 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		if !dhcpalloc.DHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv4.address"])) {
 			return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv4.address"], d.config["network"])
 		}
+
+		// IP should not be the same as the parent managed network address.
+		if ip.Equal(net.ParseIP(d.config["ipv4.address"])) {
+			return fmt.Errorf("IP address %q is assigned to parent managed network device %q", d.config["ipv4.address"], d.config["parent"])
+		}
 	}
 
 	if d.config["ipv6.address"] != "" {
@@ -156,7 +161,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf("Cannot specify %q when DHCP or %q are disabled on network %q", "ipv6.address", "ipv6.dhcp.stateful", d.config["network"])
 		}
 
-		_, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
+		ip, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 		if err != nil {
 			return errors.Wrapf(err, "Invalid network ipv6.address")
 		}
@@ -165,6 +170,11 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 		// network's subnet, but not necessarily part of the dynamic allocation ranges.
 		if !dhcpalloc.DHCPValidIP(subnet, nil, net.ParseIP(d.config["ipv6.address"])) {
 			return fmt.Errorf("Device IP address %q not within network %q subnet", d.config["ipv6.address"], d.config["network"])
+		}
+
+		// IP should not be the same as the parent managed network address.
+		if ip.Equal(net.ParseIP(d.config["ipv6.address"])) {
+			return fmt.Errorf("IP address %q is assigned to parent managed network device %q", d.config["ipv6.address"], d.config["parent"])
 		}
 	}
 
