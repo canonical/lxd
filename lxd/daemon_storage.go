@@ -76,6 +76,23 @@ func daemonStorageUnmount(s *state.State) error {
 		}
 	}
 
+	pools, err := s.Cluster.GetStoragePoolNames()
+	if err != nil {
+		return fmt.Errorf("Failed to get storage pools: %w", err)
+	}
+
+	for _, poolName := range pools {
+		pool, err := storagePools.GetPoolByName(s, poolName)
+		if err != nil {
+			return fmt.Errorf("Failed to get storage pool %q: %w", poolName, err)
+		}
+
+		_, err = pool.Unmount()
+		if err != nil {
+			return fmt.Errorf("Unable to unmount storage pool %q: %w", poolName, err)
+		}
+	}
+
 	return nil
 }
 
