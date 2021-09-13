@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
+	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
 	lxd "github.com/lxc/lxd/client"
@@ -1391,6 +1392,25 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 						Location: inst.Location(),
 					})
 				}
+
+				// Add EUI64 records.
+				ipv6Address := n.Config["ipv6.address"]
+				if ipv6Address != "" && ipv6Address != "none" && !shared.IsTrue(n.Config["ipv6.dhcp.stateful"]) {
+					_, netAddress, _ := net.ParseCIDR(ipv6Address)
+					hwAddr, _ := net.ParseMAC(dev["hwaddr"])
+					if netAddress != nil && hwAddr != nil {
+						ipv6, err := eui64.ParseMAC(netAddress.IP, hwAddr)
+						if err == nil {
+							leases = append(leases, api.NetworkLease{
+								Hostname: inst.Name(),
+								Address:  ipv6.String(),
+								Hwaddr:   dev["hwaddr"],
+								Type:     "dynamic",
+								Location: inst.Location(),
+							})
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1440,6 +1460,11 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
+			// DHCPv6 leases can't be tracked down to a MAC so clear the field.
+			if strings.Contains(fields[2], ":") {
+				macStr = ""
+			}
+
 			// Add the lease to the list.
 			leases = append(leases, api.NetworkLease{
 				Hostname: fields[3],
@@ -1474,7 +1499,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 		// Filter based on project.
 		filteredLeases := []api.NetworkLease{}
 		for _, lease := range leases {
-			if !shared.StringInSlice(lease.Hwaddr, projectMacs) {
+			if lease.Hwaddr != "" && !shared.StringInSlice(lease.Hwaddr, projectMacs) {
 				continue
 			}
 
