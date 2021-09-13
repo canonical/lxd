@@ -29,3 +29,9 @@ type IOStats struct {
 	WrittenBytes    uint64
 	WritesCompleted uint64
 }
+
+// CPUStats represent CPU stats.
+type CPUStats struct {
+	User   int64
+	System int64
+}

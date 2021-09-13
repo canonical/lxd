@@ -202,6 +202,58 @@ func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 	return ErrUnknownVersion
 }
 
+// GetCPUAcctUsageAll returns the user and system CPU times of each CPU thread in ns used by processes
+func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
+	out := map[int64]CPUStats{}
+
+	version := cgControllers["cpuacct"]
+	switch version {
+	case Unavailable:
+		return nil, ErrControllerMissing
+	case V1:
+		val, err := cg.rw.Get(version, "cpuacct", "cpuacct.usage_all")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			// Skip header
+			if fields[0] == "cpu" {
+				continue
+			}
+
+			stats := CPUStats{}
+
+			cpuID, err := strconv.ParseInt(fields[0], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+			}
+
+			stats.User, err = strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+			}
+
+			stats.System, err = strconv.ParseInt(fields[2], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+			}
+
+			out[cpuID] = stats
+		}
+
+		return out, nil
+	case V2:
+		return nil, ErrControllerMissing
+	}
+
+	return nil, ErrUnknownVersion
+}
+
 // GetCPUAcctUsage returns the total CPU time in ns used by processes
 func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 	version := cgControllers["cpuacct"]
