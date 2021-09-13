@@ -850,3 +850,69 @@ func (n *common) ForwardUpdate(listenAddress string, newForward api.NetworkForwa
 func (n *common) ForwardDelete(listenAddress string) error {
 	return ErrNotImplemented
 }
+
+// forwardBGPSetupPrefixes exports external forward addresses as prefixes.
+func (n *common) forwardBGPSetupPrefixes() error {
+	// Retrieve network forwards before clearing existing prefixes, and separate them by IP family.
+	fwdListenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID(), true)
+	if err != nil {
+		return fmt.Errorf("Failed loading network forwards: %w", err)
+	}
+
+	fwdListenAddressesByFamily := map[uint][]string{
+		4: make([]string, 0),
+		6: make([]string, 0),
+	}
+
+	for _, fwdListenAddress := range fwdListenAddresses {
+		if strings.Contains(fwdListenAddress, ":") {
+			fwdListenAddressesByFamily[6] = append(fwdListenAddressesByFamily[6], fwdListenAddress)
+		} else {
+			fwdListenAddressesByFamily[4] = append(fwdListenAddressesByFamily[4], fwdListenAddress)
+		}
+	}
+
+	// Use forward specific owner string (different from the network prefixes) so that these can be reapplied
+	// independently of the network's own prefixes.
+	bgpOwner := fmt.Sprintf("network_%d_forward", n.id)
+
+	// Clear existing address forward prefixes for network.
+	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)
+	if err != nil {
+		return err
+	}
+
+	// Add the new prefixes.
+	for _, ipVersion := range []uint{4, 6} {
+		nextHopAddr := n.bgpNextHopAddress(ipVersion)
+		natEnabled := shared.IsTrue(n.config[fmt.Sprintf("ipv%d.nat", ipVersion)])
+		_, netSubnet, _ := net.ParseCIDR(n.config[fmt.Sprintf("ipv%d.address", ipVersion)])
+
+		routeSubnetSize := 128
+		if ipVersion == 4 {
+			routeSubnetSize = 32
+		}
+
+		// Export external forward listen addresses.
+		for _, fwdListenAddress := range fwdListenAddressesByFamily[ipVersion] {
+			fwdListenAddr := net.ParseIP(fwdListenAddress)
+
+			// Don't export internal address forwards (those inside the NAT enabled network's subnet).
+			if natEnabled && netSubnet != nil && netSubnet.Contains(fwdListenAddr) {
+				continue
+			}
+
+			_, ipRouteSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", fwdListenAddr.String(), routeSubnetSize))
+			if err != nil {
+				return err
+			}
+
+			err = n.state.BGP.AddPrefix(*ipRouteSubnet, nextHopAddr, bgpOwner)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

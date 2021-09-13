@@ -2803,5 +2803,10 @@ func (n *bridge) forwardsSetup() error {
 		return fmt.Errorf("Failed applying firewall address forwards: %w", err)
 	}
 
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+	}
+
 	return nil
 }
