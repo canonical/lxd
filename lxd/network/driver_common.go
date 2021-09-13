@@ -484,12 +484,12 @@ func (n *common) bgpValidationRules(config map[string]string) (map[string]func(v
 func (n *common) bgpSetup(oldConfig map[string]string) error {
 	err := n.bgpSetupPeers(oldConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting up BGP peers: %w", err)
 	}
 
 	err = n.bgpSetupPrefixes(oldConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting up BGP prefixes: %w", err)
 	}
 
 	return nil
@@ -504,7 +504,13 @@ func (n *common) bgpClear(config map[string]string) error {
 	}
 
 	// Clear all prefixes.
-	err = n.bgpClearPrefixes()
+	err = n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d", n.id))
+	if err != nil {
+		return err
+	}
+
+	// Clear existing address forward prefixes for network.
+	err = n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d_forward", n.id))
 	if err != nil {
 		return err
 	}
@@ -522,16 +528,6 @@ func (n *common) bgpClearPeers(config map[string]string) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-// bgpClearPrefixes removes all BGP prefixes for the network.
-func (n *common) bgpClearPrefixes() error {
-	err := n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d", n.id))
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -579,25 +575,26 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 	return nil
 }
 
+// bgpNextHopAddress parses nexthop configuration and returns next hop address to use for BGP routes.
+// Uses first of bgp.ipv{ipVersion}.nexthop or volatile.network.ipv{ipVersion}.address or wildcard address.
+func (n *common) bgpNextHopAddress(ipVersion uint) net.IP {
+	nextHopAddr := net.ParseIP(n.config[fmt.Sprintf("bgp.ipv%d.nexthop", ipVersion)])
+	if nextHopAddr == nil {
+		nextHopAddr = net.ParseIP(n.config[fmt.Sprintf("volatile.network.ipv%d.address", ipVersion)])
+		if nextHopAddr == nil {
+			if ipVersion == 4 {
+				nextHopAddr = net.ParseIP("0.0.0.0")
+			} else {
+				nextHopAddr = net.ParseIP("::")
+			}
+		}
+	}
+
+	return nextHopAddr
+}
+
 // bgpSetupPrefixes refreshes the prefix list for the network.
 func (n *common) bgpSetupPrefixes(oldConfig map[string]string) error {
-	// Parse nexthop configuration.
-	nexthopV4 := net.ParseIP(n.config["bgp.ipv4.nexthop"])
-	if nexthopV4 == nil {
-		nexthopV4 = net.ParseIP(n.config["volatile.network.ipv4.address"])
-		if nexthopV4 == nil {
-			nexthopV4 = net.ParseIP("0.0.0.0")
-		}
-	}
-
-	nexthopV6 := net.ParseIP(n.config["bgp.ipv6.nexthop"])
-	if nexthopV6 == nil {
-		nexthopV6 = net.ParseIP(n.config["volatile.network.ipv6.address"])
-		if nexthopV6 == nil {
-			nexthopV6 = net.ParseIP("::")
-		}
-	}
-
 	// Clear existing prefixes.
 	bgpOwner := fmt.Sprintf("network_%d", n.id)
 	if oldConfig != nil {
@@ -608,51 +605,40 @@ func (n *common) bgpSetupPrefixes(oldConfig map[string]string) error {
 	}
 
 	// Add the new prefixes.
-	if shared.IsTrue(n.config["ipv4.nat"]) {
-		if n.config["ipv4.nat.address"] != "" {
-			_, subnet, err := net.ParseCIDR(fmt.Sprintf("%s/32", n.config["ipv4.nat.address"]))
+	for _, ipVersion := range []uint{4, 6} {
+		nextHopAddr := n.bgpNextHopAddress(ipVersion)
+
+		// If network has NAT enabled, then export network's NAT address if specified.
+		if shared.IsTrue(n.config[fmt.Sprintf("ipv%d.nat", ipVersion)]) {
+			natAddressKey := fmt.Sprintf("ipv%d.nat.address", ipVersion)
+			if n.config[natAddressKey] != "" {
+				subnetSize := 128
+				if ipVersion == 4 {
+					subnetSize = 32
+				}
+
+				_, subnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", n.config[natAddressKey], subnetSize))
+				if err != nil {
+					return err
+				}
+
+				err = n.state.BGP.AddPrefix(*subnet, nextHopAddr, bgpOwner)
+				if err != nil {
+					return err
+				}
+			}
+		} else if !shared.StringInSlice(n.config[fmt.Sprintf("ipv%d.address", ipVersion)], []string{"", "none"}) {
+			// If network has NAT disabled, then export the network's subnet if specified.
+			netAddress := n.config[fmt.Sprintf("ipv%d.address", ipVersion)]
+			_, subnet, err := net.ParseCIDR(netAddress)
+			if err != nil {
+				return fmt.Errorf("Failed parsing network address %q: %w", netAddress, err)
+			}
+
+			err = n.state.BGP.AddPrefix(*subnet, nextHopAddr, bgpOwner)
 			if err != nil {
 				return err
 			}
-
-			err = n.state.BGP.AddPrefix(*subnet, nexthopV4, bgpOwner)
-			if err != nil {
-				return err
-			}
-		}
-	} else if !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) {
-		_, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
-		if err != nil {
-			return err
-		}
-
-		err = n.state.BGP.AddPrefix(*subnet, nexthopV4, bgpOwner)
-		if err != nil {
-			return err
-		}
-	}
-
-	if shared.IsTrue(n.config["ipv6.nat"]) {
-		if n.config["ipv6.nat.address"] != "" {
-			_, subnet, err := net.ParseCIDR(fmt.Sprintf("%s/128", n.config["ipv6.nat.address"]))
-			if err != nil {
-				return err
-			}
-
-			err = n.state.BGP.AddPrefix(*subnet, nexthopV6, bgpOwner)
-			if err != nil {
-				return err
-			}
-		}
-	} else if !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
-		_, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
-		if err != nil {
-			return err
-		}
-
-		err = n.state.BGP.AddPrefix(*subnet, nexthopV6, bgpOwner)
-		if err != nil {
-			return err
 		}
 	}
 
@@ -863,4 +849,70 @@ func (n *common) ForwardUpdate(listenAddress string, newForward api.NetworkForwa
 // ForwardDelete returns ErrNotImplemented for drivers that do not support forwards.
 func (n *common) ForwardDelete(listenAddress string) error {
 	return ErrNotImplemented
+}
+
+// forwardBGPSetupPrefixes exports external forward addresses as prefixes.
+func (n *common) forwardBGPSetupPrefixes() error {
+	// Retrieve network forwards before clearing existing prefixes, and separate them by IP family.
+	fwdListenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID(), true)
+	if err != nil {
+		return fmt.Errorf("Failed loading network forwards: %w", err)
+	}
+
+	fwdListenAddressesByFamily := map[uint][]string{
+		4: make([]string, 0),
+		6: make([]string, 0),
+	}
+
+	for _, fwdListenAddress := range fwdListenAddresses {
+		if strings.Contains(fwdListenAddress, ":") {
+			fwdListenAddressesByFamily[6] = append(fwdListenAddressesByFamily[6], fwdListenAddress)
+		} else {
+			fwdListenAddressesByFamily[4] = append(fwdListenAddressesByFamily[4], fwdListenAddress)
+		}
+	}
+
+	// Use forward specific owner string (different from the network prefixes) so that these can be reapplied
+	// independently of the network's own prefixes.
+	bgpOwner := fmt.Sprintf("network_%d_forward", n.id)
+
+	// Clear existing address forward prefixes for network.
+	err = n.state.BGP.RemovePrefixByOwner(bgpOwner)
+	if err != nil {
+		return err
+	}
+
+	// Add the new prefixes.
+	for _, ipVersion := range []uint{4, 6} {
+		nextHopAddr := n.bgpNextHopAddress(ipVersion)
+		natEnabled := shared.IsTrue(n.config[fmt.Sprintf("ipv%d.nat", ipVersion)])
+		_, netSubnet, _ := net.ParseCIDR(n.config[fmt.Sprintf("ipv%d.address", ipVersion)])
+
+		routeSubnetSize := 128
+		if ipVersion == 4 {
+			routeSubnetSize = 32
+		}
+
+		// Export external forward listen addresses.
+		for _, fwdListenAddress := range fwdListenAddressesByFamily[ipVersion] {
+			fwdListenAddr := net.ParseIP(fwdListenAddress)
+
+			// Don't export internal address forwards (those inside the NAT enabled network's subnet).
+			if natEnabled && netSubnet != nil && netSubnet.Contains(fwdListenAddr) {
+				continue
+			}
+
+			_, ipRouteSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", fwdListenAddr.String(), routeSubnetSize))
+			if err != nil {
+				return err
+			}
+
+			err = n.state.BGP.AddPrefix(*ipRouteSubnet, nextHopAddr, bgpOwner)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
