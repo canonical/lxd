@@ -484,12 +484,12 @@ func (n *common) bgpValidationRules(config map[string]string) (map[string]func(v
 func (n *common) bgpSetup(oldConfig map[string]string) error {
 	err := n.bgpSetupPeers(oldConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting up BGP peers: %w", err)
 	}
 
 	err = n.bgpSetupPrefixes(oldConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed setting up BGP prefixes: %w", err)
 	}
 
 	return nil
