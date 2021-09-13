@@ -1445,3 +1445,10 @@ Adds support for refresh during volume migration.
 
 ## network\_counters\_errors\_dropped
 This adds the received and sent errors as well as inbound and outbound dropped packets to the network counters.
+
+## metrics
+This adds metrics to LXD. It returns metrics of running instances using the OpenMetrics format.
+
+This includes the following endpoints:
+
+* `GET /1.0/metrics`
