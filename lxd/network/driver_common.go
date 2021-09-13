@@ -509,6 +509,12 @@ func (n *common) bgpClear(config map[string]string) error {
 		return err
 	}
 
+	// Clear existing address forward prefixes for network.
+	err = n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d_forward", n.id))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
