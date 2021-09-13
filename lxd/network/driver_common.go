@@ -504,7 +504,7 @@ func (n *common) bgpClear(config map[string]string) error {
 	}
 
 	// Clear all prefixes.
-	err = n.bgpClearPrefixes()
+	err = n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d", n.id))
 	if err != nil {
 		return err
 	}
@@ -522,16 +522,6 @@ func (n *common) bgpClearPeers(config map[string]string) error {
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-// bgpClearPrefixes removes all BGP prefixes for the network.
-func (n *common) bgpClearPrefixes() error {
-	err := n.state.BGP.RemovePrefixByOwner(fmt.Sprintf("network_%d", n.id))
-	if err != nil {
-		return err
 	}
 
 	return nil
