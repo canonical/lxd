@@ -579,6 +579,24 @@ func (n *common) bgpSetupPeers(oldConfig map[string]string) error {
 	return nil
 }
 
+// bgpNextHopAddress parses nexthop configuration and returns next hop address to use for BGP routes.
+// Uses first of bgp.ipv{ipVersion}.nexthop or volatile.network.ipv{ipVersion}.address or wildcard address.
+func (n *common) bgpNextHopAddress(ipVersion uint) net.IP {
+	nextHopAddr := net.ParseIP(n.config[fmt.Sprintf("bgp.ipv%d.nexthop", ipVersion)])
+	if nextHopAddr == nil {
+		nextHopAddr = net.ParseIP(n.config[fmt.Sprintf("volatile.network.ipv%d.address", ipVersion)])
+		if nextHopAddr == nil {
+			if ipVersion == 4 {
+				nextHopAddr = net.ParseIP("0.0.0.0")
+			} else {
+				nextHopAddr = net.ParseIP("::")
+			}
+		}
+	}
+
+	return nextHopAddr
+}
+
 // bgpSetupPrefixes refreshes the prefix list for the network.
 func (n *common) bgpSetupPrefixes(oldConfig map[string]string) error {
 	// Parse nexthop configuration.
