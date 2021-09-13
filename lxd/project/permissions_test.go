@@ -1,6 +1,7 @@
 package project_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -150,4 +151,44 @@ func TestAllowInstanceCreation_AboveInstances(t *testing.T) {
 
 	err = project.AllowInstanceCreation(tx, "p1", req)
 	assert.EqualError(t, err, `Reached maximum number of instances in project "p1"`)
+}
+
+// If a direct targeting is blocked, the check fails.
+func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.CreateProject(db.Project{
+		Name: "p1",
+		Config: map[string]string{
+			"restricted":                "true",
+			"restricted.cluster.target": "block",
+		},
+	})
+	require.NoError(t, err)
+
+	req := &http.Request{}
+
+	err = project.CheckClusterTargetRestriction(tx, req, "p1", "n1")
+	assert.EqualError(t, err, "This project doesn't allow cluster member targeting")
+}
+
+// If a direct targeting is allowed, the check passes.
+func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
+	tx, cleanup := db.NewTestClusterTx(t)
+	defer cleanup()
+
+	_, err := tx.CreateProject(db.Project{
+		Name: "p1",
+		Config: map[string]string{
+			"restricted":                "false",
+			"restricted.cluster.target": "block",
+		},
+	})
+	require.NoError(t, err)
+
+	req := &http.Request{}
+
+	err = project.CheckClusterTargetRestriction(tx, req, "p1", "n1")
+	assert.NoError(t, err)
 }
