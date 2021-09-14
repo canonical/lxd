@@ -32,6 +32,7 @@ const (
 type APIHeartbeatMember struct {
 	ID            int64     // ID field value in nodes table.
 	Address       string    // Host and Port of node.
+	Name          string    // Name of cluster member.
 	RaftID        uint64    // ID field value in raft_nodes table, zero if non-raft node.
 	RaftRole      int       // Node role in the raft cluster, from the raft_nodes table
 	Raft          bool      // Deprecated, use non-zero RaftID instead to indicate raft node.
