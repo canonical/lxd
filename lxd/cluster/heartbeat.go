@@ -34,6 +34,7 @@ const (
 type APIHeartbeatMember struct {
 	ID            int64     // ID field value in nodes table.
 	Address       string    // Host and Port of node.
+	Name          string    // Name of cluster member.
 	RaftID        uint64    // ID field value in raft_nodes table, zero if non-raft node.
 	RaftRole      int       // Node role in the raft cluster, from the raft_nodes table
 	Raft          bool      // Deprecated, use non-zero RaftID instead to indicate raft node.
@@ -74,9 +75,8 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	// If we've been supplied a fresh set of node states, this is a full state list.
 	hbState.FullStateList = fullStateList
 
-	raftNodeMap := make(map[string]db.RaftNode)
-
 	// Convert raftNodes to a map keyed on address for lookups later.
+	raftNodeMap := make(map[string]db.RaftNode, len(raftNodes))
 	for _, raftNode := range raftNodes {
 		raftNodeMap[raftNode.Address] = raftNode
 	}
@@ -86,6 +86,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 		member := APIHeartbeatMember{
 			ID:            node.ID,
 			Address:       node.Address,
+			Name:          node.Name,
 			LastHeartbeat: node.Heartbeat,
 			Online:        !node.Heartbeat.Before(time.Now().Add(-offlineThreshold)),
 		}
