@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"reflect"
@@ -2512,6 +2513,14 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 
 // ForwardCreate creates a network forward.
 func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
+	memberSpecific := true // bridge supports per-member forwards.
+
+	// Check if there is an existing forward using the same listen address.
+	_, _, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
+	}
+
 	// Convert listen address to subnet so we can check its valid and can be used.
 	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 	if err != nil {
@@ -2551,7 +2560,6 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	defer revert.Fail()
 
 	// Create forward DB record.
-	memberSpecific := true // bridge supports per-member forwards.
 	forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
 	if err != nil {
 		return err
