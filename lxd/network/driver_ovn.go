@@ -3685,18 +3685,22 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			}
 		}
 
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
 		// Create forward DB record.
 		forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() { n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID) })
-
-		client, err := openvswitch.NewOVN(n.state)
-		if err != nil {
-			return fmt.Errorf("Failed to get OVN client: %w", err)
-		}
+		revert.Add(func() {
+			n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+			client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
+			n.forwardBGPSetupPrefixes()
+		})
 
 		vips := n.forwardFlattenVIPs(net.ParseIP(forward.ListenAddress), net.ParseIP(forward.Config["target_address"]), portMaps)
 
@@ -3717,6 +3721,12 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		if err != nil {
 			return err
 		}
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err := n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
@@ -3773,6 +3783,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			// Apply old settings to OVN on failure.
 			vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
 			client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+			n.forwardBGPSetupPrefixes()
 		})
 
 		err = n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
@@ -3792,6 +3803,12 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		if err != nil {
 			return err
 		}
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err := n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
@@ -3834,6 +3851,12 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 		if err != nil {
 			return err
 		}
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err := n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	return nil
