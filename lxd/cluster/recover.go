@@ -139,8 +139,8 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	}
 
 	localAddress := info.Address
-	nodes := []client.NodeInfo{}
 
+	nodes := make([]client.NodeInfo, 0, len(raftNodes))
 	for _, raftNode := range raftNodes {
 		nodes = append(nodes, raftNode.NodeInfo)
 
