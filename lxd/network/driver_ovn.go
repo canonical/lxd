@@ -14,6 +14,8 @@ import (
 	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
@@ -3610,6 +3612,14 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 	defer revert.Fail()
 
 	if clientType == request.ClientTypeNormal {
+		memberSpecific := false // OVN doesn't support per-member forwards.
+
+		// Check if there is an existing forward using the same listen address.
+		_, _, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
+		if err == nil {
+			return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
+		}
+
 		// Convert listen address to subnet so we can check its valid and can be used.
 		listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 		if err != nil {
@@ -3676,7 +3686,6 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		}
 
 		// Create forward DB record.
-		memberSpecific := false // OVN doesn't support per-member forwards.
 		forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
 		if err != nil {
 			return err
