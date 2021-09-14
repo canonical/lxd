@@ -943,7 +943,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		return nil, err
 	}
 
-	raftNodes := []db.RaftNode{}
+	raftNodes := make([]db.RaftNode, 0, len(servers))
 	for i, server := range servers {
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
