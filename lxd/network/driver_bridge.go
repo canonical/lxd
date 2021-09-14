@@ -1661,7 +1661,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Setup network address forwards.
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
 	}
@@ -2567,11 +2567,11 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 
 	revert.Add(func() {
 		n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
-		n.forwardsSetup()
+		n.forwardSetupFirewall()
 		n.forwardBGPSetupPrefixes()
 	})
 
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
 	}
@@ -2710,11 +2710,11 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 
 	revert.Add(func() {
 		n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
-		n.forwardsSetup()
+		n.forwardSetupFirewall()
 		n.forwardBGPSetupPrefixes()
 	})
 
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
 	}
@@ -2751,11 +2751,11 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 			ListenAddress:     forward.ListenAddress,
 		}
 		n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
-		n.forwardsSetup()
+		n.forwardSetupFirewall()
 		n.forwardBGPSetupPrefixes()
 	})
 
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
 	}
@@ -2770,8 +2770,8 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 	return nil
 }
 
-// forwardsSetup applies all network address forwards defined for this network and this member.
-func (n *bridge) forwardsSetup() error {
+// forwardSetupFirewall applies all network address forwards defined for this network and this member.
+func (n *bridge) forwardSetupFirewall() error {
 	memberSpecific := true // Get all forwards for this cluster member.
 	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
 	if err != nil {
