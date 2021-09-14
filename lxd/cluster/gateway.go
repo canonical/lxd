@@ -229,25 +229,13 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 			raftNodes := make([]db.RaftNode, 0)
 			for _, node := range heartbeatData.Members {
 				if node.RaftID > 0 {
-					nodeInfo := db.NodeInfo{}
-					if g.Cluster != nil {
-						err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
-							var err error
-							nodeInfo, err = tx.GetNodeByAddress(node.Address)
-							return err
-						})
-						if err != nil {
-							logger.Warn("Failed to retrieve cluster member", log.Ctx{"err": err})
-						}
-					}
-
 					raftNodes = append(raftNodes, db.RaftNode{
 						NodeInfo: client.NodeInfo{
 							ID:      node.RaftID,
 							Address: node.Address,
 							Role:    db.RaftRole(node.RaftRole),
 						},
-						Name: nodeInfo.Name,
+						Name: node.Name,
 					})
 				}
 			}
@@ -943,7 +931,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 		return nil, err
 	}
 
-	raftNodes := []db.RaftNode{}
+	raftNodes := make([]db.RaftNode, 0, len(servers))
 	for i, server := range servers {
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
@@ -958,19 +946,29 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	// Get the names of the raft nodes from the global database.
 	if g.Cluster != nil {
 		err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			nodes, err := tx.GetNodes()
+			if err != nil {
+				return fmt.Errorf("Failed loading cluster members: %w", err)
+			}
+
+			nodesByAddress := make(map[string]db.NodeInfo, len(nodes))
+			for _, node := range nodes {
+				nodesByAddress[node.Address] = node
+			}
+
 			for i, server := range servers {
-				node, err := tx.GetNodeByAddress(server.Address)
-				if err != nil {
-					return err
+				node, found := nodesByAddress[server.Address]
+				if !found {
+					return fmt.Errorf("Cluster member info not found for %q", server.Address)
 				}
 
 				raftNodes[i].Name = node.Name
-
 			}
+
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed to retrieve cluster member", log.Ctx{"err": err})
+			logger.Warn("Failed getting raft nodes", log.Ctx{"err": err})
 		}
 	}
 
