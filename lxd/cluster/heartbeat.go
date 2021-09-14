@@ -84,6 +84,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 		member := APIHeartbeatMember{
 			ID:            node.ID,
 			Address:       node.Address,
+			Name:          node.Name,
 			LastHeartbeat: node.Heartbeat,
 			Online:        !node.Heartbeat.Before(time.Now().Add(-offlineThreshold)),
 		}
