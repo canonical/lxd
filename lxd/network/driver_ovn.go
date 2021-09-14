@@ -3705,6 +3705,18 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
 		}
 
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).CreateNetworkForward(n.name, forward)
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -3767,6 +3779,19 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 		if err != nil {
 			return err
 		}
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).UpdateNetworkForward(n.name, curForward.ListenAddress, req, "")
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
@@ -3793,6 +3818,19 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 		}
 
 		err = n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+		if err != nil {
+			return err
+		}
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).DeleteNetworkForward(n.name, forward.ListenAddress)
+		})
 		if err != nil {
 			return err
 		}
