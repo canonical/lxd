@@ -964,20 +964,20 @@ func (c *Cluster) FillMissingStoragePoolDriver() error {
 
 // StoragePoolNodeConfigKeys lists all storage pool config keys which are node-specific.
 var StoragePoolNodeConfigKeys = []string{
-    "btrfs.mount_options",
-    "lvm.thinpool_name",
-    "lvm.use_thinpool",
-    "lvm.vg.force_reuse",
-    "lvm.vg_name",
-    "size",
-    "source",
-    "volatile.initial_source",
-    "volume.block.filesystem",
-    "volume.block.mount_options",
-    "volume.lvm.stripes",
-    "volume.lvm.stripes.size",
-    "volume.size",
-    "zfs.pool_name",
+	"btrfs.mount_options",
+	"lvm.thinpool_name",
+	"lvm.use_thinpool",
+	"lvm.vg.force_reuse",
+	"lvm.vg_name",
+	"size",
+	"source",
+	"volatile.initial_source",
+	"volume.block.filesystem",
+	"volume.block.mount_options",
+	"volume.lvm.stripes",
+	"volume.lvm.stripes.size",
+	"volume.size",
+	"zfs.pool_name",
 }
 
 // IsRemoteStorage return whether a given pool is backed by remote storage.
