@@ -229,25 +229,13 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 			raftNodes := make([]db.RaftNode, 0)
 			for _, node := range heartbeatData.Members {
 				if node.RaftID > 0 {
-					nodeInfo := db.NodeInfo{}
-					if g.Cluster != nil {
-						err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
-							var err error
-							nodeInfo, err = tx.GetNodeByAddress(node.Address)
-							return err
-						})
-						if err != nil {
-							logger.Warn("Failed to retrieve cluster member", log.Ctx{"err": err})
-						}
-					}
-
 					raftNodes = append(raftNodes, db.RaftNode{
 						NodeInfo: client.NodeInfo{
 							ID:      node.RaftID,
 							Address: node.Address,
 							Role:    db.RaftRole(node.RaftRole),
 						},
-						Name: nodeInfo.Name,
+						Name: node.Name,
 					})
 				}
 			}
