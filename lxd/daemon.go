@@ -43,6 +43,7 @@ import (
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
@@ -116,6 +117,12 @@ type Daemon struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Stores the time the metrics were last fetched. This will be used to prevent stressing the instances too much.
+	metricsLastBuildTime time.Time
+	// Cached metrics which are returned instead of querying all instances.
+	metrics      *metrics.MetricSet
+	metricsMutex sync.Mutex
 }
 
 type externalAuth struct {
