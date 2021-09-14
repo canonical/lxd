@@ -8346,6 +8346,31 @@ paths:
       summary: Get the instances
       tags:
       - instances
+  /1.0/metrics:
+    get:
+      description: Gets metrics of instances.
+      operationId: metrics_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Metrics
+          schema:
+            description: Instance metrics
+            type: string
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get metrics
+      tags:
+      - metrics
   /1.0/network-acls:
     get:
       description: Returns a list of network ACLs (URLs).
