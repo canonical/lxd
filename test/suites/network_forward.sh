@@ -19,8 +19,16 @@ test_network_forward() {
     ! nft -nn list chain inet lxd "fwdpstrt.${netName}" || false
   fi
 
+  # Check forward is exported via BGP prefixes.
+  lxc query /internal/testing/bgp | grep "198.51.100.1/32"
+
+  lxc network forward delete "${netName}" 198.51.100.1
+
+  # Check deleting network forward removes forward BGP prefix.
+  ! lxc query /internal/testing/bgp | grep "198.51.100.1/32" || false
+
   # Check creating forward with default target creates valid firewall rules.
-  lxc network forward set "${netName}" 198.51.100.1 target_address=192.0.2.2
+  lxc network forward create "${netName}" 198.51.100.1 target_address=192.0.2.2
   if [ "$firewallDriver" = "xtables" ]; then
     iptables -w -t nat -S | grep -- "-A PREROUTING -d 198.51.100.1/32 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.2"
     iptables -w -t nat -S | grep -- "-A OUTPUT -d 198.51.100.1/32 -m comment --comment \"generated for LXD network-forward ${netName}\" -j DNAT --to-destination 192.0.2.2"
@@ -128,8 +136,15 @@ test_network_forward() {
     [ "$(nft -nn list chain inet lxd "fwdpstrt.${netName}" | wc -l)" -eq 7 ]
   fi
 
+  # Check forward is exported via BGP prefixes before network delete.
+  lxc query /internal/testing/bgp | grep "198.51.100.1/32"
+
   # Check deleting the network clears the forward firewall rules.
   lxc network delete "${netName}"
+
+  # Check deleting network removes forward BGP prefix.
+  ! lxc query /internal/testing/bgp | grep "198.51.100.1/32" || false
+
   if [ "$firewallDriver" = "xtables" ]; then
     ! iptables -w -t nat -S | grep -c "generated for LXD network-forward ${netName}" || false
   else
