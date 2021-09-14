@@ -295,7 +295,6 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
