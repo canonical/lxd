@@ -491,6 +491,12 @@ func (n *common) bgpSetup(oldConfig map[string]string) error {
 		return fmt.Errorf("Failed setting up BGP prefixes: %w", err)
 	}
 
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+	}
+
 	return nil
 }
 
