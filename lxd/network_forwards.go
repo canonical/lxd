@@ -234,17 +234,6 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	targetMember := queryParam(r, "target")
-	memberSpecific := targetMember != ""
-
-	// Check if there is an existing forward using the same listen address.
-	_, _, err = d.State().Cluster.GetNetworkForward(n.ID(), memberSpecific, req.ListenAddress)
-	if err == nil {
-		return response.SmartError(api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists"))
-	} else if statusCode, found := api.StatusErrorMatch(err); found && statusCode != http.StatusNotFound {
-		return response.SmartError(err)
-	}
-
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	err = n.ForwardCreate(req, clientType)
