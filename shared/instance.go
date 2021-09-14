@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -114,17 +115,25 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 		}
 
 		if strings.HasSuffix(value, "%") {
-			_, err := strconv.ParseInt(strings.TrimSuffix(value, "%"), 10, 64)
+			num, err := strconv.ParseInt(strings.TrimSuffix(value, "%"), 10, 64)
 			if err != nil {
 				return err
+			}
+
+			if num == 0 {
+				return errors.New("Memory limit can't be 0%")
 			}
 
 			return nil
 		}
 
-		_, err := units.ParseByteSizeString(value)
+		num, err := units.ParseByteSizeString(value)
 		if err != nil {
 			return err
+		}
+
+		if num == 0 {
+			return fmt.Errorf("Memory limit can't be 0")
 		}
 
 		return nil
