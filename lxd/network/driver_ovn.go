@@ -3605,7 +3605,7 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 }
 
 // ForwardCreate creates a network forward.
-func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost) error {
+func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
 	// Convert listen address to subnet so we can check its valid and can be used.
 	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 	if err != nil {
@@ -3700,7 +3700,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost) error {
 }
 
 // ForwardUpdate updates a network forward.
-func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) error {
+func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	memberSpecific := false // OVN doesn't support per-member forwards.
 	curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {
@@ -3760,7 +3760,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) err
 }
 
 // ForwardDelete deletes a network forward.
-func (n *ovn) ForwardDelete(listenAddress string) error {
+func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	memberSpecific := false // OVN doesn't support per-member forwards.
 	forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {

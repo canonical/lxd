@@ -2511,7 +2511,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 }
 
 // ForwardCreate creates a network forward.
-func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost) error {
+func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
 	// Convert listen address to subnet so we can check its valid and can be used.
 	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 	if err != nil {
@@ -2654,7 +2654,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost) error {
 }
 
 // ForwardUpdate updates a network forward.
-func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) error {
+func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
 	curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {
@@ -2708,7 +2708,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) 
 }
 
 // ForwardDelete deletes a network forward.
-func (n *bridge) ForwardDelete(listenAddress string) error {
+func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
 	forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {

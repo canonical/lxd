@@ -837,17 +837,17 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 }
 
 // ForwardCreate returns ErrNotImplemented for drivers that do not support forwards.
-func (n *common) ForwardCreate(forward api.NetworkForwardsPost) error {
+func (n *common) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
 	return ErrNotImplemented
 }
 
 // ForwardUpdate returns ErrNotImplemented for drivers that do not support forwards.
-func (n *common) ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut) error {
+func (n *common) ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut, clientType request.ClientType) error {
 	return ErrNotImplemented
 }
 
 // ForwardDelete returns ErrNotImplemented for drivers that do not support forwards.
-func (n *common) ForwardDelete(listenAddress string) error {
+func (n *common) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	return ErrNotImplemented
 }
 
