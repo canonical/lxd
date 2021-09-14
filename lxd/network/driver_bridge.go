@@ -2568,6 +2568,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	revert.Add(func() {
 		n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
 		n.forwardsSetup()
+		n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardsSetup()
@@ -2657,6 +2658,12 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		}
 	}
 
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+	}
+
 	revert.Success()
 	return nil
 }
@@ -2704,11 +2711,18 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 	revert.Add(func() {
 		n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
 		n.forwardsSetup()
+		n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardsSetup()
 	if err != nil {
 		return err
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
@@ -2738,11 +2752,18 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 		}
 		n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
 		n.forwardsSetup()
+		n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardsSetup()
 	if err != nil {
 		return err
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
@@ -2809,11 +2830,6 @@ func (n *bridge) forwardsSetup() error {
 	err = n.state.Firewall.NetworkApplyForwards(n.name, fwForwards)
 	if err != nil {
 		return fmt.Errorf("Failed applying firewall address forwards: %w", err)
-	}
-
-	err = n.forwardBGPSetupPrefixes()
-	if err != nil {
-		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	return nil
