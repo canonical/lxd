@@ -73,9 +73,8 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	// If we've been supplied a fresh set of node states, this is a full state list.
 	hbState.FullStateList = fullStateList
 
-	raftNodeMap := make(map[string]db.RaftNode)
-
 	// Convert raftNodes to a map keyed on address for lookups later.
+	raftNodeMap := make(map[string]db.RaftNode, len(raftNodes))
 	for _, raftNode := range raftNodes {
 		raftNodeMap[raftNode.Address] = raftNode
 	}
