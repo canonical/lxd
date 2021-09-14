@@ -10,13 +10,13 @@ import (
 )
 
 // LoadModule loads the kernel module with the given name, by invoking
-// modprobe.
+// modprobe. This respects any modprobe configuration on the system.
 func LoadModule(module string) error {
 	if shared.PathExists(fmt.Sprintf("/sys/module/%s", module)) {
 		return nil
 	}
 
-	_, err := shared.RunCommand("modprobe", module)
+	_, err := shared.RunCommand("modprobe", "-b", module)
 	return err
 }
 
