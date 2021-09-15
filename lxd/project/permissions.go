@@ -1243,35 +1243,6 @@ func FilterUsedBy(r *http.Request, entries []string) []string {
 	return usedBy
 }
 
-// CheckClusterTargetRestriction check if user is allowed to use cluster member targeting
-func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, projectName string, targetFlag string) error {
-	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
-	if rbac.UserIsAdmin(r) {
-		return nil
-	}
-
-	project, err := tx.GetProject(projectName)
-	if err != nil {
-		return fmt.Errorf("Fetch project database object")
-	}
-
-	if !projectHasLimitsOrRestrictions(project) {
-		return nil
-	}
-
-	key := "restricted.cluster.target"
-	restrictionValue, ok := project.Config[key]
-	if !ok {
-		restrictionValue = allRestrictions[key]
-	}
-
-	if restrictionValue == "block" && targetFlag != "" {
-		return fmt.Errorf("This project doesn't allow cluster member targeting")
-	}
-
-	return nil
-}
-
 // Return true if particular restriction in project is violated
 func projectHasRestriction(project *db.Project, restrictionKey string, blockValue string) bool {
 	restricted := project.Config["restricted"]
@@ -1289,6 +1260,25 @@ func projectHasRestriction(project *db.Project, restrictionKey string, blockValu
 	}
 
 	return false
+}
+
+// CheckClusterTargetRestriction check if user is allowed to use cluster member targeting
+func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, projectName string, targetFlag string) error {
+	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
+	if rbac.UserIsAdmin(r) {
+		return nil
+	}
+
+	project, err := tx.GetProject(projectName)
+	if err != nil {
+		return fmt.Errorf("Fetch project database object")
+	}
+
+	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
+		return fmt.Errorf("This project doesn't allow cluster member targeting")
+	}
+
+	return nil
 }
 
 // AllowBackupCreation returns an error if any project-specific restriction is violated
