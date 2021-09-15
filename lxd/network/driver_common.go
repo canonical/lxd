@@ -295,7 +295,6 @@ func (n *common) update(applyNetwork api.NetworkPut, targetNode string, clientTy
 		if err != nil {
 			return err
 		}
-
 	}
 
 	return nil
@@ -490,6 +489,12 @@ func (n *common) bgpSetup(oldConfig map[string]string) error {
 	err = n.bgpSetupPrefixes(oldConfig)
 	if err != nil {
 		return fmt.Errorf("Failed setting up BGP prefixes: %w", err)
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	return nil
@@ -837,17 +842,17 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 }
 
 // ForwardCreate returns ErrNotImplemented for drivers that do not support forwards.
-func (n *common) ForwardCreate(forward api.NetworkForwardsPost) error {
+func (n *common) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
 	return ErrNotImplemented
 }
 
 // ForwardUpdate returns ErrNotImplemented for drivers that do not support forwards.
-func (n *common) ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut) error {
+func (n *common) ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut, clientType request.ClientType) error {
 	return ErrNotImplemented
 }
 
 // ForwardDelete returns ErrNotImplemented for drivers that do not support forwards.
-func (n *common) ForwardDelete(listenAddress string) error {
+func (n *common) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	return ErrNotImplemented
 }
 
