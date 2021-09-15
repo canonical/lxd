@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
@@ -233,18 +234,9 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	targetMember := queryParam(r, "target")
-	memberSpecific := targetMember != ""
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	// Check if there is an existing forward using the same listen address.
-	_, _, err = d.State().Cluster.GetNetworkForward(n.ID(), memberSpecific, req.ListenAddress)
-	if err == nil {
-		return response.SmartError(api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists"))
-	} else if statusCode, found := api.StatusErrorMatch(err); found && statusCode != http.StatusNotFound {
-		return response.SmartError(err)
-	}
-
-	err = n.ForwardCreate(req)
+	err = n.ForwardCreate(req, clientType)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed creating forward: %w", err))
 	}
@@ -301,7 +293,9 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 
 	listenAddress := mux.Vars(r)["listenAddress"]
 
-	err = n.ForwardDelete(listenAddress)
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+
+	err = n.ForwardDelete(listenAddress, clientType)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed deleting forward: %w", err))
 	}
@@ -499,7 +493,9 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	err = n.ForwardUpdate(listenAddress, req)
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+
+	err = n.ForwardUpdate(listenAddress, req, clientType)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed updating forward: %w", err))
 	}

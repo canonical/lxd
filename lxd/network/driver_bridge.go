@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"reflect"
@@ -1660,7 +1661,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Setup network address forwards.
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
 	}
@@ -2511,7 +2512,15 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 }
 
 // ForwardCreate creates a network forward.
-func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost) error {
+func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
+	memberSpecific := true // bridge supports per-member forwards.
+
+	// Check if there is an existing forward using the same listen address.
+	_, _, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
+	if err == nil {
+		return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
+	}
+
 	// Convert listen address to subnet so we can check its valid and can be used.
 	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 	if err != nil {
@@ -2551,7 +2560,6 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost) error {
 	defer revert.Fail()
 
 	// Create forward DB record.
-	memberSpecific := true // bridge supports per-member forwards.
 	forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
 	if err != nil {
 		return err
@@ -2559,10 +2567,11 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost) error {
 
 	revert.Add(func() {
 		n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
-		n.forwardsSetup()
+		n.forwardSetupFirewall()
+		n.forwardBGPSetupPrefixes()
 	})
 
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
 	}
@@ -2649,12 +2658,18 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost) error {
 		}
 	}
 
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
+	}
+
 	revert.Success()
 	return nil
 }
 
 // ForwardUpdate updates a network forward.
-func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) error {
+func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
 	curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {
@@ -2695,12 +2710,19 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) 
 
 	revert.Add(func() {
 		n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
-		n.forwardsSetup()
+		n.forwardSetupFirewall()
+		n.forwardBGPSetupPrefixes()
 	})
 
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
@@ -2708,7 +2730,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) 
 }
 
 // ForwardDelete deletes a network forward.
-func (n *bridge) ForwardDelete(listenAddress string) error {
+func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
 	forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {
@@ -2729,20 +2751,27 @@ func (n *bridge) ForwardDelete(listenAddress string) error {
 			ListenAddress:     forward.ListenAddress,
 		}
 		n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
-		n.forwardsSetup()
+		n.forwardSetupFirewall()
+		n.forwardBGPSetupPrefixes()
 	})
 
-	err = n.forwardsSetup()
+	err = n.forwardSetupFirewall()
 	if err != nil {
 		return err
+	}
+
+	// Refresh exported BGP prefixes on local member.
+	err = n.forwardBGPSetupPrefixes()
+	if err != nil {
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
 	return nil
 }
 
-// forwardsSetup applies all network address forwards defined for this network and this member.
-func (n *bridge) forwardsSetup() error {
+// forwardSetupFirewall applies all network address forwards defined for this network and this member.
+func (n *bridge) forwardSetupFirewall() error {
 	memberSpecific := true // Get all forwards for this cluster member.
 	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
 	if err != nil {
@@ -2801,11 +2830,6 @@ func (n *bridge) forwardsSetup() error {
 	err = n.state.Firewall.NetworkApplyForwards(n.name, fwForwards)
 	if err != nil {
 		return fmt.Errorf("Failed applying firewall address forwards: %w", err)
-	}
-
-	err = n.forwardBGPSetupPrefixes()
-	if err != nil {
-		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	return nil

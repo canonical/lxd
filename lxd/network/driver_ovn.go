@@ -14,6 +14,8 @@ import (
 	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
+	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
@@ -3605,94 +3607,126 @@ func (n *ovn) forwardFlattenVIPs(listenAddress net.IP, defaultTargetAddress net.
 }
 
 // ForwardCreate creates a network forward.
-func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost) error {
-	// Convert listen address to subnet so we can check its valid and can be used.
-	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
-	if err != nil {
-		return errors.Wrapf(err, "Failed parsing %q", forward.ListenAddress)
-	}
-
-	portMaps, err := n.forwardValidate(listenAddressNet.IP, &forward.NetworkForwardPut)
-	if err != nil {
-		return err
-	}
-
-	// Load the project to get uplink network restrictions.
-	p, err := n.state.Cluster.GetProject(n.project)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
-	}
-
-	// Get uplink routes.
-	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
-	if err != nil {
-		return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
-	}
-
-	uplinkRoutes, err := n.uplinkRoutes(uplink)
-	if err != nil {
-		return err
-	}
-
-	// Get project restricted routes.
-	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
-	if err != nil {
-		return err
-	}
-
-	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
-	if err != nil {
-		return err
-	}
-
-	// Check the listen address subnet is allowed within both the uplink's external routes and any
-	// project restricted subnets.
-	err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
-	if err != nil {
-		return err
-	}
-
-	// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
-	for _, externalSubnetUser := range externalSubnetsInUse {
-		// Skip our own network's SNAT address (as it can be used for NICs in the network).
-		if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
-			continue
-		}
-
-		// Skip our own network (but not NIC devices on our own network).
-		if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
-			continue
-		}
-
-		if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
-			// This error is purposefully vague so that it doesn't reveal any names of
-			// resources potentially outside of the network's project.
-			return fmt.Errorf("Forward listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
-		}
-	}
-
+func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Create forward DB record.
-	memberSpecific := false // OVN doesn't support per-member forwards.
-	forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
-	if err != nil {
-		return err
+	if clientType == request.ClientTypeNormal {
+		memberSpecific := false // OVN doesn't support per-member forwards.
+
+		// Check if there is an existing forward using the same listen address.
+		_, _, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
+		if err == nil {
+			return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
+		}
+
+		// Convert listen address to subnet so we can check its valid and can be used.
+		listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
+		if err != nil {
+			return errors.Wrapf(err, "Failed parsing %q", forward.ListenAddress)
+		}
+
+		portMaps, err := n.forwardValidate(listenAddressNet.IP, &forward.NetworkForwardPut)
+		if err != nil {
+			return err
+		}
+
+		// Load the project to get uplink network restrictions.
+		p, err := n.state.Cluster.GetProject(n.project)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
+		}
+
+		// Get uplink routes.
+		_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+		if err != nil {
+			return errors.Wrapf(err, "Failed to load uplink network %q", n.config["network"])
+		}
+
+		uplinkRoutes, err := n.uplinkRoutes(uplink)
+		if err != nil {
+			return err
+		}
+
+		// Get project restricted routes.
+		projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
+		if err != nil {
+			return err
+		}
+
+		externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
+		if err != nil {
+			return err
+		}
+
+		// Check the listen address subnet is allowed within both the uplink's external routes and any
+		// project restricted subnets.
+		err = n.validateExternalSubnet(uplinkRoutes, projectRestrictedSubnets, listenAddressNet)
+		if err != nil {
+			return err
+		}
+
+		// Check the listen address subnet doesn't fall within any existing OVN network external subnets.
+		for _, externalSubnetUser := range externalSubnetsInUse {
+			// Skip our own network's SNAT address (as it can be used for NICs in the network).
+			if externalSubnetUser.networkSNAT && externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name {
+				continue
+			}
+
+			// Skip our own network (but not NIC devices on our own network).
+			if externalSubnetUser.networkProject == n.project && externalSubnetUser.networkName == n.name && externalSubnetUser.instanceDevice == "" {
+				continue
+			}
+
+			if SubnetContains(&externalSubnetUser.subnet, listenAddressNet) || SubnetContains(listenAddressNet, &externalSubnetUser.subnet) {
+				// This error is purposefully vague so that it doesn't reveal any names of
+				// resources potentially outside of the network's project.
+				return fmt.Errorf("Forward listen address %q overlaps with another OVN network or NIC", listenAddressNet.String())
+			}
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		// Create forward DB record.
+		forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+			client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
+			n.forwardBGPSetupPrefixes()
+		})
+
+		vips := n.forwardFlattenVIPs(net.ParseIP(forward.ListenAddress), net.ParseIP(forward.Config["target_address"]), portMaps)
+
+		err = client.LoadBalancerApply(n.getLoadBalancerName(forward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		if err != nil {
+			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
+		}
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).CreateNetworkForward(n.name, forward)
+		})
+		if err != nil {
+			return err
+		}
 	}
 
-	revert.Add(func() { n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID) })
-
-	client, err := openvswitch.NewOVN(n.state)
+	// Refresh exported BGP prefixes on local member.
+	err := n.forwardBGPSetupPrefixes()
 	if err != nil {
-		return fmt.Errorf("Failed to get OVN client: %w", err)
-	}
-
-	vips := n.forwardFlattenVIPs(net.ParseIP(forward.ListenAddress), net.ParseIP(forward.Config["target_address"]), portMaps)
-
-	err = client.LoadBalancerApply(n.getLoadBalancerName(forward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
-	if err != nil {
-		return fmt.Errorf("Failed applying OVN load balancer: %w", err)
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
@@ -3700,59 +3734,81 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost) error {
 }
 
 // ForwardUpdate updates a network forward.
-func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) error {
-	memberSpecific := false // OVN doesn't support per-member forwards.
-	curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
-	if err != nil {
-		return err
-	}
-
-	portMaps, err := n.forwardValidate(net.ParseIP(curForward.ListenAddress), &req)
-	if err != nil {
-		return err
-	}
-
-	curForwardEtagHash, err := util.EtagHash(curForward.Etag())
-	if err != nil {
-		return err
-	}
-
-	newForward := api.NetworkForward{
-		ListenAddress:     curForward.ListenAddress,
-		NetworkForwardPut: req,
-	}
-
-	newForwardEtagHash, err := util.EtagHash(newForward.Etag())
-	if err != nil {
-		return err
-	}
-
-	if curForwardEtagHash == newForwardEtagHash {
-		return nil // Nothing has changed.
-	}
-
+func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	client, err := openvswitch.NewOVN(n.state)
-	if err != nil {
-		return fmt.Errorf("Failed to get OVN client: %w", err)
+	if clientType == request.ClientTypeNormal {
+		memberSpecific := false // OVN doesn't support per-member forwards.
+		curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+		if err != nil {
+			return err
+		}
+
+		portMaps, err := n.forwardValidate(net.ParseIP(curForward.ListenAddress), &req)
+		if err != nil {
+			return err
+		}
+
+		curForwardEtagHash, err := util.EtagHash(curForward.Etag())
+		if err != nil {
+			return err
+		}
+
+		newForward := api.NetworkForward{
+			ListenAddress:     curForward.ListenAddress,
+			NetworkForwardPut: req,
+		}
+
+		newForwardEtagHash, err := util.EtagHash(newForward.Etag())
+		if err != nil {
+			return err
+		}
+
+		if curForwardEtagHash == newForwardEtagHash {
+			return nil // Nothing has changed.
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		vips := n.forwardFlattenVIPs(net.ParseIP(newForward.ListenAddress), net.ParseIP(newForward.Config["target_address"]), portMaps)
+		err = client.LoadBalancerApply(n.getLoadBalancerName(newForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+		if err != nil {
+			return fmt.Errorf("Failed applying OVN load balancer: %w", err)
+		}
+		revert.Add(func() {
+			// Apply old settings to OVN on failure.
+			vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
+			client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+			n.forwardBGPSetupPrefixes()
+		})
+
+		err = n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
+		if err != nil {
+			return err
+		}
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).UpdateNetworkForward(n.name, curForward.ListenAddress, req, "")
+		})
+		if err != nil {
+			return err
+		}
 	}
 
-	vips := n.forwardFlattenVIPs(net.ParseIP(newForward.ListenAddress), net.ParseIP(newForward.Config["target_address"]), portMaps)
-	err = client.LoadBalancerApply(n.getLoadBalancerName(newForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
+	// Refresh exported BGP prefixes on local member.
+	err := n.forwardBGPSetupPrefixes()
 	if err != nil {
-		return fmt.Errorf("Failed applying OVN load balancer: %w", err)
-	}
-	revert.Add(func() {
-		// Apply old settings to OVN on failure.
-		vips := n.forwardFlattenVIPs(net.ParseIP(curForward.ListenAddress), net.ParseIP(curForward.Config["target_address"]), portMaps)
-		client.LoadBalancerApply(n.getLoadBalancerName(curForward.ListenAddress), []openvswitch.OVNRouter{n.getRouterName()}, []openvswitch.OVNSwitch{n.getIntSwitchName()}, vips...)
-	})
-
-	err = n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
-	if err != nil {
-		return err
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	revert.Success()
@@ -3760,26 +3816,47 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut) err
 }
 
 // ForwardDelete deletes a network forward.
-func (n *ovn) ForwardDelete(listenAddress string) error {
-	memberSpecific := false // OVN doesn't support per-member forwards.
-	forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
-	if err != nil {
-		return err
+func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType) error {
+	if clientType == request.ClientTypeNormal {
+		memberSpecific := false // OVN doesn't support per-member forwards.
+		forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+		if err != nil {
+			return err
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		err = client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
+		if err != nil {
+			return fmt.Errorf("Failed deleting OVN load balancer: %w", err)
+		}
+
+		err = n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+		if err != nil {
+			return err
+		}
+
+		// Notify all other members to refresh their BGP prefixes.
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			return client.UseProject(n.project).DeleteNetworkForward(n.name, forward.ListenAddress)
+		})
+		if err != nil {
+			return err
+		}
 	}
 
-	client, err := openvswitch.NewOVN(n.state)
+	// Refresh exported BGP prefixes on local member.
+	err := n.forwardBGPSetupPrefixes()
 	if err != nil {
-		return fmt.Errorf("Failed to get OVN client: %w", err)
-	}
-
-	err = client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
-	if err != nil {
-		return fmt.Errorf("Failed deleting OVN load balancer: %w", err)
-	}
-
-	err = n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
-	if err != nil {
-		return err
+		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
 	}
 
 	return nil
