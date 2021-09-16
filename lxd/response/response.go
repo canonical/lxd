@@ -31,12 +31,13 @@ type Response interface {
 
 // Sync response
 type syncResponse struct {
-	success  bool
-	etag     interface{}
-	metadata interface{}
-	location string
-	code     int
-	headers  map[string]string
+	success   bool
+	etag      interface{}
+	metadata  interface{}
+	location  string
+	code      int
+	headers   map[string]string
+	plaintext bool
 }
 
 // EmptySyncResponse represents an empty syncResponse.
@@ -69,6 +70,11 @@ func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]
 	return &syncResponse{success: success, metadata: metadata, headers: headers}
 }
 
+// SyncResponsePlain return a new syncResponse with plaintext.
+func SyncResponsePlain(success bool, metadata string) Response {
+	return &syncResponse{success: success, metadata: metadata, plaintext: true}
+}
+
 func (r *syncResponse) Render(w http.ResponseWriter) error {
 	// Set an appropriate ETag header
 	if r.etag != nil {
@@ -97,6 +103,17 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 			code = 201
 		}
 		w.WriteHeader(code)
+	}
+
+	if r.plaintext && r.metadata != nil {
+		w.Header().Set("Content-Type", "text/plain")
+
+		_, err := w.Write([]byte(r.metadata.(string)))
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	resp := api.ResponseRaw{

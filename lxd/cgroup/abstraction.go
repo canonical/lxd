@@ -1,8 +1,12 @@
 package cgroup
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"strconv"
+	"strings"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -196,6 +200,58 @@ func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 	}
 
 	return ErrUnknownVersion
+}
+
+// GetCPUAcctUsageAll returns the user and system CPU times of each CPU thread in ns used by processes
+func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
+	out := map[int64]CPUStats{}
+
+	version := cgControllers["cpuacct"]
+	switch version {
+	case Unavailable:
+		return nil, ErrControllerMissing
+	case V1:
+		val, err := cg.rw.Get(version, "cpuacct", "cpuacct.usage_all")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			// Skip header
+			if fields[0] == "cpu" {
+				continue
+			}
+
+			stats := CPUStats{}
+
+			cpuID, err := strconv.ParseInt(fields[0], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+			}
+
+			stats.User, err = strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+			}
+
+			stats.System, err = strconv.ParseInt(fields[2], 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+			}
+
+			out[cpuID] = stats
+		}
+
+		return out, nil
+	case V2:
+		return nil, ErrControllerMissing
+	}
+
+	return nil, ErrUnknownVersion
 }
 
 // GetCPUAcctUsage returns the total CPU time in ns used by processes
@@ -558,4 +614,215 @@ func (cg *CGroup) SetCpuset(limit string) error {
 	}
 
 	return ErrUnknownVersion
+}
+
+// GetMemoryStats returns memory stats
+func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
+	var (
+		err   error
+		stats string
+	)
+
+	out := make(map[string]uint64)
+
+	version := cgControllers["memory"]
+	switch version {
+	case Unavailable:
+		return nil, ErrControllerMissing
+	case V1, V2:
+		stats, err = cg.rw.Get(version, "memory", "memory.stat")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	for _, stat := range strings.Split(stats, "\n") {
+		field := strings.Split(stat, " ")
+
+		switch field[0] {
+		case "total_active_anon", "active_anon":
+			out["active_anon"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_active_file", "active_file":
+			out["active_file"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_inactive_anon", "inactive_anon":
+			out["inactive_anon"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_inactive_file", "inactive_file":
+			out["inactive_file"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_unevictable", "unevictable":
+			out["unevictable"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_writeback", "file_writeback":
+			out["writeback"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_dirty", "file_dirty":
+			out["dirty"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_mapped_file", "file_mapped":
+			out["mapped"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_rss": // v1 only
+			out["rss"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_shmem", "shmem":
+			out["shmem"], _ = strconv.ParseUint(field[1], 10, 64)
+		case "total_cache": // v1 only
+			out["cache"], _ = strconv.ParseUint(field[1], 10, 64)
+		}
+	}
+
+	// Calculated values
+	out["active"] = out["active_anon"] + out["active_file"]
+	out["inactive"] = out["inactive_anon"] + out["inactive_file"]
+
+	return out, nil
+}
+
+// GetIOStats returns disk stats.
+func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
+	partitions, err := ioutil.ReadFile("/proc/partitions")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read /proc/partitions: %w", err)
+	}
+
+	// partMap maps major:minor to device names, e.g. 259:0 -> nvme0n1
+	partMap := make(map[string]string)
+	scanner := bufio.NewScanner(bytes.NewReader(partitions))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "" {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		// Ignore the header
+		if fields[0] == "major" {
+			continue
+		}
+
+		partMap[fmt.Sprintf("%s:%s", fields[0], fields[1])] = fields[3]
+	}
+
+	// ioMap contains io stats for each device
+	ioMap := make(map[string]*IOStats)
+
+	version := cgControllers["blkio"]
+	switch version {
+	case Unavailable:
+		return nil, ErrControllerMissing
+	case V1:
+		val, err := cg.rw.Get(version, "blkio", "blkio.throttle.io_service_bytes_recursive")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			if len(fields) != 3 {
+				continue
+			}
+
+			if ioMap[partMap[fields[0]]] == nil {
+				ioMap[partMap[fields[0]]] = &IOStats{}
+			}
+
+			switch fields[1] {
+			case "Read":
+				ioMap[partMap[fields[0]]].ReadBytes, err = strconv.ParseUint(fields[2], 10, 64)
+			case "Write":
+				ioMap[partMap[fields[0]]].WrittenBytes, err = strconv.ParseUint(fields[2], 10, 64)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		val, err = cg.rw.Get(version, "blkio", "blkio.throttle.io_serviced_recursive")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner = bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			if len(fields) != 3 {
+				continue
+			}
+
+			if ioMap[partMap[fields[0]]] == nil {
+				ioMap[partMap[fields[0]]] = &IOStats{}
+			}
+
+			switch fields[1] {
+			case "Read":
+				ioMap[partMap[fields[0]]].ReadsCompleted, err = strconv.ParseUint(fields[2], 10, 64)
+			case "Write":
+				ioMap[partMap[fields[0]]].WritesCompleted, err = strconv.ParseUint(fields[2], 10, 64)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return ioMap, nil
+	case V2:
+		val, err := cg.rw.Get(version, "io", "io.stat")
+		if err != nil {
+			return nil, err
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			var (
+				devID           string
+				readBytes       uint64
+				readsCompleted  uint64
+				writtenBytes    uint64
+				writesCompleted uint64
+			)
+
+			_, err = fmt.Sscanf(scanner.Text(), "%s rbytes=%d wbytes=%d rios=%d wios=%d dbytes=%d", &devID, readBytes, writtenBytes, readsCompleted, writesCompleted)
+			if err != nil {
+				return nil, err
+			}
+
+			ioMap[partMap[devID]] = &IOStats{
+				ReadBytes:       readBytes,
+				ReadsCompleted:  readsCompleted,
+				WrittenBytes:    writtenBytes,
+				WritesCompleted: writesCompleted,
+			}
+		}
+
+		return ioMap, nil
+	}
+
+	return nil, ErrUnknownVersion
+}
+
+// GetTotalProcesses returns the total number of processes
+func (cg *CGroup) GetTotalProcesses() (int64, error) {
+	version := cgControllers["pids"]
+	switch version {
+	case Unavailable:
+		return -1, ErrControllerMissing
+	case V1:
+		val, err := cg.rw.Get(version, "pids", "pids.current")
+		if err != nil {
+			return -1, err
+		}
+
+		return strconv.ParseInt(val, 10, 64)
+	case V2:
+		val, err := cg.rw.Get(version, "pids", "pids.current")
+		if err != nil {
+			return -1, err
+		}
+
+		return strconv.ParseInt(val, 10, 64)
+	}
+
+	return -1, ErrUnknownVersion
 }
