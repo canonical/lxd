@@ -244,11 +244,19 @@ func (o *OVN) LogicalRouterSNATDeleteAll(routerName OVNRouter) error {
 
 // LogicalRouterDNATSNATAdd adds a DNAT_AND_SNAT rule to a logical router to translate packets from extIP to intIP.
 func (o *OVN) LogicalRouterDNATSNATAdd(routerName OVNRouter, extIP net.IP, intIP net.IP, stateless bool, mayExist bool) error {
-	args := []string{}
-
 	if mayExist {
-		args = append(args, "--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat", extIP.String(), "--")
+		// There appears to be a bug in ovn-nbctl where running lr-nat-del as part of the same command as
+		// lr-nat-add doesn't take account the changes by lr-nat-del, and so you can end up with errors
+		// if a NAT entry already exists. So we run them as separate command invocations.
+		// There can be left over dnat_and_snat entries if an instance was stopped when the ovn-nb DB
+		// was not reachable.
+		_, err := o.nbctl("--if-exists", "lr-nat-del", string(routerName), "dnat_and_snat", extIP.String())
+		if err != nil {
+			return err
+		}
 	}
+
+	args := []string{}
 
 	if stateless {
 		args = append(args, "--stateless")
