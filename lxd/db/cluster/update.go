@@ -90,6 +90,40 @@ var updates = map[int]schema.Update{
 	49: updateFromV48,
 	50: updateFromV49,
 	51: updateFromV50,
+	52: updateFromV51,
+}
+
+// updateFromV51 creates the networks_peers and networks_peers_config tables.
+func updateFromV51(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "networks_peers" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	target_network_project TEXT NULL,
+	target_network_name TEXT NULL,
+	target_network_id INTEGER NULL,
+	UNIQUE (network_id, name),
+	UNIQUE (network_id, target_network_project, target_network_name),
+	UNIQUE (network_id, target_network_id),
+	FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "networks_peers_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_peer_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_peer_id, key),
+	FOREIGN KEY (network_peer_id) REFERENCES "networks_peers" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating network peers tables: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV50 creates the nodes_config table.
