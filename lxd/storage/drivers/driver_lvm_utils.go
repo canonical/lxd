@@ -661,10 +661,14 @@ func (d *lvm) thinPoolVolumeUsage(volDevPath string) (uint64, uint64, error) {
 		return 0, 0, err
 	}
 
+	d.logger.Error("tomp thinPoolVolumeUsage", "out", out, "args", args)
+
 	parts := strings.Split(strings.TrimSpace(out), ",")
 	if len(parts) < 3 {
 		return 0, 0, fmt.Errorf("Unexpected output from lvs command")
 	}
+
+	d.logger.Error("tomp thinPoolVolumeUsage", "parts", parts)
 
 	total, err := strconv.ParseUint(parts[0], 10, 64)
 	if err != nil {
