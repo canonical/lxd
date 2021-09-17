@@ -29,6 +29,7 @@ type Info struct {
 	Projects           bool // Indicates if driver can be used in network enabled projects.
 	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
 	AddressForwards    bool // Indicates if driver supports address forwards.
+	Peering            bool // Indicates if the driver supports network peering.
 }
 
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
