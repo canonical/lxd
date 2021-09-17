@@ -39,9 +39,9 @@ var networkForwardCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/networks/{networkName}/forwards network-forwards network_forwards_get
 //
-// Get the network forwards
+// Get the network address forwards
 //
-// Returns a list of network forwards (URLs).
+// Returns a list of network address forwards (URLs).
 //
 // ---
 // produces:
@@ -88,9 +88,9 @@ var networkForwardCmd = APIEndpoint{
 
 // swagger:operation GET /1.0/networks/{networkName}/forwards?recursion=1 network-forwards network_forward_get_recursion1
 //
-// Get the networks
+// Get the network address forwards
 //
-// Returns a list of network forwards (structs).
+// Returns a list of network address forwards (structs).
 //
 // ---
 // produces:
@@ -122,7 +122,7 @@ var networkForwardCmd = APIEndpoint{
 //           example: 200
 //         metadata:
 //           type: array
-//           description: List of network forwards
+//           description: List of network address forwards
 //           items:
 //             $ref: "#/definitions/NetworkForward"
 //   "403":
@@ -249,9 +249,9 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation DELETE /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_delete
 //
-// Delete the network forward
+// Delete the network address forward
 //
-// Removes the network forward.
+// Removes the network address forward.
 //
 // ---
 // produces:
@@ -307,9 +307,9 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation GET /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_get
 //
-// Get the network forward
+// Get the network address forward
 //
-// Gets a specific network forward.
+// Gets a specific network address forward.
 //
 // ---
 // produces:
@@ -322,7 +322,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 //     example: default
 // responses:
 //   "200":
-//     description: Forward
+//     description: Address forward
 //     schema:
 //       type: object
 //       description: Sync response
@@ -379,9 +379,9 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PATCH /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_patch
 //
-// Partially update the network forward
+// Partially update the network address forward
 //
-// Updates a subset of the network forward configuration.
+// Updates a subset of the network address forward configuration.
 //
 // ---
 // consumes:
@@ -396,7 +396,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //     example: default
 //   - in: body
 //     name: forward
-//     description: Forward configuration
+//     description: Address forward configuration
 //     required: true
 //     schema:
 //       $ref: "#/definitions/NetworkForwardPut"
@@ -414,9 +414,9 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 
 // swagger:operation PUT /1.0/networks/{networkName}/forwards/{listenAddress} network-forwards network_forward_put
 //
-// Update the network forward
+// Update the network address forward
 //
-// Updates the entire network forward configuration.
+// Updates the entire network address forward configuration.
 //
 // ---
 // consumes:
@@ -431,7 +431,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 //     example: default
 //   - in: body
 //     name: forward
-//     description: Forward configuration
+//     description: Address forward configuration
 //     required: true
 //     schema:
 //       $ref: "#/definitions/NetworkForwardPut"
