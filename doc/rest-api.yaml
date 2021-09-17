@@ -2413,6 +2413,100 @@ definitions:
         x-go-name: Type
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  NetworkPeer:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Peer configuration map (refer to doc/network-peers.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the peer
+        example: Peering with network1 in project1
+        type: string
+        x-go-name: Description
+      name:
+        description: Name of the peer
+        example: project1-network1
+        readOnly: true
+        type: string
+        x-go-name: Name
+      status:
+        description: The state of the peering
+        example: Pending
+        readOnly: true
+        type: string
+        x-go-name: Status
+      target_network:
+        description: Name of the target network
+        example: network1
+        readOnly: true
+        type: string
+        x-go-name: TargetNetwork
+      target_project:
+        description: Name of the target project
+        example: project1
+        readOnly: true
+        type: string
+        x-go-name: TargetProject
+    title: NetworkPeer used for displaying a LXD network peering.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkPeerPut:
+    description: NetworkPeerPut represents the modifiable fields of a LXD network
+      peering
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Peer configuration map (refer to doc/network-peers.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the peer
+        example: Peering with network1 in project1
+        type: string
+        x-go-name: Description
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkPeersPost:
+    description: NetworkPeersPost represents the fields of a new LXD network peering
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Peer configuration map (refer to doc/network-peers.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the peer
+        example: Peering with network1 in project1
+        type: string
+        x-go-name: Description
+      name:
+        description: Name of the peer
+        example: project1-network1
+        type: string
+        x-go-name: Name
+      target_network:
+        description: Name of the target network
+        example: network1
+        type: string
+        x-go-name: TargetNetwork
+      target_project:
+        description: Name of the target project
+        example: project1
+        type: string
+        x-go-name: TargetProject
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   NetworkPost:
     description: NetworkPost represents the fields required to rename a LXD network
     properties:
