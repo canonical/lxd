@@ -101,6 +101,10 @@ func (c *cmdNetwork) Command() *cobra.Command {
 	networkForwardCmd := cmdNetworkForward{global: c.global}
 	cmd.AddCommand(networkForwardCmd.Command())
 
+	// Peer
+	networkPeerCmd := cmdNetworkPeer{global: c.global}
+	cmd.AddCommand(networkPeerCmd.Command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
