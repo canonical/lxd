@@ -926,3 +926,18 @@ func (n *common) forwardBGPSetupPrefixes() error {
 func (n *common) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	return nil, ErrNotImplemented
 }
+
+// PeerCrete returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) PeerCreate(forward api.NetworkPeersPost) error {
+	return ErrNotImplemented
+}
+
+// PeerUpdate returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) PeerUpdate(peerName string, newPeer api.NetworkPeerPut) error {
+	return ErrNotImplemented
+}
+
+// PeerDelete returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) PeerDelete(peerName string) error {
+	return ErrNotImplemented
+}
