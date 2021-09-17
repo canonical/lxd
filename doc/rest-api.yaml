@@ -8984,7 +8984,7 @@ paths:
       - networks
   /1.0/networks/{networkName}/forwards:
     get:
-      description: Returns a list of network forwards (URLs).
+      description: Returns a list of network address forwards (URLs).
       operationId: network_forwards_get
       parameters:
       - description: Project name
@@ -9027,7 +9027,7 @@ paths:
           $ref: '#/responses/Forbidden'
         "500":
           $ref: '#/responses/InternalServerError'
-      summary: Get the network forwards
+      summary: Get the network address forwards
       tags:
       - network-forwards
     post:
@@ -9063,7 +9063,7 @@ paths:
       - network-forwards
   /1.0/networks/{networkName}/forwards/{listenAddress}:
     delete:
-      description: Removes the network forward.
+      description: Removes the network address forward.
       operationId: network_forward_delete
       parameters:
       - description: Project name
@@ -9082,11 +9082,11 @@ paths:
           $ref: '#/responses/Forbidden'
         "500":
           $ref: '#/responses/InternalServerError'
-      summary: Delete the network forward
+      summary: Delete the network address forward
       tags:
       - network-forwards
     get:
-      description: Gets a specific network forward.
+      description: Gets a specific network address forward.
       operationId: network_forward_get
       parameters:
       - description: Project name
@@ -9098,7 +9098,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Forward
+          description: Address forward
           schema:
             description: Sync response
             properties:
@@ -9121,13 +9121,13 @@ paths:
           $ref: '#/responses/Forbidden'
         "500":
           $ref: '#/responses/InternalServerError'
-      summary: Get the network forward
+      summary: Get the network address forward
       tags:
       - network-forwards
     patch:
       consumes:
       - application/json
-      description: Updates a subset of the network forward configuration.
+      description: Updates a subset of the network address forward configuration.
       operationId: network_forward_patch
       parameters:
       - description: Project name
@@ -9135,7 +9135,7 @@ paths:
         in: query
         name: project
         type: string
-      - description: Forward configuration
+      - description: Address forward configuration
         in: body
         name: forward
         required: true
@@ -9154,13 +9154,13 @@ paths:
           $ref: '#/responses/PreconditionFailed'
         "500":
           $ref: '#/responses/InternalServerError'
-      summary: Partially update the network forward
+      summary: Partially update the network address forward
       tags:
       - network-forwards
     put:
       consumes:
       - application/json
-      description: Updates the entire network forward configuration.
+      description: Updates the entire network address forward configuration.
       operationId: network_forward_put
       parameters:
       - description: Project name
@@ -9168,7 +9168,7 @@ paths:
         in: query
         name: project
         type: string
-      - description: Forward configuration
+      - description: Address forward configuration
         in: body
         name: forward
         required: true
@@ -9187,12 +9187,12 @@ paths:
           $ref: '#/responses/PreconditionFailed'
         "500":
           $ref: '#/responses/InternalServerError'
-      summary: Update the network forward
+      summary: Update the network address forward
       tags:
       - network-forwards
   /1.0/networks/{networkName}/forwards?recursion=1:
     get:
-      description: Returns a list of network forwards (structs).
+      description: Returns a list of network address forwards (structs).
       operationId: network_forward_get_recursion1
       parameters:
       - description: Project name
@@ -9209,7 +9209,7 @@ paths:
             description: Sync response
             properties:
               metadata:
-                description: List of network forwards
+                description: List of network address forwards
                 items:
                   $ref: '#/definitions/NetworkForward'
                 type: array
@@ -9230,7 +9230,7 @@ paths:
           $ref: '#/responses/Forbidden'
         "500":
           $ref: '#/responses/InternalServerError'
-      summary: Get the networks
+      summary: Get the network address forwards
       tags:
       - network-forwards
   /1.0/networks?recursion=1:
