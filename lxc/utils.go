@@ -10,7 +10,7 @@ import (
 	"github.com/fvbommel/sortorder"
 	"github.com/pkg/errors"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
