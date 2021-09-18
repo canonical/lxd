@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxc/config"
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
