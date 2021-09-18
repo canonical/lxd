@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	lxdClient "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -13,7 +13,7 @@ import (
 // Cmd represents a running command for an Qemu VM.
 type qemuCmd struct {
 	attachedChildPid int
-	cmd              lxdClient.Operation
+	cmd              lxd.Operation
 	dataDone         chan bool
 	controlSendCh    chan api.InstanceExecControl
 	controlResCh     chan error

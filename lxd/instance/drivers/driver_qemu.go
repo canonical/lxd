@@ -27,7 +27,7 @@ import (
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
-	lxdClient "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -4813,7 +4813,7 @@ func (d *qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMo
 		return 0, 0, 0, "", nil, err
 	}
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"devName": d.Name(), "err": err})
 		return 0, 0, 0, "", nil, fmt.Errorf("Failed to connect to lxd-agent")
@@ -4859,14 +4859,14 @@ func (d *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int
 		return err
 	}
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
 		return fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
 
-	args := lxdClient.InstanceFileArgs{
+	args := lxd.InstanceFileArgs{
 		GID:       gid,
 		Mode:      mode,
 		Type:      fileType,
@@ -4909,7 +4909,7 @@ func (d *qemu) FileRemove(path string) error {
 		return err
 	}
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to lxd-agent")
 	}
@@ -5007,7 +5007,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		return nil, err
 	}
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
@@ -5044,7 +5044,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		}
 	}
 
-	args := lxdClient.InstanceExecArgs{
+	args := lxd.InstanceExecArgs{
 		Stdin:    stdin,
 		Stdout:   stdout,
 		Stderr:   stderr,
@@ -5329,7 +5329,7 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 		return nil, err
 	}
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed connecting to agent")
 	}
@@ -5636,7 +5636,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage interface{}) error
 		return err
 	}
 
-	agent, err := lxdClient.ConnectLXDHTTP(nil, client)
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
 		return fmt.Errorf("Failed to connect to lxd-agent")
