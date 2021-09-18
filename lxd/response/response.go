@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
