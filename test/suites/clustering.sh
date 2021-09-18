@@ -2122,7 +2122,7 @@ test_clustering_handover() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database$"
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep "node1" | grep -q "NO"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -q "database: false"
 
   # Even if we shutdown one more node, the cluster is still available.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
