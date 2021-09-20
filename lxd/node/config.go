@@ -76,6 +76,16 @@ func (c *Config) DebugAddress() string {
 	return debugAddress
 }
 
+// MetricsAddress returns the address and port to setup the metrics listener on
+func (c *Config) MetricsAddress() string {
+	metricsAddress := c.m.GetString("core.metrics_address")
+	if metricsAddress != "" {
+		return util.CanonicalNetworkAddress(metricsAddress, shared.HTTPSMetricsDefaultPort)
+	}
+
+	return metricsAddress
+}
+
 // MAASMachine returns the MAAS machine this instance is associated with, if
 // any.
 func (c *Config) MAASMachine() string {
@@ -193,6 +203,22 @@ func DebugAddress(node *db.Node) (string, error) {
 	return config.DebugAddress(), nil
 }
 
+// MetricsAddress is a convenience for loading the node configuration and
+// returning the value of core.metrics_address.
+func MetricsAddress(node *db.Node) (string, error) {
+	var config *Config
+	err := node.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		config, err = ConfigLoad(tx)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return config.MetricsAddress(), nil
+}
+
 func (c *Config) update(values map[string]interface{}) (map[string]string, error) {
 	changed, err := c.m.Change(values)
 	if err != nil {
@@ -223,6 +249,9 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the debug server
 	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+
+	// Network address for the debug server
+	"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// MAAS machine this LXD instance is associated with
 	"maas.machine": {},
