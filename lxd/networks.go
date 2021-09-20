@@ -1584,6 +1584,8 @@ func networkStartup(s *state.State) error {
 }
 
 func networkShutdown(s *state.State) error {
+	logger.Info("Stopping networks")
+
 	var err error
 
 	// Get a list of projects.
