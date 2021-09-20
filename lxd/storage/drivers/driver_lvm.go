@@ -506,26 +506,57 @@ func (d *lvm) Mount() (bool, error) {
 // Unmount unmounts the storage pool (this does nothing for external LVM pools, but for loopback
 // image LVM pools this closes the loop device handle if needed).
 func (d *lvm) Unmount() (bool, error) {
-	// If loop backed, force release the loop device.
+	// If loop backed, enable auto release of the loop device.
 	if filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
+		// Check if VG exists before we do anthing, this will indicate if its our unmount or not.
 		vgExists, _, _ := d.volumeGroupExists(d.config["lvm.vg_name"])
 		if vgExists {
-			// Deactivate volume group so that it's device is removed from /dev.
-			_, err := shared.TryRunCommand("vgchange", "-an", d.config["lvm.vg_name"])
+			loopFile, err := d.openLoopFile(d.config["source"])
 			if err != nil {
 				return false, err
 			}
+
+			err = SetAutoclearOnLoopDev(int(loopFile.Fd()))
+			if err != nil {
+				return false, fmt.Errorf("Failed enabling auto clear on loop device %q for volume group %q: %w", loopFile.Name(), d.config["lvm.vg_name"], err)
+			}
+
+			err = loopFile.Close()
+			if err != nil {
+				return false, err
+			}
+
+			// Deactivate volumes in volume group so that the loop device can be released.
+			_, err = shared.TryRunCommand("vgchange", "-an", d.config["lvm.vg_name"])
+			if err != nil {
+				return false, fmt.Errorf("Failed deactivating volumes on volume group %q: %w", d.config["lvm.vg_name"], err)
+			}
+
+			// Wait for loop device to be released.
+			loopDevPath := loopFile.Name()
+			loopDevBackingIndicatorPath := fmt.Sprintf("/sys/class/block/%s/loop/backing_file", filepath.Base(loopDevPath))
+
+			waitDuration := time.Second * time.Duration(5)
+			waitUntil := time.Now().Add(waitDuration)
+			for {
+				loopDevBackingIndicatorPathExists := shared.PathExists(loopDevBackingIndicatorPath)
+				if !loopDevBackingIndicatorPathExists {
+					break
+				}
+
+				if time.Now().After(waitUntil) {
+					return false, fmt.Errorf("Failed deactivating volume group %q to release loop device %q", d.config["lvm.vg_name"], loopDevPath)
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+
+			return true, nil // We released the loop device.
 		}
 
-		err := releaseLoopDev(d.config["source"])
-		if err != nil {
-			return false, errors.Wrapf(err, "Failed releasing loop file device %q", d.config["source"])
-		}
-
-		return true, nil // We closed the file.
+		return false, nil
 	}
 
-	// No loop device was opened, so nothing to close.
 	return false, nil
 }
 
