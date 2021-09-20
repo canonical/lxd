@@ -58,6 +58,14 @@ type Config struct {
 	//
 	// It can be updated after the endpoints are up using PprofUpdateAddress().
 	DebugAddress string
+
+	// MetricsAddress sets the address for the metrics endpoint.
+	//
+	// It can be updated after the endpoints are up using MetricsUpdateAddress().
+	MetricsAddress string
+
+	// HTTP server handling requests for the LXD metrics API.
+	MetricsServer *http.Server
 }
 
 // Up brings up all applicable LXD endpoints and starts accepting HTTP
@@ -161,6 +169,7 @@ func (e *Endpoints) up(config *Config) error {
 		network: config.RestServer,
 		cluster: config.RestServer,
 		pprof:   pprofCreateServer(),
+		metrics: config.MetricsServer,
 	}
 	e.cert = config.Cert
 	e.inherited = map[kind]bool{}
@@ -274,6 +283,16 @@ func (e *Endpoints) up(config *Config) error {
 		e.serve(pprof)
 	}
 
+	if config.MetricsAddress != "" {
+		e.listeners[metrics], err = metricsCreateListener(config.MetricsAddress, e.cert)
+		if err != nil {
+			return err
+		}
+
+		logger.Infof("Starting metrics handler:")
+		e.serve(metrics)
+	}
+
 	logger.Infof("Starting /dev/lxd handler:")
 	e.serve(devlxd)
 
@@ -321,6 +340,14 @@ func (e *Endpoints) Down() error {
 	if e.listeners[pprof] != nil {
 		logger.Infof("Stopping pprof handler:")
 		err := e.closeListener(pprof)
+		if err != nil {
+			return err
+		}
+	}
+
+	if e.listeners[metrics] != nil {
+		logger.Infof("Stopping metrics handler:")
+		err := e.closeListener(metrics)
 		if err != nil {
 			return err
 		}
@@ -408,6 +435,7 @@ const (
 	network
 	pprof
 	cluster
+	metrics
 )
 
 // Human-readable descriptions of the various kinds of endpoints.
@@ -417,4 +445,5 @@ var descriptions = map[kind]string{
 	network: "TCP socket",
 	pprof:   "pprof socket",
 	cluster: "cluster socket",
+	metrics: "metrics socket",
 }
