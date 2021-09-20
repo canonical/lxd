@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -14,28 +16,72 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
-func daemonStorageUnmount(s *state.State) error {
+func daemonStorageUnmount(s *state.State) {
+	logger.Info("Stopping storage pools")
+
+	var err error
 	var storageBackups string
 	var storageImages string
+	var pools map[string]storage.Pool
 
-	err := s.Node.Transaction(func(tx *db.NodeTx) error {
-		nodeConfig, err := node.ConfigLoad(tx)
+	ctx, ctxCancel := context.WithTimeout(context.Background(), time.Second*5)
+
+	// Do all database queries in time protected go routine.
+	go func() {
+		defer ctxCancel()
+
+		err = s.Node.Transaction(func(tx *db.NodeTx) error {
+			nodeConfig, err := node.ConfigLoad(tx)
+			if err != nil {
+				return err
+			}
+
+			storageBackups = nodeConfig.StorageBackupsVolume()
+			storageImages = nodeConfig.StorageImagesVolume()
+
+			return nil
+		})
 		if err != nil {
-			return err
+			logger.Error("Failed getting storage backup and image volume names", log.Ctx{"err": err})
+			return
 		}
 
-		storageBackups = nodeConfig.StorageBackupsVolume()
-		storageImages = nodeConfig.StorageImagesVolume()
+		// Load pools.
+		poolNames, err := s.Cluster.GetStoragePoolNames()
+		if err != nil && err != db.ErrNoSuchObject {
+			logger.Error("Failed getting storage pool names", log.Ctx{"err": err})
+			return
+		}
 
-		return nil
-	})
+		pools = make(map[string]storage.Pool, len(poolNames))
+
+		for _, poolName := range poolNames {
+			pool, err := storagePools.GetPoolByName(s, poolName)
+			if err != nil {
+				logger.Error("Failed loading storage pool", log.Ctx{"pool": poolName, "err": err})
+				continue
+			}
+
+			pools[poolName] = pool
+		}
+	}()
+
+	<-ctx.Done()
+	if ctx.Err() == context.DeadlineExceeded {
+		err = ctx.Err()
+	}
+
 	if err != nil {
-		return err
+		logger.Error("Failed stopping storage pools", log.Ctx{"err": err})
+		return
 	}
 
 	unmount := func(storageType string, source string) error {
@@ -48,15 +94,15 @@ func daemonStorageUnmount(s *state.State) error {
 		poolName := fields[0]
 		volumeName := fields[1]
 
-		pool, err := storagePools.GetPoolByName(s, poolName)
-		if err != nil {
-			return err
+		pool := pools[poolName]
+		if pool == nil {
+			logger.Error("Pool not found when unmounting volume", log.Ctx{"pool": poolName, "volume": volumeName})
 		}
 
-		// Mount volume.
-		_, err = pool.UnmountCustomVolume(project.Default, volumeName, nil)
+		// Unmount volume.
+		_, err := pool.UnmountCustomVolume(project.Default, volumeName, nil)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to unmount storage volume %q", source)
+			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
 		}
 
 		return nil
@@ -65,39 +111,37 @@ func daemonStorageUnmount(s *state.State) error {
 	if storageBackups != "" {
 		err := unmount("backups", storageBackups)
 		if err != nil {
-			return errors.Wrap(err, "Failed to unmount backups storage")
+			logger.Error("Failed unmounting storage backup volume", log.Ctx{"volume": storageBackups, "err": err})
 		}
 	}
 
 	if storageImages != "" {
 		err := unmount("images", storageImages)
 		if err != nil {
-			return errors.Wrap(err, "Failed to unmount images storage")
+			logger.Error("Failed unmounting storage image volume %q: %v", log.Ctx{"volume": storageImages, "err": err})
 		}
 	}
 
-	pools, err := s.Cluster.GetStoragePoolNames()
-	if err != nil {
-		return fmt.Errorf("Failed to get storage pools: %w", err)
-	}
-
-	for _, poolName := range pools {
-		pool, err := storagePools.GetPoolByName(s, poolName)
-		if err != nil {
-			return fmt.Errorf("Failed to get storage pool %q: %w", poolName, err)
-		}
-
+	for _, pool := range pools {
 		if pool.Driver().Info().Name == "lvm" {
 			continue // TODO figure out the intermittent issue with LVM tests when this is removed.
 		}
 
-		_, err = pool.Unmount()
+		ctx, ctxCancel := context.WithTimeout(context.Background(), time.Second*30)
+		go func() {
+			defer ctxCancel()
+			_, err = pool.Unmount()
+		}()
+
+		<-ctx.Done()
+		if ctx.Err() == context.DeadlineExceeded {
+			err = ctx.Err()
+		}
+
 		if err != nil {
-			return fmt.Errorf("Unable to unmount storage pool %q: %w", poolName, err)
+			logger.Error("Failed unmounting storage pool", log.Ctx{"pool": pool.Name(), "err": err})
 		}
 	}
-
-	return nil
 }
 
 func daemonStorageMount(s *state.State) error {
