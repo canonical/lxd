@@ -615,6 +615,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc start "${ctPrefix}A"
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
+  sleep 2 # Wait for DAD.
 
   # Check basic connectivity without any filtering.
   lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
@@ -624,6 +625,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.3/24 dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::3/64 dev eth0
+  sleep 2 # Wait for DAD.
 
   ! lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1 || false
   ! lxc exec "${ctPrefix}A" -- ping -c2 -W1 2001:db8::1 || false
