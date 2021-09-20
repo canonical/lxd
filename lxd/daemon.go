@@ -1023,6 +1023,11 @@ func (d *Daemon) init() error {
 		return errors.Wrap(err, "Failed to fetch debug address")
 	}
 
+	metricsAddress, err := node.MetricsAddress(d.db)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch metrics address")
+	}
+
 	/* Setup the web server */
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
@@ -1034,6 +1039,8 @@ func (d *Daemon) init() error {
 		NetworkAddress:       address,
 		ClusterAddress:       clusterAddress,
 		DebugAddress:         debugAddress,
+		MetricsAddress:       metricsAddress,
+		MetricsServer:        metricsServer(d),
 	}
 	d.endpoints, err = endpoints.Up(config)
 	if err != nil {
