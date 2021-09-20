@@ -162,7 +162,7 @@ be returned. The following is the language used for the filter argument:
 The language follows the OData conventions for structuring REST API filtering
 logic. Logical operators are also supported for filtering: not(not), equals(eq),
 not equals(ne), and(and), or(or). Filters are evaluated with left associativity.
-Values with spaces can be surrounded with quotes. Nesting filtering is also supported. 
+Values with spaces can be surrounded with quotes. Nesting filtering is also supported.
 For instance, to filter on a field in a config you would pass:
 
 ?filter=config.field\_name eq desired\_field\_assignment
@@ -209,7 +209,7 @@ specifying the property that you want to change. To unset a key, setting
 it to empty will usually do the trick, but there are cases where PATCH
 won't work and PUT needs to be used instead.
 
-## instances, containers and virtual-machines
+## Instances, containers and virtual-machines
 This documentation will always show paths such as `/1.0/instances/...`.
 Those are fairly new, introduced with LXD 3.19 when virtual-machine support.
 
@@ -224,5 +224,5 @@ much like `/1.0/containers` will only show you instances of that type.
 
 ## API structure
 LXD has an auto-generated [Swagger](https://swagger.io/) specification describing its API endpoints.
-The YAML version of this can be found in [rest-api.yaml](rest-api.yaml).
+The YAML version of this API specification can be found in [rest-api.yaml](https://github.com/lxc/lxd/blob/master/doc/rest-api.yaml).
 A convenient web rendering of it can be found here: [https://linuxcontainers.org/lxd/api/master/](https://linuxcontainers.org/lxd/api/master/)
