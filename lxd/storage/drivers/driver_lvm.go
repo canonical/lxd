@@ -508,6 +508,12 @@ func (d *lvm) Mount() (bool, error) {
 func (d *lvm) Unmount() (bool, error) {
 	// If loop backed, force release the loop device.
 	if filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
+		loopFile, err := d.openLoopFile(d.config["source"])
+		if err != nil {
+			return false, err
+		}
+		defer loopFile.Close()
+
 		vgExists, _, _ := d.volumeGroupExists(d.config["lvm.vg_name"])
 		if vgExists {
 			// Deactivate volume group so that it's device is removed from /dev.
@@ -517,9 +523,9 @@ func (d *lvm) Unmount() (bool, error) {
 			}
 		}
 
-		err := releaseLoopDev(d.config["source"])
+		err = SetAutoclearOnLoopDev(int(loopFile.Fd()))
 		if err != nil {
-			return false, errors.Wrapf(err, "Failed releasing loop file device %q", d.config["source"])
+			return false, fmt.Errorf("Failed to set LO_FLAGS_AUTOCLEAR on loop device %q, manual cleanup needed: %w", loopFile.Name(), err)
 		}
 
 		return true, nil // We closed the file.
