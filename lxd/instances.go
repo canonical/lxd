@@ -347,6 +347,8 @@ func instancesOnDisk() (map[string][]string, error) {
 }
 
 func instancesShutdown(s *state.State) error {
+	logger.Info("Shutting down local instances")
+
 	var wg sync.WaitGroup
 
 	dbAvailable := true
