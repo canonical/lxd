@@ -87,10 +87,6 @@ func daemonStorageUnmount(s *state.State) error {
 			return fmt.Errorf("Failed to get storage pool %q: %w", poolName, err)
 		}
 
-		if pool.Driver().Info().Name == "lvm" {
-			continue // TODO figure out the intermittent issue with LVM tests when this is removed.
-		}
-
 		_, err = pool.Unmount()
 		if err != nil {
 			return fmt.Errorf("Unable to unmount storage pool %q: %w", poolName, err)
