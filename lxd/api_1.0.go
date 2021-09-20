@@ -766,6 +766,14 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		}
 	}
 
+	value, ok = nodeChanged["core.metrics_address"]
+	if ok {
+		err := d.endpoints.MetricsUpdateAddress(value, d.endpoints.NetworkCert())
+		if err != nil {
+			return err
+		}
+	}
+
 	value, ok = nodeChanged["storage.backups_volume"]
 	if ok {
 		err := daemonStorageMove(s, "backups", value)
