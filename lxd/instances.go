@@ -366,6 +366,7 @@ func instancesShutdown(s *state.State, dbAvailable bool) error {
 		instances = []instance.Instance{}
 
 		// List all containers on disk
+		// tomp TODO add VM support here.
 		cnames, err := instancesOnDisk()
 		if err != nil {
 			return err
