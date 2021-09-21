@@ -265,7 +265,7 @@ test_clustering_membership() {
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 18
+  sleep 15
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -q "status: Offline"
 
@@ -2118,6 +2118,9 @@ test_clustering_handover() {
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
+  # Wait some time to possibly allow for a leadership change.
+  sleep 15
+
   # The fourth node has been promoted, while the first one demoted.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
@@ -2128,7 +2131,7 @@ test_clustering_handover() {
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
 
   # Wait some time to possibly allow for a leadership change.
-  sleep 10
+  sleep 15
 
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
 
