@@ -71,6 +71,9 @@ func NewGateway(db *db.Node, networkCert *shared.CertInfo, serverCert func() *sh
 	return gateway, nil
 }
 
+// HeartbeatMemberTask used to execute a function after sending/receiving a heartbeat.
+type HeartbeatMemberTask func(heartbeatData *APIHeartbeat, leader bool)
+
 // Gateway mediates access to the dqlite cluster using a gRPC SQL client, and
 // possibly runs a dqlite replica on this LXD node (if we're configured to do
 // so).
@@ -114,7 +117,7 @@ type Gateway struct {
 
 	// Used for the heartbeat handler
 	Cluster                   *db.Cluster
-	HeartbeatNodeHook         func(*APIHeartbeat)
+	HeartbeatMemberHook       HeartbeatMemberTask
 	HeartbeatOfflineThreshold time.Duration
 	heartbeatCancel           context.CancelFunc
 	heartbeatCancelLock       sync.Mutex
