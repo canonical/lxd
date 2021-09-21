@@ -1483,16 +1483,16 @@ func (d *Daemon) Stop() error {
 		//        timeout for database queries.
 		ch := make(chan bool)
 		go func() {
-			n, err := d.numRunningContainers()
+			n, err := d.numRunningInstances()
 			if err != nil {
-				logger.Warnf("Failed to get number of running containers: %v", err)
+				logger.Warn("Failed to get number of running instances", log.Ctx{"err": err})
 			}
 			ch <- err != nil || n == 0
 		}()
 		select {
 		case shouldUnmount = <-ch:
 		case <-time.After(2 * time.Second):
-			logger.Warnf("Give up waiting to get number of running containers")
+			logger.Warn("Give up waiting to get number of running instances")
 			shouldUnmount = true
 		}
 
