@@ -2451,7 +2451,7 @@ test_clustering_failure_domains() {
 
   # Shutdown a node in az2, its replacement is picked from az2.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 3
+  sleep 15
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -q "database: true"
