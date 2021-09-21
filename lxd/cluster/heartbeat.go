@@ -457,8 +457,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		logger.Warn("Heartbeat round duration greater than heartbeat interval", log.Ctx{"duration": duration, "interval": heartbeatInterval})
 	}
 
-	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration, "address": localAddress})
+	if mode != hearbeatNormal {
+		logger.Info("Completed heartbeat round", log.Ctx{"duration": duration, "address": localAddress, "mode": modeStr})
+	} else {
+		logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration, "address": localAddress, "mode": modeStr})
+	}
 }
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
