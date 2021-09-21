@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/mdlayher/netx/eui64"
@@ -1591,7 +1593,10 @@ func networkShutdown(s *state.State) error {
 	// Get a list of projects.
 	var projectNames []string
 
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	ctx, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer ctxCancel()
+
+	err = s.Cluster.TransactionContext(ctx, func(tx *db.ClusterTx) error {
 		projectNames, err = tx.GetProjectNames()
 		return err
 	})
