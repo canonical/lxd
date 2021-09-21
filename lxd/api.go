@@ -64,7 +64,7 @@ func restServer(d *Daemon) *http.Server {
 		response.SyncResponse(true, []string{"/1.0"}).Render(w)
 	})
 
-	for endpoint, f := range d.gateway.HandlerFuncs(d.NodeRefreshTask, d.getTrustedCertificates) {
+	for endpoint, f := range d.gateway.HandlerFuncs(d.HeartbeatMemberHook, d.getTrustedCertificates) {
 		mux.HandleFunc(endpoint, f)
 	}
 
