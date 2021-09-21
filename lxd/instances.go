@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"sort"
@@ -355,14 +356,19 @@ func instancesShutdown(s *state.State, dbAvailable bool) error {
 
 	// Get all the instances from DB.
 	if dbAvailable {
-		instances, err = instance.LoadNodeAll(s, instancetype.Any)
+		ctx, ctxCancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer ctxCancel()
+
+		instances, err = instance.LoadNodeAllContext(ctx, s, instancetype.Any)
 		if err != nil {
-			dbAvailable = false // Need to get instances locally.
+			logger.Warn("Failed loading local instances from database", log.Ctx{"err": err})
+			dbAvailable = false // Need to get instances on local disk.
 		}
 	}
 
 	// Get instances locally if DB unavailable.
 	if !dbAvailable {
+		logger.Info("Shutting down local instances on disk")
 		instances = []instance.Instance{}
 
 		// List all containers on disk
