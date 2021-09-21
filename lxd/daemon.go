@@ -1450,10 +1450,12 @@ func (d *Daemon) Kill() {
 		d.clusterMembershipMutex.Lock()
 		d.clusterMembershipClosing = true
 		d.clusterMembershipMutex.Unlock()
+
 		err := handoverMemberRole(d)
 		if err != nil {
-			logger.Warnf("Could not handover member's responsibilities: %v", err)
+			logger.Error("Could not handover member's responsibilities", log.Ctx{"err": err})
 		}
+
 		d.gateway.Kill()
 		d.cluster.Kill()
 	}
