@@ -1447,6 +1447,7 @@ func (d *Daemon) numRunningInstances() (int, error) {
 // retried in case of failure.
 func (d *Daemon) Kill() {
 	if d.gateway != nil {
+		logger.Info("Marking daemon as closing")
 		d.clusterMembershipMutex.Lock()
 		d.clusterMembershipClosing = true
 		d.clusterMembershipMutex.Unlock()
