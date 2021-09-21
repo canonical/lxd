@@ -2027,6 +2027,8 @@ func changeMemberRole(d *Daemon, r *http.Request, address string, nodes []db.Raf
 
 // Try to handover the role of this member to another one.
 func handoverMemberRole(d *Daemon) error {
+	logger.Info("Handing over member role")
+
 	// If we aren't clustered, there's nothing to do.
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
@@ -2048,14 +2050,17 @@ func handoverMemberRole(d *Daemon) error {
 
 	// Find the cluster leader.
 findLeader:
+	logger.Info("Finding leader address")
 	leader, err := d.gateway.LeaderAddress()
 	if err != nil {
 		return err
 	}
+
 	if leader == "" {
 		// Give up.
 		//
 		// TODO: retry a few times?
+		logger.Error("No leader found")
 		return nil
 	}
 
