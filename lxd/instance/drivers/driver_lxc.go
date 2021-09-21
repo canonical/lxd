@@ -1991,7 +1991,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	idmapType, nextIdmap, err := d.handleIdmappedStorage()
 	if err != nil {
-		return "", nil, errors.Wrap(err, "Failed to handle idmappe storage")
+		return "", nil, errors.Wrap(err, "Failed to handle idmapped storage")
 	}
 
 	var idmapBytes []byte
