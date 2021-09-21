@@ -2999,12 +2999,18 @@ test_clustering_remove_leader() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
+  # Wait some time to possibly allow for a leadership change.
+  sleep 15
+
   # Ensure successful communication
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
 
   # Remove the leader, via the stand-by node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1 || true
+
+  # Wait some time to possibly allow for a leadership change.
+  sleep 15
 
   # Ensure the remaining node is working
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -qv "node1"
@@ -3019,6 +3025,9 @@ test_clustering_remove_leader() {
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 2 "${LXD_THREE_DIR}"
+
+  # Wait some time to possibly allow for a leadership change.
+  sleep 15
 
   # Ensure successful communication
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node3 | grep -q "server_name: node3"
