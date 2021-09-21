@@ -30,7 +30,7 @@ import (
 //     type: string
 //     example: default
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"

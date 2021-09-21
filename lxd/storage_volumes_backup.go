@@ -245,7 +245,7 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 //     schema:
 //       $ref: "#/definitions/StoragePoolVolumeBackupsPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -522,7 +522,7 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 //     schema:
 //       $ref: "#/definitions/StorageVolumeSnapshotPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -631,7 +631,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 //     type: string
 //     example: lxd01
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"

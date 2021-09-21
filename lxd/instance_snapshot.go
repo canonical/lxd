@@ -210,7 +210,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 //     schema:
 //       $ref: "#/definitions/InstanceSnapshotsPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -370,7 +370,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 //     schema:
 //       $ref: "#/definitions/InstanceSnapshotPut"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -407,7 +407,7 @@ func snapshotPatch(d *Daemon, r *http.Request, snapInst instance.Instance, name 
 //     schema:
 //       $ref: "#/definitions/InstanceSnapshotPut"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -572,7 +572,7 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 //     schema:
 //       $ref: "#/definitions/InstanceSnapshotPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -721,7 +721,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 //     type: string
 //     example: default
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"

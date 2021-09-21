@@ -452,7 +452,7 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 //     schema:
 //       $ref: "#/definitions/StorageVolumesPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -663,7 +663,7 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 //     schema:
 //       $ref: "#/definitions/StorageVolumesPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -858,7 +858,7 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 //     schema:
 //       $ref: "#/definitions/StorageVolumePost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"

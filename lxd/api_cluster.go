@@ -1086,7 +1086,7 @@ var clusterNodesPostMu sync.Mutex // Used to prevent races when creating cluster
 //     schema:
 //       $ref: "#/definitions/ClusterMembersPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -2318,7 +2318,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 //     schema:
 //       $ref: "#/definitions/ClusterMemberStatePost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
