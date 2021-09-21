@@ -974,7 +974,7 @@ func (d *Daemon) init() error {
 	if err != nil {
 		return err
 	}
-	d.gateway.HeartbeatNodeHook = d.NodeRefreshTask
+	d.gateway.HeartbeatMemberHook = d.HeartbeatMemberHook
 
 	/* Setup some mounts (nice to have) */
 	if !d.os.MockMode {
@@ -1783,9 +1783,9 @@ func (d *Daemon) hasNodeListChanged(heartbeatData *cluster.APIHeartbeat) bool {
 	return false
 }
 
-// NodeRefreshTask is run each time a fresh node is generated.
+// HeartbeatMemberHook is run each time a fresh node is generated.
 // This can be used to trigger actions when the node list changes.
-func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
+func (d *Daemon) HeartbeatMemberHook(heartbeatData *cluster.APIHeartbeat, leader bool) {
 	// Don't process the heartbeat until we're fully online
 	if d.cluster == nil || d.cluster.GetNodeID() == 0 {
 		return
@@ -1847,20 +1847,31 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	// If it fails then it will get to run again next heartbeat.
 	d.lastNodeList = heartbeatData
 
-	// If there are offline members that have voter or stand-by database
-	// roles, let's see if we can replace them with spare ones. Also, if we
-	// don't have enough voters or standbys, let's see if we can upgrade
-	// some member.
-	if len(heartbeatData.Members) > 2 {
+	if leader && len(heartbeatData.Members) > 2 {
+		// If there are offline members that have voter or stand-by database
+		// roles, let's see if we can replace them with spare ones. Also, if we
+		// don't have enough voters or standbys, let's see if we can upgrade
+		// some member.
+
+		// This part can only be run on the leader member.
+		// However it is not obvious as the calls to rebalanceMemberRoles and upgradeNodesWithoutRaftRole
+		// will fail with a cluster.ErrNotLeader if called on a non-leader member.
+
 		var maxVoters int64
 		var maxStandBy int64
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+
+		ctx, ctxCancel := context.WithTimeout(d.ctx, time.Second*5)
+		defer ctxCancel()
+
+		err := d.cluster.TransactionContext(ctx, func(tx *db.ClusterTx) error {
 			config, err := cluster.ConfigLoad(tx)
 			if err != nil {
 				return err
 			}
+
 			maxVoters = config.MaxVoters()
 			maxStandBy = config.MaxStandBy()
+
 			return nil
 		})
 		if err != nil {
@@ -1868,31 +1879,21 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 			return
 		}
 
+		d.clusterMembershipMutex.Lock()
+		defer d.clusterMembershipMutex.Unlock()
+
 		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
-			go func() {
-				// Wait a little bit, just to avoid spurious
-				// attempts due to nodes being shut down.
-				time.Sleep(5 * time.Second)
-				d.clusterMembershipMutex.Lock()
-				defer d.clusterMembershipMutex.Unlock()
-				if d.clusterMembershipClosing {
-					return
-				}
-				err := rebalanceMemberRoles(d, nil)
-				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-					logger.Warnf("Could not rebalance cluster member roles: %v", err)
-				}
-			}()
+			err = rebalanceMemberRoles(d, nil)
+			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+				logger.Warnf("Could not rebalance cluster member roles: %v", err)
+			}
 		}
+
 		if hasNodesNotPartOfRaft {
-			go func() {
-				d.clusterMembershipMutex.Lock()
-				defer d.clusterMembershipMutex.Unlock()
-				err := upgradeNodesWithoutRaftRole(d)
-				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-					logger.Warnf("Failed upgrade raft roles: %v", err)
-				}
-			}()
+			err = upgradeNodesWithoutRaftRole(d)
+			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+				logger.Warnf("Failed upgrade raft roles: %v", err)
+			}
 		}
 	}
 }
