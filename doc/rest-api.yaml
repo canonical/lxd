@@ -5644,7 +5644,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -5941,7 +5941,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -5965,7 +5965,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -6152,7 +6152,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "403":
           $ref: '#/responses/Forbidden'
@@ -6177,7 +6177,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "403":
           $ref: '#/responses/Forbidden'
@@ -6823,7 +6823,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -6850,7 +6850,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -6920,7 +6920,7 @@ paths:
       - application/json
       responses:
         "200":
-          $ref: '#/responses/Operation'
+          $ref: '#/responses/EmptySyncResponse'
         "400":
           $ref: '#/responses/BadRequest'
         "403":
@@ -6956,7 +6956,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -6986,7 +6986,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -7064,7 +7064,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -7090,7 +7090,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -7159,7 +7159,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -7347,7 +7347,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -7869,7 +7869,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -7895,7 +7895,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -7964,7 +7964,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -8001,7 +8001,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -8031,7 +8031,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -8150,7 +8150,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -9846,7 +9846,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -9935,7 +9935,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -10088,7 +10088,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -10215,7 +10215,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -10246,7 +10246,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
@@ -10364,7 +10364,7 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
+        "202":
           $ref: '#/responses/Operation'
         "400":
           $ref: '#/responses/BadRequest'
