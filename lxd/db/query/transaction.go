@@ -1,6 +1,7 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 
@@ -9,8 +10,14 @@ import (
 )
 
 // Transaction executes the given function within a database transaction.
+// Deprecated, please use TransactionContext.
 func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
-	tx, err := db.Begin()
+	return TransactionContext(context.TODO(), db, f)
+}
+
+// TransactionContext executes the given function within a database transaction.
+func TransactionContext(ctx context.Context, db *sql.DB, f func(*sql.Tx) error) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		// If there is a leftover transaction let's try to rollback,
 		// we'll then retry again.
