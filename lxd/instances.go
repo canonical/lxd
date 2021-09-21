@@ -346,18 +346,23 @@ func instancesOnDisk() (map[string][]string, error) {
 	return containers, nil
 }
 
-func instancesShutdown(s *state.State) error {
+func instancesShutdown(s *state.State, dbAvailable bool) error {
 	logger.Info("Shutting down local instances")
 
+	var err error
+	var instances []instance.Instance
 	var wg sync.WaitGroup
 
-	dbAvailable := true
+	// Get all the instances from DB.
+	if dbAvailable {
+		instances, err = instance.LoadNodeAll(s, instancetype.Any)
+		if err != nil {
+			dbAvailable = false // Need to get instances locally.
+		}
+	}
 
-	// Get all the instances
-	instances, err := instance.LoadNodeAll(s, instancetype.Any)
-	if err != nil {
-		// Mark database as offline
-		dbAvailable = false
+	// Get instances locally if DB unavailable.
+	if !dbAvailable {
 		instances = []instance.Instance{}
 
 		// List all containers on disk
@@ -428,14 +433,20 @@ func instancesShutdown(s *state.State) error {
 			go func(c instance.Instance, lastState string) {
 				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				c.Stop(false)
-				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+
+				if dbAvailable {
+					c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+				}
 
 				wg.Done()
 			}(c, lastState)
 		} else {
-			c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+			if dbAvailable {
+				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+			}
 		}
 	}
+
 	wg.Wait()
 
 	return nil
