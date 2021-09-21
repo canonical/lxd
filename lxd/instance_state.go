@@ -115,7 +115,7 @@ func instanceState(d *Daemon, r *http.Request) response.Response {
 //     schema:
 //       $ref: "#/definitions/InstanceStatePut"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"

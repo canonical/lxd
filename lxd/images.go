@@ -777,7 +777,7 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 //     schema:
 //       type: string
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -2051,7 +2051,7 @@ func doDeleteImageFromPool(state *state.State, fingerprint string, storagePool s
 //     type: string
 //     example: default
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -3270,7 +3270,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 //     type: string
 //     example: default
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "403":
 //     $ref: "#/responses/Forbidden"
@@ -3392,7 +3392,7 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 //     type: string
 //     example: default
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "403":
 //     $ref: "#/responses/Forbidden"

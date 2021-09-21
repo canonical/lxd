@@ -61,7 +61,7 @@ var internalClusterInstanceMovedCmd = APIEndpoint{
 //     schema:
 //       $ref: "#/definitions/InstancePost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
