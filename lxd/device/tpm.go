@@ -36,8 +36,10 @@ func (d *tpm) validateConfig(instConf instance.ConfigReader) error {
 		return ErrUnsupportedDevType
 	}
 
-	rules := map[string]func(string) error{
-		"path": validate.IsNotEmpty,
+	rules := map[string]func(string) error{}
+
+	if instConf.Type() == instancetype.Container {
+		rules["path"] = validate.IsNotEmpty
 	}
 
 	err := d.config.Validate(rules)
