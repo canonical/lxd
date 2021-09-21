@@ -1424,7 +1424,10 @@ func (d *Daemon) Ready() error {
 }
 
 func (d *Daemon) numRunningInstances() (int, error) {
-	results, err := instance.LoadNodeAll(d.State(), instancetype.Any)
+	ctx, ctxCancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer ctxCancel()
+
+	results, err := instance.LoadNodeAllContext(ctx, d.State(), instancetype.Any)
 	if err != nil {
 		return 0, err
 	}
