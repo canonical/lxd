@@ -63,7 +63,7 @@ func coalesceErrors(local bool, errors map[string]error) error {
 //     schema:
 //       $ref: "#/definitions/InstancesPut"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"

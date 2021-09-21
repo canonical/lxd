@@ -439,7 +439,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 //     schema:
 //       $ref: "#/definitions/InstanceExecPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
