@@ -4,6 +4,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -349,10 +350,22 @@ func (c *Cluster) GetNodeID() int64 {
 //
 // If EnterExclusive has been called before, calling Transaction will block
 // until ExitExclusive has been called as well to release the lock.
+// Deprecated, please use TransactionContext.
 func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
+	return c.TransactionContext(context.TODO(), f)
+}
+
+// TransactionContext creates a new ClusterTx object and transactionally executes the
+// cluster database interactions invoked by the given function. If the function
+// returns no error, all database changes are committed to the cluster database
+// database, otherwise they are rolled back.
+//
+// If EnterExclusive has been called before, calling Transaction will block
+// until ExitExclusive has been called as well to release the lock.
+func (c *Cluster) TransactionContext(ctx context.Context, f func(*ClusterTx) error) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.transaction(f)
+	return c.transaction(ctx, f)
 }
 
 // EnterExclusive acquires a lock on the cluster db, so any successive call to
@@ -380,17 +393,17 @@ func (c *Cluster) EnterExclusive() error {
 func (c *Cluster) ExitExclusive(f func(*ClusterTx) error) error {
 	logger.Debug("Releasing exclusive lock on cluster db")
 	defer c.mu.Unlock()
-	return c.transaction(f)
+	return c.transaction(context.TODO(), f)
 }
 
-func (c *Cluster) transaction(f func(*ClusterTx) error) error {
+func (c *Cluster) transaction(ctx context.Context, f func(*ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
 		stmts:  c.stmts,
 	}
 
 	return c.retry(func() error {
-		return query.Transaction(c.db, func(tx *sql.Tx) error {
+		return query.TransactionContext(ctx, c.db, func(tx *sql.Tx) error {
 			clusterTx.tx = tx
 			return f(clusterTx)
 		})
