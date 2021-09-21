@@ -1942,6 +1942,7 @@ func rebalanceMemberRoles(d *Daemon, r *http.Request) error {
 	}
 
 again:
+	logger.Info("Rebalancing member roles")
 	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
 	if err != nil {
 		return err
