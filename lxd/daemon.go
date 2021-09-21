@@ -1423,8 +1423,8 @@ func (d *Daemon) Ready() error {
 	return nil
 }
 
-func (d *Daemon) numRunningContainers() (int, error) {
-	results, err := instance.LoadNodeAll(d.State(), instancetype.Container)
+func (d *Daemon) numRunningInstances() (int, error) {
+	results, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 	if err != nil {
 		return 0, err
 	}
