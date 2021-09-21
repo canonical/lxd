@@ -2,6 +2,7 @@ package instance
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -607,9 +608,14 @@ func LoadFromAllProjects(s *state.State) ([]Instance, error) {
 
 // LoadNodeAll loads all instances of this nodes.
 func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, error) {
+	return LoadNodeAllContext(context.TODO(), s, instanceType)
+}
+
+// LoadNodeAllContext loads all instances of this nodes.
+func LoadNodeAllContext(ctx context.Context, s *state.State, instanceType instancetype.Type) ([]Instance, error) {
 	// Get all the container arguments
 	var insts []db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := s.Cluster.TransactionContext(ctx, func(tx *db.ClusterTx) error {
 		var err error
 		filter := db.InstanceTypeFilter(instanceType)
 		insts, err = tx.GetLocalInstancesInProject(filter)
