@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -483,49 +484,126 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 	return nil
 }
 
-// Mount mounts the storage pool (this does nothing for external LVM pools, but for loopback image
-// LVM pools this creates a loop device).
+// Mount mounts the storage pool (for loopback image pools this creates a loop device), and checks the volume group
+// and thin pool volume (if used) exists.
 func (d *lvm) Mount() (bool, error) {
 	if d.config["lvm.vg_name"] == "" {
 		return false, fmt.Errorf("Cannot mount pool as %q is not specified", "lvm.vg_name")
 	}
 
-	// Open the loop file if the LVM device doesn't exist yet and the source points to a file.
-	if !shared.IsDir(fmt.Sprintf("/dev/%s", d.config["lvm.vg_name"])) && filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
+	// Check if VG exists before we do anthing, this will indicate if its our mount or not.
+	vgExists, _, _ := d.volumeGroupExists(d.config["lvm.vg_name"])
+	ourMount := !vgExists
+
+	waitDuration := time.Second * time.Duration(5)
+
+	// Open the loop file if the source points to a non-block device file.
+	// This ensures that auto clear isn't enabled on the loop file.
+	if filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
 		loopFile, err := d.openLoopFile(d.config["source"])
 		if err != nil {
 			return false, err
 		}
-		defer loopFile.Close()
-		return true, nil
+
+		err = loopFile.Close()
+		if err != nil {
+			return false, err
+		}
+
+		// Wait for volume group to be detected if wasn't detected before.
+		if !vgExists {
+			waitUntil := time.Now().Add(waitDuration)
+			for {
+				vgExists, _, _ = d.volumeGroupExists(d.config["lvm.vg_name"])
+				if vgExists {
+					break
+				}
+
+				if time.Now().After(waitUntil) {
+					return false, fmt.Errorf("Volume group %q not found", d.config["lvm.vg_name"])
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+		}
+	} else if !vgExists {
+		return false, fmt.Errorf("Volume group %s not found", d.config["lvm.vg_name"])
 	}
 
-	return false, nil
+	// Ensure thinpool exists if needed for storage pool.
+	if d.usesThinpool() {
+		waitUntil := time.Now().Add(waitDuration)
+		for {
+			thinpoolExists, _ := d.thinpoolExists(d.config["lvm.vg_name"], d.thinpoolName())
+			if thinpoolExists {
+				break
+			}
+
+			if time.Now().After(waitUntil) {
+				return false, fmt.Errorf("Thin pool not found %q in volume group %q", d.thinpoolName(), d.config["lvm.vg_name"])
+			}
+
+			time.Sleep(1 * time.Second)
+		}
+	}
+
+	return ourMount, nil
 }
 
 // Unmount unmounts the storage pool (this does nothing for external LVM pools, but for loopback
 // image LVM pools this closes the loop device handle if needed).
 func (d *lvm) Unmount() (bool, error) {
-	// If loop backed, force release the loop device.
+	// If loop backed, enable auto release of the loop device.
 	if filepath.IsAbs(d.config["source"]) && !shared.IsBlockdevPath(d.config["source"]) {
+		// Check if VG exists before we do anthing, this will indicate if its our unmount or not.
 		vgExists, _, _ := d.volumeGroupExists(d.config["lvm.vg_name"])
 		if vgExists {
-			// Deactivate volume group so that it's device is removed from /dev.
-			_, err := shared.TryRunCommand("vgchange", "-an", d.config["lvm.vg_name"])
+			loopFile, err := d.openLoopFile(d.config["source"])
 			if err != nil {
 				return false, err
 			}
+
+			err = SetAutoclearOnLoopDev(int(loopFile.Fd()))
+			if err != nil {
+				return false, fmt.Errorf("Failed enabling auto clear on loop device %q for volume group %q: %w", loopFile.Name(), d.config["lvm.vg_name"], err)
+			}
+
+			err = loopFile.Close()
+			if err != nil {
+				return false, err
+			}
+
+			// Deactivate volumes in volume group so that the loop device can be released.
+			_, err = shared.TryRunCommand("vgchange", "-an", d.config["lvm.vg_name"])
+			if err != nil {
+				return false, fmt.Errorf("Failed deactivating volumes on volume group %q: %w", d.config["lvm.vg_name"], err)
+			}
+
+			// Wait for loop device to be released.
+			loopDevPath := loopFile.Name()
+			loopDevBackingIndicatorPath := fmt.Sprintf("/sys/class/block/%s/loop/backing_file", filepath.Base(loopDevPath))
+
+			waitDuration := time.Second * time.Duration(5)
+			waitUntil := time.Now().Add(waitDuration)
+			for {
+				loopDevBackingIndicatorPathExists := shared.PathExists(loopDevBackingIndicatorPath)
+				if !loopDevBackingIndicatorPathExists {
+					break
+				}
+
+				if time.Now().After(waitUntil) {
+					return false, fmt.Errorf("Failed deactivating volume group %q to release loop device %q", d.config["lvm.vg_name"], loopDevPath)
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+
+			return true, nil // We released the loop device.
 		}
 
-		err := releaseLoopDev(d.config["source"])
-		if err != nil {
-			return false, errors.Wrapf(err, "Failed releasing loop file device %q", d.config["source"])
-		}
-
-		return true, nil // We closed the file.
+		return false, nil
 	}
 
-	// No loop device was opened, so nothing to close.
 	return false, nil
 }
 
