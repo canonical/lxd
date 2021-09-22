@@ -135,10 +135,6 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 						continue
 					}
 
-					if pool.Driver().Info().Name == "lvm" {
-						continue // TODO figure out the intermittent issue with LVM tests when this is removed.
-					}
-
 					_, err = pool.Unmount()
 					if err != nil {
 						logger.Error("Unable to unmount storage pool", log.Ctx{"pool": poolName, "err": err})
