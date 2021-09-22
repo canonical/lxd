@@ -105,5 +105,8 @@ func TestEndpoints_NetworkCreateTCPSocketIPv4(t *testing.T) {
 	ipv6Address := fmt.Sprintf("[::1]:%s", parts[1])
 	message := fmt.Sprintf("Get https://%s/: dial tcp %s: connect: connection refused", ipv6Address, ipv6Address)
 
+	assert.NoError(t, httpGetOverTLSSocket(address, certificate))
+
+	// Check accessibility over IPv6 request
 	assert.EqualError(t, httpGetOverTLSSocket(ipv6Address, certificate), message)
 }
