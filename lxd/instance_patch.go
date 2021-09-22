@@ -44,7 +44,7 @@ import (
 //       $ref: "#/definitions/InstancePut"
 // responses:
 //   "200":
-//     $ref: "#/responses/Operation"
+//     $ref: "#/responses/EmptySyncResponse"
 //   "400":
 //     $ref: "#/responses/BadRequest"
 //   "403":

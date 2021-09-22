@@ -191,7 +191,7 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 //     schema:
 //       $ref: "#/definitions/InstanceBackupsPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -423,7 +423,7 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 //     schema:
 //       $ref: "#/definitions/InstanceBackupPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -509,7 +509,7 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 //     type: string
 //     example: default
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
