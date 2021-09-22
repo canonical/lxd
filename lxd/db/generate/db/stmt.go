@@ -88,6 +88,7 @@ func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
 }
 
 func (s *Stmt) objects(buf *file.Buffer) error {
+	table := entityTable(s.entity)
 	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
@@ -118,7 +119,7 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 			if field.IsScalar() {
 				column = lex.Snake(field.Name)
 			} else {
-				column = mapping.FieldColumnName(field.Name)
+				column = mapping.FieldColumnName(field.Name, table)
 			}
 
 			where += fmt.Sprintf("%s = ? ", column)
@@ -133,7 +134,7 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		if field.IsScalar() {
 			columns[i] = field.Column()
 		} else {
-			columns[i] = mapping.FieldColumnName(field.Name)
+			columns[i] = mapping.FieldColumnName(field.Name, table)
 			coalesce, ok := field.Config["coalesce"]
 			if ok {
 				columns[i] = fmt.Sprintf("coalesce(%s, %s)", columns[i], coalesce[0])
@@ -146,11 +147,10 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		if field.IsScalar() {
 			orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
 		} else {
-			orderBy[i] = mapping.FieldColumnName(field.Name)
+			orderBy[i] = mapping.FieldColumnName(field.Name, table)
 		}
 	}
 
-	table := entityTable(s.entity)
 	for _, field := range mapping.ScalarFields() {
 		join := field.Config.Get("join")
 		right := strings.Split(join, ".")[0]
@@ -162,8 +162,9 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	}
 
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
-
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 	return nil
 }
 
@@ -192,8 +193,8 @@ func (s *Stmt) names(buf *file.Buffer) error {
 			columns[i] = field.Column()
 			orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
 		} else {
-			columns[i] = mapping.FieldColumnName(field.Name)
-			orderBy[i] = mapping.FieldColumnName(field.Name)
+			columns[i] = mapping.FieldColumnName(field.Name, entityTable(mapping.Name))
+			orderBy[i] = mapping.FieldColumnName(field.Name, entityTable(mapping.Name))
 		}
 	}
 
@@ -218,7 +219,7 @@ func (s *Stmt) names(buf *file.Buffer) error {
 			if field.IsScalar() {
 				column = lex.Snake(field.Name)
 			} else {
-				column = mapping.FieldColumnName(field.Name)
+				column = mapping.FieldColumnName(field.Name, entityTable(mapping.Name))
 			}
 
 			where += fmt.Sprintf("%s = ? ", column)
@@ -228,7 +229,9 @@ func (s *Stmt) names(buf *file.Buffer) error {
 
 	boiler := stmts["names"]
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 	return nil
 }
 
@@ -325,7 +328,9 @@ func (s *Stmt) ref(buf *file.Buffer) error {
 		"SELECT %s FROM %s %sORDER BY %s", strings.Join(columns, ", "),
 		table, where, strings.Join(orderBy, ", "))
 
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 
 	return nil
 }
@@ -391,7 +396,9 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	sql := fmt.Sprintf(
 		tmpl, entityTable(s.entity),
 		strings.Join(columns, ", "), strings.Join(params, ", "))
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 
 	return nil
 }
@@ -422,21 +429,25 @@ func (s *Stmt) createRef(buf *file.Buffer) error {
 		params := "?, ?, ?"
 
 		sql := fmt.Sprintf(stmts["create"], table, columns, params)
-		s.register(buf, sql)
+		kind := strings.Replace(s.kind, "-", "_", -1)
+		stmtName := stmtCodeVar(s.entity, kind)
+		s.register(buf, stmtName, sql)
 	} else if field.Type.Name == "map[string]map[string]string" {
 		// Assume this is a devices table
 		columns := fmt.Sprintf("%s_id, name, type", s.entity)
 		params := "?, ?, ?"
 
 		sql := fmt.Sprintf(stmts["create"], table, columns, params)
-		s.register(buf, sql)
+		kind := strings.Replace(s.kind, "-", "_", -1)
+		stmtName := stmtCodeVar(s.entity, kind)
+		s.register(buf, stmtName, sql)
 
 		columns = fmt.Sprintf("%s_device_id, key, value", s.entity)
 		params = "?, ?, ?"
 
 		sql = fmt.Sprintf(stmts["create"], table+"_config", columns, params)
 
-		kind := fmt.Sprintf("Create%sConfigRef", field.Name)
+		kind = fmt.Sprintf("Create%sConfigRef", field.Name)
 		buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtCodeVar(s.entity, kind), s.db, sql)
 	}
 
@@ -449,7 +460,8 @@ func (s *Stmt) id(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse entity struct")
 	}
 	sql := naturalKeySelect(s.entity, mapping)
-	s.register(buf, sql)
+	stmtName := stmtCodeVar(s.entity, "ID")
+	s.register(buf, stmtName, sql)
 
 	return nil
 }
@@ -464,7 +476,9 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 	where := whereClause(mapping.NaturalKey())
 
 	sql := fmt.Sprintf(stmts[s.kind], table, where)
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 	return nil
 }
 
@@ -497,7 +511,9 @@ func (s *Stmt) update(buf *file.Buffer) error {
 	sql := fmt.Sprintf(
 		stmts[s.kind], entityTable(s.entity),
 		strings.Join(updates, ", "), "id = ?")
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 
 	return nil
 }
@@ -526,7 +542,9 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	}
 
 	sql := fmt.Sprintf(stmts["delete"], table, where)
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 	return nil
 }
 
@@ -553,7 +571,9 @@ func (s *Stmt) deleteRef(buf *file.Buffer) error {
 	where := fmt.Sprintf("%s_id = ?", s.entity)
 
 	sql := fmt.Sprintf(stmts["delete"], table, where)
-	s.register(buf, sql)
+	kind := strings.Replace(s.kind, "-", "_", -1)
+	stmtName := stmtCodeVar(s.entity, kind)
+	s.register(buf, stmtName, sql)
 
 	return nil
 }
@@ -606,6 +626,7 @@ func whereClause(fields []*Field) string {
 // Return a select statement that returns the ID of an entity given its natural key.
 func naturalKeySelect(entity string, mapping *Mapping) string {
 	nk := mapping.NaturalKey()
+	table := entityTable(entity)
 	criteria := ""
 	for i, field := range nk {
 		if i > 0 {
@@ -616,13 +637,12 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 		if field.IsScalar() {
 			column = field.Config.Get("join")
 		} else {
-			column = mapping.FieldColumnName(field.Name)
+			column = mapping.FieldColumnName(field.Name, table)
 		}
 
 		criteria += fmt.Sprintf("%s = ?", column)
 	}
 
-	table := entityTable(entity)
 	for _, field := range mapping.ScalarFields() {
 		join := field.Config.Get("join")
 		right := strings.Split(join, ".")[0]
@@ -640,12 +660,8 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 
 // Output a line of code that registers the given statement and declares the
 // associated statement code global variable.
-func (s *Stmt) register(buf *file.Buffer, sql string, filters ...string) {
-	kind := strings.Replace(s.kind, "-", "_", -1)
-	if kind == "id" {
-		kind = "ID" // silence go lints
-	}
-	buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtCodeVar(s.entity, kind, filters...), s.db, sql)
+func (s *Stmt) register(buf *file.Buffer, stmtName, sql string, filters ...string) {
+	buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtName, s.db, sql)
 }
 
 // Map of boilerplate statements.
