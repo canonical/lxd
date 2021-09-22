@@ -3,67 +3,108 @@
 
 package db
 
-import (
-	"fmt"
-)
+import "fmt"
 
-func deviceTypeToString(t int) (string, error) {
-	switch t {
-	case 0:
-		return "none", nil
-	case 1:
-		return "nic", nil
-	case 2:
-		return "disk", nil
-	case 3:
-		return "unix-char", nil
-	case 4:
-		return "unix-block", nil
-	case 5:
-		return "usb", nil
-	case 6:
-		return "gpu", nil
-	case 7:
-		return "infiniband", nil
-	case 8:
-		return "proxy", nil
-	case 9:
-		return "unix-hotplug", nil
-	case 10:
-		return "tpm", nil
-	case 11:
-		return "pci", nil
-	default:
-		return "", fmt.Errorf("Invalid device type %d", t)
-	}
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t devices.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e device objects
+//go:generate mapper stmt -p db -e device create struct=Device
+//go:generate mapper stmt -p db -e device delete
+//
+//go:generate mapper method -p db -e device GetMany
+//go:generate mapper method -p db -e device Create struct=Device
+//go:generate mapper method -p db -e device Update struct=Device
+//go:generate mapper method -p db -e device DeleteMany
+
+// DeviceType represents the types of supported devices.
+type DeviceType int
+
+// Device is a reference struct representing another entity's device.
+type Device struct {
+	ID          int
+	ReferenceID int
+	Name        string
+	Type        DeviceType
+	Config      map[string]string
 }
 
-func deviceTypeToInt(t string) (int, error) {
+// Supported device types.
+const (
+	TypeNone        = DeviceType(0)
+	TypeNIC         = DeviceType(1)
+	TypeDisk        = DeviceType(2)
+	TypeUnixChar    = DeviceType(3)
+	TypeUnixBlock   = DeviceType(4)
+	TypeUSB         = DeviceType(5)
+	TypeGPU         = DeviceType(6)
+	TypeInfiniband  = DeviceType(7)
+	TypeProxy       = DeviceType(8)
+	TypeUnixHotplug = DeviceType(9)
+	TypeTPM         = DeviceType(10)
+	TypePCI         = DeviceType(11)
+)
+
+func (t DeviceType) String() string {
+	switch t {
+	case TypeNone:
+		return "none"
+	case TypeNIC:
+		return "nic"
+	case TypeDisk:
+		return "disk"
+	case TypeUnixChar:
+		return "unix-char"
+	case TypeUnixBlock:
+		return "unix-block"
+	case TypeUSB:
+		return "usb"
+	case TypeGPU:
+		return "gpu"
+	case TypeInfiniband:
+		return "infiniband"
+	case TypeProxy:
+		return "proxy"
+	case TypeUnixHotplug:
+		return "unix-hotplug"
+	case TypeTPM:
+		return "tpm"
+	case TypePCI:
+		return "pci"
+	}
+
+	return ""
+}
+
+// NewDeviceType determines the device type from the given string, if supported.
+func NewDeviceType(t string) (DeviceType, error) {
 	switch t {
 	case "none":
-		return 0, nil
+		return TypeNone, nil
 	case "nic":
-		return 1, nil
+		return TypeNIC, nil
 	case "disk":
-		return 2, nil
+		return TypeDisk, nil
 	case "unix-char":
-		return 3, nil
+		return TypeUnixChar, nil
 	case "unix-block":
-		return 4, nil
+		return TypeUnixBlock, nil
 	case "usb":
-		return 5, nil
+		return TypeUSB, nil
 	case "gpu":
-		return 6, nil
+		return TypeGPU, nil
 	case "infiniband":
-		return 7, nil
+		return TypeInfiniband, nil
 	case "proxy":
-		return 8, nil
+		return TypeProxy, nil
 	case "unix-hotplug":
-		return 9, nil
+		return TypeUnixHotplug, nil
 	case "tpm":
-		return 10, nil
+		return TypeTPM, nil
 	case "pci":
-		return 11, nil
+		return TypePCI, nil
 	default:
 		return -1, fmt.Errorf("Invalid device type %s", t)
 	}
