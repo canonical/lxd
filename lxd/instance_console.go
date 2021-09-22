@@ -390,7 +390,7 @@ func (s *consoleWs) doVGA(op *operations.Operation) error {
 //     schema:
 //       $ref: "#/definitions/InstanceConsolePost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
