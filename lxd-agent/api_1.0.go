@@ -19,6 +19,7 @@ var api10 = []APIEndpoint{
 	execCmd,
 	eventsCmd,
 	fileCmd,
+	metricsCmd,
 	operationsCmd,
 	operationCmd,
 	operationWebsocket,

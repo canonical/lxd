@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -153,6 +154,8 @@ type Instance interface {
 	Operation() *operations.Operation
 
 	DeferTemplateApply(trigger TemplateTrigger) error
+
+	Metrics() (*metrics.MetricSet, error)
 }
 
 // Container interface is for container specific functions.

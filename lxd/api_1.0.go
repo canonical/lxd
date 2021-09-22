@@ -98,6 +98,7 @@ var api10 = []APIEndpoint{
 	storagePoolVolumeTypeStateCmd,
 	warningsCmd,
 	warningCmd,
+	metricsCmd,
 }
 
 // swagger:operation GET /1.0?public server server_get_untrusted
@@ -760,6 +761,14 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	value, ok = nodeChanged["core.debug_address"]
 	if ok {
 		err := d.endpoints.PprofUpdateAddress(value)
+		if err != nil {
+			return err
+		}
+	}
+
+	value, ok = nodeChanged["core.metrics_address"]
+	if ok {
+		err := d.endpoints.MetricsUpdateAddress(value, d.endpoints.NetworkCert())
 		if err != nil {
 			return err
 		}

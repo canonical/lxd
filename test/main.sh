@@ -279,6 +279,7 @@ run_test test_profiles_project_images "profiles in project with images enabled a
 run_test test_profiles_project_profiles "profiles in project with images disabled and profiles enabled"
 run_test test_filtering "API filtering"
 run_test test_warnings "Warnings"
+run_test test_metrics "Metrics"
 
 # shellcheck disable=SC2034
 TEST_RESULT=success

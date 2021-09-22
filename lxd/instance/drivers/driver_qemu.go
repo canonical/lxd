@@ -41,6 +41,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/lifecycle"
+	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
@@ -5743,4 +5744,37 @@ func (d *qemu) Info() instance.Info {
 	data.Error = nil
 
 	return data
+}
+
+func (d *qemu) Metrics() (*metrics.MetricSet, error) {
+	client, err := d.getAgentClient()
+	if err != nil {
+		return nil, err
+	}
+
+	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	if err != nil {
+		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"devName": d.Name(), "err": err})
+		return nil, fmt.Errorf("Failed to connect to lxd-agent")
+	}
+	defer agent.Disconnect()
+
+	resp, _, err := agent.RawQuery("GET", "/1.0/metrics", nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var m metrics.Metrics
+
+	err = json.Unmarshal(resp.Metadata, &m)
+	if err != nil {
+		return nil, err
+	}
+
+	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project, "name": d.name})
+	if err != nil {
+		return nil, err
+	}
+
+	return metricSet, nil
 }
