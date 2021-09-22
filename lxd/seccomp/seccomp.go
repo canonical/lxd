@@ -170,6 +170,9 @@ static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
 #ifdef AUDIT_ARCH_PPC64LE
 	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361 },
 #endif
+#ifdef AUDIT_ARCH_RISCV64
+	{ AUDIT_ARCH_RISCV64,      -1,  33,   5,  40, 280 },
+#endif
 #ifdef AUDIT_ARCH_SPARC
 	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349 },
 #endif
