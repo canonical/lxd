@@ -75,7 +75,7 @@ var storagePoolVolumeSnapshotTypeCmd = APIEndpoint{
 //     schema:
 //       $ref: "#/definitions/StorageVolumeSnapshotsPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -419,7 +419,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 //     schema:
 //       $ref: "#/definitions/StorageVolumeSnapshotPost"
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
@@ -897,7 +897,7 @@ func doStoragePoolVolumeSnapshotUpdate(d *Daemon, r *http.Request, poolName stri
 //     type: string
 //     example: lxd01
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"

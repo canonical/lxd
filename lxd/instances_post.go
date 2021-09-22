@@ -799,7 +799,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 //     description: Raw backup file
 //     required: false
 // responses:
-//   "200":
+//   "202":
 //     $ref: "#/responses/Operation"
 //   "400":
 //     $ref: "#/responses/BadRequest"
