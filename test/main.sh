@@ -24,6 +24,9 @@ if [ -z "${LXD_BACKEND:-}" ]; then
     LXD_BACKEND="dir"
 fi
 
+LXD_BACKEND="lvm"
+
+
 # shellcheck disable=SC2034
 LXD_NETNS=""
 
