@@ -284,6 +284,7 @@ var APIExtensions = []string{
 	"network_forward",
 	"custom_volume_refresh",
 	"network_counters_errors_dropped",
+	"metrics",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -6,6 +6,9 @@ const CertificateTypeClient = "client"
 // CertificateTypeServer indicates a server certificate type.
 const CertificateTypeServer = "server"
 
+// CertificateTypeMetrics indicates a metrics certificate type.
+const CertificateTypeMetrics = "metrics"
+
 // CertificateTypeUnknown indicates an unknown certificate type.
 const CertificateTypeUnknown = "unknown"
 

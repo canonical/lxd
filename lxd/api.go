@@ -95,6 +95,33 @@ func restServer(d *Daemon) *http.Server {
 	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
 }
 
+func metricsServer(d *Daemon) *http.Server {
+	/* Setup the web server */
+	mux := mux.NewRouter()
+	mux.StrictSlash(false)
+	mux.SkipClean(true)
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		response.SyncResponse(true, []string{"/1.0"}).Render(w)
+	})
+
+	for endpoint, f := range d.gateway.HandlerFuncs(d.NodeRefreshTask, d.getTrustedCertificates) {
+		mux.HandleFunc(endpoint, f)
+	}
+
+	d.createCmd(mux, "1.0", api10Cmd)
+	d.createCmd(mux, "1.0", metricsCmd)
+
+	mux.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Info("Sending top level 404", log.Ctx{"url": r.URL})
+		w.Header().Set("Content-Type", "application/json")
+		response.NotFound(nil).Render(w)
+	})
+
+	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
+}
+
 type lxdHttpServer struct {
 	r *mux.Router
 	d *Daemon

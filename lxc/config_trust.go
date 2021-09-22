@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -68,6 +69,7 @@ type cmdConfigTrustAdd struct {
 	flagName       string
 	flagProjects   string
 	flagRestricted bool
+	flagType       string
 }
 
 func (c *cmdConfigTrustAdd) Command() *cobra.Command {
@@ -75,11 +77,17 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 	cmd.Use = usage("add", i18n.G("[<remote>:] <cert>"))
 	cmd.Short = i18n.G("Add new trusted clients")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add new trusted clients`))
+		`Add new trusted clients
+
+The following certificate types are supported:
+- client (default)
+- metrics
+`))
 
 	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
 	cmd.Flags().StringVar(&c.flagProjects, "projects", "", i18n.G("List of projects to restrict the certificate to")+"``")
 	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Alternative certificate name")+"``")
+	cmd.Flags().StringVar(&c.flagType, "type", "client", i18n.G("Type of certificate")+"``")
 
 	cmd.RunE = c.Run
 
@@ -91,6 +99,11 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
+	}
+
+	// Validate flags.
+	if !shared.StringInSlice(c.flagType, []string{"client", "metrics"}) {
+		return fmt.Errorf("Unknown certificate type %q", c.flagType)
 	}
 
 	// Parse remote
@@ -105,6 +118,10 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	resource := resources[0]
+
+	if c.flagType == "metrics" && !resource.server.HasExtension("metrics") {
+		return errors.New("The server doesn't implement metrics")
+	}
 
 	// Load the certificate.
 	fname := args[len(args)-1]
@@ -130,7 +147,13 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	cert := api.CertificatesPost{}
 	cert.Certificate = base64.StdEncoding.EncodeToString(x509Cert.Raw)
 	cert.Name = name
-	cert.Type = api.CertificateTypeClient
+
+	if c.flagType == "client" {
+		cert.Type = api.CertificateTypeClient
+	} else if c.flagType == "metrics" {
+		cert.Type = api.CertificateTypeMetrics
+	}
+
 	cert.Restricted = c.flagRestricted
 	if c.flagProjects != "" {
 		cert.Projects = strings.Split(c.flagProjects, ",")

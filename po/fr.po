@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-18 23:17+0200\n"
+"POT-Creation-Date: 2021-09-20 12:08+0200\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -76,7 +76,7 @@ msgstr ""
 "### Un exemple serait :\n"
 "###  description: Mon image personnalisée"
 
-#: lxc/config_trust.go:162
+#: lxc/config_trust.go:185
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the certificate.\n"
@@ -606,8 +606,17 @@ msgid ""
 "protocol=simplestreams\n"
 msgstr ""
 
-#: lxc/config_trust.go:76 lxc/config_trust.go:77
+#: lxc/config_trust.go:78
 msgid "Add new trusted clients"
+msgstr ""
+
+#: lxc/config_trust.go:79
+msgid ""
+"Add new trusted clients\n"
+"\n"
+"The following certificate types are supported:\n"
+"- client (default)\n"
+"- metrics\n"
 msgstr ""
 
 #: lxc/network_forward.go:645 lxc/network_forward.go:646
@@ -652,7 +661,7 @@ msgstr ""
 msgid "Aliases:"
 msgstr "Alias :"
 
-#: lxc/config_trust.go:82
+#: lxc/config_trust.go:89
 #, fuzzy
 msgid "Alternative certificate name"
 msgstr "Accepter le certificat"
@@ -809,7 +818,7 @@ msgstr "Octets émis"
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:324
+#: lxc/config_trust.go:347
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -1015,7 +1024,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
 #: lxc/cluster.go:529 lxc/config.go:258 lxc/config.go:331
-#: lxc/config_metadata.go:145 lxc/config_trust.go:231 lxc/image.go:434
+#: lxc/config_metadata.go:145 lxc/config_trust.go:254 lxc/image.go:434
 #: lxc/network.go:666 lxc/network_acl.go:531 lxc/network_forward.go:536
 #: lxc/profile.go:501 lxc/project.go:312 lxc/storage.go:306
 #: lxc/storage_volume.go:957 lxc/storage_volume.go:987
@@ -1372,9 +1381,9 @@ msgstr "Récupération de l'image : %s"
 #: lxc/config_metadata.go:177 lxc/config_template.go:28
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
-#: lxc/config_template.go:298 lxc/config_trust.go:33 lxc/config_trust.go:77
-#: lxc/config_trust.go:153 lxc/config_trust.go:265 lxc/config_trust.go:345
-#: lxc/config_trust.go:388 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31
+#: lxc/config_template.go:298 lxc/config_trust.go:34 lxc/config_trust.go:79
+#: lxc/config_trust.go:176 lxc/config_trust.go:288 lxc/config_trust.go:368
+#: lxc/config_trust.go:411 lxc/console.go:36 lxc/copy.go:40 lxc/delete.go:31
 #: lxc/exec.go:40 lxc/export.go:32 lxc/file.go:72 lxc/file.go:108
 #: lxc/file.go:157 lxc/file.go:220 lxc/file.go:410 lxc/image.go:38
 #: lxc/image.go:144 lxc/image.go:290 lxc/image.go:341 lxc/image.go:466
@@ -1549,7 +1558,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
-#: lxc/config_trust.go:327
+#: lxc/config_trust.go:350
 msgid "EXPIRY DATE"
 msgstr "DATE D'EXPIRATION"
 
@@ -1619,7 +1628,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:152 lxc/config_trust.go:153
+#: lxc/config_trust.go:175 lxc/config_trust.go:176
 #, fuzzy
 msgid "Edit trust configurations as YAML"
 msgstr "Clé de configuration invalide"
@@ -1777,7 +1786,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr "NOM"
 
-#: lxc/config_trust.go:325 lxc/image.go:1016 lxc/image.go:1017
+#: lxc/config_trust.go:348 lxc/image.go:1016 lxc/image.go:1017
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
@@ -1877,7 +1886,7 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:104 lxc/cluster.go:662
-#: lxc/config_template.go:241 lxc/config_trust.go:267 lxc/image.go:1006
+#: lxc/config_template.go:241 lxc/config_trust.go:290 lxc/image.go:1006
 #: lxc/image_alias.go:158 lxc/list.go:132 lxc/network.go:837 lxc/network.go:930
 #: lxc/network_acl.go:94 lxc/network_forward.go:86 lxc/operation.go:107
 #: lxc/profile.go:584 lxc/project.go:394 lxc/project.go:749 lxc/remote.go:531
@@ -2032,7 +2041,7 @@ msgstr "IPv4"
 msgid "IPV6"
 msgstr "IPv6"
 
-#: lxc/config_trust.go:326
+#: lxc/config_trust.go:349
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
@@ -2180,7 +2189,7 @@ msgstr ""
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "Schème d'URL invalide \"%s\" in \"%s\""
 
-#: lxc/config_trust.go:306
+#: lxc/config_trust.go:329
 msgid "Invalid certificate"
 msgstr "Certificat invalide"
 
@@ -2566,7 +2575,7 @@ msgstr ""
 "    lxc list -c n,volatile.base_image:\\BASE IMAGE\\:0,s46,volatile.eth0."
 "hwaddr:MAC"
 
-#: lxc/config_trust.go:81
+#: lxc/config_trust.go:88
 msgid "List of projects to restrict the certificate to"
 msgstr ""
 
@@ -2608,7 +2617,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:264 lxc/config_trust.go:265
+#: lxc/config_trust.go:287 lxc/config_trust.go:288
 msgid "List trusted clients"
 msgstr ""
 
@@ -2823,7 +2832,7 @@ msgstr ""
 msgid "Manage the list of remote servers"
 msgstr ""
 
-#: lxc/config_trust.go:32 lxc/config_trust.go:33
+#: lxc/config_trust.go:33 lxc/config_trust.go:34
 msgid "Manage trusted clients"
 msgstr ""
 
@@ -2888,7 +2897,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/config_trust.go:185 lxc/config_trust.go:413
+#: lxc/config_trust.go:208 lxc/config_trust.go:436
 #, fuzzy
 msgid "Missing certificate fingerprint"
 msgstr "Empreinte du certificat : %s"
@@ -3043,7 +3052,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster.go:157 lxc/cluster.go:742 lxc/config_trust.go:323
+#: lxc/cluster.go:157 lxc/cluster.go:742 lxc/config_trust.go:346
 #: lxc/list.go:497 lxc/network.go:901 lxc/network_acl.go:143 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:590 lxc/storage.go:570
 #: lxc/storage_volume.go:1286
@@ -3346,7 +3355,7 @@ msgstr ""
 
 #: lxc/cluster.go:530 lxc/config.go:259 lxc/config.go:332
 #: lxc/config_metadata.go:146 lxc/config_template.go:206
-#: lxc/config_trust.go:232 lxc/image.go:435 lxc/network.go:667
+#: lxc/config_trust.go:255 lxc/image.go:435 lxc/network.go:667
 #: lxc/network_acl.go:532 lxc/network_forward.go:537 lxc/profile.go:502
 #: lxc/project.go:313 lxc/storage.go:307 lxc/storage_volume.go:958
 #: lxc/storage_volume.go:988
@@ -3643,7 +3652,7 @@ msgstr ""
 msgid "Remove rules from an ACL"
 msgstr "Création du conteneur"
 
-#: lxc/config_trust.go:344 lxc/config_trust.go:345
+#: lxc/config_trust.go:367 lxc/config_trust.go:368
 msgid "Remove trusted clients"
 msgstr ""
 
@@ -3770,7 +3779,7 @@ msgstr "Forcer le conteneur à s'arrêter"
 msgid "Restoring cluster member: %s"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/config_trust.go:80
+#: lxc/config_trust.go:87
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
@@ -4141,7 +4150,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:387 lxc/config_trust.go:388
+#: lxc/config_trust.go:410 lxc/config_trust.go:411
 #, fuzzy
 msgid "Show trust configurations"
 msgstr "Afficher la configuration étendue"
@@ -4326,7 +4335,7 @@ msgstr ""
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/config_trust.go:322 lxc/image.go:1023 lxc/image_alias.go:236
+#: lxc/config_trust.go:345 lxc/image.go:1023 lxc/image_alias.go:236
 #: lxc/list.go:503 lxc/network.go:902 lxc/network.go:977 lxc/operation.go:162
 #: lxc/storage_volume.go:1285 lxc/warning.go:214
 msgid "TYPE"
@@ -4513,6 +4522,11 @@ msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
 #, fuzzy
 msgid "Type"
 msgstr "Expire : %s"
+
+#: lxc/config_trust.go:90
+#, fuzzy
+msgid "Type of certificate"
+msgstr "Accepter le certificat"
 
 #: lxc/console.go:44
 msgid ""
@@ -4769,7 +4783,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster.go:99 lxc/cluster.go:659 lxc/config_trust.go:262
+#: lxc/cluster.go:99 lxc/cluster.go:659 lxc/config_trust.go:285
 #: lxc/monitor.go:30 lxc/network.go:830 lxc/network_acl.go:88
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
 #: lxc/storage.go:513 lxc/version.go:20 lxc/warning.go:69
@@ -4793,7 +4807,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config_trust.go:75
+#: lxc/config_trust.go:77
 #, fuzzy
 msgid "[<remote>:] <cert>"
 msgstr ""
@@ -4805,7 +4819,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/config_trust.go:342
+#: lxc/config_trust.go:365
 #, fuzzy
 msgid "[<remote>:] <hostname|fingerprint>"
 msgstr ""
@@ -4950,7 +4964,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/config_trust.go:151 lxc/config_trust.go:386
+#: lxc/config_trust.go:174 lxc/config_trust.go:409
 #, fuzzy
 msgid "[<remote>:]<fingerprint>"
 msgstr ""

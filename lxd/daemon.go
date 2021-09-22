@@ -43,6 +43,7 @@ import (
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
+	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
@@ -116,6 +117,12 @@ type Daemon struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// Stores the time the metrics were last fetched. This will be used to prevent stressing the instances too much.
+	metricsLastBuildTime time.Time
+	// Cached metrics which are returned instead of querying all instances.
+	metrics      *metrics.MetricSet
+	metricsMutex sync.Mutex
 }
 
 type externalAuth struct {
@@ -360,6 +367,16 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	trustCACertificates, err := cluster.ConfigGetBool(d.cluster, "core.trust_ca_certificates")
 	if err != nil {
 		return false, "", "", err
+	}
+
+	// Validate metrics certificates.
+	if r.URL.Path == "/1.0/metrics" {
+		for _, i := range r.TLS.PeerCertificates {
+			trusted, username := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeMetrics], d.endpoints.NetworkCert(), trustCACertificates)
+			if trusted {
+				return true, username, "tls", nil
+			}
+		}
 	}
 
 	for _, i := range r.TLS.PeerCertificates {
@@ -1006,6 +1023,11 @@ func (d *Daemon) init() error {
 		return errors.Wrap(err, "Failed to fetch debug address")
 	}
 
+	metricsAddress, err := node.MetricsAddress(d.db)
+	if err != nil {
+		return errors.Wrap(err, "Failed to fetch metrics address")
+	}
+
 	/* Setup the web server */
 	config := &endpoints.Config{
 		Dir:                  d.os.VarDir,
@@ -1017,6 +1039,8 @@ func (d *Daemon) init() error {
 		NetworkAddress:       address,
 		ClusterAddress:       clusterAddress,
 		DebugAddress:         debugAddress,
+		MetricsAddress:       metricsAddress,
+		MetricsServer:        metricsServer(d),
 	}
 	d.endpoints, err = endpoints.Up(config)
 	if err != nil {
