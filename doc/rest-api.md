@@ -133,6 +133,7 @@ Code  | Meaning
 109   | Freezing
 110   | Frozen
 111   | Thawed
+112   | Error
 200   | Success
 400   | Failure
 401   | Cancelled
