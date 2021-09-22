@@ -19,7 +19,7 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func daemonStorageUnmount(s *state.State) error {
+func daemonStorageVolumesUnmount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
 
@@ -73,27 +73,6 @@ func daemonStorageUnmount(s *state.State) error {
 		err := unmount("images", storageImages)
 		if err != nil {
 			return errors.Wrap(err, "Failed to unmount images storage")
-		}
-	}
-
-	pools, err := s.Cluster.GetStoragePoolNames()
-	if err != nil {
-		return fmt.Errorf("Failed to get storage pools: %w", err)
-	}
-
-	for _, poolName := range pools {
-		pool, err := storagePools.GetPoolByName(s, poolName)
-		if err != nil {
-			return fmt.Errorf("Failed to get storage pool %q: %w", poolName, err)
-		}
-
-		if pool.Driver().Info().Name == "lvm" {
-			continue // TODO figure out the intermittent issue with LVM tests when this is removed.
-		}
-
-		_, err = pool.Unmount()
-		if err != nil {
-			return fmt.Errorf("Unable to unmount storage pool %q: %w", poolName, err)
 		}
 	}
 
