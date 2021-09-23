@@ -15,11 +15,7 @@ import (
 
 // Filesystem magic numbers.
 const (
-	FilesystemSuperMagicTmpfs = 0x01021994
-	FilesystemSuperMagicExt4  = 0xEF53
-	FilesystemSuperMagicXfs   = 0x58465342
-	FilesystemSuperMagicNfs   = 0x6969
-	FilesystemSuperMagicZfs   = 0x2fc12fc1
+	FilesystemSuperMagicZfs = 0x2fc12fc1
 )
 
 // StatVFS retrieves Virtual File System (VFS) info about a path.
