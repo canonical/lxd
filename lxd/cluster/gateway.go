@@ -330,7 +330,7 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 				http.Error(w, "500 no elected leader", http.StatusInternalServerError)
 				return
 			}
-			util.WriteJSON(w, map[string]string{"leader": leader}, false)
+			util.WriteJSON(w, map[string]string{"leader": leader}, nil)
 			return
 		}
 
