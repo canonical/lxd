@@ -2236,25 +2236,9 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	}
 
 	// Load the LXC raw config.
-	if lxcConfig, ok := d.expandedConfig["raw.lxc"]; ok {
-		// Write to temp config file.
-		f, err := ioutil.TempFile("", "lxd_config_")
-		if err != nil {
-			return "", nil, err
-		}
-
-		err = shared.WriteAll(f, []byte(lxcConfig))
-		f.Close()
-		defer os.Remove(f.Name())
-		if err != nil {
-			return "", nil, err
-		}
-
-		// Load the config.
-		err = d.c.LoadConfigFile(f.Name())
-		if err != nil {
-			return "", nil, fmt.Errorf("Failed to load raw.lxc")
-		}
+	err = d.loadRawLXCConfig()
+	if err != nil {
+		return "", nil, err
 	}
 
 	// Generate the LXC config
@@ -4080,23 +4064,9 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			return err
 		}
 
-		// Write the raw config.
-		f, err := ioutil.TempFile("", "lxd_config_")
+		err = d.loadRawLXCConfig()
 		if err != nil {
 			return err
-		}
-
-		err = shared.WriteAll(f, []byte(d.expandedConfig["raw.lxc"]))
-		f.Close()
-		defer os.Remove(f.Name())
-		if err != nil {
-			return err
-		}
-
-		// Load the raw config.
-		err = cc.LoadConfigFile(f.Name())
-		if err != nil {
-			return fmt.Errorf("Failed to load raw.lxc")
 		}
 
 		// Release the liblxc instance.
@@ -6807,4 +6777,33 @@ func (d *lxc) Info() instance.Info {
 		Type:    instancetype.Container,
 		Error:   nil,
 	}
+}
+
+func (d *lxc) loadRawLXCConfig() error {
+	// Load the LXC raw config.
+	lxcConfig, ok := d.expandedConfig["raw.lxc"]
+	if !ok {
+		return nil
+	}
+
+	// Write to temp config file.
+	f, err := ioutil.TempFile("", "lxd_config_")
+	if err != nil {
+		return err
+	}
+
+	err = shared.WriteAll(f, []byte(lxcConfig))
+	f.Close()
+	defer os.Remove(f.Name())
+	if err != nil {
+		return err
+	}
+
+	// Load the config.
+	err = d.c.LoadConfigFile(f.Name())
+	if err != nil {
+		return fmt.Errorf("Failed to load config file %q: %w", f.Name(), err)
+	}
+
+	return nil
 }
