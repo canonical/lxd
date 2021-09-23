@@ -19,11 +19,25 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	log "github.com/lxc/lxd/shared/log15"
-
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+// DebugJSON helper to log JSON.
+// Accepts a title to prefix the JSON log with, a *bytes.Bufffer containing the JSON and a logger to use for
+// logging the the JSON (allowing for custom context to be added to the log).
+func DebugJSON(title string, r *bytes.Buffer, logger logger.Logger) {
+	pretty := &bytes.Buffer{}
+	if err := json.Indent(pretty, r.Bytes(), "\t", "\t"); err != nil {
+		logger.Debug("Error indenting JSON", log.Ctx{"err": err})
+		return
+	}
+
+	// Print the JSON without the last "\n"
+	str := pretty.String()
+	logger.Debug(fmt.Sprintf("%s\n\t%s", title, str[0:len(str)-1]))
+}
 
 // WriteJSON encodes the body as JSON and sends it back to the client
 func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
