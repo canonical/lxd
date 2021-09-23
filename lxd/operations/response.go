@@ -96,9 +96,16 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 	}
 
 	w.Header().Set("Location", url)
-	w.WriteHeader(202)
 
-	return util.WriteJSON(w, body, debug)
+	code := 202
+	w.WriteHeader(code)
+
+	var debugLogger logger.Logger
+	if debug {
+		debugLogger = logging.AddContext(logger.Log, log.Ctx{"http_code": code})
+	}
+
+	return util.WriteJSON(w, body, debugLogger)
 }
 
 func (r *forwardedOperationResponse) String() string {
