@@ -40,12 +40,13 @@ func DebugJSON(title string, r *bytes.Buffer, logger logger.Logger) {
 }
 
 // WriteJSON encodes the body as JSON and sends it back to the client
-func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
+// Accepts optional debugLogger that activates debug logging if non-nil.
+func WriteJSON(w http.ResponseWriter, body interface{}, debugLogger logger.Logger) error {
 	var output io.Writer
 	var captured *bytes.Buffer
 
 	output = w
-	if debug {
+	if debugLogger != nil {
 		captured = &bytes.Buffer{}
 		output = io.MultiWriter(w, captured)
 	}
@@ -55,7 +56,7 @@ func WriteJSON(w http.ResponseWriter, body interface{}, debug bool) error {
 	err := enc.Encode(body)
 
 	if captured != nil {
-		shared.DebugJson(captured)
+		DebugJSON("WriteJSON", captured, debugLogger)
 	}
 
 	return err
