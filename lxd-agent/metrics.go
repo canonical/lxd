@@ -268,7 +268,7 @@ func getFilesystemMetrics(d *Daemon) (map[string]metrics.FilesystemMetrics, erro
 			return nil, fmt.Errorf("Failed to stat %s: %w", stats.Mountpoint, err)
 		}
 
-		fsType, err := filesystem.FSTypeToName(statfs.Type)
+		fsType, err := filesystem.FSTypeToName(int32(statfs.Type))
 		if err == nil {
 			stats.FSType = fsType
 		}

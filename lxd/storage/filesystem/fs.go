@@ -15,11 +15,7 @@ import (
 
 // Filesystem magic numbers.
 const (
-	FilesystemSuperMagicTmpfs = 0x01021994
-	FilesystemSuperMagicExt4  = 0xEF53
-	FilesystemSuperMagicXfs   = 0x58465342
-	FilesystemSuperMagicNfs   = 0x6969
-	FilesystemSuperMagicZfs   = 0x2fc12fc1
+	FilesystemSuperMagicZfs = 0x2fc12fc1
 )
 
 // StatVFS retrieves Virtual File System (VFS) info about a path.
@@ -41,24 +37,34 @@ func Detect(path string) (string, error) {
 		return "", err
 	}
 
-	return FSTypeToName(fs.Type)
+	return FSTypeToName(int32(fs.Type))
 }
 
 // FSTypeToName returns the name of the given fs type.
-func FSTypeToName(fsType int64) (string, error) {
+// The fsType is from the Type field of unix.Statfs_t. We use int32 so that this function behaves the same on both
+// 32bit and 64bit platforms by requiring any 64bit FS types to be overflowed before being passed in. They will
+// then be compared with equally overflowed FS type constant values.
+func FSTypeToName(fsType int32) (string, error) {
+	// This function is needed to allow FS type constants that overflow an int32 to be overflowed without a
+	// compile error on 32bit platforms. This allows us to use any 64bit constants from the unix package on
+	// both 64bit and 32bit platforms without having to define the constant in its rolled over form on 32bit.
+	to32 := func(fsType int64) int32 {
+		return int32(fsType)
+	}
+
 	switch fsType {
-	case FilesystemSuperMagicBtrfs:
+	case to32(unix.BTRFS_SUPER_MAGIC): // BTRFS' constant required overflowing to an int32.
 		return "btrfs", nil
+	case unix.TMPFS_MAGIC:
+		return "tmpfs", nil
+	case unix.EXT4_SUPER_MAGIC:
+		return "ext4", nil
+	case unix.XFS_SUPER_MAGIC:
+		return "xfs", nil
+	case unix.NFS_SUPER_MAGIC:
+		return "nfs", nil
 	case FilesystemSuperMagicZfs:
 		return "zfs", nil
-	case FilesystemSuperMagicTmpfs:
-		return "tmpfs", nil
-	case FilesystemSuperMagicExt4:
-		return "ext4", nil
-	case FilesystemSuperMagicXfs:
-		return "xfs", nil
-	case FilesystemSuperMagicNfs:
-		return "nfs", nil
 	}
 
 	logger.Debugf("Unknown backing filesystem type: 0x%x", fsType)
