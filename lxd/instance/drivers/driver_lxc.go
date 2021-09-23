@@ -7116,7 +7116,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 		labels["device"] = realDev
 		labels["mountpoint"] = dev["path"]
 
-		fsType, err := filesystem.FSTypeToName(statfs.Type)
+		fsType, err := filesystem.FSTypeToName(int32(statfs.Type))
 		if err == nil {
 			labels["fstype"] = fsType
 		}
