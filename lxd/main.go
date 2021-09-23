@@ -56,7 +56,7 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 	operations.Init(daemon.Debug)
 
 	// Set debug for the response package
-	response.Init(daemon.Verbose)
+	response.Init(daemon.Debug)
 
 	// Setup logger
 	syslog := ""
