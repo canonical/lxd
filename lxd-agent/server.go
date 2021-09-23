@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -14,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -45,7 +45,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 		w.Header().Set("Content-Type", "application/json")
 
 		if !authenticate(r, cert) {
-			log.Println("Not authorized")
+			log.Error("Not authorized")
 			response.InternalError(fmt.Errorf("Not authorized")).Render(w)
 			return
 		}
@@ -61,7 +61,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 			}
 
 			r.Body = shared.BytesReadCloser{Buf: newBody}
-			shared.DebugJson(captured)
+			util.DebugJSON("API Request", captured, log.New())
 		}
 
 		// Actually process the request
