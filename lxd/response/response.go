@@ -14,6 +14,9 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 var debug bool
@@ -96,26 +99,40 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		}
 	}
 
+	code := r.code
+
 	if r.location != "" {
 		w.Header().Set("Location", r.location)
-		code := r.code
 		if code == 0 {
 			code = 201
 		}
-		w.WriteHeader(code)
 	}
 
-	if r.plaintext && r.metadata != nil {
+	// Handle plain text headers.
+	if r.plaintext {
 		w.Header().Set("Content-Type", "text/plain")
+	}
 
-		_, err := w.Write([]byte(r.metadata.(string)))
-		if err != nil {
-			return err
+	// Write header and status code.
+	if code == 0 {
+		code = http.StatusOK
+	}
+
+	w.WriteHeader(code)
+
+	// Handle plain text responses.
+	if r.plaintext {
+		if r.metadata != nil {
+			_, err := w.Write([]byte(r.metadata.(string)))
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
 	}
 
+	// Handle JSON responses.
 	resp := api.ResponseRaw{
 		Type:       api.SyncResponse,
 		Status:     status.String(),
@@ -123,7 +140,12 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 		Metadata:   r.metadata,
 	}
 
-	return util.WriteJSON(w, resp, debug)
+	var debugLogger logger.Logger
+	if debug {
+		debugLogger = logging.AddContext(logger.Log, log.Ctx{"http_code": code})
+	}
+
+	return util.WriteJSON(w, resp, debugLogger)
 }
 
 func (r *syncResponse) String() string {
