@@ -7,6 +7,9 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -40,9 +43,16 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 	}
 
 	w.Header().Set("Location", url)
-	w.WriteHeader(202)
 
-	return util.WriteJSON(w, body, debug)
+	code := 202
+	w.WriteHeader(code)
+
+	var debugLogger logger.Logger
+	if debug {
+		debugLogger = logging.AddContext(logger.Log, log.Ctx{"http_code": code})
+	}
+
+	return util.WriteJSON(w, body, debugLogger)
 }
 
 func (r *operationResponse) String() string {
