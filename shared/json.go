@@ -1,11 +1,7 @@
 package shared
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-
-	"github.com/lxc/lxd/shared/logger"
 )
 
 type Jmap map[string]interface{}
@@ -48,16 +44,4 @@ func (m Jmap) GetBool(key string) (bool, error) {
 	} else {
 		return val, nil
 	}
-}
-
-func DebugJson(r *bytes.Buffer) {
-	pretty := &bytes.Buffer{}
-	if err := json.Indent(pretty, r.Bytes(), "\t", "\t"); err != nil {
-		logger.Debugf("error indenting json: %s", err)
-		return
-	}
-
-	// Print the JSON without the last "\n"
-	str := pretty.String()
-	logger.Debugf("\n\t%s", str[0:len(str)-1])
 }
