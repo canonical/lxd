@@ -156,6 +156,7 @@ func (s *OS) Init() error {
 	s.RunningInUserNS = shared.RunningInUserNS()
 
 	s.initAppArmor()
+	cgroup.Init()
 	s.CGInfo = cgroup.GetInfo()
 
 	return nil
