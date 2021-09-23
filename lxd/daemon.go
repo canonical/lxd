@@ -480,10 +480,10 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 		}
 
+		logCtx := log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "username": username, "protocol": protocol}
 		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
 		if trusted {
-			logCtx := log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "username": username, "protocol": protocol}
-			logger.Debug("Handling", logCtx)
+			logger.Debug("Handling API request", logCtx)
 
 			// Get user access data.
 			userAccess, err := func() (*rbac.UserAccess, error) {
