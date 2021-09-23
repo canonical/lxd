@@ -12,7 +12,6 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -158,8 +157,8 @@ func (r *syncResponse) String() string {
 
 // Error response
 type errorResponse struct {
-	code int
-	msg  string
+	code int    // Code to return in both the HTTP header and Code field of the response body.
+	msg  string // Message to return in the Error field of the response body.
 }
 
 // ErrorResponse returns an error response with the given code and msg.
@@ -248,7 +247,13 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 		output = io.MultiWriter(buf, captured)
 	}
 
-	err := json.NewEncoder(output).Encode(shared.Jmap{"type": api.ErrorResponse, "error": r.msg, "error_code": r.code})
+	resp := api.ResponseRaw{
+		Type:  api.ErrorResponse,
+		Error: r.msg,
+		Code:  r.code, // Set the error code in the Code field of the response body.
+	}
+
+	err := json.NewEncoder(output).Encode(resp)
 
 	if err != nil {
 		return err
@@ -261,7 +266,9 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(r.code)
+
+	w.WriteHeader(r.code) // Set the error code in the HTTP header response.
+
 	fmt.Fprintln(w, buf.String())
 
 	return nil
