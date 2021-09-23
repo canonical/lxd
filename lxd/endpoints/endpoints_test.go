@@ -81,7 +81,7 @@ func newServer() *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/1.0/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		util.WriteJSON(w, api.ResponseRaw{}, false)
+		util.WriteJSON(w, api.ResponseRaw{}, nil)
 	})
 	return &http.Server{Handler: mux, ErrorLog: log.New(ioutil.Discard, "", 0)}
 }

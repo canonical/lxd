@@ -194,7 +194,7 @@ func newRestServer(cert *shared.CertInfo) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		config := map[string]interface{}{"cluster.https_address": server.Listener.Addr().String()}
 		metadata := api.ServerPut{Config: config}
-		util.WriteJSON(w, api.ResponseRaw{Metadata: metadata}, false)
+		util.WriteJSON(w, api.ResponseRaw{Metadata: metadata}, nil)
 	})
 
 	return server
