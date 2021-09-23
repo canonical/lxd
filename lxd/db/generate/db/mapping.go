@@ -292,6 +292,7 @@ var columnarTypeNames = []string{
 	"int64",
 	"OperationType",
 	"CertificateType",
+	"DeviceType",
 	"string",
 	"time.Time",
 	"sql.NullTime",
