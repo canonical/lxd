@@ -333,7 +333,8 @@ func (info *Info) Warnings() []db.Warning {
 	return warnings
 }
 
-func init() {
+// Init initializes cgroups.
+func Init() {
 	_, err := os.Stat("/proc/self/ns/cgroup")
 	if err == nil {
 		cgNamespace = true
