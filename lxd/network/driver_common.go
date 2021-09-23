@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -941,4 +942,32 @@ func (n *common) PeerUpdate(peerName string, newPeer api.NetworkPeerPut) error {
 // PeerDelete returns ErrNotImplemented for drivers that do not support forwards.
 func (n *common) PeerDelete(peerName string) error {
 	return ErrNotImplemented
+}
+
+// peerValidate valites the peer request.
+func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
+	err := acl.ValidName(peerName)
+	if err != nil {
+		return err
+	}
+
+	if shared.StringInSlice(peerName, acl.ReservedNetworkSubects) {
+		return fmt.Errorf("Name cannot be one of the reserved network subjects: %v", acl.ReservedNetworkSubects)
+	}
+
+	// Look for any unknown config fields.
+	for k := range peer.Config {
+		if k == "target_address" {
+			continue
+		}
+
+		// User keys are not validated.
+		if shared.IsUserConfig(k) {
+			continue
+		}
+
+		return fmt.Errorf("Invalid option option %q", k)
+	}
+
+	return nil
 }
