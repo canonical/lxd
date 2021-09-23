@@ -208,8 +208,6 @@ func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 
 	version := cgControllers["cpuacct"]
 	switch version {
-	case Unavailable:
-		return nil, ErrControllerMissing
 	case V1:
 		val, err := cg.rw.Get(version, "cpuacct", "cpuacct.usage_all")
 		if err != nil {
@@ -247,8 +245,50 @@ func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 		}
 
 		return out, nil
-	case V2:
+	}
+
+	// Handle cgroups v2
+	version = cgControllers["cpu"]
+	switch version {
+	case Unavailable:
 		return nil, ErrControllerMissing
+	case V2:
+		val, err := cg.rw.Get(version, "cpu", "cpu.stat")
+		if err != nil {
+			return nil, err
+		}
+
+		stats := CPUStats{}
+
+		scanner := bufio.NewScanner(strings.NewReader(val))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			switch fields[0] {
+			case "user_usec":
+				val, err := strconv.ParseInt(fields[1], 10, 64)
+				if err != nil {
+					return nil, err
+				}
+
+				// Convert usec to nsec
+				stats.User = val * 1000
+			case "system_usec":
+				val, err := strconv.ParseInt(fields[1], 10, 64)
+				if err != nil {
+					return nil, err
+				}
+
+				// Convert usec to nsec
+				stats.System = val * 1000
+			}
+		}
+
+		// Use CPU ID 0 here as cgroup v2 doesn't show the usage of separate CPUs.
+		out[0] = stats
+
+		return out, nil
 	}
 
 	return nil, ErrUnknownVersion
@@ -258,8 +298,6 @@ func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 	version := cgControllers["cpuacct"]
 	switch version {
-	case Unavailable:
-		return -1, ErrControllerMissing
 	case V1:
 		val, err := cg.rw.Get(version, "cpuacct", "cpuacct.usage")
 		if err != nil {
@@ -267,8 +305,36 @@ func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 		}
 
 		return strconv.ParseInt(val, 10, 64)
-	case V2:
+	}
+
+	// Handle cgroups v2
+	version = cgControllers["cpu"]
+	switch version {
+	case Unavailable:
 		return -1, ErrControllerMissing
+	case V2:
+		stats, err := cg.rw.Get(version, "cpu", "cpu.stat")
+		if err != nil {
+			return -1, err
+		}
+
+		scanner := bufio.NewScanner(strings.NewReader(stats))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			if fields[0] != "usage_usec" {
+				continue
+			}
+
+			val, err := strconv.ParseInt(fields[1], 10, 64)
+			if err != nil {
+				return 0, err
+			}
+
+			// Convert usec to nsec
+			return val * 1000, nil
+		}
 	}
 
 	return -1, ErrUnknownVersion
