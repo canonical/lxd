@@ -255,7 +255,8 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	}
 
 	if debug {
-		shared.DebugJson(captured)
+		debugLogger := logging.AddContext(logger.Log, log.Ctx{"http_code": r.code})
+		util.DebugJSON("Error Response", captured, debugLogger)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
