@@ -93,12 +93,7 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 		}
 
 		if inUse {
-			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
-			if profile.Project != project.Default {
-				uri += fmt.Sprintf("?project=%s", profile.Project)
-			}
-
-			usedBy = append(usedBy, uri)
+			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(profile.Project).String())
 
 			if firstOnly {
 				return usedBy, nil
@@ -117,12 +112,7 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 			}
 
 			if inUse {
-				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
-				if inst.Project != project.Default {
-					uri += fmt.Sprintf("?project=%s", inst.Project)
-				}
-
-				usedBy = append(usedBy, uri)
+				usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 
 				if firstOnly {
 					return db.ErrInstanceListStop
