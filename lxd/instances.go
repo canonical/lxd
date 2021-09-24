@@ -347,7 +347,7 @@ func instancesShutdown(s *state.State) error {
 		dbAvailable = false
 		instances = []instance.Instance{}
 
-		// List all containers on disk
+		// List all instances on disk
 		cnames, err := instancesOnDisk()
 		if err != nil {
 			return err
