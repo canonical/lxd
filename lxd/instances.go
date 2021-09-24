@@ -295,13 +295,13 @@ func instancesRestart(s *state.State) error {
 	return nil
 }
 
-type containerStopList []instance.Instance
+type instanceStopList []instance.Instance
 
-func (slice containerStopList) Len() int {
+func (slice instanceStopList) Len() int {
 	return len(slice)
 }
 
-func (slice containerStopList) Less(i, j int) bool {
+func (slice instanceStopList) Less(i, j int) bool {
 	iOrder := slice[i].ExpandedConfig()["boot.stop.priority"]
 	jOrder := slice[j].ExpandedConfig()["boot.stop.priority"]
 
@@ -314,21 +314,26 @@ func (slice containerStopList) Less(i, j int) bool {
 	return slice[i].Name() < slice[j].Name()
 }
 
-func (slice containerStopList) Swap(i, j int) {
+func (slice instanceStopList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-// Return the names of all local containers, grouped by project. The
+// Return the names of all local instances, grouped by project. The
 // information is obtained by reading the data directory.
 func instancesOnDisk() (map[string][]string, error) {
-	containers := map[string][]string{}
+	instances := map[string][]string{}
 
-	files, err := ioutil.ReadDir(shared.VarPath("containers"))
+	containers, err := ioutil.ReadDir(shared.VarPath("containers"))
 	if err != nil {
 		return nil, err
 	}
 
-	for _, file := range files {
+	virtualMachines, err := ioutil.ReadDir(shared.VarPath("virtual-machines"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range append(containers, virtualMachines...) {
 		name := file.Name()
 		projectName := project.Default
 		if strings.Contains(name, "_") {
@@ -336,14 +341,14 @@ func instancesOnDisk() (map[string][]string, error) {
 			projectName = fields[0]
 			name = fields[1]
 		}
-		names, ok := containers[projectName]
+		names, ok := instances[projectName]
 		if !ok {
 			names = []string{}
 		}
-		containers[projectName] = append(names, name)
+		instances[projectName] = append(names, name)
 	}
 
-	return containers, nil
+	return instances, nil
 }
 
 func instancesShutdown(s *state.State) error {
@@ -358,13 +363,13 @@ func instancesShutdown(s *state.State) error {
 		dbAvailable = false
 		instances = []instance.Instance{}
 
-		// List all containers on disk
-		cnames, err := instancesOnDisk()
+		// List all instances on disk
+		instanceNames, err := instancesOnDisk()
 		if err != nil {
 			return err
 		}
 
-		for project, names := range cnames {
+		for project, names := range instanceNames {
 			for _, name := range names {
 				inst, err := instance.Load(s, db.InstanceArgs{
 					Project: project,
@@ -380,7 +385,7 @@ func instancesShutdown(s *state.State) error {
 		}
 	}
 
-	sort.Sort(containerStopList(instances))
+	sort.Sort(instanceStopList(instances))
 
 	if dbAvailable {
 		// Reset all instances states
@@ -396,8 +401,8 @@ func instancesShutdown(s *state.State) error {
 		lastPriority, _ = strconv.Atoi(instances[0].ExpandedConfig()["boot.stop.priority"])
 	}
 
-	for _, c := range instances {
-		priority, _ := strconv.Atoi(c.ExpandedConfig()["boot.stop.priority"])
+	for _, inst := range instances {
+		priority, _ := strconv.Atoi(inst.ExpandedConfig()["boot.stop.priority"])
 
 		// Enforce shutdown priority
 		if priority != lastPriority {
@@ -408,13 +413,13 @@ func instancesShutdown(s *state.State) error {
 		}
 
 		// Record the current state
-		lastState := c.State()
+		lastState := inst.State()
 
 		// Stop the container
 		if lastState != "ERROR" && lastState != "STOPPED" {
 			// Determinate how long to wait for the instance to shutdown cleanly
 			var timeoutSeconds int
-			value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
+			value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 			if ok {
 				timeoutSeconds, _ = strconv.Atoi(value)
 			} else {
@@ -426,12 +431,15 @@ func instancesShutdown(s *state.State) error {
 			go func(c instance.Instance, lastState string) {
 				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				c.Stop(false)
-				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+
+				if dbAvailable {
+					c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+				}
 
 				wg.Done()
-			}(c, lastState)
-		} else {
-			c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+			}(inst, lastState)
+		} else if dbAvailable {
+			inst.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
 		}
 	}
 	wg.Wait()
