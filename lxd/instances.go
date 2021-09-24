@@ -318,17 +318,22 @@ func (slice instanceStopList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-// Return the names of all local containers, grouped by project. The
+// Return the names of all local instances, grouped by project. The
 // information is obtained by reading the data directory.
 func instancesOnDisk() (map[string][]string, error) {
-	containers := map[string][]string{}
+	instances := map[string][]string{}
 
-	files, err := ioutil.ReadDir(shared.VarPath("containers"))
+	containers, err := ioutil.ReadDir(shared.VarPath("containers"))
 	if err != nil {
 		return nil, err
 	}
 
-	for _, file := range files {
+	virtualMachines, err := ioutil.ReadDir(shared.VarPath("virtual-machines"))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, file := range append(containers, virtualMachines...) {
 		name := file.Name()
 		projectName := project.Default
 		if strings.Contains(name, "_") {
@@ -336,14 +341,14 @@ func instancesOnDisk() (map[string][]string, error) {
 			projectName = fields[0]
 			name = fields[1]
 		}
-		names, ok := containers[projectName]
+		names, ok := instances[projectName]
 		if !ok {
 			names = []string{}
 		}
-		containers[projectName] = append(names, name)
+		instances[projectName] = append(names, name)
 	}
 
-	return containers, nil
+	return instances, nil
 }
 
 func instancesShutdown(s *state.State) error {
