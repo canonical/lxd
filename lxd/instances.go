@@ -415,11 +415,14 @@ func instancesShutdown(s *state.State) error {
 			go func(c instance.Instance, lastState string) {
 				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				c.Stop(false)
-				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+
+				if dbAvailable {
+					c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+				}
 
 				wg.Done()
 			}(inst, lastState)
-		} else {
+		} else if dbAvailable {
 			inst.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
 		}
 	}
