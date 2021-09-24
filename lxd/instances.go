@@ -348,12 +348,12 @@ func instancesShutdown(s *state.State) error {
 		instances = []instance.Instance{}
 
 		// List all instances on disk
-		cnames, err := instancesOnDisk()
+		instanceNames, err := instancesOnDisk()
 		if err != nil {
 			return err
 		}
 
-		for project, names := range cnames {
+		for project, names := range instanceNames {
 			for _, name := range names {
 				inst, err := instance.Load(s, db.InstanceArgs{
 					Project: project,
@@ -385,8 +385,8 @@ func instancesShutdown(s *state.State) error {
 		lastPriority, _ = strconv.Atoi(instances[0].ExpandedConfig()["boot.stop.priority"])
 	}
 
-	for _, c := range instances {
-		priority, _ := strconv.Atoi(c.ExpandedConfig()["boot.stop.priority"])
+	for _, inst := range instances {
+		priority, _ := strconv.Atoi(inst.ExpandedConfig()["boot.stop.priority"])
 
 		// Enforce shutdown priority
 		if priority != lastPriority {
@@ -397,13 +397,13 @@ func instancesShutdown(s *state.State) error {
 		}
 
 		// Record the current state
-		lastState := c.State()
+		lastState := inst.State()
 
 		// Stop the container
 		if lastState != "ERROR" && lastState != "STOPPED" {
 			// Determinate how long to wait for the instance to shutdown cleanly
 			var timeoutSeconds int
-			value, ok := c.ExpandedConfig()["boot.host_shutdown_timeout"]
+			value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
 			if ok {
 				timeoutSeconds, _ = strconv.Atoi(value)
 			} else {
@@ -418,9 +418,9 @@ func instancesShutdown(s *state.State) error {
 				c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
 
 				wg.Done()
-			}(c, lastState)
+			}(inst, lastState)
 		} else {
-			c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+			inst.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
 		}
 	}
 	wg.Wait()
