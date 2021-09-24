@@ -196,7 +196,7 @@ func (n *common) Info() Info {
 
 // IsUsed returns whether the network is used by any instances or profiles.
 func (n *common) IsUsed() (bool, error) {
-	usedBy, err := UsedBy(n.state, n.project, n.name, true)
+	usedBy, err := UsedBy(n.state, n.project, n.id, n.name, true)
 	if err != nil {
 		return false, err
 	}
