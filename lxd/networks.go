@@ -760,7 +760,7 @@ func doNetworkGet(d *Daemon, r *http.Request, projectName string, name string) (
 	}
 
 	// Get some information.
-	_, dbInfo, _, _ := d.cluster.GetNetworkInAnyState(projectName, name)
+	networkID, dbInfo, _, _ := d.cluster.GetNetworkInAnyState(projectName, name)
 
 	// Don't allow retrieving info about the local node interfaces when not using default project.
 	if projectName != project.Default && dbInfo == nil {
@@ -807,7 +807,7 @@ func doNetworkGet(d *Daemon, r *http.Request, projectName string, name string) (
 
 	// Look for instances using the interface.
 	if n.Type != "loopback" {
-		usedBy, err := network.UsedBy(d.State(), projectName, n.Name, false)
+		usedBy, err := network.UsedBy(d.State(), projectName, networkID, n.Name, false)
 		if err != nil {
 			return api.Network{}, err
 		}
