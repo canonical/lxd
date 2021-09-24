@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-08 00:58-0400\n"
+"POT-Creation-Date: 2021-09-24 22:48+0200\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -502,7 +502,7 @@ msgstr ""
 "  lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --"
 "protocol=simplestreams\n"
 
-#: lxc/config_trust.go:59 lxc/config_trust.go:60
+#: lxc/config_trust.go:61 lxc/config_trust.go:62
 msgid "Add new trusted clients"
 msgstr "新たに信頼済みのクライアントを追加します"
 
@@ -537,6 +537,11 @@ msgstr "エイリアスを指定してください"
 #: lxc/image.go:916
 msgid "Aliases:"
 msgstr "エイリアス:"
+
+#: lxc/config_trust.go:65
+#, fuzzy
+msgid "Alternative certificate name"
+msgstr "サーバの証明書が変更されていました"
 
 #: lxc/image.go:887 lxc/info.go:468
 #, c-format
@@ -672,7 +677,7 @@ msgstr "送信バイト数"
 msgid "CANCELABLE"
 msgstr "CANCELABLE"
 
-#: lxc/config_trust.go:176
+#: lxc/config_trust.go:192
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -1139,8 +1144,8 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_metadata.go:177 lxc/config_template.go:28
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
-#: lxc/config_template.go:298 lxc/config_trust.go:28 lxc/config_trust.go:60
-#: lxc/config_trust.go:118 lxc/config_trust.go:196 lxc/console.go:36
+#: lxc/config_template.go:298 lxc/config_trust.go:28 lxc/config_trust.go:62
+#: lxc/config_trust.go:134 lxc/config_trust.go:212 lxc/console.go:36
 #: lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:40 lxc/export.go:32
 #: lxc/file.go:72 lxc/file.go:108 lxc/file.go:157 lxc/file.go:220
 #: lxc/file.go:410 lxc/image.go:38 lxc/image.go:131 lxc/image.go:271
@@ -1298,7 +1303,7 @@ msgstr "ドライバ: %v (%v)"
 msgid "EPHEMERAL"
 msgstr "EPHEMERAL"
 
-#: lxc/config_trust.go:178
+#: lxc/config_trust.go:194
 msgid "EXPIRY DATE"
 msgstr "EXPIRY DATE"
 
@@ -1482,7 +1487,7 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FILENAME"
 msgstr "FILENAME"
 
-#: lxc/config_trust.go:175 lxc/image.go:997 lxc/image.go:998
+#: lxc/config_trust.go:191 lxc/image.go:997 lxc/image.go:998
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "FINGERPRINT"
@@ -1583,7 +1588,7 @@ msgstr ""
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
 #: lxc/alias.go:105 lxc/cluster.go:95 lxc/cluster.go:654
-#: lxc/config_template.go:241 lxc/config_trust.go:120 lxc/image.go:987
+#: lxc/config_template.go:241 lxc/config_trust.go:136 lxc/image.go:987
 #: lxc/image_alias.go:158 lxc/list.go:121 lxc/network.go:826 lxc/network.go:909
 #: lxc/operation.go:107 lxc/profile.go:584 lxc/project.go:389 lxc/remote.go:527
 #: lxc/storage.go:518 lxc/storage_volume.go:1100
@@ -1706,7 +1711,7 @@ msgstr "IPV4"
 msgid "IPV6"
 msgstr "IPV6"
 
-#: lxc/config_trust.go:177
+#: lxc/config_trust.go:193
 msgid "ISSUE DATE"
 msgstr "ISSUE DATE"
 
@@ -1827,7 +1832,7 @@ msgstr "インスタンスタイプ"
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
 
-#: lxc/config_trust.go:159
+#: lxc/config_trust.go:175
 msgid "Invalid certificate"
 msgstr "不正な証明書です"
 
@@ -2257,7 +2262,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr "利用可能なリモートサーバを一覧表示します"
 
-#: lxc/config_trust.go:117 lxc/config_trust.go:118
+#: lxc/config_trust.go:133 lxc/config_trust.go:134
 msgid "List trusted clients"
 msgstr "信頼済みクライアントを一覧表示します"
 
@@ -3078,7 +3083,7 @@ msgstr "インスタンスからプロファイルを削除します"
 msgid "Remove remotes"
 msgstr "リモートサーバを削除します"
 
-#: lxc/config_trust.go:195 lxc/config_trust.go:196
+#: lxc/config_trust.go:211 lxc/config_trust.go:212
 msgid "Remove trusted clients"
 msgstr "信頼済みクライアントを削除します"
 
@@ -4044,7 +4049,7 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 "attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 
-#: lxc/cluster.go:90 lxc/cluster.go:651 lxc/config_trust.go:115
+#: lxc/cluster.go:90 lxc/cluster.go:651 lxc/config_trust.go:131
 #: lxc/monitor.go:30 lxc/network.go:819 lxc/operation.go:102 lxc/profile.go:577
 #: lxc/project.go:384 lxc/storage.go:513 lxc/version.go:20
 #, fuzzy
@@ -4061,12 +4066,12 @@ msgstr "import [<remote>:] <backup file>"
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr "get [<remote>:]<project> <key>"
 
-#: lxc/config_trust.go:58
+#: lxc/config_trust.go:60
 #, fuzzy
 msgid "[<remote>:] <cert>"
 msgstr "add [<remote>:] <cert>"
 
-#: lxc/config_trust.go:193
+#: lxc/config_trust.go:209
 #, fuzzy
 msgid "[<remote>:] <hostname|fingerprint>"
 msgstr "remove [<remote>:] <hostname|fingerprint>"
@@ -6768,9 +6773,6 @@ msgstr "yes"
 
 #~ msgid "Non-async response from snapshot!"
 #~ msgstr "スナップショットからの応答が不正(非同期でない)です！"
-
-#~ msgid "Server certificate has changed"
-#~ msgstr "サーバの証明書が変更されていました"
 
 #, fuzzy
 #~ msgid "Unexpected non-async response"
