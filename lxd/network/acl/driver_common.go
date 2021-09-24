@@ -31,6 +31,11 @@ type ruleDirection string
 const ruleDirectionIngress ruleDirection = "ingress"
 const ruleDirectionEgress ruleDirection = "egress"
 
+// ReservedNetworkSubects contains a list of reserved network peer names (those starting with @ character) that
+// cannot be used when to name peering connections. Otherwise peer connections wouldn't be able to be referenced
+// in ACL rules using the "@<peer name>" format without the potential of conflicts.
+var ReservedNetworkSubects = []string{"internal", "external"}
+
 // Define reserved ACL subjects.
 const ruleSubjectInternal = "@internal"
 const ruleSubjectExternal = "@external"
