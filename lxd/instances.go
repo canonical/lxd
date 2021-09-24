@@ -279,13 +279,13 @@ func instancesRestart(s *state.State) error {
 	return nil
 }
 
-type containerStopList []instance.Instance
+type instanceStopList []instance.Instance
 
-func (slice containerStopList) Len() int {
+func (slice instanceStopList) Len() int {
 	return len(slice)
 }
 
-func (slice containerStopList) Less(i, j int) bool {
+func (slice instanceStopList) Less(i, j int) bool {
 	iOrder := slice[i].ExpandedConfig()["boot.stop.priority"]
 	jOrder := slice[j].ExpandedConfig()["boot.stop.priority"]
 
@@ -298,7 +298,7 @@ func (slice containerStopList) Less(i, j int) bool {
 	return slice[i].Name() < slice[j].Name()
 }
 
-func (slice containerStopList) Swap(i, j int) {
+func (slice instanceStopList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
@@ -364,7 +364,7 @@ func instancesShutdown(s *state.State) error {
 		}
 	}
 
-	sort.Sort(containerStopList(instances))
+	sort.Sort(instanceStopList(instances))
 
 	if dbAvailable {
 		// Reset all instances states
