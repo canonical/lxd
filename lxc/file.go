@@ -264,6 +264,11 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		targetIsDir = true
+	} else if c.file.flagMkdir {
+		err := os.MkdirAll(filepath.Dir(target), 0755)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Parse remote
