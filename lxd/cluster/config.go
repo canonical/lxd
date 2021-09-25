@@ -190,7 +190,7 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 		return nil, err
 	}
 
-	err = c.tx.UpdateConfig(changed)
+	err = c.tx.UpdateClusterConfig(changed)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot persist configuration changes: %v")
 	}
