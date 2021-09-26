@@ -193,11 +193,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	buf.N()
 	buf.L("// Select.")
 	buf.L("err := query.SelectObjects(stmt, dest, args...)")
-	buf.L("if err != nil {")
-	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Plural(m.entity))
-	buf.L("}")
-	buf.N()
-
+	m.ifErrNotNil(buf, "nil", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s\")", lex.Plural(m.entity)))
 	buf.L("return objects, nil")
 
 	return nil
@@ -223,10 +219,7 @@ func (m *Method) getOne(buf *file.Buffer) error {
 	}
 	buf.N()
 	buf.L("objects, err := c.Get%s(filter)", lex.Plural(lex.Camel(m.entity)))
-	buf.L("if err != nil {")
-	buf.L("        return nil, errors.Wrap(err, \"Failed to fetch %s\")", lex.Camel(m.entity))
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, "nil", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s\")", lex.Camel(m.entity)))
 	buf.L("switch len(objects) {")
 	buf.L("case 0:")
 	buf.L("        return nil, ErrNoSuchObject")
@@ -260,9 +253,7 @@ func (m *Method) id(buf *file.Buffer) error {
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "ID"))
 	buf.L("rows, err := stmt.Query(%s)", mapping.FieldParams(nk))
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to get %s ID\")", m.entity)
-	buf.L("}")
+	m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Failed to get %s ID\")", m.entity))
 	buf.L("defer rows.Close()")
 	buf.N()
 	buf.L("// Ensure we read one and only one row.")
@@ -271,17 +262,12 @@ func (m *Method) id(buf *file.Buffer) error {
 	buf.L("}")
 	buf.L("var id int64")
 	buf.L("err = rows.Scan(&id)")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to scan ID\")")
-	buf.L("}")
+	m.ifErrNotNil(buf, "-1", "errors.Wrap(err, \"Failed to scan ID\")")
 	buf.L("if rows.Next() {")
 	buf.L("        return -1, fmt.Errorf(\"More than one row returned\")")
 	buf.L("}")
 	buf.L("err = rows.Err()")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Result set failure\")")
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, "-1", "errors.Wrap(err, \"Result set failure\")")
 	buf.L("return id, nil")
 
 	return nil
@@ -350,9 +336,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	} else {
 		buf.L("// Check if a %s with the same key exists.", m.entity)
 		buf.L("exists, err := c.%sExists(%s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
-		buf.L("if err != nil {")
-		buf.L("        return -1, errors.Wrap(err, \"Failed to check for duplicates\")")
-		buf.L("}")
+		m.ifErrNotNil(buf, "-1", "errors.Wrap(err, \"Failed to check for duplicates\")")
 		buf.L("if exists {")
 		buf.L("        return -1, fmt.Errorf(\"This %s already exists\")", m.entity)
 		buf.L("}")
@@ -375,15 +359,9 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 	buf.N()
 	buf.L("// Execute the statement. ")
 	buf.L("result, err := stmt.Exec(args...)")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to create %s\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Failed to create %s\")", m.entity))
 	buf.L("id, err := result.LastInsertId()")
-	buf.L("if err != nil {")
-	buf.L("        return -1, errors.Wrap(err, \"Failed to fetch %s ID\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s ID\")", m.entity))
 
 	buf.L("return id, nil")
 
@@ -406,14 +384,9 @@ func (m *Method) rename(buf *file.Buffer) error {
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "rename"))
 	buf.L("result, err := stmt.Exec(%s)", "to, "+mapping.FieldParams(nk))
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Rename %s\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Rename %s\")", m.entity))
 	buf.L("n, err := result.RowsAffected()")
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
-	buf.L("}")
+	m.ifErrNotNil(buf, "errors.Wrap(err, \"Fetch affected rows\")")
 	buf.L("if n != 1 {")
 	buf.L("        return fmt.Errorf(\"Query affected %%d rows instead of 1\", n)")
 	buf.L("}")
@@ -457,20 +430,12 @@ func (m *Method) update(buf *file.Buffer) error {
 
 	//buf.L("id, err := c.Get%s(%s)", lex.Camel(m.entity), FieldArgs(nk))
 	buf.L("id, err := c.Get%sID(%s)", lex.Camel(m.entity), mapping.FieldParams(nk))
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Get %s\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Get %s\")", m.entity))
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "update"))
 	buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Update %s\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Update %s\")", m.entity))
 	buf.L("n, err := result.RowsAffected()")
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
-	buf.L("}")
+	m.ifErrNotNil(buf, "errors.Wrap(err, \"Fetch affected rows\")")
 	buf.L("if n != 1 {")
 	buf.L("        return fmt.Errorf(\"Query updated %%d rows instead of 1\", n)")
 	buf.L("}")
@@ -496,10 +461,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	activeFilters := mapping.ActiveFilters(m.kind)
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 	buf.L("result, err := stmt.Exec(%s)", mapping.FieldParams(activeFilters))
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Delete %s\")", m.entity)
-	buf.L("}")
-	buf.N()
+	m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Delete %s\")", m.entity))
 
 	if deleteOne {
 		buf.L("n, err := result.RowsAffected()")
@@ -507,9 +469,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		buf.L("_, err = result.RowsAffected()")
 	}
 
-	buf.L("if err != nil {")
-	buf.L("        return errors.Wrap(err, \"Fetch affected rows\")")
-	buf.L("}")
+	m.ifErrNotNil(buf, "errors.Wrap(err, \"Fetch affected rows\")")
 
 	if deleteOne {
 		buf.L("if n != 1 {")
@@ -644,6 +604,13 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 	} else {
 		buf.L("func (%s) %s(%s) %s {", receiver, name, args, rets)
 	}
+}
+
+func (m *Method) ifErrNotNil(buf *file.Buffer, rets ...string) {
+	buf.L("if err != nil {")
+	buf.L("return %s", strings.Join(rets, ", "))
+	buf.L("}")
+	buf.N()
 }
 
 func (m *Method) end(buf *file.Buffer) {
