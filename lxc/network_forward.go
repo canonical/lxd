@@ -41,6 +41,10 @@ func (c *cmdNetworkForward) Command() *cobra.Command {
 	networkForwardCreateCmd := cmdNetworkForwardCreate{global: c.global, networkForward: c}
 	cmd.AddCommand(networkForwardCreateCmd.Command())
 
+	// Get.
+	networkForwardGetCmd := cmdNetworkForwardGet{global: c.global, networkForward: c}
+	cmd.AddCommand(networkForwardGetCmd.Command())
+
 	// Set.
 	networkForwardSetCmd := cmdNetworkForwardSet{global: c.global, networkForward: c}
 	cmd.AddCommand(networkForwardSetCmd.Command())
@@ -305,6 +309,61 @@ func (c *cmdNetworkForwardCreate) Run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		fmt.Printf(i18n.G("Network forward %s created")+"\n", forward.ListenAddress)
+	}
+
+	return nil
+}
+
+// Get
+type cmdNetworkForwardGet struct {
+	global         *cmdGlobal
+	networkForward *cmdNetworkForward
+}
+
+func (c *cmdNetworkForwardGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", i18n.G("[<remote>:]<network> <listen_address> <key>"))
+	cmd.Short = i18n.G("Get values for network forward configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network forward configuration keys"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkForwardGet) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	client := resource.server
+
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network name"))
+	}
+
+	if args[1] == "" {
+		return fmt.Errorf(i18n.G("Missing listen address"))
+	}
+
+	// Get the current config.
+	forward, _, err := client.GetNetworkForward(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	for k, v := range forward.Config {
+		if k == args[2] {
+			fmt.Printf("%s\n", v)
+		}
 	}
 
 	return nil

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-20 12:08+0200\n"
+"POT-Creation-Date: 2021-09-24 18:04+0100\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -238,7 +238,7 @@ msgstr ""
 "###\n"
 "### Note que o nome é exibido, porém não pode ser alterado."
 
-#: lxc/network_forward.go:437
+#: lxc/network_forward.go:496
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network forward.\n"
@@ -609,7 +609,7 @@ msgid ""
 "- metrics\n"
 msgstr ""
 
-#: lxc/network_forward.go:645 lxc/network_forward.go:646
+#: lxc/network_forward.go:704 lxc/network_forward.go:705
 msgid "Add ports to a forward"
 msgstr ""
 
@@ -766,7 +766,7 @@ msgstr "Backup exportado com sucesso!"
 msgid "Backups:"
 msgstr ""
 
-#: lxc/network.go:313 lxc/network_acl.go:318 lxc/network_forward.go:280
+#: lxc/network.go:313 lxc/network_acl.go:318 lxc/network_forward.go:284
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr "par de chave/valor inválido %s"
@@ -945,10 +945,10 @@ msgstr ""
 #: lxc/config.go:736 lxc/copy.go:52 lxc/info.go:47 lxc/init.go:55
 #: lxc/move.go:58 lxc/network.go:280 lxc/network.go:698 lxc/network.go:756
 #: lxc/network.go:1053 lxc/network.go:1120 lxc/network.go:1182
-#: lxc/network_forward.go:166 lxc/network_forward.go:230
-#: lxc/network_forward.go:330 lxc/network_forward.go:431
-#: lxc/network_forward.go:572 lxc/network_forward.go:649
-#: lxc/network_forward.go:715 lxc/storage.go:95 lxc/storage.go:339
+#: lxc/network_forward.go:170 lxc/network_forward.go:234
+#: lxc/network_forward.go:389 lxc/network_forward.go:490
+#: lxc/network_forward.go:631 lxc/network_forward.go:708
+#: lxc/network_forward.go:774 lxc/storage.go:95 lxc/storage.go:339
 #: lxc/storage.go:400 lxc/storage.go:602 lxc/storage.go:674 lxc/storage.go:757
 #: lxc/storage_volume.go:335 lxc/storage_volume.go:503
 #: lxc/storage_volume.go:582 lxc/storage_volume.go:824
@@ -1008,7 +1008,7 @@ msgstr "Configuração chave/valor para aplicar ao novo contêiner"
 
 #: lxc/cluster.go:529 lxc/config.go:258 lxc/config.go:331
 #: lxc/config_metadata.go:145 lxc/config_trust.go:254 lxc/image.go:434
-#: lxc/network.go:666 lxc/network_acl.go:531 lxc/network_forward.go:536
+#: lxc/network.go:666 lxc/network_acl.go:531 lxc/network_forward.go:595
 #: lxc/profile.go:501 lxc/project.go:312 lxc/storage.go:306
 #: lxc/storage_volume.go:957 lxc/storage_volume.go:987
 #, c-format
@@ -1186,7 +1186,7 @@ msgstr "Editar templates de arquivo do container"
 msgid "Create new network ACLs"
 msgstr "Criar novas redes"
 
-#: lxc/network_forward.go:226 lxc/network_forward.go:227
+#: lxc/network_forward.go:230 lxc/network_forward.go:231
 #, fuzzy
 msgid "Create new network forwards"
 msgstr "Criar novas redes"
@@ -1231,12 +1231,12 @@ msgstr "Criando %s"
 msgid "Current number of VFs: %d"
 msgstr ""
 
-#: lxc/network_forward.go:142
+#: lxc/network_forward.go:146
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
 #: lxc/cluster.go:162 lxc/image.go:1019 lxc/image_alias.go:237 lxc/list.go:490
-#: lxc/network.go:906 lxc/network_acl.go:144 lxc/network_forward.go:141
+#: lxc/network.go:906 lxc/network_acl.go:144 lxc/network_forward.go:145
 #: lxc/operation.go:163 lxc/profile.go:624 lxc/project.go:473
 #: lxc/storage.go:577 lxc/storage_volume.go:1287
 msgid "DESCRIPTION"
@@ -1296,7 +1296,7 @@ msgstr "Apagar nomes alternativos da imagem"
 msgid "Delete network ACLs"
 msgstr "Criar novas redes"
 
-#: lxc/network_forward.go:568 lxc/network_forward.go:569
+#: lxc/network_forward.go:627 lxc/network_forward.go:628
 #, fuzzy
 msgid "Delete network forwards"
 msgstr "Criar novas redes"
@@ -1359,37 +1359,37 @@ msgstr ""
 #: lxc/network_acl.go:214 lxc/network_acl.go:263 lxc/network_acl.go:346
 #: lxc/network_acl.go:406 lxc/network_acl.go:433 lxc/network_acl.go:564
 #: lxc/network_acl.go:613 lxc/network_acl.go:662 lxc/network_acl.go:677
-#: lxc/network_acl.go:798 lxc/network_forward.go:30 lxc/network_forward.go:83
-#: lxc/network_forward.go:163 lxc/network_forward.go:227
-#: lxc/network_forward.go:323 lxc/network_forward.go:401
-#: lxc/network_forward.go:428 lxc/network_forward.go:569
-#: lxc/network_forward.go:631 lxc/network_forward.go:646
-#: lxc/network_forward.go:711 lxc/operation.go:24 lxc/operation.go:56
-#: lxc/operation.go:105 lxc/operation.go:184 lxc/profile.go:29
-#: lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247 lxc/profile.go:303
-#: lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531 lxc/profile.go:580
-#: lxc/profile.go:640 lxc/profile.go:716 lxc/profile.go:766 lxc/profile.go:825
-#: lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
-#: lxc/project.go:222 lxc/project.go:342 lxc/project.go:392 lxc/project.go:491
-#: lxc/project.go:546 lxc/project.go:606 lxc/project.go:635 lxc/project.go:688
-#: lxc/project.go:747 lxc/publish.go:34 lxc/query.go:32 lxc/remote.go:33
-#: lxc/remote.go:88 lxc/remote.go:491 lxc/remote.go:527 lxc/remote.go:613
-#: lxc/remote.go:683 lxc/remote.go:737 lxc/remote.go:775 lxc/rename.go:21
-#: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:92
-#: lxc/storage.go:166 lxc/storage.go:216 lxc/storage.go:336 lxc/storage.go:396
-#: lxc/storage.go:516 lxc/storage.go:596 lxc/storage.go:670 lxc/storage.go:754
-#: lxc/storage_volume.go:43 lxc/storage_volume.go:165 lxc/storage_volume.go:240
-#: lxc/storage_volume.go:331 lxc/storage_volume.go:500
-#: lxc/storage_volume.go:579 lxc/storage_volume.go:655
-#: lxc/storage_volume.go:737 lxc/storage_volume.go:818
-#: lxc/storage_volume.go:1018 lxc/storage_volume.go:1106
-#: lxc/storage_volume.go:1193 lxc/storage_volume.go:1377
-#: lxc/storage_volume.go:1409 lxc/storage_volume.go:1522
-#: lxc/storage_volume.go:1598 lxc/storage_volume.go:1697
-#: lxc/storage_volume.go:1731 lxc/storage_volume.go:1829
-#: lxc/storage_volume.go:1896 lxc/storage_volume.go:2037 lxc/version.go:22
-#: lxc/warning.go:30 lxc/warning.go:72 lxc/warning.go:260 lxc/warning.go:301
-#: lxc/warning.go:355
+#: lxc/network_acl.go:798 lxc/network_forward.go:30 lxc/network_forward.go:87
+#: lxc/network_forward.go:167 lxc/network_forward.go:231
+#: lxc/network_forward.go:327 lxc/network_forward.go:382
+#: lxc/network_forward.go:460 lxc/network_forward.go:487
+#: lxc/network_forward.go:628 lxc/network_forward.go:690
+#: lxc/network_forward.go:705 lxc/network_forward.go:770 lxc/operation.go:24
+#: lxc/operation.go:56 lxc/operation.go:105 lxc/operation.go:184
+#: lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247
+#: lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531
+#: lxc/profile.go:580 lxc/profile.go:640 lxc/profile.go:716 lxc/profile.go:766
+#: lxc/profile.go:825 lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94
+#: lxc/project.go:159 lxc/project.go:222 lxc/project.go:342 lxc/project.go:392
+#: lxc/project.go:491 lxc/project.go:546 lxc/project.go:606 lxc/project.go:635
+#: lxc/project.go:688 lxc/project.go:747 lxc/publish.go:34 lxc/query.go:32
+#: lxc/remote.go:33 lxc/remote.go:88 lxc/remote.go:491 lxc/remote.go:527
+#: lxc/remote.go:613 lxc/remote.go:683 lxc/remote.go:737 lxc/remote.go:775
+#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33
+#: lxc/storage.go:92 lxc/storage.go:166 lxc/storage.go:216 lxc/storage.go:336
+#: lxc/storage.go:396 lxc/storage.go:516 lxc/storage.go:596 lxc/storage.go:670
+#: lxc/storage.go:754 lxc/storage_volume.go:43 lxc/storage_volume.go:165
+#: lxc/storage_volume.go:240 lxc/storage_volume.go:331
+#: lxc/storage_volume.go:500 lxc/storage_volume.go:579
+#: lxc/storage_volume.go:655 lxc/storage_volume.go:737
+#: lxc/storage_volume.go:818 lxc/storage_volume.go:1018
+#: lxc/storage_volume.go:1106 lxc/storage_volume.go:1193
+#: lxc/storage_volume.go:1377 lxc/storage_volume.go:1409
+#: lxc/storage_volume.go:1522 lxc/storage_volume.go:1598
+#: lxc/storage_volume.go:1697 lxc/storage_volume.go:1731
+#: lxc/storage_volume.go:1829 lxc/storage_volume.go:1896
+#: lxc/storage_volume.go:2037 lxc/version.go:22 lxc/warning.go:30
+#: lxc/warning.go:72 lxc/warning.go:260 lxc/warning.go:301 lxc/warning.go:355
 msgid "Description"
 msgstr "Descrição"
 
@@ -1562,7 +1562,7 @@ msgstr "Editar configurações de rede como YAML"
 msgid "Edit network configurations as YAML"
 msgstr "Editar configurações de rede como YAML"
 
-#: lxc/network_forward.go:427 lxc/network_forward.go:428
+#: lxc/network_forward.go:486 lxc/network_forward.go:487
 #, fuzzy
 msgid "Edit network forward configurations as YAML"
 msgstr "Editar configurações de rede como YAML"
@@ -1814,7 +1814,7 @@ msgstr ""
 #: lxc/alias.go:105 lxc/cluster.go:104 lxc/cluster.go:662
 #: lxc/config_template.go:241 lxc/config_trust.go:290 lxc/image.go:1006
 #: lxc/image_alias.go:158 lxc/list.go:132 lxc/network.go:837 lxc/network.go:930
-#: lxc/network_acl.go:94 lxc/network_forward.go:86 lxc/operation.go:107
+#: lxc/network_acl.go:94 lxc/network_forward.go:90 lxc/operation.go:107
 #: lxc/profile.go:584 lxc/project.go:394 lxc/project.go:749 lxc/remote.go:531
 #: lxc/storage.go:518 lxc/storage_volume.go:1211 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml)"
@@ -1894,6 +1894,11 @@ msgstr "Editar configurações de perfil como YAML"
 #: lxc/network.go:694 lxc/network.go:695
 msgid "Get values for network configuration keys"
 msgstr ""
+
+#: lxc/network_forward.go:326 lxc/network_forward.go:327
+#, fuzzy
+msgid "Get values for network forward configuration keys"
+msgstr "Editar configurações de perfil como YAML"
 
 #: lxc/profile.go:530 lxc/profile.go:531
 msgid "Get values for profile configuration keys"
@@ -2194,11 +2199,11 @@ msgstr ""
 msgid "LIMIT"
 msgstr ""
 
-#: lxc/network_forward.go:140
+#: lxc/network_forward.go:144
 msgid "LISTEN ADDRESS"
 msgstr ""
 
-#: lxc/list.go:518 lxc/network.go:980 lxc/network_forward.go:147
+#: lxc/list.go:518 lxc/network.go:980 lxc/network_forward.go:151
 #: lxc/operation.go:168 lxc/storage_volume.go:1294 lxc/warning.go:219
 msgid "LOCATION"
 msgstr ""
@@ -2268,7 +2273,7 @@ msgstr ""
 msgid "List available network ACLS"
 msgstr ""
 
-#: lxc/network_forward.go:82 lxc/network_forward.go:83
+#: lxc/network_forward.go:86 lxc/network_forward.go:87
 msgid "List available network forwards"
 msgstr ""
 
@@ -2631,7 +2636,7 @@ msgstr ""
 msgid "Manage network ACLs"
 msgstr "Criar novas redes"
 
-#: lxc/network_forward.go:630 lxc/network_forward.go:631
+#: lxc/network_forward.go:689 lxc/network_forward.go:690
 #, fuzzy
 msgid "Manage network forward ports"
 msgstr "Criar novas redes"
@@ -2749,10 +2754,10 @@ msgstr "Nome de membro do cluster"
 msgid "Missing instance name"
 msgstr ""
 
-#: lxc/network_forward.go:191 lxc/network_forward.go:255
-#: lxc/network_forward.go:355 lxc/network_forward.go:478
-#: lxc/network_forward.go:597 lxc/network_forward.go:674
-#: lxc/network_forward.go:740
+#: lxc/network_forward.go:195 lxc/network_forward.go:259
+#: lxc/network_forward.go:354 lxc/network_forward.go:414
+#: lxc/network_forward.go:537 lxc/network_forward.go:656
+#: lxc/network_forward.go:733 lxc/network_forward.go:799
 #, fuzzy
 msgid "Missing listen address"
 msgstr "Nome de membro do cluster"
@@ -2773,10 +2778,11 @@ msgstr "Nome de membro do cluster"
 #: lxc/network.go:144 lxc/network.go:229 lxc/network.go:376 lxc/network.go:426
 #: lxc/network.go:511 lxc/network.go:616 lxc/network.go:721 lxc/network.go:779
 #: lxc/network.go:953 lxc/network.go:1021 lxc/network.go:1076
-#: lxc/network.go:1143 lxc/network_forward.go:112 lxc/network_forward.go:187
-#: lxc/network_forward.go:251 lxc/network_forward.go:351
-#: lxc/network_forward.go:474 lxc/network_forward.go:593
-#: lxc/network_forward.go:670 lxc/network_forward.go:736
+#: lxc/network.go:1143 lxc/network_forward.go:116 lxc/network_forward.go:191
+#: lxc/network_forward.go:255 lxc/network_forward.go:350
+#: lxc/network_forward.go:410 lxc/network_forward.go:533
+#: lxc/network_forward.go:652 lxc/network_forward.go:729
+#: lxc/network_forward.go:795
 msgid "Missing network name"
 msgstr ""
 
@@ -2969,12 +2975,12 @@ msgstr ""
 msgid "Network ACL %s renamed to %s"
 msgstr ""
 
-#: lxc/network_forward.go:307
+#: lxc/network_forward.go:311
 #, c-format
 msgid "Network forward %s created"
 msgstr ""
 
-#: lxc/network_forward.go:614
+#: lxc/network_forward.go:673
 #, c-format
 msgid "Network forward %s deleted"
 msgstr ""
@@ -3093,7 +3099,7 @@ msgstr ""
 msgid "PID: %d"
 msgstr ""
 
-#: lxc/network_forward.go:143
+#: lxc/network_forward.go:147
 msgid "PORTS"
 msgstr ""
 
@@ -3158,7 +3164,7 @@ msgstr ""
 #: lxc/cluster.go:530 lxc/config.go:259 lxc/config.go:332
 #: lxc/config_metadata.go:146 lxc/config_template.go:206
 #: lxc/config_trust.go:255 lxc/image.go:435 lxc/network.go:667
-#: lxc/network_acl.go:532 lxc/network_forward.go:537 lxc/profile.go:502
+#: lxc/network_acl.go:532 lxc/network_forward.go:596 lxc/profile.go:502
 #: lxc/project.go:313 lxc/storage.go:307 lxc/storage_volume.go:958
 #: lxc/storage_volume.go:988
 msgid "Press enter to open the editor again or ctrl+c to abort change"
@@ -3413,7 +3419,7 @@ msgstr ""
 msgid "Remove aliases"
 msgstr ""
 
-#: lxc/network_forward.go:712
+#: lxc/network_forward.go:771
 msgid "Remove all ports that match"
 msgstr ""
 
@@ -3425,7 +3431,7 @@ msgstr ""
 msgid "Remove instance devices"
 msgstr ""
 
-#: lxc/network_forward.go:710 lxc/network_forward.go:711
+#: lxc/network_forward.go:769 lxc/network_forward.go:770
 #, fuzzy
 msgid "Remove ports from a forward"
 msgstr "Adicionar perfis aos containers"
@@ -3710,12 +3716,12 @@ msgid ""
 "    lxc network set [<remote>:]<network> <key> <value>"
 msgstr ""
 
-#: lxc/network_forward.go:322
+#: lxc/network_forward.go:381
 #, fuzzy
 msgid "Set network forward keys"
 msgstr "Criar novas redes"
 
-#: lxc/network_forward.go:323
+#: lxc/network_forward.go:382
 msgid ""
 "Set network forward keys\n"
 "\n"
@@ -3859,7 +3865,7 @@ msgstr "Editar configurações do container ou do servidor como YAML"
 msgid "Show network configurations"
 msgstr ""
 
-#: lxc/network_forward.go:162 lxc/network_forward.go:163
+#: lxc/network_forward.go:166 lxc/network_forward.go:167
 #, fuzzy
 msgid "Show network forward configurations"
 msgstr "Editar configurações do container ou do servidor como YAML"
@@ -4355,12 +4361,12 @@ msgstr "Editar configurações de perfil como YAML"
 msgid "Unset network configuration keys"
 msgstr ""
 
-#: lxc/network_forward.go:400
+#: lxc/network_forward.go:459
 #, fuzzy
 msgid "Unset network forward configuration keys"
 msgstr "Editar configurações de perfil como YAML"
 
-#: lxc/network_forward.go:401
+#: lxc/network_forward.go:460
 #, fuzzy
 msgid "Unset network forward keys"
 msgstr "Criar novas redes"
@@ -4722,7 +4728,7 @@ msgid "[<remote>:]<member> <new-name>"
 msgstr ""
 
 #: lxc/network.go:349 lxc/network.go:570 lxc/network.go:751 lxc/network.go:926
-#: lxc/network.go:1115 lxc/network_forward.go:80
+#: lxc/network.go:1115 lxc/network_forward.go:84
 msgid "[<remote>:]<network>"
 msgstr ""
 
@@ -4742,33 +4748,33 @@ msgstr ""
 msgid "[<remote>:]<network> <key>=<value>..."
 msgstr ""
 
-#: lxc/network_forward.go:161 lxc/network_forward.go:426
-#: lxc/network_forward.go:566
+#: lxc/network_forward.go:165 lxc/network_forward.go:485
+#: lxc/network_forward.go:625
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address>"
 msgstr "Criar perfis"
 
-#: lxc/network_forward.go:399
+#: lxc/network_forward.go:325 lxc/network_forward.go:458
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address> <key>"
 msgstr "Criar perfis"
 
-#: lxc/network_forward.go:321
+#: lxc/network_forward.go:380
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address> <key>=<value>..."
 msgstr "Criar perfis"
 
-#: lxc/network_forward.go:644
+#: lxc/network_forward.go:703
 msgid ""
 "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> "
 "<target_address> [<target_port(s)>]"
 msgstr ""
 
-#: lxc/network_forward.go:709
+#: lxc/network_forward.go:768
 msgid "[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"
 msgstr ""
 
-#: lxc/network_forward.go:225
+#: lxc/network_forward.go:229
 #, fuzzy
 msgid "[<remote>:]<network> <listen_address> [key=value...]"
 msgstr "Criar perfis"
