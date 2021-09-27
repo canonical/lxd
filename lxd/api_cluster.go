@@ -2362,17 +2362,17 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 		// Get the node.
 		node, err = tx.GetNodeByName(nodeName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get node by name")
+			return errors.Wrap(err, "Failed to get cluster member by name")
 		}
 
 		if node.State == db.ClusterMemberStatePending {
-			return fmt.Errorf("Cannot evacuate or restore a pending node")
+			return fmt.Errorf("Cannot evacuate or restore a pending cluster member")
 		}
 
 		// Set node status to EVACUATED to prevent instances from being created.
 		err = tx.UpdateNodeStatus(node.ID, db.ClusterMemberStateEvacuated)
 		if err != nil {
-			return errors.Wrap(err, "Failed to update node status")
+			return errors.Wrap(err, "Failed to update cluster member status")
 		}
 
 		return nil
@@ -2383,7 +2383,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 	// Do nothing if the node is already evacuated.
 	if node.State == db.ClusterMemberStateEvacuated {
-		return response.SmartError(fmt.Errorf("Node is already evacuated"))
+		return response.SmartError(fmt.Errorf("Cluster member is already evacuated"))
 	}
 
 	reverter := revert.New()
@@ -2544,7 +2544,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		// Get the node.
 		node, err = tx.GetNodeByName(originName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get node by name")
+			return errors.Wrap(err, "Failed to get cluster member by name")
 		}
 
 		return nil
@@ -2554,11 +2554,11 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if node.State == db.ClusterMemberStatePending {
-		return response.SmartError(fmt.Errorf("Cannot restore or restore a pending node"))
+		return response.SmartError(fmt.Errorf("Cannot restore or restore a pending cluster member"))
 	}
 
 	if node.State == db.ClusterMemberStateCreated {
-		return response.SmartError(fmt.Errorf("Node is not evacuated"))
+		return response.SmartError(fmt.Errorf("Cluster member not evacuated"))
 	}
 
 	var dbInstances []db.Instance
@@ -2744,7 +2744,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			err = tx.UpdateNodeStatus(node.ID, db.ClusterMemberStateCreated)
 			if err != nil {
-				return errors.Wrap(err, "Failed to update node status")
+				return errors.Wrap(err, "Failed to update cluster member status")
 			}
 
 			return nil

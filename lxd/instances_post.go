@@ -37,7 +37,7 @@ import (
 
 func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
 	if d.cluster.LocalNodeIsEvacuated() {
-		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
 
 	hash, err := instance.ResolveImage(d.State(), projectName, req.Source)
@@ -148,7 +148,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 
 func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
 	if d.cluster.LocalNodeIsEvacuated() {
-		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
 
 	dbType, err := instancetype.New(string(req.Type))
@@ -197,7 +197,7 @@ func createFromNone(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 func createFromMigration(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
 	if d.cluster.LocalNodeIsEvacuated() && r.Context().Value(request.CtxProtocol) != "cluster" {
-		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
 
 	// Validate migration mode.
@@ -411,7 +411,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 
 func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.InstancesPost) response.Response {
 	if d.cluster.LocalNodeIsEvacuated() {
-		return response.Forbidden(fmt.Errorf("Node is evacuated"))
+		return response.Forbidden(fmt.Errorf("Cluster member is evacuated"))
 	}
 
 	if req.Source.Source == "" {
