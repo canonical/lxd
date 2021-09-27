@@ -216,7 +216,7 @@ func ListenAddresses(value string) ([]string, error) {
 		localPort = fmt.Sprintf("%d", shared.HTTPSDefaultPort)
 	}
 
-	if localHost == "0.0.0.0" || localHost == "::" || localHost == "[::]" {
+	if localHost == "" || localHost == "0.0.0.0" || localHost == "::" || localHost == "[::]" {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return addresses, err
