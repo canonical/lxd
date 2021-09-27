@@ -13,6 +13,10 @@ type InstanceGenerated interface {
 	// generator: instance GetOne
 	GetInstance(project string, name string) (*Instance, error)
 
+	// GetInstanceURIs returns all available instance URIs.
+	// generator: instance URIs
+	GetInstanceURIs(filter InstanceFilter) ([]string, error)
+
 	// GetInstanceID return the ID of the instance with the given key.
 	// generator: instance ID
 	GetInstanceID(project string, name string) (int64, error)
