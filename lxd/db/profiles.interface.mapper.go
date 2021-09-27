@@ -25,18 +25,6 @@ type ProfileGenerated interface {
 	// generator: profile ID
 	GetProfileID(project string, name string) (int64, error)
 
-	// ProfileConfigRef returns entities used by profiles.
-	// generator: profile ConfigRef
-	ProfileConfigRef(filter ProfileFilter) (map[string]map[string]map[string]string, error)
-
-	// ProfileDevicesRef returns entities used by profiles.
-	// generator: profile DevicesRef
-	ProfileDevicesRef(filter ProfileFilter) (map[string]map[string]map[string]map[string]string, error)
-
-	// ProfileUsedByRef returns entities used by profiles.
-	// generator: profile UsedByRef
-	ProfileUsedByRef(filter ProfileFilter) (map[string]map[string][]string, error)
-
 	// CreateProfile adds a new profile to the database.
 	// generator: profile Create
 	CreateProfile(object Profile) (int64, error)

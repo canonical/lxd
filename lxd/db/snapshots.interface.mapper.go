@@ -25,14 +25,6 @@ type InstanceSnapshotGenerated interface {
 	// generator: instance_snapshot Create
 	CreateInstanceSnapshot(object InstanceSnapshot) (int64, error)
 
-	// InstanceSnapshotConfigRef returns entities used by instance_snapshots.
-	// generator: instance_snapshot ConfigRef
-	InstanceSnapshotConfigRef(filter InstanceSnapshotFilter) (map[string]map[string]map[string]map[string]string, error)
-
-	// InstanceSnapshotDevicesRef returns entities used by instance_snapshots.
-	// generator: instance_snapshot DevicesRef
-	InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (map[string]map[string]map[string]map[string]map[string]string, error)
-
 	// RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.
 	// generator: instance_snapshot Rename
 	RenameInstanceSnapshot(project string, instance string, name string, to string) error
