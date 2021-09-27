@@ -46,7 +46,7 @@ type Profile struct {
 	Name        string `db:"primary=yes"`
 	Description string `db:"coalesce=''"`
 	Config      map[string]string
-	Devices     map[string]map[string]string
+	Devices     map[string]Device
 	UsedBy      []string
 }
 
