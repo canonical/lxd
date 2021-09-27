@@ -201,22 +201,37 @@ func IsRecursionRequest(r *http.Request) bool {
 	return recursion != 0
 }
 
-// ListenAddresses returns a list of host:port combinations at which
-// this machine can be reached
-func ListenAddresses(value string) ([]string, error) {
+// ListenAddresses returns a list of <host>:<port> combinations at which this machine can be reached.
+// It accepts the configured listen address in the following formats: <host>, <host>:<port> or :<port>.
+// If a listen port is not specified then then shared.HTTPSDefaultPort is used instead.
+// If a non-empty and non-wildcard host is passed in then this functions returns a single element list with the
+// listen address specified. Otherwise if an empty host or wildcard address is specified then all global unicast
+// addresses actively configured on the host are returned. If an IPv4 wildcard address (0.0.0.0) is specified as
+// the host then only IPv4 addresses configured on the host are returned.
+func ListenAddresses(configListenAddress string) ([]string, error) {
 	addresses := make([]string, 0)
 
-	if value == "" {
+	if configListenAddress == "" {
 		return addresses, nil
 	}
 
-	localHost, localPort, err := net.SplitHostPort(value)
-	if err != nil {
-		localHost = value
-		localPort = fmt.Sprintf("%d", shared.HTTPSDefaultPort)
+	// Check if configListenAddress is a bare IP address (wrapped with square brackets or unwrapped) or a
+	// hostname (without port). If so then add the default port to the configListenAddress ready for parsing.
+	unwrappedConfigListenAddress := strings.Trim(configListenAddress, "[]")
+	listenIP := net.ParseIP(unwrappedConfigListenAddress)
+	if listenIP != nil || !strings.Contains(unwrappedConfigListenAddress, ":") {
+		// Use net.JoinHostPort so that IPv6 addresses are correctly wrapped ready for parsing below.
+		configListenAddress = net.JoinHostPort(unwrappedConfigListenAddress, fmt.Sprintf("%d", shared.HTTPSDefaultPort))
 	}
 
-	if localHost == "" || localHost == "0.0.0.0" || localHost == "::" || localHost == "[::]" {
+	// By this point we should always have the configListenAddress in form <host>:<port>, so lets check that.
+	// This also ensures that any wrapped IPv6 addresses are unwrapped ready for comparison below.
+	localHost, localPort, err := net.SplitHostPort(configListenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	if localHost == "" || localHost == "0.0.0.0" || localHost == "::" {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return addresses, err
@@ -241,22 +256,15 @@ func ListenAddresses(value string) ([]string, error) {
 					continue
 				}
 
-				if ip.To4() == nil {
-					if localHost == "0.0.0.0" {
-						continue
-					}
-					addresses = append(addresses, fmt.Sprintf("[%s]:%s", ip, localPort))
-				} else {
-					addresses = append(addresses, fmt.Sprintf("%s:%s", ip, localPort))
+				if ip.To4() == nil && localHost == "0.0.0.0" {
+					continue
 				}
+
+				addresses = append(addresses, net.JoinHostPort(ip.String(), localPort))
 			}
 		}
 	} else {
-		if strings.Contains(localHost, ":") {
-			addresses = append(addresses, fmt.Sprintf("[%s]:%s", localHost, localPort))
-		} else {
-			addresses = append(addresses, fmt.Sprintf("%s:%s", localHost, localPort))
-		}
+		addresses = append(addresses, net.JoinHostPort(localHost, localPort))
 	}
 
 	return addresses, nil
