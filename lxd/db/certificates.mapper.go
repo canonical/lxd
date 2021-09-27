@@ -125,6 +125,7 @@ func (c *ClusterTx) GetCertificateID(fingerprint string) (int64, error) {
 	if err != nil {
 		return -1, errors.Wrap(err, "Failed to get certificate ID")
 	}
+
 	defer rows.Close()
 
 	// Ensure we read one and only one row.
@@ -136,6 +137,7 @@ func (c *ClusterTx) GetCertificateID(fingerprint string) (int64, error) {
 	if err != nil {
 		return -1, errors.Wrap(err, "Failed to scan ID")
 	}
+
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
@@ -169,6 +171,7 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 	if err != nil {
 		return -1, errors.Wrap(err, "Failed to check for duplicates")
 	}
+
 	if exists {
 		return -1, fmt.Errorf("This certificate already exists")
 	}
@@ -211,6 +214,7 @@ func (c *ClusterTx) DeleteCertificate(fingerprint string) error {
 	if err != nil {
 		return errors.Wrap(err, "Fetch affected rows")
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}
@@ -253,6 +257,7 @@ func (c *ClusterTx) UpdateCertificate(fingerprint string, object Certificate) er
 	if err != nil {
 		return errors.Wrap(err, "Fetch affected rows")
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
