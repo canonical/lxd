@@ -1472,22 +1472,6 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrap(err, "Unable to get raft nodes"))
 	}
 
-	// If we are removing the leader of a 2 node cluster, ensure the other node can be a leader.
-	if name == leaderInfo.Name && len(nodes) == 2 {
-		for i := range nodes {
-			if nodes[i].Address != leader && nodes[i].Role == db.RaftStandBy {
-				// Promote the remaining node.
-				nodes[i].Role = db.RaftVoter
-				err := changeMemberRole(d, r, nodes[i].Address, nodes)
-				if err != nil {
-					return response.SmartError(errors.Wrap(err, "Unable to promote remaining cluster member to leader"))
-				}
-
-				break
-			}
-		}
-	}
-
 	if localAddress != leader {
 		logger.Debugf("Redirect member delete request to %s", leader)
 		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), r, false)
@@ -1511,6 +1495,22 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return response.EmptySyncResponse
+	}
+
+	// If we are removing the leader of a 2 node cluster, ensure the other node can be a leader.
+	if name == leaderInfo.Name && len(nodes) == 2 {
+		for i := range nodes {
+			if nodes[i].Address != leader && nodes[i].Role == db.RaftStandBy {
+				// Promote the remaining node.
+				nodes[i].Role = db.RaftVoter
+				err := changeMemberRole(d, r, nodes[i].Address, nodes)
+				if err != nil {
+					return response.SmartError(errors.Wrap(err, "Unable to promote remaining cluster member to leader"))
+				}
+
+				break
+			}
+		}
 	}
 
 	logger.Debugf("Deleting member %s from cluster (force=%d)", name, force)
