@@ -49,7 +49,7 @@ cp /var/snap/lxd/common/lxd/server.crt /etc/prometheus/tls
 chown -R prometheus:prometheus /etc/prometheus/tls
 ```
 
-Lastly, LXD has to be added a target.
+Lastly, LXD has to be added as target.
 For this, `/etc/prometheus/prometheus.yaml` needs to be edited.
 Here's what the config needs to look like:
 
