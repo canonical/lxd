@@ -74,7 +74,7 @@ type Instance struct {
 	LastUseDate  sql.NullTime
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
-	Devices      map[string]map[string]string
+	Devices      map[string]Device
 	Profiles     []string
 	ExpiryDate   sql.NullTime
 }

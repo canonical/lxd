@@ -42,7 +42,7 @@ type InstanceSnapshot struct {
 	Stateful     bool
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
-	Devices      map[string]map[string]string
+	Devices      map[string]Device
 	ExpiryDate   sql.NullTime
 }
 
