@@ -201,8 +201,13 @@ func IsRecursionRequest(r *http.Request) bool {
 	return recursion != 0
 }
 
-// ListenAddresses returns a list of host:port combinations at which
-// this machine can be reached
+// ListenAddresses returns a list of <host>:<port> combinations at which this machine can be reached.
+// It accepts the configured listen address in the following formats: <host>, <host>:<port> or :<port>.
+// If a listen port is not specified then then shared.HTTPSDefaultPort is used instead.
+// If a non-empty and non-wildcard host is passed in then this functions returns a single element list with the
+// listen address specified. Otherwise if an empty host or wildcard address is specified then all global unicast
+// addresses actively configured on the host are returned. If an IPv4 wildcard address (0.0.0.0) is specified as
+// the host then only IPv4 addresses configured on the host are returned.
 func ListenAddresses(value string) ([]string, error) {
 	addresses := make([]string, 0)
 
