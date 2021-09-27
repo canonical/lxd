@@ -208,16 +208,16 @@ func IsRecursionRequest(r *http.Request) bool {
 // listen address specified. Otherwise if an empty host or wildcard address is specified then all global unicast
 // addresses actively configured on the host are returned. If an IPv4 wildcard address (0.0.0.0) is specified as
 // the host then only IPv4 addresses configured on the host are returned.
-func ListenAddresses(value string) ([]string, error) {
+func ListenAddresses(configListenAddress string) ([]string, error) {
 	addresses := make([]string, 0)
 
-	if value == "" {
+	if configListenAddress == "" {
 		return addresses, nil
 	}
 
-	localHost, localPort, err := net.SplitHostPort(value)
+	localHost, localPort, err := net.SplitHostPort(configListenAddress)
 	if err != nil {
-		localHost = value
+		localHost = configListenAddress
 		localPort = fmt.Sprintf("%d", shared.HTTPSDefaultPort)
 	}
 
