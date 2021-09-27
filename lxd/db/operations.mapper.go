@@ -149,6 +149,7 @@ func (c *ClusterTx) DeleteOperation(uuid string) error {
 	if err != nil {
 		return errors.Wrap(err, "Fetch affected rows")
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}

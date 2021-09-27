@@ -25,18 +25,6 @@ type InstanceGenerated interface {
 	// generator: instance Create
 	CreateInstance(object Instance) (int64, error)
 
-	// InstanceProfilesRef returns entities used by instances.
-	// generator: instance ProfilesRef
-	InstanceProfilesRef(filter InstanceFilter) (map[string]map[string][]string, error)
-
-	// InstanceConfigRef returns entities used by instances.
-	// generator: instance ConfigRef
-	InstanceConfigRef(filter InstanceFilter) (map[string]map[string]map[string]string, error)
-
-	// InstanceDevicesRef returns entities used by instances.
-	// generator: instance DevicesRef
-	InstanceDevicesRef(filter InstanceFilter) (map[string]map[string]map[string]map[string]string, error)
-
 	// RenameInstance renames the instance matching the given key parameters.
 	// generator: instance Rename
 	RenameInstance(project string, name string, to string) error
