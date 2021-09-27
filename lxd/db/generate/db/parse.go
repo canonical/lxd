@@ -149,6 +149,7 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 		Package: pkg.Name,
 		Name:    name,
 		Fields:  fields,
+		Type:    tableType(pkg, name, fields),
 	}
 
 	// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
@@ -190,6 +191,29 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 	m.Filters = filters
 
 	return m, nil
+}
+
+// tableType determines the TableType for the given struct fields.
+func tableType(pkg *ast.Package, name string, fields []*Field) TableType {
+	fieldNames := FieldNames(fields)
+	entities := strings.Split(lex.Snake(name), "_")
+	if len(entities) == 2 {
+		struct1 := findStruct(pkg.Scope, lex.Camel(lex.Singular(entities[0])))
+		struct2 := findStruct(pkg.Scope, lex.Camel(lex.Singular(entities[1])))
+		if struct1 != nil && struct2 != nil {
+			return AssociationTable
+		}
+	}
+
+	if shared.StringInSlice("ReferenceID", fieldNames) {
+		if shared.StringInSlice("Key", fieldNames) && shared.StringInSlice("Value", fieldNames) {
+			return MapTable
+		}
+
+		return ReferenceTable
+	}
+
+	return EntityTable
 }
 
 // Find the StructType node for the structure with the given name
