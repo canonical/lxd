@@ -2118,6 +2118,9 @@ test_clustering_handover() {
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
+  # Wait some time to possibly allow for a leadership change.
+  sleep 10
+
   # The fourth node has been promoted, while the first one demoted.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
