@@ -215,13 +215,23 @@ func ListenAddresses(configListenAddress string) ([]string, error) {
 		return addresses, nil
 	}
 
-	localHost, localPort, err := net.SplitHostPort(configListenAddress)
-	if err != nil {
-		localHost = configListenAddress
-		localPort = fmt.Sprintf("%d", shared.HTTPSDefaultPort)
+	// Check if configListenAddress is a bare IP address (wrapped with square brackets or unwrapped) or a
+	// hostname (without port). If so then add the default port to the configListenAddress ready for parsing.
+	unwrappedConfigListenAddress := strings.Trim(configListenAddress, "[]")
+	listenIP := net.ParseIP(unwrappedConfigListenAddress)
+	if listenIP != nil || !strings.Contains(unwrappedConfigListenAddress, ":") {
+		// Use net.JoinHostPort so that IPv6 addresses are correctly wrapped ready for parsing below.
+		configListenAddress = net.JoinHostPort(unwrappedConfigListenAddress, fmt.Sprintf("%d", shared.HTTPSDefaultPort))
 	}
 
-	if localHost == "" || localHost == "0.0.0.0" || localHost == "::" || localHost == "[::]" {
+	// By this point we should always have the configListenAddress in form <host>:<port>, so lets check that.
+	// This also ensures that any wrapped IPv6 addresses are unwrapped ready for comparison below.
+	localHost, localPort, err := net.SplitHostPort(configListenAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	if localHost == "" || localHost == "0.0.0.0" || localHost == "::" {
 		ifaces, err := net.Interfaces()
 		if err != nil {
 			return addresses, err
