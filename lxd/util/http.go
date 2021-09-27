@@ -246,22 +246,15 @@ func ListenAddresses(configListenAddress string) ([]string, error) {
 					continue
 				}
 
-				if ip.To4() == nil {
-					if localHost == "0.0.0.0" {
-						continue
-					}
-					addresses = append(addresses, fmt.Sprintf("[%s]:%s", ip, localPort))
-				} else {
-					addresses = append(addresses, fmt.Sprintf("%s:%s", ip, localPort))
+				if ip.To4() == nil && localHost == "0.0.0.0" {
+					continue
 				}
+
+				addresses = append(addresses, net.JoinHostPort(ip.String(), localPort))
 			}
 		}
 	} else {
-		if strings.Contains(localHost, ":") {
-			addresses = append(addresses, fmt.Sprintf("[%s]:%s", localHost, localPort))
-		} else {
-			addresses = append(addresses, fmt.Sprintf("%s:%s", localHost, localPort))
-		}
+		addresses = append(addresses, net.JoinHostPort(localHost, localPort))
 	}
 
 	return addresses, nil
