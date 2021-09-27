@@ -29,26 +29,26 @@ SELECT projects.name AS project, profiles.name
   WHERE project = ? ORDER BY projects.id, profiles.name
 `)
 
-var profileNamesByProjectAndName = cluster.RegisterStmt(`
+var profileNamesByID = cluster.RegisterStmt(`
 SELECT projects.name AS project, profiles.name
   FROM profiles JOIN projects ON profiles.project_id = projects.id
-  WHERE project = ? AND profiles.name = ? ORDER BY projects.id, profiles.name
+  WHERE profiles.id = ? ORDER BY projects.id, profiles.name
 `)
 
 var profileObjects = cluster.RegisterStmt(`
-SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
+SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
   ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProject = cluster.RegisterStmt(`
-SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
+SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? ORDER BY projects.id, profiles.name
 `)
 
 var profileObjectsByProjectAndName = cluster.RegisterStmt(`
-SELECT profiles.id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
+SELECT profiles.id, profiles.project_id, projects.name AS project, profiles.name, coalesce(profiles.description, '')
   FROM profiles JOIN projects ON profiles.project_id = projects.id
   WHERE project = ? AND profiles.name = ? ORDER BY projects.id, profiles.name
 `)
@@ -82,18 +82,17 @@ UPDATE profiles
 func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 	var args []interface{}
 	var stmt *sql.Stmt
-	if filter.Project != nil && filter.Name != nil {
-		stmt = c.stmt(profileNamesByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Name == nil {
+	if filter.Project != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(profileNamesByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if filter.Project == nil && filter.Name == nil {
+	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
+		stmt = c.stmt(profileNamesByID)
+		args = []interface{}{
+			filter.ID,
+		}
+	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileNames)
 		args = []interface{}{}
 	} else {
@@ -116,18 +115,18 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if filter.Project != nil && filter.Name != nil {
+	if filter.Project != nil && filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(profileObjectsByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if filter.Project != nil && filter.Name == nil {
+	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjectsByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if filter.Project == nil && filter.Name == nil {
+	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjects)
 		args = []interface{}{}
 	} else {
@@ -139,6 +138,7 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 		objects = append(objects, Profile{})
 		return []interface{}{
 			&objects[i].ID,
+			&objects[i].ProjectID,
 			&objects[i].Project,
 			&objects[i].Name,
 			&objects[i].Description,

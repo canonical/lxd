@@ -23,20 +23,20 @@ SELECT projects.name
   ORDER BY projects.name
 `)
 
-var projectNamesByName = cluster.RegisterStmt(`
+var projectNamesByID = cluster.RegisterStmt(`
 SELECT projects.name
   FROM projects
-  WHERE projects.name = ? ORDER BY projects.name
+  WHERE projects.id = ? ORDER BY projects.name
 `)
 
 var projectObjects = cluster.RegisterStmt(`
-SELECT projects.description, projects.name
+SELECT projects.id, projects.description, projects.name
   FROM projects
   ORDER BY projects.name
 `)
 
 var projectObjectsByName = cluster.RegisterStmt(`
-SELECT projects.description, projects.name
+SELECT projects.id, projects.description, projects.name
   FROM projects
   WHERE projects.name = ? ORDER BY projects.name
 `)
@@ -70,12 +70,12 @@ DELETE FROM projects WHERE name = ?
 func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
 	var args []interface{}
 	var stmt *sql.Stmt
-	if filter.Name != nil {
-		stmt = c.stmt(projectNamesByName)
+	if filter.ID != nil && filter.Name == nil {
+		stmt = c.stmt(projectNamesByID)
 		args = []interface{}{
-			filter.Name,
+			filter.ID,
 		}
-	} else if filter.Name == nil {
+	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(projectNames)
 		args = []interface{}{}
 	} else {
@@ -98,12 +98,12 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if filter.Name != nil {
+	if filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(projectObjectsByName)
 		args = []interface{}{
 			filter.Name,
 		}
-	} else if filter.Name == nil {
+	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(projectObjects)
 		args = []interface{}{}
 	} else {
@@ -114,6 +114,7 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	dest := func(i int) []interface{} {
 		objects = append(objects, Project{})
 		return []interface{}{
+			&objects[i].ID,
 			&objects[i].Description,
 			&objects[i].Name,
 		}

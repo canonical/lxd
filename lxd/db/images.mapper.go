@@ -17,6 +17,18 @@ import (
 
 var _ = api.ServerEnvironment{}
 
+var imageNames = cluster.RegisterStmt(`
+SELECT projects.name AS project, images.fingerprint
+  FROM images JOIN projects ON images.project_id = projects.id
+  ORDER BY projects.id, images.fingerprint
+`)
+
+var imageNamesByProject = cluster.RegisterStmt(`
+SELECT projects.name AS project, images.fingerprint
+  FROM images JOIN projects ON images.project_id = projects.id
+  WHERE project = ? ORDER BY projects.id, images.fingerprint
+`)
+
 var imageObjects = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
   FROM images JOIN projects ON images.project_id = projects.id
@@ -158,4 +170,27 @@ func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error)
 	default:
 		return nil, fmt.Errorf("More than one image matches")
 	}
+}
+
+// GetImageURIs returns all available image URIs.
+// generator: image URIs
+func (c *ClusterTx) GetImageURIs(filter ImageFilter) ([]string, error) {
+	var args []interface{}
+	var stmt *sql.Stmt
+	if filter.Project != nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+		stmt = c.stmt(imageNamesByProject)
+		args = []interface{}{
+			filter.Project,
+		}
+	} else if filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+		stmt = c.stmt(imageNames)
+		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	code := cluster.EntityTypes["image"]
+	formatter := cluster.EntityFormatURIs[code]
+
+	return query.SelectURIs(stmt, formatter, args...)
 }
