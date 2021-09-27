@@ -125,12 +125,7 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 				// The network's config references the network we are searching for. Either by
 				// directly referencing our network or by referencing our interface as its parent.
 				if network.Config["network"] == networkName || network.Config["parent"] == networkName {
-					uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, network.Name)
-					if projectName != project.Default {
-						uri += fmt.Sprintf("?project=%s", projectName)
-					}
-
-					usedBy = append(usedBy, uri)
+					usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "networks", network.Name).Project(projectName).String())
 
 					if firstOnly {
 						return usedBy, nil
@@ -161,12 +156,7 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 		}
 
 		if inUse {
-			uri := fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name)
-			if profile.Project != project.Default {
-				uri += fmt.Sprintf("?project=%s", profile.Project)
-			}
-
-			usedBy = append(usedBy, uri)
+			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(profile.Project).String())
 
 			if firstOnly {
 				return usedBy, nil
@@ -193,12 +183,7 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 			}
 
 			if inUse {
-				uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, inst.Name)
-				if inst.Project != project.Default {
-					uri += fmt.Sprintf("?project=%s", inst.Project)
-				}
-
-				usedBy = append(usedBy, uri)
+				usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 
 				if firstOnly {
 					return db.ErrInstanceListStop
