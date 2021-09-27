@@ -40,30 +40,10 @@ import (
 //go:generate mapper stmt -p db -e instance objects-by-Node
 //go:generate mapper stmt -p db -e instance objects-by-Node-and-Name
 //go:generate mapper stmt -p db -e instance objects-by-Name
-//go:generate mapper stmt -p db -e instance profiles-ref
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Node
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance config-ref
-//go:generate mapper stmt -p db -e instance config-ref-by-Project
-//go:generate mapper stmt -p db -e instance config-ref-by-Node
-//go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance devices-ref
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project
-//go:generate mapper stmt -p db -e instance devices-ref-by-Node
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance id
 //go:generate mapper stmt -p db -e instance create struct=Instance
-//go:generate mapper stmt -p db -e instance create-config-ref
-//go:generate mapper stmt -p db -e instance create-devices-ref
 //go:generate mapper stmt -p db -e instance rename
 //go:generate mapper stmt -p db -e instance delete-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance delete-config-ref
-//go:generate mapper stmt -p db -e instance delete-devices-ref
-//go:generate mapper stmt -p db -e instance delete-profiles-ref
 //go:generate mapper stmt -p db -e instance update struct=Instance
 //
 //go:generate mapper method -p db -e instance GetMany
@@ -71,9 +51,6 @@ import (
 //go:generate mapper method -p db -e instance ID struct=Instance
 //go:generate mapper method -p db -e instance Exists struct=Instance
 //go:generate mapper method -p db -e instance Create struct=Instance
-//go:generate mapper method -p db -e instance ProfilesRef
-//go:generate mapper method -p db -e instance ConfigRef
-//go:generate mapper method -p db -e instance DevicesRef
 //go:generate mapper method -p db -e instance Rename
 //go:generate mapper method -p db -e instance DeleteOne-by-Project-and-Name
 //go:generate mapper method -p db -e instance Update struct=Instance

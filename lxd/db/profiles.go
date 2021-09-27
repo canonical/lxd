@@ -22,23 +22,10 @@ import (
 //go:generate mapper stmt -p db -e profile objects
 //go:generate mapper stmt -p db -e profile objects-by-Project
 //go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile config-ref
-//go:generate mapper stmt -p db -e profile config-ref-by-Project
-//go:generate mapper stmt -p db -e profile config-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile devices-ref
-//go:generate mapper stmt -p db -e profile devices-ref-by-Project
-//go:generate mapper stmt -p db -e profile devices-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile used-by-ref
-//go:generate mapper stmt -p db -e profile used-by-ref-by-Project
-//go:generate mapper stmt -p db -e profile used-by-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile id
 //go:generate mapper stmt -p db -e profile create struct=Profile
-//go:generate mapper stmt -p db -e profile create-config-ref
-//go:generate mapper stmt -p db -e profile create-devices-ref
 //go:generate mapper stmt -p db -e profile rename
 //go:generate mapper stmt -p db -e profile delete-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile delete-config-ref
-//go:generate mapper stmt -p db -e profile delete-devices-ref
 //go:generate mapper stmt -p db -e profile update struct=Profile
 //
 //go:generate mapper method -p db -e profile URIs
@@ -46,9 +33,6 @@ import (
 //go:generate mapper method -p db -e profile GetOne
 //go:generate mapper method -p db -e profile Exists struct=Profile
 //go:generate mapper method -p db -e profile ID struct=Profile
-//go:generate mapper method -p db -e profile ConfigRef
-//go:generate mapper method -p db -e profile DevicesRef
-//go:generate mapper method -p db -e profile UsedByRef
 //go:generate mapper method -p db -e profile Create struct=Profile
 //go:generate mapper method -p db -e profile Rename
 //go:generate mapper method -p db -e profile DeleteOne-by-Project-and-Name

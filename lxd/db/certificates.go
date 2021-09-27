@@ -18,11 +18,8 @@ import (
 //
 //go:generate mapper stmt -p db -e certificate objects
 //go:generate mapper stmt -p db -e certificate objects-by-Fingerprint
-//go:generate mapper stmt -p db -e certificate projects-ref
-//go:generate mapper stmt -p db -e certificate projects-ref-by-Fingerprint
 //go:generate mapper stmt -p db -e certificate id
 //go:generate mapper stmt -p db -e certificate create struct=Certificate
-//go:generate mapper stmt -p db -e certificate create-projects-ref
 //go:generate mapper stmt -p db -e certificate delete-by-Fingerprint
 //go:generate mapper stmt -p db -e certificate delete-by-Name-and-Type
 //go:generate mapper stmt -p db -e certificate update struct=Certificate
@@ -32,7 +29,6 @@ import (
 //go:generate mapper method -p db -e certificate ID struct=Certificate
 //go:generate mapper method -p db -e certificate Exists struct=Certificate
 //go:generate mapper method -p db -e certificate Create struct=Certificate
-//go:generate mapper method -p db -e certificate ProjectsRef
 //go:generate mapper method -p db -e certificate DeleteOne-by-Fingerprint
 //go:generate mapper method -p db -e certificate DeleteMany-by-Name-and-Type
 //go:generate mapper method -p db -e certificate Update struct=Certificate
