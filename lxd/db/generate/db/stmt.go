@@ -43,6 +43,7 @@ func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stm
 // Generate plumbing and wiring code for the desired statement.
 func (s *Stmt) Generate(buf *file.Buffer) error {
 	kind := strings.Split(s.kind, "-by-")[0]
+
 	switch kind {
 	case "objects":
 		return s.objects(buf)
@@ -71,10 +72,14 @@ func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
 }
 
 func (s *Stmt) objects(buf *file.Buffer) error {
-	table := entityTable(s.entity)
 	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
+	}
+
+	table := entityTable(s.entity)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		table = "%s_" + table
 	}
 
 	where := ""
@@ -118,6 +123,10 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 			columns[i] = field.Column()
 		} else {
 			columns[i] = mapping.FieldColumnName(field.Name, table)
+			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+				columns[i] = strings.Replace(columns[i], "reference", "%s", -1)
+			}
+
 			coalesce, ok := field.Config["coalesce"]
 			if ok {
 				columns[i] = fmt.Sprintf("coalesce(%s, %s)", columns[i], coalesce[0])
@@ -131,6 +140,9 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 			orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
 		} else {
 			orderBy[i] = mapping.FieldColumnName(field.Name, table)
+			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+				orderBy[i] = strings.Replace(orderBy[i], "reference", "%s", -1)
+			}
 		}
 	}
 
@@ -147,7 +159,11 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		buf.L("const %s = `%s`", stmtName, sql)
+	} else {
+		s.register(buf, stmtName, sql)
+	}
 	return nil
 }
 
@@ -268,6 +284,10 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		} else {
 			columns[i] = field.Column()
 			params[i] = "?"
+
+			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+				columns[i] = strings.Replace(columns[i], "reference", "%s", -1)
+			}
 		}
 	}
 
@@ -276,12 +296,21 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		tmpl = stmts["replace"]
 	}
 
+	table := entityTable(s.entity)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		table = "%s_" + table
+	}
+
 	sql := fmt.Sprintf(
-		tmpl, entityTable(s.entity),
+		tmpl, table,
 		strings.Join(columns, ", "), strings.Join(params, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		buf.L("const %s = `%s`", stmtName, sql)
+	} else {
+		s.register(buf, stmtName, sql)
+	}
 
 	return nil
 }
@@ -358,9 +387,15 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 
 	table := entityTable(s.entity)
 
-	fields := []*Field{}
-	where := whereClause(mapping.NaturalKey())
+	var where string
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		where = "%s_id = ?"
+		table = "%s_" + table
+	} else {
+		where = whereClause(mapping.NaturalKey())
+	}
 
+	fields := []*Field{}
 	if strings.HasPrefix(s.kind, "delete-by") {
 		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
 		for _, filter := range filters {
@@ -376,7 +411,11 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	sql := fmt.Sprintf(stmts["delete"], table, where)
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		buf.L("const %s = `%s`", stmtName, sql)
+	} else {
+		s.register(buf, stmtName, sql)
+	}
 	return nil
 }
 
