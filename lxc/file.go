@@ -25,6 +25,9 @@ import (
 	"github.com/lxc/lxd/shared/units"
 )
 
+// DirMode represents the file mode for creating dirs on `lxc file pull/push`
+const DirMode = 0755
+
 type cmdFile struct {
 	global *cmdGlobal
 
@@ -259,11 +262,16 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("More than one file to download, but target is not a directory"))
 		}
 	} else if strings.HasSuffix(args[len(args)-1], string(os.PathSeparator)) || len(args)-1 > 1 {
-		err := os.MkdirAll(target, 0755)
+		err := os.MkdirAll(target, DirMode)
 		if err != nil {
 			return err
 		}
 		targetIsDir = true
+	} else if c.file.flagMkdir {
+		err := os.MkdirAll(filepath.Dir(target), DirMode)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Parse remote
@@ -287,7 +295,7 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 		if resp.Type == "directory" {
 			if c.file.flagRecursive {
 				if !shared.PathExists(target) {
-					err := os.MkdirAll(target, 0755)
+					err := os.MkdirAll(target, DirMode)
 					if err != nil {
 						return err
 					}
@@ -464,7 +472,7 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Determine the target mode
-	mode := os.FileMode(0755)
+	mode := os.FileMode(DirMode)
 	if c.file.flagMode != "" {
 		if len(c.file.flagMode) == 3 {
 			c.file.flagMode = "0" + c.file.flagMode
