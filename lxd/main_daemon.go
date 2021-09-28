@@ -65,6 +65,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	conf.Group = c.flagGroup
 	conf.Trace = c.global.flagLogTrace
 	d := newDaemon(conf, sys.DefaultOS())
+	defer d.shutdownDoneCancel()
 
 	err := d.Init()
 	if err != nil {
