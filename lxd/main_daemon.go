@@ -85,7 +85,7 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 
 	stop := func(sig os.Signal) {
 		// Cancelling the context will make everyone aware that we're shutting down.
-		d.cancel()
+		d.shutdownCancel()
 
 		// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 		if sig == unix.SIGPWR || sig == unix.SIGTERM {
