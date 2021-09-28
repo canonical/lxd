@@ -1643,6 +1643,11 @@ func (d *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, insta
 		// Run post stop hooks irrespective of run state of instance.
 		err = d.runHooks(runConf.PostHooks)
 		if err != nil {
+			if errors.Is(err, storageDrivers.ErrInUse) {
+				logger.Debug("Unable to stop device as it is in use")
+				return nil
+			}
+
 			return err
 		}
 	}
