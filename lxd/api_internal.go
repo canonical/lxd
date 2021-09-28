@@ -140,7 +140,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
-	err := autoUpdateImages(d.ctx, d)
+	err := autoUpdateImages(d.shutdownCtx, d)
 	if err != nil {
 		return response.SmartError(err)
 	}

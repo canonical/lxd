@@ -680,7 +680,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		case "candid.api.url":
 			candidChanged = true
 		case "cluster.images_minimal_replica":
-			autoSyncImages(d.ctx, d)
+			autoSyncImages(d.shutdownCtx, d)
 		case "cluster.offline_threshold":
 			d.gateway.HeartbeatOfflineThreshold = clusterConfig.OfflineThreshold()
 			d.taskClusterHeartbeat.Reset()
