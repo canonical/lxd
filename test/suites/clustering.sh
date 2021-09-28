@@ -3004,7 +3004,7 @@ test_clustering_remove_leader() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
 
   # Remove the leader, via the stand-by node
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1 || true
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1
 
   # Ensure the remaining node is working
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -qv "node1"
