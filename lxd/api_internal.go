@@ -204,7 +204,7 @@ func internalOptimizeImage(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
-	err := autoUpdateImages(d.ctx, d)
+	err := autoUpdateImages(d.shutdownCtx, d)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -239,6 +239,8 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	if force == "true" {
 		d.shutdownChan <- struct{}{}
 	}
+
+	<-d.shutdownDoneCtx.Done()
 
 	return response.EmptySyncResponse
 }
