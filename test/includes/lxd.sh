@@ -128,7 +128,7 @@ kill_lxd() {
     daemon_pid=$(cat "${daemon_dir}/lxd.pid")
     check_leftovers="false"
     lxd_backend=$(storage_backend "$daemon_dir")
-    echo "==> Killing LXD at ${daemon_dir}"
+    echo "==> Killing LXD at ${daemon_dir} (${daemon_pid})"
 
     if [ -e "${daemon_dir}/unix.socket" ]; then
         # Delete all containers
@@ -256,7 +256,7 @@ shutdown_lxd() {
     # shellcheck disable=2034
     LXD_DIR=${daemon_dir}
     daemon_pid=$(cat "${daemon_dir}/lxd.pid")
-    echo "==> Killing LXD at ${daemon_dir}"
+    echo "==> Killing LXD at ${daemon_dir} (${daemon_pid})"
 
     # Kill the daemon
     lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
