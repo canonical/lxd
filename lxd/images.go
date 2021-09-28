@@ -3648,7 +3648,7 @@ func imageRefresh(d *Daemon, r *http.Request) response.Response {
 
 	// Begin background operation
 	run := func(op *operations.Operation) error {
-		_, err := autoUpdateImage(d.ctx, d, op, imageId, imageInfo, projectName, true)
+		_, err := autoUpdateImage(d.shutdownCtx, d, op, imageId, imageInfo, projectName, true)
 		return err
 	}
 
