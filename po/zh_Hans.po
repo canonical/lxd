@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-24 22:48+0200\n"
+"POT-Creation-Date: 2021-10-04 14:42-0400\n"
 "PO-Revision-Date: 2018-09-11 19:15+0000\n"
 "Last-Translator: 0x0916 <w@laoqinren.net>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -184,7 +184,7 @@ msgstr ""
 msgid "%s (%d more)"
 msgstr ""
 
-#: lxc/file.go:847
+#: lxc/file.go:855
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s 不是一个目录"
@@ -194,7 +194,7 @@ msgstr "%s 不是一个目录"
 msgid "%v (interrupt two more times to force)"
 msgstr ""
 
-#: lxc/file.go:741
+#: lxc/file.go:749
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr ""
@@ -291,7 +291,7 @@ msgstr ""
 msgid "<remote> <new-name>"
 msgstr ""
 
-#: lxc/file.go:408
+#: lxc/file.go:416
 msgid ""
 "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr ""
@@ -581,7 +581,7 @@ msgstr ""
 msgid "Can't provide a name for the target image"
 msgstr ""
 
-#: lxc/file.go:304
+#: lxc/file.go:312
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
@@ -606,7 +606,7 @@ msgstr ""
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:484
+#: lxc/file.go:492
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -832,7 +832,7 @@ msgstr ""
 msgid "Create and start instances from images"
 msgstr ""
 
-#: lxc/file.go:226 lxc/file.go:417
+#: lxc/file.go:229 lxc/file.go:425
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -924,7 +924,7 @@ msgstr ""
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
 
-#: lxc/file.go:107 lxc/file.go:108
+#: lxc/file.go:110 lxc/file.go:111
 msgid "Delete files in instances"
 msgstr ""
 
@@ -981,8 +981,8 @@ msgstr ""
 #: lxc/config_template.go:298 lxc/config_trust.go:28 lxc/config_trust.go:62
 #: lxc/config_trust.go:134 lxc/config_trust.go:212 lxc/console.go:36
 #: lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:40 lxc/export.go:32
-#: lxc/file.go:72 lxc/file.go:108 lxc/file.go:157 lxc/file.go:220
-#: lxc/file.go:410 lxc/image.go:38 lxc/image.go:131 lxc/image.go:271
+#: lxc/file.go:75 lxc/file.go:111 lxc/file.go:160 lxc/file.go:223
+#: lxc/file.go:418 lxc/image.go:38 lxc/image.go:131 lxc/image.go:271
 #: lxc/image.go:322 lxc/image.go:447 lxc/image.go:606 lxc/image.go:826
 #: lxc/image.go:961 lxc/image.go:1259 lxc/image.go:1338 lxc/image_alias.go:25
 #: lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153
@@ -1138,7 +1138,7 @@ msgstr ""
 msgid "EXPIRY DATE"
 msgstr ""
 
-#: lxc/file.go:63
+#: lxc/file.go:66
 msgid ""
 "Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
@@ -1148,7 +1148,7 @@ msgstr ""
 msgid "Edit cluster member configurations as YAML"
 msgstr ""
 
-#: lxc/file.go:156 lxc/file.go:157
+#: lxc/file.go:159 lxc/file.go:160
 msgid "Edit files in instances"
 msgstr ""
 
@@ -1313,7 +1313,7 @@ msgstr ""
 msgid "Failed to remove alias %s"
 msgstr ""
 
-#: lxc/file.go:736
+#: lxc/file.go:744
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -1660,7 +1660,7 @@ msgstr ""
 msgid "Invalid number of arguments"
 msgstr ""
 
-#: lxc/file.go:132
+#: lxc/file.go:135
 #, c-format
 msgid "Invalid path %s"
 msgstr ""
@@ -1670,12 +1670,12 @@ msgstr ""
 msgid "Invalid protocol: %s"
 msgstr ""
 
-#: lxc/file.go:278
+#: lxc/file.go:286
 #, c-format
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:438
+#: lxc/file.go:446
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -1999,7 +1999,7 @@ msgstr ""
 msgid "Manage devices"
 msgstr ""
 
-#: lxc/file.go:71 lxc/file.go:72
+#: lxc/file.go:74 lxc/file.go:75
 msgid "Manage files in instances"
 msgstr ""
 
@@ -2181,7 +2181,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr ""
 
-#: lxc/file.go:531
+#: lxc/file.go:539
 msgid "Missing target directory"
 msgstr ""
 
@@ -2211,7 +2211,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr ""
 
-#: lxc/file.go:259
+#: lxc/file.go:262
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
@@ -2598,20 +2598,20 @@ msgstr ""
 msgid "Publishing instance: %s"
 msgstr ""
 
-#: lxc/file.go:219 lxc/file.go:220
+#: lxc/file.go:222 lxc/file.go:223
 msgid "Pull files from instances"
 msgstr ""
 
-#: lxc/file.go:367 lxc/file.go:690
+#: lxc/file.go:375 lxc/file.go:698
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
 
-#: lxc/file.go:409 lxc/file.go:410
+#: lxc/file.go:417 lxc/file.go:418
 msgid "Push files into instances"
 msgstr ""
 
-#: lxc/file.go:626 lxc/file.go:782
+#: lxc/file.go:634 lxc/file.go:790
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -2629,7 +2629,7 @@ msgstr ""
 msgid "Read-Only: %v"
 msgstr ""
 
-#: lxc/file.go:227 lxc/file.go:416
+#: lxc/file.go:230 lxc/file.go:424
 msgid "Recursively transfer files"
 msgstr ""
 
@@ -2986,15 +2986,15 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr ""
 
-#: lxc/file.go:419
+#: lxc/file.go:427
 msgid "Set the file's gid on push"
 msgstr ""
 
-#: lxc/file.go:420
+#: lxc/file.go:428
 msgid "Set the file's perms on push"
 msgstr ""
 
-#: lxc/file.go:418
+#: lxc/file.go:426
 msgid "Set the file's uid on push"
 msgstr ""
 
@@ -3436,7 +3436,7 @@ msgstr ""
 msgid "UUID: %v"
 msgstr ""
 
-#: lxc/file.go:182
+#: lxc/file.go:185
 #, c-format
 msgid "Unable to create a temporary file: %v"
 msgstr ""
@@ -3446,7 +3446,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/file.go:723
+#: lxc/file.go:731
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -3521,7 +3521,7 @@ msgstr ""
 msgid "User aborted delete operation"
 msgstr ""
 
-#: lxc/file.go:60 lxc/utils/cancel.go:63
+#: lxc/file.go:63 lxc/utils/cancel.go:63
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
@@ -3617,7 +3617,7 @@ msgid "[<remote>:] <cert>"
 msgstr ""
 
 #: lxc/config_trust.go:209
-msgid "[<remote>:] <hostname|fingerprint>"
+msgid "[<remote>:] <fingerprint>"
 msgstr ""
 
 #: lxc/cluster.go:353
@@ -3730,15 +3730,15 @@ msgstr ""
 msgid "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 msgstr ""
 
-#: lxc/file.go:155
+#: lxc/file.go:158
 msgid "[<remote>:]<instance>/<path>"
 msgstr ""
 
-#: lxc/file.go:105
+#: lxc/file.go:108
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr ""
 
-#: lxc/file.go:218
+#: lxc/file.go:221
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 msgstr ""
@@ -4040,14 +4040,14 @@ msgid ""
 "    Download a backup tarball of the u1 instance."
 msgstr ""
 
-#: lxc/file.go:222
+#: lxc/file.go:225
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
 "directory."
 msgstr ""
 
-#: lxc/file.go:412
+#: lxc/file.go:420
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."

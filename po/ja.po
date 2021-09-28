@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-24 22:48+0200\n"
+"POT-Creation-Date: 2021-10-04 14:42-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -298,7 +298,7 @@ msgstr "%s (他%d個)"
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:847
+#: lxc/file.go:855
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -309,7 +309,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:741
+#: lxc/file.go:749
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
@@ -420,7 +420,7 @@ msgstr "set-url <remote> <URL>"
 msgid "<remote> <new-name>"
 msgstr "rename <remote> <new-name>"
 
-#: lxc/file.go:408
+#: lxc/file.go:416
 #, fuzzy
 msgid ""
 "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
@@ -733,7 +733,7 @@ msgstr "ローカル上のリネームでは、設定やプロファイルの上
 msgid "Can't provide a name for the target image"
 msgstr "ターゲットイメージの名前を取得できません"
 
-#: lxc/file.go:304
+#: lxc/file.go:312
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
@@ -759,7 +759,7 @@ msgstr "リネームの場合は異なるリモートを指定できません"
 msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
-#: lxc/file.go:484
+#: lxc/file.go:492
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -994,7 +994,7 @@ msgstr "空のインスタンスを作成"
 msgid "Create and start instances from images"
 msgstr "イメージからインスタンスを作成し、起動します"
 
-#: lxc/file.go:226 lxc/file.go:417
+#: lxc/file.go:229 lxc/file.go:425
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
@@ -1090,7 +1090,7 @@ msgstr "DRM:"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr "バックグラウンドの操作を削除します（キャンセルを試みます）"
 
-#: lxc/file.go:107 lxc/file.go:108
+#: lxc/file.go:110 lxc/file.go:111
 msgid "Delete files in instances"
 msgstr "インスタンス内のファイルを削除します"
 
@@ -1147,8 +1147,8 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_template.go:298 lxc/config_trust.go:28 lxc/config_trust.go:62
 #: lxc/config_trust.go:134 lxc/config_trust.go:212 lxc/console.go:36
 #: lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:40 lxc/export.go:32
-#: lxc/file.go:72 lxc/file.go:108 lxc/file.go:157 lxc/file.go:220
-#: lxc/file.go:410 lxc/image.go:38 lxc/image.go:131 lxc/image.go:271
+#: lxc/file.go:75 lxc/file.go:111 lxc/file.go:160 lxc/file.go:223
+#: lxc/file.go:418 lxc/image.go:38 lxc/image.go:131 lxc/image.go:271
 #: lxc/image.go:322 lxc/image.go:447 lxc/image.go:606 lxc/image.go:826
 #: lxc/image.go:961 lxc/image.go:1259 lxc/image.go:1338 lxc/image_alias.go:25
 #: lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153
@@ -1307,7 +1307,7 @@ msgstr "EPHEMERAL"
 msgid "EXPIRY DATE"
 msgstr "EXPIRY DATE"
 
-#: lxc/file.go:63
+#: lxc/file.go:66
 #, fuzzy
 msgid ""
 "Early server side processing of file transfer requests cannot be canceled "
@@ -1320,7 +1320,7 @@ msgstr ""
 msgid "Edit cluster member configurations as YAML"
 msgstr "クラスターメンバーの設定をYAMLファイルで編集します"
 
-#: lxc/file.go:156 lxc/file.go:157
+#: lxc/file.go:159 lxc/file.go:160
 msgid "Edit files in instances"
 msgstr "インスタンス内のファイルを編集します"
 
@@ -1510,7 +1510,7 @@ msgstr "新しいインスタンス名が取得できません"
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/file.go:736
+#: lxc/file.go:744
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -1885,7 +1885,7 @@ msgstr ""
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
-#: lxc/file.go:132
+#: lxc/file.go:135
 #, c-format
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
@@ -1895,12 +1895,12 @@ msgstr "不正なパス %s"
 msgid "Invalid protocol: %s"
 msgstr "不正なプロトコル: %s"
 
-#: lxc/file.go:278
+#: lxc/file.go:286
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:438
+#: lxc/file.go:446
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -2341,7 +2341,7 @@ msgstr "コマンドのエイリアスを管理します"
 msgid "Manage devices"
 msgstr "インスタンスのデバイスを管理します"
 
-#: lxc/file.go:71 lxc/file.go:72
+#: lxc/file.go:74 lxc/file.go:75
 msgid "Manage files in instances"
 msgstr "インスタンス内のファイルを管理します"
 
@@ -2541,7 +2541,7 @@ msgstr "コピー元のプロファイル名を指定する必要があります
 msgid "Missing source volume name"
 msgstr "コピー元のボリューム名を指定する必要があります"
 
-#: lxc/file.go:531
+#: lxc/file.go:539
 msgid "Missing target directory"
 msgstr "コピー先のディレクトリを指定する必要があります"
 
@@ -2574,7 +2574,7 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください"
 
-#: lxc/file.go:259
+#: lxc/file.go:262
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
@@ -2966,20 +2966,20 @@ msgstr "インスタンスをイメージとして出力します"
 msgid "Publishing instance: %s"
 msgstr "インスタンスの出力中: %s"
 
-#: lxc/file.go:219 lxc/file.go:220
+#: lxc/file.go:222 lxc/file.go:223
 msgid "Pull files from instances"
 msgstr "インスタンスからファイルを取得します"
 
-#: lxc/file.go:367 lxc/file.go:690
+#: lxc/file.go:375 lxc/file.go:698
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr "ファイル %s を %s から取得します: %%s"
 
-#: lxc/file.go:409 lxc/file.go:410
+#: lxc/file.go:417 lxc/file.go:418
 msgid "Push files into instances"
 msgstr "インスタンス内にファイルをコピーします"
 
-#: lxc/file.go:626 lxc/file.go:782
+#: lxc/file.go:634 lxc/file.go:790
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
@@ -2997,7 +2997,7 @@ msgstr "仮想マシンイメージを対象にします"
 msgid "Read-Only: %v"
 msgstr "読み取り専用: %v"
 
-#: lxc/file.go:227 lxc/file.go:416
+#: lxc/file.go:230 lxc/file.go:424
 msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
@@ -3400,15 +3400,15 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr "リモートの URL を設定します"
 
-#: lxc/file.go:419
+#: lxc/file.go:427
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:420
+#: lxc/file.go:428
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:418
+#: lxc/file.go:426
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -3875,7 +3875,7 @@ msgstr "USED BY"
 msgid "UUID: %v"
 msgstr "UUID: %v"
 
-#: lxc/file.go:182
+#: lxc/file.go:185
 #, c-format
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
@@ -3885,7 +3885,7 @@ msgstr "テンポラリファイルを作成できません: %v"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 
-#: lxc/file.go:723
+#: lxc/file.go:731
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -3964,7 +3964,7 @@ msgstr "コマンドを実行する際のユーザ ID (UID) (デフォルト 0)"
 msgid "User aborted delete operation"
 msgstr "ユーザが削除操作を中断しました"
 
-#: lxc/file.go:60 lxc/utils/cancel.go:63
+#: lxc/file.go:63 lxc/utils/cancel.go:63
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
@@ -4073,8 +4073,8 @@ msgstr "add [<remote>:] <cert>"
 
 #: lxc/config_trust.go:209
 #, fuzzy
-msgid "[<remote>:] <hostname|fingerprint>"
-msgstr "remove [<remote>:] <hostname|fingerprint>"
+msgid "[<remote>:] <fingerprint>"
+msgstr "create [<remote>:]<alias> <fingerprint>"
 
 #: lxc/cluster.go:353
 #, fuzzy
@@ -4214,17 +4214,17 @@ msgid "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 msgstr ""
 "export [<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 
-#: lxc/file.go:155
+#: lxc/file.go:158
 #, fuzzy
 msgid "[<remote>:]<instance>/<path>"
 msgstr "edit [<remote>:]<instance>/<path>"
 
-#: lxc/file.go:105
+#: lxc/file.go:108
 #, fuzzy
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr "delete [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 
-#: lxc/file.go:218
+#: lxc/file.go:221
 #, fuzzy
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
@@ -4611,7 +4611,7 @@ msgstr ""
 "lxc export u1 backup0.tar.gz\n"
 "    u1 インスタンスのバックアップ tarball をダウンロードします。"
 
-#: lxc/file.go:222
+#: lxc/file.go:225
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
@@ -4621,7 +4621,7 @@ msgstr ""
 "   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーし"
 "ます。"
 
-#: lxc/file.go:412
+#: lxc/file.go:420
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
@@ -4932,6 +4932,10 @@ msgstr "y"
 #: lxc/image.go:1055
 msgid "yes"
 msgstr "yes"
+
+#, fuzzy
+#~ msgid "[<remote>:] <hostname|fingerprint>"
+#~ msgstr "remove [<remote>:] <hostname|fingerprint>"
 
 #, fuzzy
 #~ msgid "[<remote>:]<token>"
