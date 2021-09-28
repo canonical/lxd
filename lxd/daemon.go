@@ -67,17 +67,14 @@ import (
 
 // A Daemon can respond to requests from a shared client.
 type Daemon struct {
-	clientCerts  *certificateCache
-	os           *sys.OS
-	db           *db.Node
-	firewall     firewall.Firewall
-	maas         *maas.Controller
-	bgp          *bgp.Server
-	rbac         *rbac.Server
-	cluster      *db.Cluster
-	setupChan    chan struct{} // Closed when basic Daemon setup is completed
-	readyChan    chan struct{} // Closed when LXD is fully ready
-	shutdownChan chan struct{}
+	clientCerts *certificateCache
+	os          *sys.OS
+	db          *db.Node
+	firewall    firewall.Firewall
+	maas        *maas.Controller
+	bgp         *bgp.Server
+	rbac        *rbac.Server
+	cluster     *db.Cluster
 
 	// Event servers
 	devlxdEvents *events.Server
@@ -115,8 +112,14 @@ type Daemon struct {
 	serverCert    func() *shared.CertInfo
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	// Status control.
+	setupChan          chan struct{}      // Closed when basic Daemon setup is completed
+	readyChan          chan struct{}      // Closed when LXD is fully ready
+	shutdownChan       chan struct{}      // Shutdown requests arrive here
+	shutdownCtx        context.Context    // Closed when shutdown starts.
+	shutdownCancel     context.CancelFunc // Closes the shutdownCtx to indicate shutdown starting.
+	shutdownDoneCtx    context.Context    // Closed when shutdown completes
+	shutdownDoneCancel context.CancelFunc // Closes the shutdownDoneCtx to indicate shutdown has finished.
 
 	// Stores the time the metrics were last fetched. This will be used to prevent stressing the instances too much.
 	metricsLastBuildTime time.Time
@@ -175,19 +178,22 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
-	ctx, cancel := context.WithCancel(context.Background())
+	shutdownDoneCtx, shutdownDoneCancel := context.WithCancel(context.Background())
+	shutdownCtx, shutdownCancel := context.WithCancel(shutdownDoneCtx)
 
 	d := &Daemon{
-		clientCerts:  &certificateCache{},
-		config:       config,
-		devlxdEvents: devlxdEvents,
-		events:       lxdEvents,
-		os:           os,
-		setupChan:    make(chan struct{}),
-		readyChan:    make(chan struct{}),
-		shutdownChan: make(chan struct{}),
-		ctx:          ctx,
-		cancel:       cancel,
+		clientCerts:        &certificateCache{},
+		config:             config,
+		devlxdEvents:       devlxdEvents,
+		events:             lxdEvents,
+		os:                 os,
+		setupChan:          make(chan struct{}),
+		readyChan:          make(chan struct{}),
+		shutdownChan:       make(chan struct{}),
+		shutdownCtx:        shutdownCtx,
+		shutdownCancel:     shutdownCancel,
+		shutdownDoneCtx:    shutdownDoneCtx,
+		shutdownDoneCancel: shutdownDoneCancel,
 	}
 
 	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
@@ -429,7 +435,7 @@ func (d *Daemon) State() *state.State {
 	}
 
 	return &state.State{
-		Context:                d.ctx,
+		Context:                d.shutdownCtx,
 		Node:                   d.db,
 		Cluster:                d.cluster,
 		MAAS:                   d.maas,
@@ -631,7 +637,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			return false
 		}
 
-		if d.ctx.Err() == context.Canceled && !allowedDuringShutdown() {
+		if d.shutdownCtx.Err() == context.Canceled && !allowedDuringShutdown() {
 			response.Unavailable(fmt.Errorf("LXD is shutting down")).Render(w)
 			return
 		}
@@ -1098,7 +1104,7 @@ func (d *Daemon) init() error {
 			taskFunc, taskSchedule := cluster.HeartbeatTask(d.gateway)
 			hbGroup := task.Group{}
 			d.taskClusterHeartbeat = hbGroup.Add(taskFunc, taskSchedule)
-			hbGroup.Start(d.ctx)
+			hbGroup.Start(d.shutdownCtx)
 			d.gateway.WaitUpgradeNotification()
 			hbGroup.Stop(time.Second)
 			d.gateway.Cluster = nil
@@ -1370,7 +1376,7 @@ func (d *Daemon) startClusterTasks() {
 	d.clusterTasks.Add(autoSyncImagesTask(d))
 
 	// Start all background tasks
-	d.clusterTasks.Start(d.ctx)
+	d.clusterTasks.Start(d.shutdownCtx)
 }
 
 func (d *Daemon) stopClusterTasks() {
@@ -1428,7 +1434,7 @@ func (d *Daemon) Ready() error {
 	}
 
 	// Start all background tasks
-	d.tasks.Start(d.ctx)
+	d.tasks.Start(d.shutdownCtx)
 
 	// Get daemon state struct
 	s := d.State()
