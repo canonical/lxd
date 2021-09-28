@@ -240,6 +240,8 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 		d.shutdownChan <- struct{}{}
 	}
 
+	<-d.shutdownDoneCtx.Done()
+
 	return response.EmptySyncResponse
 }
 
