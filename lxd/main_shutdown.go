@@ -52,36 +52,37 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 	v := url.Values{}
 	v.Set("force", strconv.FormatBool(c.flagForce))
 
-	_, _, err = d.RawQuery("PUT", fmt.Sprintf("/internal/shutdown?%s", v.Encode()), nil, "")
-	if err != nil && !strings.HasSuffix(err.Error(), ": EOF") {
-		// NOTE: if we got an EOF error here it means that the daemon
-		// has shutdown so quickly that it already closed the unix
-		// socket. We consider the daemon dead in this case.
-		return err
-	}
-
-	chMonitor := make(chan bool, 1)
+	chResult := make(chan error, 1)
 	go func() {
+		defer close(chResult)
+
+		// Request shutdown, this shouldn't return until daemon has stopped.
+		_, _, err = d.RawQuery("PUT", fmt.Sprintf("/internal/shutdown?%s", v.Encode()), nil, "")
+		if err != nil && !strings.HasSuffix(err.Error(), ": EOF") {
+			// NOTE: if we got an EOF error here it means that the daemon has shutdown so quickly that
+			// it already closed the unix socket. We consider the daemon dead in this case so no need
+			// to return the error.
+			chResult <- err
+			return
+		}
+
+		// Try connecting to events endpoint to check the daemon has really shutdown.
 		monitor, err := d.GetEvents()
 		if err != nil {
-			close(chMonitor)
 			return
 		}
 
 		monitor.Wait()
-		close(chMonitor)
 	}()
 
 	if c.flagTimeout > 0 {
 		select {
-		case <-chMonitor:
-			break
+		case err = <-chResult:
+			return err
 		case <-time.After(time.Second * time.Duration(c.flagTimeout)):
 			return fmt.Errorf("LXD still running after %ds timeout", c.flagTimeout)
 		}
-	} else {
-		<-chMonitor
 	}
 
-	return nil
+	return <-chResult
 }
