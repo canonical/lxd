@@ -746,19 +746,33 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterDisabled.Event(req.ServerName, requestor, nil))
 
-	// Restart the daemon with clustering disabled.
-	go func() {
-		// Sleep just enough to return a response first.
-		time.Sleep(3 * time.Second)
+	// Stop database cluster connection.
+	d.gateway.Kill()
 
-		logger.Info("Restarting LXD following removal from cluster")
-		err := util.ReplaceDaemon()
+	// Setup a manual response that sends the EmptySyncResponse and then replaces the LXD daemon.
+	return response.ManualResponse(func(w http.ResponseWriter) error {
+		emptyResponse := response.EmptySyncResponse
+		err := emptyResponse.Render(w)
 		if err != nil {
-			logger.Warnf("Failed to restart LXD with error: %v", err)
+			return err
 		}
-	}()
 
-	return response.EmptySyncResponse
+		// Send the response before replacing the LXD daemon process.
+		f, ok := w.(http.Flusher)
+		if ok {
+			f.Flush()
+		} else {
+			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
+		}
+
+		logger.Info("Restarting LXD daemon following removal from cluster")
+		err = util.ReplaceDaemon()
+		if err != nil {
+			return fmt.Errorf("Failed restarting LXD daemon: %w", err)
+		}
+
+		return nil
+	})
 }
 
 // clusterInitMember initialises storage pools and networks on this node. We pass two LXD client instances, one
