@@ -72,6 +72,7 @@ type OS struct {
 
 	// Kernel features
 	CloseRange              bool
+	CoreScheduling          bool
 	NativeTerminals         bool
 	NetnsGetifaddrs         bool
 	PidFds                  bool
