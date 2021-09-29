@@ -654,7 +654,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		mountPath := vol.MountPath()
 		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
@@ -662,7 +662,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 			if err != nil {
 				return false, errors.Wrapf(err, "Failed to unmount LVM logical volume")
 			}
-			d.logger.Debug("Unmounted logical volume", log.Ctx{"path": mountPath, "keepBlockDev": keepBlockDev})
+			d.logger.Debug("Unmounted logical volume", log.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
 
 			// We only deactivate filesystem volumes if an unmount was needed to better align with our
 			// unmount return value indicator.
@@ -687,7 +687,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 		if !keepBlockDev && shared.PathExists(volDevPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
