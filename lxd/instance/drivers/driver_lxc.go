@@ -6806,7 +6806,7 @@ func (d *lxc) Info() instance.Info {
 }
 
 func (d *lxc) Metrics() (*metrics.MetricSet, error) {
-	out := metrics.NewMetricSet(map[string]string{"project": d.project, "name": d.name})
+	out := metrics.NewMetricSet(map[string]string{"project": d.project, "name": d.name, "type": instancetype.Container.String()})
 
 	// Load cgroup abstraction
 	cg, err := d.cgroup(nil)
