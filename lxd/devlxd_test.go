@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/ucred"
@@ -141,7 +144,7 @@ func TestHttpRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer d.Stop()
+	defer d.Stop(context.Background(), unix.SIGQUIT)
 
 	c := http.Client{Transport: &http.Transport{Dial: DevLxdDialer{Path: fmt.Sprintf("%s/devlxd/sock", testDir)}.DevLxdDial}}
 
