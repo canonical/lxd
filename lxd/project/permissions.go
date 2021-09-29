@@ -291,7 +291,12 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 		return -1, err
 	}
 
-	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	instances, err := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	if err != nil {
+		return -1, err
+	}
+
+	info.Instances = instances
 
 	totals, err := getTotalsAcrossProjectEntities(info, []string{"limits.disk"}, false)
 	if err != nil {
@@ -328,9 +333,14 @@ func checkRestrictionsAndAggregateLimits(tx *db.ClusterTx, info *projectInfo) er
 		return nil
 	}
 
-	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	instances, err := expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	if err != nil {
+		return err
+	}
 
-	err := checkAggregateLimits(info, aggregateKeys)
+	info.Instances = instances
+
+	err = checkAggregateLimits(info, aggregateKeys)
 	if err != nil {
 		return err
 	}
@@ -678,7 +688,7 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 			return err
 		}
 
-		err = entityDevicesChecker(instance.Type, instance.Name, instance.Devices)
+		err = entityDevicesChecker(instance.Type, instance.Name, db.DevicesToAPI(instance.Devices))
 		if err != nil {
 			return err
 		}
@@ -690,7 +700,7 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 			return err
 		}
 
-		err = entityDevicesChecker(instancetype.Any, profile.Name, profile.Devices)
+		err = entityDevicesChecker(instancetype.Any, profile.Name, db.DevicesToAPI(profile.Devices))
 		if err != nil {
 			return err
 		}
@@ -809,7 +819,12 @@ func AllowInstanceUpdate(tx *db.ClusterTx, projectName, instanceName string, req
 		}
 		info.Instances[i].Profiles = req.Profiles
 		info.Instances[i].Config = req.Config
-		info.Instances[i].Devices = req.Devices
+		devices, err := db.APIToDevices(req.Devices)
+		if err != nil {
+			return err
+		}
+
+		info.Instances[i].Devices = devices
 		updatedInstance = &info.Instances[i]
 	}
 
@@ -879,7 +894,13 @@ func AllowProfileUpdate(tx *db.ClusterTx, projectName, profileName string, req a
 			continue
 		}
 		info.Profiles[i].Config = req.Config
-		info.Profiles[i].Devices = req.Devices
+
+		devices, err := db.APIToDevices(req.Devices)
+		if err != nil {
+			return err
+		}
+
+		info.Profiles[i].Devices = devices
 	}
 
 	err = checkRestrictionsAndAggregateLimits(tx, info)
@@ -897,7 +918,10 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		return err
 	}
 
-	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	info.Instances, err = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
+	if err != nil {
+		return err
+	}
 
 	// List of keys that need to check aggregate values across all project
 	// instances.
@@ -1122,7 +1146,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 
 // Expand the configuration and devices of the given instances, taking the give
 // project profiles into account.
-func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Profile) []db.Instance {
+func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Profile) ([]db.Instance, error) {
 	expandedInstances := make([]db.Instance, len(instances))
 
 	// Index of all profiles by name.
@@ -1132,19 +1156,28 @@ func expandInstancesConfigAndDevices(instances []db.Instance, profiles []db.Prof
 	}
 
 	for i, instance := range instances {
-		profiles := make([]api.Profile, len(instance.Profiles))
+		apiProfiles := make([]api.Profile, len(instance.Profiles))
 
 		for j, name := range instance.Profiles {
 			profile := profilesByName[name]
-			profiles[j] = *db.ProfileToAPI(&profile)
+			apiProfiles[j] = *db.ProfileToAPI(&profile)
 		}
 
+		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
+		// converting back and forth between API and db Device types.
+		expandedDevices := db.ExpandInstanceDevices(deviceconfig.NewDevices(db.DevicesToAPI(instance.Devices)), apiProfiles)
+
 		expandedInstances[i] = instance
-		expandedInstances[i].Config = db.ExpandInstanceConfig(instance.Config, profiles)
-		expandedInstances[i].Devices = db.ExpandInstanceDevices(deviceconfig.NewDevices(instance.Devices), profiles).CloneNative()
+		expandedInstances[i].Config = db.ExpandInstanceConfig(instance.Config, apiProfiles)
+
+		devices, err := db.APIToDevices(expandedDevices.CloneNative())
+		if err != nil {
+			return nil, err
+		}
+		expandedInstances[i].Devices = devices
 	}
 
-	return expandedInstances
+	return expandedInstances, nil
 }
 
 // Sum of the effective values for the given limits across all project
@@ -1200,7 +1233,7 @@ func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map
 		var value string
 		var ok bool
 		if key == "limits.disk" {
-			_, device, err := shared.GetRootDiskDevice(instance.Devices)
+			_, device, err := shared.GetRootDiskDevice(db.DevicesToAPI(instance.Devices))
 			if err != nil {
 				return nil, fmt.Errorf(
 					"Instance %s in project %s has no root device",

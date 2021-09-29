@@ -104,7 +104,7 @@ func InstanceToArgs(inst *Instance) InstanceArgs {
 		LastUsedDate: inst.LastUseDate.Time,
 		Description:  inst.Description,
 		Config:       inst.Config,
-		Devices:      deviceConfig.NewDevices(inst.Devices),
+		Devices:      deviceConfig.NewDevices(DevicesToAPI(inst.Devices)),
 		Profiles:     inst.Profiles,
 		ExpiryDate:   inst.ExpiryDate.Time,
 	}

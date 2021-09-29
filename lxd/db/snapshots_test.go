@@ -48,14 +48,18 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	assert.Equal(t, "c2", s2.Instance)
 	assert.Equal(t, map[string]string{"x": "y"}, s2.Config)
 	assert.Len(t, s2.Devices, 1)
-	assert.Equal(t, map[string]string{"type": "nic"}, s2.Devices["eth0"])
+	assert.Equal(t, "eth0", s2.Devices["eth0"].Name)
+	assert.Equal(t, "nic", s2.Devices["eth0"].Type.String())
+	assert.Equal(t, map[string]string{}, s2.Devices["eth0"].Config)
 
 	s3 := snapshots[2]
 	assert.Equal(t, "snap3", s3.Name)
 	assert.Equal(t, "c2", s3.Instance)
 	assert.Equal(t, map[string]string{}, s3.Config)
 	assert.Len(t, s3.Devices, 1)
-	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, s3.Devices["root"])
+	assert.Equal(t, "root", s3.Devices["root"].Name)
+	assert.Equal(t, "disk", s3.Devices["root"].Type.String())
+	assert.Equal(t, map[string]string{"x": "y"}, s3.Devices["root"].Config)
 }
 
 func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
@@ -209,7 +213,7 @@ func getInstanceSnapshotDeviceID(t *testing.T, tx *db.ClusterTx, instanceSnapsho
 func addInstanceSnapshotDevice(t *testing.T, tx *db.ClusterTx, instance, snapshot, name, typ string, config map[string]string) {
 	id := getInstanceSnapshotID(t, tx, instance, snapshot)
 
-	code, err := db.DeviceTypeToInt(typ)
+	code, err := db.NewDeviceType(typ)
 	require.NoError(t, err)
 
 	stmt := `

@@ -982,6 +982,11 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			return fmt.Errorf("Project %q does not exist", args.Project)
 		}
 
+		devices, err := db.APIToDevices(args.Devices.CloneNative())
+		if err != nil {
+			return err
+		}
+
 		if args.Snapshot {
 			parts := strings.SplitN(args.Name, shared.SnapshotDelimiter, 2)
 			instanceName := parts[0]
@@ -998,7 +1003,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 				Stateful:     args.Stateful,
 				Description:  args.Description,
 				Config:       args.Config,
-				Devices:      args.Devices.CloneNative(),
+				Devices:      devices,
 				ExpiryDate:   sql.NullTime{Time: args.ExpiryDate, Valid: true},
 			}
 			_, err = tx.CreateInstanceSnapshot(snapshot)
@@ -1031,7 +1036,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			LastUseDate:  sql.NullTime{Time: args.LastUsedDate, Valid: true},
 			Description:  args.Description,
 			Config:       args.Config,
-			Devices:      args.Devices.CloneNative(),
+			Devices:      devices,
 			Profiles:     args.Profiles,
 			ExpiryDate:   sql.NullTime{Time: args.ExpiryDate, Valid: true},
 		}

@@ -140,7 +140,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 		}
 
 		// Iterate through each of the instance's devices, looking for NICs that are using any of the ACLs.
-		for devName, devConfig := range deviceConfig.NewDevices(profile.Devices) {
+		for devName, devConfig := range deviceConfig.NewDevices(db.DevicesToAPI(profile.Devices)) {
 			matchedACLNames := isInUseByDevice(devConfig, matchACLNames...)
 			if len(matchedACLNames) > 0 {
 				// Call usageFunc with a list of matched ACLs and info about the instance NIC.
@@ -207,7 +207,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 			return nil
 		}
 
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
 
 		// Iterate through each of the instance's devices, looking for NICs that are using any of the ACLs.
 		for devName, devConfig := range devices {

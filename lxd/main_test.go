@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/sys/unix"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 )
@@ -78,18 +77,20 @@ func (suite *lxdTestSuite) SetupTest() {
 	}
 
 	rootDev := map[string]string{}
-	rootDev["type"] = "disk"
 	rootDev["path"] = "/"
 	rootDev["pool"] = lxdTestSuiteDefaultStoragePool
-	devicesMap := deviceConfig.Devices{}
-	devicesMap["root"] = rootDev
+	device := db.Device{
+		Name:   "root",
+		Type:   db.TypeDisk,
+		Config: rootDev,
+	}
 
 	err = suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		profile, err := tx.GetProfile("default", "default")
 		if err != nil {
 			return err
 		}
-		profile.Devices = devicesMap.CloneNative()
+		profile.Devices["root"] = device
 		return tx.UpdateProfile("default", "default", *profile)
 	})
 	if err != nil {

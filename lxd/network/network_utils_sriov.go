@@ -14,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -70,17 +69,27 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	err = s.Cluster.InstanceList(&filter, func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
 		// Expand configs so we take into account profile devices.
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
-		dbInst.Devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(dbInst.Devices), profiles).CloneNative()
+		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
+		// converting back and forth between API and db Device types.
+		for _, p := range profiles {
+			devices, err := db.APIToDevices(p.Devices)
+			if err != nil {
+				return fmt.Errorf("Failed to expand devices: %w", err)
+			}
+			for _, device := range devices {
+				dbInst.Devices[device.Name] = device
+			}
+		}
 
-		for devName, devConfig := range dbInst.Devices {
+		for _, dev := range dbInst.Devices {
 			// If device references a parent host interface name, mark that as reserved.
-			parent := devConfig["parent"]
+			parent := dev.Config["parent"]
 			if parent != "" {
 				reservedDevices[parent] = struct{}{}
 			}
 
 			// If device references a volatile host interface name, mark that as reserved.
-			hostName := dbInst.Config[fmt.Sprintf("volatile.%s.host_name", devName)]
+			hostName := dbInst.Config[fmt.Sprintf("volatile.%s.host_name", dev.Name)]
 			if hostName != "" {
 				reservedDevices[hostName] = struct{}{}
 			}

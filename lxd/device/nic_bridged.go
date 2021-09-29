@@ -296,8 +296,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 				return nil // Managed bridge networks can only exist in default project.
 			}
 
-			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
-
+			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
 			// Iterate through each of the instance's devices, looking for NICs that are linked to
 			// the same network, on the same cluster member as this NIC and have matching static IPs.
 			for devName, devConfig := range devices {
