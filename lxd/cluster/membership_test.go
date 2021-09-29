@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
@@ -279,7 +280,7 @@ func TestJoin(t *testing.T) {
 	targetDialFunc := targetGateway.DialFunc()
 
 	var err error
-	targetState.Cluster, err = db.OpenCluster("db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, nil, driver.WithDialFunc(targetDialFunc))
+	targetState.Cluster, err = db.OpenCluster(context.Background(), "db.bin", targetStore, targetAddress, "/unused/db/dir", 10*time.Second, nil, driver.WithDialFunc(targetDialFunc))
 	targetState.ServerCert = func() *shared.CertInfo { return targetCert }
 	require.NoError(t, err)
 
@@ -314,7 +315,7 @@ func TestJoin(t *testing.T) {
 	store := gateway.NodeStore()
 	dialFunc := gateway.DialFunc()
 
-	state.Cluster, err = db.OpenCluster("db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dialFunc))
+	state.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dialFunc))
 	require.NoError(t, err)
 
 	f := &membershipFixtures{t: t, state: state}

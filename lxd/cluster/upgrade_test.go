@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"context"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
@@ -153,9 +154,7 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	require.NoError(t, state.Cluster.Close())
 	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
-	state.Cluster, err = db.OpenCluster(
-		"db.bin", store, address, "/unused/db/dir", 5*time.Second, nil,
-		driver.WithDialFunc(dial))
+	state.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dial))
 	require.NoError(t, err)
 	gateway.Cluster = state.Cluster
 
