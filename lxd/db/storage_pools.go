@@ -141,12 +141,12 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 	}
 
 	for _, profile := range profiles {
-		for _, v := range profile.Devices {
-			if v["type"] != "disk" {
+		for _, device := range profile.Devices {
+			if device.Type != TypeDisk {
 				continue
 			}
 
-			if v["pool"] != name {
+			if device.Config["pool"] != name {
 				continue
 			}
 

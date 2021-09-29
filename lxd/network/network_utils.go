@@ -70,7 +70,7 @@ func RandomDevName(prefix string) string {
 func usedByInstanceDevices(s *state.State, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
 	return s.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
 		// Look for NIC devices using this network.
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
 		for devName, devConfig := range devices {
 			if isInUseByDevice(networkName, devConfig) {
 				err := usageFunc(inst, devName, devConfig)
@@ -144,7 +144,7 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 // usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
 func usedByProfileDevices(s *state.State, profile db.Profile, networkName string) (bool, error) {
-	for _, d := range deviceConfig.NewDevices(profile.Devices) {
+	for _, d := range deviceConfig.NewDevices(db.DevicesToAPI(profile.Devices)) {
 		if isInUseByDevice(networkName, d) {
 			return true, nil
 		}

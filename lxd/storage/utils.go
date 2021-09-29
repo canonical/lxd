@@ -649,17 +649,17 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 
 		// Iterate through each of the profiles's devices, looking for disks in the same pool as volume.
 		// Then try and match the volume name against the profile device's "source" property.
-		for devName, dev := range profile.Devices {
-			if dev["type"] != "disk" {
+		for _, dev := range profile.Devices {
+			if dev.Type != db.TypeDisk {
 				continue
 			}
 
-			if dev["pool"] != poolName {
+			if dev.Config["pool"] != poolName {
 				continue
 			}
 
-			if dev["source"] == vol.Name {
-				usedByDevices = append(usedByDevices, devName)
+			if dev.Config["source"] == vol.Name {
+				usedByDevices = append(usedByDevices, dev.Name)
 			}
 		}
 
@@ -706,11 +706,11 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 		}
 
 		// Use local devices for usage check by if expandDevices is false (but don't modify instance).
-		devices := inst.Devices
+		devices := db.DevicesToAPI(inst.Devices)
 
 		// Expand devices for usage check if expandDevices is true.
 		if expandDevices {
-			devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles).CloneNative()
+			devices = db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles).CloneNative()
 		}
 
 		var usedByDevices []string

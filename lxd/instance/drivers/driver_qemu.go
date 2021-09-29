@@ -3997,7 +3997,13 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		object.ExpiryDate = sql.NullTime{Time: d.expiryDate, Valid: true}
 		object.Config = d.localConfig
 		object.Profiles = d.profiles
-		object.Devices = d.localDevices.CloneNative()
+
+		devices, err := db.APIToDevices(d.localDevices.CloneNative())
+		if err != nil {
+			return err
+		}
+
+		object.Devices = devices
 
 		return tx.UpdateInstance(d.project, d.name, *object)
 	})

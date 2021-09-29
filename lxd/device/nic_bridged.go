@@ -258,7 +258,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		err := d.state.Cluster.InstanceList(&filter, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
-			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+			devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
 
 			// Iterate through each of the instance's devices, looking for NICs that are linked to
 			// the same network, on the same cluster member as this NIC and have matching static IPs.
