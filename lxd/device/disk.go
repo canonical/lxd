@@ -1466,7 +1466,7 @@ func (d *disk) postStop() error {
 		}
 
 		_, err = pool.UnmountCustomVolume(storageProjectName, d.config["source"], nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, storageDrivers.ErrInUse) {
 			return err
 		}
 	}
