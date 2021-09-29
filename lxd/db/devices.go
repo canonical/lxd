@@ -3,7 +3,9 @@
 
 package db
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Code generation directives.
 //
@@ -108,4 +110,40 @@ func NewDeviceType(t string) (DeviceType, error) {
 	default:
 		return -1, fmt.Errorf("Invalid device type %s", t)
 	}
+}
+
+// DevicesToAPI takes a map of devices and converts them to API format
+func DevicesToAPI(devices map[string]Device) map[string]map[string]string {
+	config := map[string]map[string]string{}
+	for _, d := range devices {
+		if d.Config == nil {
+			d.Config = map[string]string{}
+		}
+
+		config[d.Name] = d.Config
+		config[d.Name]["type"] = d.Type.String()
+	}
+
+	return config
+}
+
+// APIToDevices takes an API format devices map and converts it to a map of db.Device.
+func APIToDevices(apiDevices map[string]map[string]string) (map[string]Device, error) {
+	devices := map[string]Device{}
+	for name, config := range apiDevices {
+		newType, err := NewDeviceType(config["type"])
+		if err != nil {
+			return nil, err
+		}
+
+		device := Device{
+			Name:   name,
+			Type:   newType,
+			Config: config,
+		}
+
+		devices[name] = device
+	}
+
+	return devices, nil
 }
