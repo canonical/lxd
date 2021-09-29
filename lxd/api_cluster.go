@@ -2056,6 +2056,8 @@ func handoverMemberRole(d *Daemon) error {
 		return nil
 	}
 
+	logger.Info("Handing over cluster member role")
+
 	// Figure out our own cluster address.
 	address, err := node.ClusterAddress(d.db)
 	if err != nil {
