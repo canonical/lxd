@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -53,8 +54,7 @@ var operationWebsocket = APIEndpoint{
 
 // waitForOperations waits for operations to finish. There's a timeout for console/exec operations
 // that when reached will shut down the instances forcefully.
-// It also watches the cancel channel, and will return if it receives data.
-func waitForOperations(s *state.State, chCancel chan struct{}) {
+func waitForOperations(ctx context.Context, s *state.State) {
 	var timeout <-chan time.Time
 	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
@@ -127,7 +127,7 @@ func waitForOperations(s *state.State, chCancel chan struct{}) {
 		case <-logTick:
 			// Print log message every minute.
 			logger.Infof("Waiting for %d operation(s) to finish", runningOps)
-		case <-chCancel:
+		case <-ctx.Done():
 			// Return here, and ignore any running operations.
 			logger.Info("Forcing shutdown, ignoring running operations")
 			return
