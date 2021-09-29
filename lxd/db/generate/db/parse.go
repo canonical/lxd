@@ -309,8 +309,21 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 	// Ignore fields that are marked with `db:"omit"`.
 	if omit := config.Get("omit"); omit != "" {
 		omitFields := strings.Split(omit, ",")
-		kind = strings.Replace(lex.Snake(kind), "_", "-", -1)
-		if shared.StringInSlice(kind, omitFields) {
+		stmtKind := strings.Replace(lex.Snake(kind), "_", "-", -1)
+		switch kind {
+		case "URIs":
+			stmtKind = "names"
+		case "GetMany":
+			stmtKind = "objects"
+		case "GetOne":
+			stmtKind = "objects"
+		case "DeleteMany":
+			stmtKind = "delete"
+		case "DeleteOne":
+			stmtKind = "delete"
+		}
+
+		if shared.StringInSlice(kind, omitFields) || shared.StringInSlice(stmtKind, omitFields) {
 			return nil, nil
 		} else if kind == "exists" && shared.StringInSlice("id", omitFields) {
 			// Exists checks ID, so if we are omitting the field from ID, also omit it from Exists.
