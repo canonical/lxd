@@ -2088,6 +2088,8 @@ test_clustering_handover() {
   ns1="${prefix}1"
   spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
 
+  echo "Launched member 1"
+
   # Add a newline at the end of each line. YAML as weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
@@ -2098,12 +2100,16 @@ test_clustering_handover() {
   ns2="${prefix}2"
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
+  echo "Launched member 2"
+
   # Spawn a third node
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  echo "Launched member 3"
 
   # Spawn a fourth node, this will be a non-voter, stand-by node.
   setup_clustering_netns 4
@@ -2112,14 +2118,15 @@ test_clustering_handover() {
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
+  echo "Launched member 4"
+
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
-  # Wait some time to possibly allow for a leadership change.
-  sleep 10
+  echo "Stopped member 1"
 
   # The fourth node has been promoted, while the first one demoted.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
@@ -2132,17 +2139,20 @@ test_clustering_handover() {
   # Even if we shutdown one more node, the cluster is still available.
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
 
-  # Wait some time to possibly allow for a leadership change.
-  sleep 10
+  echo "Stopped member 2"
 
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
 
   # Respawn the first node, which is now a spare, and the second node, which
   # is still a voter.
+  echo "Respawning cluster members 1 and 2..."
   respawn_lxd_cluster_member "${ns1}" "${LXD_ONE_DIR}"
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
 
+  echo "Started members 1 and 2"
+
   # Shutdown two voters concurrently.
+  echo "Shutting down cluster members 2 and 3..."
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown &
   pid1="$!"
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown &
@@ -2150,9 +2160,15 @@ test_clustering_handover() {
 
   wait "$pid1"
   wait "$pid2"
+  echo "Cluster members 2 and 3 stopped..."
+
+  echo "Stopped members 2 and 3"
 
   # Bringing back one of them restore the quorum.
+  echo "Respawning cluster member 2..."
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
+
+  echo "Started member 2"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
 
