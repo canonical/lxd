@@ -1979,10 +1979,7 @@ findLeader:
 		return err
 	}
 	if leader == "" {
-		// Give up.
-		//
-		// TODO: retry a few times?
-		return nil
+		return fmt.Errorf("No leader address found")
 	}
 
 	if leader == address {
