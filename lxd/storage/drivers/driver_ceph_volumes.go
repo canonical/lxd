@@ -1140,7 +1140,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 		mountPath := vol.MountPath()
 		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
@@ -1148,7 +1148,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 			if err != nil {
 				return false, err
 			}
-			d.logger.Debug("Unmounted RBD volume", log.Ctx{"path": mountPath, "keepBlockDev": keepBlockDev})
+			d.logger.Debug("Unmounted RBD volume", log.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
 
 			// Attempt to unmap.
 			if !keepBlockDev {
@@ -1175,7 +1175,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 			_, devPath, _ := d.getRBDMappedDevPath(vol, false)
 			if devPath != "" && shared.PathExists(devPath) {
 				if refCount > 0 {
-					d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+					d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
 					return false, ErrInUse
 				}
 

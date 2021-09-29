@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -365,7 +366,7 @@ func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Ope
 
 	refCount := vol.MountRefCountDecrement()
 	if refCount > 0 {
-		d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+		d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
 		return false, ErrInUse
 	}
 
