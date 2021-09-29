@@ -1082,13 +1082,13 @@ func (d *Daemon) init() error {
 
 		d.cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, dump, options...)
 		if err == nil {
+			logger.Info("Initialized global database")
 			break
-		}
-		// If some other nodes have schema or API versions less recent
-		// than this node, we block until we receive a notification
-		// from the last node being upgraded that everything should be
-		// now fine, and then retry
-		if err == db.ErrSomeNodesAreBehind {
+		} else if errors.Is(err, db.ErrSomeNodesAreBehind) {
+			// If some other nodes have schema or API versions less recent
+			// than this node, we block until we receive a notification
+			// from the last node being upgraded that everything should be
+			// now fine, and then retry
 			logger.Warn("Wait for other cluster nodes to upgrade their versions, cluster not started yet")
 
 			// The only thing we want to still do on this node is
@@ -1107,7 +1107,8 @@ func (d *Daemon) init() error {
 
 			continue
 		}
-		return errors.Wrap(err, "Failed to open cluster database")
+
+		return errors.Wrap(err, "Failed to initialize global database")
 	}
 
 	d.firewall = firewall.New()
