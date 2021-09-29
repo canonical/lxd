@@ -1233,7 +1233,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		mountPath := vol.MountPath()
 		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
@@ -1243,7 +1243,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 				return false, err
 			}
 
-			d.logger.Debug("Unmounted ZFS dataset", log.Ctx{"dev": dataset, "path": mountPath})
+			d.logger.Debug("Unmounted ZFS dataset", log.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
 			ourUnmount = true
 		}
 	} else if vol.contentType == ContentTypeBlock {
@@ -1265,7 +1265,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 			if current == "dev" {
 				if refCount > 0 {
-					d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+					d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
 					return false, ErrInUse
 				}
 
@@ -1284,7 +1284,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 					}
 
 					if !shared.PathExists(devPath) {
-						d.logger.Debug("Deactivated ZFS volume", log.Ctx{"dev": dataset})
+						d.logger.Debug("Deactivated ZFS volume", log.Ctx{"volName": vol.name, "dev": dataset})
 						break
 					}
 
@@ -1292,7 +1292,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 						return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
 					}
 
-					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"dev": dataset})
+					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"volName": vol.name, "dev": dataset})
 					time.Sleep(time.Millisecond * time.Duration(500))
 				}
 

@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -353,6 +354,7 @@ func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) error {
 	unlock := vol.MountLock()
 	defer unlock()
 
+	vol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolume() when done.
 	return nil
 }
 
@@ -361,6 +363,12 @@ func (d *cephfs) MountVolume(vol Volume, op *operations.Operation) error {
 func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operation) (bool, error) {
 	unlock := vol.MountLock()
 	defer unlock()
+
+	refCount := vol.MountRefCountDecrement()
+	if refCount > 0 {
+		d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+		return false, ErrInUse
+	}
 
 	return false, nil
 }
