@@ -18,6 +18,7 @@ gic-version = "max"
 {{end -}}
 {{if eq .architecture "ppc64le" -}}
 type = "pseries"
+cap-large-decr = "off"
 {{end -}}
 {{if eq .architecture "s390x" -}}
 type = "s390-ccw-virtio"
