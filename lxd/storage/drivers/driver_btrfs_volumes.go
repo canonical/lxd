@@ -826,7 +826,12 @@ func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Oper
 	unlock := vol.MountLock()
 	defer unlock()
 
-	vol.MountRefCountDecrement()
+	refCount := vol.MountRefCountDecrement()
+	if refCount > 0 {
+		d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+		return false, ErrInUse
+	}
+
 	return false, nil
 }
 
