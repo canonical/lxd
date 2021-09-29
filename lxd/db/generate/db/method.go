@@ -83,7 +83,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 		return errors.Wrap(err, "Parse entity struct")
 	}
 
-	filters, ignoredFilters := FiltersFromStmt(m.packages["db"], "objects", m.entity, mapping.Filters)
+	filters, ignoredFilters := FiltersFromStmt(m.packages["db"], "names", m.entity, mapping.Filters)
 
 	if err := m.signature(buf, false); err != nil {
 		return err
