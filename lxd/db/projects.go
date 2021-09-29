@@ -176,17 +176,9 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 		return errors.Wrap(err, "Delete project config")
 	}
 
-	// Insert new config.
-	stmt = c.stmt(projectCreateConfigRef)
-	for key, value := range object.Config {
-		if value == "" {
-			continue
-		}
-
-		_, err := stmt.Exec(id, key, value)
-		if err != nil {
-			return errors.Wrap(err, "Insert config for project")
-		}
+	err = c.UpdateConfig("project", int(id), object.Config)
+	if err != nil {
+		return fmt.Errorf("Insert config for project: %w", err)
 	}
 
 	return nil
