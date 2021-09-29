@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/canonical/go-dqlite/app"
@@ -545,13 +546,25 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.C
 		nodes[i].ID = int64(raftNode.ID)
 		nodes[i].Address = raftNode.Address
 	}
+
 	hbState.Update(false, raftNodes, nodes, 0)
+
+	// Notify all other members of the change in membership.
+	var wg sync.WaitGroup
 	for _, node := range raftNodes {
 		if node.ID == id {
 			continue
 		}
-		go HeartbeatNode(context.Background(), node.Address, networkCert, serverCert, hbState)
+
+		wg.Add(1)
+		go func(address string) {
+			HeartbeatNode(context.Background(), address, networkCert, serverCert, hbState)
+			wg.Done()
+		}(node.Address)
 	}
+
+	// Wait until all members have been notified (or at least have had a change to be notified).
+	wg.Wait()
 }
 
 // Rebalance the raft cluster, trying to see if we have a spare online node
