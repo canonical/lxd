@@ -221,9 +221,7 @@ func (f *heartbeatFixture) node() (*state.State, *cluster.Gateway, string) {
 	require.NoError(f.t, state.Cluster.Close())
 	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
-	state.Cluster, err = db.OpenCluster(
-		"db.bin", store, address, "/unused/db/dir", 5*time.Second, nil,
-		driver.WithDialFunc(dial))
+	state.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dial))
 	require.NoError(f.t, err)
 
 	f.gateways[len(f.gateways)] = gateway
