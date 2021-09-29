@@ -59,7 +59,7 @@ func ProfileToAPI(profile *Profile) *api.Profile {
 	}
 	p.Description = profile.Description
 	p.Config = profile.Config
-	p.Devices = profile.Devices
+	p.Devices = DevicesToAPI(profile.Devices)
 
 	return p
 }
