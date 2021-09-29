@@ -37,10 +37,10 @@ test_container_devices_nic_macvlan() {
   lxc exec "${ctName}2" -- ip addr add "2001:db8::2${ipRand}/64" dev eth0
 
   # Check comms between containers.
-  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::2${ipRand}"
-  lxc exec "${ctName}2" -- ping -c2 -W1 "192.0.2.1${ipRand}"
-  lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::1${ipRand}"
+  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
+  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1${ipRand}"
 
   # Test hot plugging a container nic with different settings to profile with the same name.
   lxc config device add "${ctName}" eth0 nic \
