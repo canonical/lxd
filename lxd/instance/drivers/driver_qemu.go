@@ -5771,7 +5771,7 @@ func (d *qemu) Metrics() (*metrics.MetricSet, error) {
 		return nil, err
 	}
 
-	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project, "name": d.name})
+	metricSet, err := metrics.MetricSetFromAPI(&m, map[string]string{"project": d.project, "name": d.name, "type": instancetype.VM.String()})
 	if err != nil {
 		return nil, err
 	}
