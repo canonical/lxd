@@ -350,7 +350,12 @@ func (d *dir) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 	unlock := vol.MountLock()
 	defer unlock()
 
-	vol.MountRefCountDecrement()
+	refCount := vol.MountRefCountDecrement()
+	if refCount > 0 {
+		d.logger.Debug("Skipping unmount as in use", "refCount", refCount)
+		return false, ErrInUse
+	}
+
 	return false, nil
 }
 
