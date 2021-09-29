@@ -1080,10 +1080,7 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteclient.LogDebug))
 		}
 
-		d.cluster, err = db.OpenCluster(
-			"db.bin", store, clusterAddress, dir,
-			d.config.DqliteSetupTimeout, dump, options...,
-		)
+		d.cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, dump, options...)
 		if err == nil {
 			break
 		}
