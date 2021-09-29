@@ -56,9 +56,7 @@ func TestImportPreClusteringData(t *testing.T) {
 		return net.Dial("unix", address)
 	}
 
-	cluster, err := db.OpenCluster(
-		"test.db", store, "1", dir, 5*time.Second, dump,
-		driver.WithDialFunc(dial))
+	cluster, err := db.OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, dump, driver.WithDialFunc(dial))
 	require.NoError(t, err)
 	defer cluster.Close()
 
