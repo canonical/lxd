@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
@@ -214,10 +216,7 @@ func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
 
 func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	// Check that we're not shutting down.
-	var isClosing bool
-	d.clusterMembershipMutex.RLock()
-	isClosing = d.clusterMembershipClosing
-	d.clusterMembershipMutex.RUnlock()
+	isClosing := d.shutdownCtx.Err() != nil
 	if isClosing {
 		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
 	}
