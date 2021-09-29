@@ -50,6 +50,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/sys"
@@ -106,20 +107,17 @@ type Daemon struct {
 
 	// Serialize changes to cluster membership (joins, leaves, role
 	// changes).
-	clusterMembershipMutex   sync.RWMutex
-	clusterMembershipClosing bool // Prevent further rebalances
+	clusterMembershipMutex sync.RWMutex
 
 	serverCert    func() *shared.CertInfo
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
 	// Status control.
-	setupChan          chan struct{}      // Closed when basic Daemon setup is completed
-	readyChan          chan struct{}      // Closed when LXD is fully ready
-	shutdownChan       chan struct{}      // Shutdown requests arrive here
-	shutdownCtx        context.Context    // Closed when shutdown starts.
-	shutdownCancel     context.CancelFunc // Closes the shutdownCtx to indicate shutdown starting.
-	shutdownDoneCtx    context.Context    // Closed when shutdown completes
-	shutdownDoneCancel context.CancelFunc // Closes the shutdownDoneCtx to indicate shutdown has finished.
+	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
+	readyChan      chan struct{}      // Closed when LXD is fully ready
+	shutdownCtx    context.Context    // Cancelled when shutdown starts.
+	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
+	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
 
 	// Stores the time the metrics were last fetched. This will be used to prevent stressing the instances too much.
 	metricsLastBuildTime time.Time
@@ -178,22 +176,19 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
-	shutdownDoneCtx, shutdownDoneCancel := context.WithCancel(context.Background())
-	shutdownCtx, shutdownCancel := context.WithCancel(shutdownDoneCtx)
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	d := &Daemon{
-		clientCerts:        &certificateCache{},
-		config:             config,
-		devlxdEvents:       devlxdEvents,
-		events:             lxdEvents,
-		os:                 os,
-		setupChan:          make(chan struct{}),
-		readyChan:          make(chan struct{}),
-		shutdownChan:       make(chan struct{}),
-		shutdownCtx:        shutdownCtx,
-		shutdownCancel:     shutdownCancel,
-		shutdownDoneCtx:    shutdownDoneCtx,
-		shutdownDoneCancel: shutdownDoneCancel,
+		clientCerts:    &certificateCache{},
+		config:         config,
+		devlxdEvents:   devlxdEvents,
+		events:         lxdEvents,
+		os:             os,
+		setupChan:      make(chan struct{}),
+		readyChan:      make(chan struct{}),
+		shutdownCtx:    shutdownCtx,
+		shutdownCancel: shutdownCancel,
+		shutdownDoneCh: make(chan error),
 	}
 
 	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
