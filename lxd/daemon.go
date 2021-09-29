@@ -813,6 +813,7 @@ func (d *Daemon) init() error {
 		"devpts_fd",
 		"seccomp_proxy_send_notify_fd",
 		"idmapped_mounts_v2",
+		"core_scheduling",
 	}
 	for _, extension := range lxcExtensions {
 		d.os.LXCFeatures[extension] = liblxc.HasApiExtension(extension)
@@ -841,6 +842,13 @@ func (d *Daemon) init() error {
 		logger.Info(" - pidfds: yes")
 	} else {
 		logger.Info(" - pidfds: no")
+	}
+
+	if d.os.LXCFeatures["core_scheduling"] {
+		d.os.CoreScheduling = true
+		logger.Info(" - core scheduling: yes")
+	} else {
+		logger.Info(" - core scheduling: no")
 	}
 
 	d.os.UeventInjection = canUseUeventInjection()
