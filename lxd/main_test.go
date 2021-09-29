@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sys/unix"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
@@ -98,7 +100,7 @@ func (suite *lxdTestSuite) SetupTest() {
 }
 
 func (suite *lxdTestSuite) TearDownTest() {
-	err := suite.d.Stop()
+	err := suite.d.Stop(context.Background(), unix.SIGQUIT)
 	if err != nil {
 		suite.T().Errorf("failed to stop daemon: %v", err)
 	}
