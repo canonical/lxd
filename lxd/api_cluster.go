@@ -682,6 +682,8 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 // Disable clustering on a node.
 func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
+	logger.Info("Disabling clustering on local member")
+
 	// Close the cluster database
 	err := d.cluster.Close()
 	if err != nil {
