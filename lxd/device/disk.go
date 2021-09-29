@@ -803,7 +803,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			}
 
 			err := d.applyQuota(false)
-			if err == storageDrivers.ErrInUse {
+			if errors.Is(err, storageDrivers.ErrInUse) {
 				// Save volatile apply_quota key for next boot if cannot apply now.
 				err = d.volatileSet(map[string]string{"apply_quota": "true"})
 				if err != nil {
