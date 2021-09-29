@@ -4,6 +4,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -135,12 +137,11 @@ func (n *Node) Begin() (*sql.Tx, error) {
 
 // Cluster mediates access to LXD's data stored in the cluster dqlite database.
 type Cluster struct {
-	db        *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
-	nodeID    int64   // Node ID of this LXD instance.
-	mu        sync.RWMutex
-	stmts     map[int]*sql.Stmt // Prepared statements by code.
-	closing   bool              // True when daemon is shutting down, prevents retries
-	clusterMu sync.Mutex
+	db         *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
+	nodeID     int64   // Node ID of this LXD instance.
+	mu         sync.RWMutex
+	stmts      map[int]*sql.Stmt // Prepared statements by code.
+	closingCtx context.Context
 }
 
 // OpenCluster creates a new Cluster object for interacting with the dqlite
@@ -157,10 +158,11 @@ type Cluster struct {
 // database matches our version, and possibly trigger a schema update. If the
 // schema update can't be performed right now, because some nodes are still
 // behind, an Upgrading error is returned.
-func OpenCluster(name string, store driver.NodeStore, address, dir string, timeout time.Duration, dump *Dump, options ...driver.Option) (*Cluster, error) {
+// Accepts a closingCtx context argument used to indicate when the daemon is shutting down.
+func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, dump *Dump, options ...driver.Option) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to open database")
+		return nil, errors.Wrap(err, "Failed to open database")
 	}
 
 	db.SetMaxOpenConns(1)
@@ -174,7 +176,7 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 		// level after the 5'th attempt (about 10 seconds).
 		// After the 15'th attempt (about 30 seconds), log
 		// only one attempt every 5.
-		logPriority := 1 // 0 is discard, 1 is Debug, 2 is Warn
+		logPriority := 1 // 0 is discard, 1 is Debug, 2 is Error
 		if i > 5 {
 			logPriority = 2
 			if i > 15 && !((i % 5) == 0) {
@@ -192,17 +194,21 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 			return nil, err
 		}
 
+		logCtx := log.Ctx{"err": err, "attempt": i}
+
 		switch logPriority {
 		case 1:
-			logger.Debugf("Failed connecting to global database (attempt %d): %v", i, err)
+			logger.Debug("Failed connecting to global database", logCtx)
 		case 2:
-			logger.Warnf("Failed connecting to global database (attempt %d): %v", i, err)
+			logger.Error("Failed connecting to global database", logCtx)
 		}
 
 		time.Sleep(2 * time.Second)
 		select {
 		case <-timer:
-			return nil, fmt.Errorf("failed to connect to cluster database")
+			return nil, fmt.Errorf("Failed to connect to global database after %v", timeout)
+		case <-closingCtx.Done():
+			return nil, fmt.Errorf("Failed to connect to global database: %w", closingCtx.Err())
 		default:
 		}
 	}
@@ -244,8 +250,9 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 
 	if !nodesVersionsMatch {
 		cluster := &Cluster{
-			db:    db,
-			stmts: map[int]*sql.Stmt{},
+			db:         db,
+			stmts:      map[int]*sql.Stmt{},
+			closingCtx: closingCtx,
 		}
 
 		return cluster, ErrSomeNodesAreBehind
@@ -257,8 +264,9 @@ func OpenCluster(name string, store driver.NodeStore, address, dir string, timeo
 	}
 
 	cluster := &Cluster{
-		db:    db,
-		stmts: stmts,
+		db:         db,
+		stmts:      stmts,
+		closingCtx: closingCtx,
 	}
 
 	err = cluster.Transaction(func(tx *ClusterTx) error {
@@ -311,7 +319,10 @@ var ErrSomeNodesAreBehind = fmt.Errorf("some nodes are behind this node's versio
 // sets the db-related Deamon attributes upfront, to be backward compatible
 // with the legacy patches that need to interact with the database.
 func ForLocalInspection(db *sql.DB) *Cluster {
-	return &Cluster{db: db}
+	return &Cluster{
+		db:         db,
+		closingCtx: context.Background(),
+	}
 }
 
 // ForLocalInspectionWithPreparedStmts is the same as ForLocalInspection but it
@@ -327,14 +338,6 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 	c.stmts = stmts
 
 	return c, nil
-}
-
-// Kill should be called upon shutdown, it will prevent retrying failed
-// database queries.
-func (c *Cluster) Kill() {
-	c.clusterMu.Lock()
-	c.closing = true
-	c.clusterMu.Unlock()
 }
 
 // GetNodeID returns the current nodeID (0 if not set)
@@ -398,13 +401,10 @@ func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 }
 
 func (c *Cluster) retry(f func() error) error {
-	c.clusterMu.Lock()
-	closing := c.closing
-	c.clusterMu.Unlock()
-
-	if closing {
+	if c.closingCtx.Err() != nil {
 		return f()
 	}
+
 	return query.Retry(f)
 }
 
