@@ -1854,7 +1854,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
 func rebalanceMemberRoles(d *Daemon, r *http.Request) error {
-	if d.clusterMembershipClosing {
+	if d.shutdownCtx.Err() != nil {
 		return nil
 	}
 
@@ -1899,6 +1899,10 @@ again:
 // Check if there are nodes not part of the raft configuration and add them in
 // case.
 func upgradeNodesWithoutRaftRole(d *Daemon) error {
+	if d.shutdownCtx.Err() != nil {
+		return nil
+	}
+
 	var allNodes []db.NodeInfo
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
