@@ -676,6 +676,7 @@ func setupSharedMounts() error {
 	return nil
 }
 
+// Init starts daemon process.
 func (d *Daemon) Init() error {
 	err := d.init()
 
@@ -683,11 +684,12 @@ func (d *Daemon) Init() error {
 	// cleanup any state we produced so far. Errors happening here will be
 	// ignored.
 	if err != nil {
-		logger.Errorf("Failed to start the daemon: %v", err)
-		d.Stop()
+		logger.Error("Failed to start the daemon", log.Ctx{"err": err})
+		d.Stop(context.Background(), unix.SIGPWR)
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (d *Daemon) init() error {
@@ -1354,26 +1356,83 @@ func (d *Daemon) numRunningInstances() (int, error) {
 	return count, nil
 }
 
-// Kill signals the daemon that we want to shutdown, and that any work
-// initiated from this point (e.g. database queries over gRPC) should not be
-// retried in case of failure.
-func (d *Daemon) Kill() {
+// Stop stops the shared daemon.
+func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
+	logger.Info("Starting shutdown sequence")
+
+	// Cancelling the context will make everyone aware that we're shutting down.
+	d.shutdownCancel()
+
 	if d.gateway != nil {
-		d.clusterMembershipMutex.Lock()
-		d.clusterMembershipClosing = true
-		d.clusterMembershipMutex.Unlock()
 		err := handoverMemberRole(d)
 		if err != nil {
-			logger.Warnf("Could not handover member's responsibilities: %v", err)
+			logger.Warn("Could not handover member's responsibilities", log.Ctx{"err": err})
+			d.gateway.Kill()
 		}
-		d.gateway.Kill()
-		d.cluster.Kill()
 	}
-}
 
-// Stop stops the shared daemon.
-func (d *Daemon) Stop() error {
-	logger.Info("Starting shutdown sequence")
+	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
+	if sig == unix.SIGPWR || sig == unix.SIGTERM {
+		s := d.State()
+
+		// waitForOperations will block until all operations are done, or it's forced to shut down.
+		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
+		// initiated using `lxd shutdown`.
+		logger.Info("Waiting for operations to finish")
+		waitForOperations(ctx, s)
+
+		// Unmount daemon image and backup volumes if set.
+		logger.Info("Stopping daemon storage volumes")
+		done := make(chan struct{})
+		go func() {
+			err := daemonStorageVolumesUnmount(s)
+			if err != nil {
+				logger.Error("Failed to unmount image and backup volumes", log.Ctx{"err": err})
+			}
+
+			done <- struct{}{}
+		}()
+
+		// Only wait 60 seconds in case the storage backend is unreachable.
+		select {
+		case <-time.After(time.Minute):
+			logger.Error("Timed out waiting for image and backup volume")
+		case <-done:
+		}
+
+		// Full shutdown requested.
+		if sig == unix.SIGPWR {
+			logger.Info("Stopping instances")
+			instancesShutdown(s)
+
+			logger.Info("Stopping networks")
+			networkShutdown(s)
+
+			// Unmount storage pools after instances stopped.
+			logger.Info("Stopping storage pools")
+			pools, err := s.Cluster.GetStoragePoolNames()
+			if err != nil && err != db.ErrNoSuchObject {
+				logger.Error("Failed to get storage pools", log.Ctx{"err": err})
+			}
+
+			for _, poolName := range pools {
+				pool, err := storagePools.GetPoolByName(s, poolName)
+				if err != nil {
+					logger.Error("Failed to get storage pool", log.Ctx{"pool": poolName, "err": err})
+					continue
+				}
+
+				_, err = pool.Unmount()
+				if err != nil {
+					logger.Error("Unable to unmount storage pool", log.Ctx{"pool": poolName, "err": err})
+					continue
+				}
+			}
+		}
+	}
+
+	d.gateway.Kill()
+
 	errs := []error{}
 	trackError := func(err error, desc string) {
 		if err != nil {
@@ -1437,8 +1496,7 @@ func (d *Daemon) Stop() error {
 
 		logger.Infof("Done unmounting temporary filesystems")
 	} else {
-		logger.Debugf(
-			"Not unmounting temporary filesystems (containers are still running)")
+		logger.Debugf("Not unmounting temporary filesystems (containers are still running)")
 	}
 
 	if d.seccomp != nil {
@@ -1456,6 +1514,7 @@ func (d *Daemon) Stop() error {
 	if err != nil {
 		logger.Errorf("Failed to cleanly shutdown daemon: %v", err)
 	}
+
 	return err
 }
 
@@ -1784,9 +1843,6 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 				time.Sleep(5 * time.Second)
 				d.clusterMembershipMutex.Lock()
 				defer d.clusterMembershipMutex.Unlock()
-				if d.clusterMembershipClosing {
-					return
-				}
 				err := rebalanceMemberRoles(d, nil)
 				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 					logger.Warnf("Could not rebalance cluster member roles: %v", err)
