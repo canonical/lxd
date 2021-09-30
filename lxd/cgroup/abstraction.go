@@ -847,9 +847,10 @@ func (cg *CGroup) GetIOStats() (map[string]*IOStats, error) {
 				readsCompleted  uint64
 				writtenBytes    uint64
 				writesCompleted uint64
+				discardBytes    uint64
 			)
 
-			_, err = fmt.Sscanf(scanner.Text(), "%s rbytes=%d wbytes=%d rios=%d wios=%d dbytes=%d", &devID, readBytes, writtenBytes, readsCompleted, writesCompleted)
+			_, err = fmt.Sscanf(scanner.Text(), "%s rbytes=%d wbytes=%d rios=%d wios=%d dbytes=%d", &devID, &readBytes, &writtenBytes, &readsCompleted, &writesCompleted, &discardBytes)
 			if err != nil {
 				return nil, err
 			}
