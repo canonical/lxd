@@ -1905,7 +1905,6 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 			if node.RaftID == 0 {
 				hasNodesNotPartOfRaft = true
 			}
-
 		}
 
 		nodeListChanged := d.hasNodeListChanged(heartbeatData)
