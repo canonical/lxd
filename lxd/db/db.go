@@ -185,19 +185,17 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			}
 		}
 
+		logger.Info("Connecting to global database")
 		pingCtx, pingCancel := context.WithTimeout(connectCtx, time.Second*5)
 		err = db.PingContext(pingCtx)
 		pingCancel()
-		if err == nil {
+		logCtx := log.Ctx{"err": err, "attempt": i}
+		if err != nil && !errors.Is(err, driver.ErrNoAvailableLeader) {
+			return nil, err
+		} else if err == nil {
+			logger.Info("Connected to global database")
 			break
 		}
-
-		cause := errors.Cause(err)
-		if cause != driver.ErrNoAvailableLeader {
-			return nil, err
-		}
-
-		logCtx := log.Ctx{"err": err, "attempt": i}
 
 		switch logPriority {
 		case 1:
@@ -208,7 +206,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 		select {
 		case <-connectCtx.Done():
-			return nil, fmt.Errorf("Failed to connect to global database: %w", connectCtx.Err())
+			return nil, connectCtx.Err()
 		default:
 			time.Sleep(2 * time.Second)
 		}
