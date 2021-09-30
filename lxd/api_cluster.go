@@ -303,6 +303,8 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
+	logger.Info("Bootstrapping cluster", log.Ctx{"serverName": req.ServerName})
+
 	run := func(op *operations.Operation) error {
 		// Start clustering tasks
 		d.startClusterTasks()
@@ -364,6 +366,8 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 }
 
 func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
+	logger.Info("Joining cluster", log.Ctx{"serverName": req.ServerName})
+
 	// Make sure basic pre-conditions are met.
 	if len(req.ClusterCertificate) == 0 {
 		return response.BadRequest(fmt.Errorf("No target cluster member certificate provided"))
@@ -713,7 +717,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 // Disable clustering on a node.
 func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
-	logger.Info("Disabling clustering on local member")
+	logger.Info("Disabling clustering", log.Ctx{"serverName": req.ServerName})
 
 	// Close the cluster database
 	err := d.cluster.Close()
