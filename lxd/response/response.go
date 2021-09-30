@@ -439,3 +439,20 @@ func (r *forwardedResponse) Render(w http.ResponseWriter) error {
 func (r *forwardedResponse) String() string {
 	return fmt.Sprintf("request to %s", r.request.URL)
 }
+
+type manualResponse struct {
+	hook func(w http.ResponseWriter) error
+}
+
+// ManualResponse creates a new manual response responder.
+func ManualResponse(hook func(w http.ResponseWriter) error) Response {
+	return &manualResponse{hook: hook}
+}
+
+func (r *manualResponse) Render(w http.ResponseWriter) error {
+	return r.hook(w)
+}
+
+func (r *manualResponse) String() string {
+	return "unknown"
+}

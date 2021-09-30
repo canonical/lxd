@@ -103,7 +103,9 @@ teardown_clustering_netns() {
       echo "==> Teardown clustering netns ${ns}"
 
       veth1="v${ns}1"
-      ip link del "${veth1}"
+      if [ -e "/sys/class/net/${veth1}" ]; then
+        ip link del "${veth1}"
+      fi
 
       pid="$(cat "${TEST_DIR}/ns/${ns}/PID")"
       kill -9 "${pid}"

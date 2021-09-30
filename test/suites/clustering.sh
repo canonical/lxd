@@ -3004,7 +3004,7 @@ test_clustering_remove_leader() {
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
 
   # Remove the leader, via the stand-by node
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1 || true
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1
 
   # Ensure the remaining node is working
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -qv "node1"
@@ -3025,9 +3025,18 @@ test_clustering_remove_leader() {
   LXD_DIR="${LXD_THREE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
 
   # Clean up
+  daemon_pid1=$(cat "${LXD_ONE_DIR}/lxd.pid")
   shutdown_lxd "${LXD_ONE_DIR}"
+
+  daemon_pid2=$(cat "${LXD_TWO_DIR}/lxd.pid")
   shutdown_lxd "${LXD_TWO_DIR}"
+
+  daemon_pid3=$(cat "${LXD_THREE_DIR}/lxd.pid")
   shutdown_lxd "${LXD_THREE_DIR}"
+
+  wait "${daemon_pid1}"
+  wait "${daemon_pid2}"
+  wait "${daemon_pid3}"
 
   rm -f "${LXD_ONE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
