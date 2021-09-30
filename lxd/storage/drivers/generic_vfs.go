@@ -556,6 +556,18 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				}
 
 				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+
+				// Follow the target if mountPath is a symlink.
+				// Functions like filepath.Walk() won't list any directory content otherwise.
+				target, err := os.Readlink(mountPath)
+				if err == nil {
+					// Make sure the target is valid before return it.
+					_, err = os.Stat(target)
+					if err == nil {
+						mountPath = target
+					}
+				}
+
 				return filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
 					if err != nil {
 						if os.IsNotExist(err) {
