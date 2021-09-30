@@ -1461,20 +1461,16 @@ func (d *Daemon) Ready() error {
 	return nil
 }
 
-func (d *Daemon) numRunningInstances() (int, error) {
-	results, err := instance.LoadNodeAll(d.State(), instancetype.Any)
-	if err != nil {
-		return 0, err
-	}
-
+// numRunningInstances returns the number of running instances.
+func (d *Daemon) numRunningInstances(instances []instance.Instance) int {
 	count := 0
-	for _, instance := range results {
+	for _, instance := range instances {
 		if instance.IsRunning() {
 			count = count + 1
 		}
 	}
 
-	return count, nil
+	return count
 }
 
 // Stop stops the shared daemon.
