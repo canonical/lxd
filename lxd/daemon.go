@@ -1586,7 +1586,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		// it's likely that the other node shutdown. Let's just log the
 		// event and return cleanly.
 		if errors.Cause(err) == sqldriver.ErrBadConn {
-			logger.Debugf("Could not close remote database cleanly: %v", err)
+			logger.Debugf("Could not close remote database cleanly", log.Ctx{"err": err})
 		} else {
 			trackError(err, "Close cluster database")
 		}
@@ -1626,7 +1626,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		err = fmt.Errorf(format, errs[0])
 	}
 	if err != nil {
-		logger.Errorf("Failed to cleanly shutdown daemon: %v", err)
+		logger.Errorf("Failed to cleanly shutdown daemon", log.Ctx{"err": err})
 	}
 
 	return err
