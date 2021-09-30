@@ -253,7 +253,7 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 
 			// Only perform node refresh task if we have received a full state list from leader.
 			if !heartbeatData.FullStateList {
-				logger.Debugf("Partial node list heartbeat received, skipping full update")
+				logger.Info("Partial node list heartbeat received, skipping full update")
 				return
 			}
 
@@ -414,7 +414,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 		// leader is ourselves, and we were recently elected. In that case
 		// trigger a full heartbeat now: it will be a no-op if we aren't
 		// actually leaders.
-		logger.Debug("Triggering an out of schedule hearbeat", log.Ctx{"address": address})
+		logger.Info("Triggering an out of schedule hearbeat", log.Ctx{"address": address})
 		go g.heartbeat(g.ctx, hearbeatInitial)
 
 		return conn, nil
