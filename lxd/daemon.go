@@ -1252,6 +1252,8 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	logger.Info("Daemon started")
+
 	return nil
 }
 
