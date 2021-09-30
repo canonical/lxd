@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-28 16:20-0400\n"
+"POT-Creation-Date: 2021-09-30 16:08+0200\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -505,8 +505,7 @@ msgstr ""
 
 #: lxc/file.go:416
 #, fuzzy
-msgid ""
-"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr "Creazione del container in corso"
 
 #: lxc/image.go:623
@@ -5266,6 +5265,12 @@ msgstr ""
 #: lxc/image.go:1074
 msgid "yes"
 msgstr "si"
+
+#, fuzzy
+#~ msgid ""
+#~ "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
+#~ "<path>...]"
+#~ msgstr "Creazione del container in corso"
 
 #, fuzzy
 #~ msgid "[<remote>:] <hostname|fingerprint>"
