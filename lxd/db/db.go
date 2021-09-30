@@ -170,7 +170,8 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	// Test that the cluster database is operational. We wait up to the
 	// given timeout , in case there's no quorum of nodes online yet.
-	timer := time.After(timeout)
+	connectCtx, connectCancel := context.WithTimeout(closingCtx, timeout)
+	defer connectCancel()
 	for i := 0; ; i++ {
 		// Log initial attempts at debug level, but use warn
 		// level after the 5'th attempt (about 10 seconds).
@@ -184,7 +185,9 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			}
 		}
 
-		err = db.Ping()
+		pingCtx, pingCancel := context.WithTimeout(connectCtx, time.Second*5)
+		err = db.PingContext(pingCtx)
+		pingCancel()
 		if err == nil {
 			break
 		}
@@ -203,13 +206,11 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			logger.Error("Failed connecting to global database", logCtx)
 		}
 
-		time.Sleep(2 * time.Second)
 		select {
-		case <-timer:
-			return nil, fmt.Errorf("Failed to connect to global database after %v", timeout)
-		case <-closingCtx.Done():
-			return nil, fmt.Errorf("Failed to connect to global database: %w", closingCtx.Err())
+		case <-connectCtx.Done():
+			return nil, fmt.Errorf("Failed to connect to global database: %w", connectCtx.Err())
 		default:
+			time.Sleep(2 * time.Second)
 		}
 	}
 
