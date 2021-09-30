@@ -47,7 +47,7 @@ spawn_lxd() {
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
     echo "==> Confirming lxd is responsive"
-    LXD_DIR="${lxddir}" lxd waitready --timeout=300
+    LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (kill -9 "${LXD_PID}" ; false)
 
     if [ "${LXD_NETNS}" = "" ]; then
         echo "==> Binding to network"

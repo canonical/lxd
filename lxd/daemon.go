@@ -50,6 +50,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/sys"
@@ -106,20 +107,17 @@ type Daemon struct {
 
 	// Serialize changes to cluster membership (joins, leaves, role
 	// changes).
-	clusterMembershipMutex   sync.RWMutex
-	clusterMembershipClosing bool // Prevent further rebalances
+	clusterMembershipMutex sync.RWMutex
 
 	serverCert    func() *shared.CertInfo
 	serverCertInt *shared.CertInfo // Do not use this directly, use servertCert func.
 
 	// Status control.
-	setupChan          chan struct{}      // Closed when basic Daemon setup is completed
-	readyChan          chan struct{}      // Closed when LXD is fully ready
-	shutdownChan       chan struct{}      // Shutdown requests arrive here
-	shutdownCtx        context.Context    // Closed when shutdown starts.
-	shutdownCancel     context.CancelFunc // Closes the shutdownCtx to indicate shutdown starting.
-	shutdownDoneCtx    context.Context    // Closed when shutdown completes
-	shutdownDoneCancel context.CancelFunc // Closes the shutdownDoneCtx to indicate shutdown has finished.
+	setupChan      chan struct{}      // Closed when basic Daemon setup is completed
+	readyChan      chan struct{}      // Closed when LXD is fully ready
+	shutdownCtx    context.Context    // Cancelled when shutdown starts.
+	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
+	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
 
 	// Stores the time the metrics were last fetched. This will be used to prevent stressing the instances too much.
 	metricsLastBuildTime time.Time
@@ -178,22 +176,19 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
 	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
-	shutdownDoneCtx, shutdownDoneCancel := context.WithCancel(context.Background())
-	shutdownCtx, shutdownCancel := context.WithCancel(shutdownDoneCtx)
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	d := &Daemon{
-		clientCerts:        &certificateCache{},
-		config:             config,
-		devlxdEvents:       devlxdEvents,
-		events:             lxdEvents,
-		os:                 os,
-		setupChan:          make(chan struct{}),
-		readyChan:          make(chan struct{}),
-		shutdownChan:       make(chan struct{}),
-		shutdownCtx:        shutdownCtx,
-		shutdownCancel:     shutdownCancel,
-		shutdownDoneCtx:    shutdownDoneCtx,
-		shutdownDoneCancel: shutdownDoneCancel,
+		clientCerts:    &certificateCache{},
+		config:         config,
+		devlxdEvents:   devlxdEvents,
+		events:         lxdEvents,
+		os:             os,
+		setupChan:      make(chan struct{}),
+		readyChan:      make(chan struct{}),
+		shutdownCtx:    shutdownCtx,
+		shutdownCancel: shutdownCancel,
+		shutdownDoneCh: make(chan error),
 	}
 
 	d.serverCert = func() *shared.CertInfo { return d.serverCertInt }
@@ -730,6 +725,7 @@ func setupSharedMounts() error {
 	return nil
 }
 
+// Init starts daemon process.
 func (d *Daemon) Init() error {
 	d.startTime = time.Now()
 
@@ -739,11 +735,12 @@ func (d *Daemon) Init() error {
 	// cleanup any state we produced so far. Errors happening here will be
 	// ignored.
 	if err != nil {
-		logger.Errorf("Failed to start the daemon: %v", err)
-		d.Stop()
+		logger.Error("Failed to start the daemon", log.Ctx{"err": err})
+		d.Stop(context.Background(), unix.SIGPWR)
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (d *Daemon) init() error {
@@ -1083,18 +1080,15 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteclient.LogDebug))
 		}
 
-		d.cluster, err = db.OpenCluster(
-			"db.bin", store, clusterAddress, dir,
-			d.config.DqliteSetupTimeout, dump, options...,
-		)
+		d.cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, dump, options...)
 		if err == nil {
+			logger.Info("Initialized global database")
 			break
-		}
-		// If some other nodes have schema or API versions less recent
-		// than this node, we block until we receive a notification
-		// from the last node being upgraded that everything should be
-		// now fine, and then retry
-		if err == db.ErrSomeNodesAreBehind {
+		} else if errors.Is(err, db.ErrSomeNodesAreBehind) {
+			// If some other nodes have schema or API versions less recent
+			// than this node, we block until we receive a notification
+			// from the last node being upgraded that everything should be
+			// now fine, and then retry
 			logger.Warn("Wait for other cluster nodes to upgrade their versions, cluster not started yet")
 
 			// The only thing we want to still do on this node is
@@ -1113,7 +1107,8 @@ func (d *Daemon) init() error {
 
 			continue
 		}
-		return errors.Wrap(err, "Failed to open cluster database")
+
+		return errors.Wrap(err, "Failed to initialize global database")
 	}
 
 	d.firewall = firewall.New()
@@ -1362,6 +1357,8 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	logger.Info("Daemon started")
+
 	return nil
 }
 
@@ -1469,26 +1466,85 @@ func (d *Daemon) numRunningInstances() (int, error) {
 	return count, nil
 }
 
-// Kill signals the daemon that we want to shutdown, and that any work
-// initiated from this point (e.g. database queries over gRPC) should not be
-// retried in case of failure.
-func (d *Daemon) Kill() {
+// Stop stops the shared daemon.
+func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
+	logger.Info("Starting shutdown sequence")
+
+	// Cancelling the context will make everyone aware that we're shutting down.
+	d.shutdownCancel()
+
 	if d.gateway != nil {
-		d.clusterMembershipMutex.Lock()
-		d.clusterMembershipClosing = true
-		d.clusterMembershipMutex.Unlock()
+		d.stopClusterTasks()
+
 		err := handoverMemberRole(d)
 		if err != nil {
-			logger.Warnf("Could not handover member's responsibilities: %v", err)
+			logger.Warn("Could not handover member's responsibilities", log.Ctx{"err": err})
+			d.gateway.Kill()
 		}
-		d.gateway.Kill()
-		d.cluster.Kill()
 	}
-}
 
-// Stop stops the shared daemon.
-func (d *Daemon) Stop() error {
-	logger.Info("Starting shutdown sequence")
+	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
+	if sig == unix.SIGPWR || sig == unix.SIGTERM {
+		s := d.State()
+
+		// waitForOperations will block until all operations are done, or it's forced to shut down.
+		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
+		// initiated using `lxd shutdown`.
+		logger.Info("Waiting for operations to finish")
+		waitForOperations(ctx, s)
+
+		// Unmount daemon image and backup volumes if set.
+		logger.Info("Stopping daemon storage volumes")
+		done := make(chan struct{})
+		go func() {
+			err := daemonStorageVolumesUnmount(s)
+			if err != nil {
+				logger.Error("Failed to unmount image and backup volumes", log.Ctx{"err": err})
+			}
+
+			done <- struct{}{}
+		}()
+
+		// Only wait 60 seconds in case the storage backend is unreachable.
+		select {
+		case <-time.After(time.Minute):
+			logger.Error("Timed out waiting for image and backup volume")
+		case <-done:
+		}
+
+		// Full shutdown requested.
+		if sig == unix.SIGPWR {
+			logger.Info("Stopping instances")
+			instancesShutdown(s)
+
+			logger.Info("Stopping networks")
+			networkShutdown(s)
+
+			// Unmount storage pools after instances stopped.
+			logger.Info("Stopping storage pools")
+			pools, err := s.Cluster.GetStoragePoolNames()
+			if err != nil && err != db.ErrNoSuchObject {
+				logger.Error("Failed to get storage pools", log.Ctx{"err": err})
+			}
+
+			for _, poolName := range pools {
+				pool, err := storagePools.GetPoolByName(s, poolName)
+				if err != nil {
+					logger.Error("Failed to get storage pool", log.Ctx{"pool": poolName, "err": err})
+					continue
+				}
+
+				_, err = pool.Unmount()
+				if err != nil {
+					logger.Error("Unable to unmount storage pool", log.Ctx{"pool": poolName, "err": err})
+					continue
+				}
+			}
+		}
+	}
+
+	d.gateway.Kill()
+
 	errs := []error{}
 	trackError := func(err error, desc string) {
 		if err != nil {
@@ -1552,8 +1608,7 @@ func (d *Daemon) Stop() error {
 
 		logger.Infof("Done unmounting temporary filesystems")
 	} else {
-		logger.Debugf(
-			"Not unmounting temporary filesystems (containers are still running)")
+		logger.Debugf("Not unmounting temporary filesystems (containers are still running)")
 	}
 
 	if d.seccomp != nil {
@@ -1571,6 +1626,7 @@ func (d *Daemon) Stop() error {
 	if err != nil {
 		logger.Errorf("Failed to cleanly shutdown daemon: %v", err)
 	}
+
 	return err
 }
 
@@ -1851,7 +1907,6 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 			if node.RaftID == 0 {
 				hasNodesNotPartOfRaft = true
 			}
-
 		}
 
 		nodeListChanged := d.hasNodeListChanged(heartbeatData)
@@ -1893,30 +1948,24 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 		}
 
 		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
-			go func() {
-				// Wait a little bit, just to avoid spurious
-				// attempts due to nodes being shut down.
-				time.Sleep(5 * time.Second)
-				d.clusterMembershipMutex.Lock()
-				defer d.clusterMembershipMutex.Unlock()
-				if d.clusterMembershipClosing {
-					return
-				}
-				err := rebalanceMemberRoles(d, nil)
-				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-					logger.Warnf("Could not rebalance cluster member roles: %v", err)
-				}
-			}()
+			// Wait a little bit, just to avoid spurious
+			// attempts due to nodes being shut down.
+			time.Sleep(5 * time.Second)
+			d.clusterMembershipMutex.Lock()
+			err := rebalanceMemberRoles(d, nil)
+			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+				logger.Warnf("Could not rebalance cluster member roles: %v", err)
+			}
+			d.clusterMembershipMutex.Unlock()
 		}
+
 		if hasNodesNotPartOfRaft {
-			go func() {
-				d.clusterMembershipMutex.Lock()
-				defer d.clusterMembershipMutex.Unlock()
-				err := upgradeNodesWithoutRaftRole(d)
-				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-					logger.Warnf("Failed upgrade raft roles: %v", err)
-				}
-			}()
+			d.clusterMembershipMutex.Lock()
+			err := upgradeNodesWithoutRaftRole(d)
+			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+				logger.Warnf("Failed upgrade raft roles: %v", err)
+			}
+			d.clusterMembershipMutex.Unlock()
 		}
 	}
 }

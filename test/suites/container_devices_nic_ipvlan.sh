@@ -58,12 +58,12 @@ test_container_devices_nic_ipvlan() {
   lxc start "${ctName}2"
 
   # Check comms between containers.
-  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.3${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::2${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::3${ipRand}"
-  lxc exec "${ctName}2" -- ping -c2 -W1 "192.0.2.1${ipRand}"
-  lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::1${ipRand}"
+  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.3${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::3${ipRand}"
+  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1${ipRand}"
   lxc stop -f "${ctName}2"
 
   # Check IPVLAN ontop of VLAN parent with custom routing tables.
@@ -132,14 +132,14 @@ test_container_devices_nic_ipvlan() {
   lxc exec "${ctName}2" -- ip -6 addr add "2001:db8::4${ipRand}/128" dev eth0
 
   # Check comms between containers.
-  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.3${ipRand}"
-  lxc exec "${ctName}" -- ping -c2 -W1 "192.0.2.4${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::3${ipRand}"
-  lxc exec "${ctName}" -- ping6 -c2 -W1 "2001:db8::4${ipRand}"
-  lxc exec "${ctName}2" -- ping -c2 -W1 "192.0.2.1${ipRand}"
-  lxc exec "${ctName}2" -- ping -c2 -W1 "192.0.2.2${ipRand}"
-  lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::1${ipRand}"
-  lxc exec "${ctName}2" -- ping6 -c2 -W1 "2001:db8::2${ipRand}"
+  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.3${ipRand}"
+  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.4${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::3${ipRand}"
+  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::4${ipRand}"
+  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1${ipRand}"
+  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.2${ipRand}"
+  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1${ipRand}"
+  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::2${ipRand}"
 
   lxc stop -f "${ctName}"
   lxc stop -f "${ctName}2"

@@ -51,8 +51,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}B" -- ip a add 192.0.2.3/24 dev eth0
 
   # Check basic connectivity without any filtering.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
 
   # Enable MAC filtering on CT A and test.
   lxc config device set "${ctPrefix}A" eth0 security.mac_filtering true
@@ -90,13 +90,13 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address 00:11:22:33:44:56 up
 
   # Check that ping is no longer working (i.e its filtered after fake MAC setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1; then
+  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
       echo "MAC filter not working to host"
       false
   fi
 
   # Check that ping is no longer working (i.e its filtered after fake MAC setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3; then
+  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
       echo "MAC filter not working to other container"
       false
   fi
@@ -105,8 +105,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
 
   # Check basic connectivity with MAC filtering but real MAC configured.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
 
   # Stop CT A and check filters are cleaned up.
   lxc stop -f "${ctPrefix}A"
@@ -129,8 +129,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc start "${ctPrefix}A"
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.254/24 dev eth0
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
 
   # Enable IPv4 filtering on CT A and test (disable security.mac_filtering to check its applied too).
   lxc config device set "${ctPrefix}A" eth0 ipv4.address 192.0.2.2
@@ -177,21 +177,21 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
 
   # Check basic connectivity with IPv4 filtering and real IPs configured.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3
 
   # Add a fake IP
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.254/24 dev eth0
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1; then
+  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
       echo "IPv4 filter not working to host"
       false
   fi
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.3; then
+  if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
       echo "IPv4 filter not working to other container"
       false
   fi
@@ -265,8 +265,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254 dev eth0
   sleep 2 # Wait for DAD.
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::1
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::3
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::1
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3
 
   # Enable IPv6 filtering on CT A and test (disable security.mac_filtering to check its applied too).
   lxc config device set "${ctPrefix}A" eth0 ipv6.address 2001:db8::2
@@ -356,21 +356,21 @@ test_container_devices_nic_bridged_filtering() {
   sleep 2 # Wait for DAD.
 
   # Check basic connectivity with IPv6 filtering and real IPs configured.
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::2
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::3
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::2
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3
 
   # Add a fake IP
   lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254/64 dev eth0
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::2; then
+  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::2; then
       echo "IPv6 filter not working to host"
       false
   fi
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W1 2001:db8::3; then
+  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3; then
       echo "IPv6 filter not working to other container"
       false
   fi
@@ -617,16 +617,16 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
 
   # Check basic connectivity without any filtering.
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1
-  lxc exec "${ctPrefix}A" -- ping -c2 -W1 2001:db8::1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1
+  lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1
 
   # Check fraudulent IPs are blocked.
   lxc exec "${ctPrefix}A" -- ip a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 192.0.2.3/24 dev eth0
   lxc exec "${ctPrefix}A" -- ip a add 2001:db8::3/64 dev eth0
 
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -W1 192.0.2.1 || false
-  ! lxc exec "${ctPrefix}A" -- ping -c2 -W1 2001:db8::1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1 || false
 
   lxc delete -f "${ctPrefix}A"
   ip link delete "${brName}2"
