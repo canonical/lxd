@@ -1383,10 +1383,24 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
+	s := d.State()
+
+	var err error
+	var instances []instance.Instance // If this is left as nil this indicates an error loading instances.
+	if d.cluster != nil {
+		instances, err = instance.LoadNodeAll(s, instancetype.Any)
+		if err != nil {
+			// List all instances on disk.
+			logger.Warn("Loading local instances from disk as database is not available", log.Ctx{"err": err})
+			instances, err = instancesOnDisk(s)
+			if err != nil {
+				logger.Warn("Failed loading instances from disk", log.Ctx{"err": err})
+			}
+		}
+	}
+
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
-		s := d.State()
-
 		// waitForOperations will block until all operations are done, or it's forced to shut down.
 		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
 		// initiated using `lxd shutdown`.
@@ -1415,7 +1429,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		// Full shutdown requested.
 		if sig == unix.SIGPWR {
 			logger.Info("Stopping instances")
-			instancesShutdown(s)
+			instancesShutdown(s, instances)
 
 			logger.Info("Stopping networks")
 			networkShutdown(s)
@@ -1457,28 +1471,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	trackError(d.tasks.Stop(3*time.Second), "Stop tasks")                // Give tasks a bit of time to cleanup.
 	trackError(d.clusterTasks.Stop(3*time.Second), "Stop cluster tasks") // Give tasks a bit of time to cleanup.
 
-	shouldUnmount := false
-	if d.cluster != nil {
-		// It might be that database nodes are all down, in that case
-		// we don't want to wait too much.
-		//
-		// FIXME: it should be possible to provide a context or a
-		//        timeout for database queries.
-		ch := make(chan bool)
-		go func() {
-			n, err := d.numRunningInstances()
-			if err != nil {
-				logger.Warn("Failed to get number of running instances", log.Ctx{"err": err})
-			}
-			ch <- err != nil || n == 0
-		}()
-		select {
-		case shouldUnmount = <-ch:
-		case <-time.After(2 * time.Second):
-			logger.Warn("Give up waiting to get number of running instances")
-			shouldUnmount = true
-		}
+	n := d.numRunningInstances(instances)
+	shouldUnmount := instances != nil && n <= 0
 
+	if d.cluster != nil {
 		logger.Info("Closing the database")
 		err := d.cluster.Close()
 		if err != nil {
@@ -1512,7 +1508,6 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		trackError(d.seccomp.Stop(), "Stop seccomp")
 	}
 
-	var err error
 	if n := len(errs); n > 0 {
 		format := "%v"
 		if n > 1 {
