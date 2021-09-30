@@ -1533,7 +1533,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	logger.Debugf("Deleting member %s from cluster (force=%d)", name, force)
+	logger.Info("Deleting member from cluster", log.Ctx{"name": name, "force": force})
 
 	err = autoSyncImages(d.shutdownCtx, d)
 	if err != nil {
