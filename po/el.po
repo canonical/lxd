@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-28 16:20-0400\n"
+"POT-Creation-Date: 2021-09-30 16:08+0200\n"
 "PO-Revision-Date: 2017-02-14 08:00+0000\n"
 "Last-Translator: Simos Xenitellis <simos.65@gmail.com>\n"
 "Language-Team: Greek <https://hosted.weblate.org/projects/linux-containers/"
@@ -351,8 +351,7 @@ msgid "<remote> <new-name>"
 msgstr ""
 
 #: lxc/file.go:416
-msgid ""
-"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr ""
 
 #: lxc/image.go:623
