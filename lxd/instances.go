@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
-	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/warnings"
@@ -339,45 +338,19 @@ func instancesOnDisk() (map[string][]string, error) {
 	return instances, nil
 }
 
-func instancesShutdown(s *state.State) error {
+// instancesShutdown shuts down the supplied instances if they are running.
+// If instances is nil (not empty) then it will consider the database to be unavailable and will not attempt to
+// update instance power state records.
+func instancesShutdown(s *state.State, instances []instance.Instance) error {
 	var wg sync.WaitGroup
 
-	dbAvailable := true
-
-	// Get all the instances
-	instances, err := instance.LoadNodeAll(s, instancetype.Any)
-	if err != nil {
-		// Mark database as offline
-		dbAvailable = false
-		instances = []instance.Instance{}
-
-		// List all instances on disk
-		instanceNames, err := instancesOnDisk()
-		if err != nil {
-			return err
-		}
-
-		for project, names := range instanceNames {
-			for _, name := range names {
-				inst, err := instance.Load(s, db.InstanceArgs{
-					Project: project,
-					Name:    name,
-					Config:  make(map[string]string),
-				}, nil)
-				if err != nil {
-					return err
-				}
-
-				instances = append(instances, inst)
-			}
-		}
-	}
+	dbAvailable := instances != nil
 
 	sort.Sort(instanceStopList(instances))
 
 	if dbAvailable {
 		// Reset all instances states
-		err = s.Cluster.ResetInstancesPowerState()
+		err := s.Cluster.ResetInstancesPowerState()
 		if err != nil {
 			return err
 		}
@@ -416,12 +389,14 @@ func instancesShutdown(s *state.State) error {
 
 			// Stop the instance
 			wg.Add(1)
-			go func(c instance.Instance, lastState string) {
-				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
-				c.Stop(false)
+			go func(inst instance.Instance, lastState string) {
+				if inst.IsRunning() {
+					inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
+					inst.Stop(false)
+				}
 
 				if dbAvailable {
-					c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+					inst.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
 				}
 
 				wg.Done()
