@@ -449,10 +449,6 @@ func genericVFSGetVolumeDiskPath(vol Volume) (string, error) {
 
 // genericVFSBackupVolume is a generic BackupVolume implementation for VFS-only drivers.
 func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.InstanceTarWriter, snapshots []string, op *operations.Operation) error {
-	if vol.ContentType() == ContentTypeBlock && vol.Type() == VolumeTypeCustom {
-		return ErrNotImplemented
-	}
-
 	if len(snapshots) > 0 {
 		// Check requested snapshot match those in storage.
 		err := vol.SnapshotsMatch(snapshots, op)
@@ -467,7 +463,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 			// Reset hard link cache as we are copying a new volume (instance or snapshot).
 			tarWriter.ResetHardLinkMap()
 
-			if v.IsVMBlock() {
+			if v.contentType == ContentTypeBlock {
 				blockPath, err := d.GetVolumeDiskPath(v)
 				if err != nil {
 					errMsg := "Error getting VM block volume disk path"
@@ -496,37 +492,36 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					exclude = append(exclude, blockPath)
 				}
 
-				logMsg := "Copying virtual machine config volume"
-				if vol.volType == VolumeTypeCustom {
-					logMsg = "Copying custom config volume"
-				}
+				if v.IsVMBlock() {
+					logMsg := "Copying virtual machine config volume"
 
-				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": mountPath, "prefix": prefix})
-				err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
+					d.Logger().Debug(logMsg, log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+					err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
+						if err != nil {
+							return err
+						}
+
+						// Skip any exluded files.
+						if shared.StringHasPrefix(srcPath, exclude...) {
+							return nil
+						}
+
+						name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
+						err = tarWriter.WriteFile(name, srcPath, fi, false)
+						if err != nil {
+							return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
+						}
+
+						return nil
+					})
 					if err != nil {
 						return err
 					}
-
-					// Skip any exluded files.
-					if shared.StringHasPrefix(srcPath, exclude...) {
-						return nil
-					}
-
-					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
-					err = tarWriter.WriteFile(name, srcPath, fi, false)
-					if err != nil {
-						return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
-					}
-
-					return nil
-				})
-				if err != nil {
-					return err
 				}
 
 				name := fmt.Sprintf("%s.%s", prefix, genericVolumeBlockExtension)
 
-				logMsg = "Copying virtual machine block volume"
+				logMsg := "Copying virtual machine block volume"
 				if vol.volType == VolumeTypeCustom {
 					logMsg = "Copying custom block volume"
 				}
@@ -644,46 +639,54 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 			return errors.Wrapf(err, "Error clearing volume before unpack")
 		}
 
-		// Prepare tar arguments.
-		srcParts := strings.Split(srcPrefix, string(os.PathSeparator))
-		args := append(tarArgs, []string{
-			"-",
-			"--xattrs-include=*",
-			"-C", mountPath,
-		}...)
+		if vol.contentType == ContentTypeFS {
+			// Prepare tar arguments.
+			srcParts := strings.Split(srcPrefix, string(os.PathSeparator))
+			args := append(tarArgs, []string{
+				"-",
+				"--xattrs-include=*",
+				"-C", mountPath,
+			}...)
 
-		if vol.Type() == VolumeTypeCustom {
-			// If the volume type is custom, then we need to ensure that we restore the top level
-			// directory's ownership from the backup. We cannot use --strip-components flag because it
-			// removes the top level directory from the unpack list. Instead we use the --transform
-			// flag to remove the prefix path and transform it into the "." current unpack directory.
-			args = append(args, fmt.Sprintf("--transform=s/^%s/./", strings.ReplaceAll(srcPrefix, "/", `\/`)))
-		} else {
-			// For instance volumes, the user created files are stored in the rootfs sub-directory
-			// and so strip-components flag works fine.
-			args = append(args, fmt.Sprintf("--strip-components=%d", len(srcParts)))
+			if vol.Type() == VolumeTypeCustom {
+				// If the volume type is custom, then we need to ensure that we restore the top level
+				// directory's ownership from the backup. We cannot use --strip-components flag because it
+				// removes the top level directory from the unpack list. Instead we use the --transform
+				// flag to remove the prefix path and transform it into the "." current unpack directory.
+				args = append(args, fmt.Sprintf("--transform=s/^%s/./", strings.ReplaceAll(srcPrefix, "/", `\/`)))
+			} else {
+				// For instance volumes, the user created files are stored in the rootfs sub-directory
+				// and so strip-components flag works fine.
+				args = append(args, fmt.Sprintf("--strip-components=%d", len(srcParts)))
+			}
+
+			// Directory to unpack comes after other options.
+			args = append(args, srcPrefix)
+
+			// Extract filesystem volume.
+			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), log.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
+			srcData.Seek(0, 0)
+			err = shared.RunCommandWithFds(r, nil, "tar", args...)
+			if err != nil {
+				return errors.Wrapf(err, "Error starting unpack")
+			}
 		}
 
-		// Directory to unpack comes after other options.
-		args = append(args, srcPrefix)
-
-		// Extract filesystem volume.
-		d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), log.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
-		srcData.Seek(0, 0)
-		err = shared.RunCommandWithFds(r, nil, "tar", args...)
-		if err != nil {
-			return errors.Wrapf(err, "Error starting unpack")
-		}
-
-		// Extract block file to block volume if VM.
-		if vol.IsVMBlock() {
+		// Extract block file to block volume.
+		if vol.contentType == ContentTypeBlock {
 			targetPath, err := d.GetVolumeDiskPath(vol)
 			if err != nil {
 				return err
 			}
 
 			srcFile := fmt.Sprintf("%s.%s", srcPrefix, genericVolumeBlockExtension)
-			d.Logger().Debug("Unpacking virtual machine block volume", log.Ctx{"source": srcFile, "target": targetPath})
+
+			logMsg := "Unpacking virtual machine block volume"
+			if vol.volType == VolumeTypeCustom {
+				logMsg = "Unpacking custom block volume"
+			}
+
+			d.Logger().Debug(logMsg, log.Ctx{"source": srcFile, "target": targetPath})
 
 			tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
 			if err != nil {
