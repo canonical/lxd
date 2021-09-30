@@ -35,8 +35,7 @@ require (
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
 	github.com/juju/webbrowser v1.0.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/mattn/go-colorable v0.1.8
-	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-colorable v0.1.11
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
@@ -50,10 +49,10 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/net v0.0.0-20210907225631-ff17edfbf26d // indirect
-	golang.org/x/sys v0.0.0-20210906170528-6f6e22806c34
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/net v0.0.0-20211004164453-cedda3a722dd // indirect
+	golang.org/x/sys v0.0.0-20211004093028-2c5d950f24ef
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/juju/environschema.v1 v1.0.0
 	gopkg.in/lxc/go-lxc.v2 v2.0.0-20210307013912-d9b9f727ce0f
