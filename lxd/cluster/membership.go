@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
@@ -596,18 +597,23 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", nodes, nil
 	}
 
+	address, err := node.ClusterAddress(state.Node)
+	if err != nil {
+		return "", nil, err
+	}
+
 	// Check if we have a spare node that we can promote to the missing role.
-	address := candidates[0].Address
-	logger.Infof("Found node %s whose role needs to be changed to %s", address, role)
+	candidateAddress := candidates[0].Address
+	logger.Info("Found cluster member whose role needs to be changed", log.Ctx{"candidateAddress": candidateAddress, "newRole": role, "address": address})
 
 	for i, node := range nodes {
-		if node.Address == address {
+		if node.Address == candidateAddress {
 			nodes[i].Role = role
 			break
 		}
 	}
 
-	return address, nodes, nil
+	return candidateAddress, nodes, nil
 }
 
 // Assign a new role to the local dqlite node.
