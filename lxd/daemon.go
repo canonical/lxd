@@ -1073,9 +1073,15 @@ func (d *Daemon) init() error {
 		}
 
 		logger.Debug("Restarting all the containers following directory rename")
+
 		s := d.State()
-		instancesShutdown(s)
-		instancesRestart(s)
+		instances, err := instance.LoadNodeAll(s, instancetype.Container)
+		if err != nil {
+			return fmt.Errorf("Failed loading containers to restart: %w", err)
+		}
+
+		instancesShutdown(s, instances)
+		instancesStart(s, instances)
 	}
 
 	// Setup the user-agent.
