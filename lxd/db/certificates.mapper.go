@@ -195,6 +195,11 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 		return -1, errors.Wrap(err, "Failed to fetch certificate ID")
 	}
 
+	// Update certificates_projects table.
+	err = c.UpdateCertificateProjects(int(id), object.Projects)
+	if err != nil {
+		return -1, fmt.Errorf("Could not update certificates_projects table: %w", err)
+	}
 	return id, nil
 }
 
@@ -257,5 +262,10 @@ func (c *ClusterTx) UpdateCertificate(fingerprint string, object Certificate) er
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
+	// Update certificates_projects table.
+	err = c.UpdateCertificateProjects(int(id), object.Projects)
+	if err != nil {
+		return fmt.Errorf("Could not update certificates_projects table: %w", err)
+	}
 	return nil
 }
