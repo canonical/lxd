@@ -4087,16 +4087,23 @@ func patchUpdateFromV10(_ *sql.Tx) error {
 }
 
 func patchUpdateFromV11(_ *sql.Tx) error {
-	containers, err := instancesOnDisk()
+	instances, err := instancesOnDisk()
 	if err != nil {
 		return err
 	}
 
 	errors := 0
 
-	cNames := containers["default"]
+	// tomp TODO this whole patch seems to be oriented around snapshots, and yet instancesOnDisk doesn't
+	// return snapshots, so it may do something unexpected/nothing.
+	for _, inst := range instances {
+		// Only interested in containers in default project.
+		if inst.Type() != instancetype.Container || inst.Project() != project.Default {
+			continue
+		}
 
-	for _, cName := range cNames {
+		cName := inst.Name()
+
 		snapParentName, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(cName)
 		oldPath := shared.VarPath("containers", snapParentName, "snapshots", snapOnlyName)
 		newPath := shared.VarPath("snapshots", snapParentName, snapOnlyName)
@@ -4159,12 +4166,10 @@ func patchUpdateFromV11(_ *sql.Tx) error {
 func patchUpdateFromV15(tx *sql.Tx) error {
 	// munge all LVM-backed containers' LV names to match what is
 	// required for snapshot support
-
-	containers, err := instancesOnDisk()
+	instances, err := instancesOnDisk()
 	if err != nil {
 		return err
 	}
-	cNames := containers["default"]
 
 	vgName := ""
 	config, err := query.SelectConfig(tx, "config", "")
@@ -4173,7 +4178,16 @@ func patchUpdateFromV15(tx *sql.Tx) error {
 	}
 	vgName = config["storage.lvm_vg_name"]
 
-	for _, cName := range cNames {
+	// tomp TODO this patch seems to be accounting for snapshots, and yet instancesOnDisk doesn't
+	// return snapshots, so it may do something unexpected/not enough.
+	for _, inst := range instances {
+		// Only interested in containers in default project.
+		if inst.Type() != instancetype.Container || inst.Project() != project.Default {
+			continue
+		}
+
+		cName := inst.Name()
+
 		var lvLinkPath string
 		if strings.Contains(cName, shared.SnapshotDelimiter) {
 			lvLinkPath = shared.VarPath("snapshots", fmt.Sprintf("%s.lv", cName))
