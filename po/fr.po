@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-28 16:20-0400\n"
+"POT-Creation-Date: 2021-09-30 16:08+0200\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -529,12 +529,15 @@ msgstr ""
 
 #: lxc/file.go:416
 #, fuzzy
-msgid ""
-"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr ""
-"Change l'état d'un ou plusieurs conteneurs à %s.\n"
+"Supprimer des conteneurs ou des instantanés.\n"
 "\n"
-"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
+"lxc delete [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
+"<snapshot>]...]\n"
+"\n"
+"Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
+"(configuration, instantanés, …)."
 
 #: lxc/image.go:623
 msgid ""
@@ -6094,6 +6097,15 @@ msgstr ""
 #: lxc/image.go:1074
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy
+#~ msgid ""
+#~ "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
+#~ "<path>...]"
+#~ msgstr ""
+#~ "Change l'état d'un ou plusieurs conteneurs à %s.\n"
+#~ "\n"
+#~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #, fuzzy
 #~ msgid "[<remote>:] <hostname|fingerprint>"
