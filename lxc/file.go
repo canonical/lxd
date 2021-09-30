@@ -413,7 +413,7 @@ type cmdFilePush struct {
 
 func (c *cmdFilePush) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("push", i18n.G("<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"))
+	cmd.Use = usage("push", i18n.G("<source path>... [<remote>:]<instance>/<path>"))
 	cmd.Short = i18n.G("Push files into instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Push files into instances`))
