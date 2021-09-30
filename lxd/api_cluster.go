@@ -303,6 +303,8 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
+	logger.Info("Bootstrapping cluster", log.Ctx{"serverName": req.ServerName})
+
 	run := func(op *operations.Operation) error {
 		// Start clustering tasks
 		d.startClusterTasks()
@@ -364,6 +366,8 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 }
 
 func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
+	logger.Info("Joining cluster", log.Ctx{"serverName": req.ServerName})
+
 	// Make sure basic pre-conditions are met.
 	if len(req.ClusterCertificate) == 0 {
 		return response.BadRequest(fmt.Errorf("No target cluster member certificate provided"))
@@ -713,7 +717,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 // Disable clustering on a node.
 func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
-	logger.Info("Disabling clustering on local member")
+	logger.Info("Disabling clustering", log.Ctx{"serverName": req.ServerName})
 
 	// Close the cluster database
 	err := d.cluster.Close()
@@ -1609,7 +1613,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	logger.Debugf("Deleting member %s from cluster (force=%d)", name, force)
+	logger.Info("Deleting member from cluster", log.Ctx{"name": name, "force": force})
 
 	err = autoSyncImages(d.shutdownCtx, d)
 	if err != nil {
@@ -1953,7 +1957,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
 func rebalanceMemberRoles(d *Daemon, r *http.Request) error {
-	if d.clusterMembershipClosing {
+	if d.shutdownCtx.Err() != nil {
 		return nil
 	}
 
@@ -1998,6 +2002,10 @@ again:
 // Check if there are nodes not part of the raft configuration and add them in
 // case.
 func upgradeNodesWithoutRaftRole(d *Daemon) error {
+	if d.shutdownCtx.Err() != nil {
+		return nil
+	}
+
 	var allNodes []db.NodeInfo
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -2062,6 +2070,8 @@ func handoverMemberRole(d *Daemon) error {
 		Address: address,
 	}
 
+	logCtx := log.Ctx{"address": address}
+
 	// Find the cluster leader.
 findLeader:
 	leader, err := d.gateway.LeaderAddress()
@@ -2076,7 +2086,7 @@ findLeader:
 	}
 
 	if leader == address {
-		logger.Info("Transfer leadership")
+		logger.Info("Transferring leadership", logCtx)
 		err := d.gateway.TransferLeadership()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to transfer leadership")
@@ -2084,9 +2094,10 @@ findLeader:
 		goto findLeader
 	}
 
+	logger.Info("Handing over cluster member role", logCtx)
 	client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), nil, true)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed handing over cluster member role")
 	}
 
 	_, _, err = client.RawQuery("POST", "/internal/cluster/handover", post, "")

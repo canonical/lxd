@@ -1,17 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
-	"time"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/db"
-	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/sys"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -61,101 +59,40 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	defer logger.Info("Daemon stopped")
+
 	conf := defaultDaemonConfig()
 	conf.Group = c.flagGroup
 	conf.Trace = c.global.flagLogTrace
 	d := newDaemon(conf, sys.DefaultOS())
-	defer d.shutdownDoneCancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, unix.SIGPWR)
+	signal.Notify(sigCh, unix.SIGINT)
+	signal.Notify(sigCh, unix.SIGQUIT)
+	signal.Notify(sigCh, unix.SIGTERM)
+
+	chIgnore := make(chan os.Signal, 1)
+	signal.Notify(chIgnore, unix.SIGHUP)
 
 	err := d.Init()
 	if err != nil {
 		return err
 	}
 
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, unix.SIGPWR)
-	signal.Notify(ch, unix.SIGINT)
-	signal.Notify(ch, unix.SIGQUIT)
-	signal.Notify(ch, unix.SIGTERM)
+	for {
+		select {
+		case sig := <-sigCh:
+			logger.Info("Received signal", log.Ctx{"signal": sig})
+			if d.shutdownCtx.Err() != nil {
+				logger.Warn("Ignoring signal, shutdown already in progress", log.Ctx{"signal": sig})
+			}
 
-	chIgnore := make(chan os.Signal, 1)
-	signal.Notify(chIgnore, unix.SIGHUP)
-
-	s := d.State()
-
-	stop := func(sig os.Signal) {
-		// Cancelling the context will make everyone aware that we're shutting down.
-		d.shutdownCancel()
-
-		// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
-		if sig == unix.SIGPWR || sig == unix.SIGTERM {
-			// waitForOperations will block until all operations are done, or it's forced to shut down.
-			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-			// initiated using `lxd shutdown`.
-			logger.Info("Waiting for operations to finish")
-			waitForOperations(s, d.shutdownChan)
-
-			// Unmount daemon image and backup volumes if set.
-			logger.Info("Stopping daemon storage volumes")
-			done := make(chan struct{})
 			go func() {
-				err := daemonStorageVolumesUnmount(s)
-				if err != nil {
-					logger.Warn("Failed to unmount image and backup volumes", log.Ctx{"err": err})
-				}
-
-				done <- struct{}{}
+				d.shutdownDoneCh <- d.Stop(context.Background(), sig)
 			}()
-
-			// Only wait 60 seconds in case the storage backend is unreachable.
-			select {
-			case <-time.After(time.Minute):
-				logger.Warn("Timed out waiting for image and backup volume")
-			case <-done:
-			}
-
-			// Full shutdown requested.
-			if sig == unix.SIGPWR {
-				logger.Info("Stopping instances")
-				instancesShutdown(s)
-
-				logger.Info("Stopping networks")
-				networkShutdown(s)
-
-				// Unmount storage pools after instances stopped.
-				logger.Info("Stopping storage pools")
-				pools, err := s.Cluster.GetStoragePoolNames()
-				if err != nil && err != db.ErrNoSuchObject {
-					logger.Error("Failed to get storage pools", log.Ctx{"err": err})
-				}
-
-				for _, poolName := range pools {
-					pool, err := storagePools.GetPoolByName(s, poolName)
-					if err != nil {
-						logger.Error("Failed to get storage pool", log.Ctx{"pool": poolName, "err": err})
-						continue
-					}
-
-					_, err = pool.Unmount()
-					if err != nil {
-						logger.Error("Unable to unmount storage pool", log.Ctx{"pool": poolName, "err": err})
-						continue
-					}
-				}
-			}
+		case err = <-d.shutdownDoneCh:
+			return err
 		}
-
-		d.Kill()
 	}
-
-	select {
-	case sig := <-ch:
-		logger.Info("Received signal", log.Ctx{"signal": sig})
-		stop(sig)
-	case <-d.shutdownChan:
-		logger.Info("Asked to shutdown by API")
-		stop(unix.SIGPWR)
-	}
-
-	return d.Stop()
 }

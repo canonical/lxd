@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
@@ -214,10 +216,7 @@ func internalRefreshImage(d *Daemon, r *http.Request) response.Response {
 
 func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 	// Check that we're not shutting down.
-	var isClosing bool
-	d.clusterMembershipMutex.RLock()
-	isClosing = d.clusterMembershipClosing
-	d.clusterMembershipMutex.RUnlock()
+	isClosing := d.shutdownCtx.Err() != nil
 	if isClosing {
 		return response.Unavailable(fmt.Errorf("LXD daemon is shutting down"))
 	}
@@ -232,17 +231,38 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalShutdown(d *Daemon, r *http.Request) response.Response {
-	d.shutdownChan <- struct{}{}
-
 	force := queryParam(r, "force")
+	logger.Info("Asked to shutdown by API", log.Ctx{"force": force})
 
-	if force == "true" {
-		d.shutdownChan <- struct{}{}
+	if d.shutdownCtx.Err() != nil {
+		return response.SmartError(fmt.Errorf("Shutdown already in progress"))
 	}
 
-	<-d.shutdownDoneCtx.Done()
+	forceCtx, forceCtxCancel := context.WithCancel(context.Background())
+	defer forceCtxCancel()
 
-	return response.EmptySyncResponse
+	if force == "true" {
+		forceCtxCancel() // Don't wait for operations to finish.
+	}
+
+	return response.ManualResponse(func(w http.ResponseWriter) error {
+		// Run shutdown sequence synchronously.
+		err := d.Stop(forceCtx, unix.SIGPWR)
+		response.SmartError(err).Render(w)
+
+		// Send the response before the LXD daemon process ends.
+		f, ok := w.(http.Flusher)
+		if ok {
+			f.Flush()
+		} else {
+			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
+		}
+
+		// Send result of d.Stop() to cmdDaemon so that process stops with correct exit code from Stop().
+		d.shutdownDoneCh <- err
+
+		return nil
+	})
 }
 
 // internalContainerHookLoadFromRequestReference loads the container from the instance reference in the request.

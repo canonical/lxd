@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/sys"
@@ -41,7 +44,7 @@ func newTestDaemon(t *testing.T) (*Daemon, func()) {
 	require.NoError(t, daemon.Init())
 
 	cleanup := func() {
-		daemon.Stop()
+		daemon.Stop(context.Background(), unix.SIGQUIT)
 		osCleanup()
 		resetLogger()
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/canonical/go-dqlite/app"
@@ -19,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
@@ -545,13 +547,25 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.C
 		nodes[i].ID = int64(raftNode.ID)
 		nodes[i].Address = raftNode.Address
 	}
+
 	hbState.Update(false, raftNodes, nodes, 0)
+
+	// Notify all other members of the change in membership.
+	var wg sync.WaitGroup
 	for _, node := range raftNodes {
 		if node.ID == id {
 			continue
 		}
-		go HeartbeatNode(context.Background(), node.Address, networkCert, serverCert, hbState)
+
+		wg.Add(1)
+		go func(address string) {
+			HeartbeatNode(context.Background(), address, networkCert, serverCert, hbState)
+			wg.Done()
+		}(node.Address)
 	}
+
+	// Wait until all members have been notified (or at least have had a change to be notified).
+	wg.Wait()
 }
 
 // Rebalance the raft cluster, trying to see if we have a spare online node
@@ -583,18 +597,23 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", nodes, nil
 	}
 
+	address, err := node.ClusterAddress(state.Node)
+	if err != nil {
+		return "", nil, err
+	}
+
 	// Check if we have a spare node that we can promote to the missing role.
-	address := candidates[0].Address
-	logger.Infof("Found node %s whose role needs to be changed to %s", address, role)
+	candidateAddress := candidates[0].Address
+	logger.Info("Found cluster member whose role needs to be changed", log.Ctx{"candidateAddress": candidateAddress, "newRole": role, "address": address})
 
 	for i, node := range nodes {
-		if node.Address == address {
+		if node.Address == candidateAddress {
 			nodes[i].Role = role
 			break
 		}
 	}
 
-	return address, nodes, nil
+	return candidateAddress, nodes, nil
 }
 
 // Assign a new role to the local dqlite node.

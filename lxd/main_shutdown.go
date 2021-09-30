@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -58,10 +57,7 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 
 		// Request shutdown, this shouldn't return until daemon has stopped.
 		_, _, err = d.RawQuery("PUT", fmt.Sprintf("/internal/shutdown?%s", v.Encode()), nil, "")
-		if err != nil && !strings.HasSuffix(err.Error(), ": EOF") {
-			// NOTE: if we got an EOF error here it means that the daemon has shutdown so quickly that
-			// it already closed the unix socket. We consider the daemon dead in this case so no need
-			// to return the error.
+		if err != nil {
 			chResult <- err
 			return
 		}
@@ -69,10 +65,10 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 		// Try connecting to events endpoint to check the daemon has really shutdown.
 		monitor, err := d.GetEvents()
 		if err != nil {
-			return
+			return // Daemon has stopped.
 		}
 
-		monitor.Wait()
+		monitor.Wait() // Wait for daemon to stop.
 	}()
 
 	if c.flagTimeout > 0 {
