@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/warnings"
@@ -305,34 +307,47 @@ func (slice instanceStopList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-// Return the names of all local instances, grouped by project. The
-// information is obtained by reading the data directory.
-func instancesOnDisk() (map[string][]string, error) {
-	instances := map[string][]string{}
+// Return all local instances on disk (without state, profiles or config).
+func instancesOnDisk() ([]instance.Instance, error) {
+	var err error
+	instanceTypeNames := make(map[instancetype.Type][]os.FileInfo)
 
-	containers, err := ioutil.ReadDir(shared.VarPath("containers"))
-	if err != nil {
+	instanceTypeNames[instancetype.Container], err = ioutil.ReadDir(shared.VarPath("containers"))
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	virtualMachines, err := ioutil.ReadDir(shared.VarPath("virtual-machines"))
-	if err != nil {
+	instanceTypeNames[instancetype.VM], err = ioutil.ReadDir(shared.VarPath("virtual-machines"))
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	for _, file := range append(containers, virtualMachines...) {
-		name := file.Name()
-		projectName := project.Default
-		if strings.Contains(name, "_") {
-			fields := strings.Split(file.Name(), "_")
-			projectName = fields[0]
-			name = fields[1]
+	instances := make([]instance.Instance, 0, len(instanceTypeNames[instancetype.Container])+len(instanceTypeNames[instancetype.VM]))
+	for instanceType, instanceNames := range instanceTypeNames {
+		for _, file := range instanceNames {
+			// Convert file name to project name and instance name.
+			instanceName := file.Name()
+			projectName := project.Default
+
+			if strings.Contains(instanceName, "_") {
+				fields := strings.SplitN(file.Name(), "_", 2)
+				projectName = fields[0]
+				instanceName = fields[1]
+			}
+
+			inst, err := instance.Load(nil, db.InstanceArgs{
+				Project: projectName,
+				Name:    instanceName,
+				Type:    instanceType,
+				Config:  make(map[string]string),
+			}, nil)
+			if err != nil {
+				logger.Warn("Failed loading instance", log.Ctx{"project": projectName, "instance": instanceName, "err": err})
+				continue
+			}
+
+			instances = append(instances, inst)
 		}
-		names, ok := instances[projectName]
-		if !ok {
-			names = []string{}
-		}
-		instances[projectName] = append(names, name)
 	}
 
 	return instances, nil
