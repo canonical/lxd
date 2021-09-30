@@ -529,6 +529,11 @@ test_backup_volume_export_with_project() {
     lxc profile device add default root disk path="/" pool="${pool}"
   fi
 
+  if storage_backend_available "ceph" && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
+    lxc storage create "${pool}-cephfs" cephfs source="${LXD_CEPH_CEPHFS}/$(basename "${LXD_DIR}")-cephfs"
+    pool="${pool}-cephfs"
+  fi
+
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
@@ -671,6 +676,10 @@ test_backup_volume_export_with_project() {
   lxc rm -f c1
   rmdir "${LXD_DIR}/optimized"
   rmdir "${LXD_DIR}/non-optimized"
+
+  if storage_backend_available "ceph" && [ -n "${LXD_CEPH_CEPHFS:-}" ]; then
+    lxc storage rm "${pool}"
+  fi
 
   if [ "$#" -ne 0 ]; then
     lxc project switch default
