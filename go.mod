@@ -35,30 +35,30 @@ require (
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
 	github.com/juju/webbrowser v1.0.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/mattn/go-colorable v0.1.8
-	github.com/mattn/go-isatty v0.0.13 // indirect
+	github.com/mattn/go-colorable v0.1.11
 	github.com/mattn/go-sqlite3 v1.14.8
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
 	github.com/miekg/dns v1.1.43
 	github.com/mpvl/subtest v0.0.0-20160608141506-f6e4cfd4b9ea
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/osrg/gobgp v0.0.0-20210901090119-8ab84f8636ee
+	github.com/osrg/gobgp v0.0.0-20210909160807-b773e7f92464
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/rogpeppe/fastuuid v1.2.0
-	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/cobra v1.2.1
+	github.com/spf13/viper v1.9.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/net v0.0.0-20210902165921-8d991716f632 // indirect
-	golang.org/x/sys v0.0.0-20210902050250-f475640dd07b
-	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/net v0.0.0-20210929193557-e81a3d93ecf6 // indirect
+	golang.org/x/sys v0.0.0-20210930141918-969570ce7c6c
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20210831024726-fe130286e0e2 // indirect
+	google.golang.org/genproto v0.0.0-20210930144712-2e2e1008e8a3 // indirect
+	google.golang.org/grpc v1.41.0 // indirect
 	gopkg.in/juju/environschema.v1 v1.0.0
 	gopkg.in/lxc/go-lxc.v2 v2.0.0-20210307013912-d9b9f727ce0f
 	gopkg.in/macaroon-bakery.v2 v2.3.0
