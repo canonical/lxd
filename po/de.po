@@ -392,11 +392,13 @@ msgid ""
 "### This is a yaml representation of the cluster member.\n"
 "### Any line starting with a '# will be ignored."
 msgstr ""
+"### Dies ist eine yaml-Repräsentation des Cluster-Mitglieds.\n"
+"### Jede mit '# beginnende Zeile wird ignoriert."
 
 #: lxc/info.go:315
 #, c-format
 msgid "%d (id: %d, online: %v, NUMA node: %v)"
-msgstr ""
+msgstr "%d (ID: %d, Online: %v, NUMA-Knoten: %v)"
 
 #: lxc/info.go:160
 #, fuzzy, c-format
@@ -421,7 +423,7 @@ msgstr "%v (zwei weitere Male unterbrechen, um zu erzwingen)"
 #: lxc/file.go:749
 #, c-format
 msgid "'%s' isn't a supported file type"
-msgstr ""
+msgstr "'%s' ist kein unterstützter Dateityp"
 
 #: lxc/profile.go:226
 msgid "(none)"
@@ -430,7 +432,7 @@ msgstr "(kein Wert)"
 #: lxc/info.go:305
 #, c-format
 msgid "- Level %d (type: %s): %s"
-msgstr ""
+msgstr "- Level %d (Typ: %s): %s"
 
 #: lxc/info.go:284
 #, c-format
