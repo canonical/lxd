@@ -2124,6 +2124,8 @@ test_clustering_handover() {
   # The fourth node has been promoted, while the first one demoted.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database$"
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -q "database: false"
 
