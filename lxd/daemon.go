@@ -1474,6 +1474,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	d.shutdownCancel()
 
 	if d.gateway != nil {
+		d.stopClusterTasks()
+
 		err := handoverMemberRole(d)
 		if err != nil {
 			logger.Warn("Could not handover member's responsibilities", log.Ctx{"err": err})
