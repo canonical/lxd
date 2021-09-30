@@ -739,6 +739,13 @@ func (d *lxc) initLXC(config bool) error {
 		}
 	}
 
+	if d.state.OS.CoreScheduling {
+		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
+		if err != nil {
+			return err
+		}
+	}
+
 	// Allow for lightweight init
 	d.cConfig = config
 	if !config {
