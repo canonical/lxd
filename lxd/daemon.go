@@ -1333,8 +1333,13 @@ func (d *Daemon) Ready() error {
 	// Get daemon state struct
 	s := d.State()
 
-	// Restore containers
-	instancesRestart(s)
+	// Restore instances
+	instances, err := instance.LoadNodeAll(s, instancetype.Any)
+	if err != nil {
+		return fmt.Errorf("Failed loading instances to restore: %w", err)
+	}
+
+	instancesStart(s, instances)
 
 	// Re-balance in case things changed while LXD was down
 	deviceTaskBalance(s)
