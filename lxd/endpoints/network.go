@@ -179,7 +179,17 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 
 // Create a new net.Listener bound to the tcp socket of the network endpoint.
 func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener, error) {
-	listener, err := net.Listen("tcp", util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort))
+	// Listening on `tcp` network with address 0.0.0.0 will end up with listening
+	// on both IPv4 and IPv6 interfaces. Pass `tcp4` to make it
+	// work only on 0.0.0.0. https://go-review.googlesource.com/c/go/+/45771/
+	listenAddress := util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort)
+	protocol := "tcp"
+
+	if strings.HasPrefix(listenAddress, "0.0.0.0") {
+		protocol = "tcp4"
+	}
+
+	listener, err := net.Listen(protocol, listenAddress)
 	if err != nil {
 		return nil, errors.Wrap(err, "Bind network address")
 	}

@@ -1,7 +1,9 @@
 package endpoints_test
 
 import (
+	"fmt"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/lxc/lxd/shared"
@@ -87,4 +89,25 @@ func newTCPListener(t *testing.T) *net.TCPListener {
 
 	require.NoError(t, err)
 	return listener
+}
+
+// Create IPv4 0.0.0.0 listener using random port
+// and ensure it is not accessible via IPv6 request.
+func TestEndpoints_NetworkCreateTCPSocketIPv4(t *testing.T) {
+	endpoints, config, cleanup := newEndpoints(t)
+	defer cleanup()
+
+	config.NetworkAddress = "0.0.0.0:0"
+	require.NoError(t, endpoints.Up(config))
+
+	address, certificate := endpoints.NetworkAddressAndCert()
+	parts := strings.Split(address, ":")
+	ipv6Address := fmt.Sprintf("[::1]:%s", parts[1])
+	ipv4Address := fmt.Sprintf("127.0.0.1:%s", parts[1])
+
+	// Check accessibility over IPv4 request
+	assert.NoError(t, httpGetOverTLSSocket(ipv4Address, certificate))
+
+	// Check accessibility over IPv6 request
+	assert.Error(t, httpGetOverTLSSocket(ipv6Address, certificate))
 }
