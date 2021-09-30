@@ -2056,8 +2056,6 @@ func handoverMemberRole(d *Daemon) error {
 		return nil
 	}
 
-	logger.Info("Handing over cluster member role")
-
 	// Figure out our own cluster address.
 	address, err := node.ClusterAddress(d.db)
 	if err != nil {
@@ -2067,6 +2065,8 @@ func handoverMemberRole(d *Daemon) error {
 	post := &internalClusterPostHandoverRequest{
 		Address: address,
 	}
+
+	logCtx := log.Ctx{"address": address}
 
 	// Find the cluster leader.
 findLeader:
@@ -2082,7 +2082,7 @@ findLeader:
 	}
 
 	if leader == address {
-		logger.Info("Transfer leadership")
+		logger.Info("Transferring leadership", logCtx)
 		err := d.gateway.TransferLeadership()
 		if err != nil {
 			return errors.Wrapf(err, "Failed to transfer leadership")
@@ -2090,9 +2090,10 @@ findLeader:
 		goto findLeader
 	}
 
+	logger.Info("Handing over cluster member role", logCtx)
 	client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), nil, true)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed handing over cluster member role")
 	}
 
 	_, _, err = client.RawQuery("POST", "/internal/cluster/handover", post, "")
