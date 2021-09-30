@@ -1948,27 +1948,24 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 		}
 
 		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
-			go func() {
-				// Wait a little bit, just to avoid spurious
-				// attempts due to nodes being shut down.
-				time.Sleep(5 * time.Second)
-				d.clusterMembershipMutex.Lock()
-				defer d.clusterMembershipMutex.Unlock()
-				err := rebalanceMemberRoles(d, nil)
-				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-					logger.Warnf("Could not rebalance cluster member roles: %v", err)
-				}
-			}()
+			// Wait a little bit, just to avoid spurious
+			// attempts due to nodes being shut down.
+			time.Sleep(5 * time.Second)
+			d.clusterMembershipMutex.Lock()
+			err := rebalanceMemberRoles(d, nil)
+			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+				logger.Warnf("Could not rebalance cluster member roles: %v", err)
+			}
+			d.clusterMembershipMutex.Unlock()
 		}
+
 		if hasNodesNotPartOfRaft {
-			go func() {
-				d.clusterMembershipMutex.Lock()
-				defer d.clusterMembershipMutex.Unlock()
-				err := upgradeNodesWithoutRaftRole(d)
-				if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-					logger.Warnf("Failed upgrade raft roles: %v", err)
-				}
-			}()
+			d.clusterMembershipMutex.Lock()
+			err := upgradeNodesWithoutRaftRole(d)
+			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+				logger.Warnf("Failed upgrade raft roles: %v", err)
+			}
+			d.clusterMembershipMutex.Unlock()
 		}
 	}
 }
