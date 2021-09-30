@@ -217,14 +217,6 @@ func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate) error 
 	return err
 }
 
-// UpdateCertificateProjects updates the list of projects on a certificate.
-func (c *Cluster) UpdateCertificateProjects(id int, projects []string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.UpdateCertificateProjects(id, projects)
-	})
-	return err
-}
-
 // GetCertificates returns all available local certificates.
 func (n *NodeTx) GetCertificates() ([]Certificate, error) {
 	dbCerts := []struct {
