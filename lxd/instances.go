@@ -208,20 +208,8 @@ func (slice instanceAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-func instancesRestart(s *state.State) error {
-	// Get all the instances
-	result, err := instance.LoadNodeAll(s, instancetype.Any)
-	if err != nil {
-		return err
-	}
-
-	instances := []instance.Instance{}
-
-	for _, c := range result {
-		instances = append(instances, c)
-	}
-
-	sort.Sort(containerAutostartList(instances))
+func instancesStart(s *state.State, instances []instance.Instance) {
+	sort.Sort(instanceAutostartList(instances))
 
 	maxAttempts := 3
 
@@ -277,7 +265,7 @@ func instancesRestart(s *state.State) error {
 		}
 	}
 
-	return nil
+	return
 }
 
 type instanceStopList []instance.Instance
