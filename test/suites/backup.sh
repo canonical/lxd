@@ -584,6 +584,7 @@ test_backup_volume_export_with_project() {
   # Check tarball content.
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
+  [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
 
   ! grep -q -- '- snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
@@ -616,7 +617,9 @@ test_backup_volume_export_with_project() {
   # Check tarball content.
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
+  [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/snap0" ]
+  [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/snap0/test")" = "foo" ]
 
   grep -q -- '- snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
 
