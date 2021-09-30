@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-04 14:42-0400\n"
+"POT-Creation-Date: 2021-10-04 14:49-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -418,8 +418,7 @@ msgstr ""
 
 #: lxc/file.go:416
 #, fuzzy
-msgid ""
-"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
 #: lxc/image.go:604
@@ -4517,6 +4516,12 @@ msgstr ""
 #: lxc/image.go:1055
 msgid "yes"
 msgstr ""
+
+#, fuzzy
+#~ msgid ""
+#~ "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
+#~ "<path>...]"
+#~ msgstr "No se puede proveer el nombre del container a la lista"
 
 #, fuzzy
 #~ msgid "[<remote>:] <hostname|fingerprint>"

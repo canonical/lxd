@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-04 14:42-0400\n"
+"POT-Creation-Date: 2021-10-04 14:49-0400\n"
 "PO-Revision-Date: 2018-06-22 15:57+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -427,8 +427,7 @@ msgstr ""
 
 #: lxc/file.go:416
 #, fuzzy
-msgid ""
-"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
+msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr ""
 "Изменение состояния одного или нескольких контейнеров %s.\n"
 "\n"
@@ -4822,6 +4821,15 @@ msgstr ""
 #: lxc/image.go:1055
 msgid "yes"
 msgstr "да"
+
+#, fuzzy
+#~ msgid ""
+#~ "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
+#~ "<path>...]"
+#~ msgstr ""
+#~ "Изменение состояния одного или нескольких контейнеров %s.\n"
+#~ "\n"
+#~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #, fuzzy
 #~ msgid "[<remote>:] <hostname|fingerprint>"

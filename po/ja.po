@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-04 14:42-0400\n"
+"POT-Creation-Date: 2021-10-04 14:49-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -422,11 +422,8 @@ msgstr "rename <remote> <new-name>"
 
 #: lxc/file.go:416
 #, fuzzy
-msgid ""
-"<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
-msgstr ""
-"push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
-"<path>...]"
+msgid "<source path>... [<remote>:]<instance>/<path>"
+msgstr "edit [<remote>:]<instance>/<path>"
 
 #: lxc/image.go:604
 #, fuzzy
@@ -4932,6 +4929,14 @@ msgstr "y"
 #: lxc/image.go:1055
 msgid "yes"
 msgstr "yes"
+
+#, fuzzy
+#~ msgid ""
+#~ "<source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
+#~ "<path>...]"
+#~ msgstr ""
+#~ "push <source path> [<remote>:]<instance>/<path> [[<remote>:]<instance>/"
+#~ "<path>...]"
 
 #, fuzzy
 #~ msgid "[<remote>:] <hostname|fingerprint>"
