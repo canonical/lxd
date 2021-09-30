@@ -189,13 +189,13 @@ var instanceBackupExportCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: instanceBackupExportGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
-type containerAutostartList []instance.Instance
+type instanceAutostartList []instance.Instance
 
-func (slice containerAutostartList) Len() int {
+func (slice instanceAutostartList) Len() int {
 	return len(slice)
 }
 
-func (slice containerAutostartList) Less(i, j int) bool {
+func (slice instanceAutostartList) Less(i, j int) bool {
 	iOrder := slice[i].ExpandedConfig()["boot.autostart.priority"]
 	jOrder := slice[j].ExpandedConfig()["boot.autostart.priority"]
 
@@ -208,7 +208,7 @@ func (slice containerAutostartList) Less(i, j int) bool {
 	return slice[i].Name() < slice[j].Name()
 }
 
-func (slice containerAutostartList) Swap(i, j int) {
+func (slice instanceAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
