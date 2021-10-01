@@ -736,7 +736,7 @@ func (d *Daemon) Init() error {
 	// ignored.
 	if err != nil {
 		logger.Error("Failed to start the daemon", log.Ctx{"err": err})
-		d.Stop(context.Background(), unix.SIGPWR)
+		d.Stop(context.Background(), unix.SIGINT)
 		return err
 	}
 
@@ -1468,7 +1468,7 @@ func (d *Daemon) numRunningInstances() (int, error) {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
-	logger.Info("Starting shutdown sequence")
+	logger.Info("Starting shutdown sequence", log.Ctx{"signal": sig})
 
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCancel()
@@ -1543,7 +1543,9 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
-	d.gateway.Kill()
+	if d.gateway != nil {
+		d.gateway.Kill()
+	}
 
 	errs := []error{}
 	trackError := func(err error, desc string) {
@@ -1608,7 +1610,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 		logger.Infof("Done unmounting temporary filesystems")
 	} else {
-		logger.Debugf("Not unmounting temporary filesystems (containers are still running)")
+		logger.Infof("Not unmounting temporary filesystems (instances are still running)")
 	}
 
 	if d.seccomp != nil {
