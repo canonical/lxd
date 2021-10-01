@@ -720,8 +720,6 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 	}
 
-	baseImage := backupConf.Container.Config["volatile.base_image"]
-
 	profiles, err := d.State().Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading profiles for instance")
@@ -738,29 +736,16 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	internalImportRootDevicePopulate(instancePoolName, backupConf.Container.Devices, backupConf.Container.ExpandedDevices, profiles)
 
-	arch, err := osarch.ArchitectureId(backupConf.Container.Architecture)
-	if err != nil {
-		return err
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, instOp, err := instance.CreateInternal(d.State(), db.InstanceArgs{
-		Project:      projectName,
-		Architecture: arch,
-		BaseImage:    baseImage,
-		Config:       backupConf.Container.Config,
-		CreationDate: backupConf.Container.CreatedAt,
-		Type:         instanceType,
-		Description:  backupConf.Container.Description,
-		Devices:      deviceConfig.NewDevices(backupConf.Container.Devices),
-		Ephemeral:    backupConf.Container.Ephemeral,
-		LastUsedDate: backupConf.Container.LastUsedAt,
-		Name:         backupConf.Container.Name,
-		Profiles:     backupConf.Container.Profiles,
-		Stateful:     backupConf.Container.Stateful,
-	}, true, nil, revert)
+	if backupConf.Container == nil {
+		return fmt.Errorf("No instance config in backup config")
+	}
+
+	instDBArgs := backupConf.ToInstanceDBArgs(projectName)
+
+	_, instOp, err := instance.CreateInternal(d.State(), *instDBArgs, true, nil, revert)
 	if err != nil {
 		return errors.Wrap(err, "Failed creating instance record")
 	}
