@@ -887,3 +887,31 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 
 	return op, instanceInitiated, nil
 }
+
+// recordLastState records last power and used time into local config and database config.
+func (d *common) recordLastState() error {
+	var err error
+
+	// Record power state.
+	d.localConfig["volatile.last_state.power"] = "RUNNING"
+	d.expandedConfig["volatile.last_state.power"] = "RUNNING"
+
+	// Database updates
+	return d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Record power state.
+		err = tx.UpdateInstancePowerState(d.id, "RUNNING")
+		if err != nil {
+			err = errors.Wrap(err, "Error updating instance power state")
+			return err
+		}
+
+		// Update time instance last started time.
+		err = tx.UpdateInstanceLastUsedDate(d.id, time.Now().UTC())
+		if err != nil {
+			err = errors.Wrap(err, "Error updating instance last used")
+			return err
+		}
+
+		return nil
+	})
+}
