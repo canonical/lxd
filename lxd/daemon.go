@@ -1597,14 +1597,14 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	}
 
 	if shouldUnmount {
-		logger.Infof("Unmounting temporary filesystems")
+		logger.Info("Unmounting temporary filesystems")
 
 		unix.Unmount(shared.VarPath("devlxd"), unix.MNT_DETACH)
 		unix.Unmount(shared.VarPath("shmounts"), unix.MNT_DETACH)
 
-		logger.Infof("Done unmounting temporary filesystems")
+		logger.Info("Done unmounting temporary filesystems")
 	} else {
-		logger.Infof("Not unmounting temporary filesystems (instances are still running)")
+		logger.Info("Not unmounting temporary filesystems (instances are still running)")
 	}
 
 	if d.seccomp != nil {
@@ -1620,7 +1620,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		err = fmt.Errorf(format, errs[0])
 	}
 	if err != nil {
-		logger.Errorf("Failed to cleanly shutdown daemon: %v", err)
+		logger.Error("Failed to cleanly shutdown daemon", log.Ctx{"err": err})
 	}
 
 	return err
