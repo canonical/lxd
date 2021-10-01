@@ -788,7 +788,7 @@ func (d *Daemon) init() error {
 		logger.Info(" - pidfds: no")
 	}
 
-	if d.os.LXCFeatures["core_scheduling"] {
+	if canUseCoreScheduling() && d.os.LXCFeatures["core_scheduling"] {
 		d.os.CoreScheduling = true
 		logger.Info(" - core scheduling: yes")
 	} else {

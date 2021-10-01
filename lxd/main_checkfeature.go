@@ -43,6 +43,7 @@ import (
 #include "include/syscall_numbers.h"
 #include "include/syscall_wrappers.h"
 
+__ro_after_init bool core_scheduling_aware = false;
 __ro_after_init bool close_range_aware = false;
 __ro_after_init bool tiocgptpeer_aware = false;
 __ro_after_init bool netnsid_aware = false;
@@ -502,6 +503,39 @@ static void is_close_range_aware(void)
 	close_range_aware = true;
 }
 
+static void is_core_scheduling_aware(void)
+{
+	int ret;
+	pid_t pid;
+
+	pid = fork();
+	if (pid < 0)
+		return;
+
+	if (pid == 0) {
+		pid_t pid_self;
+		__u64 core_sched_cookie;
+
+		pid_self = getpid();
+
+		ret = core_scheduling_cookie_create_threadgroup(pid_self);
+		if (ret)
+			_exit(EXIT_FAILURE);
+
+		core_sched_cookie = core_scheduling_cookie_get(pid_self);
+		if (!core_scheduling_cookie_valid(core_sched_cookie))
+			_exit(EXIT_FAILURE);
+
+		_exit(EXIT_SUCCESS);
+	}
+
+	ret = wait_for_pid(pid);
+	if (ret)
+		return;
+
+	core_scheduling_aware = true;
+}
+
 void checkfeature(void)
 {
 	__do_close int hostnetns_fd = -EBADF, newnetns_fd = -EBADF, pidfd = -EBADF;
@@ -512,6 +546,7 @@ void checkfeature(void)
 	is_seccomp_notify_aware();
 	is_tiocgptpeer_aware();
 	is_close_range_aware();
+	is_core_scheduling_aware();
 
 	if (pidfd >= 0)
 		pidfd_setns_aware = !setns(pidfd, CLONE_NEWNET);
@@ -603,4 +638,8 @@ func canUseCloseRange() bool {
 
 func canUsePidFdSetns() bool {
 	return bool(C.pidfd_setns_aware)
+}
+
+func canUseCoreScheduling() bool {
+	return bool(C.core_scheduling_aware)
 }
