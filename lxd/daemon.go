@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/x509"
 	"database/sql"
-	sqldriver "database/sql/driver"
 	"fmt"
 	"io"
 	"net"
@@ -736,7 +735,7 @@ func (d *Daemon) Init() error {
 	// ignored.
 	if err != nil {
 		logger.Error("Failed to start the daemon", log.Ctx{"err": err})
-		d.Stop(context.Background(), unix.SIGPWR)
+		d.Stop(context.Background(), unix.SIGINT)
 		return err
 	}
 
@@ -1476,7 +1475,7 @@ func (d *Daemon) numRunningInstances() (int, error) {
 
 // Stop stops the shared daemon.
 func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
-	logger.Info("Starting shutdown sequence")
+	logger.Info("Starting shutdown sequence", log.Ctx{"signal": sig})
 
 	// Cancelling the context will make everyone aware that we're shutting down.
 	d.shutdownCancel()
@@ -1551,7 +1550,9 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		}
 	}
 
-	d.gateway.Kill()
+	if d.gateway != nil {
+		d.gateway.Kill()
+	}
 
 	errs := []error{}
 	trackError := func(err error, desc string) {
@@ -1585,15 +1586,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			shouldUnmount = true
 		}
 
-		logger.Infof("Closing the database")
+		logger.Info("Closing the database")
 		err := d.cluster.Close()
-		// If we got io.EOF the network connection was interrupted and
-		// it's likely that the other node shutdown. Let's just log the
-		// event and return cleanly.
-		if errors.Cause(err) == sqldriver.ErrBadConn {
-			logger.Debugf("Could not close remote database cleanly: %v", err)
-		} else {
-			trackError(err, "Close cluster database")
+		if err != nil {
+			logger.Debug("Could not close remote database cleanly", log.Ctx{"err": err})
 		}
 	}
 	if d.db != nil {
@@ -1609,14 +1605,14 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	}
 
 	if shouldUnmount {
-		logger.Infof("Unmounting temporary filesystems")
+		logger.Info("Unmounting temporary filesystems")
 
 		unix.Unmount(shared.VarPath("devlxd"), unix.MNT_DETACH)
 		unix.Unmount(shared.VarPath("shmounts"), unix.MNT_DETACH)
 
-		logger.Infof("Done unmounting temporary filesystems")
+		logger.Info("Done unmounting temporary filesystems")
 	} else {
-		logger.Debugf("Not unmounting temporary filesystems (containers are still running)")
+		logger.Info("Not unmounting temporary filesystems (instances are still running)")
 	}
 
 	if d.seccomp != nil {
@@ -1632,7 +1628,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		err = fmt.Errorf(format, errs[0])
 	}
 	if err != nil {
-		logger.Errorf("Failed to cleanly shutdown daemon: %v", err)
+		logger.Error("Failed to cleanly shutdown daemon", log.Ctx{"err": err})
 	}
 
 	return err
