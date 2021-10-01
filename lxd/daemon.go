@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/x509"
 	"database/sql"
-	sqldriver "database/sql/driver"
 	"fmt"
 	"io"
 	"net"
@@ -1579,15 +1578,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			shouldUnmount = true
 		}
 
-		logger.Infof("Closing the database")
+		logger.Info("Closing the database")
 		err := d.cluster.Close()
-		// If we got io.EOF the network connection was interrupted and
-		// it's likely that the other node shutdown. Let's just log the
-		// event and return cleanly.
-		if errors.Cause(err) == sqldriver.ErrBadConn {
-			logger.Debugf("Could not close remote database cleanly: %v", err)
-		} else {
-			trackError(err, "Close cluster database")
+		if err != nil {
+			logger.Debug("Could not close remote database cleanly", log.Ctx{"err": err})
 		}
 	}
 	if d.db != nil {
