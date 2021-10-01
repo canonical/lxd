@@ -1292,7 +1292,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 						return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
 					}
 
-					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"volName": vol.name, "dev": dataset})
+					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"volName": vol.name, "dev": dataset, "path": devPath})
 					time.Sleep(time.Millisecond * time.Duration(500))
 				}
 
