@@ -2364,6 +2364,20 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 	return sortedDevs, nil
 }
 
+func defaultGpuDriver(busName string, architecture string) string {
+	if busName == "ccw" {
+		return "virtio-gpu-ccw"
+	}
+	if busName != "pci" && busName != "pcie" {
+		return ""
+	}
+	if architecture == "x86_64" {
+		return "virtio-vga"
+	} else {
+		return "virtio-gpu-pci"
+	}
+}
+
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
 func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, []monitorHook, error) {
@@ -2541,13 +2555,16 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
+	driver := d.expandedConfig["raw.qemu.gpu.driver"]
+	if driver == "" {
+		driver = defaultGpuDriver(bus.name, d.architectureName)
+	}
 	err = qemuGPU.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
 		"multifunction": multi,
-
-		"architecture": d.architectureName,
+		"driver":        driver,
 	})
 	if err != nil {
 		return "", nil, err

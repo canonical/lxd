@@ -185,17 +185,12 @@ multifunction = "on"
 var qemuGPU = template.Must(template.New("qemuGPU").Parse(`
 # GPU
 [device "qemu_gpu"]
-{{- if eq .bus "pci" "pcie"}}
-{{if eq .architecture "x86_64" -}}
-driver = "virtio-vga"
-{{- else}}
-driver = "virtio-gpu-pci"
+{{if ne .driver "" -}}
+driver = "{{.driver}}"
 {{- end}}
+{{- if eq .bus "pci" "pcie"}}
 bus = "{{.devBus}}"
 addr = "{{.devAddr}}"
-{{- end}}
-{{if eq .bus "ccw" -}}
-driver = "virtio-gpu-ccw"
 {{- end}}
 {{if .multifunction -}}
 multifunction = "on"

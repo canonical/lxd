@@ -267,6 +267,7 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 
 	// Caller is responsible for full validation of any raw.* value.
 	"raw.qemu": validate.IsAny,
+	"raw.qemu.gpu.driver": validate.IsAny,
 
 	"security.secureboot": validate.Optional(validate.IsBool),
 }
