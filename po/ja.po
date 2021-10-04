@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-04 14:49-0400\n"
+"POT-Creation-Date: 2021-10-04 14:51-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -3789,7 +3789,8 @@ msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
 #: lxc/main.go:342
-msgid "To start your first instance, try: lxc launch ubuntu:18.04"
+#, fuzzy
+msgid "To start your first instance, try: lxc launch ubuntu:20.04"
 msgstr ""
 "初めてインスタンスを起動するには、\"lxc launch ubuntu:18.04\" と実行してみて"
 "ください"
@@ -4676,10 +4677,11 @@ msgstr ""
 "    config.yaml の設定を使ってインスタンスを作成します"
 
 #: lxc/launch.go:27
+#, fuzzy
 msgid ""
-"lxc launch ubuntu:18.04 u1\n"
+"lxc launch ubuntu:20.04 u1\n"
 "\n"
-"lxc launch ubuntu:18.04 u1 < config.yaml\n"
+"lxc launch ubuntu:20.04 u1 < config.yaml\n"
 "    Create and start the instance with configuration from config.yaml"
 msgstr ""
 "lxc launch ubuntu:18.04 u1\n"
