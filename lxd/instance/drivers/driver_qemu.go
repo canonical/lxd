@@ -1436,26 +1436,8 @@ func (d *qemu) Start(stateful bool) error {
 		}
 	}
 
-	// Database updates
-	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Record current state
-		err = tx.UpdateInstancePowerState(d.id, "RUNNING")
-		if err != nil {
-			err = errors.Wrap(err, "Error updating instance state")
-			op.Done(err)
-			return err
-		}
-
-		// Update time instance last started time
-		err = tx.UpdateInstanceLastUsedDate(d.id, time.Now().UTC())
-		if err != nil {
-			err = errors.Wrap(err, "Error updating instance last used")
-			op.Done(err)
-			return err
-		}
-
-		return nil
-	})
+	// Record last start state.
+	err = d.recordLastState()
 	if err != nil {
 		op.Done(err)
 		return err
