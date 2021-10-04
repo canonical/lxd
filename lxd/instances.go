@@ -395,27 +395,11 @@ func instancesShutdown(s *state.State) error {
 	if err != nil {
 		// Mark database as offline
 		dbAvailable = false
-		instances = []instance.Instance{}
 
 		// List all instances on disk
-		instanceNames, err := instancesOnDisk()
+		instances, err = instancesOnDisk(s)
 		if err != nil {
 			return err
-		}
-
-		for project, names := range instanceNames {
-			for _, name := range names {
-				inst, err := instance.Load(s, db.InstanceArgs{
-					Project: project,
-					Name:    name,
-					Config:  make(map[string]string),
-				}, nil)
-				if err != nil {
-					return err
-				}
-
-				instances = append(instances, inst)
-			}
 		}
 	}
 
