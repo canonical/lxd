@@ -460,37 +460,19 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 
 	internalImportRootDevicePopulate(pool.Name(), poolVol.Container.Devices, poolVol.Container.ExpandedDevices, profiles)
 
-	arch, err := osarch.ArchitectureId(poolVol.Container.Architecture)
-	if err != nil {
-		return nil, err
-	}
-
-	instanceType, err := instancetype.New(poolVol.Container.Type)
-	if err != nil {
-		return nil, err
-	}
-
 	// Extract volume config from backup file if present.
 	var volConfig map[string]string
 	if poolVol.Volume != nil {
 		volConfig = poolVol.Volume.Config
 	}
 
-	inst, instOp, err := instance.CreateInternal(s, db.InstanceArgs{
-		Project:      projectName,
-		Architecture: arch,
-		BaseImage:    poolVol.Container.Config["volatile.base_image"],
-		Config:       poolVol.Container.Config,
-		CreationDate: poolVol.Container.CreatedAt,
-		Type:         instanceType,
-		Description:  poolVol.Container.Description,
-		Devices:      deviceConfig.NewDevices(poolVol.Container.Devices),
-		Ephemeral:    poolVol.Container.Ephemeral,
-		LastUsedDate: poolVol.Container.LastUsedAt,
-		Name:         poolVol.Container.Name,
-		Profiles:     poolVol.Container.Profiles,
-		Stateful:     poolVol.Container.Stateful,
-	}, false, volConfig, revert)
+	dbInst := poolVol.ToInstanceDBArgs(projectName)
+
+	if dbInst.Type < 0 {
+		return nil, fmt.Errorf("Invalid instance type")
+	}
+
+	inst, instOp, err := instance.CreateInternal(s, *dbInst, false, volConfig, revert)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed creating instance record")
 	}
