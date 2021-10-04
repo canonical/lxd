@@ -1596,7 +1596,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 		logger.Info("Closing the database")
 		err := d.cluster.Close()
 		if err != nil {
-			logger.Debug("Could not close remote database cleanly", log.Ctx{"err": err})
+			logger.Debug("Could not close global database cleanly", log.Ctx{"err": err})
 		}
 	}
 	if d.db != nil {
