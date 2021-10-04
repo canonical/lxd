@@ -36,7 +36,7 @@ func DNS(projectName string, instanceName string) string {
 
 // InstanceParts takes a project prefixed Instance name string and returns the project and instance name.
 // If a non-project prefixed Instance name is supplied, then the project is returned as "default" and the instance
-// name is returned unmodified in the 2nd return value. This is suitable for passing back into Prefix().
+// name is returned unmodified in the 2nd return value. This is suitable for passing back into Instance().
 // Note: This should only be used with Instance names (because they cannot contain the project separator) and this
 // function relies on this rule as project names can contain the project separator.
 func InstanceParts(projectInstanceName string) (string, string) {
