@@ -406,14 +406,10 @@ func instancesShutdown(s *state.State) error {
 			wg.Wait()
 		}
 
-		// Record the current state
-		lastState := inst.State()
-
-		// Stop the container
-		if lastState != "ERROR" && lastState != "STOPPED" {
-			// Stop the instance
+		// Stop the instance if running.
+		if inst.IsRunning() {
 			wg.Add(1)
-			go func(c instance.Instance, lastState string) {
+			go func(inst instance.Instance) {
 				// Determine how long to wait for the instance to shutdown cleanly.
 				timeoutSeconds := 30
 				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
@@ -421,17 +417,24 @@ func instancesShutdown(s *state.State) error {
 					timeoutSeconds, _ = strconv.Atoi(value)
 				}
 
-				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
-				c.Stop(false)
+				err := inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
+				if err != nil {
+					logger.Warn("Failed shutting down instance, forcefully stopping", log.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
+					err = inst.Stop(false)
+					if err != nil {
+						logger.Warn("Failed forcefully stopping instance", log.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
+					}
+				}
 
 				if dbAvailable {
-					c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+					// If DB was available then the instance shutdown process will have set
+					// the last power state to STOPPED, so set that back to RUNNING so that
+					// when LXD restarts the instance will be started again.
+					inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
 				}
 
 				wg.Done()
-			}(inst, lastState)
-		} else if dbAvailable {
-			inst.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+			}(inst)
 		}
 	}
 	wg.Wait()
