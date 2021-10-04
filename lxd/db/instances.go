@@ -857,13 +857,6 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 	return ret, nil
 }
 
-// ResetInstancesPowerState resets the power state of all instances.
-func (c *Cluster) ResetInstancesPowerState() error {
-	// Reset all container states
-	err := exec(c, "DELETE FROM instances_config WHERE key='volatile.last_state.power'")
-	return err
-}
-
 // UpdateInstancePowerState sets the the power state of the instance with the
 // given ID.
 func (c *Cluster) UpdateInstancePowerState(id int, state string) error {
