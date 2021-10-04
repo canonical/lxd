@@ -456,6 +456,9 @@ type StoragePoolVolumeCopyArgs struct {
 
 	// API extension: custom_volume_refresh
 	Refresh bool
+
+	// API extension: cluster_custom_volume_copy
+	SourceLocation string
 }
 
 // The StoragePoolVolumeMoveArgs struct is used to pass additional options
