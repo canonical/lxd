@@ -2278,12 +2278,6 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, err
 	}
 
-	// Update the backup.yaml file
-	err = d.UpdateBackupFile()
-	if err != nil {
-		return "", nil, err
-	}
-
 	// If starting stateless, wipe state
 	if !d.IsStateful() && shared.PathExists(d.StatePath()) {
 		os.RemoveAll(d.StatePath())
@@ -2439,6 +2433,15 @@ func (d *lxc) Start(stateful bool) error {
 			op.Done(err)
 			return errors.Wrap(err, "Persist stateful flag")
 		}
+	}
+
+	// Update the backup.yaml file just before starting the instance process, but after all devices have been
+	// setup, so that the backup file contains the volatile keys used for this instance start, so that they
+	// can be used for instance cleanup.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		op.Done(err)
+		return err
 	}
 
 	name := project.Instance(d.Project(), d.name)
@@ -4970,6 +4973,14 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 
 		if args.DumpDir != "" {
 			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
+		}
+
+		// Update the backup.yaml file just before starting the instance process, but after all devices
+		// have been setup, so that the backup file contains the volatile keys used for this instance
+		// start, so that they can be used for instance cleanup.
+		err = d.UpdateBackupFile()
+		if err != nil {
+			return err
 		}
 
 		_, migrateErr = shared.RunCommand(

@@ -1009,12 +1009,6 @@ func (d *qemu) Start(stateful bool) error {
 		return errors.Wrapf(err, "Failed setting volatile keys")
 	}
 
-	// Update the backup.yaml file (must come after volatile keys have been updated).
-	err = d.UpdateBackupFile()
-	if err != nil {
-		return err
-	}
-
 	// Generate the config drive.
 	err = d.generateConfigShare()
 	if err != nil {
@@ -1311,6 +1305,14 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		files = append(files, f)
+	}
+
+	// Update the backup.yaml file just before starting the instance process, but after all devices have been
+	// setup, so that the backup file contains the volatile keys used for this instance start, so that they can
+	// be used for instance cleanup.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		return err
 	}
 
 	// Reset timeout to 30s.
