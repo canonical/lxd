@@ -2342,7 +2342,7 @@ func (d *lxc) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
+	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create container start operation")
 	}
@@ -2601,7 +2601,7 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
+	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart", "restore"}, false, true)
 	if err != nil {
 		return err
 	}
@@ -2760,7 +2760,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
+	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart"}, true, false)
 	if err != nil {
 		return err
 	}
@@ -3359,7 +3359,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
-	op, err := operationlock.Create(d.id, "restore", false, false)
+	op, err := operationlock.Create(d.Project(), d.Name(), "restore", false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create restore operation")
 	}
@@ -3406,7 +3406,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.id, "restore", false, false)
+		op, err = operationlock.Create(d.Project(), d.Name(), "restore", false, false)
 		if err != nil {
 			return errors.Wrap(err, "Create restore operation")
 		}
@@ -5250,7 +5250,7 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 // FileExists returns whether file exists inside instance.
 func (d *lxc) FileExists(path string) error {
 	// Check for ongoing operations (that may involve shifting).
-	operationlock.Get(d.id).Wait()
+	operationlock.Get(d.Project(), d.Name()).Wait()
 
 	// Setup container storage if needed
 	_, err := d.mount()
@@ -5298,7 +5298,7 @@ func (d *lxc) FileExists(path string) error {
 // FilePull gets a file from the instance.
 func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
 	// Check for ongoing operations (that may involve shifting).
-	operationlock.Get(d.id).Wait()
+	operationlock.Get(d.Project(), d.Name()).Wait()
 
 	// Setup container storage if needed
 	_, err := d.mount()
@@ -5423,7 +5423,7 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 // FilePush sends a file into the instance.
 func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error {
 	// Check for ongoing operations (that may involve shifting).
-	operationlock.Get(d.id).Wait()
+	operationlock.Get(d.Project(), d.Name()).Wait()
 
 	var rootUID int64
 	var rootGID int64
@@ -5516,7 +5516,7 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 // FileRemove removes a file inside the instance.
 func (d *lxc) FileRemove(path string) error {
 	// Check for ongoing operations (that may involve shifting).
-	operationlock.Get(d.id).Wait()
+	operationlock.Get(d.Project(), d.Name()).Wait()
 
 	var errStr string
 
