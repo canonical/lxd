@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -624,6 +625,37 @@ func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, er
 	}
 
 	return LoadAllInternal(s, insts)
+}
+
+// LoadFromBackup loads from a mounted instance's backup file.
+// If applyProfiles is false, then the profiles property will be cleared to prevent profile enrichment from DB.
+// Then the expanded config and expanded devices from the backup file will be applied to the local config and
+// local devices respectively. This is done to allow an expanded instance to be returned without needing the DB.
+func LoadFromBackup(s *state.State, projectName string, instancePath string, applyProfiles bool) (Instance, error) {
+	var inst Instance
+
+	backupYamlPath := filepath.Join(instancePath, "backup.yaml")
+	backupConf, err := backup.ParseConfigYamlFile(backupYamlPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed parsing instance backup file from %q: %w", backupYamlPath, err)
+	}
+
+	instDBArgs := backupConf.ToInstanceDBArgs(projectName)
+
+	if !applyProfiles {
+		// Stop instance.Load() from expanding profile config from DB, and apply expanded config from
+		// backup file to local config. This way we can still see the devices even if DB not available.
+		instDBArgs.Profiles = nil
+		instDBArgs.Config = backupConf.Container.ExpandedConfig
+		instDBArgs.Devices = deviceConfig.NewDevices(backupConf.Container.ExpandedDevices)
+	}
+
+	inst, err = Load(s, *instDBArgs, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed loading instance from backup file %q: %w", backupYamlPath, err)
+	}
+
+	return inst, err
 }
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
