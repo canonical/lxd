@@ -317,10 +317,11 @@ type cmdStorageVolumeCopy struct {
 	storage       *cmdStorage
 	storageVolume *cmdStorageVolume
 
-	flagMode          string
-	flagVolumeOnly    bool
-	flagTargetProject string
-	flagRefresh       bool
+	flagMode              string
+	flagVolumeOnly        bool
+	flagTargetProject     string
+	flagRefresh           bool
+	flagDestinationTarget string
 }
 
 func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
@@ -332,7 +333,8 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 		`Copy storage volumes`))
 
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
-	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Source cluster member name")+"``")
+	cmd.Flags().StringVar(&c.flagDestinationTarget, "destination-target", "", i18n.G("Destination cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagVolumeOnly, "volume-only", false, i18n.G("Copy the volume without its snapshots"))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Refresh and update the existing storage volume copies"))
@@ -362,11 +364,38 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 
 	srcServer := srcResource.server
 	srcPath := srcResource.name
+	sourceLocation := ""
+
+	if c.storage.flagTarget != "" {
+		if !srcServer.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
+		}
+
+		srcServer = srcServer.UseTarget(c.storage.flagTarget)
+		sourceLocation = c.storage.flagTarget
+	}
 
 	// Destination
 	dstResource := resources[1]
 	dstServer := dstResource.server
 	dstPath := dstResource.name
+
+	if c.flagDestinationTarget != "" {
+		if !dstServer.IsClustered() {
+			return fmt.Errorf(i18n.G("To use --destination-target, the destination remote must be a cluster"))
+		}
+
+		dstServer = dstServer.UseTarget(c.flagDestinationTarget)
+
+		if c.storage.flagTarget == "" {
+			cluster, _, err := srcServer.GetCluster()
+			if err != nil {
+				return err
+			}
+
+			sourceLocation = cluster.ServerName
+		}
+	}
 
 	// Get source pool and volume name
 	srcVolName, srcVolPool := c.storageVolume.parseVolumeWithPool(srcPath)
@@ -447,6 +476,8 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		if isSnapshot {
 			srcVol.Name = srcVolName
 		}
+
+		args.SourceLocation = sourceLocation
 
 		op, err = dstServer.CopyStoragePoolVolume(dstVolPool, srcServer, srcVolPool, *srcVol, args)
 		if err != nil {
