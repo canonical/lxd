@@ -146,49 +146,57 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 	}
 
 	m := &Mapping{
-		Package: pkg.Name,
-		Name:    name,
-		Fields:  fields,
-		Type:    tableType(pkg, name, fields),
+		Package:    pkg.Name,
+		Name:       name,
+		Fields:     fields,
+		Type:       tableType(pkg, name, fields),
+		Filterable: true,
 	}
 
-	// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
-	filterName := name + "Filter"
-	filterStr := findStruct(pkg.Scope, filterName)
-	if filterStr == nil {
-		return nil, fmt.Errorf("No declaration found for %q", filterName)
+	// Reference tables rely on ReferenceID for filtering, instead of a Filter struct.
+	if m.Type == ReferenceTable || m.Type == MapTable {
+		m.Filterable = false
 	}
 
-	filters, err := parseStruct(filterStr, kind)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse %q", name)
-	}
-
-	for i, filter := range filters {
-		// Any field in EntityFilter must be present in the original struct.
-		field := m.FieldByName(filter.Name)
-		if field == nil {
-			return nil, fmt.Errorf("Filter field %q is not in struct %q", filter.Name, name)
+	if m.Filterable {
+		// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
+		filterName := name + "Filter"
+		filterStr := findStruct(pkg.Scope, filterName)
+		if filterStr == nil {
+			return nil, fmt.Errorf("No declaration found for %q", filterName)
 		}
 
-		// Assign the config tags from the main entity struct to the Filter struct.
-		filters[i].Config = field.Config
+		filters, err := parseStruct(filterStr, kind)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to parse %q", name)
+		}
 
-		// A Filter field and its indirect references must all be in the Filter struct.
-		if field.IsIndirect() {
-			indirectField := lex.Camel(field.Config.Get("via"))
-			for i, f := range filters {
-				if f.Name == indirectField {
-					break
-				}
-				if i == len(filters)-1 {
-					return nil, fmt.Errorf("Field %q requires field %q in struct %q", field.Name, indirectField, name+"Filter")
+		for i, filter := range filters {
+			// Any field in EntityFilter must be present in the original struct.
+			field := m.FieldByName(filter.Name)
+			if field == nil {
+				return nil, fmt.Errorf("Filter field %q is not in struct %q", filter.Name, name)
+			}
+
+			// Assign the config tags from the main entity struct to the Filter struct.
+			filters[i].Config = field.Config
+
+			// A Filter field and its indirect references must all be in the Filter struct.
+			if field.IsIndirect() {
+				indirectField := lex.Camel(field.Config.Get("via"))
+				for i, f := range filters {
+					if f.Name == indirectField {
+						break
+					}
+					if i == len(filters)-1 {
+						return nil, fmt.Errorf("Field %q requires field %q in struct %q", field.Name, indirectField, name+"Filter")
+					}
 				}
 			}
 		}
-	}
 
-	m.Filters = filters
+		m.Filters = filters
+	}
 
 	return m, nil
 }
