@@ -61,14 +61,6 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 			chResult <- err
 			return
 		}
-
-		// Try connecting to events endpoint to check the daemon has really shutdown.
-		monitor, err := d.GetEvents()
-		if err != nil {
-			return // Daemon has stopped.
-		}
-
-		monitor.Wait() // Wait for daemon to stop.
 	}()
 
 	if c.flagTimeout > 0 {
