@@ -6824,50 +6824,50 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	// Get Memory metrics
 	memStats, err := cg.GetMemoryStats()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get memory stats")
-	}
+		logger.Warn("Failed to get memory stats", log.Ctx{"err": err})
+	} else {
+		for k, v := range memStats {
+			var metricType metrics.MetricType
 
-	for k, v := range memStats {
-		var metricType metrics.MetricType
+			switch k {
+			case "active_anon":
+				metricType = metrics.MemoryActiveAnonBytes
+			case "active_file":
+				metricType = metrics.MemoryActiveFileBytes
+			case "active":
+				metricType = metrics.MemoryActiveBytes
+			case "inactive_anon":
+				metricType = metrics.MemoryInactiveAnonBytes
+			case "inactive_file":
+				metricType = metrics.MemoryInactiveFileBytes
+			case "inactive":
+				metricType = metrics.MemoryInactiveBytes
+			case "unevictable":
+				metricType = metrics.MemoryUnevictableBytes
+			case "writeback":
+				metricType = metrics.MemoryWritebackBytes
+			case "dirty":
+				metricType = metrics.MemoryDirtyBytes
+			case "mapped":
+				metricType = metrics.MemoryDirtyBytes
+			case "rss":
+				metricType = metrics.MemoryRSSBytes
+			case "shmem":
+				metricType = metrics.MemoryShmemBytes
+			case "cache":
+				metricType = metrics.MemoryCachedBytes
+			}
 
-		switch k {
-		case "active_anon":
-			metricType = metrics.MemoryActiveAnonBytes
-		case "active_file":
-			metricType = metrics.MemoryActiveFileBytes
-		case "active":
-			metricType = metrics.MemoryActiveBytes
-		case "inactive_anon":
-			metricType = metrics.MemoryInactiveAnonBytes
-		case "inactive_file":
-			metricType = metrics.MemoryInactiveFileBytes
-		case "inactive":
-			metricType = metrics.MemoryInactiveBytes
-		case "unevictable":
-			metricType = metrics.MemoryUnevictableBytes
-		case "writeback":
-			metricType = metrics.MemoryWritebackBytes
-		case "dirty":
-			metricType = metrics.MemoryDirtyBytes
-		case "mapped":
-			metricType = metrics.MemoryDirtyBytes
-		case "rss":
-			metricType = metrics.MemoryRSSBytes
-		case "shmem":
-			metricType = metrics.MemoryShmemBytes
-		case "cache":
-			metricType = metrics.MemoryCachedBytes
+			out.AddSamples(metricType, metrics.Sample{Value: v})
 		}
-
-		out.AddSamples(metricType, metrics.Sample{Value: v})
 	}
 
 	memoryUsage, err := cg.GetMemoryUsage()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get memory usage")
+		logger.Warn("Failed to get memory usage", log.Ctx{"err": err})
+	} else {
+		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: uint64(memoryUsage)})
 	}
-
-	out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: uint64(memoryUsage)})
 
 	memoryLimit := uint64(0)
 
@@ -6876,87 +6876,88 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		// Check /proc/meminfo
 		meminfo, err := ioutil.ReadFile("/proc/meminfo")
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get memory limit")
-		}
+			logger.Warn("Failed to get memory limit", log.Ctx{"err": err})
+		} else {
+			scanner := bufio.NewScanner(bytes.NewReader(meminfo))
 
-		scanner := bufio.NewScanner(bytes.NewReader(meminfo))
+			for scanner.Scan() {
+				line := scanner.Text()
+				parts := strings.Fields(line)
 
-		for scanner.Scan() {
-			line := scanner.Text()
-			parts := strings.Fields(line)
+				if len(parts) == 0 {
+					continue
+				}
 
-			if len(parts) == 0 {
-				continue
+				key := parts[0][:len(parts[0])-1]
+
+				if key != "MemTotal" {
+					continue
+				}
+
+				val, err := strconv.ParseUint(parts[1], 10, 64)
+				if err != nil {
+					return nil, errors.Wrap(err, "Failed to get total memory")
+				}
+
+				switch len(parts) {
+				case 2: // no unit
+				case 3: // has unit, we presume kB
+					val *= 1024
+				default:
+					return nil, errors.Wrap(err, "Failed to get total memory")
+				}
+
+				memoryLimit = val
+				break
 			}
-
-			key := parts[0][:len(parts[0])-1]
-
-			if key != "MemTotal" {
-				continue
-			}
-
-			val, err := strconv.ParseUint(parts[1], 10, 64)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get total memory")
-			}
-
-			switch len(parts) {
-			case 2: // no unit
-			case 3: // has unit, we presume kB
-				val *= 1024
-			default:
-				return nil, errors.Wrap(err, "Failed to get total memory")
-			}
-
-			memoryLimit = val
-			break
 		}
 	} else {
 		memoryLimit = uint64(limit)
 	}
 
-	out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: memoryLimit})
-
-	out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: memoryLimit - uint64(memoryUsage)})
+	if memoryLimit > 0 {
+		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: memoryLimit})
+		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: memoryLimit - uint64(memoryUsage)})
+	}
 
 	swapUsage, err := cg.GetMemorySwapUsage()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get swap usage")
+		logger.Warn("Failed to get swap usage", log.Ctx{"err": err})
+	} else {
+		out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: uint64(swapUsage)})
 	}
-
-	out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: uint64(swapUsage)})
 
 	// Get CPU stats
 	usage, err := cg.GetCPUAcctUsageAll()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get CPU usage")
-	}
-
-	for cpu, stats := range usage {
-		out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.System / 1000000), Labels: map[string]string{"mode": "system", "cpu": strconv.Itoa(int(cpu))}})
-		out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.User / 1000000), Labels: map[string]string{"mode": "user", "cpu": strconv.Itoa(int(cpu))}})
+		logger.Warn("Failed to get CPU usage", log.Ctx{"err": err})
+	} else {
+		for cpu, stats := range usage {
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.System / 1000000), Labels: map[string]string{"mode": "system", "cpu": strconv.Itoa(int(cpu))}})
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.User / 1000000), Labels: map[string]string{"mode": "user", "cpu": strconv.Itoa(int(cpu))}})
+		}
 	}
 
 	// Get disk stats
 	diskStats, err := cg.GetIOStats()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get disk stats")
-	}
-
-	for disk, stats := range diskStats {
-		out.AddSamples(metrics.DiskReadBytesTotal, metrics.Sample{Value: stats.ReadBytes, Labels: map[string]string{"device": disk}})
-		out.AddSamples(metrics.DiskReadsCompletedTotal, metrics.Sample{Value: stats.ReadsCompleted, Labels: map[string]string{"device": disk}})
-		out.AddSamples(metrics.DiskWrittenBytesTotal, metrics.Sample{Value: stats.WrittenBytes, Labels: map[string]string{"device": disk}})
-		out.AddSamples(metrics.DiskWritesCompletedTotal, metrics.Sample{Value: stats.WritesCompleted, Labels: map[string]string{"device": disk}})
+		logger.Warn("Failed to get disk stats", log.Ctx{"err": err})
+	} else {
+		for disk, stats := range diskStats {
+			out.AddSamples(metrics.DiskReadBytesTotal, metrics.Sample{Value: stats.ReadBytes, Labels: map[string]string{"device": disk}})
+			out.AddSamples(metrics.DiskReadsCompletedTotal, metrics.Sample{Value: stats.ReadsCompleted, Labels: map[string]string{"device": disk}})
+			out.AddSamples(metrics.DiskWrittenBytesTotal, metrics.Sample{Value: stats.WrittenBytes, Labels: map[string]string{"device": disk}})
+			out.AddSamples(metrics.DiskWritesCompletedTotal, metrics.Sample{Value: stats.WritesCompleted, Labels: map[string]string{"device": disk}})
+		}
 	}
 
 	// Get filesystem stats
 	fsStats, err := d.getFSStats()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get fs stats")
+		logger.Warn("Failed to get fs stats", log.Ctx{"err": err})
+	} else {
+		out.Merge(fsStats)
 	}
-
-	out.Merge(fsStats)
 
 	// Get network stats
 	networkState := d.networkState()
@@ -6970,16 +6971,15 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		out.AddSamples(metrics.NetworkTransmitErrsTotal, metrics.Sample{Value: uint64(state.Counters.ErrorsSent), Labels: map[string]string{"device": name}})
 		out.AddSamples(metrics.NetworkReceiveDropTotal, metrics.Sample{Value: uint64(state.Counters.PacketsDroppedInbound), Labels: map[string]string{"device": name}})
 		out.AddSamples(metrics.NetworkTransmitDropTotal, metrics.Sample{Value: uint64(state.Counters.PacketsDroppedOutbound), Labels: map[string]string{"device": name}})
-
 	}
 
 	// Get number of processes
 	pids, err := cg.GetTotalProcesses()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get total number of processes")
+		logger.Warn("Failed to get total number of processes", log.Ctx{"err": err})
+	} else {
+		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: uint64(pids)})
 	}
-
-	out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: uint64(pids)})
 
 	return out, nil
 }
