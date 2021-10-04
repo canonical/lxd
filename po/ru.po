@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-04 14:51-0400\n"
+"POT-Creation-Date: 2021-10-04 14:52-0400\n"
 "PO-Revision-Date: 2018-06-22 15:57+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -781,7 +781,7 @@ msgstr ""
 
 #: lxc/remote.go:461
 #, fuzzy
-msgid "Client certificate stored at server:"
+msgid "Client certificate now trusted by server:"
 msgstr "Сертификат клиента хранится на сервере: "
 
 #: lxc/version.go:37

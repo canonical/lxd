@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-04 14:51-0400\n"
+"POT-Creation-Date: 2021-10-04 14:52-0400\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -785,7 +785,8 @@ msgid "Certificate fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
 #: lxc/remote.go:461
-msgid "Client certificate stored at server:"
+#, fuzzy
+msgid "Client certificate now trusted by server:"
 msgstr "クライアント証明書がサーバに格納されました:"
 
 #: lxc/version.go:37
