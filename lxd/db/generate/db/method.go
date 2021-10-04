@@ -638,8 +638,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 			buf.L("        }")
 			buf.L("}")
 			buf.N()
-		}
-		if field.Type.Name == "map[string]map[string]string" {
+		} else if field.Type.Name == "map[string]map[string]string" {
 			buf.L("// Insert devices reference. ")
 			buf.L("for name, config := range object.%s {", field.Name)
 			buf.L("        typ, ok := config[\"type\"]")
@@ -668,13 +667,19 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 			buf.L("        }")
 			buf.L("}")
 			buf.N()
-		}
-		if field.Name == "Profiles" {
+		} else if field.Name == "Profiles" {
 			// TODO: get rid of the special case
 			buf.L("// Insert profiles reference. ")
 			buf.L("err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
 			buf.L("if err != nil {")
 			buf.L("        return -1, errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
+			buf.L("}")
+		} else if field.Name != "UsedBy" {
+			tableName := fmt.Sprintf("%s_%s", lex.Plural(m.entity), lex.Snake(field.Name))
+			buf.L("// Update %s table.", tableName)
+			buf.L("err = c.Update%s%s(int(id), object.%s)", lex.Camel(m.entity), field.Name, field.Name)
+			buf.L("if err != nil {")
+			buf.L("return -1, fmt.Errorf(\"Could not update %s table: %%w\", err)", tableName)
 			buf.L("}")
 		}
 	}
@@ -844,6 +849,13 @@ func (m *Method) update(buf *file.Buffer) error {
 			buf.L("err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)")
 			buf.L("if err != nil {")
 			buf.L("        return errors.Wrap(err, \"Insert profiles for %s\")", m.entity)
+			buf.L("}")
+		case "Projects":
+			tableName := fmt.Sprintf("%s_%s", lex.Plural(m.entity), lex.Snake(field.Name))
+			buf.L("// Update %s table.", tableName)
+			buf.L("err = c.Update%s%s(int(id), object.%s)", lex.Camel(m.entity), field.Name, field.Name)
+			buf.L("if err != nil {")
+			buf.L("return fmt.Errorf(\"Could not update %s table: %%w\", err)", tableName)
 			buf.L("}")
 		}
 	}
