@@ -1107,7 +1107,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			return errors.Wrapf(err, "Unexpected instance database ID %d", dbInst.ID)
 		}
 
-		op, err = operationlock.Create(dbInst.ID, "create", false, false)
+		op, err = operationlock.Create(dbInst.Project, dbInst.Name, "create", false, false)
 		if err != nil {
 			return err
 		}
