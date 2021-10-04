@@ -89,8 +89,9 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
 
-		// Only consider CPU info, skip everything else.
-		if !strings.HasPrefix(fields[0], "cpu") {
+		// Only consider CPU info, skip everything else. Skip aggregated CPU stats since there will
+		// be stats for each individual CPU.
+		if !strings.HasPrefix(fields[0], "cpu") || fields[0] == "cpu" {
 			continue
 		}
 
