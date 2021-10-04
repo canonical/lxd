@@ -196,4 +196,10 @@ type StorageVolumeSource struct {
 	//
 	// API extension: storage_api_project
 	Project string `json:"project,omitempty" yaml:"project,omitempty"`
+
+	// Source location
+	// Example: node2
+	//
+	// API extension: cluster_custom_volume_copy
+	Location string `json:"location" yaml:"location"`
 }
