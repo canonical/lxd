@@ -46,8 +46,8 @@ spawn_lxd() {
     echo "${lxddir}" >> "${TEST_DIR}/daemons"
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
-    echo "==> Confirming lxd is responsive"
-    LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (kill -9 "${LXD_PID}" ; false)
+    echo "==> Confirming lxd is responsive (PID is ${LXD_PID})"
+    LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
 
     if [ "${LXD_NETNS}" = "" ]; then
         echo "==> Binding to network"
@@ -105,8 +105,8 @@ respawn_lxd() {
     echo "==> Spawned LXD (PID is ${LXD_PID})"
 
     if [ "${wait}" = true ]; then
-        echo "==> Confirming lxd is responsive"
-        LXD_DIR="${lxddir}" lxd waitready --timeout=300
+        echo "==> Confirming lxd is responsive (PID is ${LXD_PID})"
+        LXD_DIR="${lxddir}" lxd waitready --timeout=300 || (echo "Killing PID ${LXD_PID}" ; kill -9 "${LXD_PID}" ; false)
     fi
 }
 
