@@ -1310,7 +1310,7 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	// The project we are filtering the instance leases by.
 	instProjectName := projectParam(r)
 
-	// The project we should use the load the network.
+	// The project we should use to load the network.
 	networkProjectName, _, err := project.NetworkProject(d.State().Cluster, instProjectName)
 	if err != nil {
 		return response.SmartError(err)
@@ -1334,6 +1334,40 @@ func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get all static leases.
 	if !isClusterNotification(r) {
+		// Get the downstream networks.
+		if instProjectName == project.Default && n.Managed && n.Type != "ovn" {
+			// Load all the networks.
+			var projectNetworks map[string]map[int64]api.Network
+			err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+				projectNetworks, err = tx.GetCreatedNetworks()
+				return err
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			// Look for networks using the current network as an uplink.
+			for projectName, networks := range projectNetworks {
+				for _, network := range networks {
+					if network.Config["network"] != n.Name {
+						continue
+					}
+
+					// Found a network, add leases.
+					for _, k := range []string{"volatile.network.ipv4.address", "volatile.network.ipv6.address"} {
+						v := network.Config[k]
+						if v != "" {
+							leases = append(leases, api.NetworkLease{
+								Hostname: fmt.Sprintf("%s-%s.uplink", projectName, network.Name),
+								Address:  v,
+								Type:     "uplink",
+							})
+						}
+					}
+				}
+			}
+		}
+
 		// Get all the instances.
 		instances, err := instance.LoadByProject(d.State(), instProjectName)
 		if err != nil {
