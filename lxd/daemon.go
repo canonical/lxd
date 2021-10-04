@@ -1392,6 +1392,10 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			if err != nil {
 				logger.Warn("Failed loading instances from disk", log.Ctx{"err": err})
 			}
+
+			// Make all future queries fail fast as DB is not available.
+			d.gateway.Kill()
+			d.cluster.Close()
 		}
 	}
 
