@@ -69,7 +69,10 @@ func (m *MetricSet) String() string {
 
 		metricTypeName := ""
 
-		if strings.HasSuffix(MetricNames[metricType], "_total") {
+		// ProcsTotal is a gauge according to the OpenMetrics spec as its value can decrease.
+		if metricType == ProcsTotal {
+			metricTypeName = "gauge"
+		} else if strings.HasSuffix(MetricNames[metricType], "_total") {
 			metricTypeName = "counter"
 		} else if strings.HasSuffix(MetricNames[metricType], "_bytes") {
 			metricTypeName = "gauge"

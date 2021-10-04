@@ -15,6 +15,8 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // These mountpoints are excluded as they are irrelevant for metrics.
@@ -34,43 +36,43 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	diskStats, err := getDiskMetrics(d)
 	if err != nil {
-		return response.SmartError(err)
+		logger.Warn("Failed to get disk metrics", log.Ctx{"err": err})
+	} else {
+		out.Disk = diskStats
 	}
-
-	out.Disk = diskStats
 
 	filesystemStats, err := getFilesystemMetrics(d)
 	if err != nil {
-		return response.SmartError(err)
+		logger.Warn("Failed to get filesystem metrics", log.Ctx{"err": err})
+	} else {
+		out.Filesystem = filesystemStats
 	}
-
-	out.Filesystem = filesystemStats
 
 	memStats, err := getMemoryMetrics(d)
 	if err != nil {
-		return response.SmartError(err)
+		logger.Warn("Failed to get memory metrics", log.Ctx{"err": err})
+	} else {
+		out.Memory = memStats
 	}
-
-	out.Memory = memStats
 
 	netStats, err := getNetworkMetrics(d)
 	if err != nil {
-		return response.SmartError(err)
+		logger.Warn("Failed to get network metrics", log.Ctx{"err": err})
+	} else {
+		out.Network = netStats
 	}
-
-	out.Network = netStats
 
 	out.ProcessesTotal, err = getTotalProcesses(d)
 	if err != nil {
-		return response.SmartError(err)
+		logger.Warn("Failed to get total processes", log.Ctx{"err": err})
 	}
 
 	cpuStats, err := getCPUMetrics(d)
 	if err != nil {
-		return response.SmartError(err)
+		logger.Warn("Failed to get CPU metrics", log.Ctx{"err": err})
+	} else {
+		out.CPU = cpuStats
 	}
-
-	out.CPU = cpuStats
 
 	return response.SyncResponse(true, &out)
 }
