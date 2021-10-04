@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-30 16:08+0200\n"
+"POT-Creation-Date: 2021-10-04 12:28-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -910,7 +910,7 @@ msgstr "Certificado de la huella digital: %s"
 
 #: lxc/remote.go:465
 #, fuzzy
-msgid "Client certificate stored at server:"
+msgid "Client certificate now trusted by server:"
 msgstr "Certificado del cliente almacenado en el servidor: "
 
 #: lxc/version.go:37
@@ -4143,7 +4143,7 @@ msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
 #: lxc/main.go:346
-msgid "To start your first instance, try: lxc launch ubuntu:18.04"
+msgid "To start your first instance, try: lxc launch ubuntu:20.04"
 msgstr ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
@@ -5095,9 +5095,9 @@ msgstr ""
 
 #: lxc/launch.go:27
 msgid ""
-"lxc launch ubuntu:18.04 u1\n"
+"lxc launch ubuntu:20.04 u1\n"
 "\n"
-"lxc launch ubuntu:18.04 u1 < config.yaml\n"
+"lxc launch ubuntu:20.04 u1 < config.yaml\n"
 "    Create and start the instance with configuration from config.yaml"
 msgstr ""
 
