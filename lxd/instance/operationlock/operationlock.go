@@ -50,7 +50,7 @@ func Create(projectName string, instanceName string, action string, reusable boo
 			return op, nil
 		}
 
-		return nil, fmt.Errorf("Instance is busy running a %s operation", op.action)
+		return nil, fmt.Errorf("Instance is busy running a %q operation", op.action)
 	}
 
 	op = &InstanceOperation{}
@@ -71,7 +71,7 @@ func Create(projectName string, instanceName string, action string, reusable boo
 			case <-op.chanReset:
 				continue
 			case <-time.After(time.Second * 30):
-				op.Done(fmt.Errorf("Instance %s operation timed out after 30 seconds", op.action))
+				op.Done(fmt.Errorf("Instance %q operation timed out after 30 seconds", op.action))
 				return
 			}
 		}
