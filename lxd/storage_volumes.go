@@ -518,15 +518,19 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Check if destination volume exists.
-	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
-	if err != db.ErrNoSuchObject {
-		if err != nil {
-			return response.SmartError(err)
-		}
+	var vol *api.StorageVolume
 
-		if !req.Source.Refresh {
-			return response.Conflict(fmt.Errorf("Volume name %q already exists.", req.Name))
+	if req.Source.Location == "" {
+		// Check if destination volume exists.
+		_, vol, err = d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
+		if err != db.ErrNoSuchObject {
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			if !req.Source.Refresh {
+				return response.Conflict(fmt.Errorf("Volume name %q already exists.", req.Name))
+			}
 		}
 	}
 
