@@ -130,13 +130,13 @@ func Get(projectName string, instanceName string) *InstanceOperation {
 
 // Reset resets the operation timeout.
 func (op *InstanceOperation) Reset() error {
-	instanceOperationsLock.Lock()
-	defer instanceOperationsLock.Unlock()
-
 	// This function can be called on a nil struct.
 	if op == nil {
 		return nil
 	}
+
+	instanceOperationsLock.Lock()
+	defer instanceOperationsLock.Unlock()
 
 	opKey := project.Instance(op.projectName, op.instanceName)
 
@@ -164,13 +164,13 @@ func (op *InstanceOperation) Wait() error {
 
 // Done indicates the operation has finished.
 func (op *InstanceOperation) Done(err error) {
-	instanceOperationsLock.Lock()
-	defer instanceOperationsLock.Unlock()
-
 	// This function can be called on a nil struct.
 	if op == nil {
 		return
 	}
+
+	instanceOperationsLock.Lock()
+	defer instanceOperationsLock.Unlock()
 
 	opKey := project.Instance(op.projectName, op.instanceName)
 
