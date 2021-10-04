@@ -703,7 +703,7 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart"}, true, false)
+	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart"}, true, false)
 	if err != nil {
 		return err
 	}
@@ -939,7 +939,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.id, "start", []string{"restart", "restore"}, false, false)
+	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "start", []string{"restart", "restore"}, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create instance start operation")
 	}
@@ -3372,7 +3372,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.id, "stop", []string{"restart", "restore"}, false, true)
+	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart", "restore"}, false, true)
 	if err != nil {
 		return err
 	}
@@ -3520,7 +3520,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
-	op, err := operationlock.Create(d.id, "restore", false, false)
+	op, err := operationlock.Create(d.Project(), d.Name(), "restore", false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create restore operation")
 	}
@@ -3569,7 +3569,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		}
 
 		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.id, "restore", false, false)
+		op, err = operationlock.Create(d.Project(), d.Name(), "restore", false, false)
 		if err != nil {
 			return errors.Wrap(err, "Create restore operation")
 		}
@@ -5377,7 +5377,7 @@ func (d *qemu) InitPID() int {
 
 func (d *qemu) statusCode() api.StatusCode {
 	// Shortcut to avoid spamming QMP during ongoing operations.
-	op := operationlock.Get(d.id)
+	op := operationlock.Get(d.Project(), d.Name())
 	if op != nil {
 		if op.Action() == "start" {
 			return api.Stopped
