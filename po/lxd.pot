@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2021-09-30 17:23-0400\n"
+        "POT-Creation-Date: 2021-10-04 12:18-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3691,7 +3691,7 @@ msgid   "To detach from the console, press: <ctrl>+a q"
 msgstr  ""
 
 #: lxc/main.go:346
-msgid   "To start your first instance, try: lxc launch ubuntu:18.04"
+msgid   "To start your first instance, try: lxc launch ubuntu:20.04"
 msgstr  ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655 lxc/copy.go:119 lxc/info.go:332 lxc/network.go:785 lxc/storage.go:428
@@ -4487,9 +4487,9 @@ msgid   "lxc init ubuntu:18.04 u1\n"
 msgstr  ""
 
 #: lxc/launch.go:27
-msgid   "lxc launch ubuntu:18.04 u1\n"
+msgid   "lxc launch ubuntu:20.04 u1\n"
         "\n"
-        "lxc launch ubuntu:18.04 u1 < config.yaml\n"
+        "lxc launch ubuntu:20.04 u1 < config.yaml\n"
         "    Create and start the instance with configuration from config.yaml"
 msgstr  ""
 
