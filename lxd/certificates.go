@@ -518,12 +518,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			Projects:    req.Projects,
 		}
 
-		id, err := d.cluster.CreateCertificate(dbCert)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		err = d.cluster.UpdateCertificateProjects(int(id), dbCert.Projects)
+		_, err := d.cluster.CreateCertificate(dbCert)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -740,11 +735,6 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 
 		// Update the database record.
 		err = d.cluster.UpdateCertificate(fingerprint, cert)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		err = d.cluster.UpdateCertificateProjects(dbInfo.ID, cert.Projects)
 		if err != nil {
 			return response.SmartError(err)
 		}
