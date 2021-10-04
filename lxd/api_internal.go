@@ -217,7 +217,14 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 	} else {
 		inst, err = instance.LoadByProjectAndName(s, projectName, instanceRef)
 		if err != nil {
-			return nil, err
+			// If DB not available, try loading from backup file.
+			logger.Warn("Failed loading instance from database, trying backup file", log.Ctx{"project": projectName, "instance": instanceRef, "err": err})
+
+			instancePath := filepath.Join(shared.VarPath("containers"), project.Instance(projectName, instanceRef))
+			inst, err = instance.LoadFromBackup(s, projectName, instancePath, false)
+			if err != nil {
+				return inst, err
+			}
 		}
 	}
 
