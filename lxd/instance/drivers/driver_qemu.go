@@ -422,8 +422,15 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
-			logger.Error("Failed to load instance", log.Ctx{"err": err})
-			return
+			// If DB not available, try loading from backup file.
+			logger.Warn("Failed loading instance from database, trying backup file", log.Ctx{"err": err})
+
+			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(projectName, instanceName))
+			inst, err = instance.LoadFromBackup(state, projectName, instancePath, false)
+			if err != nil {
+				logger.Error("Failed loading instance", log.Ctx{"err": err})
+				return
+			}
 		}
 
 		if event == "RESET" {
