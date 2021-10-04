@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-09-30 16:08+0200\n"
+"POT-Creation-Date: 2021-10-04 12:28-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -946,7 +946,7 @@ msgstr "Empreinte du certificat : %s"
 
 #: lxc/remote.go:465
 #, fuzzy
-msgid "Client certificate stored at server:"
+msgid "Client certificate now trusted by server:"
 msgstr "Certificat client enregistré sur le serveur : "
 
 #: lxc/version.go:37
@@ -4481,7 +4481,7 @@ msgstr ""
 
 #: lxc/main.go:346
 #, fuzzy
-msgid "To start your first instance, try: lxc launch ubuntu:18.04"
+msgid "To start your first instance, try: lxc launch ubuntu:20.04"
 msgstr ""
 "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
 
@@ -5907,9 +5907,9 @@ msgstr ""
 
 #: lxc/launch.go:27
 msgid ""
-"lxc launch ubuntu:18.04 u1\n"
+"lxc launch ubuntu:20.04 u1\n"
 "\n"
-"lxc launch ubuntu:18.04 u1 < config.yaml\n"
+"lxc launch ubuntu:20.04 u1 < config.yaml\n"
 "    Create and start the instance with configuration from config.yaml"
 msgstr ""
 
