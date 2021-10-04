@@ -389,14 +389,6 @@ func instancesShutdown(s *state.State) error {
 
 	sort.Sort(instanceStopList(instances))
 
-	if dbAvailable {
-		// Reset all instances states
-		err = s.Cluster.ResetInstancesPowerState()
-		if err != nil {
-			return err
-		}
-	}
-
 	var lastPriority int
 
 	if len(instances) != 0 {
