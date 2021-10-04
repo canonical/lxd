@@ -458,7 +458,7 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if c.flagAuthType == "tls" {
-			fmt.Println(i18n.G("Client certificate stored at server:")+" ", server)
+			fmt.Println(i18n.G("Client certificate now trusted by server:"), server)
 		}
 	}
 
