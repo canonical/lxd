@@ -643,10 +643,10 @@ func (d *qemu) onStop(target string) error {
 	d.unmount()
 
 	// Record power state.
-	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
+	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
 	if err != nil {
-		op.Done(err)
-		return err
+		// Don't return an error here as we still want to cleanup the instance even if DB not available.
+		d.logger.Error("Failed recording last power state", log.Ctx{"err": err})
 	}
 
 	// Unload the apparmor profile
