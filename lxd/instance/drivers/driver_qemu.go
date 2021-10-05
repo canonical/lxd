@@ -629,6 +629,9 @@ func (d *qemu) onStop(target string) error {
 		return err
 	}
 
+	// Unlock on return
+	defer op.Done(nil)
+
 	// Wait for QEMU process to end (to avoiding racing start when restarting).
 	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
@@ -643,18 +646,18 @@ func (d *qemu) onStop(target string) error {
 	// Reset timeout to 30s.
 	op.Reset()
 
-	// Cleanup.
-	d.cleanupDevices() // Must be called before unmount.
-	os.Remove(d.pidFilePath())
-	os.Remove(d.monitorPath())
-	d.unmount()
-
 	// Record power state.
 	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
 	if err != nil {
 		// Don't return an error here as we still want to cleanup the instance even if DB not available.
 		d.logger.Error("Failed recording last power state", log.Ctx{"err": err})
 	}
+
+	// Cleanup.
+	d.cleanupDevices() // Must be called before unmount.
+	os.Remove(d.pidFilePath())
+	os.Remove(d.monitorPath())
+	d.unmount()
 
 	// Unload the apparmor profile
 	err = apparmor.InstanceUnload(d.state, d)
@@ -663,6 +666,12 @@ func (d *qemu) onStop(target string) error {
 		return err
 	}
 
+	// Log and emit lifecycle if not user triggered.
+	if instanceInitiated {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
+	}
+
+	// Reboot the instance.
 	if target == "reboot" {
 		// Reset timeout to 30s.
 		op.Reset()
@@ -678,7 +687,7 @@ func (d *qemu) onStop(target string) error {
 		// Reset timeout to 30s.
 		op.Reset()
 
-		// Destroy ephemeral virtual machines
+		// Destroy ephemeral virtual machines.
 		err = d.Delete(true)
 		if err != nil {
 			op.Done(err)
@@ -686,11 +695,6 @@ func (d *qemu) onStop(target string) error {
 		}
 	}
 
-	if instanceInitiated {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
-	}
-
-	op.Done(nil)
 	return nil
 }
 
