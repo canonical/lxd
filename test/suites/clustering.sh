@@ -1525,8 +1525,12 @@ test_clustering_shutdown_nodes() {
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   wait "$(cat three.pid)"
 
+  # Wait for raft election to take place and become aware that quorum has been lost (should take 3-6s).
+  sleep 10
+
   # Make sure the database is not available to the first node
-  sleep 15
+  ! LXD_DIR="${LXD_ONE_DIR}" timeout -k 5 5 lxc cluster ls || false
+
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
 
   # Wait for LXD to terminate, otherwise the db will not be empty, and the
