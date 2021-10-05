@@ -25,14 +25,6 @@ const configCreate = `INSERT INTO %s_config (%s_id, key, value)
 
 const configDelete = `DELETE FROM %s_config WHERE %s_id = ?`
 
-// Config represents one configuration entry for an entity.
-type Config struct {
-	ID          int
-	ReferenceID int
-	Key         string
-	Value       string
-}
-
 // GetConfig returns all available config.
 // generator: config GetMany
 func (c *ClusterTx) GetConfig(parent string) (map[int]map[string]string, error) {

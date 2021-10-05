@@ -56,6 +56,8 @@ DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM in
 // GetInstanceSnapshots returns all available instance_snapshots.
 // generator: instance_snapshot GetMany
 func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]InstanceSnapshot, 0)
 
@@ -99,9 +101,38 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch instance_snapshots")
+	}
+
+	config, err := c.GetConfig("instance_snapshot")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		if _, ok := config[objects[i].ID]; !ok {
+			objects[i].Config = map[string]string{}
+		} else {
+			objects[i].Config = config[objects[i].ID]
+		}
+	}
+
+	devices, err := c.GetDevices("instance_snapshot")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		objects[i].Devices = map[string]Device{}
+		for _, obj := range devices[objects[i].ID] {
+			if _, ok := objects[i].Devices[obj.Name]; !ok {
+				objects[i].Devices[obj.Name] = obj
+			} else {
+				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
+			}
+		}
 	}
 
 	return objects, nil
@@ -214,6 +245,28 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 		return -1, errors.Wrap(err, "Failed to fetch instance_snapshot ID")
 	}
 
+	referenceID := int(id)
+	for key, value := range object.Config {
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
+		}
+
+		err = c.CreateConfig("instance_snapshot", insert)
+		if err != nil {
+			return -1, errors.Wrap(err, "Insert Config for instance_snapshot")
+		}
+
+	}
+	for _, insert := range object.Devices {
+		insert.ReferenceID = int(id)
+		err = c.CreateDevice("instance_snapshot", insert)
+		if err != nil {
+			return -1, errors.Wrap(err, "Insert Devices for instance_snapshot")
+		}
+
+	}
 	return id, nil
 }
 

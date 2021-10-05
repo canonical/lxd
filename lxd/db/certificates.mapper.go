@@ -8,6 +8,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -56,6 +57,8 @@ UPDATE certificates
 // GetCertificates returns all available certificates.
 // generator: certificate GetMany
 func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Certificate, 0)
 
@@ -89,9 +92,35 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch certificates")
+	}
+
+	certificateProjects, err := c.GetCertificateProjects()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		objects[i].Projects = make([]string, 0)
+		if refIDs, ok := certificateProjects[objects[i].ID]; ok {
+			for _, refID := range refIDs {
+				projectURIs, err := c.GetProjectURIs(ProjectFilter{ID: &refID})
+				if err != nil {
+					return nil, err
+				}
+
+				for i, uri := range projectURIs {
+					if strings.HasPrefix(uri, "/1.0/") {
+						uri = strings.Split(uri, "/1.0/projects/")[1]
+						uri = strings.Split(uri, "?")[0]
+						projectURIs[i] = uri
+					}
+				}
+				objects[i].Projects = append(objects[i].Projects, projectURIs...)
+			}
+		}
 	}
 
 	return objects, nil
@@ -200,6 +229,13 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 		return -1, errors.Wrap(err, "Failed to fetch certificate ID")
 	}
 
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateCertificateProjects(object)
+	if err != nil {
+		return -1, fmt.Errorf("Could not update association table: %w", err)
+	}
+
 	return id, nil
 }
 
@@ -262,6 +298,13 @@ func (c *ClusterTx) UpdateCertificate(fingerprint string, object Certificate) er
 
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateCertificateProjects(object)
+	if err != nil {
+		return fmt.Errorf("Could not update association table: %w", err)
 	}
 
 	return nil
