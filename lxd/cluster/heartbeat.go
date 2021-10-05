@@ -234,7 +234,6 @@ func (g *Gateway) heartbeatRestart() {
 
 	// There is a cancellable heartbeat round ongoing.
 	if g.heartbeatCancel != nil {
-		logger.Info("Restarting heartbeat", log.Ctx{"member": g.Cluster.GetNodeID()})
 		g.heartbeatCancel()            // Request ongoing hearbeat round cancel itself.
 		g.heartbeatCancel = nil        // Indicate there is no further cancellable heartbeat round.
 		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
