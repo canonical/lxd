@@ -772,7 +772,10 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		<-chDisconnect // Block until VM is not running if no timeout provided.
 	}
 
-	// Wait for onStop.
+	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
+	// operation lock and then marks it as Done after the VM stops and the devices have been cleaned up.
+	// However if the operation has failed for another reason we will collect the error here.
+	// If the VM has stopped already though, we don't care about an error from the operation.
 	err = op.Wait()
 	if err != nil && d.IsRunning() {
 		return err
