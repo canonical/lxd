@@ -286,7 +286,7 @@ test_basic_usage() {
     lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
 
     lxc start autostart --force-local
-    PID=$(lxc info autostart --force-local | grep ^Pid | awk '{print $2}')
+    PID=$(lxc info autostart --force-local | awk '/^Pid:/ {print $2}')
     shutdown_lxd "${LXD_DIR}"
     [ -d "/proc/${PID}" ] && false
 
@@ -455,12 +455,12 @@ test_basic_usage() {
   fi
 
   lxc launch testimage lxd-seccomp-test
-  init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
+  init=$(lxc info lxd-seccomp-test | awk '/^Pid:/ {print $2}')
   [ "$(grep Seccomp: "/proc/${init}/status" | cut -f2)" -eq "2" ]
   lxc stop --force lxd-seccomp-test
   lxc config set lxd-seccomp-test security.syscalls.deny_default false
   lxc start lxd-seccomp-test
-  init=$(lxc info lxd-seccomp-test | grep Pid | cut -f2 -d" ")
+  init=$(lxc info lxd-seccomp-test | awk '/^Pid:/ {print $2}')
   [ "$(grep Seccomp: "/proc/${init}/status" | cut -f2)" -eq "0" ]
   lxc delete --force lxd-seccomp-test
 
@@ -514,14 +514,14 @@ test_basic_usage() {
   # Ephemeral
   lxc launch testimage foo -e
 
-  OLD_INIT=$(lxc info foo | grep ^Pid)
+  OLD_INIT=$(lxc info foo | awk '/^Pid:/ {print $2}')
   lxc exec foo reboot || true
 
   REBOOTED="false"
 
   # shellcheck disable=SC2034
   for i in $(seq 30); do
-    NEW_INIT=$(lxc info foo | grep ^Pid || true)
+    NEW_INIT=$(lxc info foo | awk '/^Pid:/ {print $2}' || true)
 
     if [ -n "${NEW_INIT}" ] && [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
       REBOOTED="true"
