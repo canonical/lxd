@@ -278,7 +278,7 @@ test_basic_usage() {
     # Restart the daemon, this forces the global database to be dumped to disk.
     shutdown_lxd "${LXD_DIR}"
     respawn_lxd "${LXD_DIR}" true
-    lxc stop --force autostart
+    lxc stop --force autostart --force-local
 
     lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started instances, activating..."
 
@@ -298,7 +298,7 @@ test_basic_usage() {
     lxc list --force-local autostart | grep -q RUNNING
 
     # Check for scheduled instance snapshots
-    lxc stop --force autostart
+    lxc stop --force autostart --force-local
     lxc config set autostart snapshots.schedule "* * * * *" --force-local
     shutdown_lxd "${LXD_DIR}"
     lxd activateifneeded --debug 2>&1 | grep -q "Daemon has scheduled instance snapshots, activating..."
