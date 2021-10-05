@@ -1513,17 +1513,18 @@ test_clustering_shutdown_nodes() {
   LXD_DIR="${LXD_ONE_DIR}" lxc launch --target node1 testimage foo
 
   # Get container PID
-  LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep Pid | cut -d' ' -f2 > foo.pid
+  instance_pid=$(LXD_DIR="${LXD_ONE_DIR}" lxc info foo | grep PID | cut -d' ' -f2)
 
   # Get server PIDs
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | awk '/server_pid/{print $2}' > one.pid
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | awk '/server_pid/{print $2}' > two.pid
-  LXD_DIR="${LXD_THREE_DIR}" lxc info | awk '/server_pid/{print $2}' > three.pid
+  daemon_pid1=$(LXD_DIR="${LXD_ONE_DIR}" lxc info | awk '/server_pid/{print $2}')
+  daemon_pid2=$(LXD_DIR="${LXD_TWO_DIR}" lxc info | awk '/server_pid/{print $2}')
+  daemon_pid3=$(LXD_DIR="${LXD_THREE_DIR}" lxc info | awk '/server_pid/{print $2}')
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  wait "$(cat two.pid)"
+  wait "${daemon_pid2}"
+
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  wait "$(cat three.pid)"
+  wait "${daemon_pid3}"
 
   # Wait for raft election to take place and become aware that quorum has been lost (should take 3-6s).
   sleep 10
@@ -1535,12 +1536,10 @@ test_clustering_shutdown_nodes() {
 
   # Wait for LXD to terminate, otherwise the db will not be empty, and the
   # cleanup code will fail
-  wait "$(cat one.pid)"
+  wait "${daemon_pid1}"
 
   # Container foo shouldn't be running anymore
-  [ ! -e "/proc/$(cat foo.pid)" ]
-
-  rm -f one.pid two.pid three.pid foo.pid
+  [ ! -e "/proc/${instance_pid}" ]
 
   teardown_clustering_netns
   teardown_clustering_bridge
