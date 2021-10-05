@@ -8,6 +8,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -158,6 +159,8 @@ UPDATE instances
 // GetInstances returns all available instances.
 // generator: instance GetMany
 func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Instance, 0)
 
@@ -284,9 +287,64 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch instances")
+	}
+
+	config, err := c.GetConfig("instance")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		if _, ok := config[objects[i].ID]; !ok {
+			objects[i].Config = map[string]string{}
+		} else {
+			objects[i].Config = config[objects[i].ID]
+		}
+	}
+
+	devices, err := c.GetDevices("instance")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		objects[i].Devices = map[string]Device{}
+		for _, obj := range devices[objects[i].ID] {
+			if _, ok := objects[i].Devices[obj.Name]; !ok {
+				objects[i].Devices[obj.Name] = obj
+			} else {
+				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
+			}
+		}
+	}
+
+	instanceProfiles, err := c.GetInstanceProfiles()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		objects[i].Profiles = make([]string, 0)
+		if refIDs, ok := instanceProfiles[objects[i].ID]; ok {
+			for _, refID := range refIDs {
+				profileURIs, err := c.GetProfileURIs(ProfileFilter{ID: &refID})
+				if err != nil {
+					return nil, err
+				}
+
+				for i, uri := range profileURIs {
+					if strings.HasPrefix(uri, "/1.0/") {
+						uri = strings.Split(uri, "/1.0/profiles/")[1]
+						uri = strings.Split(uri, "?")[0]
+						profileURIs[i] = uri
+					}
+				}
+				objects[i].Profiles = append(objects[i].Profiles, profileURIs...)
+			}
+		}
 	}
 
 	return objects, nil
@@ -430,6 +488,35 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 		return -1, errors.Wrap(err, "Failed to fetch instance ID")
 	}
 
+	referenceID := int(id)
+	for key, value := range object.Config {
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
+		}
+
+		err = c.CreateConfig("instance", insert)
+		if err != nil {
+			return -1, errors.Wrap(err, "Insert Config for instance")
+		}
+
+	}
+	for _, insert := range object.Devices {
+		insert.ReferenceID = int(id)
+		err = c.CreateDevice("instance", insert)
+		if err != nil {
+			return -1, errors.Wrap(err, "Insert Devices for instance")
+		}
+
+	}
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateInstanceProfiles(object)
+	if err != nil {
+		return -1, fmt.Errorf("Could not update association table: %w", err)
+	}
+
 	return id, nil
 }
 
@@ -495,6 +582,23 @@ func (c *ClusterTx) UpdateInstance(project string, name string, object Instance)
 
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	err = c.UpdateConfig("instance", int(id), object.Config)
+	if err != nil {
+		return errors.Wrap(err, "Replace Config for Instance")
+	}
+
+	err = c.UpdateDevice("instance", int(id), object.Devices)
+	if err != nil {
+		return errors.Wrap(err, "Replace Devices for Instance")
+	}
+
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateInstanceProfiles(object)
+	if err != nil {
+		return fmt.Errorf("Could not update association table: %w", err)
 	}
 
 	return nil

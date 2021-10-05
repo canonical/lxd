@@ -57,6 +57,8 @@ DELETE FROM operations WHERE node_id = ?
 // GetOperations returns all available operations.
 // generator: operation GetMany
 func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Operation, 0)
 
@@ -100,7 +102,7 @@ func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch operations")
 	}

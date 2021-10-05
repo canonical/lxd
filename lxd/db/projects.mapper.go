@@ -91,6 +91,8 @@ func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
 // GetProjects returns all available projects.
 // generator: project GetMany
 func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Project, 0)
 
@@ -121,9 +123,32 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch projects")
+	}
+
+	// Use non-generated custom method for UsedBy fields.
+	for i := range objects {
+		usedBy, err := c.GetProjectUsedBy(objects[i])
+		if err != nil {
+			return nil, err
+		}
+
+		objects[i].UsedBy = usedBy
+	}
+
+	config, err := c.GetConfig("project")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		if _, ok := config[objects[i].ID]; !ok {
+			objects[i].Config = map[string]string{}
+		} else {
+			objects[i].Config = config[objects[i].ID]
+		}
 	}
 
 	return objects, nil
@@ -197,6 +222,20 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 		return -1, errors.Wrap(err, "Failed to fetch project ID")
 	}
 
+	referenceID := int(id)
+	for key, value := range object.Config {
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
+		}
+
+		err = c.CreateConfig("project", insert)
+		if err != nil {
+			return -1, errors.Wrap(err, "Insert Config for project")
+		}
+
+	}
 	return id, nil
 }
 

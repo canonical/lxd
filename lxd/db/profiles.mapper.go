@@ -108,6 +108,8 @@ func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 // GetProfiles returns all available profiles.
 // generator: profile GetMany
 func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Profile, 0)
 
@@ -146,9 +148,48 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch profiles")
+	}
+
+	config, err := c.GetConfig("profile")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		if _, ok := config[objects[i].ID]; !ok {
+			objects[i].Config = map[string]string{}
+		} else {
+			objects[i].Config = config[objects[i].ID]
+		}
+	}
+
+	devices, err := c.GetDevices("profile")
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range objects {
+		objects[i].Devices = map[string]Device{}
+		for _, obj := range devices[objects[i].ID] {
+			if _, ok := objects[i].Devices[obj.Name]; !ok {
+				objects[i].Devices[obj.Name] = obj
+			} else {
+				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
+			}
+		}
+	}
+
+	// Use non-generated custom method for UsedBy fields.
+	for i := range objects {
+		usedBy, err := c.GetProfileUsedBy(objects[i])
+		if err != nil {
+			return nil, err
+		}
+
+		objects[i].UsedBy = usedBy
 	}
 
 	return objects, nil
@@ -256,6 +297,28 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 		return -1, errors.Wrap(err, "Failed to fetch profile ID")
 	}
 
+	referenceID := int(id)
+	for key, value := range object.Config {
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
+		}
+
+		err = c.CreateConfig("profile", insert)
+		if err != nil {
+			return -1, errors.Wrap(err, "Insert Config for profile")
+		}
+
+	}
+	for _, insert := range object.Devices {
+		insert.ReferenceID = int(id)
+		err = c.CreateDevice("profile", insert)
+		if err != nil {
+			return -1, errors.Wrap(err, "Insert Devices for profile")
+		}
+
+	}
 	return id, nil
 }
 
@@ -321,6 +384,16 @@ func (c *ClusterTx) UpdateProfile(project string, name string, object Profile) e
 
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
+	}
+
+	err = c.UpdateConfig("profile", int(id), object.Config)
+	if err != nil {
+		return errors.Wrap(err, "Replace Config for Profile")
+	}
+
+	err = c.UpdateDevice("profile", int(id), object.Devices)
+	if err != nil {
+		return errors.Wrap(err, "Replace Devices for Profile")
 	}
 
 	return nil
