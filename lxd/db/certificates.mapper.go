@@ -56,6 +56,8 @@ UPDATE certificates
 // GetCertificates returns all available certificates.
 // generator: certificate GetMany
 func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Certificate, 0)
 
@@ -88,7 +90,7 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch certificates")
 	}

@@ -74,6 +74,8 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
 // GetImages returns all available images.
 // generator: image GetMany
 func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Image, 0)
 
@@ -142,7 +144,7 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch images")
 	}
