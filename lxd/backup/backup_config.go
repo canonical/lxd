@@ -9,8 +9,11 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 // Config represents the config of a backup that can be stored in a backup.yaml file (or embedded in index.yaml).
@@ -20,6 +23,34 @@ type Config struct {
 	Pool            *api.StoragePool             `yaml:"pool,omitempty"`
 	Volume          *api.StorageVolume           `yaml:"volume,omitempty"`
 	VolumeSnapshots []*api.StorageVolumeSnapshot `yaml:"volume_snapshots,omitempty"`
+}
+
+// ToInstanceDBArgs converts the instance config in the backup config to DB InstanceArgs.
+func (c *Config) ToInstanceDBArgs(projectName string) *db.InstanceArgs {
+	if c.Container == nil {
+		return nil
+	}
+
+	arch, _ := osarch.ArchitectureId(c.Container.Architecture)
+	instanceType, _ := instancetype.New(c.Container.Type)
+
+	inst := &db.InstanceArgs{
+		Project:      projectName,
+		Architecture: arch,
+		BaseImage:    c.Container.Config["volatile.base_image"],
+		Config:       c.Container.Config,
+		CreationDate: c.Container.CreatedAt,
+		Type:         instanceType,
+		Description:  c.Container.Description,
+		Devices:      deviceConfig.NewDevices(c.Container.Devices),
+		Ephemeral:    c.Container.Ephemeral,
+		LastUsedDate: c.Container.LastUsedAt,
+		Name:         c.Container.Name,
+		Profiles:     c.Container.Profiles,
+		Stateful:     c.Container.Stateful,
+	}
+
+	return inst
 }
 
 // ParseConfigYamlFile decodes the YAML file at path specified into a Config.

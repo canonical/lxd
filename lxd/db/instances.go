@@ -855,22 +855,6 @@ WHERE type=? ORDER BY instances.name, instances_snapshots.name
 	return ret, nil
 }
 
-// ResetInstancesPowerState resets the power state of all instances.
-func (c *Cluster) ResetInstancesPowerState() error {
-	// Reset all container states
-	err := exec(c, "DELETE FROM instances_config WHERE key='volatile.last_state.power'")
-	return err
-}
-
-// UpdateInstancePowerState sets the the power state of the instance with the
-// given ID.
-func (c *Cluster) UpdateInstancePowerState(id int, state string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.UpdateInstancePowerState(id, state)
-	})
-	return err
-}
-
 // UpdateInstanceSnapshotCreationDate updates the creation_date field of the instance snapshot with ID.
 func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.Time) error {
 	stmt := `UPDATE instances_snapshots SET creation_date=? WHERE id=?`

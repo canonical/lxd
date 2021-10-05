@@ -281,7 +281,14 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 	} else {
 		inst, err = instance.LoadByProjectAndName(s, projectName, instanceRef)
 		if err != nil {
-			return nil, err
+			// If DB not available, try loading from backup file.
+			logger.Warn("Failed loading instance from database, trying backup file", log.Ctx{"project": projectName, "instance": instanceRef, "err": err})
+
+			instancePath := filepath.Join(shared.VarPath("containers"), project.Instance(projectName, instanceRef))
+			inst, err = instance.LoadFromBackup(s, projectName, instancePath, false)
+			if err != nil {
+				return inst, err
+			}
 		}
 	}
 
@@ -720,8 +727,6 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 	}
 
-	baseImage := backupConf.Container.Config["volatile.base_image"]
-
 	profiles, err := d.State().Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
 	if err != nil {
 		return errors.Wrapf(err, "Failed loading profiles for instance")
@@ -738,29 +743,16 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	internalImportRootDevicePopulate(instancePoolName, backupConf.Container.Devices, backupConf.Container.ExpandedDevices, profiles)
 
-	arch, err := osarch.ArchitectureId(backupConf.Container.Architecture)
-	if err != nil {
-		return err
-	}
-
 	revert := revert.New()
 	defer revert.Fail()
 
-	_, instOp, err := instance.CreateInternal(d.State(), db.InstanceArgs{
-		Project:      projectName,
-		Architecture: arch,
-		BaseImage:    baseImage,
-		Config:       backupConf.Container.Config,
-		CreationDate: backupConf.Container.CreatedAt,
-		Type:         instanceType,
-		Description:  backupConf.Container.Description,
-		Devices:      deviceConfig.NewDevices(backupConf.Container.Devices),
-		Ephemeral:    backupConf.Container.Ephemeral,
-		LastUsedDate: backupConf.Container.LastUsedAt,
-		Name:         backupConf.Container.Name,
-		Profiles:     backupConf.Container.Profiles,
-		Stateful:     backupConf.Container.Stateful,
-	}, true, nil, revert)
+	if backupConf.Container == nil {
+		return fmt.Errorf("No instance config in backup config")
+	}
+
+	instDBArgs := backupConf.ToInstanceDBArgs(projectName)
+
+	_, instOp, err := instance.CreateInternal(d.State(), *instDBArgs, true, nil, revert)
 	if err != nil {
 		return errors.Wrap(err, "Failed creating instance record")
 	}
