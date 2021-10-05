@@ -285,6 +285,7 @@ var APIExtensions = []string{
 	"custom_volume_refresh",
 	"network_counters_errors_dropped",
 	"metrics",
+	"cluster_custom_volume_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

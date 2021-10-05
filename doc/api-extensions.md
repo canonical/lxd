@@ -1452,3 +1452,6 @@ This adds metrics to LXD. It returns metrics of running instances using the Open
 This includes the following endpoints:
 
 * `GET /1.0/metrics`
+
+## cluster\_custom\_volume\_copy
+This adds support for copying custom volumes across cluster members.
