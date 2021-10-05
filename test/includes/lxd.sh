@@ -133,36 +133,36 @@ kill_lxd() {
     if [ -e "${daemon_dir}/unix.socket" ]; then
         # Delete all containers
         echo "==> Deleting all containers"
-        for container in $(lxc list --fast --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
-            lxc delete "${container}" --force-local -f || true
+        for container in $(timeout -k 2 2 lxc list --fast --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
+            timeout -k 10 10 lxc delete "${container}" --force-local -f || true
         done
 
         # Delete all images
         echo "==> Deleting all images"
-        for image in $(lxc image list --force-local | tail -n+3 | grep "^| " | cut -d'|' -f3 | sed "s/^ //g"); do
-            lxc image delete "${image}" --force-local || true
+        for image in $(timeout -k 2 2 lxc image list --force-local | tail -n+3 | grep "^| " | cut -d'|' -f3 | sed "s/^ //g"); do
+            timeout -k 10 10 lxc image delete "${image}" --force-local || true
         done
 
         # Delete all profiles
         echo "==> Deleting all profiles"
-        for profile in $(lxc profile list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
-            lxc profile delete "${profile}" --force-local || true
+        for profile in $(timeout -k 2 2 lxc profile list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
+            timeout -k 10 10 lxc profile delete "${profile}" --force-local || true
         done
 
         # Delete all networks
         echo "==> Deleting all networks"
-        for network in $(lxc network list --force-local | grep YES | grep "^| " | cut -d' ' -f2); do
-            lxc network delete "${network}" --force-local || true
+        for network in $(timeout -k 2 2 lxc network list --force-local | grep YES | grep "^| " | cut -d' ' -f2); do
+            timeout -k 10 10 lxc network delete "${network}" --force-local || true
         done
 
         # Clear config of the default profile since the profile itself cannot
         # be deleted.
         echo "==> Clearing config of default profile"
-        printf 'config: {}\ndevices: {}' | lxc profile edit default
+        printf 'config: {}\ndevices: {}' | timeout -k 5 5 lxc profile edit default
 
         echo "==> Deleting all storage pools"
-        for storage in $(lxc storage list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
-            lxc storage delete "${storage}" --force-local || true
+        for storage in $(timeout -k 2 2 lxc storage list --force-local | tail -n+3 | grep "^| " | cut -d' ' -f2); do
+            timeout -k 10 10 lxc storage delete "${storage}" --force-local || true
         done
 
         echo "==> Checking for locked DB tables"
@@ -171,7 +171,7 @@ kill_lxd() {
         done
 
         # Kill the daemon
-        lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
+        timeout -k 30 30 lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
 
         sleep 2
 
