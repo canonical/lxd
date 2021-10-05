@@ -14,8 +14,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   umount,
 
   # Hide common denials
-  deny mount options=(ro, remount) -> /,
-  deny mount options=(ro, remount, silent) -> /,
+  deny mount options=(ro,remount) -> /,
+  deny mount options=(ro,remount,silent) -> /,
 
   # Allow normal signal handling
   signal (receive),
@@ -31,7 +31,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /proc/sys/fs/binfmt_misc/{,**} rwklx,
 
   # Handle cgroupfs
-  mount options=(ro, nosuid, nodev, noexec, remount, strictatime) -> /sys/fs/cgroup/,
+  mount options=(ro,nosuid,nodev,noexec,remount,strictatime) -> /sys/fs/cgroup/,
 
   # Handle configfs
   mount fstype=configfs -> /sys/kernel/config/,
@@ -73,7 +73,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   # Handle sysfs (access handled below)
   mount fstype=sysfs -> /sys/,
-  mount options=(rw, nosuid, nodev, noexec, remount) -> /sys/,
+  mount options=(rw,nosuid,nodev,noexec,remount) -> /sys/,
 
   # Handle tmpfs
   mount fstype=tmpfs,
