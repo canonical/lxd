@@ -507,17 +507,16 @@ test_backup_rename() {
 }
 
 test_backup_volume_export() {
-  test_backup_volume_export_with_project
+  test_backup_volume_export_with_project default
   test_backup_volume_export_with_project fooproject
 }
 
 test_backup_volume_export_with_project() {
-  project="default"
+  project="$1"
   pool="lxdtest-$(basename "${LXD_DIR}")"
 
-  if [ "$#" -ne 0 ]; then
+  if [ "${project}" != "default" ]; then
     # Create a project.
-    project="$1"
     lxc project create "$project"
     lxc project create "$project-b"
     lxc project switch "$project"
@@ -638,7 +637,7 @@ test_backup_volume_export_with_project() {
   lxc exec c1 --project "$project" -- stat /mnt2/test
   lxc stop -f c1
 
-  if [ "$#" -ne 0 ]; then
+  if [ "${project}" != "default" ]; then
     # Import into different project (before deleting earlier import).
     lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b"
     lxc storage volume import "${pool}" "${LXD_DIR}/testvol.tar.gz" --project "$project-b" testvol2
@@ -661,7 +660,7 @@ test_backup_volume_export_with_project() {
     lxc exec c1 --project "$project" -- stat /mnt2/test
     lxc stop -f c1
 
-    if [ "$#" -ne 0 ]; then
+    if [ "${project}" != "default" ]; then
       # Import into different project (before deleting earlier import).
       lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b"
       lxc storage volume import "${pool}" "${LXD_DIR}/testvol-optimized.tar.gz" --project "$project-b" testvol2
@@ -684,7 +683,7 @@ test_backup_volume_export_with_project() {
     lxc storage rm "${pool}"
   fi
 
-  if [ "$#" -ne 0 ]; then
+  if [ "${project}" != "default" ]; then
     lxc project switch default
     lxc image rm testimage --project "$project"
     lxc image rm testimage --project "$project-b"
