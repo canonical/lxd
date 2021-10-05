@@ -101,32 +101,6 @@ func (cert *Certificate) ToAPI() api.Certificate {
 	return resp
 }
 
-// UpdateCertificateProjects updates the list of projects on a certificate.
-func (c *ClusterTx) UpdateCertificateProjects(id int, projects []string) error {
-	// Clear all projects from the restrictions.
-	q := "DELETE FROM certificates_projects WHERE certificate_id=?"
-	_, err := c.tx.Exec(q, id)
-	if err != nil {
-		return err
-	}
-
-	// Add the new restrictions.
-	for _, name := range projects {
-		projID, err := c.GetProjectID(name)
-		if err != nil {
-			return err
-		}
-
-		q := "INSERT INTO certificates_projects (certificate_id, project_id) VALUES (?, ?)"
-		_, err = c.tx.Exec(q, id, projID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // CertificateFilter specifies potential query parameter fields.
 type CertificateFilter struct {
 	Fingerprint *string
