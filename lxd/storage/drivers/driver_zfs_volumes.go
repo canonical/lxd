@@ -1174,7 +1174,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			}
 
 			// Mount the dataset.
-			_, err = shared.RunCommand("zfs", "mount", dataset)
+			err = TryMount(dataset, mountPath, "zfs", 0, "")
 			if err != nil {
 				return err
 			}
