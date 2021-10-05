@@ -883,7 +883,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 
 		op, err = operationlock.Create(d.Project(), d.Name(), action, false, false)
 		if err != nil {
-			return nil, false, errors.Wrapf(err, "Failed creating %s operation", action)
+			return nil, false, errors.Wrapf(err, "Failed creating %q operation", action)
 		}
 	}
 
