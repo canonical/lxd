@@ -2079,10 +2079,7 @@ findLeader:
 		return err
 	}
 	if leader == "" {
-		// Give up.
-		//
-		// TODO: retry a few times?
-		return nil
+		return fmt.Errorf("No leader address found")
 	}
 
 	if leader == address {
@@ -2171,6 +2168,11 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.InternalError(err)
 	}
+
+	if leader == "" {
+		return response.SmartError(fmt.Errorf("No leader address found"))
+	}
+
 	if address != leader {
 		logger.Debugf("Redirect handover request to %s", leader)
 		url := &url.URL{
