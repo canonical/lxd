@@ -14,8 +14,8 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   umount,
 
   # Hide common denials
-  deny mount options=(ro, remount) -> /,
-  deny mount options=(ro, remount, silent) -> /,
+  deny mount options=(ro,remount) -> /,
+  deny mount options=(ro,remount,silent) -> /,
 
   # Allow normal signal handling
   signal (receive),
@@ -31,7 +31,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   deny /proc/sys/fs/binfmt_misc/{,**} rwklx,
 
   # Handle cgroupfs
-  mount options=(ro, nosuid, nodev, noexec, remount, strictatime) -> /sys/fs/cgroup/,
+  mount options=(ro,nosuid,nodev,noexec,remount,strictatime) -> /sys/fs/cgroup/,
 
   # Handle configfs
   mount fstype=configfs -> /sys/kernel/config/,
@@ -73,7 +73,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   # Handle sysfs (access handled below)
   mount fstype=sysfs -> /sys/,
-  mount options=(rw, nosuid, nodev, noexec, remount) -> /sys/,
+  mount options=(rw,nosuid,nodev,noexec,remount) -> /sys/,
 
   # Handle tmpfs
   mount fstype=tmpfs,
@@ -88,7 +88,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(rw,unbindable) -> /,
   mount options=(rw,runbindable) -> /,
 
-  # Allow various ro-bind-*re*-mounts
+  # Allow various ro-bind-*re*-mounts of anything except /proc, /sys and /dev/.lxc
   mount options=(ro,remount,bind) /[^spd]*{,/**},
   mount options=(ro,remount,bind) /d[^e]*{,/**},
   mount options=(ro,remount,bind) /de[^v]*{,/**},
@@ -122,23 +122,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(ro,remount,bind,nodev) /s[^y]*{,/**},
   mount options=(ro,remount,bind,nodev) /sy[^s]*{,/**},
   mount options=(ro,remount,bind,nodev) /sys?*{,/**},
-
-  mount options=(ro,remount,bind,nodev,nosuid) /[^spd]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /d[^e]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /de[^v]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /dev/.[^l]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /dev/.l[^x]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /dev/.lx[^c]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /dev/.lxc?*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /dev/[^.]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /dev?*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /p[^r]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /pr[^o]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /pro[^c]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /proc?*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /s[^y]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /sy[^s]*{,/**},
-  mount options=(ro,remount,bind,nodev,nosuid) /sys?*{,/**},
 
   mount options=(ro,remount,bind,noexec) /[^spd]*{,/**},
   mount options=(ro,remount,bind,noexec) /d[^e]*{,/**},
@@ -190,23 +173,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(ro,remount,bind,noatime) /s[^y]*{,/**},
   mount options=(ro,remount,bind,noatime) /sy[^s]*{,/**},
   mount options=(ro,remount,bind,noatime) /sys?*{,/**},
-
-  mount options=(ro,remount,noatime,bind) /[^spd]*{,/**},
-  mount options=(ro,remount,noatime,bind) /d[^e]*{,/**},
-  mount options=(ro,remount,noatime,bind) /de[^v]*{,/**},
-  mount options=(ro,remount,noatime,bind) /dev/.[^l]*{,/**},
-  mount options=(ro,remount,noatime,bind) /dev/.l[^x]*{,/**},
-  mount options=(ro,remount,noatime,bind) /dev/.lx[^c]*{,/**},
-  mount options=(ro,remount,noatime,bind) /dev/.lxc?*{,/**},
-  mount options=(ro,remount,noatime,bind) /dev/[^.]*{,/**},
-  mount options=(ro,remount,noatime,bind) /dev?*{,/**},
-  mount options=(ro,remount,noatime,bind) /p[^r]*{,/**},
-  mount options=(ro,remount,noatime,bind) /pr[^o]*{,/**},
-  mount options=(ro,remount,noatime,bind) /pro[^c]*{,/**},
-  mount options=(ro,remount,noatime,bind) /proc?*{,/**},
-  mount options=(ro,remount,noatime,bind) /s[^y]*{,/**},
-  mount options=(ro,remount,noatime,bind) /sy[^s]*{,/**},
-  mount options=(ro,remount,noatime,bind) /sys?*{,/**},
 
   mount options=(ro,remount,bind,nosuid) /[^spd]*{,/**},
   mount options=(ro,remount,bind,nosuid) /d[^e]*{,/**},
@@ -323,24 +289,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount options=(rw,rbind) /s[^y]*{,/**},
   mount options=(rw,rbind) /sy[^s]*{,/**},
   mount options=(rw,rbind) /sys?*{,/**},
-
-  # Allow read-only bind-mounts of anything except /proc, /sys and /dev/.lxc
-  mount options=(ro,remount,bind) /[^spd]*{,/**},
-  mount options=(ro,remount,bind) /d[^e]*{,/**},
-  mount options=(ro,remount,bind) /de[^v]*{,/**},
-  mount options=(ro,remount,bind) /dev/.[^l]*{,/**},
-  mount options=(ro,remount,bind) /dev/.l[^x]*{,/**},
-  mount options=(ro,remount,bind) /dev/.lx[^c]*{,/**},
-  mount options=(ro,remount,bind) /dev/.lxc?*{,/**},
-  mount options=(ro,remount,bind) /dev/[^.]*{,/**},
-  mount options=(ro,remount,bind) /dev?*{,/**},
-  mount options=(ro,remount,bind) /p[^r]*{,/**},
-  mount options=(ro,remount,bind) /pr[^o]*{,/**},
-  mount options=(ro,remount,bind) /pro[^c]*{,/**},
-  mount options=(ro,remount,bind) /proc?*{,/**},
-  mount options=(ro,remount,bind) /s[^y]*{,/**},
-  mount options=(ro,remount,bind) /sy[^s]*{,/**},
-  mount options=(ro,remount,bind) /sys?*{,/**},
 
   # Allow moving mounts except for /proc, /sys and /dev/.lxc
   mount options=(rw,move) /[^spd]*{,/**},
