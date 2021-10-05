@@ -12,6 +12,9 @@ import (
 var instanceOperationsLock sync.Mutex
 var instanceOperations = make(map[string]*InstanceOperation)
 
+// TimeoutSeconds number of seconds that the operation lock will be kept for without calling Reset().
+const TimeoutSeconds = 30
+
 // InstanceOperation operation locking.
 type InstanceOperation struct {
 	action       string
@@ -70,8 +73,8 @@ func Create(projectName string, instanceName string, action string, reusable boo
 				return
 			case <-op.chanReset:
 				continue
-			case <-time.After(time.Second * 30):
-				op.Done(fmt.Errorf("Instance %q operation timed out after 30 seconds", op.action))
+			case <-time.After(time.Second * TimeoutSeconds):
+				op.Done(fmt.Errorf("Instance %q operation timed out after %d seconds", op.action, TimeoutSeconds))
 				return
 			}
 		}
@@ -128,7 +131,7 @@ func Get(projectName string, instanceName string) *InstanceOperation {
 	return instanceOperations[opKey]
 }
 
-// Reset resets the operation timeout.
+// Reset resets the operation timeout to give another TimeoutSeconds seconds until it expires.
 func (op *InstanceOperation) Reset() error {
 	// This function can be called on a nil struct.
 	if op == nil {
