@@ -244,7 +244,7 @@ test_basic_usage() {
 
   # Test randomly named container creation
   lxc launch testimage
-  RDNAME=$(lxc list | tail -n2 | grep ^\| | awk '{print $2}')
+  RDNAME=$(lxc list --format csv --columns n)
   lxc delete -f "${RDNAME}"
 
   # Test "nonetype" container creation
