@@ -422,8 +422,15 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
-			logger.Error("Failed to load instance", log.Ctx{"err": err})
-			return
+			// If DB not available, try loading from backup file.
+			logger.Warn("Failed loading instance from database, trying backup file", log.Ctx{"err": err})
+
+			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(projectName, instanceName))
+			inst, err = instance.LoadFromBackup(state, projectName, instancePath, false)
+			if err != nil {
+				logger.Error("Failed loading instance", log.Ctx{"err": err})
+				return
+			}
 		}
 
 		if event == "RESET" {
@@ -643,10 +650,10 @@ func (d *qemu) onStop(target string) error {
 	d.unmount()
 
 	// Record power state.
-	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
+	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
 	if err != nil {
-		op.Done(err)
-		return err
+		// Don't return an error here as we still want to cleanup the instance even if DB not available.
+		d.logger.Error("Failed recording last power state", log.Ctx{"err": err})
 	}
 
 	// Unload the apparmor profile
@@ -1013,12 +1020,6 @@ func (d *qemu) Start(stateful bool) error {
 		return errors.Wrapf(err, "Failed setting volatile keys")
 	}
 
-	// Update the backup.yaml file (must come after volatile keys have been updated).
-	err = d.UpdateBackupFile()
-	if err != nil {
-		return err
-	}
-
 	// Generate the config drive.
 	err = d.generateConfigShare()
 	if err != nil {
@@ -1327,6 +1328,14 @@ func (d *qemu) Start(stateful bool) error {
 		files = append(files, f)
 	}
 
+	// Update the backup.yaml file just before starting the instance process, but after all devices have been
+	// setup, so that the backup file contains the volatile keys used for this instance start, so that they can
+	// be used for instance cleanup.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		return err
+	}
+
 	// Reset timeout to 30s.
 	op.Reset()
 
@@ -1450,26 +1459,8 @@ func (d *qemu) Start(stateful bool) error {
 		}
 	}
 
-	// Database updates
-	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Record current state
-		err = tx.UpdateInstancePowerState(d.id, "RUNNING")
-		if err != nil {
-			err = errors.Wrap(err, "Error updating instance state")
-			op.Done(err)
-			return err
-		}
-
-		// Update time instance last started time
-		err = tx.UpdateInstanceLastUsedDate(d.id, time.Now().UTC())
-		if err != nil {
-			err = errors.Wrap(err, "Error updating instance last used")
-			op.Done(err)
-			return err
-		}
-
-		return nil
-	})
+	// Record last start state.
+	err = d.recordLastState()
 	if err != nil {
 		op.Done(err)
 		return err

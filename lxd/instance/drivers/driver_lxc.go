@@ -2282,12 +2282,6 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, err
 	}
 
-	// Update the backup.yaml file
-	err = d.UpdateBackupFile()
-	if err != nil {
-		return "", nil, err
-	}
-
 	// If starting stateless, wipe state
 	if !d.IsStateful() && shared.PathExists(d.StatePath()) {
 		os.RemoveAll(d.StatePath())
@@ -2445,6 +2439,15 @@ func (d *lxc) Start(stateful bool) error {
 		}
 	}
 
+	// Update the backup.yaml file just before starting the instance process, but after all devices have been
+	// setup, so that the backup file contains the volatile keys used for this instance start, so that they
+	// can be used for instance cleanup.
+	err = d.UpdateBackupFile()
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
 	name := project.Instance(d.Project(), d.name)
 
 	// Start the LXC container
@@ -2571,22 +2574,8 @@ func (d *lxc) onStart(_ map[string]string) error {
 		}(d)
 	}
 
-	// Database updates
-	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Record current state
-		err = tx.UpdateInstancePowerState(d.id, "RUNNING")
-		if err != nil {
-			return errors.Wrap(err, "Error updating container state")
-		}
-
-		// Update time container last started time
-		err = tx.UpdateInstanceLastUsedDate(d.id, time.Now().UTC())
-		if err != nil {
-			return errors.Wrap(err, "Error updating last used")
-		}
-
-		return nil
-	})
+	// Record last start state.
+	err = d.recordLastState()
 	if err != nil {
 		return err
 	}
@@ -2897,12 +2886,11 @@ func (d *lxc) onStop(args map[string]string) error {
 	// Make sure we can't call go-lxc functions by mistake
 	d.fromHook = true
 
-	// Record power state
-	err = d.state.Cluster.UpdateInstancePowerState(d.id, "STOPPED")
+	// Record power state.
+	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
 	if err != nil {
-		err = errors.Wrap(err, "Failed to set container state")
-		op.Done(err)
-		return err
+		// Don't return an error here as we still want to cleanup the instance even if DB not available.
+		d.logger.Error("Failed recording last power state", log.Ctx{"err": err})
 	}
 
 	go func(d *lxc, target string, op *operationlock.InstanceOperation) {
@@ -4995,6 +4983,14 @@ func (d *lxc) Migrate(args *instance.CriuMigrationArgs) error {
 
 		if args.DumpDir != "" {
 			finalStateDir = fmt.Sprintf("%s/%s", args.StateDir, args.DumpDir)
+		}
+
+		// Update the backup.yaml file just before starting the instance process, but after all devices
+		// have been setup, so that the backup file contains the volatile keys used for this instance
+		// start, so that they can be used for instance cleanup.
+		err = d.UpdateBackupFile()
+		if err != nil {
+			return err
 		}
 
 		_, migrateErr = shared.RunCommand(

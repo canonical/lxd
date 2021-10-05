@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -188,13 +189,13 @@ var instanceBackupExportCmd = APIEndpoint{
 	Get: APIEndpointAction{Handler: instanceBackupExportGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
 
-type containerAutostartList []instance.Instance
+type instanceAutostartList []instance.Instance
 
-func (slice containerAutostartList) Len() int {
+func (slice instanceAutostartList) Len() int {
 	return len(slice)
 }
 
-func (slice containerAutostartList) Less(i, j int) bool {
+func (slice instanceAutostartList) Less(i, j int) bool {
 	iOrder := slice[i].ExpandedConfig()["boot.autostart.priority"]
 	jOrder := slice[j].ExpandedConfig()["boot.autostart.priority"]
 
@@ -207,24 +208,12 @@ func (slice containerAutostartList) Less(i, j int) bool {
 	return slice[i].Name() < slice[j].Name()
 }
 
-func (slice containerAutostartList) Swap(i, j int) {
+func (slice instanceAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-func instancesRestart(s *state.State) error {
-	// Get all the instances
-	result, err := instance.LoadNodeAll(s, instancetype.Any)
-	if err != nil {
-		return err
-	}
-
-	instances := []instance.Instance{}
-
-	for _, c := range result {
-		instances = append(instances, c)
-	}
-
-	sort.Sort(containerAutostartList(instances))
+func instancesStart(s *state.State, instances []instance.Instance) {
+	sort.Sort(instanceAutostartList(instances))
 
 	maxAttempts := 3
 
@@ -292,7 +281,7 @@ func instancesRestart(s *state.State) error {
 		}
 	}
 
-	return nil
+	return
 }
 
 type instanceStopList []instance.Instance
@@ -318,82 +307,76 @@ func (slice instanceStopList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
-// Return the names of all local instances, grouped by project. The
-// information is obtained by reading the data directory.
-func instancesOnDisk() (map[string][]string, error) {
-	instances := map[string][]string{}
+// Return all local instances on disk (if instance is running, it will attempt to populate the instance's local
+// and expanded config using the backup.yaml file). It will clear the instance's profiles property to avoid needing
+// to enrich them from the database.
+func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
+	var err error
 
-	containers, err := ioutil.ReadDir(shared.VarPath("containers"))
-	if err != nil {
+	instancePaths := map[instancetype.Type]string{
+		instancetype.Container: shared.VarPath("containers"),
+		instancetype.VM:        shared.VarPath("virtual-machines"),
+	}
+
+	instanceTypeNames := make(map[instancetype.Type][]os.FileInfo, 2)
+
+	instanceTypeNames[instancetype.Container], err = ioutil.ReadDir(instancePaths[instancetype.Container])
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	virtualMachines, err := ioutil.ReadDir(shared.VarPath("virtual-machines"))
-	if err != nil {
+	instanceTypeNames[instancetype.VM], err = ioutil.ReadDir(instancePaths[instancetype.VM])
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
-	for _, file := range append(containers, virtualMachines...) {
-		name := file.Name()
-		projectName := project.Default
-		if strings.Contains(name, "_") {
-			fields := strings.Split(file.Name(), "_")
-			projectName = fields[0]
-			name = fields[1]
+	instances := make([]instance.Instance, 0, len(instanceTypeNames[instancetype.Container])+len(instanceTypeNames[instancetype.VM]))
+	for instanceType, instanceNames := range instanceTypeNames {
+		for _, file := range instanceNames {
+			// Convert file name to project name and instance name.
+			projectName, instanceName := project.InstanceParts(file.Name())
+
+			var inst instance.Instance
+
+			// Try and parse the backup file (if instance is running).
+			// This allows us to stop VMs which require access to the vsock ID and volatile UUID.
+			// Also generally it ensures that all devices are stopped cleanly too.
+			backupYamlPath := filepath.Join(instancePaths[instanceType], file.Name(), "backup.yaml")
+			if shared.PathExists(backupYamlPath) {
+				inst, err = instance.LoadFromBackup(s, projectName, filepath.Join(instancePaths[instanceType], file.Name()), false)
+				if err != nil {
+					logger.Warn("Failed loading instance", log.Ctx{"project": projectName, "instance": instanceName, "backup_file": backupYamlPath, "err": err})
+				}
+			}
+
+			if inst == nil {
+				// Initialise dbArgs with a very basic config.
+				// This will not be sufficient to stop an instance cleanly.
+				instDBArgs := &db.InstanceArgs{
+					Type:    instanceType,
+					Project: projectName,
+					Name:    instanceName,
+					Config:  make(map[string]string),
+				}
+
+				inst, err = instance.Load(s, *instDBArgs, nil)
+				if err != nil {
+					logger.Warn("Failed loading instance", log.Ctx{"project": projectName, "instance": instanceName, "err": err})
+					continue
+				}
+			}
+
+			instances = append(instances, inst)
 		}
-		names, ok := instances[projectName]
-		if !ok {
-			names = []string{}
-		}
-		instances[projectName] = append(names, name)
 	}
 
 	return instances, nil
 }
 
-func instancesShutdown(s *state.State) error {
+func instancesShutdown(s *state.State, instances []instance.Instance) error {
 	var wg sync.WaitGroup
 
-	dbAvailable := true
-
-	// Get all the instances
-	instances, err := instance.LoadNodeAll(s, instancetype.Any)
-	if err != nil {
-		// Mark database as offline
-		dbAvailable = false
-		instances = []instance.Instance{}
-
-		// List all instances on disk
-		instanceNames, err := instancesOnDisk()
-		if err != nil {
-			return err
-		}
-
-		for project, names := range instanceNames {
-			for _, name := range names {
-				inst, err := instance.Load(s, db.InstanceArgs{
-					Project: project,
-					Name:    name,
-					Config:  make(map[string]string),
-				}, nil)
-				if err != nil {
-					return err
-				}
-
-				instances = append(instances, inst)
-			}
-		}
-	}
-
 	sort.Sort(instanceStopList(instances))
-
-	if dbAvailable {
-		// Reset all instances states
-		err = s.Cluster.ResetInstancesPowerState()
-		if err != nil {
-			return err
-		}
-	}
 
 	var lastPriority int
 
@@ -412,34 +395,35 @@ func instancesShutdown(s *state.State) error {
 			wg.Wait()
 		}
 
-		// Record the current state
-		lastState := inst.State()
-
-		// Stop the container
-		if lastState != "ERROR" && lastState != "STOPPED" {
-			// Determinate how long to wait for the instance to shutdown cleanly
-			var timeoutSeconds int
-			value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
-			if ok {
-				timeoutSeconds, _ = strconv.Atoi(value)
-			} else {
-				timeoutSeconds = 30
-			}
-
-			// Stop the instance
+		// Stop the instance if running.
+		if inst.IsRunning() {
 			wg.Add(1)
-			go func(c instance.Instance, lastState string) {
-				c.Shutdown(time.Second * time.Duration(timeoutSeconds))
-				c.Stop(false)
+			go func(inst instance.Instance) {
+				// Determine how long to wait for the instance to shutdown cleanly.
+				timeoutSeconds := 30
+				value, ok := inst.ExpandedConfig()["boot.host_shutdown_timeout"]
+				if ok {
+					timeoutSeconds, _ = strconv.Atoi(value)
+				}
 
-				if dbAvailable {
-					c.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+				err := inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
+				if err != nil {
+					logger.Warn("Failed shutting down instance, forcefully stopping", log.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
+					err = inst.Stop(false)
+					if err != nil {
+						logger.Warn("Failed forcefully stopping instance", log.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
+					}
+				}
+
+				if inst.ID() > 0 {
+					// If DB was available then the instance shutdown process will have set
+					// the last power state to STOPPED, so set that back to RUNNING so that
+					// when LXD restarts the instance will be started again.
+					inst.VolatileSet(map[string]string{"volatile.last_state.power": "RUNNING"})
 				}
 
 				wg.Done()
-			}(inst, lastState)
-		} else if dbAvailable {
-			inst.VolatileSet(map[string]string{"volatile.last_state.power": lastState})
+			}(inst)
 		}
 	}
 	wg.Wait()
