@@ -34,6 +34,8 @@ extern char* advance_arg(bool required);
 void forkcoresched(void)
 {
 	char *cur = NULL;
+	char *pidstr;
+	int hook;
 	int ret;
 	__u64 cookie;
 
@@ -56,7 +58,24 @@ void forkcoresched(void)
 	if (!core_scheduling_cookie_valid(cookie))
 		_exit(EXIT_FAILURE);
 
-	for (const char *pidstr = cur; pidstr; pidstr = advance_arg(false)) {
+	hook = atoi(cur);
+	switch (hook) {
+	case 0:
+		for (pidstr = cur; pidstr; pidstr = advance_arg(false)) {
+			ret = core_scheduling_cookie_share_to(atoi(pidstr));
+			if (ret)
+				_exit(EXIT_FAILURE);
+
+			cookie = core_scheduling_cookie_get(0);
+			if (!core_scheduling_cookie_valid(cookie))
+				_exit(EXIT_FAILURE);
+		}
+		break;
+	case 1:
+		pidstr = getenv("LXC_PID");
+		if (!pidstr)
+			_exit(EXIT_FAILURE);
+
 		ret = core_scheduling_cookie_share_to(atoi(pidstr));
 		if (ret)
 			_exit(EXIT_FAILURE);
@@ -64,6 +83,9 @@ void forkcoresched(void)
 		cookie = core_scheduling_cookie_get(0);
 		if (!core_scheduling_cookie_valid(cookie))
 			_exit(EXIT_FAILURE);
+		break;
+	default:
+		_exit(EXIT_FAILURE);
 	}
 
 	_exit(EXIT_SUCCESS);
@@ -78,7 +100,7 @@ type cmdForkcoresched struct {
 func (c *cmdForkcoresched) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkcoresched <PID> [...]"
+	cmd.Use = "forkcoresched <hook> <PID> [...]"
 	cmd.Short = "Create new core scheduling domain"
 	cmd.Long = `Description:
   Create new core scheduling domain
