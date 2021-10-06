@@ -107,36 +107,47 @@ func Create(projectName string, instanceName string, action Action, createReusua
 // or the caller doesn't want to reuse it, the function will wait and
 // indicate that it did so.
 //
-// If the instance has an operation of one of the alternate types, then
-// the operation is returned to the user.
+// If the instance has an existing operation of one of the inheritableActions types, then the operation is returned
+// to the user. This allows an operation started in one function/routine to be inherited by another.
 //
-// If the instance doesn't have an operation, has an operation of a different
-// type that is not in the alternate list or has the right type and is
-// being reused, then this behaves as a Create call.
-func CreateWaitGet(projectName string, instanceName string, action string, altActions []string, reusable bool, reuse bool) (bool, *InstanceOperation, error) {
+// If the instance doesn't have an ongoing operation, has an operation of a different type that is not in the
+// inheritableActions list or has the right type and is being reused, then this behaves as a Create call.
+//
+// Returns ErrWaitedForMatching if it waited for a matching operation to finish and it's finished successfully and
+// so didn't return create a new operation.
+func CreateWaitGet(projectName string, instanceName string, action Action, inheritableActions []Action, createReusuable bool, reuseExisting bool) (*InstanceOperation, error) {
 	op := Get(projectName, instanceName)
 
 	// No existing operation, call create.
 	if op == nil {
-		op, err := Create(projectName, instanceName, action, reusable, reuse)
-		return false, op, err
+		op, err := Create(projectName, instanceName, action, createReusuable, reuseExisting)
+		return op, err
 	}
 
-	// Operation matches and not reusable or asked to reuse, wait.
-	if op.action == action && (!reuse || !op.reusable) {
+	// Operation action matches but is not reusable or we have been asked not to reuse,
+	// so wait and return result.
+	if op.action == action && (!reuseExisting || !op.reusable) {
 		err := op.Wait()
-		return true, nil, err
+		if err != nil {
+			return nil, err
+		}
+
+		// The matching operation ended without error, but this means we've not created a new
+		// operation for this request, so return a special error indicating this scenario.
+		return nil, ErrNonReusuableSucceeded
 	}
 
-	// Operation matches one the alternate actions, return the operation.
-	if shared.StringInSlice(op.action, altActions) {
-		return false, op, nil
+	// Operation action matches one the inheritable actions, return the operation.
+	if op.ActionMatch(inheritableActions...) {
+		logger.Debug("Instance operation lock inherited", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable, "inheritedByAction": action})
+
+		return op, nil
 	}
 
-	// Send the rest to Create
-	op, err := Create(projectName, instanceName, action, reusable, reuse)
+	// Send the rest to Create to try and create a new operation.
+	op, err := Create(projectName, instanceName, action, createReusuable, reuseExisting)
 
-	return false, op, err
+	return op, err
 }
 
 // Get retrieves an existing lock or returns nil if no lock exists.
