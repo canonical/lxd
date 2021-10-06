@@ -709,14 +709,15 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return ErrInstanceIsStopped
 	}
 
-	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart"}, true, false)
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, false)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return err
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 
 	// If frozen, resume so the signal can be handled.
@@ -949,13 +950,14 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "start", []string{"restart", "restore"}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return errors.Wrap(err, "Create instance start operation")
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 	defer op.Done(nil)
 
@@ -3297,13 +3299,14 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart", "restore"}, false, true)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return err
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 
 	// Connect to the monitor.
@@ -3445,7 +3448,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
-	op, err := operationlock.Create(d.Project(), d.Name(), "restore", false, false)
+	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create restore operation")
 	}
@@ -3494,7 +3497,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		}
 
 		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.Project(), d.Name(), "restore", false, false)
+		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
 			return errors.Wrap(err, "Create restore operation")
 		}
