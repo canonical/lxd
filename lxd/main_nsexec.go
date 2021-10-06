@@ -49,6 +49,7 @@ import (
 
 // External functions
 extern void checkfeature();
+extern void forkcoresched();
 extern void forkexec();
 extern void forkfile();
 extern void forksyscall();
@@ -370,6 +371,8 @@ __attribute__((constructor)) void init(void) {
 		forkproxy();
 	else if (strcmp(cmdline_cur, "forkuevent") == 0)
 		forkuevent();
+	else if (strcmp(cmdline_cur, "forkcoresched") == 0)
+		forkcoresched();
 	else if (strcmp(cmdline_cur, "forkzfs") == 0) {
 		ret = unshare(CLONE_NEWNS);
 		if (ret < 0) {
