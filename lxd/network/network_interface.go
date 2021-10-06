@@ -52,4 +52,7 @@ type Network interface {
 	HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error
 	Delete(clientType request.ClientType) error
 	handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error
+
+	// Status.
+	Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error)
 }

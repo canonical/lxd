@@ -421,3 +421,8 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 func (n *common) handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error {
 	return nil
 }
+
+// Leases returns ErrNotImplemented for drivers that don't support address leases.
+func (n *common) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
+	return nil, ErrNotImplemented
+}

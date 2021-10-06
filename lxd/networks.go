@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -11,15 +10,12 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device/nictype"
-	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -1246,198 +1242,19 @@ func doNetworkUpdate(d *Daemon, n network.Network, req api.NetworkPut, targetNod
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
+	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
-	project := projectParam(r)
 
-	// Try to get the network.
-	n, err := doNetworkGet(d, r, name)
+	// Attempt to load the network.
+	n, err := network.LoadByName(d.State(), name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// Validate that we do have leases for it
-	if !n.Managed || n.Type != "bridge" {
-		return response.NotFound(errors.New("Leases not found"))
-	}
-
-	leases := []api.NetworkLease{}
-	projectMacs := []string{}
-
-	// Get all static leases
-	if !isClusterNotification(r) {
-		// Get all the instances
-		instances, err := instance.LoadByProject(d.State(), project)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		for _, inst := range instances {
-			// Go through all its devices (including profiles).
-			for k, dev := range inst.ExpandedDevices() {
-				// Skip uninteresting entries.
-				if dev["type"] != "nic" {
-					continue
-				}
-
-				nicType, err := nictype.NICType(d.State(), dev)
-				if err != nil || nicType != "bridged" {
-					continue
-				}
-
-				// Temporarily populate parent from network setting if used.
-				if dev["network"] != "" {
-					dev["parent"] = dev["network"]
-				}
-
-				if dev["parent"] != name {
-					continue
-				}
-
-				// Fill in the hwaddr from volatile.
-				if dev["hwaddr"] == "" {
-					dev["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", k)]
-				}
-
-				// Record the MAC.
-				if dev["hwaddr"] != "" {
-					projectMacs = append(projectMacs, dev["hwaddr"])
-				}
-
-				// Add the lease.
-				if dev["ipv4.address"] != "" {
-					leases = append(leases, api.NetworkLease{
-						Hostname: inst.Name(),
-						Address:  dev["ipv4.address"],
-						Hwaddr:   dev["hwaddr"],
-						Type:     "static",
-						Location: inst.Location(),
-					})
-				}
-
-				if dev["ipv6.address"] != "" {
-					leases = append(leases, api.NetworkLease{
-						Hostname: inst.Name(),
-						Address:  dev["ipv6.address"],
-						Hwaddr:   dev["hwaddr"],
-						Type:     "static",
-						Location: inst.Location(),
-					})
-				}
-
-				// Add EUI64 records.
-				ipv6Address := n.Config["ipv6.address"]
-				if ipv6Address != "" && ipv6Address != "none" && !shared.IsTrue(n.Config["ipv6.dhcp.stateful"]) {
-					_, netAddress, _ := net.ParseCIDR(ipv6Address)
-					hwAddr, _ := net.ParseMAC(dev["hwaddr"])
-					if netAddress != nil && hwAddr != nil {
-						ipv6, err := eui64.ParseMAC(netAddress.IP, hwAddr)
-						if err == nil {
-							leases = append(leases, api.NetworkLease{
-								Hostname: inst.Name(),
-								Address:  ipv6.String(),
-								Hwaddr:   dev["hwaddr"],
-								Type:     "dynamic",
-								Location: inst.Location(),
-							})
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Local server name.
-	var serverName string
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		serverName, err = tx.GetLocalNodeName()
-		return err
-	})
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	leases, err := n.Leases(projectName, clientType)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Get dynamic leases.
-	leaseFile := shared.VarPath("networks", name, "dnsmasq.leases")
-	if !shared.PathExists(leaseFile) {
-		return response.SyncResponse(true, leases)
-	}
-
-	content, err := ioutil.ReadFile(leaseFile)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	for _, lease := range strings.Split(string(content), "\n") {
-		fields := strings.Fields(lease)
-		if len(fields) >= 5 {
-			// Parse the MAC.
-			mac := network.GetMACSlice(fields[1])
-			macStr := strings.Join(mac, ":")
-
-			if len(macStr) < 17 && fields[4] != "" {
-				macStr = fields[4][len(fields[4])-17:]
-			}
-
-			// Look for an existing static entry.
-			found := false
-			for _, entry := range leases {
-				if entry.Hwaddr == macStr && entry.Address == fields[2] {
-					found = true
-					break
-				}
-			}
-
-			if found {
-				continue
-			}
-
-			// DHCPv6 leases can't be tracked down to a MAC so clear the field.
-			if strings.Contains(fields[2], ":") {
-				macStr = ""
-			}
-
-			// Add the lease to the list.
-			leases = append(leases, api.NetworkLease{
-				Hostname: fields[3],
-				Address:  fields[2],
-				Hwaddr:   macStr,
-				Type:     "dynamic",
-				Location: serverName,
-			})
-		}
-	}
-
-	// Collect leases from other servers.
-	if !isClusterNotification(r) {
-		notifier, err := cluster.NewNotifier(d.State(), d.endpoints.NetworkCert(), d.serverCert(), cluster.NotifyAlive)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		err = notifier(func(client lxd.InstanceServer) error {
-			memberLeases, err := client.GetNetworkLeases(name)
-			if err != nil {
-				return err
-			}
-
-			leases = append(leases, memberLeases...)
-			return nil
-		})
-		if err != nil {
-			return response.SmartError(err)
-		}
-
-		// Filter based on project.
-		filteredLeases := []api.NetworkLease{}
-		for _, lease := range leases {
-			if lease.Hwaddr != "" && !shared.StringInSlice(lease.Hwaddr, projectMacs) {
-				continue
-			}
-
-			filteredLeases = append(filteredLeases, lease)
-		}
-
-		leases = filteredLeases
 	}
 
 	return response.SyncResponse(true, leases)
@@ -1543,7 +1360,6 @@ func networkShutdown(s *state.State) error {
 //     $ref: "#/responses/Forbidden"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
-
 func networkStateGet(d *Daemon, r *http.Request) response.Response {
 	// If a target was specified, forward the request to the relevant node.
 	resp := forwardedResponseIfTargetIsRemote(d, r)
