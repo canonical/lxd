@@ -710,7 +710,11 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 	}
 
 	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, false)
+	// Allow inheriting of ongoing restart operation (we are called from restartCommon).
+	// Allow reuse when creating a new stop operation. This allows the Stop() function to inherit operation.
+	// Allow reuse of a reusable ongoing stop operation as Shutdown() may be called earlier, which allows reuse
+	// of its operations. This allow for multiple Shutdown() attempts.
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -758,19 +762,29 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		op.Done(err)
 		return err
 	}
+	d.logger.Debug("Shutdown request sent to instance")
 
-	// If timeout provided, block until the VM is not running or the timeout has elapsed.
+	var timeoutCh <-chan time.Time // If no timeout specified, will be nil, and a nil channel always blocks.
 	if timeout > 0 {
+		timeoutCh = time.After(timeout)
+	}
+
+	for {
 		select {
 		case <-chDisconnect:
-			break
-		case <-time.After(timeout):
+			// VM monitor disconnected, VM is on the way to stopping, now wait for onStop() to finish.
+		case <-timeoutCh:
+			// User specified timeout has elapsed without VM stopping.
 			err = fmt.Errorf("Instance was not shutdown after timeout")
 			op.Done(err)
-			return err
+		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
+			// Keep the operation alive so its around for onStop() if the VM takes
+			// longer than the default 30s that the operation is kept alive for.
+			op.Reset()
+			continue
 		}
-	} else {
-		<-chDisconnect // Block until VM is not running if no timeout provided.
+
+		break
 	}
 
 	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
