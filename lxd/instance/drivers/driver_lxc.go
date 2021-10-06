@@ -2751,7 +2751,7 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}
 
 	// Setup a new operation
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, false)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
 	if err != nil {
 		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
 			// An existing matching operation has now succeeded, return.
@@ -2800,10 +2800,25 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		}
 	}
 
-	err = d.c.Shutdown(timeout)
-	if err != nil {
-		op.Done(err)
-		return err
+	chResult := make(chan error)
+	go func() {
+		chResult <- d.c.Shutdown(timeout)
+	}()
+	d.logger.Debug("Shutdown request sent to instance")
+
+	for {
+		select {
+		case err = <-chResult:
+			// Shutdown request has returned with a result.
+			op.Done(err)
+		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
+			// Keep the operation alive so its around for onStop() if the instance takes
+			// longer than the default 30s that the operation is kept alive for.
+			op.Reset()
+			continue
+		}
+
+		break
 	}
 
 	err = op.Wait()
