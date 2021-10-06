@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/shared"
+	log "github.com/lxc/lxd/shared/log15"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // TimeoutSeconds number of seconds that the operation lock will be kept for without calling Reset().
@@ -36,25 +37,20 @@ var instanceOperations = make(map[string]*InstanceOperation)
 
 // InstanceOperation operation locking.
 type InstanceOperation struct {
-	action       string
+	action       Action
 	chanDone     chan error
-	chanReset    chan bool
+	chanReset    chan struct{}
 	err          error
 	projectName  string
 	instanceName string
 	reusable     bool
 }
 
-// Action returns operation's action.
-func (op InstanceOperation) Action() string {
-	return op.action
-}
-
 // Create creates a new operation lock for an Instance if one does not already exist and returns it.
-// The lock will be released after 30s or when Done() is called, which ever occurs first.
-// If reusable is set as true then future lock attempts can specify the reuse argument as true which
-// will then trigger a reset of the 30s timeout on the existing lock and return it.
-func Create(projectName string, instanceName string, action string, reusable bool, reuse bool) (*InstanceOperation, error) {
+// The lock will be released after TimeoutSeconds or when Done() is called, which ever occurs first.
+// If createReusuable is set as true then future lock attempts can specify the reuseExisting argument as true
+// which will then trigger a reset of the timeout to TimeoutSeconds on the existing lock and return it.
+func Create(projectName string, instanceName string, action Action, createReusuable bool, reuseExisting bool) (*InstanceOperation, error) {
 	if projectName == "" || instanceName == "" {
 		return nil, fmt.Errorf("Invalid project or instance name")
 	}
@@ -66,9 +62,11 @@ func Create(projectName string, instanceName string, action string, reusable boo
 
 	op := instanceOperations[opKey]
 	if op != nil {
-		if op.reusable && reuse {
+		if op.reusable && reuseExisting {
 			// Reset operation timeout without releasing lock or deadlocking using Reset() function.
-			op.chanReset <- true
+			op.chanReset <- struct{}{}
+			logger.Debug("Instance operation lock reused", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
+
 			return op, nil
 		}
 
@@ -79,11 +77,12 @@ func Create(projectName string, instanceName string, action string, reusable boo
 	op.projectName = projectName
 	op.instanceName = instanceName
 	op.action = action
-	op.reusable = reusable
+	op.reusable = createReusuable
 	op.chanDone = make(chan error, 0)
-	op.chanReset = make(chan bool, 0)
+	op.chanReset = make(chan struct{}, 0)
 
 	instanceOperations[opKey] = op
+	logger.Debug("Instance operation lock created", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
 
 	go func(op *InstanceOperation) {
 		for {
@@ -150,6 +149,22 @@ func Get(projectName string, instanceName string) *InstanceOperation {
 	return instanceOperations[opKey]
 }
 
+// Action returns operation's action.
+func (op *InstanceOperation) Action() Action {
+	return op.action
+}
+
+// ActionMatch returns true if operations' action matches on of the matchActions.
+func (op *InstanceOperation) ActionMatch(matchActions ...Action) bool {
+	for _, matchAction := range matchActions {
+		if op.action == matchAction {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Reset resets the operation timeout to give another TimeoutSeconds seconds until it expires.
 func (op *InstanceOperation) Reset() error {
 	// This function can be called on a nil struct.
@@ -168,7 +183,7 @@ func (op *InstanceOperation) Reset() error {
 		return fmt.Errorf("Operation is already done or expired")
 	}
 
-	op.chanReset <- true
+	op.chanReset <- struct{}{}
 	return nil
 }
 
@@ -196,7 +211,7 @@ func (op *InstanceOperation) Done(err error) {
 
 	opKey := project.Instance(op.projectName, op.instanceName)
 
-	// Check if already done
+	// Check if already done.
 	runningOp, ok := instanceOperations[opKey]
 	if !ok || runningOp != op {
 		return
@@ -205,4 +220,5 @@ func (op *InstanceOperation) Done(err error) {
 	op.err = err
 	delete(instanceOperations, opKey) // Delete before closing chanDone.
 	close(op.chanDone)
+	logger.Debug("Instance operation lock finished", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable, "err": err})
 }
