@@ -73,17 +73,18 @@ type OS struct {
 
 	// Kernel features
 	CloseRange              bool
-	CoreScheduling          bool
-	NativeTerminals         bool
 	NetnsGetifaddrs         bool
-	PidFds                  bool
 	PidFdSetns              bool
 	SeccompListener         bool
-	SeccompListenerAddfd    bool
 	SeccompListenerContinue bool
 	Shiftfs                 bool
 	UeventInjection         bool
 	VFS3Fscaps              bool
+
+	CoreScheduling       bool
+	NativeTerminals      bool
+	PidFds               bool
+	SeccompListenerAddfd bool
 
 	// LXC features
 	LXCFeatures map[string]bool
