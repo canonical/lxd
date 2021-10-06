@@ -48,8 +48,8 @@ test_basic_usage() {
   # Re-import the image
   mv "${LXD_DIR}/${sum}.tar.xz" "${LXD_DIR}/testimage.tar.xz"
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage user.foo=bar --public
-  lxc image show testimage | grep -q "user.foo: bar"
-  lxc image show testimage | grep -q "public: true"
+  lxc image show testimage | grep -qF "user.foo: bar"
+  lxc image show testimage | grep -qF "public: true"
   lxc image delete testimage
   lxc image import "${LXD_DIR}/testimage.tar.xz" --alias testimage
   rm "${LXD_DIR}/testimage.tar.xz"
@@ -137,7 +137,7 @@ test_basic_usage() {
   # Test unprivileged container publish
   lxc publish bar --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
+  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
   lxc image delete foo-image
 
   # Test container publish with existing alias
@@ -154,7 +154,7 @@ test_basic_usage() {
   # Test image compression on publish
   lxc publish bar --alias=foo-image-compressed --compression=bzip2 prop=val1
   lxc image show foo-image-compressed | grep val1
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
+  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
   lxc image delete foo-image-compressed
 
   # Test compression options
@@ -167,7 +167,7 @@ test_basic_usage() {
   lxc init testimage barpriv -p default -p priv
   lxc publish barpriv --alias=foo-image prop1=val1
   lxc image show foo-image | grep val1
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/" && false
+  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/" && false
   lxc image delete foo-image
   lxc delete barpriv
   lxc profile delete priv
@@ -187,7 +187,7 @@ test_basic_usage() {
 
   # Test public images
   lxc publish --public bar --alias=foo-image2
-  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep "/1.0/images/"
+  curl -k -s --cert "${LXD_CONF}/client3.crt" --key "${LXD_CONF}/client3.key" -X GET "https://${LXD_ADDR}/1.0/images" | grep -F "/1.0/images/"
   lxc image delete foo-image2
 
   # Test invalid container names
@@ -244,7 +244,7 @@ test_basic_usage() {
 
   # Test randomly named container creation
   lxc launch testimage
-  RDNAME=$(lxc list | tail -n2 | grep ^\| | awk '{print $2}')
+  RDNAME=$(lxc list --format csv --columns n)
   lxc delete -f "${RDNAME}"
 
   # Test "nonetype" container creation
@@ -268,29 +268,29 @@ test_basic_usage() {
     # shellcheck disable=SC2030
     LXD_DIR=${LXD_ACTIVATION_DIR}
     ensure_import_testimage
-    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has core.https_address set, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has core.https_address set, activating..."
     lxc config unset core.https_address --force-local
-    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
     lxc init testimage autostart --force-local
-    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
     lxc config set autostart boot.autostart true --force-local
 
     # Restart the daemon, this forces the global database to be dumped to disk.
     shutdown_lxd "${LXD_DIR}"
     respawn_lxd "${LXD_DIR}" true
-    lxc stop --force autostart
+    lxc stop --force autostart --force-local
 
-    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started instances, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has auto-started instances, activating..."
 
     lxc config unset autostart boot.autostart --force-local
-    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
 
     lxc start autostart --force-local
-    PID=$(lxc info autostart --force-local | grep ^PID | awk '{print $2}')
+    PID=$(lxc info autostart --force-local | awk '/^PID:/ {print $2}')
     shutdown_lxd "${LXD_DIR}"
     [ -d "/proc/${PID}" ] && false
 
-    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has auto-started instances, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has auto-started instances, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -298,10 +298,10 @@ test_basic_usage() {
     lxc list --force-local autostart | grep -q RUNNING
 
     # Check for scheduled instance snapshots
-    lxc stop --force autostart
+    lxc stop --force autostart --force-local
     lxc config set autostart snapshots.schedule "* * * * *" --force-local
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has scheduled instance snapshots, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has scheduled instance snapshots, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -314,7 +314,7 @@ test_basic_usage() {
     lxc storage volume create "${storage_pool}" vol --force-local
 
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -q -v "activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF -v "activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -322,7 +322,7 @@ test_basic_usage() {
     lxc storage volume set "${storage_pool}" vol snapshots.schedule="* * * * *" --force-local
 
     shutdown_lxd "${LXD_DIR}"
-    lxd activateifneeded --debug 2>&1 | grep -q "Daemon has scheduled volume snapshots, activating..."
+    lxd activateifneeded --debug 2>&1 | grep -qF "Daemon has scheduled volume snapshots, activating..."
 
     # shellcheck disable=SC2031
     respawn_lxd "${LXD_DIR}" true
@@ -440,13 +440,13 @@ test_basic_usage() {
 
     if [ "${MAJOR}" -gt "1" ] || { [ "${MAJOR}" = "1" ] && [ "${MINOR}" -ge "2" ]; }; then
       aa_namespace="lxd-lxd-apparmor-test_<$(echo "${LXD_DIR}" | sed -e 's/\//-/g' -e 's/^.//')>"
-      aa-status | grep -q ":${aa_namespace}:unconfined" || aa-status | grep -q ":${aa_namespace}://unconfined"
+      aa-status | grep -q ":${aa_namespace}:unconfined" || aa-status | grep -qF ":${aa_namespace}://unconfined"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -q ":${aa_namespace}:" || false
+      ! aa-status | grep -qF ":${aa_namespace}:" || false
     else
       aa-status | grep "lxd-lxd-apparmor-test_<${LXD_DIR}>"
       lxc stop lxd-apparmor-test --force
-      ! aa-status | grep -q "lxd-lxd-apparmor-test_<${LXD_DIR}>" || false
+      ! aa-status | grep -qF "lxd-lxd-apparmor-test_<${LXD_DIR}>" || false
     fi
     lxc delete lxd-apparmor-test
     [ ! -f "${LXD_DIR}/security/apparmor/profiles/lxd-lxd-apparmor-test" ]
@@ -455,13 +455,13 @@ test_basic_usage() {
   fi
 
   lxc launch testimage lxd-seccomp-test
-  init=$(lxc info lxd-seccomp-test | grep PID | cut -f2 -d" ")
-  [ "$(grep Seccomp: "/proc/${init}/status" | cut -f2)" -eq "2" ]
+  init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+  [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "2" ]
   lxc stop --force lxd-seccomp-test
   lxc config set lxd-seccomp-test security.syscalls.deny_default false
   lxc start lxd-seccomp-test
-  init=$(lxc info lxd-seccomp-test | grep PID | cut -f2 -d" ")
-  [ "$(grep Seccomp: "/proc/${init}/status" | cut -f2)" -eq "0" ]
+  init=$(lxc info lxd-seccomp-test | awk '/^PID:/ {print $2}')
+  [ "$(awk '/^Seccomp:/ {print $2}' "/proc/${init}/status")" -eq "0" ]
   lxc delete --force lxd-seccomp-test
 
   # make sure that privileged containers are not world-readable
@@ -514,14 +514,14 @@ test_basic_usage() {
   # Ephemeral
   lxc launch testimage foo -e
 
-  OLD_INIT=$(lxc info foo | grep ^PID)
+  OLD_INIT=$(lxc info foo | awk '/^PID:/ {print $2}')
   lxc exec foo reboot || true
 
   REBOOTED="false"
 
   # shellcheck disable=SC2034
   for i in $(seq 30); do
-    NEW_INIT=$(lxc info foo | grep ^PID || true)
+    NEW_INIT=$(lxc info foo | awk '/^PID:/ {print $2}' || true)
 
     if [ -n "${NEW_INIT}" ] && [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
       REBOOTED="true"
