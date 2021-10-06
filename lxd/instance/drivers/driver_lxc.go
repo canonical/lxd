@@ -6845,7 +6845,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 			case "dirty":
 				metricType = metrics.MemoryDirtyBytes
 			case "mapped":
-				metricType = metrics.MemoryDirtyBytes
+				metricType = metrics.MemoryMappedBytes
 			case "rss":
 				metricType = metrics.MemoryRSSBytes
 			case "shmem":
