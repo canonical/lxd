@@ -735,7 +735,7 @@ func (d *lxc) initLXC(config bool) error {
 		}
 	}
 
-	if d.state.OS.CoreScheduling {
+	if d.state.OS.ContainerCoreScheduling {
 		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
 		if err != nil {
 			return err
