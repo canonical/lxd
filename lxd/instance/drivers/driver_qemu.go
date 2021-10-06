@@ -1361,6 +1361,20 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
+	// Get the list of PIDs from the VM.
+	pids, err := monitor.GetCPUs()
+	if err != nil {
+		op.Done(err)
+		return err
+	}
+
+	err = d.setCoreSched(pids)
+	if err != nil {
+		err = fmt.Errorf("Failed to allocate new core scheduling domain for vCPU threads: %w", err)
+		op.Done(err)
+		return err
+	}
+
 	// Apply CPU pinning.
 	cpuLimit, ok := d.expandedConfig["limits.cpu"]
 	if ok && cpuLimit != "" {
@@ -1368,13 +1382,6 @@ func (d *qemu) Start(stateful bool) error {
 		if err != nil {
 			// Expand to a set of CPU identifiers and get the pinning map.
 			_, _, _, pins, _, err := d.cpuTopology(cpuLimit)
-			if err != nil {
-				op.Done(err)
-				return err
-			}
-
-			// Get the list of PIDs from the VM.
-			pids, err := monitor.GetCPUs()
 			if err != nil {
 				op.Done(err)
 				return err

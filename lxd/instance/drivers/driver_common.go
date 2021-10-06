@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -914,4 +915,21 @@ func (d *common) recordLastState() error {
 
 		return nil
 	})
+}
+
+func (d *common) setCoreSched(pids []int) error {
+	if !d.state.OS.CoreScheduling {
+		return nil
+	}
+
+	args := []string{
+		"forkcoresched",
+	}
+
+	for _, pid := range pids {
+		args = append(args, strconv.Itoa(pid))
+	}
+
+	_, err := shared.RunCommand(d.state.OS.ExecPath, args...)
+	return err
 }
