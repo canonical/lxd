@@ -27,6 +27,7 @@ import (
 
 #include "include/macro.h"
 #include "include/memory_utils.h"
+#include "include/process_utils.h"
 #include "include/syscall_wrappers.h"
 #include <lxc/attach_options.h>
 #include <lxc/lxccontainer.h>
@@ -232,15 +233,17 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	call_cleaner(lxc_container_put) struct lxc_container *c = NULL;
 	const char *config_path = NULL, *lxcpath = NULL, *name = NULL;
 	char *cwd = NULL;
+	pid_t init_pid;
 	lxc_attach_options_t attach_options = LXC_ATTACH_OPTIONS_DEFAULT;
 	lxc_attach_command_t command = {
 		.program = NULL,
 	};
 	int fds_to_ignore[] = {EXEC_STDIN_FD, EXEC_STDOUT_FD, EXEC_STDERR_FD, EXEC_PIPE_FD};
 	int ret;
-	pid_t pid;
+	pid_t attached_pid;
 	uid_t uid;
 	gid_t gid;
+	int coresched;
 
 	if (geteuid() != 0)
 		return log_error(EXIT_FAILURE, "Error: forkexec requires root privileges");
@@ -260,6 +263,9 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	gid = atoi(advance_arg(true));
 	if (gid < 0)
 		gid = (gid_t) - 1;
+	coresched = atoi(advance_arg(true));
+	if (coresched != 0 && coresched != 1)
+		_exit(EXIT_FAILURE);
 
 	for (char *arg = NULL, *section = NULL; (arg = advance_arg(false)); ) {
 		if (!strcmp(arg, "--") && (!section || strcmp(section, "cmd"))) {
@@ -328,19 +334,59 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	command.program = argvp[0];
 	command.argv = argvp;
 
-	ret = c->attach(c, lxc_attach_run_command, &command, &attach_options, &pid);
+	ret = c->attach(c, lxc_attach_run_command, &command, &attach_options, &attached_pid);
 	if (ret < 0)
 		return EXIT_FAILURE;
 
-	if (!write_nointr(status_pipe, &pid, sizeof(pid))) {
+	if (!write_nointr(status_pipe, &attached_pid, sizeof(attached_pid))) {
 		// Kill the child just to be safe.
-		fprintf(stderr, "Failed to send pid %d of executing child to LXD. Killing child\n", pid);
-		kill(pid, SIGKILL);
+		fprintf(stderr, "Failed to send pid %d of executing child to LXD. Killing child\n", attached_pid);
+		kill(attached_pid, SIGKILL);
+		goto out_reap;
 	}
 
-	ret = wait_for_pid_status_nointr(pid);
+	if (coresched == 1) {
+		pid_t pid;
+
+		init_pid = c->init_pid(c);
+		if (init_pid < 0) {
+			kill(attached_pid, SIGKILL);
+			goto out_reap;
+		}
+
+		pid = vfork();
+		if (pid < 0) {
+			kill(attached_pid, SIGKILL);
+			goto out_reap;
+		}
+
+		if (pid == 0) {
+			__u64 cookie;
+
+			ret = core_scheduling_cookie_share_with(init_pid);
+			if (ret)
+				_exit(EXIT_FAILURE);
+
+			ret = core_scheduling_cookie_share_to(attached_pid);
+			if (ret)
+				_exit(EXIT_FAILURE);
+
+			cookie = core_scheduling_cookie_get(attached_pid);
+			if (!core_scheduling_cookie_valid(cookie))
+				_exit(EXIT_FAILURE);
+
+			_exit(EXIT_SUCCESS);
+		}
+
+		ret = wait_for_pid(pid);
+		if (ret)
+			kill(attached_pid, SIGKILL);
+	}
+
+out_reap:
+	ret = wait_for_pid_status_nointr(attached_pid);
 	if (ret < 0)
-		return log_error(EXIT_FAILURE, "Failed to wait for child process %d", pid);
+		return log_error(EXIT_FAILURE, "Failed to wait for child process %d", attached_pid);
 
 	if (WIFEXITED(ret))
 		return WEXITSTATUS(ret);
@@ -365,7 +411,7 @@ type cmdForkexec struct {
 func (c *cmdForkexec) Command() *cobra.Command {
 	// Main subcommand
 	cmd := &cobra.Command{}
-	cmd.Use = "forkexec <container name> <containers path> <config> <cwd> <uid> <gid> -- env [key=value...] -- cmd <args...>"
+	cmd.Use = "forkexec <container name> <containers path> <config> <cwd> <uid> <gid> <coresched> -- env [key=value...] -- cmd <args...>"
 	cmd.Short = "Execute a task inside the container"
 	cmd.Long = `Description:
   Execute a task inside the container
