@@ -53,6 +53,9 @@ type Network interface {
 	Delete(clientType request.ClientType) error
 	handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error
 
+	// Status.
+	Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error)
+
 	// Address Forwards.
 	ForwardCreate(forward api.NetworkForwardsPost, clientType request.ClientType) error
 	ForwardUpdate(listenAddress string, newForward api.NetworkForwardPut, clientType request.ClientType) error
