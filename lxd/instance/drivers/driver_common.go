@@ -455,7 +455,7 @@ func (d *common) expandDevices(profiles []api.Profile) error {
 // restartCommon handles the common part of instance restarts.
 func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) error {
 	// Setup a new operation for the stop/shutdown phase.
-	op, err := operationlock.Create(d.Project(), d.Name(), "restart", true, true)
+	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestart, true, true)
 	if err != nil {
 		return errors.Wrap(err, "Create restart operation")
 	}
@@ -509,7 +509,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 	}
 
 	// Setup a new operation for the start phase.
-	op, err = operationlock.Create(d.Project(), d.Name(), "restart", true, true)
+	op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestart, true, true)
 	if err != nil {
 		return errors.Wrap(err, "Create restart (for start) operation")
 	}
@@ -864,8 +864,8 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	// If there is another ongoing operation (such as start), wait until that has finished before proceeding
 	// to run the hook (this should be quick as it will fail showing instance is already running).
 	op := operationlock.Get(d.Project(), d.Name())
-	if op != nil && !shared.StringInSlice(op.Action(), []string{"stop", "restart", "restore"}) {
-		d.logger.Debug("Waiting for existing operation to finish before running hook", log.Ctx{"opAction": op.Action()})
+	if op != nil && !op.ActionMatch(operationlock.ActionStop, operationlock.ActionRestart, operationlock.ActionRestore) {
+		d.logger.Debug("Waiting for existing operation lock to finish before running hook", log.Ctx{"action": op.Action()})
 		op.Wait()
 		op = nil
 	}
@@ -876,9 +876,9 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 		d.logger.Debug("Instance initiated stop", log.Ctx{"action": target})
 		instanceInitiated = true
 
-		action := "stop"
+		action := operationlock.ActionStop
 		if target == "reboot" {
-			action = "restart"
+			action = operationlock.ActionRestart
 		}
 
 		op, err = operationlock.Create(d.Project(), d.Name(), action, false, false)
