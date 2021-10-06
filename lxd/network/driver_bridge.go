@@ -15,8 +15,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mdlayher/netx/eui64"
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -24,9 +26,11 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
+	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -2833,4 +2837,238 @@ func (n *bridge) forwardSetupFirewall() error {
 	}
 
 	return nil
+}
+
+// Leases returns a list of leases for the bridged network. It will reach out to other cluster members as needed.
+// The projectName passed here refers to the initial project from the API request which may differ from the network's project.
+func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
+	leases := []api.NetworkLease{}
+	projectMacs := []string{}
+
+	// Helper function to check if a MAC address belongs to an instance in the right project.
+	isInstanceMAC := func(hwaddr string) bool {
+		for _, lease := range leases {
+			if lease.Hwaddr != "" && !shared.StringInSlice(lease.Hwaddr, projectMacs) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// Get all static leases.
+	if clientType == request.ClientTypeNormal {
+		// Get the downstream networks.
+		if n.project == project.Default {
+			var err error
+
+			// Load all the networks.
+			var projectNetworks map[string]map[int64]api.Network
+			err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+				projectNetworks, err = tx.GetCreatedNetworks()
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// Look for networks using the current network as an uplink.
+			for projectName, networks := range projectNetworks {
+				for _, network := range networks {
+					if network.Config["network"] != n.name {
+						continue
+					}
+
+					// Found a network, add leases.
+					for _, k := range []string{"volatile.network.ipv4.address", "volatile.network.ipv6.address"} {
+						v := network.Config[k]
+						if v != "" {
+							leases = append(leases, api.NetworkLease{
+								Hostname: fmt.Sprintf("%s-%s.uplink", projectName, network.Name),
+								Address:  v,
+								Type:     "uplink",
+							})
+						}
+					}
+				}
+			}
+		}
+
+		// Get all the instances.
+		instances, err := instance.LoadByProject(n.state, projectName)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, inst := range instances {
+			// Go through all its devices (including profiles).
+			for k, dev := range inst.ExpandedDevices() {
+				// Skip uninteresting entries.
+				if dev["type"] != "nic" {
+					continue
+				}
+
+				nicType, err := nictype.NICType(n.state, inst.Project(), dev)
+				if err != nil || nicType != "bridged" {
+					continue
+				}
+
+				// Temporarily populate parent from network setting if used.
+				if dev["network"] != "" {
+					dev["parent"] = dev["network"]
+				}
+
+				if dev["parent"] != n.name {
+					continue
+				}
+
+				// Fill in the hwaddr from volatile.
+				if dev["hwaddr"] == "" {
+					dev["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", k)]
+				}
+
+				// Record the MAC.
+				if dev["hwaddr"] != "" {
+					projectMacs = append(projectMacs, dev["hwaddr"])
+				}
+
+				// Add the lease.
+				if dev["ipv4.address"] != "" {
+					leases = append(leases, api.NetworkLease{
+						Hostname: inst.Name(),
+						Address:  dev["ipv4.address"],
+						Hwaddr:   dev["hwaddr"],
+						Type:     "static",
+						Location: inst.Location(),
+					})
+				}
+
+				if dev["ipv6.address"] != "" {
+					leases = append(leases, api.NetworkLease{
+						Hostname: inst.Name(),
+						Address:  dev["ipv6.address"],
+						Hwaddr:   dev["hwaddr"],
+						Type:     "static",
+						Location: inst.Location(),
+					})
+				}
+
+				// Add EUI64 records.
+				ipv6Address := n.config["ipv6.address"]
+				if ipv6Address != "" && ipv6Address != "none" && !shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
+					_, netAddress, _ := net.ParseCIDR(ipv6Address)
+					hwAddr, _ := net.ParseMAC(dev["hwaddr"])
+					if netAddress != nil && hwAddr != nil {
+						ipv6, err := eui64.ParseMAC(netAddress.IP, hwAddr)
+						if err == nil {
+							leases = append(leases, api.NetworkLease{
+								Hostname: inst.Name(),
+								Address:  ipv6.String(),
+								Hwaddr:   dev["hwaddr"],
+								Type:     "dynamic",
+								Location: inst.Location(),
+							})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Local server name.
+	var err error
+	var serverName string
+	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		serverName, err = tx.GetLocalNodeName()
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get dynamic leases.
+	leaseFile := shared.VarPath("networks", n.name, "dnsmasq.leases")
+	if !shared.PathExists(leaseFile) {
+		return leases, nil
+	}
+
+	content, err := ioutil.ReadFile(leaseFile)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, lease := range strings.Split(string(content), "\n") {
+		fields := strings.Fields(lease)
+		if len(fields) >= 5 {
+			// Parse the MAC.
+			mac := GetMACSlice(fields[1])
+			macStr := strings.Join(mac, ":")
+
+			if len(macStr) < 17 && fields[4] != "" {
+				macStr = fields[4][len(fields[4])-17:]
+			}
+
+			// Look for an existing static entry.
+			found := false
+			for _, entry := range leases {
+				if entry.Hwaddr == macStr && entry.Address == fields[2] {
+					found = true
+					break
+				}
+			}
+
+			if found {
+				continue
+			}
+
+			// DHCPv6 leases can't be tracked down to a MAC so clear the field.
+			// This means that instance project filtering will not work on IPv6 leases.
+			if strings.Contains(fields[2], ":") {
+				macStr = ""
+			}
+
+			// Skip leases that don't match instances that are in the correct project (when we have such a list).
+			if clientType == request.ClientTypeNormal && macStr != "" && !isInstanceMAC(macStr) {
+				continue
+			}
+
+			// Add the lease to the list.
+			leases = append(leases, api.NetworkLease{
+				Hostname: fields[3],
+				Address:  fields[2],
+				Hwaddr:   macStr,
+				Type:     "dynamic",
+				Location: serverName,
+			})
+		}
+	}
+
+	// Collect leases from other servers.
+	if clientType == request.ClientTypeNormal {
+		notifier, err := cluster.NewNotifier(n.state, n.state.Endpoints.NetworkCert(), n.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return nil, err
+		}
+
+		err = notifier(func(client lxd.InstanceServer) error {
+			memberLeases, err := client.GetNetworkLeases(n.name)
+			if err != nil {
+				return err
+			}
+
+			// Add the leases that match instances that are in the correct project.
+			for _, lease := range memberLeases {
+				if lease.Hwaddr != "" && isInstanceMAC(lease.Hwaddr) {
+					leases = append(leases, lease)
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return leases, nil
 }
