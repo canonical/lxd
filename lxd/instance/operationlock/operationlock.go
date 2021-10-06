@@ -9,11 +9,30 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-var instanceOperationsLock sync.Mutex
-var instanceOperations = make(map[string]*InstanceOperation)
-
 // TimeoutSeconds number of seconds that the operation lock will be kept for without calling Reset().
 const TimeoutSeconds = 30
+
+// Action indicates the operation action type.
+type Action string
+
+// ActionStart for starting an instance.
+const ActionStart Action = "start"
+
+// ActionStop for stopping an instance.
+const ActionStop Action = "stop"
+
+// ActionRestart for restarting an instance.
+const ActionRestart Action = "restart"
+
+// ActionRestore for restoring an instance.
+const ActionRestore Action = "restore"
+
+// ErrNonReusuableSucceeded is returned when no operation is created due to having to wait for a matching
+// non-reusuable operation that has now completed successfully.
+var ErrNonReusuableSucceeded error = fmt.Errorf("A matching non-reusable operation has now succeeded")
+
+var instanceOperationsLock sync.Mutex
+var instanceOperations = make(map[string]*InstanceOperation)
 
 // InstanceOperation operation locking.
 type InstanceOperation struct {
