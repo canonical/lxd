@@ -1882,6 +1882,7 @@ again:
 			break
 		}
 
+		logger.Info("Demoting offline member", log.Ctx{"candidateAddress": node.Address})
 		err := d.gateway.DemoteOfflineNode(node.ID)
 		if err != nil {
 			return errors.Wrapf(err, "Demote offline node %s", node.Address)
@@ -1891,6 +1892,7 @@ again:
 	}
 
 	// Tell the node to promote itself.
+	logger.Info("Promoting member", log.Ctx{"candidateAddress": address})
 	err = changeMemberRole(d, r, address, nodes)
 	if err != nil {
 		return err
