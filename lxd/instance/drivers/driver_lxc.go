@@ -2340,13 +2340,14 @@ func (d *lxc) Start(stateful bool) error {
 	var ctxMap log.Ctx
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "start", []string{"restart", "restore"}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return errors.Wrap(err, "Create container start operation")
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 	defer op.Done(nil)
 
@@ -2594,13 +2595,14 @@ func (d *lxc) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart", "restore"}, false, true)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return err
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 
 	ctxMap := log.Ctx{
@@ -2753,13 +2755,14 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	}
 
 	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart"}, true, false)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return err
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 
 	// If frozen, resume so the signal can be handled.
@@ -2801,10 +2804,25 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		}
 	}
 
-	err = d.c.Shutdown(timeout)
-	if err != nil {
-		op.Done(err)
-		return err
+	chResult := make(chan error)
+	go func() {
+		chResult <- d.c.Shutdown(timeout)
+	}()
+	d.logger.Debug("Shutdown request sent to instance")
+
+	for {
+		select {
+		case err = <-chResult:
+			// Shutdown request has returned with a result.
+			op.Done(err)
+		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
+			// Keep the operation alive so its around for onStop() if the instance takes
+			// longer than the default 30s that the operation is kept alive for.
+			op.Reset()
+			continue
+		}
+
+		break
 	}
 
 	err = op.Wait()
@@ -3351,7 +3369,7 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	var ctxMap log.Ctx
 
-	op, err := operationlock.Create(d.Project(), d.Name(), "restore", false, false)
+	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create restore operation")
 	}
@@ -3398,7 +3416,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 
 		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.Project(), d.Name(), "restore", false, false)
+		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
 			return errors.Wrap(err, "Create restore operation")
 		}
