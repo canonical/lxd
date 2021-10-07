@@ -431,7 +431,6 @@ func (g *Gateway) DialFunc() client.DialFunc {
 		// leader is ourselves, and we were recently elected. In that case
 		// trigger a full heartbeat now: it will be a no-op if we aren't
 		// actually leaders.
-		logger.Info("Triggering an out of schedule hearbeat", log.Ctx{"address": address})
 		go g.heartbeat(g.ctx, hearbeatInitial)
 
 		return conn, nil
