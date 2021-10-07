@@ -42,7 +42,7 @@ import (
 // After creation, the Daemon is expected to expose whatever http handlers the
 // HandlerFuncs method returns and to access the dqlite cluster using the
 // dialer returned by the DialFunc method.
-func NewGateway(db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, options ...Option) (*Gateway, error) {
+func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, options ...Option) (*Gateway, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	o := newOptions()
@@ -52,6 +52,7 @@ func NewGateway(db *db.Node, networkCert *shared.CertInfo, serverCert func() *sh
 	}
 
 	gateway := &Gateway{
+		shutdownCtx: shutdownCtx,
 		db:          db,
 		networkCert: networkCert,
 		serverCert:  serverCert,
@@ -70,6 +71,9 @@ func NewGateway(db *db.Node, networkCert *shared.CertInfo, serverCert func() *sh
 
 	return gateway, nil
 }
+
+// HeartbeatHook represents a function that can be called as the heartbeat hook.
+type HeartbeatHook func(heartbeatData *APIHeartbeat, isLeader bool, unavailableMembers []string)
 
 // Gateway mediates access to the dqlite cluster using a gRPC SQL client, and
 // possibly runs a dqlite replica on this LXD node (if we're configured to do
@@ -101,8 +105,9 @@ type Gateway struct {
 
 	// Used when shutting down the daemon to cancel any ongoing gRPC
 	// dialing attempt.
-	ctx    context.Context
-	cancel context.CancelFunc
+	shutdownCtx context.Context
+	ctx         context.Context
+	cancel      context.CancelFunc
 
 	// Used to unblock nodes that are waiting for other nodes to upgrade
 	// their version.
@@ -114,7 +119,7 @@ type Gateway struct {
 
 	// Used for the heartbeat handler
 	Cluster                   *db.Cluster
-	HeartbeatNodeHook         func(*APIHeartbeat)
+	HeartbeatNodeHook         HeartbeatHook
 	HeartbeatOfflineThreshold time.Duration
 	heartbeatCancel           context.CancelFunc
 	heartbeatCancelLock       sync.Mutex
@@ -149,7 +154,7 @@ func setDqliteVersionHeader(request *http.Request) {
 // These handlers might return 404, either because this LXD node is a
 // non-clustered node not available over the network or because it is not a
 // database node part of the dqlite cluster.
-func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts func() map[db.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
+func (g *Gateway) HandlerFuncs(nodeRefreshTask HeartbeatHook, trustedCerts func() map[db.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
 		defer g.lock.RUnlock()
@@ -188,6 +193,12 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 
 		// Handle heatbeats (these normally come from leader, but can come from joining nodes too).
 		if r.Method == "PUT" {
+			if g.shutdownCtx.Err() != nil {
+				logger.Warn("Rejecting heartbeat request as shutting down")
+				http.Error(w, "503 shutting down", http.StatusServiceUnavailable)
+				return
+			}
+
 			var heartbeatData APIHeartbeat
 			err := json.NewDecoder(r.Body).Decode(&heartbeatData)
 			if err != nil {
@@ -240,6 +251,8 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 				}
 			}
 
+			heartbeatRestarted := false
+
 			// Check we have been sent at least 1 raft node before wiping our set.
 			if len(raftNodes) > 0 {
 				// Accept Raft node updates from any node (joining nodes just send raft nodes heartbeat data).
@@ -259,20 +272,24 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 				// So calling heartbeatRestart will request any ongoing heartbeat round to cancel
 				// itself prematurely and restart another one. If there is no ongoing heartbeat
 				// round then this function call is a no-op.
-				g.heartbeatRestart()
+				heartbeatRestarted = g.heartbeatRestart()
 			} else {
 				logger.Error("Empty raft member set received")
 			}
 
-			// Only perform node refresh task if we have received a full state list from leader.
+			// Only perform heartbeat refresh task if we have received a full state list from leader.
 			if !heartbeatData.FullStateList {
-				logger.Info("Partial node list heartbeat received, skipping full update")
-				return
-			}
+				logger.Info("Partial member list heartbeat received, skipping full update")
+			} else if nodeRefreshTask != nil && !heartbeatRestarted {
+				// Perform heartbeat refresh task async if an ongoing heartbeat wasn't restarted.
+				// As this task will be run at the end of the heartbeat task anyway.
+				isLeader, err := g.isLeader()
+				if err != nil {
+					logger.Error("Failed checking if leader", log.Ctx{"err": err})
+					return
+				}
 
-			// If node refresh task is specified, run it async.
-			if nodeRefreshTask != nil {
-				go nodeRefreshTask(&heartbeatData)
+				go nodeRefreshTask(&heartbeatData, isLeader, nil)
 			}
 
 			return
@@ -427,7 +444,6 @@ func (g *Gateway) DialFunc() client.DialFunc {
 		// leader is ourselves, and we were recently elected. In that case
 		// trigger a full heartbeat now: it will be a no-op if we aren't
 		// actually leaders.
-		logger.Info("Triggering an out of schedule hearbeat", log.Ctx{"address": address})
 		go g.heartbeat(g.ctx, hearbeatInitial)
 
 		return conn, nil
@@ -959,7 +975,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			for i, server := range servers {
 				node, found := nodesByAddress[server.Address]
 				if !found {
-					return fmt.Errorf("Cluster member info not found for %q", server.Address)
+					logger.Warn("Cluster member info not found", log.Ctx{"address": server.Address})
 				}
 
 				raftNodes[i].Name = node.Name

@@ -997,6 +997,7 @@ func (d *Daemon) init() error {
 		clusterLogLevel = "TRACE"
 	}
 	d.gateway, err = cluster.NewGateway(
+		d.shutdownCtx,
 		d.db,
 		networkCert,
 		d.serverCert,
@@ -1879,7 +1880,7 @@ func (d *Daemon) hasNodeListChanged(heartbeatData *cluster.APIHeartbeat) bool {
 
 // NodeRefreshTask is run each time a fresh node is generated.
 // This can be used to trigger actions when the node list changes.
-func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
+func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {
 	// Don't process the heartbeat until we're fully online
 	if d.cluster == nil || d.cluster.GetNodeID() == 0 {
 		return
@@ -1944,7 +1945,9 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 	// roles, let's see if we can replace them with spare ones. Also, if we
 	// don't have enough voters or standbys, let's see if we can upgrade
 	// some member.
-	if len(heartbeatData.Members) > 2 {
+	if isLeader && len(heartbeatData.Members) > 2 {
+		address, _ := node.ClusterAddress(d.State().Node)
+
 		var maxVoters int64
 		var maxStandBy int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1962,11 +1965,9 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 		}
 
 		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
-			// Wait a little bit, just to avoid spurious
-			// attempts due to nodes being shut down.
-			time.Sleep(5 * time.Second)
 			d.clusterMembershipMutex.Lock()
-			err := rebalanceMemberRoles(d, nil)
+			logger.Info("Rebalancing member roles in heartbeat", log.Ctx{"address": address})
+			err := rebalanceMemberRoles(d, nil, unavailableMembers)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 				logger.Warnf("Could not rebalance cluster member roles: %v", err)
 			}
@@ -1975,6 +1976,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat) {
 
 		if hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
+			logger.Info("Upgrading members without raft role in heartbeat", log.Ctx{"address": address})
 			err := upgradeNodesWithoutRaftRole(d)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 				logger.Warnf("Failed upgrade raft roles: %v", err)

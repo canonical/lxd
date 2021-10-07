@@ -1685,7 +1685,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(errors.Wrap(err, "Failed to remove member from database"))
 	}
 
-	err = rebalanceMemberRoles(d, r)
+	err = rebalanceMemberRoles(d, r, nil)
 	if err != nil {
 		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
@@ -1946,7 +1946,7 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		return response.SyncResponseRedirect(url.String())
 	}
 
-	err = rebalanceMemberRoles(d, r)
+	err = rebalanceMemberRoles(d, r, nil)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1956,13 +1956,13 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 
 // Check if there's a dqlite node whose role should be changed, and post a
 // change role request if so.
-func rebalanceMemberRoles(d *Daemon, r *http.Request) error {
+func rebalanceMemberRoles(d *Daemon, r *http.Request, unavailableMembers []string) error {
 	if d.shutdownCtx.Err() != nil {
 		return nil
 	}
 
 again:
-	address, nodes, err := cluster.Rebalance(d.State(), d.gateway)
+	address, nodes, err := cluster.Rebalance(d.State(), d.gateway, unavailableMembers)
 	if err != nil {
 		return err
 	}
@@ -1982,6 +1982,7 @@ again:
 			break
 		}
 
+		logger.Info("Demoting offline member", log.Ctx{"candidateAddress": node.Address})
 		err := d.gateway.DemoteOfflineNode(node.ID)
 		if err != nil {
 			return errors.Wrapf(err, "Demote offline node %s", node.Address)
@@ -1991,6 +1992,7 @@ again:
 	}
 
 	// Tell the node to promote itself.
+	logger.Info("Promoting member", log.Ctx{"candidateAddress": address})
 	err = changeMemberRole(d, r, address, nodes)
 	if err != nil {
 		return err
@@ -2194,6 +2196,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		goto out
 	}
 
+	logger.Info("Promoting member", log.Ctx{"address": address, "losingAddress": req.Address, "candidateAddress": target})
 	err = changeMemberRole(d, r, target, nodes)
 	if err != nil {
 		return response.SmartError(err)
@@ -2205,6 +2208,8 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 			nodes[i].Role = db.RaftSpare
 		}
 	}
+
+	logger.Info("Demoting member", log.Ctx{"address": address, "losingAddress": req.Address})
 	err = changeMemberRole(d, r, req.Address, nodes)
 	if err != nil {
 		return response.SmartError(err)
@@ -2320,7 +2325,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
-	err = rebalanceMemberRoles(d, r)
+	err = rebalanceMemberRoles(d, r, nil)
 	if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", log.Ctx{"err": err})
 	}

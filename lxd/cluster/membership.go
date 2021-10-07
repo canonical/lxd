@@ -525,7 +525,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		}
 
 		// Generate partial heartbeat request containing just a raft node list.
-		notifyNodesUpdate(raftNodes, info.ID, networkCert, serverCert)
+		notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
 
 		return nil
 	})
@@ -537,7 +537,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 }
 
 // Attempt to send a heartbeat to all other nodes to notify them of a new or changed member.
-func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.CertInfo, serverCert *shared.CertInfo) {
+func notifyNodesUpdate(raftNodes []db.RaftNode, info *db.RaftNode, networkCert *shared.CertInfo, serverCert *shared.CertInfo) {
 	// Generate partial heartbeat request containing just a raft node list.
 	hbState := &APIHeartbeat{}
 	hbState.Time = time.Now().UTC()
@@ -551,9 +551,10 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.C
 	hbState.Update(false, raftNodes, nodes, 0)
 
 	// Notify all other members of the change in membership.
+	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"address": info.Address})
 	var wg sync.WaitGroup
 	for _, node := range raftNodes {
-		if node.ID == id {
+		if node.ID == info.ID {
 			continue
 		}
 
@@ -574,7 +575,7 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.C
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
-func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil
@@ -585,7 +586,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", nil, errors.Wrap(err, "Get current raft nodes")
 	}
 
-	roles, err := newRolesChanges(state, gateway, nodes)
+	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
 	if err != nil {
 		return "", nil, err
 	}
@@ -704,9 +705,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 
 assign:
-	logger.Info(
-		"Changing dqlite raft role",
-		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Changing local dqlite raft role", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -794,7 +793,7 @@ assign:
 	}
 
 	// Generate partial heartbeat request containing just a raft node list.
-	notifyNodesUpdate(nodes, info.ID, gateway.networkCert, gateway.serverCert())
+	notifyNodesUpdate(nodes, info, gateway.networkCert, gateway.serverCert())
 
 	return nil
 }
@@ -898,7 +897,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		return "", nil, errors.Wrapf(err, "No dqlite node has address %s", address)
 	}
 
-	roles, err := newRolesChanges(state, gateway, nodes)
+	roles, err := newRolesChanges(state, gateway, nodes, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -919,7 +918,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 }
 
 // Build an app.RolesChanges object feeded with the current cluster state.
-func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) (*app.RolesChanges, error) {
+func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, unavailableMembers []string) (*app.RolesChanges, error) {
 	var maxVoters int
 	var maxStandBy int
 	var domains map[string]uint64
@@ -946,14 +945,13 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
 
 	for _, node := range nodes {
-		if HasConnectivity(gateway.networkCert, gateway.serverCert(), node.Address) {
+		if !shared.StringInSlice(node.Address, unavailableMembers) && HasConnectivity(gateway.networkCert, gateway.serverCert(), node.Address) {
 			cluster[node.NodeInfo] = &client.NodeMetadata{
 				FailureDomain: domains[node.Address],
 			}
 		} else {
 			cluster[node.NodeInfo] = nil
 		}
-
 	}
 
 	roles := &app.RolesChanges{

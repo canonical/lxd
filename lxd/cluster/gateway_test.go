@@ -183,7 +183,7 @@ func newGateway(t *testing.T, node *db.Node, networkCert *shared.CertInfo, serve
 	logging.Testing(t)
 	require.NoError(t, os.Mkdir(filepath.Join(node.Dir(), "global"), 0755))
 	serverCertFunc := func() *shared.CertInfo { return serverCert }
-	gateway, err := cluster.NewGateway(node, networkCert, serverCertFunc, cluster.Latency(0.2), cluster.LogLevel("TRACE"))
+	gateway, err := cluster.NewGateway(context.Background(), node, networkCert, serverCertFunc, cluster.Latency(0.2), cluster.LogLevel("TRACE"))
 	require.NoError(t, err)
 	return gateway
 }
