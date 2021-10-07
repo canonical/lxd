@@ -132,7 +132,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 
 	if vol.contentType == ContentTypeFS {
 		// Create the filesystem dataset.
-		err := d.createDataset(d.dataset(vol, false), fmt.Sprintf("mountpoint=%s", vol.MountPath()), "canmount=noauto")
+		err := d.createDataset(d.dataset(vol, false), "mountpoint=none", "canmount=noauto")
 		if err != nil {
 			return err
 		}
@@ -403,7 +403,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 		// Re-apply the base mount options.
 		if v.contentType == ContentTypeFS {
-			err := d.setDatasetProperties(d.dataset(v, false), fmt.Sprintf("mountpoint=%s", v.MountPath()), "canmount=noauto")
+			err := d.setDatasetProperties(d.dataset(v, false), "mountpoint=none", "canmount=noauto")
 			if err != nil {
 				return nil, nil, err
 			}
@@ -620,7 +620,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 	// Apply the properties.
 	if vol.contentType == ContentTypeFS {
-		err := d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("mountpoint=%s", vol.MountPath()), "canmount=noauto")
+		err := d.setDatasetProperties(d.dataset(vol, false), "mountpoint=none", "canmount=noauto")
 		if err != nil {
 			return err
 		}
@@ -736,7 +736,7 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		}
 
 		// Re-apply the base mount options.
-		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("mountpoint=%s", vol.MountPath()), "canmount=noauto")
+		err = d.setDatasetProperties(d.dataset(vol, false), "mountpoint=none", "canmount=noauto")
 		if err != nil {
 			return err
 		}
@@ -1168,7 +1168,12 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 	if vol.contentType == ContentTypeFS {
 		mountPath := vol.MountPath()
 		if !filesystem.IsMountPoint(mountPath) {
-			err := vol.EnsureMountPath()
+			err := d.setDatasetProperties(dataset, "mountpoint=none", "canmount=noauto")
+			if err != nil {
+				return err
+			}
+
+			err = vol.EnsureMountPath()
 			if err != nil {
 				return err
 			}
@@ -1332,9 +1337,9 @@ func (d *zfs) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 		shared.RunCommand("zfs", "rename", d.dataset(newVol, false), d.dataset(vol, false))
 	})
 
-	// Update the mountpoints.
+	// Ensure the volume has correct mountpoint settings.
 	if vol.contentType == ContentTypeFS {
-		err = d.setDatasetProperties(d.dataset(newVol, false), fmt.Sprintf("mountpoint=%s", newVol.MountPath()))
+		err = d.setDatasetProperties(d.dataset(newVol, false), "mountpoint=none", "canmount=noauto")
 		if err != nil {
 			return err
 		}
