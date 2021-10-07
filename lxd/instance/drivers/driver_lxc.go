@@ -739,8 +739,13 @@ func (d *lxc) initLXC(config bool) error {
 		}
 	}
 
-	if d.state.OS.CoreScheduling {
+	if d.state.OS.ContainerCoreScheduling {
 		err = lxcSetConfigItem(cc, "lxc.sched.core", "1")
+		if err != nil {
+			return err
+		}
+	} else if d.state.OS.CoreScheduling {
+		err = lxcSetConfigItem(cc, "lxc.hook.start-host", fmt.Sprintf("/proc/%d/exe forkcoresched 1", os.Getpid()))
 		if err != nil {
 			return err
 		}
@@ -5702,6 +5707,12 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		req.Cwd,
 		fmt.Sprintf("%d", req.User),
 		fmt.Sprintf("%d", req.Group),
+	}
+
+	if d.state.OS.CoreScheduling && !d.state.OS.ContainerCoreScheduling {
+		args = append(args, "1")
+	} else {
+		args = append(args, "0")
 	}
 
 	args = append(args, "--")
