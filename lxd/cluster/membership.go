@@ -575,7 +575,7 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, info *db.RaftNode, networkCert *
 //
 // If there's such spare node, return its address as well as the new list of
 // raft nodes.
-func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, error) {
+func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string) (string, []db.RaftNode, error) {
 	// If we're a standalone node, do nothing.
 	if gateway.memoryDial != nil {
 		return "", nil, nil
@@ -586,7 +586,7 @@ func Rebalance(state *state.State, gateway *Gateway) (string, []db.RaftNode, err
 		return "", nil, errors.Wrap(err, "Get current raft nodes")
 	}
 
-	roles, err := newRolesChanges(state, gateway, nodes)
+	roles, err := newRolesChanges(state, gateway, nodes, unavailableMembers)
 	if err != nil {
 		return "", nil, err
 	}
@@ -897,7 +897,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 		return "", nil, errors.Wrapf(err, "No dqlite node has address %s", address)
 	}
 
-	roles, err := newRolesChanges(state, gateway, nodes)
+	roles, err := newRolesChanges(state, gateway, nodes, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -918,7 +918,7 @@ func Handover(state *state.State, gateway *Gateway, address string) (string, []d
 }
 
 // Build an app.RolesChanges object feeded with the current cluster state.
-func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) (*app.RolesChanges, error) {
+func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode, unavailableMembers []string) (*app.RolesChanges, error) {
 	var maxVoters int
 	var maxStandBy int
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -937,12 +937,11 @@ func newRolesChanges(state *state.State, gateway *Gateway, nodes []db.RaftNode) 
 	cluster := map[client.NodeInfo]*client.NodeMetadata{}
 
 	for _, node := range nodes {
-		if HasConnectivity(gateway.networkCert, gateway.serverCert(), node.Address) {
+		if !shared.StringInSlice(node.Address, unavailableMembers) && HasConnectivity(gateway.networkCert, gateway.serverCert(), node.Address) {
 			cluster[node.NodeInfo] = &client.NodeMetadata{}
 		} else {
 			cluster[node.NodeInfo] = nil
 		}
-
 	}
 
 	roles := &app.RolesChanges{
