@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -15,7 +14,7 @@ func (d *zfs) patchStorageCreateVM() error {
 			continue
 		}
 
-		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=none")
+		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=none", "canmount=noauto")
 		if err != nil {
 			return err
 		}
@@ -61,10 +60,9 @@ func (d *zfs) patchStorageZFSMount() error {
 		if err != nil {
 			return err
 		}
-		newMountPoint := filepath.Join(shared.VarPath("storage-pools", d.name, dataset))
 
-		if oldMountPoint != newMountPoint {
-			err := d.setDatasetProperties(filepath.Join(d.config["zfs.pool_name"], dataset), fmt.Sprintf("mountpoint=%s", newMountPoint), "canmount=noauto")
+		if oldMountPoint != "none" {
+			err := d.setDatasetProperties(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=none", "canmount=noauto")
 			if err != nil {
 				return err
 			}
