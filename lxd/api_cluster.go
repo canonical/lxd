@@ -2194,6 +2194,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		goto out
 	}
 
+	logger.Info("Promoting member", log.Ctx{"address": address, "losingAddress": req.Address, "candidateAddress": target})
 	err = changeMemberRole(d, r, target, nodes)
 	if err != nil {
 		return response.SmartError(err)
@@ -2205,6 +2206,8 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 			nodes[i].Role = db.RaftSpare
 		}
 	}
+
+	logger.Info("Demoting member", log.Ctx{"address": address, "losingAddress": req.Address})
 	err = changeMemberRole(d, r, req.Address, nodes)
 	if err != nil {
 		return response.SmartError(err)
