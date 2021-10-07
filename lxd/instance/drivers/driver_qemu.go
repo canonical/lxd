@@ -629,6 +629,9 @@ func (d *qemu) onStop(target string) error {
 		return err
 	}
 
+	// Unlock on return
+	defer op.Done(nil)
+
 	// Wait for QEMU process to end (to avoiding racing start when restarting).
 	// Wait up to 5 minutes to allow for flushing any pending data to disk.
 	d.logger.Debug("Waiting for VM process to finish")
@@ -643,18 +646,18 @@ func (d *qemu) onStop(target string) error {
 	// Reset timeout to 30s.
 	op.Reset()
 
-	// Cleanup.
-	d.cleanupDevices() // Must be called before unmount.
-	os.Remove(d.pidFilePath())
-	os.Remove(d.monitorPath())
-	d.unmount()
-
 	// Record power state.
 	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
 	if err != nil {
 		// Don't return an error here as we still want to cleanup the instance even if DB not available.
 		d.logger.Error("Failed recording last power state", log.Ctx{"err": err})
 	}
+
+	// Cleanup.
+	d.cleanupDevices() // Must be called before unmount.
+	os.Remove(d.pidFilePath())
+	os.Remove(d.monitorPath())
+	d.unmount()
 
 	// Unload the apparmor profile
 	err = apparmor.InstanceUnload(d.state, d)
@@ -663,6 +666,12 @@ func (d *qemu) onStop(target string) error {
 		return err
 	}
 
+	// Log and emit lifecycle if not user triggered.
+	if instanceInitiated {
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
+	}
+
+	// Reboot the instance.
 	if target == "reboot" {
 		// Reset timeout to 30s.
 		op.Reset()
@@ -678,7 +687,7 @@ func (d *qemu) onStop(target string) error {
 		// Reset timeout to 30s.
 		op.Reset()
 
-		// Destroy ephemeral virtual machines
+		// Destroy ephemeral virtual machines.
 		err = d.Delete(true)
 		if err != nil {
 			op.Done(err)
@@ -686,11 +695,6 @@ func (d *qemu) onStop(target string) error {
 		}
 	}
 
-	if instanceInitiated {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
-	}
-
-	op.Done(nil)
 	return nil
 }
 
@@ -709,14 +713,19 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		return ErrInstanceIsStopped
 	}
 
-	// Setup a new operation
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart"}, true, false)
+	// Setup a new operation.
+	// Allow inheriting of ongoing restart operation (we are called from restartCommon).
+	// Allow reuse when creating a new stop operation. This allows the Stop() function to inherit operation.
+	// Allow reuse of a reusable ongoing stop operation as Shutdown() may be called earlier, which allows reuse
+	// of its operations. This allow for multiple Shutdown() attempts.
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart}, true, true)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return err
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 
 	// If frozen, resume so the signal can be handled.
@@ -757,22 +766,35 @@ func (d *qemu) Shutdown(timeout time.Duration) error {
 		op.Done(err)
 		return err
 	}
+	d.logger.Debug("Shutdown request sent to instance")
 
-	// If timeout provided, block until the VM is not running or the timeout has elapsed.
+	var timeoutCh <-chan time.Time // If no timeout specified, will be nil, and a nil channel always blocks.
 	if timeout > 0 {
-		select {
-		case <-chDisconnect:
-			break
-		case <-time.After(timeout):
-			err = fmt.Errorf("Instance was not shutdown after timeout")
-			op.Done(err)
-			return err
-		}
-	} else {
-		<-chDisconnect // Block until VM is not running if no timeout provided.
+		timeoutCh = time.After(timeout)
 	}
 
-	// Wait for onStop.
+	for {
+		select {
+		case <-chDisconnect:
+			// VM monitor disconnected, VM is on the way to stopping, now wait for onStop() to finish.
+		case <-timeoutCh:
+			// User specified timeout has elapsed without VM stopping.
+			err = fmt.Errorf("Instance was not shutdown after timeout")
+			op.Done(err)
+		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
+			// Keep the operation alive so its around for onStop() if the VM takes
+			// longer than the default 30s that the operation is kept alive for.
+			op.Reset()
+			continue
+		}
+
+		break
+	}
+
+	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
+	// operation lock and then marks it as Done after the VM stops and the devices have been cleaned up.
+	// However if the operation has failed for another reason we will collect the error here.
+	// If the VM has stopped already though, we don't care about an error from the operation.
 	err = op.Wait()
 	if err != nil && d.IsRunning() {
 		return err
@@ -946,13 +968,14 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "start", []string{"restart", "restore"}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return errors.Wrap(err, "Create instance start operation")
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 	defer op.Done(nil)
 
@@ -3363,13 +3386,18 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Setup a new operation.
-	exists, op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), "stop", []string{"restart", "restore"}, false, true)
+	// Allow inheriting of ongoing restart or restore operation (we are called from restartCommon and Restore).
+	// Don't allow reuse when creating a new stop operation. This prevents other operations from intefering.
+	// Allow reuse of a reusable ongoing stop operation as Shutdown() may be called first, which allows reuse
+	// of its operations. This allow for Stop() to inherit from Shutdown() where instance is stuck.
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStop, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, true)
 	if err != nil {
+		if errors.Is(err, operationlock.ErrNonReusuableSucceeded) {
+			// An existing matching operation has now succeeded, return.
+			return nil
+		}
+
 		return err
-	}
-	if exists {
-		// An existing matching operation has now succeeded, return.
-		return nil
 	}
 
 	// Connect to the monitor.
@@ -3511,7 +3539,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 
 // Restore restores an instance snapshot.
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
-	op, err := operationlock.Create(d.Project(), d.Name(), "restore", false, false)
+	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
 		return errors.Wrap(err, "Create restore operation")
 	}
@@ -3560,7 +3588,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		}
 
 		// Refresh the operation as that one is now complete.
-		op, err = operationlock.Create(d.Project(), d.Name(), "restore", false, false)
+		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
 			return errors.Wrap(err, "Create restore operation")
 		}
