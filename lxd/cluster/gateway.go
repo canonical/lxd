@@ -193,8 +193,8 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask HeartbeatHook, trustedCerts func(
 		// Handle heatbeats (these normally come from leader, but can come from joining nodes too).
 		if r.Method == "PUT" {
 			if g.shutdownCtx.Err() != nil {
-				logger.Error("Rejecting heartbeat request as shutting down")
-				http.Error(w, "503 shutting down", http.StatusInternalServerError)
+				logger.Warn("Rejecting heartbeat request as shutting down")
+				http.Error(w, "503 shutting down", http.StatusServiceUnavailable)
 				return
 			}
 
