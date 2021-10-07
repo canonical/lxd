@@ -72,6 +72,9 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 	return gateway, nil
 }
 
+// HeartbeatHook represents a function that can be called as the heartbeat hook.
+type HeartbeatHook func(heartbeatData *APIHeartbeat, isLeader bool, unavailableMembers []string)
+
 // Gateway mediates access to the dqlite cluster using a gRPC SQL client, and
 // possibly runs a dqlite replica on this LXD node (if we're configured to do
 // so).
@@ -116,7 +119,7 @@ type Gateway struct {
 
 	// Used for the heartbeat handler
 	Cluster                   *db.Cluster
-	HeartbeatNodeHook         func(*APIHeartbeat)
+	HeartbeatNodeHook         HeartbeatHook
 	HeartbeatOfflineThreshold time.Duration
 	heartbeatCancel           context.CancelFunc
 	heartbeatCancelLock       sync.Mutex
@@ -151,7 +154,7 @@ func setDqliteVersionHeader(request *http.Request) {
 // These handlers might return 404, either because this LXD node is a
 // non-clustered node not available over the network or because it is not a
 // database node part of the dqlite cluster.
-func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts func() map[db.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
+func (g *Gateway) HandlerFuncs(nodeRefreshTask HeartbeatHook, trustedCerts func() map[db.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
 		defer g.lock.RUnlock()
