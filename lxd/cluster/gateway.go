@@ -41,7 +41,7 @@ import (
 // After creation, the Daemon is expected to expose whatever http handlers the
 // HandlerFuncs method returns and to access the dqlite cluster using the
 // dialer returned by the DialFunc method.
-func NewGateway(db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, options ...Option) (*Gateway, error) {
+func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.CertInfo, serverCert func() *shared.CertInfo, options ...Option) (*Gateway, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	o := newOptions()
@@ -51,6 +51,7 @@ func NewGateway(db *db.Node, networkCert *shared.CertInfo, serverCert func() *sh
 	}
 
 	gateway := &Gateway{
+		shutdownCtx: shutdownCtx,
 		db:          db,
 		networkCert: networkCert,
 		serverCert:  serverCert,
@@ -100,8 +101,9 @@ type Gateway struct {
 
 	// Used when shutting down the daemon to cancel any ongoing gRPC
 	// dialing attempt.
-	ctx    context.Context
-	cancel context.CancelFunc
+	shutdownCtx context.Context
+	ctx         context.Context
+	cancel      context.CancelFunc
 
 	// Used to unblock nodes that are waiting for other nodes to upgrade
 	// their version.
@@ -187,6 +189,12 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask func(*APIHeartbeat), trustedCerts
 
 		// Handle heatbeats (these normally come from leader, but can come from joining nodes too).
 		if r.Method == "PUT" {
+			if g.shutdownCtx.Err() != nil {
+				logger.Error("Rejecting heartbeat request as shutting down")
+				http.Error(w, "503 shutting down", http.StatusInternalServerError)
+				return
+			}
+
 			var heartbeatData APIHeartbeat
 			err := json.NewDecoder(r.Body).Decode(&heartbeatData)
 			if err != nil {
