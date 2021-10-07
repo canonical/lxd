@@ -430,10 +430,17 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return
 	}
 
+	var unavailableMembers []string
+
 	err = query.Retry(func() error {
 		return g.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			for _, node := range hbState.Members {
 				if !node.updated {
+					// If member has not been updated during this heartbeat round it means
+					// they are currently unreachable or rejecting heartbeats due to being
+					// in the process of shutting down. Eitherway we do not want to use this
+					// member as a candidate for role promotion.
+					unavailableMembers = append(unavailableMembers, node.Address)
 					continue
 				}
 
@@ -453,7 +460,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	// If full node state was sent and node refresh task is specified, run it async.
 	if g.HeartbeatNodeHook != nil {
-		go g.HeartbeatNodeHook(hbState)
+		g.HeartbeatNodeHook(hbState, true, unavailableMembers)
 	}
 
 	duration := time.Now().Sub(startTime)
