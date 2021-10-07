@@ -525,7 +525,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		}
 
 		// Generate partial heartbeat request containing just a raft node list.
-		notifyNodesUpdate(raftNodes, info.ID, networkCert, serverCert)
+		notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
 
 		return nil
 	})
@@ -537,7 +537,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 }
 
 // Attempt to send a heartbeat to all other nodes to notify them of a new or changed member.
-func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.CertInfo, serverCert *shared.CertInfo) {
+func notifyNodesUpdate(raftNodes []db.RaftNode, info *db.RaftNode, networkCert *shared.CertInfo, serverCert *shared.CertInfo) {
 	// Generate partial heartbeat request containing just a raft node list.
 	hbState := &APIHeartbeat{}
 	hbState.Time = time.Now().UTC()
@@ -551,9 +551,10 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, id uint64, networkCert *shared.C
 	hbState.Update(false, raftNodes, nodes, 0)
 
 	// Notify all other members of the change in membership.
+	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"address": info.Address})
 	var wg sync.WaitGroup
 	for _, node := range raftNodes {
-		if node.ID == id {
+		if node.ID == info.ID {
 			continue
 		}
 
@@ -794,7 +795,7 @@ assign:
 	}
 
 	// Generate partial heartbeat request containing just a raft node list.
-	notifyNodesUpdate(nodes, info.ID, gateway.networkCert, gateway.serverCert())
+	notifyNodesUpdate(nodes, info, gateway.networkCert, gateway.serverCert())
 
 	return nil
 }
