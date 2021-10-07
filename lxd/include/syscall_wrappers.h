@@ -121,9 +121,27 @@ static inline int core_scheduling_cookie_create_threadgroup(pid_t pid)
 	return 0;
 }
 
+static inline int core_scheduling_cookie_create_thread(pid_t pid)
+{
+	int ret;
+
+	ret = prctl(PR_SCHED_CORE, PR_SCHED_CORE_CREATE, pid,
+		    PR_SCHED_CORE_SCOPE_THREAD, 0);
+	if (ret)
+		return -errno;
+
+	return 0;
+}
+
 static inline int core_scheduling_cookie_share_with(pid_t pid)
 {
 	return prctl(PR_SCHED_CORE, PR_SCHED_CORE_SHARE_FROM, pid,
+		     PR_SCHED_CORE_SCOPE_THREAD, 0);
+}
+
+static inline int core_scheduling_cookie_share_to(pid_t pid)
+{
+	return prctl(PR_SCHED_CORE, PR_SCHED_CORE_SHARE_TO, pid,
 		     PR_SCHED_CORE_SCOPE_THREAD, 0);
 }
 

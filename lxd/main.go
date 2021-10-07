@@ -146,6 +146,10 @@ func main() {
 	forksyscallCmd := cmdForksyscall{global: &globalCmd}
 	app.AddCommand(forksyscallCmd.Command())
 
+	// forkcoresched sub-command
+	forkcoreschedCmd := cmdForkcoresched{global: &globalCmd}
+	app.AddCommand(forkcoreschedCmd.Command())
+
 	// forkmount sub-command
 	forkmountCmd := cmdForkmount{global: &globalCmd}
 	app.AddCommand(forkmountCmd.Command())
