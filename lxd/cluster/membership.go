@@ -705,9 +705,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 
 assign:
-	logger.Info(
-		"Changing dqlite raft role",
-		log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Changing local dqlite raft role", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
