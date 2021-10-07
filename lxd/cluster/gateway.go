@@ -962,7 +962,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			for i, server := range servers {
 				node, found := nodesByAddress[server.Address]
 				if !found {
-					return fmt.Errorf("Cluster member info not found for %q", server.Address)
+					logger.Warn("Cluster member info not found", log.Ctx{"address": server.Address})
 				}
 
 				raftNodes[i].Name = node.Name
