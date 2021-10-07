@@ -203,9 +203,9 @@ test_clustering_membership() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
   # Configuration keys can be changed on any node.
-  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 40
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
@@ -265,7 +265,7 @@ test_clustering_membership() {
   # detected as down.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-  sleep 18
+  sleep 12
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node3 | grep -q "status: Offline"
 
@@ -477,11 +477,10 @@ test_clustering_containers() {
 
   # Shutdown node 2, wait for it to be considered offline, and list
   # containers.
-  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
+  LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
-  sleep 15
+  sleep 12
   LXD_DIR="${LXD_ONE_DIR}" lxc list | grep foo | grep -q ERROR
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
 
   # Start a container without specifying any target. It will be placed
   # on node1 since node2 is offline and both node1 and node3 have zero
@@ -727,9 +726,9 @@ test_clustering_storage() {
     LXD_DIR="${LXD_ONE_DIR}" lxc info bar | grep -q "snap-test"
 
     # Shutdown node 3, and wait for it to be considered offline.
-    LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 12
+    LXD_DIR="${LXD_THREE_DIR}" lxc config set cluster.offline_threshold 11
     LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
-    sleep 15
+    sleep 12
 
     # Move the container back to node2, even if node3 is offline
     LXD_DIR="${LXD_ONE_DIR}" lxc move bar --target node2
@@ -740,7 +739,6 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
     LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
 
-    LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 20
     LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 -q --force
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
@@ -2132,8 +2130,8 @@ test_clustering_handover() {
   echo "Stopped member 1"
 
   # The fourth node has been promoted, while the first one demoted.
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
+  LXD_DIR="${LXD_THREE_DIR}" lxd sql local 'select * from raft_nodes'
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database$"
@@ -2237,12 +2235,12 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
 
   # Kill the second node.
-  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 12
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
   kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
 
   # Wait for the second node to be considered offline and be replaced by the
   # fourth node.
-  sleep 25
+  sleep 12
 
   # The second node is offline and has been demoted.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Offline"
@@ -2250,12 +2248,10 @@ test_clustering_rebalance() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "status: Online"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
-  LXD_DIR="${LXD_ONE_DIR}" lxc config unset cluster.offline_threshold
-
   # Respawn the second node. It won't be able to disrupt the current leader,
   # since dqlite uses pre-vote.
   respawn_lxd_cluster_member "${ns2}" "${LXD_TWO_DIR}"
-  sleep 25
+  sleep 12
 
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "status: Online"
@@ -2307,9 +2303,9 @@ test_clustering_remove_raft_node() {
   spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
 
   # Configuration keys can be changed on any node.
-  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 40
-  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
-  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "40"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc config set cluster.offline_threshold 11
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -q 'cluster.offline_threshold: "11"'
 
   # The preseeded network bridge exists on all nodes.
   ns1_pid="$(cat "${TEST_DIR}/ns/${ns1}/PID")"
@@ -2369,7 +2365,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "10.1.1.102"
 
   # Wait for a heartbeat to propagate and a rebalance to be performed.
-  sleep 20
+  sleep 15
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
@@ -2898,6 +2894,8 @@ test_clustering_edit_configuration() {
   ns6="${prefix}6"
   spawn_lxd_and_join_cluster "${ns6}" "${bridge}" "${cert}" 6 1 "${LXD_SIX_DIR}"
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
+
   # Ensure successful communication
   LXD_DIR="${LXD_ONE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node1 | grep -q "server_name: node1"
@@ -2954,7 +2952,7 @@ test_clustering_edit_configuration() {
   LXD_NETNS="${ns6}" respawn_lxd "${LXD_SIX_DIR}" true
 
   # Let the heartbeats catch up
-  sleep 20
+  sleep 12
 
   # Ensure successful communication
   LXD_DIR="${LXD_ONE_DIR}"   lxc info --target node2 | grep -q "server_name: node2"
