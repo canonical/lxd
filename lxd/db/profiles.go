@@ -71,6 +71,27 @@ type ProfileFilter struct {
 	Name    *string
 }
 
+// GetProfileUsedBy returns all the instances that use the given profile.
+func (c *ClusterTx) GetProfileUsedBy(profile Profile) ([]string, error) {
+	usedBy := []string{}
+
+	profileInstances, err := c.GetProfileInstances()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, instanceID := range profileInstances[profile.ID] {
+		instanceURIs, err := c.GetInstanceURIs(InstanceFilter{ID: &instanceID})
+		if err != nil {
+			return nil, err
+		}
+
+		usedBy = append(usedBy, instanceURIs...)
+	}
+
+	return usedBy, nil
+}
+
 // GetProjectProfileNames returns slice of profile names keyed on the project they belong to.
 func (c *ClusterTx) GetProjectProfileNames() (map[string][]string, error) {
 	query := `
