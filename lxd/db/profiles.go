@@ -18,7 +18,7 @@ import (
 //
 //go:generate mapper stmt -p db -e profile names
 //go:generate mapper stmt -p db -e profile names-by-Project
-//go:generate mapper stmt -p db -e profile names-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile names-by-ID
 //go:generate mapper stmt -p db -e profile objects
 //go:generate mapper stmt -p db -e profile objects-by-Project
 //go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
@@ -41,6 +41,7 @@ import (
 // Profile is a value object holding db-related details about a profile.
 type Profile struct {
 	ID          int
+	ProjectID   int    `db:"omit=create,update"`
 	Project     string `db:"primary=yes&join=projects.name"`
 	Name        string `db:"primary=yes"`
 	Description string `db:"coalesce=''"`
@@ -65,6 +66,7 @@ func ProfileToAPI(profile *Profile) *api.Profile {
 
 // ProfileFilter specifies potential query parameter fields.
 type ProfileFilter struct {
+	ID      *int
 	Project *string
 	Name    *string
 }
