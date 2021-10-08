@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -894,7 +895,7 @@ func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 // GetCustomVolumesInProject returns all custom volumes in the given project.
 func (c *ClusterTx) GetCustomVolumesInProject(project string) ([]StorageVolumeArgs, error) {
 	sql := `
-SELECT storage_volumes.id, storage_volumes.name, storage_pools.name
+SELECT storage_volumes.id, storage_volumes.name, storage_pools.name, IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
@@ -913,6 +914,7 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 			&volumes[i].ID,
 			&volumes[i].Name,
 			&volumes[i].PoolName,
+			&volumes[i].NodeID,
 		}
 	}
 
@@ -930,4 +932,47 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	}
 
 	return volumes, nil
+}
+
+// GetStorageVolumeURIs returns the URIs of the storage volumes, specifying
+// target node if applicable
+func (c *ClusterTx) GetStorageVolumeURIs(project string) ([]string, error) {
+	code := cluster.EntityTypes["storage volume"]
+	volInfo, err := c.GetCustomVolumesInProject(project)
+	if err != nil {
+		return nil, err
+	}
+
+	uris := []string{}
+	for _, info := range volInfo {
+		uri := fmt.Sprintf(cluster.EntityURIs[code], info.PoolName, "custom", info.Name, project)
+		formChar := "&"
+		if project == "default" {
+			uri = strings.Split(uri, fmt.Sprintf("?project=%s", project))[0]
+			formChar = "?"
+		}
+
+		// Skip checking nodes if node_id is NULL.
+		if info.NodeID == -1 {
+			uris = append(uris, uri)
+		} else {
+			nodeInfo, err := c.GetNodes()
+			if err != nil {
+				return nil, err
+			}
+
+			for _, node := range nodeInfo {
+				if node.ID == info.NodeID {
+					// Specify the node of the volume.
+					if node.Name != "none" {
+						uri += fmt.Sprintf("%starget=%s", formChar, node.Name)
+					}
+					uris = append(uris, uri)
+					break
+				}
+			}
+		}
+	}
+
+	return uris, nil
 }
