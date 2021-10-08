@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 
@@ -962,47 +961,6 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	}
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// Associate the instance with the given ID with the profiles with the given
-// names in the given project.
-func addProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
-	enabled, err := projectHasProfiles(tx, project)
-	if err != nil {
-		return errors.Wrap(err, "Check if project has profiles")
-	}
-	if !enabled {
-		project = "default"
-	}
-
-	applyOrder := 1
-	str := `
-INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
-  VALUES (
-    ?,
-    (SELECT profiles.id
-     FROM profiles
-     JOIN projects ON projects.id=profiles.project_id
-     WHERE projects.name=? AND profiles.name=?),
-    ?
-  )
-`
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	for _, profile := range profiles {
-		_, err = stmt.Exec(id, project, profile, applyOrder)
-		if err != nil {
-			logger.Debugf("Error adding profile %s to container: %s",
-				profile, err)
-			return err
-		}
-		applyOrder = applyOrder + 1
 	}
 
 	return nil
