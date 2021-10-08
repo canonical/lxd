@@ -24,6 +24,9 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t instances.mapper.go
 //go:generate mapper reset
 //
+//go:generate mapper stmt -p db -e instance names
+//go:generate mapper stmt -p db -e instance names-by-Project
+//go:generate mapper stmt -p db -e instance names-by-ID
 //go:generate mapper stmt -p db -e instance objects
 //go:generate mapper stmt -p db -e instance objects-by-Project
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Type
@@ -48,6 +51,7 @@ import (
 //
 //go:generate mapper method -p db -e instance GetMany
 //go:generate mapper method -p db -e instance GetOne
+//go:generate mapper method -p db -e instance URIs
 //go:generate mapper method -p db -e instance ID struct=Instance
 //go:generate mapper method -p db -e instance Exists struct=Instance
 //go:generate mapper method -p db -e instance Create struct=Instance
@@ -60,7 +64,7 @@ type Instance struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`
 	Name         string `db:"primary=yes"`
-	Node         string `db:"join=nodes.name"`
+	Node         string `db:"join=nodes.name&omit=URIs"` // TODO: Implement multiple joins for URI generation.
 	Type         instancetype.Type
 	Snapshot     bool `db:"ignore"`
 	Architecture int
@@ -77,10 +81,11 @@ type Instance struct {
 
 // InstanceFilter specifies potential query parameter fields.
 type InstanceFilter struct {
+	ID      *int
 	Project *string
 	Name    *string
-	Node    *string
-	Type    *instancetype.Type `db:"omit=profiles-ref,config-ref,devices-ref"`
+	Node    *string `db:"omit=URIs"` // TODO: Implement multiple joins for URI generation.
+	Type    *instancetype.Type
 }
 
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
