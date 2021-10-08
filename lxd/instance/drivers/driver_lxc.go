@@ -2815,7 +2815,11 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		select {
 		case err = <-chResult:
 			// Shutdown request has returned with a result.
-			op.Done(err)
+			if err != nil {
+				// If shutdown failed, cancel operation with the error, otherwise expect the
+				// onStop() hook to cancel operation when done.
+				op.Done(err)
+			}
 		case <-time.After((operationlock.TimeoutSeconds / 2) * time.Second):
 			// Keep the operation alive so its around for onStop() if the instance takes
 			// longer than the default 30s that the operation is kept alive for.
