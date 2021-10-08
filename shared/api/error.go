@@ -56,3 +56,10 @@ func StatusErrorMatch(err error, matchStatusCodes ...int) (int, bool) {
 
 	return -1, false
 }
+
+// StatusErrorCheck returns whether or not err was caused by a StatusError and if it matches one of the
+// optional status codes.
+func StatusErrorCheck(err error, matchStatusCodes ...int) bool {
+	_, found := StatusErrorMatch(err, matchStatusCodes...)
+	return found
+}
