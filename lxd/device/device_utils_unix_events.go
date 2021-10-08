@@ -48,14 +48,19 @@ func unixRegisterHandler(s *state.State, inst instance.Instance, deviceName, pat
 		Handler: handler,
 	}
 
+	identifier := fmt.Sprintf("%d_%s", inst.ID(), deviceName)
+
 	// Add inotify watcher to its nearest existing ancestor.
-	cleanDevDirPath := filepath.Dir(filepath.Clean(path))
-	err := inotifyAddClosestLivingAncestor(s, cleanDevDirPath)
+	err := s.DevMonitor.Watch(filepath.Clean(path), identifier, func(path, event string) bool {
+		e := unixNewEvent(event, path)
+		unixRunHandlers(s, &e)
+		return true
+	})
 	if err != nil {
-		return fmt.Errorf("Failed to add \"%s\" to inotify targets: %s", cleanDevDirPath, err)
+		return fmt.Errorf("Failed to add %q to watch targets: %w", filepath.Clean(path), err)
 	}
 
-	logger.Debugf("Added \"%s\" to inotify targets", cleanDevDirPath)
+	logger.Debugf("Added %q to watch targets", filepath.Clean(path))
 	return nil
 }
 
@@ -75,29 +80,11 @@ func unixUnregisterHandler(s *state.State, inst instance.Instance, deviceName st
 	// Remove active subscription for this device.
 	delete(unixHandlers, key)
 
-	// Create a map of all unique living ancestor paths for all active subscriptions and count
-	// how many subscriptions are using each living ancestor path.
-	subsLivingAncestors := make(map[string]uint)
-	for _, sub := range unixHandlers {
+	identifier := fmt.Sprintf("%d_%s", inst.ID(), deviceName)
 
-		exists, path := inotifyFindClosestLivingAncestor(filepath.Dir(sub.Path))
-		if !exists {
-			continue
-		}
-
-		subsLivingAncestors[path]++ // Count how many subscriptions are sharing a watcher.
-	}
-
-	// Identify which living ancestor path the subscription we just deleted was using.
-	exists, ourSubPath := inotifyFindClosestLivingAncestor(filepath.Dir(sub.Path))
-
-	// If we were the only subscription using the living ancestor path, then remove the watcher.
-	if exists && subsLivingAncestors[ourSubPath] == 0 {
-		err := inotifyDelWatcher(s, ourSubPath)
-		if err != nil {
-			return fmt.Errorf("Failed to remove \"%s\" from inotify targets: %s", ourSubPath, err)
-		}
-		logger.Debugf("Removed \"%s\" from inotify targets", ourSubPath)
+	err := s.DevMonitor.Unwatch(sub.Path, identifier)
+	if err != nil {
+		return fmt.Errorf("Failed to remove %q from inotify targets: %s", sub.Path, err)
 	}
 
 	return nil
