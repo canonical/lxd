@@ -32,10 +32,11 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
-	"github.com/lxc/lxd/lxd/device"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
+	"github.com/lxc/lxd/lxd/fsmonitor"
+	devmonitor "github.com/lxc/lxd/lxd/fsmonitor"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/ucred"
@@ -113,6 +114,9 @@ type Daemon struct {
 	shutdownCtx    context.Context    // Cancelled when shutdown starts.
 	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
 	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
+
+	// Device monitor for watching filesystem events
+	devmonitor devmonitor.FSMonitor
 }
 
 type externalAuth struct {
@@ -422,6 +426,7 @@ func (d *Daemon) State() *state.State {
 		ServerCert:             d.serverCert,
 		UpdateCertificateCache: func() { updateCertificateCache(d) },
 		InstanceTypes:          supportedInstanceTypes,
+		DevMonitor:             d.devmonitor,
 	}
 }
 
@@ -1210,13 +1215,17 @@ func (d *Daemon) init() error {
 		// Start the scheduler
 		go deviceEventListener(d.State())
 
-		// Setup inotify watches
-		_, err := device.InotifyInit(d.State())
+		prefixPath := os.Getenv("LXD_DEVMONITOR_DIR")
+		if prefixPath == "" {
+			prefixPath = "/dev"
+		}
+
+		logger.Info("Starting device monitor")
+
+		d.devmonitor, err = fsmonitor.New(d.State().Context, prefixPath)
 		if err != nil {
 			return err
 		}
-
-		go device.InotifyHandler(d.State())
 
 		// Register devices on running instances to receive events and reconnect to VM monitor sockets.
 		// This should come after the event handler go routines have been started.
