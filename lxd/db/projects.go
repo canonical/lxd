@@ -198,6 +198,43 @@ func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	return err
 }
 
+// GetProjectUsedBy returns all the instances, images, profiles, storage
+// volumes, networks, and acls that use the given project.
+func (c *ClusterTx) GetProjectUsedBy(project Project) ([]string, error) {
+	instances, err := c.GetInstanceURIs(InstanceFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	images, err := c.GetImageURIs(ImageFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	profiles, err := c.GetProfileURIs(ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	volumes, err := c.GetStorageVolumeURIs(project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	networks, err := c.GetNetworkURIs(project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBy := instances
+	usedBy = append(usedBy, images...)
+	usedBy = append(usedBy, profiles...)
+	usedBy = append(usedBy, volumes...)
+	usedBy = append(usedBy, networks...)
+
+	return usedBy, nil
+}
+
 // GetProject returns the project with the given key.
 func (c *Cluster) GetProject(projectName string) (*Project, error) {
 	var err error
