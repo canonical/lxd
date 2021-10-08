@@ -728,7 +728,7 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 	return fmt.Sprintf("%s-instance", n.getNetworkPrefix())
 }
 
-// openvswitch returns OVN load balancer name to use for a listen address.
+// getLoadBalancerName returns OVN load balancer name to use for a listen address.
 func (n *ovn) getLoadBalancerName(listenAddress string) openvswitch.OVNLoadBalancer {
 	return openvswitch.OVNLoadBalancer(fmt.Sprintf("%s-lb-%s", n.getNetworkPrefix(), listenAddress))
 }
