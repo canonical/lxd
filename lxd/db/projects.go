@@ -20,7 +20,7 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e project names
-//go:generate mapper stmt -p db -e project names-by-Name
+//go:generate mapper stmt -p db -e project names-by-ID
 //go:generate mapper stmt -p db -e project objects
 //go:generate mapper stmt -p db -e project objects-by-Name
 //go:generate mapper stmt -p db -e project create struct=Project
@@ -40,6 +40,7 @@ import (
 
 // Project represents a LXD project
 type Project struct {
+	ID          int
 	Description string
 	Name        string   `db:"omit=update"`
 	UsedBy      []string `db:"omit=create"`
@@ -48,6 +49,7 @@ type Project struct {
 
 // ProjectFilter specifies potential query parameter fields.
 type ProjectFilter struct {
+	ID   *int
 	Name *string `db:"omit=update"` // If non-empty, return only the project with this name.
 }
 
