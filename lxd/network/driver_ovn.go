@@ -3861,3 +3861,57 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 
 	return nil
 }
+
+// Leases returns a list of leases for the OVN network. Those are directly extracted from the OVN database.
+func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
+	leases := []api.NetworkLease{}
+
+	// Get all the instances.
+	instances, err := instance.LoadByProject(n.state, projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, inst := range instances {
+		// Get the instance UUID.
+		instanceUUID := inst.LocalConfig()["volatile.uuid"]
+		if instanceUUID == "" {
+			continue
+		}
+
+		// Get the instances IPs.
+		for devName, dev := range inst.ExpandedDevices() {
+			if dev["type"] != "nic" || dev["network"] != n.name {
+				continue
+			}
+
+			devIPs, err := n.InstanceDevicePortDynamicIPs(instanceUUID, devName)
+			if err != nil {
+				return nil, err
+			}
+
+			// Fill in the hwaddr from volatile.
+			if dev["hwaddr"] == "" {
+				dev["hwaddr"] = inst.LocalConfig()[fmt.Sprintf("volatile.%s.hwaddr", devName)]
+			}
+
+			// Add the leases.
+			for _, ip := range devIPs {
+				leaseType := "dynamic"
+				if dev["ipv4.addres"] == ip.String() || dev["ipv6.address"] == ip.String() {
+					leaseType = "static"
+				}
+
+				leases = append(leases, api.NetworkLease{
+					Hostname: inst.Name(),
+					Address:  ip.String(),
+					Hwaddr:   dev["hwaddr"],
+					Type:     leaseType,
+					Location: inst.Location(),
+				})
+			}
+		}
+	}
+
+	return leases, nil
+}
