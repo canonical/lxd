@@ -2279,6 +2279,8 @@ test_clustering_remove_raft_node() {
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
   # Kill the second node, to prevent it from transferring its database role at shutdown.
   kill -9 "$(cat "${LXD_TWO_DIR}/lxd.pid")"
 
@@ -2295,6 +2297,9 @@ test_clustering_remove_raft_node() {
       return 1
   fi
 
+  # Check node4 is still standby first, as it could be promoted at any time.
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
+
   # The node does not appear anymore in the cluster list.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
 
@@ -2302,7 +2307,6 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database$"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
 
   # The second node is still in the raft_nodes table.
   LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102"
