@@ -373,7 +373,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 
 	// Load existing pool if exists, if not don't fail.
 	_, netInfo, _, err := d.cluster.GetNetworkInAnyState(projectName, req.Name)
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
 		return response.InternalError(err)
 	}
 
