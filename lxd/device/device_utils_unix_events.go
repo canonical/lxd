@@ -137,20 +137,6 @@ func unixRunHandlers(state *state.State, event *UnixEvent) {
 	}
 }
 
-// unixGetSubcribedPaths returns all the subcribed paths as a map keyed on path.
-func unixGetSubcribedPaths() map[string]struct{} {
-	unixMutex.Lock()
-	defer unixMutex.Unlock()
-
-	paths := make(map[string]struct{})
-
-	for _, sub := range unixHandlers {
-		paths[sub.Path] = struct{}{}
-	}
-
-	return paths
-}
-
 // unixNewEvent returns a newly created Unix device event struct.
 // If an empty action is supplied then the action of the event is derived from whether the path
 // exists (add) or not (removed). This allows the peculiarities of the inotify API to be somewhat
