@@ -372,15 +372,16 @@ func imgPostRemoteInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *opera
 	}
 
 	info, err := d.ImageDownload(r, op, &ImageDownloadArgs{
-		Server:      req.Source.Server,
-		Protocol:    req.Source.Protocol,
-		Certificate: req.Source.Certificate,
-		Secret:      req.Source.Secret,
-		Alias:       hash,
-		Type:        req.Source.ImageType,
-		AutoUpdate:  req.AutoUpdate,
-		ProjectName: project,
-		Budget:      budget,
+		Server:            req.Source.Server,
+		Protocol:          req.Source.Protocol,
+		Certificate:       req.Source.Certificate,
+		Secret:            req.Source.Secret,
+		Alias:             hash,
+		Type:              req.Source.ImageType,
+		AutoUpdate:        req.AutoUpdate,
+		ProjectName:       project,
+		Budget:            budget,
+		SourceProjectName: req.Source.Project,
 	})
 	if err != nil {
 		return nil, err
