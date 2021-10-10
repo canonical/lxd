@@ -651,7 +651,10 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 			return errors.Wrapf(err, "Error clearing volume before unpack")
 		}
 
-		if vol.contentType == ContentTypeFS {
+		// Unpack the filesystem parts of the volume (for containers and custom filesystem volumes that is
+		// the respective root filesystem data or volume itself, and for VMs that is the config volume).
+		// Custom block volumes do not have a filesystem component to their volumes.
+		if !vol.IsCustomBlock() {
 			// Prepare tar arguments.
 			srcParts := strings.Split(srcPrefix, string(os.PathSeparator))
 			args := append(tarArgs, []string{
