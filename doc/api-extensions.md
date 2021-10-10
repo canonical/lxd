@@ -1141,3 +1141,7 @@ Add a new USBAddress (usb\_address) field to ResourcesGPUCard (GPU entries) in t
 
 ## network\_counters\_errors\_dropped
 This adds the received and sent errors as well as inbound and outbound dropped packets to the network counters.
+
+## image\_source\_project
+Adds a new `project` field to `POST /1.0/images` allowing for the source project
+to be set at image copy time.
