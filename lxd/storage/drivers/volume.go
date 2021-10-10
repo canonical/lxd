@@ -354,6 +354,11 @@ func (v Volume) IsVMBlock() bool {
 	return (v.volType == VolumeTypeVM || v.volType == VolumeTypeImage) && v.contentType == ContentTypeBlock
 }
 
+// IsCustomBlock returns true if volume is a custom block volume.
+func (v Volume) IsCustomBlock() bool {
+	return (v.volType == VolumeTypeCustom && v.contentType == ContentTypeBlock)
+}
+
 // NewVMBlockFilesystemVolume returns a copy of the volume with the content type set to ContentTypeFS and the
 // config "size" property set to "size.state" or DefaultVMBlockFilesystemSize if not set.
 func (v Volume) NewVMBlockFilesystemVolume() Volume {
