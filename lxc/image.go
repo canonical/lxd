@@ -164,6 +164,16 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Revert project for `sourceServer` which may have been overriten
+	// by `--project` flag in `GetImageServer` method
+	remote := conf.Remotes[remoteName]
+	if remote.Protocol != "simplestream" && remote.Public == false {
+		d, ok := sourceServer.(lxd.InstanceServer)
+		if ok {
+			sourceServer = d.UseProject(remote.Project)
+		}
+	}
+
 	// Parse destination remote
 	resources, err := c.global.ParseServers(args[1])
 	if err != nil {
