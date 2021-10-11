@@ -80,13 +80,8 @@ func usedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 		// Look for NIC devices using this network.
 		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
 		for devName, devConfig := range devices {
-			inUse, err := isInUseByDevice(s, networkProjectName, networkName, devConfig)
-			if err != nil {
-				return err
-			}
-
-			if inUse {
-				err = usageFunc(inst, devName, devConfig)
+			if isInUseByDevice(networkName, devConfig) {
+				err := usageFunc(inst, devName, devConfig)
 				if err != nil {
 					return err
 				}
