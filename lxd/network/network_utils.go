@@ -197,12 +197,7 @@ func isInUseByProfile(s *state.State, profile db.Profile, networkProjectName str
 	}
 
 	for _, d := range deviceConfig.NewDevices(profile.Devices) {
-		inUse, err := isInUseByDevice(s, networkProjectName, networkName, d)
-		if err != nil {
-			return false, err
-		}
-
-		if inUse {
+		if isInUseByDevice(networkName, d) {
 			return true, nil
 		}
 	}
