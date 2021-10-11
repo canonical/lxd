@@ -145,12 +145,7 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 // Checks if the device's parent or network properties match the network name.
 func isInUseByProfile(s *state.State, profile db.Profile, networkName string) (bool, error) {
 	for _, d := range deviceConfig.NewDevices(profile.Devices) {
-		inUse, err := isInUseByDevice(s, networkName, d)
-		if err != nil {
-			return false, err
-		}
-
-		if inUse {
+		if isInUseByDevice(networkName, d) {
 			return true, nil
 		}
 	}
