@@ -145,7 +145,7 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 	}
 
 	for _, profile := range profiles {
-		inUse, err := isInUseByProfile(s, profile, networkProjectName, networkName)
+		inUse, err := usedByProfileDevices(s, profile, networkProjectName, networkName)
 		if err != nil {
 			return nil, err
 		}
@@ -181,9 +181,9 @@ func UsedBy(s *state.State, networkProjectName string, networkName string, first
 	return usedBy, nil
 }
 
-// isInUseByProfile indicates if network is referenced by a profile's NIC devices.
+// usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func isInUseByProfile(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
+func usedByProfileDevices(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
 	// Get the translated network project name from the profiles's project.
 	profileNetworkProjectName, _, err := project.NetworkProject(s.Cluster, profile.Project)
 	if err != nil {
