@@ -236,33 +236,20 @@ func isInUseByProfile(s *state.State, profile db.Profile, networkProjectName str
 }
 
 // isInUseByDevices inspects a device's config to find references for a network being used.
-func isInUseByDevice(s *state.State, networkProjectName string, networkName string, d deviceConfig.Device) (bool, error) {
+func isInUseByDevice(networkName string, d deviceConfig.Device) bool {
 	if d["type"] != "nic" {
-		return false, nil
-	}
-
-	nicType, err := nictype.NICType(s, networkProjectName, d)
-	if err != nil {
-		return false, err
-	}
-
-	if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov", "ovn"}) {
-		return false, nil
+		return false
 	}
 
 	if d["network"] != "" && d["network"] == networkName {
-		return true, nil
+		return true
 	}
 
-	if d["parent"] == "" {
-		return false, nil
+	if d["parent"] != "" && GetHostDevice(d["parent"], d["vlan"]) == networkName {
+		return true
 	}
 
-	if GetHostDevice(d["parent"], d["vlan"]) == networkName {
-		return true, nil
-	}
-
-	return false, nil
+	return false
 }
 
 // GetDevMTU retrieves the current MTU setting for a named network device.
