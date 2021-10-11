@@ -138,6 +138,13 @@ type OVNLoadBalancerVIP struct {
 	TargetPort    uint64
 }
 
+// OVNRouterRoute represents a static route added to a logical router.
+type OVNRouterRoute struct {
+	Prefix  net.IPNet
+	NextHop net.IP
+	Port    OVNRouterPort
+}
+
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(s *state.State) (*OVN, error) {
 	nbConnection, err := cluster.ConfigGetString(s.Cluster, "network.ovn.northbound_connection")
