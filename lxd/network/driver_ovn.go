@@ -1891,29 +1891,36 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Add or remove default routes as config dictates.
-		defaultIPv4Route := &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}
-		if uplinkNet.routerExtGwIPv4 != nil {
-			err = client.LogicalRouterRouteAdd(n.getRouterName(), defaultIPv4Route, uplinkNet.routerExtGwIPv4, update)
-			if err != nil {
-				return errors.Wrapf(err, "Failed adding IPv4 default route")
-			}
-		} else if update {
-			err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv4Route)
-			if err != nil {
-				return errors.Wrapf(err, "Failed removing IPv4 default route")
-			}
+		defaultIPv4Route := net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}
+		defaultIPv6Route := net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
+
+		err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv4Route, defaultIPv6Route)
+		if err != nil {
+			return errors.Wrapf(err, "Failed removing default routes")
 		}
 
-		defaultIPv6Route := &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
+		defaultRoutes := make([]openvswitch.OVNRouterRoute, 0, 2)
+
+		if uplinkNet.routerExtGwIPv4 != nil {
+			defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+				Prefix:  defaultIPv4Route,
+				NextHop: uplinkNet.routerExtGwIPv4,
+				Port:    n.getRouterExtPortName(),
+			})
+		}
+
 		if uplinkNet.routerExtGwIPv6 != nil {
-			err = client.LogicalRouterRouteAdd(n.getRouterName(), defaultIPv6Route, uplinkNet.routerExtGwIPv6, update)
+			defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+				Prefix:  defaultIPv6Route,
+				NextHop: uplinkNet.routerExtGwIPv6,
+				Port:    n.getRouterExtPortName(),
+			})
+		}
+
+		if len(defaultRoutes) > 0 {
+			err = client.LogicalRouterRouteAdd(n.getRouterName(), update, defaultRoutes...)
 			if err != nil {
-				return errors.Wrapf(err, "Failed adding IPv6 default route")
-			}
-		} else if update {
-			err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv6Route)
-			if err != nil {
-				return errors.Wrapf(err, "Failed removing IPv6 default route")
+				return errors.Wrapf(err, "Failed adding default routes")
 			}
 		}
 	}
@@ -2995,6 +3002,8 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 	}
 
+	var routes []openvswitch.OVNRouterRoute
+
 	// Add each internal route (using the IPs set for DNS as target).
 	for _, internalRoute := range internalRoutes {
 		targetIP := dnsIPv4
@@ -3006,12 +3015,11 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", internalRoute.String())
 		}
 
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), internalRoute, targetIP, true)
-		if err != nil {
-			return "", err
-		}
-
-		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), internalRoute) })
+		routes = append(routes, openvswitch.OVNRouterRoute{
+			Prefix:  *internalRoute,
+			NextHop: targetIP,
+			Port:    n.getRouterIntPortName(),
+		})
 	}
 
 	// Add each external route (using the IPs set for DNS as target).
@@ -3025,12 +3033,11 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", externalRoute.String())
 		}
 
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), externalRoute, targetIP, true)
-		if err != nil {
-			return "", err
-		}
-
-		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute) })
+		routes = append(routes, openvswitch.OVNRouterRoute{
+			Prefix:  *externalRoute,
+			NextHop: targetIP,
+			Port:    n.getRouterIntPortName(),
+		})
 
 		// When using l2proxy ingress mode on uplink, in order to advertise the external route to the
 		// uplink network using proxy ARP/NDP we need to add a stateless dnat_and_snat rule (as to my
@@ -3052,6 +3059,20 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 				return "", err
 			}
 		}
+	}
+
+	if len(routes) > 0 {
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), true, routes...)
+		if err != nil {
+			return "", err
+		}
+
+		routePrefixes := make([]net.IPNet, 0, len(routes))
+		for _, route := range routes {
+			routePrefixes = append(routePrefixes, route.Prefix)
+		}
+
+		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), routePrefixes...) })
 	}
 
 	// Merge network and NIC assigned security ACL lists.
@@ -3246,7 +3267,7 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		return err
 	}
 
-	removeRoutes := []*net.IPNet{}
+	removeRoutes := []net.IPNet{}
 	removeNATIPs := []net.IP{}
 
 	// Delete any associated external IP DNAT rules for the DNS IPs.
@@ -3256,12 +3277,14 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 
 	// Delete internal routes.
 	if len(internalRoutes) > 0 {
-		removeRoutes = append(removeRoutes, internalRoutes...)
+		for _, internalRoute := range internalRoutes {
+			removeRoutes = append(removeRoutes, *internalRoute)
+		}
 	}
 
 	// Delete external routes.
 	for _, externalRoute := range externalRoutes {
-		removeRoutes = append(removeRoutes, externalRoute)
+		removeRoutes = append(removeRoutes, *externalRoute)
 
 		// Remove the DNAT rules when using l2proxy ingress mode on uplink.
 		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
