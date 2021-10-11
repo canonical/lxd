@@ -3267,7 +3267,7 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		return err
 	}
 
-	removeRoutes := []*net.IPNet{}
+	removeRoutes := []net.IPNet{}
 	removeNATIPs := []net.IP{}
 
 	// Delete any associated external IP DNAT rules for the DNS IPs.
@@ -3277,12 +3277,14 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 
 	// Delete internal routes.
 	if len(internalRoutes) > 0 {
-		removeRoutes = append(removeRoutes, internalRoutes...)
+		for _, internalRoute := range internalRoutes {
+			removeRoutes = append(removeRoutes, *internalRoute)
+		}
 	}
 
 	// Delete external routes.
 	for _, externalRoute := range externalRoutes {
-		removeRoutes = append(removeRoutes, externalRoute)
+		removeRoutes = append(removeRoutes, *externalRoute)
 
 		// Remove the DNAT rules when using l2proxy ingress mode on uplink.
 		if shared.StringInSlice(uplink.Config["ovn.ingress_mode"], []string{"l2proxy", ""}) {
