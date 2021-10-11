@@ -138,6 +138,13 @@ type OVNLoadBalancerVIP struct {
 	TargetPort    uint64
 }
 
+// OVNRouterRoute represents a static route added to a logical router.
+type OVNRouterRoute struct {
+	Prefix  net.IPNet
+	NextHop net.IP
+	Port    OVNRouterPort
+}
+
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(s *state.State) (*OVN, error) {
 	nbConnection, err := cluster.ConfigGetString(s.Cluster, "network.ovn.northbound_connection")
@@ -291,32 +298,46 @@ func (o *OVN) LogicalRouterDNATSNATDelete(routerName OVNRouter, extIPs ...net.IP
 }
 
 // LogicalRouterRouteAdd adds a static route to the logical router.
-func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, destination *net.IPNet, nextHop net.IP, mayExist bool) error {
+func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, mayExist bool, routes ...OVNRouterRoute) error {
 	args := []string{}
 
-	if mayExist {
-		args = append(args, "--may-exist")
+	for _, route := range routes {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		if mayExist {
+			args = append(args, "--may-exist")
+		}
+
+		args = append(args, "lr-route-add", string(routerName), route.Prefix.String(), route.NextHop.String())
+
+		if route.Port != "" {
+			args = append(args, string(route.Port))
+		}
 	}
 
-	_, err := o.nbctl(append(args, "lr-route-add", string(routerName), destination.String(), nextHop.String())...)
-	if err != nil {
-		return err
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // LogicalRouterRouteDelete deletes a static route from the logical router.
-func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, destinations ...*net.IPNet) error {
+func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, prefixes ...net.IPNet) error {
 	args := []string{}
 
-	for _, destination := range destinations {
+	// Delete specific destination routes on router.
+	for _, prefix := range prefixes {
 		if len(args) > 0 {
 			args = append(args, "--")
 		}
 
-		args = append(args, "--if-exists", "lr-route-del", string(routerName), destination.String())
-
+		args = append(args, "--if-exists", "lr-route-del", string(routerName), prefix.String())
 	}
 
 	_, err := o.nbctl(args...)
