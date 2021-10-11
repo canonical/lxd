@@ -1891,29 +1891,36 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Add or remove default routes as config dictates.
-		defaultIPv4Route := &net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}
-		if uplinkNet.routerExtGwIPv4 != nil {
-			err = client.LogicalRouterRouteAdd(n.getRouterName(), defaultIPv4Route, uplinkNet.routerExtGwIPv4, update)
-			if err != nil {
-				return errors.Wrapf(err, "Failed adding IPv4 default route")
-			}
-		} else if update {
-			err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv4Route)
-			if err != nil {
-				return errors.Wrapf(err, "Failed removing IPv4 default route")
-			}
+		defaultIPv4Route := net.IPNet{IP: net.IPv4zero, Mask: net.CIDRMask(0, 32)}
+		defaultIPv6Route := net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
+
+		err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv4Route, defaultIPv6Route)
+		if err != nil {
+			return errors.Wrapf(err, "Failed removing default routes")
 		}
 
-		defaultIPv6Route := &net.IPNet{IP: net.IPv6zero, Mask: net.CIDRMask(0, 128)}
+		defaultRoutes := make([]openvswitch.OVNRouterRoute, 0, 2)
+
+		if uplinkNet.routerExtGwIPv4 != nil {
+			defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+				Prefix:  defaultIPv4Route,
+				NextHop: uplinkNet.routerExtGwIPv4,
+				Port:    n.getRouterExtPortName(),
+			})
+		}
+
 		if uplinkNet.routerExtGwIPv6 != nil {
-			err = client.LogicalRouterRouteAdd(n.getRouterName(), defaultIPv6Route, uplinkNet.routerExtGwIPv6, update)
+			defaultRoutes = append(defaultRoutes, openvswitch.OVNRouterRoute{
+				Prefix:  defaultIPv6Route,
+				NextHop: uplinkNet.routerExtGwIPv6,
+				Port:    n.getRouterExtPortName(),
+			})
+		}
+
+		if len(defaultRoutes) > 0 {
+			err = client.LogicalRouterRouteAdd(n.getRouterName(), update, defaultRoutes...)
 			if err != nil {
-				return errors.Wrapf(err, "Failed adding IPv6 default route")
-			}
-		} else if update {
-			err = client.LogicalRouterRouteDelete(n.getRouterName(), defaultIPv6Route)
-			if err != nil {
-				return errors.Wrapf(err, "Failed removing IPv6 default route")
+				return errors.Wrapf(err, "Failed adding default routes")
 			}
 		}
 	}
