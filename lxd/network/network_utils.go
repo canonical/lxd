@@ -101,25 +101,13 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 		}
 	}
 
-	// Look at instances. Most expensive to do.
-	err = s.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
-		// Look for NIC devices using this network.
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
-		for _, devConfig := range devices {
-			inUse, err := isInUseByDevice(s, networkName, devConfig)
-			if err != nil {
-				return err
-			}
+	// Check if any instance devices use this network.
+	err = usedByInstanceDevices(s, networkName, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+		usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 
-			if inUse {
-				usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
-
-				if firstOnly {
-					return db.ErrInstanceListStop
-				}
-
-				return nil // No need to consider other devices on this instance.
-			}
+		if firstOnly {
+			// No need to consider other devices.
+			return db.ErrInstanceListStop
 		}
 
 		return nil
