@@ -3002,6 +3002,8 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 	}
 
+	var routes []openvswitch.OVNRouterRoute
+
 	// Add each internal route (using the IPs set for DNS as target).
 	for _, internalRoute := range internalRoutes {
 		targetIP := dnsIPv4
@@ -3013,12 +3015,11 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", internalRoute.String())
 		}
 
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), internalRoute, targetIP, true)
-		if err != nil {
-			return "", err
-		}
-
-		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), internalRoute) })
+		routes = append(routes, openvswitch.OVNRouterRoute{
+			Prefix:  *internalRoute,
+			NextHop: targetIP,
+			Port:    n.getRouterIntPortName(),
+		})
 	}
 
 	// Add each external route (using the IPs set for DNS as target).
@@ -3032,12 +3033,11 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Cannot add static route for %q as target IP is not set", externalRoute.String())
 		}
 
-		err = client.LogicalRouterRouteAdd(n.getRouterName(), externalRoute, targetIP, true)
-		if err != nil {
-			return "", err
-		}
-
-		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), externalRoute) })
+		routes = append(routes, openvswitch.OVNRouterRoute{
+			Prefix:  *externalRoute,
+			NextHop: targetIP,
+			Port:    n.getRouterIntPortName(),
+		})
 
 		// When using l2proxy ingress mode on uplink, in order to advertise the external route to the
 		// uplink network using proxy ARP/NDP we need to add a stateless dnat_and_snat rule (as to my
@@ -3059,6 +3059,20 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 				return "", err
 			}
 		}
+	}
+
+	if len(routes) > 0 {
+		err = client.LogicalRouterRouteAdd(n.getRouterName(), true, routes...)
+		if err != nil {
+			return "", err
+		}
+
+		routePrefixes := make([]net.IPNet, 0, len(routes))
+		for _, route := range routes {
+			routePrefixes = append(routePrefixes, route.Prefix)
+		}
+
+		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), routePrefixes...) })
 	}
 
 	// Merge network and NIC assigned security ACL lists.
