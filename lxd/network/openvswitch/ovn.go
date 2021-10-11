@@ -328,7 +328,7 @@ func (o *OVN) LogicalRouterRouteAdd(routerName OVNRouter, mayExist bool, routes 
 }
 
 // LogicalRouterRouteDelete deletes a static route from the logical router.
-func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, prefixes ...*net.IPNet) error {
+func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, prefixes ...net.IPNet) error {
 	args := []string{}
 
 	// Delete specific destination routes on router.
