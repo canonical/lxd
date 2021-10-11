@@ -105,7 +105,7 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 	}
 
 	for _, profile := range profiles {
-		inUse, err := isInUseByProfile(s, profile, networkName)
+		inUse, err := usedByProfileDevices(s, profile, networkName)
 		if err != nil {
 			return nil, err
 		}
@@ -141,9 +141,9 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 	return usedBy, nil
 }
 
-// isInUseByProfile indicates if network is referenced by a profile's NIC devices.
+// usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func isInUseByProfile(s *state.State, profile db.Profile, networkName string) (bool, error) {
+func usedByProfileDevices(s *state.State, profile db.Profile, networkName string) (bool, error) {
 	for _, d := range deviceConfig.NewDevices(profile.Devices) {
 		if isInUseByDevice(networkName, d) {
 			return true, nil
