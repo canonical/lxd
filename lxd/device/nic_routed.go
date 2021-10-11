@@ -42,7 +42,7 @@ func (d *nicRouted) UpdatableFields(oldDevice Type) []string {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container) {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -228,8 +228,18 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	hostName := d.config["host_name"]
-	if hostName == "" {
-		hostName = network.RandomDevName("veth")
+	if d.inst.Type() == instancetype.Container {
+		if hostName == "" {
+			hostName = network.RandomDevName("veth")
+		}
+	} else if d.inst.Type() == instancetype.VM {
+		if hostName == "" {
+			hostName = network.RandomDevName("tap")
+		}
+		err = networkCreateTap(hostName, d.config)
+		if err != nil {
+			return nil, err
+		}
 	}
 	saveData["host_name"] = hostName
 
@@ -239,12 +249,23 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	runConf := deviceConfig.RunConfig{}
-	nic := []deviceConfig.RunConfigItem{
-		{Key: "type", Value: "veth"},
-		{Key: "name", Value: d.config["name"]},
-		{Key: "flags", Value: "up"},
-		{Key: "veth.mode", Value: "router"},
-		{Key: "veth.pair", Value: saveData["host_name"]},
+	nic := []deviceConfig.RunConfigItem{}
+
+	if d.inst.Type() == instancetype.Container {
+		nic = append(nic,
+			deviceConfig.RunConfigItem{Key: "type", Value: "veth"},
+			deviceConfig.RunConfigItem{Key: "name", Value: d.config["name"]},
+			deviceConfig.RunConfigItem{Key: "flags", Value: "up"},
+			deviceConfig.RunConfigItem{Key: "veth.mode", Value: "router"},
+			deviceConfig.RunConfigItem{Key: "veth.pair", Value: saveData["host_name"]},
+		)
+	} else if d.inst.Type() == instancetype.VM {
+		nic = append(nic,
+			deviceConfig.RunConfigItem{Key: "name", Value: d.config["name"]},
+			deviceConfig.RunConfigItem{Key: "flags", Value: "up"},
+			deviceConfig.RunConfigItem{Key: "link", Value: saveData["host_name"]},
+			deviceConfig.RunConfigItem{Key: "hwaddr", Value: d.config["hwaddr"]},
+		)
 	}
 
 	// If there is a designated parent interface, activate the layer2 proxy mode to advertise
@@ -411,6 +432,24 @@ func (d *nicRouted) postStart() error {
 				}
 			}
 		}
+
+		// Add static routes to instance IPs to main routing table for VMs.
+		// These routes are not handled by liblxc or qemu itself.
+		if d.inst.Type() == instancetype.VM {
+			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				r := &ip.Route{
+					DevName: d.config["host_name"],
+					Route:   fmt.Sprintf("%s/32", addr),
+					Table:   "main",
+					Family:  ip.FamilyV4,
+				}
+				err := r.Add()
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	if d.config["ipv6.address"] != "" {
@@ -438,6 +477,24 @@ func (d *nicRouted) postStart() error {
 					DevName: d.config["host_name"],
 					Route:   fmt.Sprintf("%s/128", addr),
 					Table:   d.config["ipv6.host_table"],
+					Family:  ip.FamilyV6,
+				}
+				err := r.Add()
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Add static routes to instance IPs to main routing table for VMs.
+		// These routes are not handled by liblxc or qemu itself.
+		if d.inst.Type() == instancetype.VM {
+			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
+				addr = strings.TrimSpace(addr)
+				r := &ip.Route{
+					DevName: d.config["host_name"],
+					Route:   fmt.Sprintf("%s/128", addr),
+					Table:   "main",
 					Family:  ip.FamilyV6,
 				}
 				err := r.Add()
