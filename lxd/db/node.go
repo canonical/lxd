@@ -46,16 +46,17 @@ const (
 
 // NodeInfo holds information about a single LXD instance in a cluster.
 type NodeInfo struct {
-	ID            int64     // Stable node identifier
-	Name          string    // User-assigned name of the node
-	Address       string    // Network address of the node
-	Description   string    // Node description (optional)
-	Schema        int       // Schema version of the LXD code running the node
-	APIExtensions int       // Number of API extensions of the LXD code running on the node
-	Heartbeat     time.Time // Timestamp of the last heartbeat
-	Roles         []string  // List of cluster roles
-	Architecture  int       // Node architecture
-	State         int       // Node state
+	ID            int64             // Stable node identifier
+	Name          string            // User-assigned name of the node
+	Address       string            // Network address of the node
+	Description   string            // Node description (optional)
+	Schema        int               // Schema version of the LXD code running the node
+	APIExtensions int               // Number of API extensions of the LXD code running on the node
+	Heartbeat     time.Time         // Timestamp of the last heartbeat
+	Roles         []string          // List of cluster roles
+	Architecture  int               // Node architecture
+	State         int               // Node state
+	Config        map[string]string // Configuration for the node
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -135,6 +136,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 	result.ServerName = n.Name
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = false
+	result.Config = n.Config
 	result.Roles = n.Roles
 	if raftNode != nil && raftNode.Role == RaftVoter {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabase))
