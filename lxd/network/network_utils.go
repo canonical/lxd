@@ -66,6 +66,24 @@ func RandomDevName(prefix string) string {
 	return iface
 }
 
+// usedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
+func usedByInstanceDevices(s *state.State, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
+	return s.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+		// Look for NIC devices using this network.
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		for devName, devConfig := range devices {
+			if isInUseByDevice(networkName, devConfig) {
+				err := usageFunc(inst, devName, devConfig)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+}
+
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
 // resource using network should be returned. This can help to quickly check if the network is in use.
 func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error) {
@@ -87,7 +105,7 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 	}
 
 	for _, profile := range profiles {
-		inUse, err := isInUseByProfile(s, profile, networkName)
+		inUse, err := usedByProfileDevices(s, profile, networkName)
 		if err != nil {
 			return nil, err
 		}
@@ -101,25 +119,13 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 		}
 	}
 
-	// Look at instances. Most expensive to do.
-	err = s.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
-		// Look for NIC devices using this network.
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
-		for _, devConfig := range devices {
-			inUse, err := isInUseByDevice(s, networkName, devConfig)
-			if err != nil {
-				return err
-			}
+	// Check if any instance devices use this network.
+	err = usedByInstanceDevices(s, networkName, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+		usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
 
-			if inUse {
-				usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
-
-				if firstOnly {
-					return db.ErrInstanceListStop
-				}
-
-				return nil // No need to consider other devices on this instance.
-			}
+		if firstOnly {
+			// No need to consider other devices.
+			return db.ErrInstanceListStop
 		}
 
 		return nil
@@ -135,16 +141,11 @@ func UsedBy(s *state.State, networkName string, firstOnly bool) ([]string, error
 	return usedBy, nil
 }
 
-// isInUseByProfile indicates if network is referenced by a profile's NIC devices.
+// usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func isInUseByProfile(s *state.State, profile db.Profile, networkName string) (bool, error) {
+func usedByProfileDevices(s *state.State, profile db.Profile, networkName string) (bool, error) {
 	for _, d := range deviceConfig.NewDevices(profile.Devices) {
-		inUse, err := isInUseByDevice(s, networkName, d)
-		if err != nil {
-			return false, err
-		}
-
-		if inUse {
+		if isInUseByDevice(networkName, d) {
 			return true, nil
 		}
 	}
@@ -153,33 +154,20 @@ func isInUseByProfile(s *state.State, profile db.Profile, networkName string) (b
 }
 
 // isInUseByDevices inspects a device's config to find references for a network being used.
-func isInUseByDevice(s *state.State, networkName string, d deviceConfig.Device) (bool, error) {
+func isInUseByDevice(networkName string, d deviceConfig.Device) bool {
 	if d["type"] != "nic" {
-		return false, nil
-	}
-
-	nicType, err := nictype.NICType(s, d)
-	if err != nil {
-		return false, err
-	}
-
-	if !shared.StringInSlice(nicType, []string{"bridged", "macvlan", "ipvlan", "physical", "sriov"}) {
-		return false, nil
+		return false
 	}
 
 	if d["network"] != "" && d["network"] == networkName {
-		return true, nil
+		return true
 	}
 
-	if d["parent"] == "" {
-		return false, nil
+	if d["parent"] != "" && GetHostDevice(d["parent"], d["vlan"]) == networkName {
+		return true
 	}
 
-	if GetHostDevice(d["parent"], d["vlan"]) == networkName {
-		return true, nil
-	}
-
-	return false, nil
+	return false
 }
 
 // GetDevMTU retrieves the current MTU setting for a named network device.
