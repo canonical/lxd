@@ -232,6 +232,95 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	buf.L("err = query.SelectObjects(stmt, dest, args...)")
 	m.ifErrNotNil(buf, "nil", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s\")", lex.Plural(m.entity)))
 
+	for _, field := range mapping.RefFields() {
+		// TODO: Eliminate UsedBy fields and replace with dedicated slices for entities.
+		if field.Name == "UsedBy" {
+			buf.L("// Use non-generated custom method for UsedBy fields.")
+			buf.L("for i := range objects {")
+			buf.L("usedBy, err := c.Get%sUsedBy(objects[i])", lex.Camel(m.entity))
+			m.ifErrNotNil(buf, "nil", "err")
+			buf.L("objects[i].UsedBy = usedBy")
+			buf.L("}")
+			buf.N()
+			continue
+		}
+
+		refStruct := lex.Singular(field.Name)
+		refVar := lex.Minuscule(refStruct)
+		refSlice := lex.Plural(refVar)
+		refMapping, err := Parse(m.packages[m.pkg], refStruct, "")
+		if err != nil {
+			return fmt.Errorf("Could not find definition for reference struct %q in package %q: %w", refStruct, m.db, err)
+		}
+
+		switch refMapping.Type {
+		case EntityTable:
+			assocStruct := mapping.Name + field.Name
+			buf.L("%s, err := c.Get%s()", lex.Minuscule(assocStruct), assocStruct)
+			m.ifErrNotNil(buf, "nil", "err")
+			buf.L("for i := range objects {")
+			buf.L("objects[i].%s = make([]string, 0)", field.Name)
+			buf.L("if refIDs, ok := %s[objects[i].ID]; ok {", lex.Minuscule(assocStruct))
+			buf.L("for _, refID := range refIDs {")
+			buf.L("%sURIs, err := c.Get%sURIs(%sFilter{ID: &refID})", refVar, refStruct, refStruct)
+			m.ifErrNotNil(buf, "nil", "err")
+			if field.Config.Get("uri") == "" {
+				buf.L("for i, uri := range %sURIs {", refVar)
+				buf.L("if strings.HasPrefix(uri, \"/1.0/\") {")
+				buf.L("uri = strings.Split(uri, \"/1.0/%s/\")[1]", refSlice)
+				buf.L("uri = strings.Split(uri, \"?\")[0]")
+				buf.L("%sURIs[i] = uri", refVar)
+				buf.L("}")
+				buf.L("}")
+			}
+			buf.L("objects[i].%s = append(objects[i].%s, %sURIs...)", field.Name, field.Name, refVar)
+			buf.L("}")
+			buf.L("}")
+			buf.L("}")
+		case ReferenceTable:
+			if mapping.Type == ReferenceTable {
+				// A reference table should let its child reference know about its parent.
+				buf.L("%s, err := c.Get%s(parent+\"_%s\")", refSlice, lex.Plural(refStruct), m.entity)
+				m.ifErrNotNil(buf, "nil", "err")
+			} else {
+				buf.L("%s, err := c.Get%s(\"%s\")", refSlice, lex.Plural(refStruct), m.entity)
+				m.ifErrNotNil(buf, "nil", "err")
+			}
+			buf.L("for i := range objects {")
+			if field.Type.Code == TypeSlice {
+				buf.L("objects[i].%s = %s[objects[i].ID]", lex.Plural(refStruct), refSlice)
+			} else if field.Type.Code == TypeMap {
+				buf.L("objects[i].%s = map[string]%s{}", lex.Plural(refStruct), refStruct)
+				buf.L("for _, obj := range %s[objects[i].ID] {", refSlice)
+				buf.L("if _, ok := objects[i].%s[obj.%s]; !ok {", lex.Plural(refStruct), refMapping.NaturalKey()[0].Name)
+				buf.L("objects[i].%s[obj.%s] = obj", lex.Plural(refStruct), refMapping.NaturalKey()[0].Name)
+				buf.L("} else {")
+				buf.L("return nil, fmt.Errorf(\"Found duplicate %s with name %%q\", obj.%s)", refStruct, refMapping.NaturalKey()[0].Name)
+				buf.L("}")
+				buf.L("}")
+			}
+			buf.L("}")
+		case MapTable:
+			if mapping.Type == ReferenceTable {
+				// A reference table should let its child reference know about its parent.
+				buf.L("%s, err := c.Get%s(parent+\"_%s\")", refSlice, lex.Plural(refStruct), m.entity)
+				m.ifErrNotNil(buf, "nil", "err")
+			} else {
+				buf.L("%s, err := c.Get%s(\"%s\")", refSlice, lex.Plural(refStruct), m.entity)
+				m.ifErrNotNil(buf, "nil", "err")
+			}
+			buf.L("for i := range objects {")
+			buf.L("if _, ok := %s[objects[i].ID]; !ok {", refSlice)
+			buf.L("objects[i].%s = map[string]string{}", refStruct)
+			buf.L("} else {")
+			buf.L("objects[i].%s = %s[objects[i].ID]", lex.Plural(refStruct), refSlice)
+			buf.L("}")
+			buf.L("}")
+		}
+
+		buf.N()
+	}
+
 	switch mapping.Type {
 	case AssociationTable:
 		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
@@ -469,8 +558,48 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s ID\")", m.entity))
 	}
 
+	for _, field := range mapping.RefFields() {
+		if field.Name == "UsedBy" {
+			continue
+		}
 
+		refStruct := lex.Singular(field.Name)
+		refMapping, err := Parse(m.packages[m.pkg], lex.Singular(field.Name), "")
+		if err != nil {
+			return errors.Wrap(err, "Parse entity struct")
+		}
 
+		switch refMapping.Type {
+		case EntityTable:
+			assocStruct := mapping.Name + refStruct
+			buf.L("// Update association table.")
+			buf.L("object.ID = int(id)")
+			buf.L("err = c.Update%s(object)", lex.Plural(assocStruct))
+			m.ifErrNotNil(buf, "-1", fmt.Sprintf("fmt.Errorf(\"Could not update association table: %%w\", err)"))
+			continue
+		case ReferenceTable:
+			buf.L("for _, insert := range object.%s {", field.Name)
+			buf.L("insert.ReferenceID = int(id)")
+		case MapTable:
+			buf.L("referenceID := int(id)")
+			buf.L("for key, value := range object.%s {", field.Name)
+			buf.L("insert := %s{", field.Name)
+			for _, ref := range refMapping.ColumnFields("ID") {
+				buf.L("%s: %s,", ref.Name, lex.Minuscule(ref.Name))
+			}
+			buf.L("}")
+			buf.N()
+		}
+
+		if mapping.Type != EntityTable {
+			buf.L("err = c.Create%s(parent + \"_%s\", insert)", refStruct, m.entity)
+			m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Insert %s for %s\")", field.Name, m.entity))
+		} else {
+			buf.L("err = c.Create%s(\"%s\", insert)", refStruct, m.entity)
+			m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Insert %s for %s\")", field.Name, m.entity))
+		}
+		buf.L("}")
+	}
 
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		buf.L("return nil")
@@ -594,6 +723,35 @@ func (m *Method) update(buf *file.Buffer) error {
 		buf.L("}")
 		buf.N()
 
+		for _, field := range mapping.RefFields() {
+			// TODO: Eliminate UsedBy fields and move to dedicated slices for entities.
+			if field.Name == "UsedBy" {
+				continue
+			}
+
+			refStruct := lex.Singular(field.Name)
+			refMapping, err := Parse(m.packages[m.pkg], lex.Singular(field.Name), "")
+			if err != nil {
+				return errors.Wrap(err, "Parse entity struct")
+			}
+
+			switch refMapping.Type {
+			case EntityTable:
+				assocStruct := mapping.Name + refStruct
+				buf.L("// Update association table.")
+				buf.L("object.ID = int(id)")
+				buf.L("err = c.Update%s(object)", lex.Plural(assocStruct))
+				m.ifErrNotNil(buf, "fmt.Errorf(\"Could not update association table: %w\", err)")
+			case ReferenceTable:
+				buf.L("err = c.Update%s(\"%s\", int(id), object.%s)", lex.Singular(field.Name), m.entity, field.Name)
+				m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Replace %s for %s\")", field.Name, lex.Camel(m.entity)))
+			case MapTable:
+				buf.L("err = c.Update%s(\"%s\", int(id), object.%s)", lex.Singular(field.Name), m.entity, field.Name)
+				m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Replace %s for %s\")", field.Name, lex.Camel(m.entity)))
+				buf.N()
+			}
+
+		}
 	}
 
 	buf.L("return nil")
