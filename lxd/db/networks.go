@@ -5,7 +5,9 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/query"
@@ -434,60 +436,101 @@ type NetworkNode struct {
 }
 
 // GetNetworkInAnyState returns the network with the given name. The network can be in any state.
-func (c *Cluster) GetNetworkInAnyState(name string) (int64, *api.Network, map[int64]NetworkNode, error) {
-	return c.getNetwork(name, false)
+// Returns network ID, network info, and network cluster member info.
+func (c *Cluster) GetNetworkInAnyState(networkName string) (int64, *api.Network, map[int64]NetworkNode, error) {
+	return c.getNetworkByName(networkName, -1)
 }
 
-// Get the network with the given name. If onlyCreated is true, only return networks in the networkCreated state.
-// Also returns a map of the network's nodes keyed by node ID.
-func (c *Cluster) getNetwork(name string, onlyCreated bool) (int64, *api.Network, map[int64]NetworkNode, error) {
-	description := sql.NullString{}
-	id := int64(-1)
-	var state NetworkState
-
-	q := "SELECT id, description, state FROM networks WHERE name=?"
-	arg1 := []interface{}{name}
-	arg2 := []interface{}{&id, &description, &state}
-	if onlyCreated {
-		q += " AND state=?"
-		arg1 = append(arg1, networkCreated)
-	}
-	err := dbQueryRowScan(c, q, arg1, arg2)
+// getNetworkByName returns the network with the given name and state.
+// If stateFilter is -1, then a network can be in any state.
+// Returns network ID, network info, and network cluster member info.
+func (c *Cluster) getNetworkByName(networkName string, stateFilter NetworkState) (int64, *api.Network, map[int64]NetworkNode, error) {
+	networkID, networkState, networkType, network, err := c.getPartialNetworkByName(networkName, stateFilter)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return -1, nil, nil, ErrNoSuchObject
+		return -1, nil, nil, err
+	}
+
+	nodes, err := c.networkPopulatePeerInfo(networkID, network, networkState, networkType)
+	if err != nil {
+		return -1, nil, nil, err
+	}
+
+	return networkID, network, nodes, nil
+}
+
+// getPartialNetworkByName gets the network with the given name and state.
+// If stateFilter is -1, then a network can be in any state.
+// Returns network ID, network state, network type, and partially populated network info.
+func (c *Cluster) getPartialNetworkByName(networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
+	var err error
+	var networkID int64 = int64(-1)
+	var network api.Network
+	var networkState NetworkState
+	var networkType NetworkType
+
+	// Managed networks exist in the database.
+	network.Managed = true
+
+	var q strings.Builder
+
+	q.WriteString(`SELECT n.id, n.name, n.description, n.state
+		FROM networks AS n
+		WHERE n.name=?
+	`)
+	args := []interface{}{networkName}
+
+	if stateFilter > -1 {
+		q.WriteString(" AND n.state=?")
+		args = append(args, networkCreated)
+	}
+
+	q.WriteString(" LIMIT 1")
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		err = tx.tx.QueryRow(q.String(), args...).Scan(&networkID, &network.Name, &network.Description, &networkState)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return api.StatusErrorf(http.StatusNotFound, "Network not found")
+			}
+
+			return err
 		}
 
-		return -1, nil, nil, err
-	}
-
-	config, err := c.getNetworkConfig(id)
+		return nil
+	})
 	if err != nil {
-		return -1, nil, nil, err
+		return -1, -1, -1, nil, err
 	}
 
-	network := api.Network{
-		Name:    name,
-		Managed: true,
-		Type:    "bridge",
-	}
-	network.Description = description.String
-	network.Config = config
+	return networkID, networkState, networkType, &network, err
+}
+
+// networkPopulatePeerInfo takes a pointer to partially populated network info struct and enriches it.
+// Returns the network cluster member info.
+func (c *Cluster) networkPopulatePeerInfo(networkID int64, network *api.Network, networkState NetworkState, networkType NetworkType) (map[int64]NetworkNode, error) {
+	var err error
 
 	// Populate Status and Type fields by converting from DB values.
-	network.Status = NetworkStateToAPIStatus(state)
-	networkFillType(&network, NetworkTypeBridge)
+	network.Status = NetworkStateToAPIStatus(networkState)
+	networkFillType(network, networkType)
 
-	nodes, err := c.NetworkNodes(id)
+	network.Config, err = c.getNetworkConfig(networkID)
 	if err != nil {
-		return -1, nil, nil, err
+		return nil, err
 	}
 
+	// Populate Location field.
+	nodes, err := c.NetworkNodes(networkID)
+	if err != nil {
+		return nil, err
+	}
+
+	network.Locations = make([]string, 0, len(nodes))
 	for _, node := range nodes {
 		network.Locations = append(network.Locations, node.Name)
 	}
 
-	return id, &network, nodes, nil
+	return nodes, nil
 }
 
 // NetworkStateToAPIStatus converts DB NetworkState to API status string.
