@@ -845,6 +845,11 @@ definitions:
         example: c1/snap0
         type: string
         x-go-name: Name
+      project:
+        description: Source project name
+        example: project1
+        type: string
+        x-go-name: Project
       protocol:
         description: Source server protocol
         example: simplestreams
