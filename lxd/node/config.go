@@ -76,6 +76,11 @@ func (c *Config) DebugAddress() string {
 	return debugAddress
 }
 
+// DNSAddress returns the address and port to setup the DNS listener on
+func (c *Config) DNSAddress() string {
+	return c.m.GetString("core.dns_address")
+}
+
 // MetricsAddress returns the address and port to setup the metrics listener on
 func (c *Config) MetricsAddress() string {
 	metricsAddress := c.m.GetString("core.metrics_address")
@@ -203,6 +208,22 @@ func DebugAddress(node *db.Node) (string, error) {
 	return config.DebugAddress(), nil
 }
 
+// DNSAddress is a convenience for loading the node configuration and
+// returning the value of core.dns_address.
+func DNSAddress(node *db.Node) (string, error) {
+	var config *Config
+	err := node.Transaction(func(tx *db.NodeTx) error {
+		var err error
+		config, err = ConfigLoad(tx)
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return config.DNSAddress(), nil
+}
+
 // MetricsAddress is a convenience for loading the node configuration and
 // returning the value of core.metrics_address.
 func MetricsAddress(node *db.Node) (string, error) {
@@ -249,6 +270,9 @@ var ConfigSchema = config.Schema{
 
 	// Network address for the debug server
 	"core.debug_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
+
+	// Network address for the DNS server
+	"core.dns_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// Network address for the debug server
 	"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
