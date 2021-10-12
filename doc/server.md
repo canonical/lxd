@@ -28,6 +28,7 @@ core.bgp\_address                   | string    | local     | -                 
 core.bgp\_asn                       | string    | global    | -                                 | The BGP Autonomous System Number to use for the local server
 core.bgp\_routerid                  | string    | local     | -                                 | A unique identifier for this BGP server (formatted as an IPv4 address)
 core.debug\_address                 | string    | local     | -                                 | Address to bind the pprof debug server to (HTTP)
+core.dns\_address                   | string    | local     | -                                 | Address to bind the authoritative DNS server to (DNS)
 core.https\_address                 | string    | local     | -                                 | Address to bind for the remote API (HTTPS)
 core.https\_allowed\_credentials    | boolean   | global    | -                                 | Whether to set Access-Control-Allow-Credentials http header value to "true"
 core.https\_allowed\_headers        | string    | global    | -                                 | Access-Control-Allow-Headers http header value
