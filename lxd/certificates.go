@@ -517,7 +517,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			Certificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
 		}
 
-		_, err := d.cluster.CreateCertificate(dbCert)
+		err := d.cluster.CreateCertificate(dbCert)
 		if err != nil {
 			return response.SmartError(err)
 		}
