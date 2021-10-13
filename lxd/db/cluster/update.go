@@ -91,6 +91,35 @@ var updates = map[int]schema.Update{
 	50: updateFromV49,
 	51: updateFromV50,
 	52: updateFromV51,
+	53: updateFromV52,
+}
+
+// updateFromV52 creates the networks_zones and networks_zones_config tables.
+func updateFromV52(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "networks_zones" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	project_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	UNIQUE (name),
+	FOREIGN KEY (project_id) REFERENCES "projects" (id) ON DELETE CASCADE
+);
+
+CREATE TABLE "networks_zones_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_zone_id, key),
+	FOREIGN KEY (network_zone_id) REFERENCES "networks_zones" (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return errors.Wrap(err, `Failed creating network zones tables`)
+	}
+
+	return nil
 }
 
 // updateFromV51 creates the networks_peers and networks_peers_config tables.
