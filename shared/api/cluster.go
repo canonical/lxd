@@ -206,6 +206,12 @@ type ClusterMemberPut struct {
 	//
 	// API extension: clustering_description
 	Description string `json:"description" yaml:"description"`
+
+	// Additional configuration information
+	// Example: {"scheduler.instance": "all"}
+	//
+	// API extension: clustering_config
+	Config map[string]string `json:"config" yaml:"config"`
 }
 
 // ClusterCertificatePut represents the certificate and key pair for all members in a LXD Cluster
