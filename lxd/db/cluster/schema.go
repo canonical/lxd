@@ -372,6 +372,14 @@ CREATE TABLE nodes (
     UNIQUE (name),
     UNIQUE (address)
 );
+CREATE TABLE "nodes_config" (
+id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+node_id INTEGER NOT NULL,
+key TEXT NOT NULL,
+value TEXT,
+FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+UNIQUE (node_id, key)
+);
 CREATE TABLE nodes_failure_domains (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -676,5 +684,5 @@ CREATE TABLE warnings (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (50, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (51, strftime("%s"))
 `
