@@ -2735,6 +2735,81 @@ definitions:
         x-go-name: VID
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZone:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Zone configuration map (refer to doc/network-zones.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the network zone
+        example: Internal domain
+        type: string
+        x-go-name: Description
+      name:
+        description: The name of the zone (DNS domain name)
+        example: example.net
+        type: string
+        x-go-name: Name
+      used_by:
+        description: List of URLs of objects using this network zone
+        example:
+        - /1.0/networks/foo
+        - /1.0/networks/bar
+        items:
+          type: string
+        readOnly: true
+        type: array
+        x-go-name: UsedBy
+    title: NetworkZone represents a network zone (DNS).
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZonePut:
+    description: NetworkZonePut represents the modifiable fields of a LXD network
+      zoned
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Zone configuration map (refer to doc/network-zones.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the network zone
+        example: Internal domain
+        type: string
+        x-go-name: Description
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZonesPost:
+    description: NetworkZonesPost represents the fields of a new LXD network zone
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Zone configuration map (refer to doc/network-zones.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the network zone
+        example: Internal domain
+        type: string
+        x-go-name: Description
+      name:
+        description: The name of the zone (DNS domain name)
+        example: example.net
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   NetworksPost:
     description: NetworksPost represents the fields of a new LXD network
     properties:
@@ -8768,6 +8843,257 @@ paths:
       summary: Get the network ACLs
       tags:
       - network-acls
+  /1.0/network-zones:
+    get:
+      description: Returns a list of network zones (URLs).
+      operationId: network_zones_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/network-zones/example.net",
+                    "/1.0/network-zones/example.com"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network zones
+      tags:
+      - network-zones
+    post:
+      consumes:
+      - application/json
+      description: Creates a new network zone.
+      operationId: network_zones_post
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: zone
+        in: body
+        name: zone
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkZonesPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Add a network zone
+      tags:
+      - network-zones
+  /1.0/network-zones/{name}:
+    delete:
+      description: Removes the network zone.
+      operationId: network_zone_delete
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the network zone
+      tags:
+      - network-zones
+    get:
+      description: Gets a specific network zone.
+      operationId: network_zone_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: zone
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/NetworkZone'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network zone
+      tags:
+      - network-zones
+    patch:
+      consumes:
+      - application/json
+      description: Updates a subset of the network zone configuration.
+      operationId: network_zone_patch
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: zone configuration
+        in: body
+        name: zone
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkZonePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Partially update the network zone
+      tags:
+      - network-zones
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire network zone configuration.
+      operationId: network_zone_put
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      - description: zone configuration
+        in: body
+        name: zone
+        required: true
+        schema:
+          $ref: '#/definitions/NetworkZonePut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the network zone
+      tags:
+      - network-zones
+  /1.0/network-zones?recursion=1:
+    get:
+      description: Returns a list of network zones (structs).
+      operationId: network_zones_get_recursion1
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of network zones
+                items:
+                  $ref: '#/definitions/NetworkZone'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network zones
+      tags:
+      - network-zones
   /1.0/networks:
     get:
       description: Returns a list of networks (URLs).
