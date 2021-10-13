@@ -2735,6 +2735,81 @@ definitions:
         x-go-name: VID
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZone:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Zone configuration map (refer to doc/network-zones.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the network zone
+        example: Internal domain
+        type: string
+        x-go-name: Description
+      name:
+        description: The name of the zone (DNS domain name)
+        example: example.net
+        type: string
+        x-go-name: Name
+      used_by:
+        description: List of URLs of objects using this network zone
+        example:
+        - /1.0/networks/foo
+        - /1.0/networks/bar
+        items:
+          type: string
+        readOnly: true
+        type: array
+        x-go-name: UsedBy
+    title: NetworkZone represents a network zone (DNS).
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZonePut:
+    description: NetworkZonePut represents the modifiable fields of a LXD network
+      zoned
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Zone configuration map (refer to doc/network-zones.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the network zone
+        example: Internal domain
+        type: string
+        x-go-name: Description
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZonesPost:
+    description: NetworkZonesPost represents the fields of a new LXD network zone
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Zone configuration map (refer to doc/network-zones.md)
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the network zone
+        example: Internal domain
+        type: string
+        x-go-name: Description
+      name:
+        description: The name of the zone (DNS domain name)
+        example: example.net
+        type: string
+        x-go-name: Name
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   NetworksPost:
     description: NetworksPost represents the fields of a new LXD network
     properties:
