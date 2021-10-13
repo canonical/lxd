@@ -11,11 +11,12 @@ import (
 
 // Mapping holds information for mapping database tables to a Go structure.
 type Mapping struct {
-	Package string    // Package of the Go struct
-	Name    string    // Name of the Go struct.
-	Fields  []*Field  // Metadata about the Go struct.
-	Filters []*Field  // Metadata about the Go struct used for filter fields.
-	Type    TableType // Type of table structure for this Go struct.
+	Package    string    // Package of the Go struct
+	Name       string    // Name of the Go struct.
+	Fields     []*Field  // Metadata about the Go struct.
+	Filterable bool      // Whether the Go struct has a Filter companion struct for filtering queries.
+	Filters    []*Field  // Metadata about the Go struct used for filter fields.
+	Type       TableType // Type of table structure for this Go struct.
 
 }
 
