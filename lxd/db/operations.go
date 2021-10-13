@@ -28,7 +28,7 @@ type Operation struct {
 	ID          int64         `db:"primary=yes"`                               // Stable database identifier
 	UUID        string        `db:"primary=yes"`                               // User-visible identifier
 	NodeAddress string        `db:"join=nodes.address&omit=create-or-replace"` // Address of the node the operation is running on
-	ProjectID   *int64        `db:"omit=objects"`                              // ID of the project for the operation.
+	ProjectID   *int64        // ID of the project for the operation.
 	NodeID      int64         // ID of the node the operation is running on
 	Type        OperationType // Type of the operation
 }

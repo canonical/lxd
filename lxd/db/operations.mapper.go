@@ -18,7 +18,7 @@ import (
 var _ = api.ServerEnvironment{}
 
 var operationObjects = cluster.RegisterStmt(`
-SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.node_id, operations.type
+SELECT operations.id, operations.uuid, nodes.address AS node_address, operations.project_id, operations.node_id, operations.type
   FROM operations JOIN nodes ON operations.node_id = nodes.id
   ORDER BY operations.id, operations.uuid
 `)
