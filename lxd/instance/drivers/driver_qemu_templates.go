@@ -257,8 +257,12 @@ discard-data = "on"
 qom-type = "memory-backend-memfd"
 {{- end }}
 size = "{{$memory}}M"
-host-nodes = "{{$element}}"
 policy = "bind"
+{{- if eq $.qemuMemObjectFormat "indexed"}}
+host-nodes.{{$index}} = "{{$element}}"
+{{- else}}
+host-nodes = "{{$element}}"
+{{- end}}
 
 [numa]
 type = "node"
