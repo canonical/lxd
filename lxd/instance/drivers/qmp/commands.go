@@ -1,7 +1,6 @@
 package qmp
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -23,7 +22,7 @@ func (m *Monitor) Status() (string, error) {
 	}
 
 	// Query the status.
-	err := m.run("query-status", "", &resp)
+	err := m.run("query-status", nil, &resp)
 	if err != nil {
 		return "", err
 	}
@@ -42,7 +41,7 @@ func (m *Monitor) Console(target string) (*os.File, error) {
 	}
 
 	// Query the consoles.
-	err := m.run("query-chardev", "", &resp)
+	err := m.run("query-chardev", nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +93,8 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 // Migrate starts a migration stream.
 func (m *Monitor) Migrate(uri string) error {
 	// Query the status.
-	err := m.run("migrate", fmt.Sprintf("{'uri': '%s'}", uri), nil)
+	args := map[string]string{"uri": uri}
+	err := m.run("migrate", args, nil)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (m *Monitor) Migrate(uri string) error {
 			} `json:"return"`
 		}
 
-		err := m.run("query-migrate", "", &resp)
+		err := m.run("query-migrate", nil, &resp)
 		if err != nil {
 			return err
 		}
@@ -130,7 +130,8 @@ func (m *Monitor) Migrate(uri string) error {
 // MigrateIncoming starts the receiver of a migration stream.
 func (m *Monitor) MigrateIncoming(uri string) error {
 	// Query the status.
-	err := m.run("migrate-incoming", fmt.Sprintf("{'uri': '%s'}", uri), nil)
+	args := map[string]string{"uri": uri}
+	err := m.run("migrate-incoming", args, nil)
 	if err != nil {
 		return err
 	}
@@ -146,7 +147,7 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 			} `json:"return"`
 		}
 
-		err := m.run("query-migrate", "", &resp)
+		err := m.run("query-migrate", nil, &resp)
 		if err != nil {
 			return err
 		}
@@ -165,22 +166,22 @@ func (m *Monitor) MigrateIncoming(uri string) error {
 
 // Powerdown tells the VM to gracefully shutdown.
 func (m *Monitor) Powerdown() error {
-	return m.run("system_powerdown", "", nil)
+	return m.run("system_powerdown", nil, nil)
 }
 
 // Start tells QEMU to start the emulation.
 func (m *Monitor) Start() error {
-	return m.run("cont", "", nil)
+	return m.run("cont", nil, nil)
 }
 
 // Pause tells QEMU to temporarily stop the emulation.
 func (m *Monitor) Pause() error {
-	return m.run("stop", "", nil)
+	return m.run("stop", nil, nil)
 }
 
 // Quit tells QEMU to exit immediately.
 func (m *Monitor) Quit() error {
-	return m.run("quit", "", nil)
+	return m.run("quit", nil, nil)
 }
 
 // GetCPUs fetches the vCPU information for pinning.
@@ -194,7 +195,7 @@ func (m *Monitor) GetCPUs() ([]int, error) {
 	}
 
 	// Query the consoles.
-	err := m.run("query-cpus-fast", "", &resp)
+	err := m.run("query-cpus-fast", nil, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +218,7 @@ func (m *Monitor) GetMemorySizeBytes() (int64, error) {
 		} `json:"return"`
 	}
 
-	err := m.run("query-memory-size-summary", "", &resp)
+	err := m.run("query-memory-size-summary", nil, &resp)
 	if err != nil {
 		return -1, err
 	}
@@ -234,7 +235,7 @@ func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
 		} `json:"return"`
 	}
 
-	err := m.run("query-balloon", "", &resp)
+	err := m.run("query-balloon", nil, &resp)
 	if err != nil {
 		return -1, err
 	}
@@ -244,7 +245,8 @@ func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
 
 // SetMemoryBalloonSizeBytes sets the size of the memory in bytes (which will resize the balloon as needed).
 func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
-	return m.run("balloon", fmt.Sprintf("{'value': %d}", sizeBytes), nil)
+	args := map[string]int64{"value": sizeBytes}
+	return m.run("balloon", args, nil)
 }
 
 // AddNIC adds a NIC device.
@@ -253,12 +255,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 	defer revert.Fail()
 
 	if netDev != nil {
-		args, err := json.Marshal(netDev)
-		if err != nil {
-			return err
-		}
-
-		err = m.run("netdev_add", string(args), nil)
+		err := m.run("netdev_add", netDev, nil)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding NIC netdev")
 		}
@@ -268,12 +265,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 				"id": netDev["id"],
 			}
 
-			args, err := json.Marshal(netDevDel)
-			if err != nil {
-				return
-			}
-
-			err = m.run("netdev_del", string(args), nil)
+			err = m.run("netdev_del", netDevDel, nil)
 			if err != nil {
 				return
 			}
@@ -281,12 +273,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 	}
 
 	if device != nil {
-		args, err := json.Marshal(device)
-		if err != nil {
-			return err
-		}
-
-		err = m.run("device_add", string(args), nil)
+		err := m.run("device_add", device, nil)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding NIC device")
 		}
@@ -303,12 +290,7 @@ func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
 			"id": deviceID,
 		}
 
-		args, err := json.Marshal(deviceID)
-		if err != nil {
-			return err
-		}
-
-		err = m.run("device_del", string(args), nil)
+		err := m.run("device_del", deviceID, nil)
 		if err != nil {
 			// If the device has already been removed then all good.
 			if err != nil && !strings.Contains(err.Error(), "not found") {
@@ -322,12 +304,7 @@ func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
 			"id": netDevID,
 		}
 
-		args, err := json.Marshal(netDevID)
-		if err != nil {
-			return err
-		}
-
-		err = m.run("netdev_del", string(args), nil)
+		err := m.run("netdev_del", netDevID, nil)
 
 		// Not all NICs need a netdev, so if its missing, its not a problem.
 		if err != nil && !strings.Contains(err.Error(), "not found") {
@@ -340,7 +317,7 @@ func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
 
 // Reset VM.
 func (m *Monitor) Reset() error {
-	err := m.run("system_reset", "", nil)
+	err := m.run("system_reset", nil, nil)
 	if err != nil {
 		return errors.Wrapf(err, "Failed resetting")
 	}
@@ -379,7 +356,7 @@ func (m *Monitor) QueryPCI() ([]PCIDevice, error) {
 		} `json:"return"`
 	}
 
-	err := m.run("query-pci", "", &resp)
+	err := m.run("query-pci", nil, &resp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed querying PCI devices")
 	}

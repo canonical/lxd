@@ -41,7 +41,13 @@ func (m *Monitor) start() error {
 		}
 
 		// Read the ringbuffer.
-		err := m.run("ringbuf-read", fmt.Sprintf("{'device': '%s', 'size': %d, 'format': 'utf8'}", m.serialCharDev, RingbufSize), &resp)
+		args := map[string]interface{}{
+			"device": m.serialCharDev,
+			"size":   RingbufSize,
+			"format": "utf8",
+		}
+
+		err := m.run("ringbuf-read", args, &resp)
 		if err != nil {
 			return
 		}
@@ -124,20 +130,28 @@ func (m *Monitor) ping() error {
 }
 
 // run executes a command.
-func (m *Monitor) run(cmd string, args string, resp interface{}) error {
+func (m *Monitor) run(cmd string, args interface{}, resp interface{}) error {
 	// Check if disconnected
 	if m.disconnected {
 		return ErrMonitorDisconnect
 	}
 
 	// Run the command.
-	var out []byte
-	var err error
-	if args == "" {
-		out, err = m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s'}", cmd)))
-	} else {
-		out, err = m.qmp.Run([]byte(fmt.Sprintf("{'execute': '%s', 'arguments': %s}", cmd, args)))
+	requestArgs := struct {
+		Execute   string      `json:"execute"`
+		Arguments interface{} `json:"arguments,omitempty"`
+	}{
+		Execute:   cmd,
+		Arguments: args,
 	}
+
+	request, err := json.Marshal(requestArgs)
+	if err != nil {
+		return err
+	}
+
+	out, err := m.qmp.Run(request)
+
 	if err != nil {
 		// Confirm the daemon didn't die.
 		errPing := m.ping()
