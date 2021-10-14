@@ -367,3 +367,43 @@ func (m *Monitor) QueryPCI() ([]PCIDevice, error) {
 
 	return nil, nil
 }
+
+type ObjectOptions struct {
+	ID      string `json:"id,omitempty"`
+	QOMType string `json:"qom-type"`
+}
+
+type MemoryBackendProperties struct {
+	ObjectOptions
+
+	HostNodes []uint64      `json:"host-nodes,omitempty"`
+	Prealloc  bool          `json:"prealloc,omitempty"`
+	Size      int64         `json:"size"`
+	Policy    HostMemPolicy `json:"policy,omitempty"`
+}
+
+type MemoryBackendFileProperties struct {
+	MemoryBackendProperties
+
+	MemPath     string `json:"mem-path"`
+	DiscardData bool   `json:"discard-data,omitempty"`
+}
+
+type MemoryBackendMemfdProperties struct {
+	MemoryBackendProperties
+}
+
+type HostMemPolicy string
+
+const HostMemPolicyDefault HostMemPolicy = "default"
+const HostMemPolicyBind HostMemPolicy = "bind"
+
+// AddObject adds a QOM object.
+func (m *Monitor) AddObject(opts interface{}) error {
+	err := m.run("object-add", opts, nil)
+	if err != nil {
+		return fmt.Errorf("Failed adding QOM object: %w", err)
+	}
+
+	return nil
+}
