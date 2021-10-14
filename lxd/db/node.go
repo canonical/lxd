@@ -579,6 +579,16 @@ func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
 	return nil
 }
 
+// UpdateNodeConfig updates the replaces the node's config with the specified config.
+func (c *ClusterTx) UpdateNodeConfig(id int64, config map[string]string) error {
+	err := c.UpdateConfig("node", int(id), config)
+	if err != nil {
+		return fmt.Errorf("Unable to update node config: %w", err)
+	}
+
+	return nil
+}
+
 // CreateNodeRole adds a role to the node.
 func (c *ClusterTx) CreateNodeRole(id int64, role ClusterRole) error {
 	// Translate role names to ids
