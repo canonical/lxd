@@ -10,6 +10,7 @@ import (
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -56,6 +57,12 @@ func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 
 	runConf := deviceConfig.RunConfig{}
 	saveData := make(map[string]string)
+
+	// Make sure that vfio-pci is loaded.
+	err = util.LoadModule("vfio-pci")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+	}
 
 	// Get PCI information about the device.
 	pciAddress := d.config["address"]
