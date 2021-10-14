@@ -507,6 +507,19 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 		}
 	}
 
+	config, err := c.GetConfig("node")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch nodes config: %w", err)
+	}
+
+	for i := range nodes {
+		if data, ok := config[int(nodes[i].ID)]; !ok {
+			nodes[i].Config = map[string]string{}
+		} else {
+			nodes[i].Config = data
+		}
+	}
+
 	return nodes, nil
 }
 
