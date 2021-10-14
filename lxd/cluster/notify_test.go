@@ -121,7 +121,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 			address := servers[i].Listener.Addr().String()
 			var err error
 			if i == 0 {
-				err = tx.UpdateNode(int64(1), name, address)
+				err = tx.BootstrapNode(name, address)
 			} else {
 				_, err = tx.CreateNode(name, address)
 			}
