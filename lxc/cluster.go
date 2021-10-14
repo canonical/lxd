@@ -282,7 +282,7 @@ func (c *cmdClusterRemove) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 	cmd.Flags().BoolVarP(&c.flagForce, "force", "f", false, i18n.G("Force removing a member, even if degraded"))
-	cmd.Flags().BoolVarP(&c.flagNonInteractive, "quiet", "q", false, i18n.G("Don't require user confirmation for using --force"))
+	cmd.Flags().BoolVar(&c.flagNonInteractive, "yes", false, i18n.G("Don't require user confirmation for using --force"))
 
 	return cmd
 }
