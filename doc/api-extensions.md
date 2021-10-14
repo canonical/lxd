@@ -1452,3 +1452,7 @@ This adds metrics to LXD. It returns metrics of running instances using the Open
 This includes the following endpoints:
 
 * `GET /1.0/metrics`
+
+## image\_source\_project
+Adds a new `project` field to `POST /1.0/images` allowing for the source project
+to be set at image copy time.

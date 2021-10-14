@@ -32,18 +32,19 @@ import (
 
 // ImageDownloadArgs used with ImageDownload.
 type ImageDownloadArgs struct {
-	ProjectName  string
-	Server       string
-	Protocol     string
-	Certificate  string
-	Secret       string
-	Alias        string
-	Type         string
-	SetCached    bool
-	PreferCached bool
-	AutoUpdate   bool
-	StoragePool  string
-	Budget       int64
+	ProjectName       string
+	Server            string
+	Protocol          string
+	Certificate       string
+	Secret            string
+	Alias             string
+	Type              string
+	SetCached         bool
+	PreferCached      bool
+	AutoUpdate        bool
+	StoragePool       string
+	Budget            int64
+	SourceProjectName string
 }
 
 // imageDownloadLock acquires a lock for downloading/transferring an image and returns the unlock function.
@@ -89,6 +90,10 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			remote, err = lxd.ConnectPublicLXD(args.Server, clientArgs)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed to connect to LXD server %q", args.Server)
+			}
+			server, ok := remote.(lxd.InstanceServer)
+			if ok {
+				remote = server.UseProject(args.SourceProjectName)
 			}
 		} else {
 			// Setup simplestreams client
