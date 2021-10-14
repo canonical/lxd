@@ -1764,7 +1764,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 		qemuDev["addr"] = "00.0"
 	}
 
-	cpuCount, err := d.addCPUMemoryConfig(nil)
+	_, cpuCount, err := d.addCPUMemoryConfig(nil)
 	if err != nil {
 		return err
 	}
@@ -2398,10 +2398,12 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
-	cpuCount, err := d.addCPUMemoryConfig(sb)
+	monHook, cpuCount, err := d.addCPUMemoryConfig(sb)
 	if err != nil {
 		return "", nil, err
 	}
+
+	monHooks = append(monHooks, monHook)
 
 	err = qemuDriveFirmware.Execute(sb, map[string]interface{}{
 		"architecture": d.architectureName,
@@ -2687,7 +2689,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written and instead just the CPU count is returned.
-func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
+func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (monitorHook, int, error) {
 	// Default to a single core.
 	cpus := d.expandedConfig["limits.cpu"]
 	if cpus == "" {
@@ -2711,7 +2713,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 		// Expand to a set of CPU identifiers and get the pinning map.
 		nrSockets, nrCores, nrThreads, vcpus, numaNodes, err := d.cpuTopology(cpus)
 		if err != nil {
-			return -1, err
+			return nil, -1, err
 		}
 
 		// Figure out socket-id/core-id/thread-id for all vcpus.
@@ -2768,16 +2770,18 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
 	if err != nil {
-		return -1, fmt.Errorf("limits.memory invalid: %v", err)
+		return nil, -1, fmt.Errorf("limits.memory invalid: %v", err)
 	}
 
 	ctx["hugepages"] = ""
+	var hugePagesPath string
 	if shared.IsTrue(d.expandedConfig["limits.memory.hugepages"]) {
 		hugetlb, err := util.HugepagesPath()
 		if err != nil {
-			return -1, err
+			return nil, -1, err
 		}
 
+		hugePagesPath = hugetlb
 		ctx["hugepages"] = hugetlb
 	}
 
@@ -2794,17 +2798,53 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 		})
 
 		if err != nil {
-			return -1, err
+			return nil, -1, err
 		}
 
 		err = qemuCPU.Execute(sb, ctx)
 		if err != nil {
-			return -1, err
+			return nil, -1, err
 		}
 	}
 
+	// Return a monitor hook to add the NIC via QMP before the VM is started.
+	monHook := func(m *qmp.Monitor) error {
+		for index, element := range hostNodes {
+			if hugePagesPath != "" {
+				args := qmp.MemoryBackendFileProperties{}
+				args.ID = fmt.Sprintf("memt%d", index)
+				args.QOMType = "memory-backend-file"
+				args.MemPath = hugePagesPath
+				args.Prealloc = true
+				args.DiscardData = true
+				args.Size = memSizeBytes * 1000000
+				args.HostNodes = []uint64{element}
+				args.Policy = qmp.HostMemPolicyBind
+
+				err := m.AddObject(args)
+				if err != nil {
+					return fmt.Errorf("Failed setting up CPU memory backend file config: %w", err)
+				}
+			} else {
+				args := qmp.MemoryBackendMemfdProperties{}
+				args.ID = fmt.Sprintf("memt%d", index)
+				args.QOMType = "memory-backend-memfd"
+				args.Size = memSizeBytes * 1000000
+				args.HostNodes = []uint64{element}
+				args.Policy = qmp.HostMemPolicyBind
+
+				err := m.AddObject(args)
+				if err != nil {
+					return fmt.Errorf("Failed setting up CPU memory backend memfd config: %w", err)
+				}
+			}
+		}
+
+		return nil
+	}
+
 	// Configure the CPU limit.
-	return ctx["cpuCount"].(int), nil
+	return monHook, ctx["cpuCount"].(int), err
 }
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
