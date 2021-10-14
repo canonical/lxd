@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -240,6 +241,12 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 
 	if pciAddress == "" {
 		return nil, fmt.Errorf("Failed to detect requested GPU device")
+	}
+
+	// Make sure that vfio-pci is loaded.
+	err = util.LoadModule("vfio-pci")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
 	}
 
 	// Get PCI information about the GPU device.
