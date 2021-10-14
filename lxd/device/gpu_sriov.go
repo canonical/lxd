@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -91,6 +92,12 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	var parentPCIAddress string
 	var pciParentDev pcidev.Device
 	vfID := -1
+
+	// Make sure that vfio-pci is loaded.
+	err = util.LoadModule("vfio-pci")
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+	}
 
 	// Since there might be multiple GPUs, we iterate through them and get the first free
 	// virtual function.
