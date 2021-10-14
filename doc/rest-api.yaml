@@ -156,6 +156,14 @@ definitions:
         example: x86_64
         type: string
         x-go-name: Architecture
+      config:
+        additionalProperties:
+          type: string
+        description: Additional configuration information
+        example:
+          scheduler.instance: all
+        type: object
+        x-go-name: Config
       database:
         description: Whether the cluster member is a database server
         example: true
@@ -281,6 +289,14 @@ definitions:
     description: ClusterMemberPut represents the the modifiable fields of a LXD cluster
       member
     properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Additional configuration information
+        example:
+          scheduler.instance: all
+        type: object
+        x-go-name: Config
       description:
         description: Cluster member description
         example: AMD Epyc 32c/64t
