@@ -3700,7 +3700,7 @@ func patchCandidConfigKey(name string, d *Daemon) error {
 			return nil
 		}
 
-		return tx.UpdateConfig(map[string]string{
+		return tx.UpdateClusterConfig(map[string]string{
 			"core.macaroon.endpoint": "",
 			"candid.api.url":         value,
 		})

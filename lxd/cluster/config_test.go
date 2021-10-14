@@ -27,7 +27,7 @@ func TestConfigLoad_IgnoreInvalidKeys(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	err := tx.UpdateConfig(map[string]string{
+	err := tx.UpdateClusterConfig(map[string]string{
 		"foo":             "garbage",
 		"core.proxy_http": "foo.bar",
 	})
