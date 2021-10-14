@@ -539,7 +539,17 @@ func (c *ClusterTx) CreateNode(name string, address string) (int64, error) {
 func (c *ClusterTx) CreateNodeWithArch(name string, address string, arch int) (int64, error) {
 	columns := []string{"name", "address", "schema", "api_extensions", "arch"}
 	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch}
-	return query.UpsertObject(c.tx, "nodes", columns, values)
+	id, err := query.UpsertObject(c.tx, "nodes", columns, values)
+	if err != nil {
+		return -1, err
+	}
+
+	err = c.UpdateNodeConfig(id, map[string]string{"scheduler.instance": "all"})
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
 }
 
 // SetNodePendingFlag toggles the pending flag for the node. A node is pending when
@@ -576,6 +586,12 @@ func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
 	if n != 1 {
 		return fmt.Errorf("query updated %d rows instead of 1", n)
 	}
+
+	err = c.UpdateNodeConfig(1, map[string]string{"scheduler.instance": "all"})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
