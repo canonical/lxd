@@ -64,6 +64,7 @@ import (
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // qemuAsyncIO is used to indicate disk should use unsafe cache I/O.
@@ -2688,6 +2689,20 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written and instead just the CPU count is returned.
 func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
+	driverInfo := SupportedInstanceTypes()[instancetype.VM]
+	if driverInfo.Name == "" {
+		return -1, fmt.Errorf("Unable to ascertain QEMU version")
+	}
+
+	// Figure out what memory object layout we're going to use.
+	// Before v6.0 or if version unknown, we use the "repeated" format, otherwise we use "indexed" format.
+	qemuMemObjectFormat := "repeated"
+	qemuVer6, _ := version.NewDottedVersion("6.0")
+	qemuVer, _ := version.NewDottedVersion(driverInfo.Version)
+	if qemuVer != nil && qemuVer.Compare(qemuVer6) >= 0 {
+		qemuMemObjectFormat = "indexed"
+	}
+
 	// Default to a single core.
 	cpus := d.expandedConfig["limits.cpu"]
 	if cpus == "" {
@@ -2695,7 +2710,8 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	}
 
 	ctx := map[string]interface{}{
-		"architecture": d.architectureName,
+		"architecture":        d.architectureName,
+		"qemuMemObjectFormat": qemuMemObjectFormat,
 	}
 
 	cpuCount, err := strconv.Atoi(cpus)
