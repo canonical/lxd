@@ -2054,7 +2054,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation
 	for _, project := range projects {
 		err := pruneExpiredImagesInProject(ctx, d, project, op)
 		if err != nil {
-			return errors.Wrapf(err, "Unable to prune images for project %s", project)
+			return fmt.Errorf("Unable to prune images for project %q: %w", project.Name, err)
 		}
 	}
 
