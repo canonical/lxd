@@ -669,7 +669,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	roleIDs := []int{}
 	for _, role := range roles {
 		// Skip internal-only roles.
-		if role == ClusterRoleDatabase {
+		if role == ClusterRoleDatabase || role == ClusterRoleDatabaseStandBy {
 			continue
 		}
 
