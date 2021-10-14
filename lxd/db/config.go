@@ -21,8 +21,8 @@ func (c *ClusterTx) Config() (map[string]string, error) {
 	return query.SelectConfig(c.tx, "config", "")
 }
 
-// UpdateConfig updates the given LXD cluster configuration keys in the
+// UpdateClusterConfig updates the given LXD cluster configuration keys in the
 // config table. Config keys set to empty values will be deleted.
-func (c *ClusterTx) UpdateConfig(values map[string]string) error {
+func (c *ClusterTx) UpdateClusterConfig(values map[string]string) error {
 	return query.UpdateConfig(c.tx, "config", values)
 }

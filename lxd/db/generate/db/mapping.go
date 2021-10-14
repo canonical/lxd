@@ -80,9 +80,9 @@ func (m *Mapping) ActiveFilters(kind string) []*Field {
 
 // FieldColumnName returns the column name of the field with the given name,
 // prefixed with the entity's table name.
-func (m *Mapping) FieldColumnName(name string) string {
+func (m *Mapping) FieldColumnName(name string, table string) string {
 	field := m.FieldByName(name)
-	return fmt.Sprintf("%s.%s", entityTable(m.Name), field.Column())
+	return fmt.Sprintf("%s.%s", table, field.Column())
 }
 
 // FilterFieldByName returns the field with the given name if that field can be
