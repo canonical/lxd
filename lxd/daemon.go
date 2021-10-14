@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/dns"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
@@ -44,6 +45,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/metrics"
+	networkZone "github.com/lxc/lxd/lxd/network/zone"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
@@ -74,6 +76,7 @@ type Daemon struct {
 	firewall    firewall.Firewall
 	maas        *maas.Controller
 	bgp         *bgp.Server
+	dns         *dns.Server
 	rbac        *rbac.Server
 	cluster     *db.Cluster
 
@@ -438,6 +441,7 @@ func (d *Daemon) State() *state.State {
 		Cluster:                d.cluster,
 		MAAS:                   d.maas,
 		BGP:                    d.bgp,
+		DNS:                    d.dns,
 		OS:                     d.os,
 		Endpoints:              d.endpoints,
 		Events:                 d.events,
@@ -1207,6 +1211,8 @@ func (d *Daemon) init() error {
 	candidDomains := ""
 	candidExpiry := int64(0)
 
+	dnsAddress := ""
+
 	rbacAPIURL := ""
 	rbacAPIKey := ""
 	rbacAgentURL := ""
@@ -1229,6 +1235,7 @@ func (d *Daemon) init() error {
 		maasMachine = config.MAASMachine()
 		bgpAddress = config.BGPAddress()
 		bgpRouterID = config.BGPRouterID()
+		dnsAddress = config.DNSAddress()
 		return nil
 	})
 	if err != nil {
@@ -1284,6 +1291,36 @@ func (d *Daemon) init() error {
 			return err
 		}
 		logger.Info("Started BGP server")
+	}
+
+	// Setup DNS listener.
+	d.dns = dns.NewServer(d.cluster, func(name string) (*dns.Zone, error) {
+		// Fetch the zone.
+		zone, err := networkZone.LoadByName(d.State(), name)
+		if err != nil {
+			return nil, err
+		}
+		zoneInfo := zone.Info()
+
+		zoneBuilder, err := zone.Content()
+		if err != nil {
+			logger.Errorf("Failed to render DNS zone %q: %v", name, err)
+			return nil, err
+		}
+
+		// Fill in the zone information.
+		resp := &dns.Zone{}
+		resp.Info = *zoneInfo
+		resp.Content = strings.TrimSpace(zoneBuilder.String())
+
+		return resp, nil
+	})
+	if dnsAddress != "" {
+		err := d.dns.Start(dnsAddress)
+		if err != nil {
+			return err
+		}
+		logger.Info("Started DNS server")
 	}
 
 	// Setup the networks.
