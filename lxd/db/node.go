@@ -573,9 +573,9 @@ func (c *ClusterTx) SetNodePendingFlag(id int64, pending bool) error {
 	return nil
 }
 
-// UpdateNode updates the name an address of a node.
-func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
-	result, err := c.tx.Exec("UPDATE nodes SET name=?, address=? WHERE id=?", name, address, id)
+// BootstrapNode sets the name and address of the first cluster member, with id: 1.
+func (c *ClusterTx) BootstrapNode(name string, address string) error {
+	result, err := c.tx.Exec("UPDATE nodes SET name=?, address=? WHERE id=1", name, address)
 	if err != nil {
 		return err
 	}
