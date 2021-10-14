@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/bgp"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/dns"
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
@@ -36,6 +37,9 @@ type State struct {
 
 	// BGP server
 	BGP *bgp.Server
+
+	// DNS server
+	DNS *dns.Server
 
 	// OS access
 	OS    *sys.OS
