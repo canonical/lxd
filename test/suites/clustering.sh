@@ -726,7 +726,7 @@ test_clustering_storage() {
     LXD_DIR="${LXD_TWO_DIR}" lxc start bar
     LXD_DIR="${LXD_ONE_DIR}" lxc stop bar --force
 
-    LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 -q --force
+    LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force --yes
 
     LXD_DIR="${LXD_ONE_DIR}" lxc delete bar
 
@@ -2002,8 +2002,8 @@ test_clustering_recover() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxd cluster list-database | grep -q "10.1.1.102:8443" || false
 
   # Cleanup the dead node.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 -q --force
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 -q --force
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node2 --force --yes
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster remove node3 --force --yes
 
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
