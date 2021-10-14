@@ -1035,6 +1035,10 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (str
 	containers := -1
 	isDefaultArchChosen := false
 	for _, node := range nodes {
+		if node.Config["scheduler.instance"] == "manual" {
+			continue
+		}
+
 		if node.State == ClusterMemberStateEvacuated || node.IsOffline(threshold) {
 			continue
 		}
