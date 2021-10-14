@@ -36,6 +36,7 @@ import (
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -1427,6 +1428,30 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 			return errors.Wrap(err, "Loading node information")
 		}
 
+		err = clusterValidateConfig(req.Config)
+		if err != nil {
+			return err
+		}
+
+		if isPatch {
+			// Populate request config with current values.
+			if req.Config == nil {
+				req.Config = nodeInfo.Config
+			} else {
+				for k, v := range nodeInfo.Config {
+					if _, ok := req.Config[k]; !ok {
+						req.Config[k] = v
+					}
+				}
+			}
+		}
+
+		// Update node config.
+		err = tx.UpdateNodeConfig(nodeInfo.ID, req.Config)
+		if err != nil {
+			return fmt.Errorf("Failed to update cluster member config: %w", err)
+		}
+
 		// Update the description.
 		if req.Description != member.Description {
 			err = tx.SetDescription(nodeInfo.ID, req.Description)
@@ -1461,6 +1486,32 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberUpdated.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
+}
+
+// clusterValidateConfig validates the configuration keys/values for cluster members.
+func clusterValidateConfig(config map[string]string) error {
+	clusterConfigKeys := map[string]func(value string) error{
+		"scheduler.instance": validate.IsOneOf("all", "manual"),
+	}
+
+	for k, v := range config {
+		// User keys are free for all.
+		if strings.HasPrefix(k, "user.") {
+			continue
+		}
+
+		validator, ok := clusterConfigKeys[k]
+		if !ok {
+			return fmt.Errorf("Invalid cluster configuration key %q", k)
+		}
+
+		err := validator(v)
+		if err != nil {
+			return fmt.Errorf("Invalid cluster configuration key %q value", k)
+		}
+	}
+
+	return nil
 }
 
 // swagger:operation POST /1.0/cluster/members/{name} cluster cluster_member_post
