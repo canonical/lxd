@@ -41,7 +41,13 @@ func (m *Monitor) start() error {
 		}
 
 		// Read the ringbuffer.
-		err := m.run("ringbuf-read", fmt.Sprintf("{'device': '%s', 'size': %d, 'format': 'utf8'}", m.serialCharDev, RingbufSize), &resp)
+		args := map[string]interface{}{
+			"device": m.serialCharDev,
+			"size":   RingbufSize,
+			"format": "utf8",
+		}
+
+		err := m.run("ringbuf-read", args, &resp)
 		if err != nil {
 			return
 		}
