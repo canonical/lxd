@@ -1337,8 +1337,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
-	// Right now, Patch does the same as Put.
-	return clusterNodePut(d, r)
+	return updateClusterNode(d, r, true)
 }
 
 // swagger:operation PUT /1.0/cluster/members/{name} cluster cluster_member_put
@@ -1371,6 +1370,11 @@ func clusterNodePatch(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterNodePut(d *Daemon, r *http.Request) response.Response {
+	return updateClusterNode(d, r, false)
+}
+
+// updateClusterNode is shared between clusterNodePut and clusterNodePatch.
+func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Response {
 	name := mux.Vars(r)["name"]
 	state := d.State()
 
