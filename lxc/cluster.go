@@ -47,6 +47,18 @@ func (c *cmdCluster) Command() *cobra.Command {
 	clusterShowCmd := cmdClusterShow{global: c.global, cluster: c}
 	cmd.AddCommand(clusterShowCmd.Command())
 
+	// Get
+	clusterGetCmd := cmdClusterGet{global: c.global, cluster: c}
+	cmd.AddCommand(clusterGetCmd.Command())
+
+	// Set
+	clusterSetCmd := cmdClusterSet{global: c.global, cluster: c}
+	cmd.AddCommand(clusterSetCmd.Command())
+
+	// Unset
+	clusterUnsetCmd := cmdClusterUnset{global: c.global, cluster: c, clusterSet: &clusterSetCmd}
+	cmd.AddCommand(clusterUnsetCmd.Command())
+
 	// Enable
 	clusterEnableCmd := cmdClusterEnable{global: c.global, cluster: c}
 	cmd.AddCommand(clusterEnableCmd.Command())
@@ -214,6 +226,133 @@ func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("%s", data)
 	return nil
+}
+
+// Get
+type cmdClusterGet struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", i18n.G("[<remote>:]<member> <key>"))
+	cmd.Short = i18n.G("Get values for cluster member configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterGet) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the member information
+	member, _, err := resource.server.GetClusterMember(resource.name)
+	if err != nil {
+		return err
+	}
+
+	value, ok := member.Config[args[1]]
+	if !ok {
+		return fmt.Errorf("The key %q doest not exist on cluster member %q", args[1], resource.name)
+	}
+
+	fmt.Printf("%s\n", value)
+	return nil
+}
+
+// Set
+type cmdClusterSet struct {
+	global  *cmdGlobal
+	cluster *cmdCluster
+}
+
+func (c *cmdClusterSet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", i18n.G("[<remote>:]<member> <key>=<value>..."))
+	cmd.Short = i18n.G("Set a cluster member's configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterSet) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the member information
+	member, _, err := resource.server.GetClusterMember(resource.name)
+	if err != nil {
+		return err
+	}
+
+	// Get the new config entries
+	entries, err := getConfig(args[1:]...)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range entries {
+		member.Config[k] = v
+	}
+
+	return resource.server.UpdateClusterMember(resource.name, member.Writable(), "")
+}
+
+// Unset
+type cmdClusterUnset struct {
+	global     *cmdGlobal
+	cluster    *cmdCluster
+	clusterSet *cmdClusterSet
+}
+
+func (c *cmdClusterUnset) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<member> <key>"))
+	cmd.Short = i18n.G("Unset a cluster member's configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), cmd.Short)
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdClusterUnset) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.clusterSet.Run(cmd, args)
 }
 
 // Rename
