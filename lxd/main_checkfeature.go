@@ -12,9 +12,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/types.h>
@@ -35,15 +34,15 @@ import (
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 
-#include "include/lxd.h"
+#include "lxd.h"
+#include "compiler.h"
+#include "lxd_seccomp.h"
+#include "memory_utils.h"
+#include "process_utils.h"
+#include "syscall_numbers.h"
+#include "syscall_wrappers.h"
 
 #include "../shared/netutils/netns_getifaddrs.c"
-#include "include/compiler.h"
-#include "include/lxd_seccomp.h"
-#include "include/memory_utils.h"
-#include "include/process_utils.h"
-#include "include/syscall_numbers.h"
-#include "include/syscall_wrappers.h"
 
 __ro_after_init bool core_scheduling_aware = false;
 __ro_after_init bool close_range_aware = false;
