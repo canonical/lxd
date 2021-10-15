@@ -14,9 +14,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sched.h>
@@ -28,10 +27,9 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "include/lxd.h"
-
-#include "include/macro.h"
-#include "include/memory_utils.h"
+#include "lxd.h"
+#include "macro.h"
+#include "memory_utils.h"
 
 static void forkdonetinfo(int pidfd, int ns_fd)
 {
