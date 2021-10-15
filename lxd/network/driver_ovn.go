@@ -1925,6 +1925,27 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
+	// Gather internal router port IPs (in CIDR format).
+	intRouterIPs := []*net.IPNet{}
+
+	if routerIntPortIPv4Net != nil {
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv4,
+			Mask: routerIntPortIPv4Net.Mask,
+		})
+	}
+
+	if routerIntPortIPv6Net != nil {
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv6,
+			Mask: routerIntPortIPv6Net.Mask,
+		})
+	}
+
+	if len(intRouterIPs) <= 0 {
+		return fmt.Errorf("No internal IPs defined for network router")
+	}
+
 	// Create internal logical switch if not updating.
 	err = client.LogicalSwitchAdd(n.getIntSwitchName(), update)
 	if err != nil {
@@ -1948,27 +1969,6 @@ func (n *ovn) setup(update bool) error {
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed setting IP allocation settings on internal switch")
-	}
-
-	// Gather internal router port IPs (in CIDR format).
-	intRouterIPs := []*net.IPNet{}
-
-	if routerIntPortIPv4Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv4,
-			Mask: routerIntPortIPv4Net.Mask,
-		})
-	}
-
-	if routerIntPortIPv6Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv6,
-			Mask: routerIntPortIPv6Net.Mask,
-		})
-	}
-
-	if len(intRouterIPs) <= 0 {
-		return fmt.Errorf("No internal IPs defined for network router")
 	}
 
 	// Create internal router port.
