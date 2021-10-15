@@ -148,6 +148,14 @@ type OVNRouterRoute struct {
 	Port    OVNRouterPort
 }
 
+// OVNRouterPolicy represents a router policy.
+type OVNRouterPolicy struct {
+	Priority int
+	Match    string
+	Action   string
+	NextHop  net.IP
+}
+
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(s *state.State) (*OVN, error) {
 	nbConnection, err := cluster.ConfigGetString(s.Cluster, "network.ovn.northbound_connection")
@@ -1793,6 +1801,22 @@ func (o *OVN) AddressSetDelete(addressSetPrefix OVNAddressSet) error {
 		"--if-exists", "destroy", "address_set", fmt.Sprintf("%s_ip%d", addressSetPrefix, 4),
 		"--", "--if-exists", "destroy", "address_set", fmt.Sprintf("%s_ip%d", addressSetPrefix, 6),
 	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LogicalRouterPolicyApply removes any existing policies and applies the new policies to the specified router.
+func (o *OVN) LogicalRouterPolicyApply(routerName OVNRouter, policies ...OVNRouterPolicy) error {
+	args := []string{"lr-policy-del", string(routerName)}
+
+	for _, policy := range policies {
+		args = append(args, "--", "lr-policy-add", string(routerName), fmt.Sprintf("%d", policy.Priority), policy.Match, policy.Action)
+	}
+
+	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
 	}
