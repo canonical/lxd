@@ -45,14 +45,11 @@ import (
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "include/lxd.h"
+
 #include "include/macro.h"
 #include "include/memory_utils.h"
 #include "include/process_utils.h"
-
-extern char* advance_arg(bool required);
-extern void attach_userns_fd(int pid);
-extern int pidfd_nsfd(int pidfd, pid_t pid);
-extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
 
 int whoami = -ESRCH;
 

@@ -24,12 +24,12 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/lxd.h"
+
 #include "include/memory_utils.h"
 #include "include/mount_utils.h"
 #include "include/syscall_numbers.h"
 #include "include/syscall_wrappers.h"
-
-extern char* advance_arg(bool required);
 
 void forkcoresched(void)
 {
