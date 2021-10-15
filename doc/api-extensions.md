@@ -1456,3 +1456,6 @@ This includes the following endpoints:
 ## image\_source\_project
 Adds a new `project` field to `POST /1.0/images` allowing for the source project
 to be set at image copy time.
+
+## clustering\_config
+Adds new `config` property to cluster members with configurable key/value pairs.

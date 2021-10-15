@@ -89,6 +89,27 @@ var updates = map[int]schema.Update{
 	48: updateFromV47,
 	49: updateFromV48,
 	50: updateFromV49,
+	51: updateFromV50,
+}
+
+// updateFromV50 creates the nodes_config table.
+func updateFromV50(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "nodes_config" (
+id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+node_id INTEGER NOT NULL,
+key TEXT NOT NULL,
+value TEXT,
+FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+UNIQUE (node_id, key)
+);
+	`)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed creating nodes_config table")
+	}
+
+	return nil
 }
 
 // updateFromV49 creates the networks_forwards and networks_forwards_config tables.

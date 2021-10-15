@@ -286,6 +286,7 @@ var APIExtensions = []string{
 	"network_counters_errors_dropped",
 	"metrics",
 	"image_source_project",
+	"clustering_config",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

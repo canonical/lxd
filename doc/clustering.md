@@ -160,6 +160,20 @@ Once your cluster is formed you can see a list of its nodes and their
 status by running `lxc cluster list`. More detailed information about
 an individual node is available with `lxc cluster show <node name>`.
 
+### Cluster member configuration
+
+Each cluster member has its own key/value configuration with the following supported namespaces:
+
+- `user` (free form key/value for user metadata)
+- `scheduler` (options related to how the member is automatically targeted by the cluster)
+
+The currently supported keys are:
+
+| Key                | Type   | Condition | Default | Description                                                                                                                                                                                  |
+| :----------------- | :----- | :-------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| scheduler.instance | string | -         | all     | If `all` then the member will be auto-targeted for instance creation if it has the least number of instances. If `manual` then instances will only target the member if `--target` is given. |
+| user.\*            | string | -         | -       | Free form user key/value storage (can be used in search)                                                                                                                                     |
+
 ### Voting and stand-by members
 
 The cluster uses a distributed [database](database.md) to store its state. All
