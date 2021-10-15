@@ -55,8 +55,40 @@ static int copy(int target, int source, bool append)
 	return 0;
 }
 
-static int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
+struct file_args {
+	char *rootfs;
+	int pidfd;
+	int ns_fd;
+	char *host;
+	char *container;
+	bool is_put;
+	char *type;
+	uid_t uid;
+	gid_t gid;
+	mode_t mode;
+	uid_t uid_default;
+	gid_t gid_default;
+	mode_t mode_default;
+	bool append;
+};
+
+static int manip_file_in_ns(struct file_args *args)
+{
 	__do_close int host_fd = -EBADF, container_fd = -EBADF;
+	char *rootfs = args->rootfs;
+	int pidfd = args->pidfd;
+	int ns_fd = args->ns_fd;
+	char *host = args->host;
+	char *container = args->container;
+	bool is_put = args->is_put;
+	char *type = args->type;
+	uid_t uid = args->uid;
+	gid_t gid = args->gid;
+	mode_t mode = args->mode;
+	uid_t defaultUid = args->uid_default;
+	gid_t defaultGid = args->gid_default;
+	mode_t defaultMode = args->mode_default;
+	bool append = args->append;
 	int exists = -1, fret = -1;
 	int container_open_flags;
 	struct stat st;
@@ -268,56 +300,51 @@ static int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char
 	return fret;
 }
 
-static void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd) {
+static void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd)
+{
+	struct file_args args = {
+		.uid		= 0,
+		.gid		= 0,
+		.uid_default	= 0,
+		.gid_default	= 0,
+		.mode		= 0,
+		.mode_default	= 0,
+		.append		= false,
+		.is_put		= is_put,
+		.rootfs		= rootfs,
+		.pidfd		= pidfd,
+		.ns_fd		= ns_fd,
+	};
 	char *cur = NULL;
 
-	uid_t uid = 0;
-	uid_t defaultUid = 0;
-
-	gid_t gid = 0;
-	gid_t defaultGid = 0;
-
-	mode_t mode = 0;
-	mode_t defaultMode = 0;
-
-	char *source = NULL;
-	char *target = NULL;
-	char *type = NULL;
-
-	bool append = false;
-
+	cur = advance_arg(true);
+	if (is_put)
+		args.host = cur;
+	else
+		args.container = cur;
 
 	cur = advance_arg(true);
-	if (is_put) {
-		source = cur;
-	} else {
-		target = cur;
-	}
-
-	cur = advance_arg(true);
-	if (is_put) {
-		target = cur;
-	} else {
-		source = cur;
-	}
+	if (is_put)
+		args.container = cur;
+	else
+		args.host = cur;
 
 	if (is_put) {
-		type = advance_arg(true);
-		uid = atoi(advance_arg(true));
-		gid = atoi(advance_arg(true));
-		mode = atoi(advance_arg(true));
-		defaultUid = atoi(advance_arg(true));
-		defaultGid = atoi(advance_arg(true));
-		defaultMode = atoi(advance_arg(true));
+		args.type		= advance_arg(true);
+		args.uid		= atoi(advance_arg(true));
+		args.gid		= atoi(advance_arg(true));
+		args.mode		= atoi(advance_arg(true));
+		args.uid_default	= atoi(advance_arg(true));
+		args.gid_default	= atoi(advance_arg(true));
+		args.mode_default	= atoi(advance_arg(true));
 
-		if (strcmp(advance_arg(true), "append") == 0) {
-			append = true;
-		}
+		if (strcmp(advance_arg(true), "append") == 0)
+			args.append = true;
 	}
 
-	printf("%d: %s to %s\n", is_put, source, target);
+	printf("%d: %s to %s\n", args.is_put, args.host, args.container);
 
-	_exit(manip_file_in_ns(rootfs, pidfd, ns_fd, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
+	_exit(manip_file_in_ns(&args));
 }
 
 static void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
