@@ -2581,40 +2581,44 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			}
 		}
 
-		// Apply security ACL and default rule changes.
-		if len(addedACLs) > 0 || len(removedACLs) > 0 || len(changedDefaultRuleKeys) > 0 {
-			client, err := openvswitch.NewOVN(n.state)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to get OVN client")
+		// Get map of ACL names to DB IDs (used for generating OVN port group names).
+		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
+		}
+
+		addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
+		removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get OVN client")
+		}
+
+		// Get list of active switch ports (avoids repeated querying of OVN NB).
+		activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting active ports")
+		}
+
+		aclConfigChanged := len(addedACLs) > 0 || len(removedACLs) > 0 || len(changedDefaultRuleKeys) > 0
+
+		var localNICRoutes []net.IPNet
+
+		// Apply ACL changes to running instance NICs that use this network.
+		err = usedByInstanceDevices(n.state, n.project, n.name, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+			nicACLs := util.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
+
+			// Get logical port UUID and name.
+			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
+
+			portUUID, found := activePorts[instancePortName]
+			if !found {
+				return nil // No need to update a port that isn't started yet.
 			}
 
-			// Get map of ACL names to DB IDs (used for generating OVN port group names).
-			aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
-			if err != nil {
-				return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
-			}
-
-			addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
-			removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
-
-			// Get list of active switch ports (avoids repeated querying of OVN NB).
-			activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
-			if err != nil {
-				return errors.Wrapf(err, "Failed getting active ports")
-			}
-
-			// Apply ACL changes to running instance NICs that use this network.
-			err = usedByInstanceDevices(n.state, n.project, n.name, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
-				nicACLs := util.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
-
-				// Get logical port UUID and name.
-				instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
-
-				portUUID, found := activePorts[instancePortName]
-				if !found {
-					return nil // No need to update a port that isn't started yet.
-				}
-
+			// Apply security ACL and default rule changes.
+			if aclConfigChanged {
 				// Check whether we need to add any of the new ACLs to the NIC.
 				for _, addedACL := range addedACLs {
 					if shared.StringInSlice(addedACL, nicACLs) {
@@ -2689,27 +2693,49 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
 					}
 				}
+			}
 
-				return nil
-			})
+			// Add NIC routes to list.
+			localNICRoutes = append(localNICRoutes, n.instanceNICGetRoutes(nicConfig)...)
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Apply add/remove changesets.
+		if len(addChangeSet) > 0 || len(removeChangeSet) > 0 {
+			n.logger.Debug("Applying ACL port group member change sets")
+			err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
 			}
+		}
 
-			// Apply add/remove changesets.
-			if len(addChangeSet) > 0 || len(removeChangeSet) > 0 {
-				n.logger.Debug("Applying ACL port group member change sets")
-				err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
-				if err != nil {
-					return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
-				}
+		// Check if any of the removed ACLs should have any unused port groups deleted.
+		if len(removedACLs) > 0 {
+			err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "", newACLs...)
+			if err != nil {
+				return errors.Wrapf(err, "Failed removing unused OVN port groups")
 			}
+		}
 
-			// Check if any of the removed ACLs should have any unused port groups deleted.
-			if len(removedACLs) > 0 {
-				err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "", newACLs...)
-				if err != nil {
-					return errors.Wrapf(err, "Failed removing unused OVN port groups")
+		// Ensure all active NIC routes are present in internal switch's address set.
+		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), localNICRoutes...)
+		if err != nil {
+			return fmt.Errorf("Failed adding active NIC routes to switch address set: %w", err)
+		}
+
+		// Remove any old unused subnet addresses from the internal switch's address set.
+		for _, key := range []string{"ipv4.address", "ipv6.address"} {
+			if shared.StringInSlice(key, changedKeys) {
+				_, oldRouterIntPortIPNet, _ := net.ParseCIDR(oldNetwork.Config[key])
+				if oldRouterIntPortIPNet != nil {
+					err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), *oldRouterIntPortIPNet)
+					if err != nil {
+						return fmt.Errorf("Failed removing old network subnet %q from switch address set: %w", oldRouterIntPortIPNet.String(), err)
+					}
 				}
 			}
 		}
