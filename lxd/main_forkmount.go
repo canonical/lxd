@@ -64,7 +64,7 @@ static int mkdir_p(const char *dir, mode_t mode)
 	return 0;
 }
 
-void ensure_dir(char *dest) {
+static void ensure_dir(char *dest) {
 	struct stat sb;
 	if (stat(dest, &sb) == 0) {
 		if ((sb.st_mode & S_IFMT) == S_IFDIR)
@@ -80,7 +80,7 @@ void ensure_dir(char *dest) {
 	}
 }
 
-void ensure_file(char *dest)
+static void ensure_file(char *dest)
 {
 	__do_close int fd = -EBADF;
 	struct stat sb;
@@ -101,7 +101,7 @@ void ensure_file(char *dest)
 	}
 }
 
-void create(char *src, char *dest)
+static void create(char *src, char *dest)
 {
 	__do_free char *dirdup = NULL;
 	char *destdirname;
@@ -270,7 +270,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 	_exit(0);
 }
 
-void do_lxd_forkumount(int pidfd, int ns_fd)
+static void do_lxd_forkumount(int pidfd, int ns_fd)
 {
 	int ret;
 	char *path = NULL;

@@ -92,7 +92,7 @@ static int netns_set_nsid(int fd)
 	return 0;
 }
 
-void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
+static void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 {
 	__do_close int sock_fd = -EBADF;
 	int netnsid, ret;
