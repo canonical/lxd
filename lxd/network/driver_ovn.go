@@ -1927,12 +1927,15 @@ func (n *ovn) setup(update bool) error {
 
 	// Gather internal router port IPs (in CIDR format).
 	intRouterIPs := []*net.IPNet{}
+	intSubnets := []net.IPNet{}
 
 	if routerIntPortIPv4Net != nil {
 		intRouterIPs = append(intRouterIPs, &net.IPNet{
 			IP:   routerIntPortIPv4,
 			Mask: routerIntPortIPv4Net.Mask,
 		})
+
+		intSubnets = append(intSubnets, *routerIntPortIPv4Net)
 	}
 
 	if routerIntPortIPv6Net != nil {
@@ -1940,6 +1943,8 @@ func (n *ovn) setup(update bool) error {
 			IP:   routerIntPortIPv6,
 			Mask: routerIntPortIPv6Net.Mask,
 		})
+
+		intSubnets = append(intSubnets, *routerIntPortIPv6Net)
 	}
 
 	if len(intRouterIPs) <= 0 {
@@ -1969,6 +1974,21 @@ func (n *ovn) setup(update bool) error {
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed setting IP allocation settings on internal switch")
+	}
+
+	// Create internal switch address sets and add subnets to address set.
+	if update {
+		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
+		if err != nil {
+			return fmt.Errorf("Failed adding internal subnet address set entries: %w", err)
+		}
+	} else {
+		err = client.AddressSetCreate(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
+		if err != nil {
+			return fmt.Errorf("Failed creating internal subnet address set entries: %w", err)
+		}
+
+		revert.Add(func() { client.AddressSetDelete(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())) })
 	}
 
 	// Create internal router port.
@@ -2282,6 +2302,11 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		}
 
 		err = client.LogicalSwitchDelete(n.getIntSwitchName())
+		if err != nil {
+			return err
+		}
+
+		err = client.AddressSetDelete(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()))
 		if err != nil {
 			return err
 		}
@@ -3073,6 +3098,16 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 
 		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), routePrefixes...) })
+
+		// Add routes to internal switch's address set for ACL usage.
+		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
+		if err != nil {
+			return "", fmt.Errorf("Failed adding switch address set entries: %w", err)
+		}
+
+		revert.Add(func() {
+			client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
+		})
 	}
 
 	// Merge network and NIC assigned security ACL lists.
@@ -3300,9 +3335,16 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 	}
 
 	if len(removeRoutes) > 0 {
+		// Delete routes from local router.
 		err = client.LogicalRouterRouteDelete(n.getRouterName(), removeRoutes...)
 		if err != nil {
 			return err
+		}
+
+		// Delete routes from switch address set.
+		err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), removeRoutes...)
+		if err != nil {
+			return fmt.Errorf("Failed deleting switch address set entries: %w", err)
 		}
 	}
 
