@@ -2468,6 +2468,26 @@ func (n *ovn) Stop() error {
 	return nil
 }
 
+// instanceNICGetRoutes returns list of routes defined in nicConfig.
+func (n *ovn) instanceNICGetRoutes(nicConfig map[string]string) []net.IPNet {
+	var routes []net.IPNet
+
+	routeKeys := []string{"ipv4.routes", "ipv4.routes.external", "ipv6.routes", "ipv6.routes.external"}
+
+	for _, key := range routeKeys {
+		for _, routeStr := range util.SplitNTrimSpace(nicConfig[key], ",", -1, true) {
+			_, route, err := net.ParseCIDR(routeStr)
+			if err != nil {
+				continue // Skip invalid routes (should never happen).
+			}
+
+			routes = append(routes, *route)
+		}
+	}
+
+	return routes
+}
+
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
