@@ -7,9 +7,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -23,9 +22,8 @@ import (
 #include <unistd.h>
 #include <limits.h>
 
-#include "include/lxd.h"
-
-#include "include/memory_utils.h"
+#include "lxd.h"
+#include "memory_utils.h"
 
 static int copy(int target, int source, bool append)
 {
