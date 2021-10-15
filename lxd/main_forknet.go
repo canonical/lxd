@@ -61,7 +61,7 @@ static int dosetns_file(char *file, char *nstype)
 	return 0;
 }
 
-void forkdonetdetach(char *file) {
+static void forkdonetdetach(char *file) {
 	if (dosetns_file(file, "net") < 0) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);

@@ -57,7 +57,7 @@ static int copy(int target, int source, bool append)
 	return 0;
 }
 
-int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
+static int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
 	__do_close int host_fd = -EBADF, container_fd = -EBADF;
 	int exists = -1, fret = -1;
 	int container_open_flags;
@@ -270,7 +270,7 @@ int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *conta
 	return fret;
 }
 
-void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd) {
+static void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd) {
 	char *cur = NULL;
 
 	uid_t uid = 0;
@@ -322,7 +322,7 @@ void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd) {
 	_exit(manip_file_in_ns(rootfs, pidfd, ns_fd, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
 }
 
-void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
+static void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
 {
 	char *path = NULL;
 
@@ -355,7 +355,7 @@ void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
 	_exit(0);
 }
 
-void forkremovefile(char *rootfs, int pidfd, int ns_fd)
+static void forkremovefile(char *rootfs, int pidfd, int ns_fd)
 {
 	char *path = NULL;
 	struct stat sb;
