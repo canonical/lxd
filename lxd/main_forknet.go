@@ -28,14 +28,12 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/lxd.h"
+
 #include "include/macro.h"
 #include "include/memory_utils.h"
 
-extern char *advance_arg(bool required);
-extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
-extern int pidfd_nsfd(int pidfd, pid_t pid);
-
-void forkdonetinfo(int pidfd, int ns_fd)
+static void forkdonetinfo(int pidfd, int ns_fd)
 {
 	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNET)) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));

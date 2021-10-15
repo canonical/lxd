@@ -25,14 +25,14 @@ import (
 #include <unistd.h>
 #include <limits.h>
 
+#include "include/lxd.h"
+
 #include "include/macro.h"
 #include "include/memory_utils.h"
 #include "include/process_utils.h"
 #include "include/syscall_wrappers.h"
 #include <lxc/attach_options.h>
 #include <lxc/lxccontainer.h>
-
-extern char *advance_arg(bool required);
 
 static bool write_nointr(int fd, const void *buf, size_t count)
 {

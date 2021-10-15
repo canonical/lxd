@@ -30,6 +30,8 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/lxd.h"
+
 #include "include/memory_utils.h"
 #include "include/mount_utils.h"
 #include "include/syscall_numbers.h"
@@ -40,15 +42,7 @@ import (
 	major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR ||				\
 	major == LXC_VERSION_MAJOR && minor == LXC_VERSION_MINOR && micro > LXC_VERSION_MICRO)))
 
-extern char* advance_arg(bool required);
-extern void error(char *msg);
-extern void attach_userns_fd(int ns_fd);
-extern int pidfd_nsfd(int pidfd, pid_t pid);
-extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
-extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
-extern int mount_detach_idmap(const char *path, int fd_userns);
-
-int mkdir_p(const char *dir, mode_t mode)
+static int mkdir_p(const char *dir, mode_t mode)
 {
 	const char *tmp = dir;
 	const char *orig = dir;
