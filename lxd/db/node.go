@@ -46,16 +46,17 @@ const (
 
 // NodeInfo holds information about a single LXD instance in a cluster.
 type NodeInfo struct {
-	ID            int64     // Stable node identifier
-	Name          string    // User-assigned name of the node
-	Address       string    // Network address of the node
-	Description   string    // Node description (optional)
-	Schema        int       // Schema version of the LXD code running the node
-	APIExtensions int       // Number of API extensions of the LXD code running on the node
-	Heartbeat     time.Time // Timestamp of the last heartbeat
-	Roles         []string  // List of cluster roles
-	Architecture  int       // Node architecture
-	State         int       // Node state
+	ID            int64             // Stable node identifier
+	Name          string            // User-assigned name of the node
+	Address       string            // Network address of the node
+	Description   string            // Node description (optional)
+	Schema        int               // Schema version of the LXD code running the node
+	APIExtensions int               // Number of API extensions of the LXD code running on the node
+	Heartbeat     time.Time         // Timestamp of the last heartbeat
+	Roles         []string          // List of cluster roles
+	Architecture  int               // Node architecture
+	State         int               // Node state
+	Config        map[string]string // Configuration for the node
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -135,6 +136,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 	result.ServerName = n.Name
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = false
+	result.Config = n.Config
 	result.Roles = n.Roles
 	if raftNode != nil && raftNode.Role == RaftVoter {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabase))
@@ -505,6 +507,19 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 		}
 	}
 
+	config, err := c.GetConfig("node")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch nodes config: %w", err)
+	}
+
+	for i := range nodes {
+		if data, ok := config[int(nodes[i].ID)]; !ok {
+			nodes[i].Config = map[string]string{}
+		} else {
+			nodes[i].Config = data
+		}
+	}
+
 	return nodes, nil
 }
 
@@ -524,7 +539,17 @@ func (c *ClusterTx) CreateNode(name string, address string) (int64, error) {
 func (c *ClusterTx) CreateNodeWithArch(name string, address string, arch int) (int64, error) {
 	columns := []string{"name", "address", "schema", "api_extensions", "arch"}
 	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch}
-	return query.UpsertObject(c.tx, "nodes", columns, values)
+	id, err := query.UpsertObject(c.tx, "nodes", columns, values)
+	if err != nil {
+		return -1, err
+	}
+
+	err = c.UpdateNodeConfig(id, map[string]string{"scheduler.instance": "all"})
+	if err != nil {
+		return -1, err
+	}
+
+	return id, nil
 }
 
 // SetNodePendingFlag toggles the pending flag for the node. A node is pending when
@@ -548,9 +573,9 @@ func (c *ClusterTx) SetNodePendingFlag(id int64, pending bool) error {
 	return nil
 }
 
-// UpdateNode updates the name an address of a node.
-func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
-	result, err := c.tx.Exec("UPDATE nodes SET name=?, address=? WHERE id=?", name, address, id)
+// BootstrapNode sets the name and address of the first cluster member, with id: 1.
+func (c *ClusterTx) BootstrapNode(name string, address string) error {
+	result, err := c.tx.Exec("UPDATE nodes SET name=?, address=? WHERE id=1", name, address)
 	if err != nil {
 		return err
 	}
@@ -561,6 +586,22 @@ func (c *ClusterTx) UpdateNode(id int64, name string, address string) error {
 	if n != 1 {
 		return fmt.Errorf("query updated %d rows instead of 1", n)
 	}
+
+	err = c.UpdateNodeConfig(1, map[string]string{"scheduler.instance": "all"})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateNodeConfig updates the replaces the node's config with the specified config.
+func (c *ClusterTx) UpdateNodeConfig(id int64, config map[string]string) error {
+	err := c.UpdateConfig("node", int(id), config)
+	if err != nil {
+		return fmt.Errorf("Unable to update node config: %w", err)
+	}
+
 	return nil
 }
 
@@ -628,7 +669,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	roleIDs := []int{}
 	for _, role := range roles {
 		// Skip internal-only roles.
-		if role == ClusterRoleDatabase {
+		if role == ClusterRoleDatabase || role == ClusterRoleDatabaseStandBy {
 			continue
 		}
 
@@ -994,6 +1035,10 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (str
 	containers := -1
 	isDefaultArchChosen := false
 	for _, node := range nodes {
+		if node.Config["scheduler.instance"] == "manual" {
+			continue
+		}
+
 		if node.State == ClusterMemberStateEvacuated || node.IsOffline(threshold) {
 			continue
 		}
