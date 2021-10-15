@@ -76,4 +76,8 @@
 #define __returns_twice __attribute__((returns_twice))
 #endif
 
+#ifndef __hidden
+#define __hidden __attribute__((visibility("hidden")))
+#endif
+
 #endif /* __LXC_COMPILER_H */
