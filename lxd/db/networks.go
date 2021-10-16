@@ -545,7 +545,7 @@ func (c *Cluster) getPartialNetworkByProjectAndName(projectName string, networkN
 
 	var q strings.Builder
 
-	q.WriteString(`SELECT n.id, n.name, n.description, n.state, n.type
+	q.WriteString(`SELECT n.id, n.name, IFNULL(n.description, "") as description, n.state, n.type
 		FROM networks AS n
 		WHERE n.project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
 		AND n.name=?
