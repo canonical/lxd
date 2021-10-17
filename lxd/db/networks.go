@@ -473,7 +473,7 @@ func (c *Cluster) getPartialNetworkByName(networkName string, stateFilter Networ
 
 	var q strings.Builder
 
-	q.WriteString(`SELECT n.id, n.name, n.description, n.state
+	q.WriteString(`SELECT n.id, n.name, IFNULL(n.description, "") as description, n.state
 		FROM networks AS n
 		WHERE n.name=?
 	`)
