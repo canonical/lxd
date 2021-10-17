@@ -106,7 +106,7 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 	Delete: APIEndpointAction{Handler: internalClusterRaftNodeDelete},
 }
 
-// swagger:operation GET /1.0/cluster/{name} cluster cluster_get
+// swagger:operation GET /1.0/cluster cluster cluster_get
 //
 // Get the cluster configuration
 //
@@ -242,7 +242,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 //
 // The client is required to be trusted.
 
-// swagger:operation PUT /1.0/cluster/{name} cluster cluster_put
+// swagger:operation PUT /1.0/cluster cluster cluster_put
 //
 // Update the cluster configuration
 //
