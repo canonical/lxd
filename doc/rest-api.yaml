@@ -5517,7 +5517,7 @@ paths:
       summary: Get the trusted certificates
       tags:
       - certificates
-  /1.0/cluster/{name}:
+  /1.0/cluster:
     get:
       description: Gets the current cluster configuration.
       operationId: cluster_get
