@@ -34,6 +34,9 @@ navigation:
         - title: Network Forwards
           location: network-forwards.md
 
+        - title: Network Peers
+          location: network-peers.md
+
         - title: Preseed files
           location: preseed.md
 

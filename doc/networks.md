@@ -368,6 +368,10 @@ Network forwards:
 
 OVN networks support [network forwards](network-forwards.md#network-ovn).
 
+Network peers:
+
+OVN networks support [network peers](network-peers.md#network-ovn).
+
 Network configuration properties:
 
 Key                                  | Type      | Condition             | Default                   | Description
