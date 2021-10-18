@@ -119,6 +119,8 @@ if [ -n "${LXD_TMPFS:-}" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751
 fi
 
+export LXD_DEVMONITOR_DIR="${TEST_DIR}"
+
 LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_CONF
 

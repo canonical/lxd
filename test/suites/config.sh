@@ -105,6 +105,11 @@ test_mount_order() {
 }
 
 test_config_profiles() {
+  # Unset LXD_DEVMONITOR_DIR as this test uses devices in /dev instead of TEST_DIR.
+  unset LXD_DEVMONITOR_DIR
+  shutdown_lxd "${LXD_DIR}"
+  respawn_lxd "${LXD_DIR}" true
+
   ensure_import_testimage
 
   lxc init testimage foo -s "lxdtest-$(basename "${LXD_DIR}")"
