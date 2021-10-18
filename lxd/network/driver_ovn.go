@@ -1925,6 +1925,32 @@ func (n *ovn) setup(update bool) error {
 		}
 	}
 
+	// Gather internal router port IPs (in CIDR format).
+	intRouterIPs := []*net.IPNet{}
+	intSubnets := []net.IPNet{}
+
+	if routerIntPortIPv4Net != nil {
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv4,
+			Mask: routerIntPortIPv4Net.Mask,
+		})
+
+		intSubnets = append(intSubnets, *routerIntPortIPv4Net)
+	}
+
+	if routerIntPortIPv6Net != nil {
+		intRouterIPs = append(intRouterIPs, &net.IPNet{
+			IP:   routerIntPortIPv6,
+			Mask: routerIntPortIPv6Net.Mask,
+		})
+
+		intSubnets = append(intSubnets, *routerIntPortIPv6Net)
+	}
+
+	if len(intRouterIPs) <= 0 {
+		return fmt.Errorf("No internal IPs defined for network router")
+	}
+
 	// Create internal logical switch if not updating.
 	err = client.LogicalSwitchAdd(n.getIntSwitchName(), update)
 	if err != nil {
@@ -1950,25 +1976,19 @@ func (n *ovn) setup(update bool) error {
 		return errors.Wrapf(err, "Failed setting IP allocation settings on internal switch")
 	}
 
-	// Gather internal router port IPs (in CIDR format).
-	intRouterIPs := []*net.IPNet{}
+	// Create internal switch address sets and add subnets to address set.
+	if update {
+		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
+		if err != nil {
+			return fmt.Errorf("Failed adding internal subnet address set entries: %w", err)
+		}
+	} else {
+		err = client.AddressSetCreate(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), intSubnets...)
+		if err != nil {
+			return fmt.Errorf("Failed creating internal subnet address set entries: %w", err)
+		}
 
-	if routerIntPortIPv4Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv4,
-			Mask: routerIntPortIPv4Net.Mask,
-		})
-	}
-
-	if routerIntPortIPv6Net != nil {
-		intRouterIPs = append(intRouterIPs, &net.IPNet{
-			IP:   routerIntPortIPv6,
-			Mask: routerIntPortIPv6Net.Mask,
-		})
-	}
-
-	if len(intRouterIPs) <= 0 {
-		return fmt.Errorf("No internal IPs defined for network router")
+		revert.Add(func() { client.AddressSetDelete(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())) })
 	}
 
 	// Create internal router port.
@@ -2286,6 +2306,11 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 			return err
 		}
 
+		err = client.AddressSetDelete(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()))
+		if err != nil {
+			return err
+		}
+
 		err = client.LogicalRouterPortDelete(n.getRouterExtPortName())
 		if err != nil {
 			return err
@@ -2443,6 +2468,26 @@ func (n *ovn) Stop() error {
 	return nil
 }
 
+// instanceNICGetRoutes returns list of routes defined in nicConfig.
+func (n *ovn) instanceNICGetRoutes(nicConfig map[string]string) []net.IPNet {
+	var routes []net.IPNet
+
+	routeKeys := []string{"ipv4.routes", "ipv4.routes.external", "ipv6.routes", "ipv6.routes.external"}
+
+	for _, key := range routeKeys {
+		for _, routeStr := range util.SplitNTrimSpace(nicConfig[key], ",", -1, true) {
+			_, route, err := net.ParseCIDR(routeStr)
+			if err != nil {
+				continue // Skip invalid routes (should never happen).
+			}
+
+			routes = append(routes, *route)
+		}
+	}
+
+	return routes
+}
+
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
@@ -2536,40 +2581,44 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 			}
 		}
 
-		// Apply security ACL and default rule changes.
-		if len(addedACLs) > 0 || len(removedACLs) > 0 || len(changedDefaultRuleKeys) > 0 {
-			client, err := openvswitch.NewOVN(n.state)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to get OVN client")
+		// Get map of ACL names to DB IDs (used for generating OVN port group names).
+		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
+		}
+
+		addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
+		removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get OVN client")
+		}
+
+		// Get list of active switch ports (avoids repeated querying of OVN NB).
+		activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting active ports")
+		}
+
+		aclConfigChanged := len(addedACLs) > 0 || len(removedACLs) > 0 || len(changedDefaultRuleKeys) > 0
+
+		var localNICRoutes []net.IPNet
+
+		// Apply ACL changes to running instance NICs that use this network.
+		err = usedByInstanceDevices(n.state, n.project, n.name, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+			nicACLs := util.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
+
+			// Get logical port UUID and name.
+			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
+
+			portUUID, found := activePorts[instancePortName]
+			if !found {
+				return nil // No need to update a port that isn't started yet.
 			}
 
-			// Get map of ACL names to DB IDs (used for generating OVN port group names).
-			aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
-			if err != nil {
-				return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
-			}
-
-			addChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
-			removeChangeSet := map[openvswitch.OVNPortGroup][]openvswitch.OVNSwitchPortUUID{}
-
-			// Get list of active switch ports (avoids repeated querying of OVN NB).
-			activePorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
-			if err != nil {
-				return errors.Wrapf(err, "Failed getting active ports")
-			}
-
-			// Apply ACL changes to running instance NICs that use this network.
-			err = usedByInstanceDevices(n.state, n.project, n.name, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
-				nicACLs := util.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
-
-				// Get logical port UUID and name.
-				instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
-
-				portUUID, found := activePorts[instancePortName]
-				if !found {
-					return nil // No need to update a port that isn't started yet.
-				}
-
+			// Apply security ACL and default rule changes.
+			if aclConfigChanged {
 				// Check whether we need to add any of the new ACLs to the NIC.
 				for _, addedACL := range addedACLs {
 					if shared.StringInSlice(addedACL, nicACLs) {
@@ -2644,27 +2693,49 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
 					}
 				}
+			}
 
-				return nil
-			})
+			// Add NIC routes to list.
+			localNICRoutes = append(localNICRoutes, n.instanceNICGetRoutes(nicConfig)...)
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Apply add/remove changesets.
+		if len(addChangeSet) > 0 || len(removeChangeSet) > 0 {
+			n.logger.Debug("Applying ACL port group member change sets")
+			err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
 			}
+		}
 
-			// Apply add/remove changesets.
-			if len(addChangeSet) > 0 || len(removeChangeSet) > 0 {
-				n.logger.Debug("Applying ACL port group member change sets")
-				err = client.PortGroupMemberChange(addChangeSet, removeChangeSet)
-				if err != nil {
-					return errors.Wrapf(err, "Failed applying OVN port group member change sets for instance NIC")
-				}
+		// Check if any of the removed ACLs should have any unused port groups deleted.
+		if len(removedACLs) > 0 {
+			err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "", newACLs...)
+			if err != nil {
+				return errors.Wrapf(err, "Failed removing unused OVN port groups")
 			}
+		}
 
-			// Check if any of the removed ACLs should have any unused port groups deleted.
-			if len(removedACLs) > 0 {
-				err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "", newACLs...)
-				if err != nil {
-					return errors.Wrapf(err, "Failed removing unused OVN port groups")
+		// Ensure all active NIC routes are present in internal switch's address set.
+		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), localNICRoutes...)
+		if err != nil {
+			return fmt.Errorf("Failed adding active NIC routes to switch address set: %w", err)
+		}
+
+		// Remove any old unused subnet addresses from the internal switch's address set.
+		for _, key := range []string{"ipv4.address", "ipv6.address"} {
+			if shared.StringInSlice(key, changedKeys) {
+				_, oldRouterIntPortIPNet, _ := net.ParseCIDR(oldNetwork.Config[key])
+				if oldRouterIntPortIPNet != nil {
+					err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), *oldRouterIntPortIPNet)
+					if err != nil {
+						return fmt.Errorf("Failed removing old network subnet %q from switch address set: %w", oldRouterIntPortIPNet.String(), err)
+					}
 				}
 			}
 		}
@@ -3073,6 +3144,16 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		}
 
 		revert.Add(func() { client.LogicalRouterRouteDelete(n.getRouterName(), routePrefixes...) })
+
+		// Add routes to internal switch's address set for ACL usage.
+		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
+		if err != nil {
+			return "", fmt.Errorf("Failed adding switch address set entries: %w", err)
+		}
+
+		revert.Add(func() {
+			client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
+		})
 	}
 
 	// Merge network and NIC assigned security ACL lists.
@@ -3300,9 +3381,16 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 	}
 
 	if len(removeRoutes) > 0 {
+		// Delete routes from local router.
 		err = client.LogicalRouterRouteDelete(n.getRouterName(), removeRoutes...)
 		if err != nil {
 			return err
+		}
+
+		// Delete routes from switch address set.
+		err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), removeRoutes...)
+		if err != nil {
+			return fmt.Errorf("Failed deleting switch address set entries: %w", err)
 		}
 	}
 

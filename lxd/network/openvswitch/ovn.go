@@ -48,6 +48,9 @@ type OVNPortGroupUUID string
 // OVNLoadBalancer OVN load balancer name.
 type OVNLoadBalancer string
 
+// OVNAddressSet OVN address set for ACLs.
+type OVNAddressSet string
+
 // OVNIPAllocationOpts defines IP allocation settings that can be applied to a logical switch.
 type OVNIPAllocationOpts struct {
 	PrefixIPv4  *net.IPNet
@@ -143,6 +146,14 @@ type OVNRouterRoute struct {
 	Prefix  net.IPNet
 	NextHop net.IP
 	Port    OVNRouterPort
+}
+
+// OVNRouterPolicy represents a router policy.
+type OVNRouterPolicy struct {
+	Priority int
+	Match    string
+	Action   string
+	NextHop  net.IP
 }
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
@@ -1676,6 +1687,138 @@ func (o *OVN) LoadBalancerDelete(loadBalancerNames ...OVNLoadBalancer) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// AddressSetCreate creates address sets for IP versions 4 and 6 in the format "<addressSetPrefix>_ip<IP version>".
+// Populates them with the relevant addresses supplied.
+func (o *OVN) AddressSetCreate(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
+	args := []string{
+		"create", "address_set", fmt.Sprintf("name=%s_ip%d", addressSetPrefix, 4),
+		"--", "create", "address_set", fmt.Sprintf("name=%s_ip%d", addressSetPrefix, 6),
+	}
+
+	for _, address := range addresses {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		var ipVersion uint = 4
+		if address.IP.To4() == nil {
+			ipVersion = 6
+		}
+
+		args = append(args, "add", "address_set", fmt.Sprintf("%s_ip%d", addressSetPrefix, ipVersion), "addresses", fmt.Sprintf(`"%s"`, address.String()))
+	}
+
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AddressSetAdd adds the supplied addresses to the address sets, or creates a new address sets if needed.
+// The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
+func (o *OVN) AddressSetAdd(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
+	var args []string
+	ipVersions := make(map[uint]struct{})
+
+	for _, address := range addresses {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		var ipVersion uint = 4
+		if address.IP.To4() == nil {
+			ipVersion = 6
+		}
+
+		// Track IP versions seen so we can create address sets if needed.
+		ipVersions[ipVersion] = struct{}{}
+
+		args = append(args, "add", "address_set", fmt.Sprintf("%s_ip%d", addressSetPrefix, ipVersion), "addresses", fmt.Sprintf(`"%s"`, address.String()))
+	}
+
+	if len(args) > 0 {
+		// Optimistically assume all required address sets exist (they normally will).
+		_, err := o.nbctl(args...)
+		if err != nil {
+			// Try creating the address sets one at a time, but ignore errors here in case some of the
+			// address sets already exist. If there was a problem creating the address set it will be
+			// revealead when we run the original command again next.
+			for ipVersion := range ipVersions {
+				o.nbctl("create", "address_set", fmt.Sprintf("name=%s_ip%d", addressSetPrefix, ipVersion))
+			}
+
+			// Try original command again.
+			_, err := o.nbctl(args...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// AddressSetRemove removes the supplied addresses from the address set.
+// The address set name used is "<addressSetPrefix>_ip<IP version>", e.g. "foo_ip4".
+func (o *OVN) AddressSetRemove(addressSetPrefix OVNAddressSet, addresses ...net.IPNet) error {
+	var args []string
+
+	for _, address := range addresses {
+		if len(args) > 0 {
+			args = append(args, "--")
+		}
+
+		var ipVersion uint = 4
+		if address.IP.To4() == nil {
+			ipVersion = 6
+		}
+
+		args = append(args, "--if-exists", "remove", "address_set", fmt.Sprintf("%s_ip%d", addressSetPrefix, ipVersion), "addresses", fmt.Sprintf(`"%s"`, address.String()))
+	}
+
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// AddressSetDelete deletes address sets for IP versions 4 and 6 in the format "<addressSetPrefix>_ip<IP version>".
+func (o *OVN) AddressSetDelete(addressSetPrefix OVNAddressSet) error {
+	_, err := o.nbctl(
+		"--if-exists", "destroy", "address_set", fmt.Sprintf("%s_ip%d", addressSetPrefix, 4),
+		"--", "--if-exists", "destroy", "address_set", fmt.Sprintf("%s_ip%d", addressSetPrefix, 6),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LogicalRouterPolicyApply removes any existing policies and applies the new policies to the specified router.
+func (o *OVN) LogicalRouterPolicyApply(routerName OVNRouter, policies ...OVNRouterPolicy) error {
+	args := []string{"lr-policy-del", string(routerName)}
+
+	for _, policy := range policies {
+		args = append(args, "--", "lr-policy-add", string(routerName), fmt.Sprintf("%d", policy.Priority), policy.Match, policy.Action)
+	}
+
+	_, err := o.nbctl(args...)
+	if err != nil {
+		return err
 	}
 
 	return nil
