@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/fsmonitor/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
@@ -47,7 +48,17 @@ func (d *unixCommon) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	rules := map[string]func(string) error{
-		"source":   validate.IsAny,
+		"source": func(value string) error {
+			if value == "" {
+				return nil
+			}
+
+			if strings.HasPrefix(value, d.state.DevMonitor.PrefixPath()) {
+				return nil
+			}
+
+			return &drivers.ErrInvalidPath{PrefixPath: d.state.DevMonitor.PrefixPath()}
+		},
 		"path":     validate.IsAny,
 		"major":    unixValidDeviceNum,
 		"minor":    unixValidDeviceNum,

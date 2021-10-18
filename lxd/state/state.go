@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/firewall"
+	"github.com/lxc/lxd/lxd/fsmonitor"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
 	"github.com/lxc/lxd/lxd/sys"
@@ -56,4 +57,7 @@ type State struct {
 
 	// Available instance types based on operational drivers.
 	InstanceTypes map[instancetype.Type]struct{}
+
+	// Filesystem monitor
+	DevMonitor fsmonitor.FSMonitor
 }
