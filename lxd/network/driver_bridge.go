@@ -2072,17 +2072,6 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 	leases := []api.NetworkLease{}
 	projectMacs := []string{}
 
-	// Helper function to check if a MAC address belongs to an instance in the right project.
-	isInstanceMAC := func(hwaddr string) bool {
-		for _, lease := range leases {
-			if lease.Hwaddr != "" && !shared.StringInSlice(lease.Hwaddr, projectMacs) {
-				return true
-			}
-		}
-
-		return false
-	}
-
 	// Get all static leases.
 	if clientType == request.ClientTypeNormal {
 		// Get the downstream networks.
@@ -2250,8 +2239,10 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				macStr = ""
 			}
 
-			// Skip leases that don't match instances that are in the correct project (when we have such a list).
-			if clientType == request.ClientTypeNormal && macStr != "" && !isInstanceMAC(macStr) {
+			// Skip leases that don't match any of the instance MACs from the project (only when we
+			// have populated the projectMacs list in ClientTypeNormal mode). Otherwise get all local
+			// leases and they will be filtered on the server handling the end user request.
+			if clientType == request.ClientTypeNormal && macStr != "" && !shared.StringInSlice(macStr, projectMacs) {
 				continue
 			}
 
@@ -2279,9 +2270,9 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 				return err
 			}
 
-			// Add the leases that match instances that are in the correct project.
+			// Add local leases from other members, filtering them for MACs that belong to the project.
 			for _, lease := range memberLeases {
-				if lease.Hwaddr != "" && isInstanceMAC(lease.Hwaddr) {
+				if lease.Hwaddr != "" && shared.StringInSlice(lease.Hwaddr, projectMacs) {
 					leases = append(leases, lease)
 				}
 			}
