@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-14 18:15+0000\n"
+"POT-Creation-Date: 2021-10-18 09:03+0100\n"
 "PO-Revision-Date: 2020-10-08 08:16+0000\n"
 "Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -277,7 +277,42 @@ msgstr ""
 "###\n"
 "### Обратите внимание, что только конфигурация может быть изменена."
 
-#: lxc/network.go:581
+#: lxc/network_peer.go:488
+#, fuzzy
+msgid ""
+"### This is a YAML representation of the network peer.\n"
+"### Any line starting with a '# will be ignored.\n"
+"###\n"
+"### An example would look like:\n"
+"### description: A peering to mynet\n"
+"### config: {}\n"
+"### name: mypeer\n"
+"### target_project: default\n"
+"### target_network: mynet\n"
+"### status: Pending\n"
+"###\n"
+"### Note that the name, target_project, target_network and status fields "
+"cannot be changed."
+msgstr ""
+"### Это представление профиля в формате YAML.\n"
+"### Любая строка начинающаяся с '#' будет игнорироваться.\n"
+"###\n"
+"### Профиль состоит из набора элементов конфигурации,\n"
+"### за которым следует набор устройств.\n"
+"###\n"
+"### Пример:\n"
+"### name: onenic\n"
+"### config:\n"
+"###   raw.lxc: lxc.aa_profile=unconfined\n"
+"### devices:\n"
+"###   eth0:\n"
+"###     nictype: bridged\n"
+"###     parent: lxdbr0\n"
+"###     type: nic\n"
+"###\n"
+"### Обратите внимание, что имя отображается, но не может быть изменено"
+
+#: lxc/network.go:585
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network.\n"
@@ -686,15 +721,15 @@ msgstr ""
 msgid "Assign sets of profiles to instances"
 msgstr ""
 
-#: lxc/network.go:119
+#: lxc/network.go:123
 msgid "Attach network interfaces to instances"
 msgstr ""
 
-#: lxc/network.go:204 lxc/network.go:205
+#: lxc/network.go:208 lxc/network.go:209
 msgid "Attach network interfaces to profiles"
 msgstr ""
 
-#: lxc/network.go:120
+#: lxc/network.go:124
 msgid "Attach new network interfaces to instances"
 msgstr ""
 
@@ -765,7 +800,8 @@ msgstr ""
 msgid "Backups:"
 msgstr ""
 
-#: lxc/network.go:313 lxc/network_acl.go:318 lxc/network_forward.go:284
+#: lxc/network.go:317 lxc/network_acl.go:318 lxc/network_forward.go:284
+#: lxc/network_peer.go:281
 #, c-format
 msgid "Bad key/value pair: %s"
 msgstr ""
@@ -795,11 +831,11 @@ msgstr ""
 msgid "Brand: %v"
 msgstr ""
 
-#: lxc/info.go:562 lxc/network.go:812
+#: lxc/info.go:562 lxc/network.go:816
 msgid "Bytes received"
 msgstr "Получено байтов"
 
-#: lxc/info.go:563 lxc/network.go:813
+#: lxc/info.go:563 lxc/network.go:817
 msgid "Bytes sent"
 msgstr "Отправлено байтов"
 
@@ -943,8 +979,8 @@ msgstr ""
 
 #: lxc/config.go:98 lxc/config.go:367 lxc/config.go:470 lxc/config.go:617
 #: lxc/config.go:736 lxc/copy.go:52 lxc/info.go:47 lxc/init.go:55
-#: lxc/move.go:58 lxc/network.go:280 lxc/network.go:698 lxc/network.go:756
-#: lxc/network.go:1053 lxc/network.go:1120 lxc/network.go:1182
+#: lxc/move.go:58 lxc/network.go:284 lxc/network.go:702 lxc/network.go:760
+#: lxc/network.go:1057 lxc/network.go:1124 lxc/network.go:1186
 #: lxc/network_forward.go:170 lxc/network_forward.go:234
 #: lxc/network_forward.go:389 lxc/network_forward.go:490
 #: lxc/network_forward.go:631 lxc/network_forward.go:708
@@ -1000,9 +1036,9 @@ msgstr ""
 
 #: lxc/cluster.go:668 lxc/config.go:258 lxc/config.go:331
 #: lxc/config_metadata.go:145 lxc/config_trust.go:254 lxc/image.go:444
-#: lxc/network.go:666 lxc/network_acl.go:531 lxc/network_forward.go:595
-#: lxc/profile.go:501 lxc/project.go:312 lxc/storage.go:306
-#: lxc/storage_volume.go:957 lxc/storage_volume.go:987
+#: lxc/network.go:670 lxc/network_acl.go:531 lxc/network_forward.go:595
+#: lxc/network_peer.go:573 lxc/profile.go:501 lxc/project.go:312
+#: lxc/storage.go:306 lxc/storage_volume.go:957 lxc/storage_volume.go:987
 #, c-format
 msgid "Config parsing error: %s"
 msgstr ""
@@ -1181,7 +1217,12 @@ msgstr ""
 msgid "Create new network forwards"
 msgstr "Копирование образа: %s"
 
-#: lxc/network.go:277 lxc/network.go:278
+#: lxc/network_peer.go:215 lxc/network_peer.go:216
+#, fuzzy
+msgid "Create new network peering"
+msgstr "Копирование образа: %s"
+
+#: lxc/network.go:281 lxc/network.go:282
 msgid "Create new networks"
 msgstr ""
 
@@ -1228,9 +1269,9 @@ msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
 #: lxc/cluster.go:174 lxc/image.go:1029 lxc/image_alias.go:237 lxc/list.go:490
-#: lxc/network.go:906 lxc/network_acl.go:144 lxc/network_forward.go:145
-#: lxc/operation.go:163 lxc/profile.go:624 lxc/project.go:473
-#: lxc/storage.go:577 lxc/storage_volume.go:1287
+#: lxc/network.go:910 lxc/network_acl.go:144 lxc/network_forward.go:145
+#: lxc/network_peer.go:141 lxc/operation.go:163 lxc/profile.go:624
+#: lxc/project.go:473 lxc/storage.go:577 lxc/storage_volume.go:1287
 msgid "DESCRIPTION"
 msgstr ""
 
@@ -1289,7 +1330,11 @@ msgstr ""
 msgid "Delete network forwards"
 msgstr ""
 
-#: lxc/network.go:351 lxc/network.go:352
+#: lxc/network_peer.go:605 lxc/network_peer.go:606
+msgid "Delete network peerings"
+msgstr ""
+
+#: lxc/network.go:355 lxc/network.go:356
 msgid "Delete networks"
 msgstr ""
 
@@ -1341,10 +1386,10 @@ msgstr ""
 #: lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29
 #: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:49 lxc/main.go:50
 #: lxc/manpage.go:22 lxc/monitor.go:32 lxc/move.go:37 lxc/network.go:33
-#: lxc/network.go:120 lxc/network.go:205 lxc/network.go:278 lxc/network.go:352
-#: lxc/network.go:402 lxc/network.go:487 lxc/network.go:572 lxc/network.go:695
-#: lxc/network.go:753 lxc/network.go:833 lxc/network.go:928 lxc/network.go:997
-#: lxc/network.go:1047 lxc/network.go:1117 lxc/network.go:1179
+#: lxc/network.go:124 lxc/network.go:209 lxc/network.go:282 lxc/network.go:356
+#: lxc/network.go:406 lxc/network.go:491 lxc/network.go:576 lxc/network.go:699
+#: lxc/network.go:757 lxc/network.go:837 lxc/network.go:932 lxc/network.go:1001
+#: lxc/network.go:1051 lxc/network.go:1121 lxc/network.go:1183
 #: lxc/network_acl.go:30 lxc/network_acl.go:91 lxc/network_acl.go:161
 #: lxc/network_acl.go:214 lxc/network_acl.go:263 lxc/network_acl.go:346
 #: lxc/network_acl.go:406 lxc/network_acl.go:433 lxc/network_acl.go:564
@@ -1354,7 +1399,10 @@ msgstr ""
 #: lxc/network_forward.go:327 lxc/network_forward.go:382
 #: lxc/network_forward.go:460 lxc/network_forward.go:487
 #: lxc/network_forward.go:628 lxc/network_forward.go:690
-#: lxc/network_forward.go:705 lxc/network_forward.go:770 lxc/operation.go:24
+#: lxc/network_forward.go:705 lxc/network_forward.go:770 lxc/network_peer.go:30
+#: lxc/network_peer.go:83 lxc/network_peer.go:159 lxc/network_peer.go:216
+#: lxc/network_peer.go:330 lxc/network_peer.go:385 lxc/network_peer.go:454
+#: lxc/network_peer.go:481 lxc/network_peer.go:606 lxc/operation.go:24
 #: lxc/operation.go:56 lxc/operation.go:105 lxc/operation.go:184
 #: lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247
 #: lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531
@@ -1383,11 +1431,11 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-#: lxc/network.go:401 lxc/network.go:402
+#: lxc/network.go:405 lxc/network.go:406
 msgid "Detach network interfaces from instances"
 msgstr ""
 
-#: lxc/network.go:486 lxc/network.go:487
+#: lxc/network.go:490 lxc/network.go:491
 msgid "Detach network interfaces from profiles"
 msgstr ""
 
@@ -1543,13 +1591,18 @@ msgstr ""
 msgid "Edit network ACL configurations as YAML"
 msgstr ""
 
-#: lxc/network.go:571 lxc/network.go:572
+#: lxc/network.go:575 lxc/network.go:576
 msgid "Edit network configurations as YAML"
 msgstr ""
 
 #: lxc/network_forward.go:486 lxc/network_forward.go:487
 msgid "Edit network forward configurations as YAML"
 msgstr ""
+
+#: lxc/network_peer.go:480 lxc/network_peer.go:481
+#, fuzzy
+msgid "Edit network peer configurations as YAML"
+msgstr "Копирование образа: %s"
 
 #: lxc/profile.go:406 lxc/profile.go:407
 msgid "Edit profile configurations as YAML"
@@ -1717,6 +1770,11 @@ msgstr ""
 msgid "FIRST SEEN"
 msgstr ""
 
+#: lxc/network_peer.go:305
+#, c-format
+msgid "Failed getting peer's status: %w"
+msgstr ""
+
 #: lxc/move.go:262 lxc/move.go:335
 msgid "Failed to connect to cluster member"
 msgstr ""
@@ -1744,7 +1802,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:864 lxc/network_acl.go:121 lxc/operation.go:134
+#: lxc/network.go:868 lxc/network_acl.go:121 lxc/operation.go:134
 msgid "Filtering isn't supported yet"
 msgstr ""
 
@@ -1803,10 +1861,11 @@ msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:116 lxc/cluster.go:801
 #: lxc/config_template.go:241 lxc/config_trust.go:290 lxc/image.go:1016
-#: lxc/image_alias.go:158 lxc/list.go:132 lxc/network.go:837 lxc/network.go:930
-#: lxc/network_acl.go:94 lxc/network_forward.go:90 lxc/operation.go:107
-#: lxc/profile.go:584 lxc/project.go:394 lxc/project.go:749 lxc/remote.go:531
-#: lxc/storage.go:518 lxc/storage_volume.go:1211 lxc/warning.go:94
+#: lxc/image_alias.go:158 lxc/list.go:132 lxc/network.go:841 lxc/network.go:934
+#: lxc/network_acl.go:94 lxc/network_forward.go:90 lxc/network_peer.go:86
+#: lxc/operation.go:107 lxc/profile.go:584 lxc/project.go:394
+#: lxc/project.go:749 lxc/remote.go:531 lxc/storage.go:518
+#: lxc/storage_volume.go:1211 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
@@ -1861,7 +1920,7 @@ msgstr ""
 msgid "Get image properties"
 msgstr ""
 
-#: lxc/network.go:752 lxc/network.go:753
+#: lxc/network.go:756 lxc/network.go:757
 msgid "Get runtime information on networks"
 msgstr ""
 
@@ -1882,13 +1941,18 @@ msgstr ""
 msgid "Get values for network ACL configuration keys"
 msgstr ""
 
-#: lxc/network.go:694 lxc/network.go:695
+#: lxc/network.go:698 lxc/network.go:699
 msgid "Get values for network configuration keys"
 msgstr ""
 
 #: lxc/network_forward.go:326 lxc/network_forward.go:327
 #, fuzzy
 msgid "Get values for network forward configuration keys"
+msgstr "Копирование образа: %s"
+
+#: lxc/network_peer.go:329 lxc/network_peer.go:330
+#, fuzzy
+msgid "Get values for network peer configuration keys"
 msgstr "Копирование образа: %s"
 
 #: lxc/profile.go:530 lxc/profile.go:531
@@ -1911,7 +1975,7 @@ msgstr ""
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/network.go:974
+#: lxc/network.go:978
 msgid "HOSTNAME"
 msgstr ""
 
@@ -1942,7 +2006,7 @@ msgstr ""
 msgid "IMAGES"
 msgstr ""
 
-#: lxc/network.go:976
+#: lxc/network.go:980
 msgid "IP ADDRESS"
 msgstr ""
 
@@ -1950,11 +2014,11 @@ msgstr ""
 msgid "IP addresses"
 msgstr ""
 
-#: lxc/list.go:485 lxc/network.go:904
+#: lxc/list.go:485 lxc/network.go:908
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:486 lxc/network.go:905
+#: lxc/list.go:486 lxc/network.go:909
 msgid "IPV6"
 msgstr ""
 
@@ -2169,7 +2233,7 @@ msgstr ""
 msgid "Invalid target %s"
 msgstr ""
 
-#: lxc/network.go:804
+#: lxc/network.go:808
 msgid "Ips:"
 msgstr ""
 
@@ -2198,7 +2262,7 @@ msgstr ""
 msgid "LISTEN ADDRESS"
 msgstr ""
 
-#: lxc/list.go:518 lxc/network.go:980 lxc/network_forward.go:151
+#: lxc/list.go:518 lxc/network.go:984 lxc/network_forward.go:151
 #: lxc/operation.go:168 lxc/storage_volume.go:1294 lxc/warning.go:219
 msgid "LOCATION"
 msgstr ""
@@ -2239,7 +2303,7 @@ msgstr "Архитектура: %s"
 msgid "Link speed: %dMbit/s (%s duplex)"
 msgstr ""
 
-#: lxc/network.go:927 lxc/network.go:928
+#: lxc/network.go:931 lxc/network.go:932
 msgid "List DHCP leases"
 msgstr ""
 
@@ -2274,7 +2338,11 @@ msgstr ""
 msgid "List available network forwards"
 msgstr ""
 
-#: lxc/network.go:832 lxc/network.go:833
+#: lxc/network_peer.go:82 lxc/network_peer.go:83
+msgid "List available network peers"
+msgstr ""
+
+#: lxc/network.go:836 lxc/network.go:837
 msgid "List available networks"
 msgstr ""
 
@@ -2512,7 +2580,7 @@ msgstr ""
 msgid "Log:"
 msgstr ""
 
-#: lxc/network.go:975
+#: lxc/network.go:979
 msgid "MAC ADDRESS"
 msgstr ""
 
@@ -2520,7 +2588,7 @@ msgstr ""
 msgid "MAC address"
 msgstr ""
 
-#: lxc/network.go:798
+#: lxc/network.go:802
 #, c-format
 msgid "MAC address: %s"
 msgstr ""
@@ -2530,7 +2598,7 @@ msgstr ""
 msgid "MAD: %s (%s)"
 msgstr ""
 
-#: lxc/network.go:903
+#: lxc/network.go:907
 msgid "MANAGED"
 msgstr ""
 
@@ -2551,7 +2619,7 @@ msgstr ""
 msgid "MTU"
 msgstr ""
 
-#: lxc/network.go:799
+#: lxc/network.go:803
 #, c-format
 msgid "MTU: %d"
 msgstr ""
@@ -2643,6 +2711,11 @@ msgstr "Копирование образа: %s"
 #: lxc/network_forward.go:29 lxc/network_forward.go:30
 #, fuzzy
 msgid "Manage network forwards"
+msgstr "Копирование образа: %s"
+
+#: lxc/network_peer.go:29 lxc/network_peer.go:30
+#, fuzzy
+msgid "Manage network peerings"
 msgstr "Копирование образа: %s"
 
 #: lxc/profile.go:28 lxc/profile.go:29
@@ -2777,16 +2850,24 @@ msgstr ""
 msgid "Missing network ACL name"
 msgstr "Имя контейнера: %s"
 
-#: lxc/network.go:144 lxc/network.go:229 lxc/network.go:376 lxc/network.go:426
-#: lxc/network.go:511 lxc/network.go:616 lxc/network.go:721 lxc/network.go:779
-#: lxc/network.go:953 lxc/network.go:1021 lxc/network.go:1076
-#: lxc/network.go:1143 lxc/network_forward.go:116 lxc/network_forward.go:191
+#: lxc/network.go:148 lxc/network.go:233 lxc/network.go:380 lxc/network.go:430
+#: lxc/network.go:515 lxc/network.go:620 lxc/network.go:725 lxc/network.go:783
+#: lxc/network.go:957 lxc/network.go:1025 lxc/network.go:1080
+#: lxc/network.go:1147 lxc/network_forward.go:116 lxc/network_forward.go:191
 #: lxc/network_forward.go:255 lxc/network_forward.go:350
 #: lxc/network_forward.go:410 lxc/network_forward.go:533
 #: lxc/network_forward.go:652 lxc/network_forward.go:729
-#: lxc/network_forward.go:795
+#: lxc/network_forward.go:795 lxc/network_peer.go:112 lxc/network_peer.go:181
+#: lxc/network_peer.go:238 lxc/network_peer.go:353 lxc/network_peer.go:411
+#: lxc/network_peer.go:519 lxc/network_peer.go:628
 msgid "Missing network name"
 msgstr ""
+
+#: lxc/network_peer.go:185 lxc/network_peer.go:242 lxc/network_peer.go:357
+#: lxc/network_peer.go:415 lxc/network_peer.go:523 lxc/network_peer.go:632
+#, fuzzy
+msgid "Missing peer name"
+msgstr "Имя контейнера: %s"
 
 #: lxc/storage.go:190 lxc/storage.go:260 lxc/storage.go:361 lxc/storage.go:422
 #: lxc/storage.go:625 lxc/storage.go:702 lxc/storage_volume.go:189
@@ -2824,6 +2905,11 @@ msgstr "Копирование образа: %s"
 msgid "Missing target directory"
 msgstr ""
 
+#: lxc/network_peer.go:246
+#, fuzzy
+msgid "Missing target network"
+msgstr "Имя контейнера: %s"
+
 #: lxc/info.go:265
 #, c-format
 msgid "Model: %s"
@@ -2845,7 +2931,7 @@ msgid ""
 "By default the monitor will listen to all message types."
 msgstr ""
 
-#: lxc/network.go:446 lxc/network.go:531 lxc/storage_volume.go:699
+#: lxc/network.go:450 lxc/network.go:535 lxc/storage_volume.go:699
 #: lxc/storage_volume.go:780
 msgid "More than one device matches, specify the device name"
 msgstr ""
@@ -2885,9 +2971,9 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:169 lxc/cluster.go:881 lxc/config_trust.go:346
-#: lxc/list.go:497 lxc/network.go:901 lxc/network_acl.go:143 lxc/profile.go:623
-#: lxc/project.go:468 lxc/remote.go:590 lxc/storage.go:570
-#: lxc/storage_volume.go:1286
+#: lxc/list.go:497 lxc/network.go:905 lxc/network_acl.go:143
+#: lxc/network_peer.go:140 lxc/profile.go:623 lxc/project.go:468
+#: lxc/remote.go:590 lxc/storage.go:570 lxc/storage_volume.go:1286
 msgid "NAME"
 msgstr ""
 
@@ -2903,7 +2989,7 @@ msgstr ""
 msgid "NICs:"
 msgstr ""
 
-#: lxc/network.go:878 lxc/operation.go:146 lxc/project.go:437
+#: lxc/network.go:882 lxc/operation.go:146 lxc/project.go:437
 #: lxc/project.go:442 lxc/project.go:447 lxc/project.go:452 lxc/remote.go:548
 #: lxc/remote.go:553 lxc/remote.go:558
 msgid "NO"
@@ -2935,7 +3021,7 @@ msgstr ""
 msgid "Name of the project to use for this remote:"
 msgstr ""
 
-#: lxc/info.go:460 lxc/network.go:797
+#: lxc/info.go:460 lxc/network.go:801
 #, c-format
 msgid "Name: %s"
 msgstr ""
@@ -2945,22 +3031,22 @@ msgstr ""
 msgid "Name: %v"
 msgstr ""
 
-#: lxc/network.go:334
+#: lxc/network.go:338
 #, c-format
 msgid "Network %s created"
 msgstr ""
 
-#: lxc/network.go:386
+#: lxc/network.go:390
 #, c-format
 msgid "Network %s deleted"
 msgstr ""
 
-#: lxc/network.go:332
+#: lxc/network.go:336
 #, c-format
 msgid "Network %s pending on member %s"
 msgstr ""
 
-#: lxc/network.go:1031
+#: lxc/network.go:1035
 #, c-format
 msgid "Network %s renamed to %s"
 msgstr ""
@@ -2994,12 +3080,33 @@ msgstr " Использование сети:"
 msgid "Network name"
 msgstr ""
 
-#: lxc/network.go:281
+#: lxc/network_peer.go:309
+#, fuzzy, c-format
+msgid "Network peer %s created"
+msgstr " Использование сети:"
+
+#: lxc/network_peer.go:644
+#, fuzzy, c-format
+msgid "Network peer %s deleted"
+msgstr " Использование сети:"
+
+#: lxc/network_peer.go:313
+#, c-format
+msgid "Network peer %s is in unexpected state %q"
+msgstr ""
+
+#: lxc/network_peer.go:311
+#, c-format
+msgid ""
+"Network peer %s pending (please complete mutual peering on peer network)"
+msgstr ""
+
+#: lxc/network.go:285
 #, fuzzy
 msgid "Network type"
 msgstr " Использование сети:"
 
-#: lxc/info.go:580 lxc/network.go:811
+#: lxc/info.go:580 lxc/network.go:815
 #, fuzzy
 msgid "Network usage:"
 msgstr " Использование сети:"
@@ -3021,7 +3128,7 @@ msgstr ""
 msgid "No cluster join token for member %s on remote: %s"
 msgstr ""
 
-#: lxc/network.go:455 lxc/network.go:540
+#: lxc/network.go:459 lxc/network.go:544
 msgid "No device found for this network"
 msgstr ""
 
@@ -3072,7 +3179,7 @@ msgstr ""
 msgid "Only instance or custom volumes are supported"
 msgstr ""
 
-#: lxc/network.go:642 lxc/network.go:1091
+#: lxc/network.go:646 lxc/network.go:1095
 msgid "Only managed networks can be modified"
 msgstr ""
 
@@ -3096,6 +3203,10 @@ msgstr ""
 #: lxc/info.go:102 lxc/info.go:185
 #, c-format
 msgid "PCI address: %v"
+msgstr ""
+
+#: lxc/network_peer.go:142
+msgid "PEER"
 msgstr ""
 
 #: lxc/list.go:499
@@ -3131,11 +3242,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:564 lxc/network.go:814
+#: lxc/info.go:564 lxc/network.go:818
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:565 lxc/network.go:815
+#: lxc/info.go:565 lxc/network.go:819
 msgid "Packets sent"
 msgstr ""
 
@@ -3171,10 +3282,10 @@ msgstr ""
 
 #: lxc/cluster.go:669 lxc/config.go:259 lxc/config.go:332
 #: lxc/config_metadata.go:146 lxc/config_template.go:206
-#: lxc/config_trust.go:255 lxc/image.go:445 lxc/network.go:667
-#: lxc/network_acl.go:532 lxc/network_forward.go:596 lxc/profile.go:502
-#: lxc/project.go:313 lxc/storage.go:307 lxc/storage_volume.go:958
-#: lxc/storage_volume.go:988
+#: lxc/config_trust.go:255 lxc/image.go:445 lxc/network.go:671
+#: lxc/network_acl.go:532 lxc/network_forward.go:596 lxc/network_peer.go:574
+#: lxc/profile.go:502 lxc/project.go:313 lxc/storage.go:307
+#: lxc/storage_volume.go:958 lxc/storage_volume.go:988
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
 
@@ -3475,7 +3586,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Rename network ACLs"
 msgstr ""
 
-#: lxc/network.go:996 lxc/network.go:997
+#: lxc/network.go:1000 lxc/network.go:1001
 msgid "Rename networks"
 msgstr ""
 
@@ -3604,7 +3715,8 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:175 lxc/list.go:502 lxc/network.go:910 lxc/storage.go:580
+#: lxc/cluster.go:175 lxc/list.go:502 lxc/network.go:914
+#: lxc/network_peer.go:143 lxc/storage.go:580
 msgid "STATE"
 msgstr ""
 
@@ -3706,11 +3818,11 @@ msgid ""
 "    lxc network set [<remote>:]<ACL> <key> <value>"
 msgstr ""
 
-#: lxc/network.go:1046
+#: lxc/network.go:1050
 msgid "Set network configuration keys"
 msgstr ""
 
-#: lxc/network.go:1047
+#: lxc/network.go:1051
 msgid ""
 "Set network configuration keys\n"
 "\n"
@@ -3731,6 +3843,20 @@ msgid ""
 "For backward compatibility, a single configuration key may still be set "
 "with:\n"
 "    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
+msgstr ""
+
+#: lxc/network_peer.go:384
+#, fuzzy
+msgid "Set network peer keys"
+msgstr "Копирование образа: %s"
+
+#: lxc/network_peer.go:385
+msgid ""
+"Set network peer keys\n"
+"\n"
+"For backward compatibility, a single configuration key may still be set "
+"with:\n"
+"    lxc network set [<remote>:]<network> <peer_name> <key> <value>"
 msgstr ""
 
 #: lxc/profile.go:765
@@ -3859,13 +3985,18 @@ msgstr ""
 msgid "Show network ACL configurations"
 msgstr ""
 
-#: lxc/network.go:1116 lxc/network.go:1117
+#: lxc/network.go:1120 lxc/network.go:1121
 msgid "Show network configurations"
 msgstr ""
 
 #: lxc/network_forward.go:166 lxc/network_forward.go:167
 #, fuzzy
 msgid "Show network forward configurations"
+msgstr "Копирование образа: %s"
+
+#: lxc/network_peer.go:158 lxc/network_peer.go:159
+#, fuzzy
+msgid "Show network peer configurations"
 msgstr "Копирование образа: %s"
 
 #: lxc/profile.go:824 lxc/profile.go:825
@@ -3977,7 +4108,7 @@ msgstr ""
 msgid "State"
 msgstr "Авто-обновление: %s"
 
-#: lxc/network.go:800
+#: lxc/network.go:804
 #, fuzzy, c-format
 msgid "State: %s"
 msgstr "Авто-обновление: %s"
@@ -4092,7 +4223,7 @@ msgid "TOKEN"
 msgstr ""
 
 #: lxc/config_trust.go:345 lxc/image.go:1033 lxc/image_alias.go:236
-#: lxc/list.go:503 lxc/network.go:902 lxc/network.go:977 lxc/operation.go:162
+#: lxc/list.go:503 lxc/network.go:906 lxc/network.go:981 lxc/operation.go:162
 #: lxc/storage_volume.go:1285 lxc/warning.go:214
 msgid "TYPE"
 msgstr ""
@@ -4165,12 +4296,12 @@ msgstr ""
 msgid "The source LXD server is not clustered"
 msgstr ""
 
-#: lxc/network.go:460 lxc/network.go:545 lxc/storage_volume.go:713
+#: lxc/network.go:464 lxc/network.go:549 lxc/storage_volume.go:713
 #: lxc/storage_volume.go:794
 msgid "The specified device doesn't exist"
 msgstr ""
 
-#: lxc/network.go:464 lxc/network.go:549
+#: lxc/network.go:468 lxc/network.go:553
 msgid "The specified device doesn't match the network"
 msgstr ""
 
@@ -4219,7 +4350,7 @@ msgid "To start your first instance, try: lxc launch ubuntu:20.04"
 msgstr ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
-#: lxc/copy.go:119 lxc/info.go:332 lxc/network.go:785 lxc/storage.go:428
+#: lxc/copy.go:119 lxc/info.go:332 lxc/network.go:789 lxc/storage.go:428
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -4301,7 +4432,7 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:907 lxc/network_acl.go:145 lxc/profile.go:625
+#: lxc/network.go:911 lxc/network_acl.go:145 lxc/profile.go:625
 #: lxc/project.go:474 lxc/storage.go:578 lxc/storage_volume.go:1289
 msgid "USED BY"
 msgstr ""
@@ -4356,7 +4487,7 @@ msgstr ""
 msgid "Unset network ACL configuration keys"
 msgstr ""
 
-#: lxc/network.go:1178 lxc/network.go:1179
+#: lxc/network.go:1182 lxc/network.go:1183
 msgid "Unset network configuration keys"
 msgstr ""
 
@@ -4368,6 +4499,16 @@ msgstr "Копирование образа: %s"
 #: lxc/network_forward.go:460
 #, fuzzy
 msgid "Unset network forward keys"
+msgstr "Копирование образа: %s"
+
+#: lxc/network_peer.go:453
+#, fuzzy
+msgid "Unset network peer configuration keys"
+msgstr "Копирование образа: %s"
+
+#: lxc/network_peer.go:454
+#, fuzzy
+msgid "Unset network peer keys"
 msgstr "Копирование образа: %s"
 
 #: lxc/profile.go:878 lxc/profile.go:879
@@ -4473,7 +4614,7 @@ msgstr ""
 msgid "Whether or not to snapshot the instance's running state"
 msgstr ""
 
-#: lxc/network.go:880 lxc/operation.go:148 lxc/project.go:439
+#: lxc/network.go:884 lxc/operation.go:148 lxc/project.go:439
 #: lxc/project.go:444 lxc/project.go:449 lxc/project.go:454 lxc/remote.go:550
 #: lxc/remote.go:555 lxc/remote.go:560
 msgid "YES"
@@ -4512,7 +4653,7 @@ msgstr ""
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/cluster.go:111 lxc/cluster.go:798 lxc/config_trust.go:285
-#: lxc/monitor.go:30 lxc/network.go:830 lxc/network_acl.go:88
+#: lxc/monitor.go:30 lxc/network.go:834 lxc/network_acl.go:88
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
 #: lxc/storage.go:513 lxc/version.go:20 lxc/warning.go:69
 #, fuzzy
@@ -4935,8 +5076,8 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:349 lxc/network.go:570 lxc/network.go:751 lxc/network.go:926
-#: lxc/network.go:1115 lxc/network_forward.go:84
+#: lxc/network.go:353 lxc/network.go:574 lxc/network.go:755 lxc/network.go:930
+#: lxc/network.go:1119 lxc/network_forward.go:84 lxc/network_peer.go:80
 #, fuzzy
 msgid "[<remote>:]<network>"
 msgstr ""
@@ -4944,7 +5085,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:400
+#: lxc/network.go:404
 #, fuzzy
 msgid "[<remote>:]<network> <instance> [<device name>]"
 msgstr ""
@@ -4952,7 +5093,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:118
+#: lxc/network.go:122
 #, fuzzy
 msgid "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
 msgstr ""
@@ -4960,7 +5101,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:693 lxc/network.go:1177
+#: lxc/network.go:697 lxc/network.go:1181
 #, fuzzy
 msgid "[<remote>:]<network> <key>"
 msgstr ""
@@ -4968,7 +5109,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:1045
+#: lxc/network.go:1049
 #, fuzzy
 msgid "[<remote>:]<network> <key>=<value>..."
 msgstr ""
@@ -5023,7 +5164,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:994
+#: lxc/network.go:998
 #, fuzzy
 msgid "[<remote>:]<network> <new-name>"
 msgstr ""
@@ -5031,7 +5172,49 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:485
+#: lxc/network_peer.go:157
+#, fuzzy
+msgid "[<remote>:]<network> <peer name>"
+msgstr ""
+"Изменение состояния одного или нескольких контейнеров %s.\n"
+"\n"
+"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
+
+#: lxc/network_peer.go:479 lxc/network_peer.go:603
+#, fuzzy
+msgid "[<remote>:]<network> <peer_name>"
+msgstr ""
+"Изменение состояния одного или нескольких контейнеров %s.\n"
+"\n"
+"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
+
+#: lxc/network_peer.go:214
+#, fuzzy
+msgid ""
+"[<remote>:]<network> <peer_name> <[target project/]target_network> "
+"[key=value...]"
+msgstr ""
+"Изменение состояния одного или нескольких контейнеров %s.\n"
+"\n"
+"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
+
+#: lxc/network_peer.go:328 lxc/network_peer.go:452
+#, fuzzy
+msgid "[<remote>:]<network> <peer_name> <key>"
+msgstr ""
+"Изменение состояния одного или нескольких контейнеров %s.\n"
+"\n"
+"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
+
+#: lxc/network_peer.go:383
+#, fuzzy
+msgid "[<remote>:]<network> <peer_name> <key>=<value>..."
+msgstr ""
+"Изменение состояния одного или нескольких контейнеров %s.\n"
+"\n"
+"lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
+
+#: lxc/network.go:489
 #, fuzzy
 msgid "[<remote>:]<network> <profile> [<device name>]"
 msgstr ""
@@ -5039,7 +5222,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:203
+#: lxc/network.go:207
 #, fuzzy
 msgid "[<remote>:]<network> <profile> [<device name>] [<interface name>]"
 msgstr ""
@@ -5047,7 +5230,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network.go:276
+#: lxc/network.go:280
 #, fuzzy
 msgid "[<remote>:]<network> [key=value...]"
 msgstr ""
