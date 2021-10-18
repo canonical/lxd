@@ -54,6 +54,11 @@ func OVNIntSwitchPortGroupName(networkID int64) openvswitch.OVNPortGroup {
 	return openvswitch.OVNPortGroup(fmt.Sprintf("lxd_net%d", networkID))
 }
 
+// OVNIntSwitchPortGroupAddressSetPrefix returns the internal switch routes address set prefix for a Network ID.
+func OVNIntSwitchPortGroupAddressSetPrefix(networkID int64) openvswitch.OVNAddressSet {
+	return openvswitch.OVNAddressSet(fmt.Sprintf("%s_routes", OVNIntSwitchPortGroupName(networkID)))
+}
+
 // OVNNetworkPrefix returns the prefix used for OVN entities related to a Network ID.
 func OVNNetworkPrefix(networkID int64) string {
 	return fmt.Sprintf("lxd-net%d", networkID)

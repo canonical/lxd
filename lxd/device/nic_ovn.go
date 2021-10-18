@@ -305,7 +305,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		UplinkConfig: uplink.Config,
 	}, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed adding OVN port")
+		return nil, errors.Wrapf(err, "Failed setting up OVN port")
 	}
 
 	revert.Add(func() {
