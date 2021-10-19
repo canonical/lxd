@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-19 15:56+0100\n"
+"POT-Creation-Date: 2021-10-19 17:27+0100\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1780,7 +1780,7 @@ msgstr "FIRST SEEN"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/move.go:259 lxc/move.go:332
+#: lxc/move.go:255 lxc/move.go:329
 msgid "Failed to connect to cluster member"
 msgstr "クラスタメンバへの接続に失敗しました"
 
@@ -2968,11 +2968,11 @@ msgstr "メモリ消費量:"
 msgid "Memory:"
 msgstr "メモリ:"
 
-#: lxc/move.go:276 lxc/move.go:346
+#: lxc/move.go:273 lxc/move.go:343
 msgid "Migration API failure"
 msgstr "マイグレーション API が失敗しました"
 
-#: lxc/move.go:299 lxc/move.go:351
+#: lxc/move.go:296 lxc/move.go:348
 msgid "Migration operation failure"
 msgstr "マイグレーションが失敗しました"
 
@@ -4436,27 +4436,23 @@ msgstr "TYPE"
 msgid "Taken at"
 msgstr "取得日時"
 
-#: lxc/move.go:161
+#: lxc/move.go:159
 msgid "The --instance-only flag can't be used with --target"
 msgstr "--instance-only と --target は同時に指定できません"
 
-#: lxc/move.go:196
+#: lxc/move.go:192
 msgid "The --mode flag can't be used with --storage"
 msgstr "--mode と --storage は同時に指定できません"
 
-#: lxc/move.go:169
+#: lxc/move.go:167
 msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
 
-#: lxc/move.go:157
-msgid "The --stateless flag can't be used with --target"
-msgstr "--stateless と --target は同時に指定できません"
-
-#: lxc/move.go:165
+#: lxc/move.go:163
 msgid "The --storage flag can't be used with --target"
 msgstr "--storage と --target は同時に指定できません"
 
-#: lxc/move.go:181
+#: lxc/move.go:179
 msgid "The destination LXD server is not clustered"
 msgstr "移動先の LXD サーバはクラスタに属していません"
 
@@ -4497,7 +4493,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
-#: lxc/move.go:264
+#: lxc/move.go:260
 msgid "The source LXD server is not clustered"
 msgstr "移動元の LXD サーバはクラスタに属していません"
 
@@ -4605,7 +4601,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/copy.go:340 lxc/move.go:281
+#: lxc/copy.go:340 lxc/move.go:278
 #, c-format
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
@@ -4865,7 +4861,7 @@ msgid "You must specify a destination instance name when using --target"
 msgstr ""
 "--target オプションを使うときはコピー先のインスタンス名を指定してください"
 
-#: lxc/copy.go:75 lxc/move.go:248 lxc/move.go:321
+#: lxc/copy.go:75 lxc/move.go:244 lxc/move.go:318
 msgid "You must specify a source instance name"
 msgstr "コピー元のインスタンス名を指定してください"
 
@@ -5786,6 +5782,9 @@ msgstr "y"
 #: lxc/image.go:1084
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "The --stateless flag can't be used with --target"
+#~ msgstr "--stateless と --target は同時に指定できません"
 
 #~ msgid "The --stateless flag can't be used with --storage"
 #~ msgstr "--stateless と --storage は同時に指定できません"
