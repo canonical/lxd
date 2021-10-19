@@ -209,6 +209,7 @@ static int manip_file_in_ns(struct file_args *args)
 		error("error: open");
 		return -1;
 	}
+
 	if (is_put) {
 		if (!exists) {
 			if (mode == -1)
@@ -236,58 +237,57 @@ static int manip_file_in_ns(struct file_args *args)
 			return -1;
 		}
 
-		fret = 0;
-	} else {
-		if (fstat(container_fd, &st) < 0) {
-			error("error: stat");
-			return -1;
-		}
-
-		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
-		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
-		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-
-		if (S_ISDIR(st.st_mode)) {
-			__do_closedir DIR *fdir = NULL;
-			struct dirent *de;
-
-			fdir = fdopendir(container_fd);
-			if (!fdir) {
-				error("error: fdopendir");
-				return -1;
-			}
-			move_fd(container_fd);
-
-			fprintf(stderr, "type: directory\n");
-
-			while ((de = readdir(fdir))) {
-				int len, i;
-
-				if (!strcmp(de->d_name, ".") ||
-				    !strcmp(de->d_name, ".."))
-					continue;
-
-				fprintf(stderr, "entry: ");
-
-				// swap \n to \0 since we split this output by line
-				for (i = 0, len = strlen(de->d_name); i < len;
-				     i++) {
-					if (*(de->d_name + i) == '\n')
-						putc(0, stderr);
-					else
-						putc(*(de->d_name + i), stderr);
-				}
-				fprintf(stderr, "\n");
-			}
-
-			// container_fd is dead now that we fdopendir'd it
-			return -1;
-		} else {
-			fprintf(stderr, "type: file\n");
-			fret = copy(host_fd, container_fd, false);
-		}
-		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
+		return 0;
 	}
+
+	if (fstat(container_fd, &st) < 0) {
+		error("error: stat");
+		return -1;
+	}
+
+	fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
+	fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
+	fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+
+	if (S_ISDIR(st.st_mode)) {
+		__do_closedir DIR *fdir = NULL;
+		struct dirent *de;
+
+		fdir = fdopendir(container_fd);
+		if (!fdir) {
+			error("error: fdopendir");
+			return -1;
+		}
+		move_fd(container_fd);
+
+		fprintf(stderr, "type: directory\n");
+
+		while ((de = readdir(fdir))) {
+			int len, i;
+
+			if (!strcmp(de->d_name, ".") ||
+			    !strcmp(de->d_name, ".."))
+				continue;
+
+			fprintf(stderr, "entry: ");
+
+			// swap \n to \0 since we split this output by line
+			for (i = 0, len = strlen(de->d_name); i < len; i++) {
+				if (*(de->d_name + i) == '\n')
+					putc(0, stderr);
+				else
+					putc(*(de->d_name + i), stderr);
+			}
+			fprintf(stderr, "\n");
+		}
+
+		// container_fd is dead now that we fdopendir'd it
+		return -1;
+	} else {
+		fprintf(stderr, "type: file\n");
+		fret = copy(host_fd, container_fd, false);
+	}
+	fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
 
 	return fret;
 }
