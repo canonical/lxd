@@ -149,14 +149,12 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		destResource = args[1]
 	}
 
+	stateful := !c.flagStateless
+
 	if c.flagTarget != "" {
 		// If the target option was specified, we're moving an instance from a
 		// cluster member to another, let's use the dedicated API.
 		if sourceRemote == destRemote {
-			if c.flagStateless {
-				return fmt.Errorf(i18n.G("The --stateless flag can't be used with --target"))
-			}
-
 			if c.flagInstanceOnly {
 				return fmt.Errorf(i18n.G("The --instance-only flag can't be used with --target"))
 			}
@@ -169,7 +167,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
 			}
 
-			return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget, c.global.flagQuiet)
+			return moveClusterInstance(conf, sourceResource, destResource, c.flagTarget, c.global.flagQuiet, stateful)
 		}
 
 		dest, err := conf.GetInstanceServer(destRemote)
@@ -181,8 +179,6 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf(i18n.G("The destination LXD server is not clustered"))
 		}
 	}
-
-	stateful := !c.flagStateless
 
 	// Support for server-side pool move.
 	if c.flagStorage != "" && sourceRemote == destRemote {
@@ -230,7 +226,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 }
 
 // Move an instance using special POST /instances/<name>?target=<member> API.
-func moveClusterInstance(conf *config.Config, sourceResource string, destResource string, target string, quiet bool) error {
+func moveClusterInstance(conf *config.Config, sourceResource string, destResource string, target string, quiet bool, stateful bool) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -269,6 +265,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 	req := api.InstancePost{
 		Name:      destName,
 		Migration: true,
+		Live:      stateful,
 	}
 
 	op, err := source.MigrateInstance(sourceName, req)
