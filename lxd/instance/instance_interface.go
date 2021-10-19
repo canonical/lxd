@@ -72,7 +72,6 @@ type Instance interface {
 
 	Info() Info
 	IsPrivileged() bool
-	IsMigratable() bool
 
 	// Snapshots & migration & backups.
 	Restore(source Instance, stateful bool) error
@@ -147,6 +146,7 @@ type Instance interface {
 	StoragePool() (string, error)
 
 	// Migration.
+	CanMigrate() bool
 	Migrate(args *CriuMigrationArgs) error
 
 	// Progress reporting.

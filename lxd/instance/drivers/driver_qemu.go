@@ -5396,9 +5396,9 @@ func (d *qemu) IsFrozen() bool {
 	return d.statusCode() == api.Frozen
 }
 
-// IsMigratable returns whether the instance can be migrated.
-func (d *qemu) IsMigratable() bool {
-	return d.isMigratable(d)
+// CanMigrate returns whether the instance can be migrated.
+func (d *qemu) CanMigrate() bool {
+	return d.canMigrate(d)
 }
 
 // DeviceEventHandler handles events occurring on the instance's devices.
