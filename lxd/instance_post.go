@@ -241,11 +241,6 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return response.BadRequest(fmt.Errorf("Instance has backups"))
 			}
 
-			// Check whether the instance is running.
-			if !sourceNodeOffline && inst.IsRunning() {
-				return response.BadRequest(fmt.Errorf("Instance is running"))
-			}
-
 			run := func(op *operations.Operation) error {
 				return migrateInstance(d, r, inst, projectName, targetNode, sourceNodeOffline, name, instanceType, req, op)
 			}
@@ -431,7 +426,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 }
 
 // Move a non-ceph container to another cluster node.
-func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, oldName, newName, newNode string) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, oldName, newName, newNode string, stateful bool) (func(op *operations.Operation) error, error) {
 	var sourceAddress string
 	var targetAddress string
 
@@ -489,6 +484,33 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		entry, _, err := source.GetInstance(oldName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get instance info")
+		}
+
+		statefulStart := false
+		if entry.StatusCode != api.Stopped {
+			if stateful {
+				statefulStart = true
+				req := api.InstanceStatePut{
+					Action:   "stop",
+					Stateful: true,
+				}
+
+				op, err := source.UpdateInstanceState(oldName, req, "")
+				if err != nil {
+					return err
+				}
+
+				err = op.Wait()
+				if err != nil {
+					return fmt.Errorf("Stateful stop failed: %w", err)
+				}
+
+				// Copy the stateful indicator to the new instance so that when it is started
+				// again it will use the state file when doing a stateful start.
+				entry.Stateful = true
+			} else {
+				return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to migrate statelessly")
+			}
 		}
 
 		args := lxd.InstanceCopyArgs{
@@ -571,6 +593,23 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		})
 		if err != nil {
 			return err
+		}
+
+		if statefulStart {
+			req := api.InstanceStatePut{
+				Action:   "start",
+				Stateful: true,
+			}
+
+			op, err := dest.UpdateInstanceState(destName, req, "")
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return fmt.Errorf("Stateful start failed: %w", err)
+			}
 		}
 
 		return nil
@@ -711,7 +750,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, project
 		return err
 	}
 
-	f, err := instancePostClusteringMigrate(d, r, inst, name, req.Name, targetNode)
+	f, err := instancePostClusteringMigrate(d, r, inst, name, req.Name, targetNode, req.Live)
 	if err != nil {
 		return err
 	}
