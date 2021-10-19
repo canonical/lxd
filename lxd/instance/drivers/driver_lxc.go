@@ -6642,9 +6642,9 @@ func (d *lxc) IsRunning() bool {
 	return d.isRunningStatusCode(d.statusCode())
 }
 
-// IsMigratable returns whether the instance can be migrated.
-func (d *lxc) IsMigratable() bool {
-	return d.isMigratable(d)
+// CanMigrate returns whether the instance can be migrated.
+func (d *lxc) CanMigrate() bool {
+	return d.canMigrate(d)
 }
 
 // InitPID returns PID of init process.

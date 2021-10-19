@@ -903,7 +903,8 @@ func (d *common) warningsDelete() error {
 	return nil
 }
 
-func (d *common) isMigratable(inst instance.Instance) bool {
+// canMigrate returns whether the instance can be migrated.
+func (d *common) canMigrate(inst instance.Instance) bool {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]
