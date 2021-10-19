@@ -390,6 +390,7 @@ Device configuration properties:
 Key                                  | Type    | Default           | Required | Managed | Description
 :--                                  | :--     | :--               | :--      | :--     | :--
 network                              | string  | -                 | yes      | yes     | The LXD network to link device to
+acceleration                         | string  | none              | no       | no      | Enable hardware offloading. Either `none` or `sriov`
 name                                 | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
 host\_name                           | string  | randomly assigned | no       | no      | The name of the interface inside the host
 hwaddr                               | string  | randomly assigned | no       | no      | The MAC address of the new interface
