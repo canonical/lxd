@@ -60,6 +60,7 @@ limits.memory.swap.priority                 | integer   | 10 (maximum)      | ye
 limits.network.priority                     | integer   | 0 (minimum)       | yes           | -                         | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
 limits.processes                            | integer   | - (max)           | yes           | container                 | Maximum number of processes that can run in the instance
 linux.kernel\_modules                       | string    | -                 | yes           | container                 | Comma separated list of kernel modules to load before starting the instance
+linux.sysctl.*                              | string    | -                 | no            | container                 | Allow for modify sysctl settings
 migration.incremental.memory                | boolean   | false             | yes           | container                 | Incremental memory transfer of the instance's memory to reduce downtime
 migration.incremental.memory.goal           | integer   | 70                | yes           | container                 | Percentage of memory to have in sync before stopping the instance
 migration.incremental.memory.iterations     | integer   | 10                | yes           | container                 | Maximum number of transfer operations to go through before stopping the instance
