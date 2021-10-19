@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-18 09:03+0100\n"
+"POT-Creation-Date: 2021-10-19 15:56+0100\n"
 "PO-Revision-Date: 2020-10-08 08:16+0000\n"
 "Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1775,7 +1775,7 @@ msgstr ""
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/move.go:262 lxc/move.go:335
+#: lxc/move.go:259 lxc/move.go:332
 msgid "Failed to connect to cluster member"
 msgstr ""
 
@@ -2799,11 +2799,11 @@ msgstr " Использование памяти:"
 msgid "Memory:"
 msgstr " Использование памяти:"
 
-#: lxc/move.go:279 lxc/move.go:348
+#: lxc/move.go:276 lxc/move.go:346
 msgid "Migration API failure"
 msgstr ""
 
-#: lxc/move.go:302 lxc/move.go:353
+#: lxc/move.go:299 lxc/move.go:351
 msgid "Migration operation failure"
 msgstr ""
 
@@ -4236,16 +4236,12 @@ msgstr ""
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:198
+#: lxc/move.go:196
 msgid "The --mode flag can't be used with --storage"
 msgstr ""
 
 #: lxc/move.go:169
 msgid "The --mode flag can't be used with --target"
-msgstr ""
-
-#: lxc/move.go:194
-msgid "The --stateless flag can't be used with --storage"
 msgstr ""
 
 #: lxc/move.go:157
@@ -4292,7 +4288,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr ""
 
-#: lxc/move.go:267
+#: lxc/move.go:264
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -4381,7 +4377,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:340 lxc/move.go:284
+#: lxc/copy.go:340 lxc/move.go:281
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -4632,7 +4628,7 @@ msgstr ""
 msgid "You must specify a destination instance name when using --target"
 msgstr ""
 
-#: lxc/copy.go:75 lxc/move.go:251 lxc/move.go:324
+#: lxc/copy.go:75 lxc/move.go:248 lxc/move.go:321
 msgid "You must specify a source instance name"
 msgstr ""
 
