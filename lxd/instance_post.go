@@ -292,7 +292,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	// Check that the name isn't already in use.
 	id, _ := d.cluster.GetInstanceID(projectName, req.Name)
 	if id > 0 {
-		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
+		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
 	}
 
 	run := func(*operations.Operation) error {
