@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-19 15:56+0100\n"
+"POT-Creation-Date: 2021-10-19 17:27+0100\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1725,7 +1725,7 @@ msgstr ""
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/move.go:259 lxc/move.go:332
+#: lxc/move.go:255 lxc/move.go:329
 msgid "Failed to connect to cluster member"
 msgstr ""
 
@@ -2738,11 +2738,11 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:276 lxc/move.go:346
+#: lxc/move.go:273 lxc/move.go:343
 msgid "Migration API failure"
 msgstr ""
 
-#: lxc/move.go:299 lxc/move.go:351
+#: lxc/move.go:296 lxc/move.go:348
 msgid "Migration operation failure"
 msgstr ""
 
@@ -4156,27 +4156,23 @@ msgstr ""
 msgid "Taken at"
 msgstr "salvato alle %s"
 
-#: lxc/move.go:161
+#: lxc/move.go:159
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:196
+#: lxc/move.go:192
 msgid "The --mode flag can't be used with --storage"
 msgstr ""
 
-#: lxc/move.go:169
+#: lxc/move.go:167
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:157
-msgid "The --stateless flag can't be used with --target"
-msgstr ""
-
-#: lxc/move.go:165
+#: lxc/move.go:163
 msgid "The --storage flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:181
+#: lxc/move.go:179
 msgid "The destination LXD server is not clustered"
 msgstr ""
 
@@ -4213,7 +4209,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "il remote %s non esiste"
 
-#: lxc/move.go:264
+#: lxc/move.go:260
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -4302,7 +4298,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:340 lxc/move.go:281
+#: lxc/copy.go:340 lxc/move.go:278
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Creazione del container in corso"
@@ -4552,7 +4548,7 @@ msgstr ""
 msgid "You must specify a destination instance name when using --target"
 msgstr "Occorre specificare un nome di container come origine"
 
-#: lxc/copy.go:75 lxc/move.go:248 lxc/move.go:321
+#: lxc/copy.go:75 lxc/move.go:244 lxc/move.go:318
 #, fuzzy
 msgid "You must specify a source instance name"
 msgstr "Occorre specificare un nome di container come origine"
