@@ -201,11 +201,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Check if stateful (backward compatibility).
-	stateful := true
+	// Check if stateful indicator supplied and default to true if not (for backward compatibility).
 	_, err = reqRaw.GetBool("live")
-	if err == nil {
-		stateful = req.Live
+	if err != nil {
+		req.Live = true
 	}
 
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
@@ -267,7 +266,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-		ws, err := newMigrationSource(inst, stateful, instanceOnly)
+		ws, err := newMigrationSource(inst, req.Live, instanceOnly)
 		if err != nil {
 			return response.InternalError(err)
 		}
