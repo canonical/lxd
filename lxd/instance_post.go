@@ -201,11 +201,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	// Check if stateful (backward compatibility).
-	stateful := true
+	// Check if stateful indicator supplied and default to true if not (for backward compatibility).
 	_, err = reqRaw.GetBool("live")
-	if err == nil {
-		stateful = req.Live
+	if err != nil {
+		req.Live = true
 	}
 
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
@@ -218,7 +217,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if req.Pool != "" {
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, op)
+				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, req.Live, op)
 			}
 
 			resources := map[string][]string{}
@@ -267,7 +266,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		instanceOnly := req.InstanceOnly || req.ContainerOnly
-		ws, err := newMigrationSource(inst, stateful, instanceOnly)
+		ws, err := newMigrationSource(inst, req.Live, instanceOnly)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -315,7 +314,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	// Check that the name isn't already in use.
 	id, _ := d.cluster.GetInstanceID(projectName, req.Name)
 	if id > 0 {
-		return response.Conflict(fmt.Errorf("Name '%s' already in use", req.Name))
+		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
 	}
 
 	run := func(*operations.Operation) error {
@@ -338,13 +337,22 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move an instance to another pool.
-func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, op *operations.Operation) error {
-	if inst.IsRunning() {
-		return fmt.Errorf("Instance must not be running to move between pools")
-	}
-
+func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, stateful bool, op *operations.Operation) error {
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance snapshots cannot be moved between pools")
+	}
+
+	statefulStart := false
+	if inst.IsRunning() {
+		if stateful {
+			statefulStart = true
+			err := inst.Stop(true)
+			if err != nil {
+				return err
+			}
+		} else {
+			return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to move between pools statelessly")
+		}
 	}
 
 	// Copy config from instance to avoid modifying it.
@@ -379,7 +387,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 		Stateful:     inst.IsStateful(),
 	}
 
-	// If we are moving the instance to a new pool but keeping the same instace name, then we need to create
+	// If we are moving the instance to a new pool but keeping the same instance name, then we need to create
 	// the copy of the instance on the new pool with a temporary name that is different from the source to
 	// avoid conflicts. Then after the source instance has been deleted we will rename the new instance back
 	// to the original name.
@@ -407,6 +415,13 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 	// Rename copy from temporary name to original name if needed.
 	if newName == inst.Name() {
 		err = targetInst.Rename(newName, false) // Don't apply templates when moving.
+		if err != nil {
+			return err
+		}
+	}
+
+	if statefulStart {
+		err = targetInst.Start(true)
 		if err != nil {
 			return err
 		}
@@ -448,14 +463,14 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// Connect to the source host, i.e. ourselves (the node the instance is running on).
 		source, err := cluster.Connect(sourceAddress, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
-			return errors.Wrap(err, "Failed to connect to source server")
+			return fmt.Errorf("Failed to connect to source server %q: %w", sourceAddress, err)
 		}
 		source = source.UseProject(inst.Project())
 
 		// Connect to the destination host, i.e. the node to migrate the container to.
 		dest, err := cluster.Connect(targetAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 		if err != nil {
-			return errors.Wrap(err, "Failed to connect to destination server")
+			return fmt.Errorf("Failed to connect to destination server %q: %w", targetAddress, err)
 		}
 		dest = dest.UseTarget(newNode).UseProject(inst.Project())
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-18 09:03+0100\n"
+"POT-Creation-Date: 2021-10-19 15:56+0100\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -1784,7 +1784,7 @@ msgstr ""
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/move.go:262 lxc/move.go:335
+#: lxc/move.go:259 lxc/move.go:332
 msgid "Failed to connect to cluster member"
 msgstr ""
 
@@ -2801,11 +2801,11 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:279 lxc/move.go:348
+#: lxc/move.go:276 lxc/move.go:346
 msgid "Migration API failure"
 msgstr ""
 
-#: lxc/move.go:302 lxc/move.go:353
+#: lxc/move.go:299 lxc/move.go:351
 msgid "Migration operation failure"
 msgstr ""
 
@@ -4243,7 +4243,7 @@ msgstr ""
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:198
+#: lxc/move.go:196
 #, fuzzy
 msgid "The --mode flag can't be used with --storage"
 msgstr "--refresh só pode ser usado com containers"
@@ -4251,11 +4251,6 @@ msgstr "--refresh só pode ser usado com containers"
 #: lxc/move.go:169
 msgid "The --mode flag can't be used with --target"
 msgstr ""
-
-#: lxc/move.go:194
-#, fuzzy
-msgid "The --stateless flag can't be used with --storage"
-msgstr "--refresh só pode ser usado com containers"
 
 #: lxc/move.go:157
 msgid "The --stateless flag can't be used with --target"
@@ -4302,7 +4297,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr ""
 
-#: lxc/move.go:267
+#: lxc/move.go:264
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -4391,7 +4386,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:340 lxc/move.go:284
+#: lxc/copy.go:340 lxc/move.go:281
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Editar arquivos no container"
@@ -4648,7 +4643,7 @@ msgstr ""
 msgid "You must specify a destination instance name when using --target"
 msgstr ""
 
-#: lxc/copy.go:75 lxc/move.go:251 lxc/move.go:324
+#: lxc/copy.go:75 lxc/move.go:248 lxc/move.go:321
 msgid "You must specify a source instance name"
 msgstr ""
 
@@ -5465,6 +5460,10 @@ msgstr ""
 #: lxc/image.go:1084
 msgid "yes"
 msgstr "sim"
+
+#, fuzzy
+#~ msgid "The --stateless flag can't be used with --storage"
+#~ msgstr "--refresh só pode ser usado com containers"
 
 #, fuzzy
 #~ msgid "The --instance-only flag can't be used with --storage"
