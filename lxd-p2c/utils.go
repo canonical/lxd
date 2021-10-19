@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"strings"
 
@@ -81,12 +82,31 @@ func transferRootfs(dst lxd.ContainerServer, op lxd.Operation, rootfs string, rs
 	return nil
 }
 
-func connectTarget(url string) (lxd.ContainerServer, error) {
+func connectTarget(url string, certPath string, keyPath string) (lxd.ContainerServer, error) {
+	var clientCrt []byte
+	var clientKey []byte
+
 	// Generate a new client certificate for this
-	fmt.Println("Generating a temporary client certificate. This may take a minute...")
-	clientCrt, clientKey, err := shared.GenerateMemCert(true, false)
-	if err != nil {
-		return nil, err
+	if certPath == "" || keyPath == "" {
+		var err error
+
+		fmt.Println("Generating a temporary client certificate. This may take a minute...")
+		clientCrt, clientKey, err = shared.GenerateMemCert(true, false)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var err error
+
+		clientCrt, err = ioutil.ReadFile(certPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read client certificate: %w", err)
+		}
+
+		clientKey, err = ioutil.ReadFile(keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read client key: %w", err)
+		}
 	}
 
 	// Attempt to connect using the system CA
