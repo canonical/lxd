@@ -182,6 +182,8 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	stateful := !c.flagStateless
+
 	// Support for server-side pool move.
 	if c.flagStorage != "" && sourceRemote == destRemote {
 		source, err := conf.GetInstanceServer(sourceRemote)
@@ -190,15 +192,11 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if source.HasExtension("instance_pool_move") {
-			if c.flagStateless {
-				return fmt.Errorf(i18n.G("The --stateless flag can't be used with --storage"))
-			}
-
 			if c.flagMode != moveDefaultMode {
 				return fmt.Errorf(i18n.G("The --mode flag can't be used with --storage"))
 			}
 
-			return moveInstancePool(conf, sourceResource, destResource, c.flagInstanceOnly, c.flagStorage)
+			return moveInstancePool(conf, sourceResource, destResource, c.flagInstanceOnly, c.flagStorage, stateful)
 		}
 	}
 
@@ -211,7 +209,6 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	cpy.flagProfile = c.flagProfile
 	cpy.flagNoProfiles = c.flagNoProfiles
 
-	stateful := !c.flagStateless
 	instanceOnly := c.flagInstanceOnly
 
 	// A move is just a copy followed by a delete; however, we want to
@@ -306,7 +303,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 }
 
 // Move an instance between pools using special POST /instances/<name> API.
-func moveInstancePool(conf *config.Config, sourceResource string, destResource string, instanceOnly bool, storage string) error {
+func moveInstancePool(conf *config.Config, sourceResource string, destResource string, instanceOnly bool, storage string, stateful bool) error {
 	// Parse the source.
 	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
 	if err != nil {
@@ -341,6 +338,7 @@ func moveInstancePool(conf *config.Config, sourceResource string, destResource s
 		Migration:    true,
 		Pool:         storage,
 		InstanceOnly: instanceOnly,
+		Live:         stateful,
 	}
 
 	op, err := source.MigrateInstance(sourceName, req)
