@@ -21,6 +21,8 @@ import (
 type cmdMigrate struct {
 	global *cmdGlobal
 
+	flagClientCert  string
+	flagClientKey   string
 	flagConfig      []string
 	flagNetwork     string
 	flagProfile     []string
@@ -55,6 +57,8 @@ func (c *cmdMigrate) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", "Size of the storage volume (requires --storage)"+"``")
 	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", "Instance type to use for the container"+"``")
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
+	cmd.Flags().StringVar(&c.flagClientCert, "client-cert", "", "Path to an existing client certificate"+"``")
+	cmd.Flags().StringVar(&c.flagClientKey, "client-key", "", "Path to an existing client key"+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the container with no profiles applied")
 
 	return cmd
@@ -141,7 +145,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Connect to the target
-	dst, err := connectTarget(URL)
+	dst, err := connectTarget(URL, c.flagClientCert, c.flagClientKey)
 	if err != nil {
 		return err
 	}
