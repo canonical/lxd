@@ -31,6 +31,11 @@ type ruleDirection string
 const ruleDirectionIngress ruleDirection = "ingress"
 const ruleDirectionEgress ruleDirection = "egress"
 
+// ReservedNetworkSubects contains a list of reserved network peer names (those starting with @ character) that
+// cannot be used when to name peering connections. Otherwise peer connections wouldn't be able to be referenced
+// in ACL rules using the "@<peer name>" format without the potential of conflicts.
+var ReservedNetworkSubects = []string{"internal", "external"}
+
 // Define reserved ACL subjects.
 const ruleSubjectInternal = "@internal"
 const ruleSubjectExternal = "@external"
@@ -189,23 +194,7 @@ func (d *common) Etag() []interface{} {
 
 // validateName checks name is valid.
 func (d *common) validateName(name string) error {
-	if name == "" {
-		return fmt.Errorf("Name is required")
-	}
-
-	// Don't allow ACL names to start with special port selector characters to allow LXD to define special port
-	// selectors without risking conflict with user defined ACL names.
-	if shared.StringHasPrefix(name, "@", "%", "#") {
-		return fmt.Errorf("Name cannot start with reserved character %q", name[0])
-	}
-
-	// Ensures we can differentiate an ACL name from an IP in rules that reference this ACL.
-	err := shared.ValidHostname(name)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ValidName(name)
 }
 
 // validateConfig checks the config and rules are valid.

@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -29,6 +30,7 @@ type Info struct {
 	Projects           bool // Indicates if driver can be used in network enabled projects.
 	NodeSpecificConfig bool // Whether driver has cluster node specific config as a prerequisite for creation.
 	AddressForwards    bool // Indicates if driver supports address forwards.
+	Peering            bool // Indicates if the driver supports network peering.
 }
 
 // forwardPortMap represents a mapping of listen port(s) to target port(s) for a protocol/target address pair.
@@ -196,7 +198,7 @@ func (n *common) Info() Info {
 
 // IsUsed returns whether the network is used by any instances or profiles.
 func (n *common) IsUsed() (bool, error) {
-	usedBy, err := UsedBy(n.state, n.project, n.name, true)
+	usedBy, err := UsedBy(n.state, n.project, n.id, n.name, true)
 	if err != nil {
 		return false, err
 	}
@@ -925,4 +927,47 @@ func (n *common) forwardBGPSetupPrefixes() error {
 // Leases returns ErrNotImplemented for drivers that don't support address leases.
 func (n *common) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	return nil, ErrNotImplemented
+}
+
+// PeerCrete returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) PeerCreate(forward api.NetworkPeersPost) error {
+	return ErrNotImplemented
+}
+
+// PeerUpdate returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) PeerUpdate(peerName string, newPeer api.NetworkPeerPut) error {
+	return ErrNotImplemented
+}
+
+// PeerDelete returns ErrNotImplemented for drivers that do not support forwards.
+func (n *common) PeerDelete(peerName string) error {
+	return ErrNotImplemented
+}
+
+// peerValidate valites the peer request.
+func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
+	err := acl.ValidName(peerName)
+	if err != nil {
+		return err
+	}
+
+	if shared.StringInSlice(peerName, acl.ReservedNetworkSubects) {
+		return fmt.Errorf("Name cannot be one of the reserved network subjects: %v", acl.ReservedNetworkSubects)
+	}
+
+	// Look for any unknown config fields.
+	for k := range peer.Config {
+		if k == "target_address" {
+			continue
+		}
+
+		// User keys are not validated.
+		if shared.IsUserConfig(k) {
+			continue
+		}
+
+		return fmt.Errorf("Invalid option option %q", k)
+	}
+
+	return nil
 }

@@ -357,6 +357,27 @@ CREATE TABLE "networks_nodes" (
     FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );
+CREATE TABLE "networks_peers" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	target_network_project TEXT NULL,
+	target_network_name TEXT NULL,
+	target_network_id INTEGER NULL,
+	UNIQUE (network_id, name),
+	UNIQUE (network_id, target_network_project, target_network_name),
+	UNIQUE (network_id, target_network_id),
+	FOREIGN KEY (network_id) REFERENCES "networks" (id) ON DELETE CASCADE
+);
+CREATE TABLE "networks_peers_config" (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_peer_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_peer_id, key),
+	FOREIGN KEY (network_peer_id) REFERENCES "networks_peers" (id) ON DELETE CASCADE
+);
 CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON "networks_config" (network_id, IFNULL(node_id, -1), key);
 CREATE TABLE nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -684,5 +705,5 @@ CREATE TABLE warnings (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (51, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (52, strftime("%s"))
 `

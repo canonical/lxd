@@ -234,6 +234,14 @@ type InstanceServer interface {
 	UpdateNetworkForward(networkName string, listenAddress string, forward api.NetworkForwardPut, ETag string) (err error)
 	DeleteNetworkForward(networkName string, listenAddress string) (err error)
 
+	// Network peer functions ("network_peer" API extension)
+	GetNetworkPeerNames(networkName string) ([]string, error)
+	GetNetworkPeers(networkName string) ([]api.NetworkPeer, error)
+	GetNetworkPeer(networkName string, peerName string) (peer *api.NetworkPeer, ETag string, err error)
+	CreateNetworkPeer(networkName string, peer api.NetworkPeersPost) error
+	UpdateNetworkPeer(networkName string, peerName string, peer api.NetworkPeerPut, ETag string) (err error)
+	DeleteNetworkPeer(networkName string, peerName string) (err error)
+
 	// Network ACL functions ("network_acl" API extension)
 	GetNetworkACLNames() (names []string, err error)
 	GetNetworkACLs() (acls []api.NetworkACL, err error)
