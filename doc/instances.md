@@ -390,6 +390,7 @@ Device configuration properties:
 Key                                  | Type    | Default           | Required | Managed | Description
 :--                                  | :--     | :--               | :--      | :--     | :--
 network                              | string  | -                 | yes      | yes     | The LXD network to link device to
+acceleration                         | string  | none              | no       | no      | Enable hardware offloading. Either `none` or `sriov` (see SR-IOV hardware acceleration below)
 name                                 | string  | kernel assigned   | no       | no      | The name of the interface inside the instance
 host\_name                           | string  | randomly assigned | no       | no      | The name of the interface inside the host
 hwaddr                               | string  | randomly assigned | no       | no      | The MAC address of the new interface
@@ -405,6 +406,39 @@ security.acls.default.ingress.action | string  | reject            | no       | 
 security.acls.default.egress.action  | string  | reject            | no       | no      | Action to use for egress traffic that doesn't match any ACL rule
 security.acls.default.ingress.logged | boolean | false             | no       | no      | Whether to log ingress traffic that doesn't match any ACL rule
 security.acls.default.egress.logged  | boolean | false             | no       | no      | Whether to log egress traffic that doesn't match any ACL rule
+
+SR-IOV hardware acceleration:
+
+In order to use `acceleration=sriov` you need to have a compatible SR-IOV switchdev capable phyical NIC in your LXD
+host. LXD assumes that the physical NIC (PF) will be configured in switchdev mode and will be connected to the OVN
+integration OVS bridge and that it will have one or more virtual functions (VFs) active.
+
+The basic prerequisite setup steps to achieve this are:
+
+PF and VF setup:
+
+Activate some VFs on PF (in this case called `enp9s0f0np0` with a PCI address of `0000:09:00.0`) and unbind them.
+Then enable `switchdev` mode and `hw-tc-offload` on the the PF.
+Finally rebind the VFs.
+
+```
+echo 4 > /sys/bus/pci/devices/0000:09:00.0/sriov_numvfs
+for i in $(lspci -nnn | grep "Virtual Function" | cut -d' ' -f1); do echo 0000:$i > /sys/bus/pci/drivers/mlx5_core/unbind; done
+devlink dev eswitch set pci/0000:09:00.0 mode switchdev
+ethtool -K enp9s0f0np0 hw-tc-offload on
+for i in $(lspci -nnn | grep "Virtual Function" | cut -d' ' -f1); do echo 0000:$i > /sys/bus/pci/drivers/mlx5_core/bind; done
+```
+
+OVS setup:
+
+Enable hardware offline and add the PF NIC to the integration bridge (normally callled `br-int`):
+
+```
+ovs-vsctl set open_vswitch . other_config:hw-offload=true
+systemctl restart openvswitch-switch
+ovs-vsctl add-port br-int enp9s0f0np0
+ip link set enp9s0f0np0 up
+```
 
 #### nic: physical
 
