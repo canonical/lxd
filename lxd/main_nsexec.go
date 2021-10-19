@@ -41,28 +41,17 @@ import (
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "include/lxd.h"
 #include "include/memory_utils.h"
 #include "include/mount_utils.h"
 #include "include/process_utils.h"
 #include "include/syscall_numbers.h"
 #include "include/syscall_wrappers.h"
 
-// External functions
-extern void checkfeature();
-extern void forkcoresched();
-extern void forkexec();
-extern void forkfile();
-extern void forksyscall();
-extern void forkmount();
-extern void forknet();
-extern void forkproxy();
-extern void forkuevent();
-
 // Command line parsing and tracking
 char *cmdline_buf = NULL;
 char *cmdline_cur = NULL;
 ssize_t cmdline_size = -1;
-extern int pidfd_setns_aware;
 
 char* advance_arg(bool required) {
 	while (*cmdline_cur != 0)

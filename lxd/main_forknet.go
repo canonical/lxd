@@ -14,9 +14,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <sched.h>
@@ -28,14 +27,11 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "include/macro.h"
-#include "include/memory_utils.h"
+#include "lxd.h"
+#include "macro.h"
+#include "memory_utils.h"
 
-extern char *advance_arg(bool required);
-extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
-extern int pidfd_nsfd(int pidfd, pid_t pid);
-
-void forkdonetinfo(int pidfd, int ns_fd)
+static void forkdonetinfo(int pidfd, int ns_fd)
 {
 	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWNET)) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
@@ -63,7 +59,7 @@ static int dosetns_file(char *file, char *nstype)
 	return 0;
 }
 
-void forkdonetdetach(char *file) {
+static void forkdonetdetach(char *file) {
 	if (dosetns_file(file, "net") < 0) {
 		fprintf(stderr, "Failed setns to container network namespace: %s\n", strerror(errno));
 		_exit(1);

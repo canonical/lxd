@@ -7,9 +7,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -23,15 +22,10 @@ import (
 #include <unistd.h>
 #include <limits.h>
 
-#include "include/memory_utils.h"
+#include "lxd.h"
+#include "memory_utils.h"
 
-extern char* advance_arg(bool required);
-extern void error(char *msg);
-extern void attach_userns_fd(int ns_fd);
-extern int pidfd_nsfd(int pidfd, pid_t pid);
-extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
-
-int copy(int target, int source, bool append)
+static int copy(int target, int source, bool append)
 {
 	ssize_t n;
 	char buf[1024];
@@ -61,8 +55,37 @@ int copy(int target, int source, bool append)
 	return 0;
 }
 
-int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *container, bool is_put, char *type, uid_t uid, gid_t gid, mode_t mode, uid_t defaultUid, gid_t defaultGid, mode_t defaultMode, bool append) {
+struct file_args {
+	char *rootfs;
+	int pidfd;
+	int ns_fd;
+	char *host;
+	char *container;
+	bool is_put;
+	char *type;
+	uid_t uid;
+	gid_t gid;
+	mode_t mode;
+	uid_t uid_default;
+	gid_t gid_default;
+	mode_t mode_default;
+	bool append;
+};
+
+static int manip_file_in_ns(struct file_args *args)
+{
 	__do_close int host_fd = -EBADF, container_fd = -EBADF;
+	char *rootfs = args->rootfs;
+	int pidfd = args->pidfd;
+	int ns_fd = args->ns_fd;
+	char *host = args->host;
+	char *container = args->container;
+	bool is_put = args->is_put;
+	char *type = args->type;
+	uid_t uid = args->uid;
+	gid_t gid = args->gid;
+	mode_t mode = args->mode;
+	bool append = args->append;
 	int exists = -1, fret = -1;
 	int container_open_flags;
 	struct stat st;
@@ -102,17 +125,14 @@ int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *conta
 	}
 
 	if (is_put && is_dir_manip) {
-		if (mode == -1) {
-			mode = defaultMode;
-		}
+		if (mode == -1)
+			mode = args->mode_default;
 
-		if (uid == -1) {
-			uid = defaultUid;
-		}
+		if (uid == -1)
+			uid = args->uid_default;
 
-		if (gid == -1) {
-			gid = defaultGid;
-		}
+		if (gid == -1)
+			gid = args->gid_default;
 
 		if (mkdir(container, mode) < 0 && errno != EEXIST) {
 			error("error: mkdir");
@@ -128,17 +148,14 @@ int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *conta
 	}
 
 	if (is_put && is_symlink_manip) {
-		if (mode == -1) {
-			mode = defaultMode;
-		}
+		if (mode == -1)
+			mode = args->mode_default;
 
-		if (uid == -1) {
-			uid = defaultUid;
-		}
+		if (uid == -1)
+			uid = args->uid_default;
 
-		if (gid == -1) {
-			gid = defaultGid;
-		}
+		if (gid == -1)
+			gid = args->gid_default;
 
 		if (symlink(host, container) < 0 && errno != EEXIST) {
 			error("error: symlink");
@@ -192,19 +209,17 @@ int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *conta
 		error("error: open");
 		return -1;
 	}
+
 	if (is_put) {
 		if (!exists) {
-			if (mode == -1) {
-				mode = defaultMode;
-			}
+			if (mode == -1)
+				mode = args->mode_default;
 
-			if (uid == -1) {
-				uid = defaultUid;
-			}
+			if (uid == -1)
+				uid = args->uid_default;
 
-			if (gid == -1) {
-				gid = defaultGid;
-			}
+			if (gid == -1)
+				gid = args->gid_default;
 		}
 
 		if (copy(container_fd, host_fd, append) < 0) {
@@ -221,112 +236,110 @@ int manip_file_in_ns(char *rootfs, int pidfd, int ns_fd, char *host, char *conta
 			error("error: chown");
 			return -1;
 		}
-		fret = 0;
-	} else {
-		if (fstat(container_fd, &st) < 0) {
-			error("error: stat");
-			return -1;
-		}
 
-		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
-		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
-		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-		if (S_ISDIR(st.st_mode)) {
-			__do_closedir DIR *fdir = NULL;
-			struct dirent *de;
-
-			fdir = fdopendir(container_fd);
-			if (!fdir) {
-				error("error: fdopendir");
-				return -1;
-			}
-			move_fd(container_fd);
-
-			fprintf(stderr, "type: directory\n");
-
-			while((de = readdir(fdir))) {
-				int len, i;
-
-				if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
-					continue;
-
-				fprintf(stderr, "entry: ");
-
-				// swap \n to \0 since we split this output by line
-				for (i = 0, len = strlen(de->d_name); i < len; i++) {
-					if (*(de->d_name + i) == '\n')
-						putc(0, stderr);
-					else
-						putc(*(de->d_name + i), stderr);
-				}
-				fprintf(stderr, "\n");
-			}
-
-			// container_fd is dead now that we fdopendir'd it
-			return -1;
-		} else {
-			fprintf(stderr, "type: file\n");
-			fret = copy(host_fd, container_fd, false);
-		}
-		fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
+		return 0;
 	}
+
+	if (fstat(container_fd, &st) < 0) {
+		error("error: stat");
+		return -1;
+	}
+
+	fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
+	fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
+	fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+
+	if (S_ISDIR(st.st_mode)) {
+		__do_closedir DIR *fdir = NULL;
+		struct dirent *de;
+
+		fdir = fdopendir(container_fd);
+		if (!fdir) {
+			error("error: fdopendir");
+			return -1;
+		}
+		move_fd(container_fd);
+
+		fprintf(stderr, "type: directory\n");
+
+		while ((de = readdir(fdir))) {
+			int len, i;
+
+			if (!strcmp(de->d_name, ".") ||
+			    !strcmp(de->d_name, ".."))
+				continue;
+
+			fprintf(stderr, "entry: ");
+
+			// swap \n to \0 since we split this output by line
+			for (i = 0, len = strlen(de->d_name); i < len; i++) {
+				if (*(de->d_name + i) == '\n')
+					putc(0, stderr);
+				else
+					putc(*(de->d_name + i), stderr);
+			}
+			fprintf(stderr, "\n");
+		}
+
+		// container_fd is dead now that we fdopendir'd it
+		return -1;
+	} else {
+		fprintf(stderr, "type: file\n");
+		fret = copy(host_fd, container_fd, false);
+	}
+	fprintf(stderr, "type: %s", S_ISDIR(st.st_mode) ? "directory" : "file");
 
 	return fret;
 }
 
-void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd) {
+static void forkdofile(bool is_put, char *rootfs, int pidfd, int ns_fd)
+{
+	struct file_args args = {
+		.uid		= 0,
+		.gid		= 0,
+		.uid_default	= 0,
+		.gid_default	= 0,
+		.mode		= 0,
+		.mode_default	= 0,
+		.append		= false,
+		.is_put		= is_put,
+		.rootfs		= rootfs,
+		.pidfd		= pidfd,
+		.ns_fd		= ns_fd,
+	};
 	char *cur = NULL;
 
-	uid_t uid = 0;
-	uid_t defaultUid = 0;
-
-	gid_t gid = 0;
-	gid_t defaultGid = 0;
-
-	mode_t mode = 0;
-	mode_t defaultMode = 0;
-
-	char *source = NULL;
-	char *target = NULL;
-	char *type = NULL;
-
-	bool append = false;
-
+	cur = advance_arg(true);
+	if (is_put)
+		args.host = cur;
+	else
+		args.container = cur;
 
 	cur = advance_arg(true);
-	if (is_put) {
-		source = cur;
-	} else {
-		target = cur;
-	}
-
-	cur = advance_arg(true);
-	if (is_put) {
-		target = cur;
-	} else {
-		source = cur;
-	}
+	if (is_put)
+		args.container = cur;
+	else
+		args.host = cur;
 
 	if (is_put) {
-		type = advance_arg(true);
-		uid = atoi(advance_arg(true));
-		gid = atoi(advance_arg(true));
-		mode = atoi(advance_arg(true));
-		defaultUid = atoi(advance_arg(true));
-		defaultGid = atoi(advance_arg(true));
-		defaultMode = atoi(advance_arg(true));
+		args.type		= advance_arg(true);
+		args.uid		= atoi(advance_arg(true));
+		args.gid		= atoi(advance_arg(true));
+		args.mode		= atoi(advance_arg(true));
+		args.uid_default	= atoi(advance_arg(true));
+		args.gid_default	= atoi(advance_arg(true));
+		args.mode_default	= atoi(advance_arg(true));
 
-		if (strcmp(advance_arg(true), "append") == 0) {
-			append = true;
-		}
+		if (strcmp(advance_arg(true), "append") == 0)
+			args.append = true;
 	}
 
-	printf("%d: %s to %s\n", is_put, source, target);
+	printf("%d: %s to %s\n", args.is_put, args.host, args.container);
 
-	_exit(manip_file_in_ns(rootfs, pidfd, ns_fd, source, target, is_put, type, uid, gid, mode, defaultUid, defaultGid, defaultMode, append));
+	_exit(manip_file_in_ns(&args));
 }
 
-void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
+static void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
 {
 	char *path = NULL;
 
@@ -359,7 +372,7 @@ void forkcheckfile(char *rootfs, int pidfd, int ns_fd)
 	_exit(0);
 }
 
-void forkremovefile(char *rootfs, int pidfd, int ns_fd)
+static void forkremovefile(char *rootfs, int pidfd, int ns_fd)
 {
 	char *path = NULL;
 	struct stat sb;
