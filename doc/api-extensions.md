@@ -1459,3 +1459,6 @@ to be set at image copy time.
 
 ## clustering\_config
 Adds new `config` property to cluster members with configurable key/value pairs.
+
+## network\_peer
+This adds network peering to allow traffic to flow between OVN networks without leaving the OVN subsystem.

@@ -156,6 +156,21 @@ type OVNRouterPolicy struct {
 	NextHop  net.IP
 }
 
+// OVNRouterPeering represents a the configuration of a peering connection between two OVN logical routers.
+type OVNRouterPeering struct {
+	LocalRouter        OVNRouter
+	LocalRouterPort    OVNRouterPort
+	LocalRouterPortMAC net.HardwareAddr
+	LocalRouterPortIPs []net.IPNet
+	LocalRouterRoutes  []net.IPNet
+
+	TargetRouter        OVNRouter
+	TargetRouterPort    OVNRouterPort
+	TargetRouterPortMAC net.HardwareAddr
+	TargetRouterPortIPs []net.IPNet
+	TargetRouterRoutes  []net.IPNet
+}
+
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(s *state.State) (*OVN, error) {
 	nbConnection, err := cluster.ConfigGetString(s.Cluster, "network.ovn.northbound_connection")
@@ -1819,6 +1834,200 @@ func (o *OVN) LogicalRouterPolicyApply(routerName OVNRouter, policies ...OVNRout
 	_, err := o.nbctl(args...)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// LogicalRouterRoutes returns a list of static routes configured on a logical router.
+func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error) {
+	output, err := o.nbctl("lr-route-list", string(routerName))
+	if err != nil {
+		return nil, err
+	}
+
+	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	routes := make([]OVNRouterRoute, 0)
+
+	for i, line := range lines {
+		if line == "IPv4 Routes" || line == "IPv6 Routes" {
+			continue // Ignore heading category lines.
+		}
+
+		// E.g. "10.97.31.0/24 10.97.31.1 dst-ip [optional-some-router-port-name]"
+		fields := strings.Fields(line)
+		fieldsLen := len(fields)
+
+		if fieldsLen <= 0 {
+			continue // Ignore empty lines.
+		} else if fieldsLen < 3 || fieldsLen > 4 {
+			return nil, fmt.Errorf("Unrecognised static route item output on line %d: %q", i, line)
+		}
+
+		var route OVNRouterRoute
+
+		// ovn-nbctl doesn't output single-host route prefixes in CIDR format, so do the conversion here.
+		if ip := net.ParseIP(fields[0]); ip != nil {
+			subnetSize := 32
+			if ip.To4() == nil {
+				subnetSize = 128
+			}
+
+			fields[0] = fmt.Sprintf("%s/%d", ip.String(), subnetSize)
+		}
+
+		_, prefix, err := net.ParseCIDR(fields[0])
+		if err != nil {
+			return nil, fmt.Errorf("Invalid static route prefix on line %d: %q", i, fields[0])
+		}
+
+		route.Prefix = *prefix
+		route.NextHop = net.ParseIP(fields[1])
+
+		if fieldsLen > 3 {
+			route.Port = OVNRouterPort(fields[3])
+		}
+
+		routes = append(routes, route)
+	}
+
+	return routes, nil
+}
+
+// LogicalRouterPeeringApply applies a peering relationship between two logical routers.
+func (o *OVN) LogicalRouterPeeringApply(opts OVNRouterPeering) error {
+	if len(opts.LocalRouterPortIPs) <= 0 || len(opts.TargetRouterPortIPs) <= 0 {
+		return fmt.Errorf("IPs not populated for both router ports")
+	}
+
+	// Remove peering router ports and static routes using ports from both routers.
+	// Run the delete step as a separate command to workaround a bug in OVN.
+	err := o.LogicalRouterPeeringDelete(opts)
+	if err != nil {
+		return err
+	}
+
+	// Start fresh command set.
+	var args []string
+
+	// Will use the first IP from each family of the router port interfaces.
+	localRouterGatewayIPs := make(map[uint]net.IP, 0)
+	targetRouterGatewayIPs := make(map[uint]net.IP, 0)
+
+	// Setup local router port peered with target router port.
+	args = append(args, "--", "lrp-add", string(opts.LocalRouter), string(opts.LocalRouterPort), opts.LocalRouterPortMAC.String())
+	for _, ipNet := range opts.LocalRouterPortIPs {
+		ipVersion := uint(4)
+		if ipNet.IP.To4() == nil {
+			ipVersion = 6
+		}
+
+		if localRouterGatewayIPs[ipVersion] == nil {
+			localRouterGatewayIPs[ipVersion] = ipNet.IP
+		}
+
+		args = append(args, ipNet.String())
+	}
+	args = append(args, fmt.Sprintf("peer=%s", opts.TargetRouterPort))
+
+	// Setup target router port peered with local router port.
+	args = append(args, "--", "lrp-add", string(opts.TargetRouter), string(opts.TargetRouterPort), opts.TargetRouterPortMAC.String())
+	for _, ipNet := range opts.TargetRouterPortIPs {
+		ipVersion := uint(4)
+		if ipNet.IP.To4() == nil {
+			ipVersion = 6
+		}
+
+		if targetRouterGatewayIPs[ipVersion] == nil {
+			targetRouterGatewayIPs[ipVersion] = ipNet.IP
+		}
+
+		args = append(args, ipNet.String())
+	}
+	args = append(args, fmt.Sprintf("peer=%s", opts.LocalRouterPort))
+
+	// Add routes using the first router gateway IP for each family for next hop address.
+	for _, route := range opts.LocalRouterRoutes {
+		ipVersion := uint(4)
+		if route.IP.To4() == nil {
+			ipVersion = 6
+		}
+
+		nextHopIP := targetRouterGatewayIPs[ipVersion]
+
+		if nextHopIP == nil {
+			return fmt.Errorf("Missing target router port IPv%d address for local route %q nexthop address", ipVersion, route.String())
+		}
+
+		args = append(args, "--", "--may-exist", "lr-route-add", string(opts.LocalRouter), route.String(), nextHopIP.String(), string(opts.LocalRouterPort))
+	}
+
+	for _, route := range opts.TargetRouterRoutes {
+		ipVersion := uint(4)
+		if route.IP.To4() == nil {
+			ipVersion = 6
+		}
+
+		nextHopIP := localRouterGatewayIPs[ipVersion]
+
+		if nextHopIP == nil {
+			return fmt.Errorf("Missing local router port IPv%d address for target route %q nexthop address", ipVersion, route.String())
+		}
+
+		args = append(args, "--", "--may-exist", "lr-route-add", string(opts.TargetRouter), route.String(), nextHopIP.String(), string(opts.TargetRouterPort))
+	}
+
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// LogicalRouterPeeringDelete deletes a peering relationship between two logical routers.
+// Requires LocalRouter, LocalRouterPort, TargetRouter and TargetRouterPort opts fields to be populated.
+func (o *OVN) LogicalRouterPeeringDelete(opts OVNRouterPeering) error {
+	// Remove peering router ports and static routes using ports from both routers.
+	if opts.LocalRouter == "" || opts.TargetRouter == "" {
+		return fmt.Errorf("Router names not populated for both routers")
+	}
+
+	args := []string{
+		"--if-exists", "lrp-del", string(opts.LocalRouterPort), "--",
+		"--if-exists", "lrp-del", string(opts.TargetRouterPort),
+	}
+
+	// Remove static routes from both routers that use the respective peering router ports.
+	staticRoutes, err := o.LogicalRouterRoutes(opts.LocalRouter)
+	if err != nil {
+		return fmt.Errorf("Failed getting static routes for local peer router %q: %w", opts.LocalRouter, err)
+	}
+
+	for _, staticRoute := range staticRoutes {
+		if staticRoute.Port == opts.LocalRouterPort {
+			args = append(args, "--", "lr-route-del", string(opts.LocalRouter), staticRoute.Prefix.String(), staticRoute.NextHop.String(), string(opts.LocalRouterPort))
+		}
+	}
+
+	staticRoutes, err = o.LogicalRouterRoutes(opts.TargetRouter)
+	if err != nil {
+		return fmt.Errorf("Failed getting static routes for target peer router %q: %w", opts.TargetRouter, err)
+	}
+
+	for _, staticRoute := range staticRoutes {
+		if staticRoute.Port == opts.TargetRouterPort {
+			args = append(args, "--", "lr-route-del", string(opts.TargetRouter), staticRoute.Prefix.String(), staticRoute.NextHop.String(), string(opts.TargetRouterPort))
+		}
+	}
+
+	if len(args) > 0 {
+		_, err := o.nbctl(args...)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

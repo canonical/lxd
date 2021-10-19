@@ -39,6 +39,9 @@ const ovnChassisPriorityMax = 32767
 const ovnVolatileUplinkIPv4 = "volatile.network.ipv4.address"
 const ovnVolatileUplinkIPv6 = "volatile.network.ipv6.address"
 
+const ovnRouterPolicyPeerAllowPriority = 600
+const ovnRouterPolicyPeerDropPriority = 500
+
 // ovnUplinkVars OVN object variables derived from uplink network.
 type ovnUplinkVars struct {
 	// Router.
@@ -99,6 +102,7 @@ func (n *ovn) Info() Info {
 	info.Projects = true
 	info.NodeSpecificConfig = false
 	info.AddressForwards = true
+	info.Peering = true
 
 	return info
 }
@@ -731,6 +735,11 @@ func (n *ovn) getIntSwitchInstancePortPrefix() string {
 // getLoadBalancerName returns OVN load balancer name to use for a listen address.
 func (n *ovn) getLoadBalancerName(listenAddress string) openvswitch.OVNLoadBalancer {
 	return openvswitch.OVNLoadBalancer(fmt.Sprintf("%s-lb-%s", n.getNetworkPrefix(), listenAddress))
+}
+
+// getLogicRouterPeerPortName returns OVN logical router port name to use for a peer connection.
+func (n *ovn) getLogicRouterPeerPortName(peerNetworkID int64) openvswitch.OVNRouterPort {
+	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-peer-net%d", n.getRouterName(), peerNetworkID))
 }
 
 // setupUplinkPort initialises the uplink connection. Returns the derived ovnUplinkVars settings used
@@ -1991,6 +2000,12 @@ func (n *ovn) setup(update bool) error {
 		revert.Add(func() { client.AddressSetDelete(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())) })
 	}
 
+	// Apply router security policy.
+	err = n.logicalRouterPolicySetup(client)
+	if err != nil {
+		return fmt.Errorf("Failed applying router security policy: %w", err)
+	}
+
 	// Create internal router port.
 	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, intRouterIPs, update)
 	if err != nil {
@@ -2159,6 +2174,39 @@ func (n *ovn) setup(update bool) error {
 
 	revert.Success()
 	return nil
+}
+
+// logicalRouterPolicySetup applies the security policy to the logical router (clearing any existing policies).
+func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN) error {
+	//extRouterPort := n.getRouterExtPortName()
+	intRouterPort := n.getRouterIntPortName()
+	addrSetPrefix := acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())
+
+	policies := []openvswitch.OVNRouterPolicy{
+		{
+			// Allow IPv6 packets arriving from internal router port with valid source address.
+			Priority: ovnRouterPolicyPeerAllowPriority,
+			Match:    fmt.Sprintf(`(inport == "%s" && ip6 && ip6.src == $%s_ip6)`, intRouterPort, addrSetPrefix),
+			Action:   "allow",
+		},
+		{
+			// Allow IPv4 packets arriving from internal router port with valid source address.
+			Priority: ovnRouterPolicyPeerAllowPriority,
+			Match:    fmt.Sprintf(`(inport == "%s" && ip4 && ip4.src == $%s_ip4)`, intRouterPort, addrSetPrefix),
+			Action:   "allow",
+		},
+		{
+			// Drop all other traffic arriving from internal router port.
+			// This prevents packets with a source address that is not valid to be dropped, and ensures
+			// that we can use the internal address set in ACL rules and trust that this represents all
+			// possible routed traffic from the internal network.
+			Priority: ovnRouterPolicyPeerDropPriority,
+			Match:    fmt.Sprintf(`(inport == "%s")`, intRouterPort),
+			Action:   "drop",
+		},
+	}
+
+	return client.LogicalRouterPolicyApply(n.getRouterName(), policies...)
 }
 
 // ensureNetworkPortGroup ensures that the network level port group (used for classifying NICs connected to this
@@ -2728,8 +2776,10 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		}
 
 		// Remove any old unused subnet addresses from the internal switch's address set.
+		rebuildPeers := false
 		for _, key := range []string{"ipv4.address", "ipv6.address"} {
 			if shared.StringInSlice(key, changedKeys) {
+				rebuildPeers = true
 				_, oldRouterIntPortIPNet, _ := net.ParseCIDR(oldNetwork.Config[key])
 				if oldRouterIntPortIPNet != nil {
 					err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), *oldRouterIntPortIPNet)
@@ -2737,6 +2787,26 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						return fmt.Errorf("Failed removing old network subnet %q from switch address set: %w", oldRouterIntPortIPNet.String(), err)
 					}
 				}
+			}
+		}
+
+		if rebuildPeers {
+			// Rebuild peering config.
+			opts, err := n.peerGetLocalOpts(localNICRoutes)
+			if err != nil {
+				return err
+			}
+
+			err = n.forPeers(func(targetOVNNet *ovn) error {
+				err = n.peerSetup(client, targetOVNNet, *opts)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -3133,6 +3203,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	if len(routes) > 0 {
+		// Add routes to local router.
 		err = client.LogicalRouterRouteAdd(n.getRouterName(), true, routes...)
 		if err != nil {
 			return "", err
@@ -3154,6 +3225,57 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		revert.Add(func() {
 			client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), routePrefixes...)
 		})
+
+		var routerIntPortIPv4, routerIntPortIPv6 net.IP
+
+		if validate.IsOneOf("none", "")(n.getRouterIntPortIPv4Net()) != nil {
+			routerIntPortIPv4, _, err = net.ParseCIDR(n.getRouterIntPortIPv4Net())
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed parsing local router's peering port IPv4 Net")
+			}
+		}
+
+		if validate.IsOneOf("none", "")(n.getRouterIntPortIPv6Net()) != nil {
+			routerIntPortIPv6, _, err = net.ParseCIDR(n.getRouterIntPortIPv6Net())
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed parsing local router's peering port IPv6 Net")
+			}
+		}
+
+		// Add routes to peer routers, and security policies for each peer port on local router.
+		err = n.forPeers(func(targetOVNNet *ovn) error {
+			targetRouterName := targetOVNNet.getRouterName()
+			targetRouterPort := targetOVNNet.getLogicRouterPeerPortName(n.ID())
+			targetRouterRoutes := make([]openvswitch.OVNRouterRoute, 0, len(routes))
+			for _, route := range routes {
+				nexthop := routerIntPortIPv4
+				if route.Prefix.IP.To4() == nil {
+					nexthop = routerIntPortIPv6
+				}
+
+				if nexthop != nil {
+					continue // Skip routes that cannot be supported by local router.
+				}
+
+				targetRouterRoutes = append(targetRouterRoutes, openvswitch.OVNRouterRoute{
+					Prefix:  route.Prefix,
+					NextHop: nexthop,
+					Port:    targetRouterPort,
+				})
+			}
+
+			err = client.LogicalRouterRouteAdd(targetRouterName, true, routes...)
+			if err != nil {
+				return fmt.Errorf("Failed adding static routes to peer network %q in project %q: %w", targetOVNNet.Name(), targetOVNNet.Project(), err)
+			}
+
+			revert.Add(func() { client.LogicalRouterRouteDelete(targetRouterName, routePrefixes...) })
+
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Merge network and NIC assigned security ACL lists.
@@ -3391,6 +3513,20 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		err = client.AddressSetRemove(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), removeRoutes...)
 		if err != nil {
 			return fmt.Errorf("Failed deleting switch address set entries: %w", err)
+		}
+
+		// Delete routes from peer routers.
+		err = n.forPeers(func(targetOVNNet *ovn) error {
+			targetRouterName := targetOVNNet.getRouterName()
+			err = client.LogicalRouterRouteDelete(targetRouterName, removeRoutes...)
+			if err != nil {
+				return fmt.Errorf("Failed deleting static routes from peer network %q in project %q: %w", targetOVNNet.Name(), targetOVNNet.Project(), err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -4025,4 +4161,378 @@ func (n *ovn) Leases(projectName string, clientType request.ClientType) ([]api.N
 	}
 
 	return leases, nil
+}
+
+// PeerCreate creates a network peering.
+func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Perform create-time validation.
+
+	// Default to network's project if target project not specified.
+	if peer.TargetProject == "" {
+		peer.TargetProject = n.Project()
+	}
+
+	// Target network name is required.
+	if peer.TargetNetwork == "" {
+		return api.StatusErrorf(http.StatusBadRequest, "Target network is required")
+	}
+
+	// Check if there is an existing peer using the same name, or whether there is already a peering (in any
+	// state) to the target network.
+	peers, err := n.state.Cluster.GetNetworkPeers(n.ID())
+	if err == nil {
+	}
+
+	for _, existingPeer := range peers {
+		if peer.Name == existingPeer.Name {
+			return api.StatusErrorf(http.StatusConflict, "A peer for that name already exists")
+		}
+
+		if peer.TargetProject == existingPeer.TargetProject && peer.TargetNetwork == existingPeer.TargetNetwork {
+			return api.StatusErrorf(http.StatusConflict, "A peer for that target network already exists")
+		}
+	}
+
+	// Perform general (create and update) validation.
+	err = n.peerValidate(peer.Name, &peer.NetworkPeerPut)
+	if err != nil {
+		return err
+	}
+
+	// Create peer DB record.
+	peerID, mutualExists, err := n.state.Cluster.CreateNetworkPeer(n.ID(), &peer)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() {
+		n.state.Cluster.DeleteNetworkPeer(n.ID(), peerID)
+	})
+
+	if mutualExists {
+		// Load peering to get mutual peering info.
+		_, peerInfo, err := n.state.Cluster.GetNetworkPeer(n.ID(), peer.Name)
+		if err != nil {
+			return err
+		}
+
+		if peerInfo.Status != api.NetworkStatusCreated {
+			return fmt.Errorf("Only peerings in %q state can be setup", api.NetworkStatusCreated)
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		// Apply router security policies.
+		// Should have been done during network setup, but ensure its done here anyway.
+		err = n.logicalRouterPolicySetup(client)
+		if err != nil {
+			return fmt.Errorf("Failed applying local router security policy: %w", err)
+		}
+
+		activeLocalNICPorts, err := client.LogicalSwitchPorts(n.getIntSwitchName())
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting active NIC ports")
+		}
+
+		var localNICRoutes []net.IPNet
+
+		// Get routes on instance NICs connected to local network to be added as routes to target network.
+		err = usedByInstanceDevices(n.state, n.Project(), n.Name(), func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
+			if _, found := activeLocalNICPorts[instancePortName]; !found {
+				return nil // Don't add config for instance NICs that aren't started.
+			}
+
+			localNICRoutes = append(localNICRoutes, n.instanceNICGetRoutes(nicConfig)...)
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("Failed getting instance NIC routes on local network: %w", err)
+		}
+
+		targetNet, err := LoadByName(n.state, peer.TargetProject, peer.TargetNetwork)
+		if err != nil {
+			return fmt.Errorf("Failed loading target network: %w", err)
+		}
+
+		targetOVNNet, ok := targetNet.(*ovn)
+		if !ok {
+			return fmt.Errorf("Target network is not ovn interface type")
+		}
+
+		opts, err := n.peerGetLocalOpts(localNICRoutes)
+		if err != nil {
+			return err
+		}
+
+		// Ensure local subnets and all active NIC routes are present in internal switch's address set.
+		err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID()), opts.TargetRouterRoutes...)
+		if err != nil {
+			return fmt.Errorf("Failed adding active NIC routes to switch address set: %w", err)
+		}
+
+		err = n.peerSetup(client, targetOVNNet, *opts)
+		if err != nil {
+			return err
+		}
+	}
+
+	revert.Success()
+	return nil
+}
+
+// peerGetLocalOpts returns peering options prefilled with local router and local NIC routes config.
+// It can then be modified with the target peering network options.
+func (n *ovn) peerGetLocalOpts(localNICRoutes []net.IPNet) (*openvswitch.OVNRouterPeering, error) {
+	localRouterPortMAC, err := n.getRouterMAC()
+	if err != nil {
+		return nil, fmt.Errorf("Failed getting router MAC address: %w", err)
+	}
+
+	opts := openvswitch.OVNRouterPeering{
+		LocalRouter:        n.getRouterName(),
+		LocalRouterPortMAC: localRouterPortMAC,
+		TargetRouterRoutes: localNICRoutes, // Pre-fill with local NIC routes.
+	}
+
+	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv4Net()) != nil {
+		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(n.getRouterIntPortIPv4Net())
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing local router's peering port IPv4 net: %w", err)
+		}
+
+		// Add a copy of the CIDR subnet to the target router's routes.
+		opts.TargetRouterRoutes = append(opts.TargetRouterRoutes, *routerIntPortIPv4Net)
+
+		// Convert the IPNet to include the specific router IP with a single host subnet.
+		routerIntPortIPv4Net.IP = routerIntPortIPv4
+		routerIntPortIPv4Net.Mask = net.CIDRMask(32, 32)
+		opts.LocalRouterPortIPs = append(opts.LocalRouterPortIPs, *routerIntPortIPv4Net)
+	}
+
+	if validate.IsOneOf("none", "")(n.getRouterIntPortIPv6Net()) != nil {
+		routerIntPortIPv6, routerIntPortIPv6Net, err := net.ParseCIDR(n.getRouterIntPortIPv6Net())
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing local router's peering port IPv6 net: %w", err)
+		}
+
+		// Add a copy of the CIDR subnet to the target router's routers.
+		opts.TargetRouterRoutes = append(opts.TargetRouterRoutes, *routerIntPortIPv6Net)
+
+		// Convert the IPNet to include the specific router IP with a single host subnet.
+		routerIntPortIPv6Net.IP = routerIntPortIPv6
+		routerIntPortIPv6Net.Mask = net.CIDRMask(128, 128)
+		opts.LocalRouterPortIPs = append(opts.LocalRouterPortIPs, *routerIntPortIPv6Net)
+	}
+
+	return &opts, err
+}
+
+// peerSetup applies the network peering configuration to both networks.
+// Accepts an OVN client, a target OVN network, and a set of OVNRouterPeering options pre-filled with local config.
+func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvswitch.OVNRouterPeering) error {
+	targetRouterMAC, err := targetOVNNet.getRouterMAC()
+	if err != nil {
+		return fmt.Errorf("Failed getting target router MAC address: %w", err)
+	}
+
+	// Populate config based on target network.
+	opts.LocalRouterPort = n.getLogicRouterPeerPortName(targetOVNNet.ID())
+	opts.TargetRouter = targetOVNNet.getRouterName()
+	opts.TargetRouterPort = targetOVNNet.getLogicRouterPeerPortName(n.ID())
+	opts.TargetRouterPortMAC = targetRouterMAC
+
+	if validate.IsOneOf("none", "")(targetOVNNet.getRouterIntPortIPv4Net()) != nil {
+		routerIntPortIPv4, routerIntPortIPv4Net, err := net.ParseCIDR(targetOVNNet.getRouterIntPortIPv4Net())
+		if err != nil {
+			return errors.Wrapf(err, "Failed parsing target router's peering port IPv4 net")
+		}
+
+		// Add a copy of the CIDR subnet to the local router's routers.
+		opts.LocalRouterRoutes = append(opts.LocalRouterRoutes, *routerIntPortIPv4Net)
+
+		// Convert the IPNet to include the specific router IP with a single host subnet.
+		routerIntPortIPv4Net.IP = routerIntPortIPv4
+		routerIntPortIPv4Net.Mask = net.CIDRMask(32, 32)
+		opts.TargetRouterPortIPs = append(opts.TargetRouterPortIPs, *routerIntPortIPv4Net)
+	}
+
+	if validate.IsOneOf("none", "")(targetOVNNet.getRouterIntPortIPv6Net()) != nil {
+		routerIntPortIPv6, routerIntPortIPv6Net, err := net.ParseCIDR(targetOVNNet.getRouterIntPortIPv6Net())
+		if err != nil {
+			return errors.Wrapf(err, "Failed parsing target router's peering port IPv6 net")
+		}
+
+		// Add a copy of the CIDR subnet to the local router's routers.
+		opts.LocalRouterRoutes = append(opts.LocalRouterRoutes, *routerIntPortIPv6Net)
+
+		// Convert the IPNet to include the specific router IP with a single host subnet.
+		routerIntPortIPv6Net.IP = routerIntPortIPv6
+		routerIntPortIPv6Net.Mask = net.CIDRMask(128, 128)
+		opts.TargetRouterPortIPs = append(opts.TargetRouterPortIPs, *routerIntPortIPv6Net)
+	}
+
+	// Get list of active switch ports (avoids repeated querying of OVN NB).
+	activeTargetNICPorts, err := client.LogicalSwitchPorts(targetOVNNet.getIntSwitchName())
+	if err != nil {
+		return errors.Wrapf(err, "Failed getting active NIC ports")
+	}
+
+	// Get routes on instance NICs connected to target network to be added as routes to local network.
+	err = usedByInstanceDevices(n.state, targetOVNNet.Project(), targetOVNNet.Name(), func(inst db.Instance, nicName string, nicConfig map[string]string) error {
+		instancePortName := targetOVNNet.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
+		if _, found := activeTargetNICPorts[instancePortName]; !found {
+			return nil // Don't add config for instance NICs that aren't started.
+		}
+
+		opts.LocalRouterRoutes = append(opts.LocalRouterRoutes, n.instanceNICGetRoutes(nicConfig)...)
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed getting instance NIC routes on target network: %w", err)
+	}
+
+	// Ensure routes are added target switch address sets.
+	err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(targetOVNNet.ID()), opts.LocalRouterRoutes...)
+	if err != nil {
+		return fmt.Errorf("Failed adding target swith subnet address set entries: %w", err)
+	}
+
+	err = targetOVNNet.logicalRouterPolicySetup(client)
+	if err != nil {
+		return fmt.Errorf("Failed applying target router security policy: %w", err)
+	}
+
+	err = client.LogicalRouterPeeringApply(opts)
+	if err != nil {
+		return fmt.Errorf("Failed applying OVN network peering: %w", err)
+	}
+
+	return nil
+}
+
+// PeerUpdate updates a network peering.
+func (n *ovn) PeerUpdate(peerName string, req api.NetworkPeerPut) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	curPeerID, curPeer, err := n.state.Cluster.GetNetworkPeer(n.ID(), peerName)
+	if err != nil {
+		return err
+	}
+
+	err = n.peerValidate(peerName, &req)
+	if err != nil {
+		return err
+	}
+
+	curPeerEtagHash, err := util.EtagHash(curPeer.Etag())
+	if err != nil {
+		return err
+	}
+
+	newPeer := api.NetworkPeer{
+		Name:           curPeer.Name,
+		NetworkPeerPut: req,
+	}
+
+	newPeerEtagHash, err := util.EtagHash(newPeer.Etag())
+	if err != nil {
+		return err
+	}
+
+	if curPeerEtagHash == newPeerEtagHash {
+		return nil // Nothing has changed.
+	}
+
+	err = n.state.Cluster.UpdateNetworkPeer(n.ID(), curPeerID, &newPeer.NetworkPeerPut)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+	return nil
+}
+
+// PeerDelete deletes a network peering.
+func (n *ovn) PeerDelete(peerName string) error {
+	peerID, peer, err := n.state.Cluster.GetNetworkPeer(n.ID(), peerName)
+	if err != nil {
+		return err
+	}
+
+	if peer.Status == api.NetworkStatusCreated {
+		targetNet, err := LoadByName(n.state, peer.TargetProject, peer.TargetNetwork)
+		if err != nil {
+			return fmt.Errorf("Failed loading target network: %w", err)
+		}
+
+		targetOVNNet, ok := targetNet.(*ovn)
+		if !ok {
+			return fmt.Errorf("Target network is not ovn interface type")
+		}
+
+		opts := openvswitch.OVNRouterPeering{
+			LocalRouter:      n.getRouterName(),
+			LocalRouterPort:  n.getLogicRouterPeerPortName(targetOVNNet.ID()),
+			TargetRouter:     targetOVNNet.getRouterName(),
+			TargetRouterPort: targetOVNNet.getLogicRouterPeerPortName(n.ID()),
+		}
+
+		client, err := openvswitch.NewOVN(n.state)
+		if err != nil {
+			return fmt.Errorf("Failed to get OVN client: %w", err)
+		}
+
+		err = client.LogicalRouterPeeringDelete(opts)
+		if err != nil {
+			return fmt.Errorf("Failed deleting OVN network peering: %w", err)
+		}
+	}
+
+	err = n.state.Cluster.DeleteNetworkPeer(n.ID(), peerID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// forPeers runs f for each target peer network that this network is connected to.
+func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
+	peers, err := n.state.Cluster.GetNetworkPeers(n.ID())
+	if err != nil {
+		return err
+	}
+
+	for _, peer := range peers {
+		if peer.Status != api.NetworkStatusCreated {
+			continue
+		}
+
+		targetNet, err := LoadByName(n.state, peer.TargetProject, peer.TargetNetwork)
+		if err != nil {
+			return fmt.Errorf("Failed loading target network: %w", err)
+		}
+
+		targetOVNNet, ok := targetNet.(*ovn)
+		if !ok {
+			return fmt.Errorf("Target network is not ovn interface type")
+		}
+
+		err = f(targetOVNNet)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

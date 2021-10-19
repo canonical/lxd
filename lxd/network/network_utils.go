@@ -94,9 +94,28 @@ func usedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 
 // UsedBy returns list of API resources using network. Accepts firstOnly argument to indicate that only the first
 // resource using network should be returned. This can help to quickly check if the network is in use.
-func UsedBy(s *state.State, networkProjectName string, networkName string, firstOnly bool) ([]string, error) {
+func UsedBy(s *state.State, networkProjectName string, networkID int64, networkName string, firstOnly bool) ([]string, error) {
 	var err error
 	var usedBy []string
+
+	// If managed network being passed in, check if it has any peerings in a created state.
+	if networkID > 0 {
+		peers, err := s.Cluster.GetNetworkPeers(networkID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed getting network peers: %w", err)
+		}
+
+		for _, peer := range peers {
+			if peer.Status == api.NetworkStatusCreated {
+				// Add the target project/network of the peering as using this network.
+				usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "networks", peer.TargetNetwork).Project(peer.TargetProject).String())
+
+				if firstOnly {
+					return usedBy, nil
+				}
+			}
+		}
+	}
 
 	// Only networks defined in the default project can be used by other networks. Cheapest to do.
 	if networkProjectName == project.Default {
