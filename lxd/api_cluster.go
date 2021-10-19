@@ -2549,7 +2549,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// If not migratable, the instance is just stopped.
-			if !inst.IsMigratable() {
+			if !inst.CanMigrate() {
 				continue
 			}
 
