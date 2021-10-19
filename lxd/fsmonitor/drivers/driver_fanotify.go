@@ -46,7 +46,7 @@ func (d *fanotify) load(ctx context.Context) error {
 		return fmt.Errorf("Failed to initialize fanotify: %w", err)
 	}
 
-	err = unix.FanotifyMark(d.fd, unix.FAN_MARK_ADD, unix.FAN_CREATE|unix.FAN_DELETE|unix.FAN_ONDIR, unix.AT_FDCWD, d.prefixPath)
+	err = unix.FanotifyMark(d.fd, unix.FAN_MARK_ADD|unix.FAN_MARK_FILESYSTEM, unix.FAN_CREATE|unix.FAN_DELETE|unix.FAN_ONDIR, unix.AT_FDCWD, d.prefixPath)
 	if err != nil {
 		unix.Close(d.fd)
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
