@@ -69,7 +69,7 @@ type ConnectionArgs struct {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
-	logger.Debugf("Connecting to a remote LXD over HTTPs")
+	logger.Debugf("Connecting to a remote LXD over HTTPS")
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")
