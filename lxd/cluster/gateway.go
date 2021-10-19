@@ -252,12 +252,10 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask HeartbeatHook, trustedCerts func(
 				}
 			}
 
-			heartbeatRestarted := false
-
 			// Check we have been sent at least 1 raft node before wiping our set.
 			if len(raftNodes) > 0 {
 				// Accept Raft node updates from any node (joining nodes just send raft nodes heartbeat data).
-				logger.Debugf("Replace current raft nodes with %+v", raftNodes)
+				logger.Info("Replace current raft nodes", log.Ctx{"raftNodes": raftNodes})
 				err = g.db.Transaction(func(tx *db.NodeTx) error {
 					return tx.ReplaceRaftNodes(raftNodes)
 				})
@@ -266,30 +264,26 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask HeartbeatHook, trustedCerts func(
 					http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
 					return
 				}
-
-				// If there is an ongoing heartbeat round (and by implication this is the leader),
-				// then this could be a problem because it could be broadcasting the stale member
-				// state information which in turn could lead to incorrect decisions being made.
-				// So calling heartbeatRestart will request any ongoing heartbeat round to cancel
-				// itself prematurely and restart another one. If there is no ongoing heartbeat
-				// round then this function call is a no-op.
-				heartbeatRestarted = g.heartbeatRestart()
 			} else {
 				logger.Error("Empty raft member set received")
 			}
 
-			// Only perform heartbeat refresh task if we have received a full state list from leader.
+			isLeader, err := g.isLeader()
+			if err != nil {
+				logger.Error("Failed checking if leader", log.Ctx{"err": err})
+				http.Error(w, "500 Failed checking if leader", http.StatusInternalServerError)
+				return
+			}
+
+			if isLeader {
+				logger.Error("Leader should not get heartbeats")
+				http.Error(w, "500 Leader should not get heartbeats", http.StatusInternalServerError)
+				return
+			}
+
 			if !heartbeatData.FullStateList {
 				logger.Info("Partial member list heartbeat received, skipping full update")
-			} else if nodeRefreshTask != nil && !heartbeatRestarted {
-				// Perform heartbeat refresh task async if an ongoing heartbeat wasn't restarted.
-				// As this task will be run at the end of the heartbeat task anyway.
-				isLeader, err := g.isLeader()
-				if err != nil {
-					logger.Error("Failed checking if leader", log.Ctx{"err": err})
-					return
-				}
-
+			} else if nodeRefreshTask != nil {
 				go nodeRefreshTask(&heartbeatData, isLeader, nil)
 			}
 
@@ -445,7 +439,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 		// leader is ourselves, and we were recently elected. In that case
 		// trigger a full heartbeat now: it will be a no-op if we aren't
 		// actually leaders.
-		go g.heartbeat(g.ctx, hearbeatInitial)
+		go g.HeartbeatRestart(true, HearbeatInitial)
 
 		return conn, nil
 	}

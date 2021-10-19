@@ -525,7 +525,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		}
 
 		// Generate partial heartbeat request containing just a raft node list.
-		notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
+		//notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
 
 		return nil
 	})
@@ -560,7 +560,9 @@ func notifyNodesUpdate(raftNodes []db.RaftNode, info *db.RaftNode, networkCert *
 
 		wg.Add(1)
 		go func(address string) {
-			HeartbeatNode(context.Background(), address, networkCert, serverCert, hbState)
+			hbCtx, hbCtxCancel := context.WithTimeout(context.Background(), time.Second*15)
+			defer hbCtxCancel()
+			HeartbeatNode(hbCtx, address, networkCert, serverCert, hbState)
 			wg.Done()
 		}(node.Address)
 	}

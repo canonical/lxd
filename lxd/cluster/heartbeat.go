@@ -26,9 +26,9 @@ import (
 type heartbeatMode int
 
 const (
-	hearbeatNormal heartbeatMode = iota
-	hearbeatImmediate
-	hearbeatInitial
+	HearbeatNormal heartbeatMode = iota
+	HearbeatImmediate
+	HearbeatInitial
 )
 
 // APIHeartbeatMember contains specific cluster node info.
@@ -152,7 +152,9 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 		// Update timestamp to current, used for time skew detection
 		heartbeatData.Time = time.Now().UTC()
 
-		err := HeartbeatNode(ctx, address, networkCert, serverCert, heartbeatData)
+		hbCtx, hbCtxCancel := context.WithTimeout(ctx, time.Second*3)
+		err := HeartbeatNode(hbCtx, address, networkCert, serverCert, heartbeatData)
+		defer hbCtxCancel()
 		if err == nil {
 			heartbeatData.Lock()
 			// Ensure only update nodes that exist in Members already.
@@ -214,7 +216,7 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	heartbeatWrapper := func(ctx context.Context) {
 		ch := make(chan struct{})
 		go func() {
-			gateway.heartbeat(ctx, hearbeatNormal)
+			gateway.heartbeat(HearbeatNormal)
 			ch <- struct{}{}
 		}()
 		select {
@@ -240,10 +242,10 @@ func (g *Gateway) heartbeatInterval() time.Duration {
 	return threshold / 2
 }
 
-// heartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
+// HeartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
 // If there is no ongoing heartbeat then this is a no-op.
 // Returns true if new heartbeat round was started.
-func (g *Gateway) heartbeatRestart() bool {
+func (g *Gateway) HeartbeatRestart(forceStart bool, mode heartbeatMode) bool {
 	g.heartbeatCancelLock.Lock() // Make sure we're the only ones inspecting the g.heartbeatCancel var.
 
 	// There is a cancellable heartbeat round ongoing.
@@ -253,7 +255,7 @@ func (g *Gateway) heartbeatRestart() bool {
 		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
 
 		// Start a new heartbeat round async that will run as soon as ongoing heartbeat round exits.
-		go g.heartbeat(g.ctx, hearbeatImmediate)
+		g.heartbeat(mode)
 
 		return true
 	}
@@ -261,10 +263,16 @@ func (g *Gateway) heartbeatRestart() bool {
 	// No cancellable heartbeat round, release lock.
 	g.heartbeatCancelLock.Unlock()
 
+	if forceStart {
+		g.heartbeat(mode)
+
+		return true
+	}
+
 	return false
 }
 
-func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
+func (g *Gateway) heartbeat(mode heartbeatMode) {
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
 	// connection or notification restart both kick in at the same time.
@@ -275,7 +283,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// notification cancellation request arrives during the round. Also setup a defer so that the cancellation
 	// function is set to nil when this function ends to indicate there is no ongoing heartbeat round.
 	g.heartbeatCancelLock.Lock()
-	ctx, g.heartbeatCancel = context.WithCancel(ctx)
+	var ctx context.Context
+	ctx, g.heartbeatCancel = context.WithCancel(g.Context())
 	defer func() {
 		g.heartbeatCancelLock.Lock()
 		if g.heartbeatCancel != nil {
@@ -324,13 +333,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	modeStr := "normal"
 	switch mode {
-	case hearbeatImmediate:
+	case HearbeatImmediate:
 		modeStr = "immediate"
-	case hearbeatInitial:
+	case HearbeatInitial:
 		modeStr = "initial"
 	}
 
-	if mode != hearbeatNormal {
+	if mode != HearbeatNormal {
 		// Log unscheduled heartbeats with a higher level than normal heartbeats.
 		logger.Info("Starting heartbeat round", log.Ctx{"mode": modeStr, "address": localAddress})
 	} else {
@@ -366,14 +375,14 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// If we are doing a normal heartbeat round then spread the requests over the heartbeatInterval in order
 	// to reduce load on the cluster.
 	spreadDuration := time.Duration(0)
-	if mode == hearbeatNormal {
+	if mode == HearbeatNormal {
 		spreadDuration = heartbeatInterval
 	}
 
 	// If this leader node hasn't sent a heartbeat recently, then its node state records
 	// are likely out of date, this can happen when a node becomes a leader.
 	// Send stale set to all nodes in database to get a fresh set of active nodes.
-	if mode == hearbeatInitial {
+	if mode == HearbeatInitial {
 		hbState.Update(false, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
 		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
 
@@ -460,9 +469,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	}
 
 	// If full node state was sent and node refresh task is specified, run it async.
-	if g.HeartbeatNodeHook != nil {
-		g.HeartbeatNodeHook(hbState, true, unavailableMembers)
-	}
+	g.HeartbeatNodeHook(hbState, true, unavailableMembers)
 
 	duration := time.Now().Sub(startTime)
 	if duration > heartbeatInterval {
@@ -474,7 +481,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 }
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
-func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
+func HeartbeatNode(ctx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
 	logger.Debug("Sending heartbeat request", log.Ctx{"address": address})
 
 	config, err := tlsClientConfig(networkCert, serverCert)
@@ -482,13 +489,11 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 		return err
 	}
 
-	timeout := 2 * time.Second
 	url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
 	transport, cleanup := tlsTransport(config)
 	defer cleanup()
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   timeout,
 	}
 
 	buffer := bytes.Buffer{}
@@ -505,9 +510,6 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 	}
 	setDqliteVersionHeader(request)
 
-	// Use 1s later timeout to give HTTP client chance timeout with more useful info.
-	ctx, cancel := context.WithTimeout(taskCtx, timeout+time.Second)
-	defer cancel()
 	request = request.WithContext(ctx)
 	request.Close = true // Immediately close the connection after the request is done
 

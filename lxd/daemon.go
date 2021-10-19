@@ -2033,24 +2033,23 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			return
 		}
 
+		d.clusterMembershipMutex.Lock()
+		defer d.clusterMembershipMutex.Unlock()
+
 		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
-			d.clusterMembershipMutex.Lock()
-			logger.Info("Rebalancing member roles in heartbeat", log.Ctx{"address": address})
+			logger.Info("Rebalancing member roles after heartbeat", log.Ctx{"address": address})
 			err := rebalanceMemberRoles(d, nil, unavailableMembers)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 				logger.Warnf("Could not rebalance cluster member roles: %v", err)
 			}
-			d.clusterMembershipMutex.Unlock()
 		}
 
 		if hasNodesNotPartOfRaft {
-			d.clusterMembershipMutex.Lock()
-			logger.Info("Upgrading members without raft role in heartbeat", log.Ctx{"address": address})
+			logger.Info("Upgrading members without raft role after heartbeat", log.Ctx{"address": address})
 			err := upgradeNodesWithoutRaftRole(d)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 				logger.Warnf("Failed upgrade raft roles: %v", err)
 			}
-			d.clusterMembershipMutex.Unlock()
 		}
 	}
 }

@@ -2034,9 +2034,6 @@ type internalRaftNode struct {
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
-	d.clusterMembershipMutex.Lock()
-	defer d.clusterMembershipMutex.Unlock()
-
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
@@ -2054,13 +2051,11 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 			Path:   "/internal/cluster/rebalance",
 			Host:   leader,
 		}
+
 		return response.SyncResponseRedirect(url.String())
 	}
 
-	err = rebalanceMemberRoles(d, r, nil)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	d.gateway.HeartbeatRestart(true, cluster.HearbeatImmediate)
 
 	return response.SyncResponse(true, nil)
 }
@@ -2073,6 +2068,7 @@ func rebalanceMemberRoles(d *Daemon, r *http.Request, unavailableMembers []strin
 	}
 
 again:
+	logger.Info("Rebalancing member roles")
 	address, nodes, err := cluster.Rebalance(d.State(), d.gateway, unavailableMembers)
 	if err != nil {
 		return err
@@ -2240,6 +2236,7 @@ func internalClusterPostAssign(d *Daemon, r *http.Request) response.Response {
 		nodes[i].Role = db.RaftRole(node.Role)
 		nodes[i].Name = node.Name
 	}
+
 	err = cluster.Assign(d.State(), d.gateway, nodes)
 	if err != nil {
 		return response.SmartError(err)
