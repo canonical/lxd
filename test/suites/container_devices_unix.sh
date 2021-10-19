@@ -32,7 +32,7 @@ test_container_devices_unix() {
   lxc launch testimage "${ctName}"
 
   # Create a test unix device.
-  testDev="${TEST_DIR}"/testdev-"${ctName}"
+  testDev="${TEST_DIR}"/dev/testdev-"${ctName}"
   mknod "${testDev}" "${deviceTypeCode}" 0 0
 
   # Check adding a device without source or path fails.
