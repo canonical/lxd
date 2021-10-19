@@ -448,14 +448,14 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// Connect to the source host, i.e. ourselves (the node the instance is running on).
 		source, err := cluster.Connect(sourceAddress, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
-			return errors.Wrap(err, "Failed to connect to source server")
+			return fmt.Errorf("Failed to connect to source server %q: %w", sourceAddress, err)
 		}
 		source = source.UseProject(inst.Project())
 
 		// Connect to the destination host, i.e. the node to migrate the container to.
 		dest, err := cluster.Connect(targetAddress, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 		if err != nil {
-			return errors.Wrap(err, "Failed to connect to destination server")
+			return fmt.Errorf("Failed to connect to destination server %q: %w", targetAddress, err)
 		}
 		dest = dest.UseTarget(newNode).UseProject(inst.Project())
 
