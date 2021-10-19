@@ -217,7 +217,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		if req.Pool != "" {
 			// Setup the instance move operation.
 			run := func(op *operations.Operation) error {
-				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, op)
+				return instancePostPoolMigration(d, inst, req.Name, req.InstanceOnly, req.Pool, req.Live, op)
 			}
 
 			resources := map[string][]string{}
@@ -337,13 +337,22 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 }
 
 // Move an instance to another pool.
-func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, op *operations.Operation) error {
-	if inst.IsRunning() {
-		return fmt.Errorf("Instance must not be running to move between pools")
-	}
-
+func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string, instanceOnly bool, newPool string, stateful bool, op *operations.Operation) error {
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance snapshots cannot be moved between pools")
+	}
+
+	statefulStart := false
+	if inst.IsRunning() {
+		if stateful {
+			statefulStart = true
+			err := inst.Stop(true)
+			if err != nil {
+				return err
+			}
+		} else {
+			return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to move between pools statelessly")
+		}
 	}
 
 	// Copy config from instance to avoid modifying it.
@@ -406,6 +415,13 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 	// Rename copy from temporary name to original name if needed.
 	if newName == inst.Name() {
 		err = targetInst.Rename(newName, false) // Don't apply templates when moving.
+		if err != nil {
+			return err
+		}
+	}
+
+	if statefulStart {
+		err = targetInst.Start(true)
 		if err != nil {
 			return err
 		}
