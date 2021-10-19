@@ -90,6 +90,7 @@ cleanup() {
 
   echo "==> Cleaning up"
 
+  umount -l "${TEST_DIR}/dev"
   kill_external_auth_daemon "$TEST_DIR"
   cleanup_lxds "$TEST_DIR"
 
@@ -119,7 +120,9 @@ if [ -n "${LXD_TMPFS:-}" ]; then
   mount -t tmpfs tmpfs "${TEST_DIR}" -o mode=0751
 fi
 
-export LXD_DEVMONITOR_DIR="${TEST_DIR}"
+mkdir -p "${TEST_DIR}/dev"
+mount -t tmpfs none "${TEST_DIR}"/dev
+export LXD_DEVMONITOR_DIR="${TEST_DIR}/dev"
 
 LXD_CONF=$(mktemp -d -p "${TEST_DIR}" XXX)
 export LXD_CONF

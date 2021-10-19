@@ -2,8 +2,10 @@ package fsmonitor
 
 import (
 	"context"
+	"errors"
 
 	"github.com/lxc/lxd/lxd/fsmonitor/drivers"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
@@ -20,6 +22,10 @@ func New(ctx context.Context, path string) (FSMonitor, error) {
 		}
 
 		return driver, logger, nil
+	}
+
+	if !filesystem.IsMountPoint(path) {
+		return nil, errors.New("Path needs to be a mountpoint")
 	}
 
 	driver, monLogger, err := startMonitor("fanotify")
