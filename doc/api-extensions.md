@@ -1488,3 +1488,7 @@ A new REST API is also introduced to manage DNS zones:
 
  - `/1.0/network-zones` (GET, POST)
  - `/1.0/network-zones/<name>` (GET, PUT, PATCH, DELETE)
+
+## ovn\_nic\_acceleration
+Adds new `acceleration` config key to OVN NICs which can be used for enabling hardware offloading.
+It takes the values `none` or `sriov`.
