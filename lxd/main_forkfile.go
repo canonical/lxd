@@ -85,9 +85,6 @@ static int manip_file_in_ns(struct file_args *args)
 	uid_t uid = args->uid;
 	gid_t gid = args->gid;
 	mode_t mode = args->mode;
-	uid_t defaultUid = args->uid_default;
-	gid_t defaultGid = args->gid_default;
-	mode_t defaultMode = args->mode_default;
 	bool append = args->append;
 	int exists = -1, fret = -1;
 	int container_open_flags;
@@ -128,17 +125,14 @@ static int manip_file_in_ns(struct file_args *args)
 	}
 
 	if (is_put && is_dir_manip) {
-		if (mode == -1) {
-			mode = defaultMode;
-		}
+		if (mode == -1)
+			mode = args->mode_default;
 
-		if (uid == -1) {
-			uid = defaultUid;
-		}
+		if (uid == -1)
+			uid = args->uid_default;
 
-		if (gid == -1) {
-			gid = defaultGid;
-		}
+		if (gid == -1)
+			gid = args->gid_default;
 
 		if (mkdir(container, mode) < 0 && errno != EEXIST) {
 			error("error: mkdir");
@@ -154,17 +148,14 @@ static int manip_file_in_ns(struct file_args *args)
 	}
 
 	if (is_put && is_symlink_manip) {
-		if (mode == -1) {
-			mode = defaultMode;
-		}
+		if (mode == -1)
+			mode = args->mode_default;
 
-		if (uid == -1) {
-			uid = defaultUid;
-		}
+		if (uid == -1)
+			uid = args->uid_default;
 
-		if (gid == -1) {
-			gid = defaultGid;
-		}
+		if (gid == -1)
+			gid = args->gid_default;
 
 		if (symlink(host, container) < 0 && errno != EEXIST) {
 			error("error: symlink");
@@ -220,17 +211,14 @@ static int manip_file_in_ns(struct file_args *args)
 	}
 	if (is_put) {
 		if (!exists) {
-			if (mode == -1) {
-				mode = defaultMode;
-			}
+			if (mode == -1)
+				mode = args->mode_default;
 
-			if (uid == -1) {
-				uid = defaultUid;
-			}
+			if (uid == -1)
+				uid = args->uid_default;
 
-			if (gid == -1) {
-				gid = defaultGid;
-			}
+			if (gid == -1)
+				gid = args->gid_default;
 		}
 
 		if (copy(container_fd, host_fd, append) < 0) {
@@ -247,6 +235,7 @@ static int manip_file_in_ns(struct file_args *args)
 			error("error: chown");
 			return -1;
 		}
+
 		fret = 0;
 	} else {
 		if (fstat(container_fd, &st) < 0) {
@@ -257,6 +246,7 @@ static int manip_file_in_ns(struct file_args *args)
 		fprintf(stderr, "uid: %ld\n", (long)st.st_uid);
 		fprintf(stderr, "gid: %ld\n", (long)st.st_gid);
 		fprintf(stderr, "mode: %ld\n", (unsigned long)st.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+
 		if (S_ISDIR(st.st_mode)) {
 			__do_closedir DIR *fdir = NULL;
 			struct dirent *de;
@@ -270,16 +260,18 @@ static int manip_file_in_ns(struct file_args *args)
 
 			fprintf(stderr, "type: directory\n");
 
-			while((de = readdir(fdir))) {
+			while ((de = readdir(fdir))) {
 				int len, i;
 
-				if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+				if (!strcmp(de->d_name, ".") ||
+				    !strcmp(de->d_name, ".."))
 					continue;
 
 				fprintf(stderr, "entry: ");
 
 				// swap \n to \0 since we split this output by line
-				for (i = 0, len = strlen(de->d_name); i < len; i++) {
+				for (i = 0, len = strlen(de->d_name); i < len;
+				     i++) {
 					if (*(de->d_name + i) == '\n')
 						putc(0, stderr);
 					else
