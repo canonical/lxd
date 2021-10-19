@@ -326,7 +326,7 @@ func moveInstancePool(conf *config.Config, sourceResource string, destResource s
 		destName = sourceName
 	}
 
-	// Connect to the source host
+	// Connect to the source host.
 	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
 		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
