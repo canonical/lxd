@@ -10,9 +10,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -30,25 +29,18 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "include/memory_utils.h"
-#include "include/mount_utils.h"
-#include "include/syscall_numbers.h"
-#include "include/syscall_wrappers.h"
+#include "lxd.h"
+#include "memory_utils.h"
+#include "mount_utils.h"
+#include "syscall_numbers.h"
+#include "syscall_wrappers.h"
 
 #define VERSION_AT_LEAST(major, minor, micro)							\
 	((LXC_DEVEL == 1) || (!(major > LXC_VERSION_MAJOR ||					\
 	major == LXC_VERSION_MAJOR && minor > LXC_VERSION_MINOR ||				\
 	major == LXC_VERSION_MAJOR && minor == LXC_VERSION_MINOR && micro > LXC_VERSION_MICRO)))
 
-extern char* advance_arg(bool required);
-extern void error(char *msg);
-extern void attach_userns_fd(int ns_fd);
-extern int pidfd_nsfd(int pidfd, pid_t pid);
-extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
-extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
-extern int mount_detach_idmap(const char *path, int fd_userns);
-
-int mkdir_p(const char *dir, mode_t mode)
+static int mkdir_p(const char *dir, mode_t mode)
 {
 	const char *tmp = dir;
 	const char *orig = dir;
@@ -70,7 +62,7 @@ int mkdir_p(const char *dir, mode_t mode)
 	return 0;
 }
 
-void ensure_dir(char *dest) {
+static void ensure_dir(char *dest) {
 	struct stat sb;
 	if (stat(dest, &sb) == 0) {
 		if ((sb.st_mode & S_IFMT) == S_IFDIR)
@@ -86,7 +78,7 @@ void ensure_dir(char *dest) {
 	}
 }
 
-void ensure_file(char *dest)
+static void ensure_file(char *dest)
 {
 	__do_close int fd = -EBADF;
 	struct stat sb;
@@ -107,7 +99,7 @@ void ensure_file(char *dest)
 	}
 }
 
-void create(char *src, char *dest)
+static void create(char *src, char *dest)
 {
 	__do_free char *dirdup = NULL;
 	char *destdirname;
@@ -276,7 +268,7 @@ static void do_lxd_forkmount(int pidfd, int ns_fd)
 	_exit(0);
 }
 
-void do_lxd_forkumount(int pidfd, int ns_fd)
+static void do_lxd_forkumount(int pidfd, int ns_fd)
 {
 	int ret;
 	char *path = NULL;

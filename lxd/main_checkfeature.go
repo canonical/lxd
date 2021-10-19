@@ -12,9 +12,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/types.h>
@@ -35,13 +34,15 @@ import (
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 
+#include "lxd.h"
+#include "compiler.h"
+#include "lxd_seccomp.h"
+#include "memory_utils.h"
+#include "process_utils.h"
+#include "syscall_numbers.h"
+#include "syscall_wrappers.h"
+
 #include "../shared/netutils/netns_getifaddrs.c"
-#include "include/compiler.h"
-#include "include/lxd_seccomp.h"
-#include "include/memory_utils.h"
-#include "include/process_utils.h"
-#include "include/syscall_numbers.h"
-#include "include/syscall_wrappers.h"
 
 __ro_after_init bool core_scheduling_aware = false;
 __ro_after_init bool close_range_aware = false;
@@ -52,9 +53,6 @@ __ro_after_init bool pidfd_setns_aware = false;
 __ro_after_init bool uevent_aware = false;
 __ro_after_init int seccomp_notify_aware = 0;
 __ro_after_init char errbuf[4096];
-
-extern int can_inject_uevent(const char *uevent, size_t len);
-extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
 
 static int netns_set_nsid(int fd)
 {
@@ -93,7 +91,7 @@ static int netns_set_nsid(int fd)
 	return 0;
 }
 
-void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
+static void is_netnsid_aware(int *hostnetns_fd, int *newnetns_fd)
 {
 	__do_close int sock_fd = -EBADF;
 	int netnsid, ret;

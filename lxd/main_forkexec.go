@@ -10,9 +10,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -25,14 +24,13 @@ import (
 #include <unistd.h>
 #include <limits.h>
 
-#include "include/macro.h"
-#include "include/memory_utils.h"
-#include "include/process_utils.h"
-#include "include/syscall_wrappers.h"
+#include "lxd.h"
+#include "macro.h"
+#include "memory_utils.h"
+#include "process_utils.h"
+#include "syscall_wrappers.h"
 #include <lxc/attach_options.h>
 #include <lxc/lxccontainer.h>
-
-extern char *advance_arg(bool required);
 
 static bool write_nointr(int fd, const void *buf, size_t count)
 {
@@ -49,25 +47,6 @@ static bool write_nointr(int fd, const void *buf, size_t count)
 }
 
 define_cleanup_function(struct lxc_container *, lxc_container_put);
-
-static int wait_for_pid_status_nointr(pid_t pid)
-{
-	int status, ret;
-
-again:
-	ret = waitpid(pid, &status, 0);
-	if (ret == -1) {
-		if (errno == EINTR)
-			goto again;
-
-		return -1;
-	}
-
-	if (ret != pid)
-		goto again;
-
-	return status;
-}
 
 static int append_null_to_list(void ***list)
 {

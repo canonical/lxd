@@ -10,9 +10,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <fcntl.h>
 #include <libgen.h>
 #include <sched.h>
@@ -24,12 +23,11 @@ import (
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "include/memory_utils.h"
-#include "include/mount_utils.h"
-#include "include/syscall_numbers.h"
-#include "include/syscall_wrappers.h"
-
-extern char* advance_arg(bool required);
+#include "lxd.h"
+#include "memory_utils.h"
+#include "mount_utils.h"
+#include "syscall_numbers.h"
+#include "syscall_wrappers.h"
 
 void forkcoresched(void)
 {
