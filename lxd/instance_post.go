@@ -378,7 +378,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 		Stateful:     inst.IsStateful(),
 	}
 
-	// If we are moving the instance to a new pool but keeping the same instace name, then we need to create
+	// If we are moving the instance to a new pool but keeping the same instance name, then we need to create
 	// the copy of the instance on the new pool with a temporary name that is different from the source to
 	// avoid conflicts. Then after the source instance has been deleted we will rename the new instance back
 	// to the original name.
