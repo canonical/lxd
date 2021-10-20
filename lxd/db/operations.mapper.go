@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -104,7 +103,7 @@ func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch operations")
+		return nil, fmt.Errorf("Failed to fetch from \"operations\" table: %w", err)
 	}
 
 	return objects, nil
@@ -127,12 +126,12 @@ func (c *ClusterTx) CreateOrReplaceOperation(object Operation) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create operation")
+		return -1, fmt.Errorf("Failed to create \"operations\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch operation ID")
+		return -1, fmt.Errorf("Failed to fetch \"operations\" entry ID: %w", err)
 	}
 
 	return id, nil
@@ -144,12 +143,12 @@ func (c *ClusterTx) DeleteOperation(uuid string) error {
 	stmt := c.stmt(operationDeleteByUUID)
 	result, err := stmt.Exec(uuid)
 	if err != nil {
-		return errors.Wrap(err, "Delete operation")
+		return fmt.Errorf("Delete \"operations\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	if n != 1 {
@@ -165,12 +164,12 @@ func (c *ClusterTx) DeleteOperations(nodeID int64) error {
 	stmt := c.stmt(operationDeleteByNodeID)
 	result, err := stmt.Exec(nodeID)
 	if err != nil {
-		return errors.Wrap(err, "Delete operation")
+		return fmt.Errorf("Delete \"operations\": %w", err)
 	}
 
 	_, err = result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	return nil
