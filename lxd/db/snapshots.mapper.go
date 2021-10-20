@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -103,7 +102,7 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch instance_snapshots")
+		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
 	}
 
 	config, err := c.GetConfig("instance_snapshot")
@@ -148,7 +147,7 @@ func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name st
 
 	objects, err := c.GetInstanceSnapshots(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch InstanceSnapshot")
+		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -157,7 +156,7 @@ func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name st
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one instance_snapshot matches")
+		return nil, fmt.Errorf("More than one \"instances_snapshots\" entry matches")
 	}
 }
 
@@ -167,7 +166,7 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 	stmt := c.stmt(instanceSnapshotID)
 	rows, err := stmt.Query(project, instance, name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get instance_snapshot ID")
+		return -1, fmt.Errorf("Failed to get \"instances_snapshots\" ID: %w", err)
 	}
 
 	defer rows.Close()
@@ -179,7 +178,7 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
 
 	if rows.Next() {
@@ -187,7 +186,7 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -213,11 +212,11 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 	// Check if a instance_snapshot with the same key exists.
 	exists, err := c.InstanceSnapshotExists(object.Project, object.Instance, object.Name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
 
 	if exists {
-		return -1, fmt.Errorf("This instance_snapshot already exists")
+		return -1, fmt.Errorf("This \"instances_snapshots\" entry already exists")
 	}
 
 	args := make([]interface{}, 7)
@@ -237,12 +236,12 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create instance_snapshot")
+		return -1, fmt.Errorf("Failed to create \"instances_snapshots\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch instance_snapshot ID")
+		return -1, fmt.Errorf("Failed to fetch \"instances_snapshots\" entry ID: %w", err)
 	}
 
 	referenceID := int(id)
@@ -255,7 +254,7 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 
 		err = c.CreateConfig("instance_snapshot", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert Config for instance_snapshot")
+			return -1, fmt.Errorf("Insert Config failed for InstanceSnapshot: %w", err)
 		}
 
 	}
@@ -263,7 +262,7 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 		insert.ReferenceID = int(id)
 		err = c.CreateDevice("instance_snapshot", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert Devices for instance_snapshot")
+			return -1, fmt.Errorf("Insert Devices failed for InstanceSnapshot: %w", err)
 		}
 
 	}
@@ -276,12 +275,12 @@ func (c *ClusterTx) RenameInstanceSnapshot(project string, instance string, name
 	stmt := c.stmt(instanceSnapshotRename)
 	result, err := stmt.Exec(to, project, instance, name)
 	if err != nil {
-		return errors.Wrap(err, "Rename instance_snapshot")
+		return fmt.Errorf("Rename InstanceSnapshot failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
 	}
 
 	if n != 1 {
@@ -296,12 +295,12 @@ func (c *ClusterTx) DeleteInstanceSnapshot(project string, instance string, name
 	stmt := c.stmt(instanceSnapshotDeleteByProjectAndInstanceAndName)
 	result, err := stmt.Exec(project, instance, name)
 	if err != nil {
-		return errors.Wrap(err, "Delete instance_snapshot")
+		return fmt.Errorf("Delete \"instances_snapshots\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	if n != 1 {

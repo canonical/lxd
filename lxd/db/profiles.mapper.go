@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -150,7 +149,7 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch profiles")
+		return nil, fmt.Errorf("Failed to fetch from \"profiles\" table: %w", err)
 	}
 
 	config, err := c.GetConfig("profile")
@@ -204,7 +203,7 @@ func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 
 	objects, err := c.GetProfiles(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Profile")
+		return nil, fmt.Errorf("Failed to fetch from \"profiles\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -213,7 +212,7 @@ func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one profile matches")
+		return nil, fmt.Errorf("More than one \"profiles\" entry matches")
 	}
 }
 
@@ -237,7 +236,7 @@ func (c *ClusterTx) GetProfileID(project string, name string) (int64, error) {
 	stmt := c.stmt(profileID)
 	rows, err := stmt.Query(project, name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get profile ID")
+		return -1, fmt.Errorf("Failed to get \"profiles\" ID: %w", err)
 	}
 
 	defer rows.Close()
@@ -249,7 +248,7 @@ func (c *ClusterTx) GetProfileID(project string, name string) (int64, error) {
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
 
 	if rows.Next() {
@@ -257,7 +256,7 @@ func (c *ClusterTx) GetProfileID(project string, name string) (int64, error) {
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -269,11 +268,11 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 	// Check if a profile with the same key exists.
 	exists, err := c.ProfileExists(object.Project, object.Name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
 
 	if exists {
-		return -1, fmt.Errorf("This profile already exists")
+		return -1, fmt.Errorf("This \"profiles\" entry already exists")
 	}
 
 	args := make([]interface{}, 3)
@@ -289,12 +288,12 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create profile")
+		return -1, fmt.Errorf("Failed to create \"profiles\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch profile ID")
+		return -1, fmt.Errorf("Failed to fetch \"profiles\" entry ID: %w", err)
 	}
 
 	referenceID := int(id)
@@ -307,7 +306,7 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 
 		err = c.CreateConfig("profile", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert Config for profile")
+			return -1, fmt.Errorf("Insert Config failed for Profile: %w", err)
 		}
 
 	}
@@ -315,7 +314,7 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 		insert.ReferenceID = int(id)
 		err = c.CreateDevice("profile", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert Devices for profile")
+			return -1, fmt.Errorf("Insert Devices failed for Profile: %w", err)
 		}
 
 	}
@@ -328,12 +327,12 @@ func (c *ClusterTx) RenameProfile(project string, name string, to string) error 
 	stmt := c.stmt(profileRename)
 	result, err := stmt.Exec(to, project, name)
 	if err != nil {
-		return errors.Wrap(err, "Rename profile")
+		return fmt.Errorf("Rename Profile failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
 	}
 
 	if n != 1 {
@@ -348,12 +347,12 @@ func (c *ClusterTx) DeleteProfile(project string, name string) error {
 	stmt := c.stmt(profileDeleteByProjectAndName)
 	result, err := stmt.Exec(project, name)
 	if err != nil {
-		return errors.Wrap(err, "Delete profile")
+		return fmt.Errorf("Delete \"profiles\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	if n != 1 {
@@ -368,18 +367,18 @@ func (c *ClusterTx) DeleteProfile(project string, name string) error {
 func (c *ClusterTx) UpdateProfile(project string, name string, object Profile) error {
 	id, err := c.GetProfileID(project, name)
 	if err != nil {
-		return errors.Wrap(err, "Get profile")
+		return err
 	}
 
 	stmt := c.stmt(profileUpdate)
 	result, err := stmt.Exec(object.Project, object.Name, object.Description, id)
 	if err != nil {
-		return errors.Wrap(err, "Update profile")
+		return fmt.Errorf("Update \"profiles\" entry failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	if n != 1 {
@@ -388,12 +387,12 @@ func (c *ClusterTx) UpdateProfile(project string, name string, object Profile) e
 
 	err = c.UpdateConfig("profile", int(id), object.Config)
 	if err != nil {
-		return errors.Wrap(err, "Replace Config for Profile")
+		return fmt.Errorf("Replace Config for Profile failed: %w", err)
 	}
 
 	err = c.UpdateDevice("profile", int(id), object.Devices)
 	if err != nil {
-		return errors.Wrap(err, "Replace Devices for Profile")
+		return fmt.Errorf("Replace Devices for Profile failed: %w", err)
 	}
 
 	return nil

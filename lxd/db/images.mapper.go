@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -146,7 +145,7 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch images")
+		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
 	}
 
 	return objects, nil
@@ -161,7 +160,7 @@ func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error)
 
 	objects, err := c.GetImages(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Image")
+		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -170,7 +169,7 @@ func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error)
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one image matches")
+		return nil, fmt.Errorf("More than one \"images\" entry matches")
 	}
 }
 

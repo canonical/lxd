@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -125,7 +124,7 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch projects")
+		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
 
 	// Use non-generated custom method for UsedBy fields.
@@ -162,7 +161,7 @@ func (c *ClusterTx) GetProject(name string) (*Project, error) {
 
 	objects, err := c.GetProjects(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Project")
+		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -171,7 +170,7 @@ func (c *ClusterTx) GetProject(name string) (*Project, error) {
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one project matches")
+		return nil, fmt.Errorf("More than one \"projects\" entry matches")
 	}
 }
 
@@ -195,11 +194,11 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 	// Check if a project with the same key exists.
 	exists, err := c.ProjectExists(object.Name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
 
 	if exists {
-		return -1, fmt.Errorf("This project already exists")
+		return -1, fmt.Errorf("This \"projects\" entry already exists")
 	}
 
 	args := make([]interface{}, 2)
@@ -214,12 +213,12 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create project")
+		return -1, fmt.Errorf("Failed to create \"projects\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch project ID")
+		return -1, fmt.Errorf("Failed to fetch \"projects\" entry ID: %w", err)
 	}
 
 	referenceID := int(id)
@@ -232,7 +231,7 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 
 		err = c.CreateConfig("project", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert Config for project")
+			return -1, fmt.Errorf("Insert Config failed for Project: %w", err)
 		}
 
 	}
@@ -245,7 +244,7 @@ func (c *ClusterTx) GetProjectID(name string) (int64, error) {
 	stmt := c.stmt(projectID)
 	rows, err := stmt.Query(name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get project ID")
+		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
 	}
 
 	defer rows.Close()
@@ -257,7 +256,7 @@ func (c *ClusterTx) GetProjectID(name string) (int64, error) {
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
 
 	if rows.Next() {
@@ -265,7 +264,7 @@ func (c *ClusterTx) GetProjectID(name string) (int64, error) {
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -277,12 +276,12 @@ func (c *ClusterTx) RenameProject(name string, to string) error {
 	stmt := c.stmt(projectRename)
 	result, err := stmt.Exec(to, name)
 	if err != nil {
-		return errors.Wrap(err, "Rename project")
+		return fmt.Errorf("Rename Project failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
 	}
 
 	if n != 1 {
@@ -297,12 +296,12 @@ func (c *ClusterTx) DeleteProject(name string) error {
 	stmt := c.stmt(projectDeleteByName)
 	result, err := stmt.Exec(name)
 	if err != nil {
-		return errors.Wrap(err, "Delete project")
+		return fmt.Errorf("Delete \"projects\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	if n != 1 {
