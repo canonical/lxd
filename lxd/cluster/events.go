@@ -78,13 +78,22 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 	for i, node := range nodes {
 		addresses[i] = node.Address
 
-		// Don't bother trying to connect to offline nodes, or to ourselves.
-		if node.IsOffline(offlineThreshold) || node.Address == address {
+		if node.Address == address {
 			continue
 		}
 
 		listenersLock.Lock()
 		listener, ok := listeners[node.Address]
+
+		// Don't bother trying to connect to offline nodes, or to ourselves.
+		if node.IsOffline(offlineThreshold) {
+			if ok {
+				listener.Disconnect()
+			}
+
+			listenersLock.Unlock()
+			continue
+		}
 
 		// The node has already a listener associated to it.
 		if ok {
