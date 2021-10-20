@@ -1212,7 +1212,7 @@ func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 			errs[1] = fmt.Errorf("remote -> local: %v", err)
 		}
 		local.Close()
-
+		remote.Close()
 	}
 
 	if errs[0] != nil || errs[1] != nil {
