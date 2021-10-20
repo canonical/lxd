@@ -3,14 +3,19 @@ package query
 import (
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 // Transaction executes the given function within a database transaction.
 func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
-	tx, err := db.Begin()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		// If there is a leftover transaction let's try to rollback,
 		// we'll then retry again.
