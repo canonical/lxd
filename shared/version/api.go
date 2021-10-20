@@ -288,6 +288,7 @@ var APIExtensions = []string{
 	"image_source_project",
 	"clustering_config",
 	"network_peer",
+	"linux_sysctl",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
