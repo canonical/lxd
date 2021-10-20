@@ -1113,6 +1113,28 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 	}
 }
 
+type idleTimeoutConn struct {
+	net.Conn
+
+	timeout time.Duration
+}
+
+func (c idleTimeoutConn) Read(buf []byte) (int, error) {
+	if c.timeout != 0 {
+		c.Conn.SetDeadline(time.Now().Add(c.timeout))
+	}
+
+	return c.Conn.Read(buf)
+}
+
+func (c idleTimeoutConn) Write(buf []byte) (int, error) {
+	if c.timeout != 0 {
+		c.Conn.SetDeadline(time.Now().Add(c.timeout))
+	}
+
+	return c.Conn.Write(buf)
+}
+
 // Copies data between a remote TLS network connection and a local unix socket.
 func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 	// Go doesn't currently expose the underlying TCP connection of a TLS
@@ -1127,15 +1149,25 @@ func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 	remoteToLocal := make(chan error, 0)
 	localToRemote := make(chan error, 0)
 
+	localT := idleTimeoutConn{
+		Conn:    local,
+		timeout: 30 * time.Second,
+	}
+
+	remoteT := idleTimeoutConn{
+		Conn:    remote,
+		timeout: 30 * time.Second,
+	}
+
 	// Start copying data back and forth until either the client or the
 	// server get closed or hit an error.
 	go func() {
-		_, err := io.Copy(local, remote)
+		_, err := io.Copy(localT, remoteT)
 		remoteToLocal <- err
 	}()
 
 	go func() {
-		_, err := io.Copy(remote, local)
+		_, err := io.Copy(remoteT, localT)
 		localToRemote <- err
 	}()
 
