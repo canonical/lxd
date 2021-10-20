@@ -13,7 +13,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -289,7 +288,7 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch instances")
+		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
 
 	config, err := c.GetConfig("instance")
@@ -359,7 +358,7 @@ func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) 
 
 	objects, err := c.GetInstances(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Instance")
+		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -368,7 +367,7 @@ func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) 
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one instance matches")
+		return nil, fmt.Errorf("More than one \"instances\" entry matches")
 	}
 }
 
@@ -406,7 +405,7 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	stmt := c.stmt(instanceID)
 	rows, err := stmt.Query(project, name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get instance ID")
+		return -1, fmt.Errorf("Failed to get \"instances\" ID: %w", err)
 	}
 
 	defer rows.Close()
@@ -418,7 +417,7 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
 
 	if rows.Next() {
@@ -426,7 +425,7 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -452,11 +451,11 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	// Check if a instance with the same key exists.
 	exists, err := c.InstanceExists(object.Project, object.Name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
 
 	if exists {
-		return -1, fmt.Errorf("This instance already exists")
+		return -1, fmt.Errorf("This \"instances\" entry already exists")
 	}
 
 	args := make([]interface{}, 11)
@@ -480,12 +479,12 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create instance")
+		return -1, fmt.Errorf("Failed to create \"instances\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch instance ID")
+		return -1, fmt.Errorf("Failed to fetch \"instances\" entry ID: %w", err)
 	}
 
 	referenceID := int(id)
@@ -498,7 +497,7 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 
 		err = c.CreateConfig("instance", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert Config for instance")
+			return -1, fmt.Errorf("Insert Config failed for Instance: %w", err)
 		}
 
 	}
@@ -506,7 +505,7 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 		insert.ReferenceID = int(id)
 		err = c.CreateDevice("instance", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert Devices for instance")
+			return -1, fmt.Errorf("Insert Devices failed for Instance: %w", err)
 		}
 
 	}
@@ -526,12 +525,12 @@ func (c *ClusterTx) RenameInstance(project string, name string, to string) error
 	stmt := c.stmt(instanceRename)
 	result, err := stmt.Exec(to, project, name)
 	if err != nil {
-		return errors.Wrap(err, "Rename instance")
+		return fmt.Errorf("Rename Instance failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
 	}
 
 	if n != 1 {
@@ -546,12 +545,12 @@ func (c *ClusterTx) DeleteInstance(project string, name string) error {
 	stmt := c.stmt(instanceDeleteByProjectAndName)
 	result, err := stmt.Exec(project, name)
 	if err != nil {
-		return errors.Wrap(err, "Delete instance")
+		return fmt.Errorf("Delete \"instances\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	if n != 1 {
@@ -566,18 +565,18 @@ func (c *ClusterTx) DeleteInstance(project string, name string) error {
 func (c *ClusterTx) UpdateInstance(project string, name string, object Instance) error {
 	id, err := c.GetInstanceID(project, name)
 	if err != nil {
-		return errors.Wrap(err, "Get instance")
+		return err
 	}
 
 	stmt := c.stmt(instanceUpdate)
 	result, err := stmt.Exec(object.Project, object.Name, object.Node, object.Type, object.Architecture, object.Ephemeral, object.CreationDate, object.Stateful, object.LastUseDate, object.Description, object.ExpiryDate, id)
 	if err != nil {
-		return errors.Wrap(err, "Update instance")
+		return fmt.Errorf("Update \"instances\" entry failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	if n != 1 {
@@ -586,12 +585,12 @@ func (c *ClusterTx) UpdateInstance(project string, name string, object Instance)
 
 	err = c.UpdateConfig("instance", int(id), object.Config)
 	if err != nil {
-		return errors.Wrap(err, "Replace Config for Instance")
+		return fmt.Errorf("Replace Config for Instance failed: %w", err)
 	}
 
 	err = c.UpdateDevice("instance", int(id), object.Devices)
 	if err != nil {
-		return errors.Wrap(err, "Replace Devices for Instance")
+		return fmt.Errorf("Replace Devices for Instance failed: %w", err)
 	}
 
 	// Update association table.
