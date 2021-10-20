@@ -1462,3 +1462,7 @@ Adds new `config` property to cluster members with configurable key/value pairs.
 
 ## network\_peer
 This adds network peering to allow traffic to flow between OVN networks without leaving the OVN subsystem.
+
+## linux\_sysctl
+Adds new `linux.sysctl.*` configuration keys allowing users to modify certain kernel parameters
+within containers.
