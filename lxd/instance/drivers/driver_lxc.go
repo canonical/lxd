@@ -1289,6 +1289,18 @@ func (d *lxc) initLXC(config bool) error {
 		}
 	}
 
+	// Setup sysctls
+	for k, v := range d.expandedConfig {
+		if strings.HasPrefix(k, "linux.sysctl.") {
+			sysctlSuffix := strings.TrimPrefix(k, "linux.sysctl.")
+			sysctlKey := fmt.Sprintf("lxc.sysctl.%s", sysctlSuffix)
+			err = lxcSetConfigItem(cc, sysctlKey, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	// Setup shmounts
 	if d.state.OS.LXCFeatures["mount_injection_file"] {
 		err = lxcSetConfigItem(cc, "lxc.mount.auto", fmt.Sprintf("shmounts:%s:/dev/.lxd-mounts", d.ShmountsPath()))
