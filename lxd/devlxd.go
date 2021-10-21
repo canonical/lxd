@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -124,29 +123,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 	}
 
 	logger.Debugf("New container event listener for '%s': %s", project.Instance(c.Project(), c.Name()), listener.ID())
-
-	// Create a cancellable context from the request context. Once the request has been upgraded
-	// to a websocket the request's context doesn't appear to be cancelled when the client
-	// disconnects (even though its documented as such). But we wrap the request's context here
-	// anyway just in case its fixed in the future.
-	ctx, cancel := context.WithCancel(r.Context())
-
-	// Instead of relying on the request's context to be cancelled when the client connection
-	// is closed (see above), we instead enter into a repeat read loop of the connection in
-	// order to detect when the client connection is closed. This should be fine as for the
-	// events route there is no expectation to read any useful data from the client.
-	go func() {
-		for {
-			_, _, err := conn.NextReader()
-			if err != nil {
-				// Client read error (likely premature close), so cancel context.
-				cancel()
-				return
-			}
-		}
-	}()
-
-	listener.Wait(ctx)
+	listener.Wait(r.Context())
 
 	return &devLxdResponse{"websocket", http.StatusOK, "websocket"}
 }}
