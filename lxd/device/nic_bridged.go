@@ -237,13 +237,26 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 				return err
 			}
 		} else {
-			// Check that static IPs are defined when using IP filtering on an unmanaged bridge.
-			if shared.IsTrue(d.config["security.ipv4_filtering"]) && d.config["ipv4.address"] == "" {
-				return fmt.Errorf("IPv4 filtering requires a manually specified ipv4.address when using an unmanaged parent bridge")
+			// Check that static IPs are only specified with IP filtering when using an unmanaged
+			// parent bridge.
+			if shared.IsTrue(d.config["security.ipv4_filtering"]) {
+				if d.config["ipv4.address"] == "" {
+					return fmt.Errorf("IPv4 filtering requires a manually specified ipv4.address when using an unmanaged parent bridge")
+				}
+			} else {
+				if d.config["ipv4.address"] != "" {
+					return fmt.Errorf("Cannot use manually specified ipv4.address when using unmanaged parent bridge")
+				}
 			}
 
-			if shared.IsTrue(d.config["security.ipv6_filtering"]) && d.config["ipv6.address"] == "" {
-				return fmt.Errorf("IPv6 filtering requires a manually specified ipv6.address when using an unmanaged parent bridge")
+			if shared.IsTrue(d.config["security.ipv6_filtering"]) {
+				if d.config["ipv6.address"] == "" {
+					return fmt.Errorf("IPv6 filtering requires a manually specified ipv6.address when using an unmanaged parent bridge")
+				}
+			} else {
+				if d.config["ipv6.address"] != "" {
+					return fmt.Errorf("Cannot use manually specified ipv6.address when using unmanaged parent bridge")
+				}
 			}
 		}
 	}
