@@ -2,12 +2,14 @@ package drivers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	fsn "github.com/fsnotify/fsnotify"
 
+	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 )
 
@@ -130,26 +132,33 @@ func (d *fsnotify) getEvents(ctx context.Context) {
 }
 
 func (d *fsnotify) watchFSTree(path string) error {
-	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
+	if !shared.PathExists(path) {
+		return errors.New("Path doesn't exist")
+	}
 
+	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		// Ignore files and symlinks
 		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		// Check for errors here as we only care about directories. Files and symlinks are aren't of interest for this.
+		if err != nil {
+			d.logger.Warn("Error visiting path", log.Ctx{"path": path, "err": err})
 			return nil
 		}
 
 		// Only watch on real paths
 		err = d.watcher.Add(path)
 		if err != nil {
-			return err
+			d.logger.Warn("Failed to watch path", log.Ctx{"path": path, "err": err})
+			return nil
 		}
 
 		return nil
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to watch directory tree: %w", err)
 	}
 
 	return nil
