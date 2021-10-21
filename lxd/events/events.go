@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -37,13 +39,17 @@ func NewServer(debug bool, verbose bool) *Server {
 
 // AddListener creates and returns a new event listener.
 func (s *Server) AddListener(group string, connection *websocket.Conn, messageTypes []string, location string, noForward bool) (*Listener, error) {
+	ctx, ctxCancel := context.WithCancel(context.Background())
+
 	listener := &Listener{
+		Conn: connection,
+
 		group:        group,
-		connection:   connection,
 		messageTypes: messageTypes,
 		location:     location,
 		noForward:    noForward,
-		active:       make(chan bool, 1),
+		ctx:          ctx,
+		ctxCancel:    ctxCancel,
 		id:           uuid.New(),
 	}
 
@@ -55,6 +61,8 @@ func (s *Server) AddListener(group string, connection *websocket.Conn, messageTy
 	}
 
 	s.listeners[listener.id] = listener
+
+	go listener.heartbeat()
 
 	return listener, nil
 }
@@ -126,12 +134,8 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 				return
 			}
 
-			// Ensure there is only a single even going out at the time
-			listener.lock.Lock()
-			defer listener.lock.Unlock()
-
 			// Make sure we're not done already
-			if listener.done {
+			if listener.IsClosed() {
 				return
 			}
 
@@ -147,18 +151,15 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 				event = eventCopy
 			}
 
-			err := listener.connection.WriteJSON(event)
+			listener.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			err := listener.WriteJSON(event)
 			if err != nil {
 				// Remove the listener from the list
 				s.lock.Lock()
 				delete(s.listeners, listener.id)
 				s.lock.Unlock()
 
-				// Disconnect the listener
-				listener.connection.Close()
-				listener.active <- false
-				listener.done = true
-				logger.Debugf("Disconnected event listener: %s", listener.id)
+				listener.Close()
 			}
 		}(listener, event)
 	}
@@ -169,14 +170,16 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 
 // Listener describes an event listener.
 type Listener struct {
+	*websocket.Conn
+
 	group        string
-	connection   *websocket.Conn
 	messageTypes []string
-	active       chan bool
+	ctx          context.Context
+	ctxCancel    func()
 	id           string
 	lock         sync.Mutex
-	done         bool
 	location     string
+	lastPong     time.Time
 
 	// If true, this listener won't get events forwarded from other
 	// nodes. It only used by listeners created internally by LXD nodes
@@ -184,19 +187,56 @@ type Listener struct {
 	noForward bool
 }
 
+func (e *Listener) heartbeat() {
+	pingInterval := time.Second * 5
+	e.lastPong = time.Now() // To allow initial heartbeat ping to be sent.
+
+	e.SetPongHandler(func(msg string) error {
+		e.lastPong = time.Now()
+		return nil
+	})
+
+	for {
+		if e.IsClosed() {
+			return
+		}
+
+		if e.lastPong.Add(pingInterval * 2).Before(time.Now()) {
+			e.Close()
+			return
+		}
+
+		e.lock.Lock()
+		err := e.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
+		if err == websocket.ErrCloseSent {
+			e.lock.Unlock()
+			return
+		} else if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+			e.lock.Unlock()
+			return
+		} else if err != nil {
+			e.lock.Unlock()
+			e.Close()
+			return
+		}
+		e.lock.Unlock()
+
+		select {
+		case <-time.After(pingInterval):
+		case <-e.ctx.Done():
+			return
+		}
+	}
+}
+
 // MessageTypes returns a list of message types the listener will be notified of.
 func (e *Listener) MessageTypes() []string {
 	return e.messageTypes
 }
 
-// IsDone returns true if the listener is done.
-func (e *Listener) IsDone() bool {
-	return e.done
-}
-
-// Connection returns the underlying websocket connection.
-func (e *Listener) Connection() *websocket.Conn {
-	return e.connection
+// IsClosed returns true if the listener is closed.
+func (e *Listener) IsClosed() bool {
+	return e.ctx.Err() != nil
 }
 
 // ID returns the listener ID.
@@ -208,22 +248,34 @@ func (e *Listener) ID() string {
 func (e *Listener) Wait(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-	case <-e.active:
+	case <-e.ctx.Done():
 	}
 }
 
-// Lock locks the internal mutex.
-func (e *Listener) Lock() {
+// Close Disconnects the listener.
+func (e *Listener) Close() {
+	if e.IsClosed() {
+		return
+	}
+
+	logger.Debug("Disconnected event listener", log.Ctx{"listener": e.id})
+
+	e.Conn.Close()
+	e.ctxCancel()
+}
+
+// WriteJSON message to the connection.
+func (e *Listener) WriteJSON(v interface{}) error {
 	e.lock.Lock()
+	defer e.lock.Unlock()
+
+	return e.Conn.WriteJSON(v)
 }
 
-// Unlock unlocks the internal mutex.
-func (e *Listener) Unlock() {
-	e.lock.Unlock()
-}
+// WriteMessage to the connection.
+func (e *Listener) WriteMessage(messageType int, data []byte) error {
+	e.lock.Lock()
+	defer e.lock.Unlock()
 
-// Deactivate deactivates the event listener.
-func (e *Listener) Deactivate() {
-	e.active <- false
-	e.done = true
+	return e.Conn.WriteMessage(messageType, data)
 }
