@@ -361,6 +361,11 @@ func ConfigKeyChecker(key string, instanceType instancetype.Type) (func(value st
 		return validate.IsAny, nil
 	}
 
+	if (instanceType == instancetype.Any || instanceType == instancetype.Container) &&
+		strings.HasPrefix(key, "linux.sysctl.") {
+		return validate.IsAny, nil
+	}
+
 	return nil, fmt.Errorf("Unknown configuration key: %s", key)
 }
 
