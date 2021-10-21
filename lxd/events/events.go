@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"sync"
 	"time"
 
@@ -188,6 +187,8 @@ type Listener struct {
 }
 
 func (e *Listener) heartbeat() {
+	defer e.Close()
+
 	pingInterval := time.Second * 5
 	e.lastPong = time.Now() // To allow initial heartbeat ping to be sent.
 
@@ -196,27 +197,27 @@ func (e *Listener) heartbeat() {
 		return nil
 	})
 
+	// Run a blocking reader to detect if the remote side is closed.
+	// We don't expect to get anything from the remote side, so this should remain blocked until disconnected.
+	go func() {
+		e.Conn.NextReader()
+		e.Close()
+	}()
+
 	for {
 		if e.IsClosed() {
 			return
 		}
 
 		if e.lastPong.Add(pingInterval * 2).Before(time.Now()) {
-			e.Close()
+			logger.Warn("Hearbeat for event listener timed out", log.Ctx{"listener": e.ID()})
 			return
 		}
 
 		e.lock.Lock()
 		err := e.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
-		if err == websocket.ErrCloseSent {
+		if err != nil {
 			e.lock.Unlock()
-			return
-		} else if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
-			e.lock.Unlock()
-			return
-		} else if err != nil {
-			e.lock.Unlock()
-			e.Close()
 			return
 		}
 		e.lock.Unlock()
@@ -254,6 +255,9 @@ func (e *Listener) Wait(ctx context.Context) {
 
 // Close Disconnects the listener.
 func (e *Listener) Close() {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+
 	if e.IsClosed() {
 		return
 	}
