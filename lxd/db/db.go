@@ -392,10 +392,21 @@ func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 	}
 
 	return c.retry(func() error {
-		return query.Transaction(c.db, func(tx *sql.Tx) error {
+		txFunc := func(tx *sql.Tx) error {
 			clusterTx.tx = tx
 			return f(clusterTx)
-		})
+		}
+
+		err := query.Transaction(c.db, txFunc)
+		if errors.Is(err, context.DeadlineExceeded) {
+			// If the query timed out it likely means that the leader has abruptly become unreachable.
+			// Now that this query has been cancelled, a leader election should have taken place by now.
+			// So let's retry the transaction once more in case the global database is now available again.
+			logger.Warn("Transaction timed out. Retrying once", log.Ctx{"member": c.nodeID, "err": err})
+			return query.Transaction(c.db, txFunc)
+		}
+
+		return err
 	})
 }
 
