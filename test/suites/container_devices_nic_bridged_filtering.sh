@@ -606,6 +606,10 @@ test_container_devices_nic_bridged_filtering() {
     done
   fi
 
+  # Check manual IPs cannot be specified on an unmanaged bridged without using IP filtering.
+  ! lxc config device set "${ctPrefix}A" eth0 ipv4.address=192.0.2.2 || false
+  ! lxc config device set "${ctPrefix}A" eth0 ipv6.address=2001:db8::2 || false
+
   # Check IP filtering cannot be enabled without manual IP assigned in LXD config.
   ! lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering=true || false
   lxc config device set "${ctPrefix}A" eth0 ipv4.address=192.0.2.2 security.ipv4_filtering=true
