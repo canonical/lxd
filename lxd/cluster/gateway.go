@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/pkg/errors"
 )
 
@@ -479,7 +480,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener.Close()
 
-		go dqliteProxy(g.stopCh, conn, goUnix)
+		go dqliteProxy("raftDial", g.stopCh, conn, goUnix)
 
 		return cUnix, nil
 	}
@@ -1122,12 +1123,17 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 			continue
 		}
 
-		go dqliteProxy(stopCh, remote, local)
+		go dqliteProxy("runDqliteProxy", stopCh, remote, local)
 	}
 }
 
 // Copies data between a remote TLS network connection and a local unix socket.
-func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
+// Accepts name argument that can be used to identify the connection in the logs.
+func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.Conn) {
+	logger := logging.AddContext(logger.Log, log.Ctx{"name": name, "local": remote.LocalAddr(), "remote": remote.RemoteAddr()})
+	logger.Info("Dqlite proxy started")
+	defer logger.Info("Dqlite proxy stopped")
+
 	// Go doesn't currently expose the underlying TCP connection of a TLS
 	// connection, but we need it in order to gracefully stop proxying with
 	// ReadClose(). We use some reflect/unsafe magic to extract the
@@ -1185,7 +1191,7 @@ func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 
 	if errs[0] != nil || errs[1] != nil {
 		err := dqliteProxyError{first: errs[0], second: errs[1]}
-		logger.Warnf("Dqlite proxy: %v", err)
+		logger.Warn("Dqlite proxy failed", log.Ctx{"err": err})
 	}
 }
 
