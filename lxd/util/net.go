@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"syscall"
+	"time"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -297,6 +301,23 @@ func SysctlSet(parts ...string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// SetTCPUserTimeout sets the TCP user timeout on a connection's socket
+func SetTCPUserTimeout(conn *net.TCPConn, timeout time.Duration) error {
+	rawConn, err := conn.SyscallConn()
+	if err != nil {
+		return fmt.Errorf("Error getting raw connection: %w", err)
+	}
+
+	err = rawConn.Control(func(fd uintptr) {
+		err = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_TCP, unix.TCP_USER_TIMEOUT, int(timeout/time.Millisecond))
+	})
+	if err != nil {
+		return fmt.Errorf("Error setting option on socket: %w", err)
 	}
 
 	return nil

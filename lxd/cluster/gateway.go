@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/pkg/errors"
 )
 
@@ -479,7 +480,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener.Close()
 
-		go dqliteProxy(g.stopCh, conn, goUnix)
+		go dqliteProxy("raftDial", g.stopCh, conn, goUnix)
 
 		return cUnix, nil
 	}
@@ -1122,34 +1123,17 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 			continue
 		}
 
-		go dqliteProxy(stopCh, remote, local)
+		go dqliteProxy("runDqliteProxy", stopCh, remote, local)
 	}
-}
-
-type idleTimeoutConn struct {
-	net.Conn
-
-	timeout time.Duration
-}
-
-func (c idleTimeoutConn) Read(buf []byte) (int, error) {
-	if c.timeout != 0 {
-		c.Conn.SetDeadline(time.Now().Add(c.timeout))
-	}
-
-	return c.Conn.Read(buf)
-}
-
-func (c idleTimeoutConn) Write(buf []byte) (int, error) {
-	if c.timeout != 0 {
-		c.Conn.SetDeadline(time.Now().Add(c.timeout))
-	}
-
-	return c.Conn.Write(buf)
 }
 
 // Copies data between a remote TLS network connection and a local unix socket.
-func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
+// Accepts name argument that can be used to identify the connection in the logs.
+func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.Conn) {
+	logger := logging.AddContext(logger.Log, log.Ctx{"name": name, "local": remote.LocalAddr(), "remote": remote.RemoteAddr()})
+	logger.Info("Dqlite proxy started")
+	defer logger.Info("Dqlite proxy stopped")
+
 	// Go doesn't currently expose the underlying TCP connection of a TLS
 	// connection, but we need it in order to gracefully stop proxying with
 	// ReadClose(). We use some reflect/unsafe magic to extract the
@@ -1157,30 +1141,36 @@ func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 	// connection.
 	field := reflect.ValueOf(remote.(*tls.Conn)).Elem().FieldByName("conn")
 	field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
-	tcp := field.Interface().(*net.TCPConn)
+	remoteTCP := field.Interface().(*net.TCPConn)
+
+	// Set TCP_USER_TIMEOUT option to limit the maximum amount of time in ms that transmitted data may remain
+	// unacknowledged before TCP will forcefully close the corresponding connection and return ETIMEDOUT to the
+	// application. This combined with the TCP keepalive options on the socket will ensure that should the
+	// remote side of the connection disappear abruptly that LXD will detect this and close the socket quickly.
+	// Decreasing the user timeouts allows applications to "fail fast" if so desired. Otherwise it may take
+	// up to 20 minutes with the current system defaults in a normal WAN environment if there are packets in
+	// the send queue that will prevent the keepalive timer from working as the retransmission timers kick in.
+	// See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=dca43c75e7e545694a9dd6288553f55c53e2a3a3
+	err := util.SetTCPUserTimeout(remoteTCP, time.Second*30)
+	if err != nil {
+		logger.Error("Failed setting TCP user timeout on remote connection", log.Ctx{"err": err})
+	}
+
+	remoteTCP.SetKeepAlive(true)
+	remoteTCP.SetKeepAlivePeriod(3 * time.Second)
 
 	remoteToLocal := make(chan error, 0)
 	localToRemote := make(chan error, 0)
 
-	localT := idleTimeoutConn{
-		Conn:    local,
-		timeout: 30 * time.Second,
-	}
-
-	remoteT := idleTimeoutConn{
-		Conn:    remote,
-		timeout: 30 * time.Second,
-	}
-
 	// Start copying data back and forth until either the client or the
 	// server get closed or hit an error.
 	go func() {
-		_, err := io.Copy(localT, remoteT)
+		_, err := io.Copy(local, remote)
 		remoteToLocal <- err
 	}()
 
 	go func() {
-		_, err := io.Copy(remoteT, localT)
+		_, err := io.Copy(remote, local)
 		localToRemote <- err
 	}()
 
@@ -1207,7 +1197,7 @@ func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 		if err != nil {
 			errs[0] = fmt.Errorf("local -> remote: %v", err)
 		}
-		tcp.CloseRead()
+		remoteTCP.CloseRead()
 		if err := <-remoteToLocal; err != nil {
 			errs[1] = fmt.Errorf("remote -> local: %v", err)
 		}
@@ -1217,7 +1207,7 @@ func dqliteProxy(stopCh chan struct{}, remote net.Conn, local net.Conn) {
 
 	if errs[0] != nil || errs[1] != nil {
 		err := dqliteProxyError{first: errs[0], second: errs[1]}
-		logger.Warnf("Dqlite proxy: %v", err)
+		logger.Warn("Dqlite proxy failed", log.Ctx{"err": err})
 	}
 }
 
