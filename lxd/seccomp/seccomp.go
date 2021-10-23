@@ -280,7 +280,7 @@ static inline int bpf(int cmd, union bpf_attr *attr, size_t size)
 	return syscall(__NR_bpf, cmd, attr, size);
 }
 
-static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_proxy_msg *msg,
+static int handle_bpf_syscall(int notify_fd, int mem_fd, int tgid, struct seccomp_notify_proxy_msg *msg,
 			      struct seccomp_notif *req, struct seccomp_notif_resp *resp,
 			      int *bpf_cmd, int *bpf_prog_type, int *bpf_attach_type)
 {
@@ -325,7 +325,7 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, struct seccomp_notify_p
 
 	*bpf_prog_type = attr.prog_type;
 
-	pidfd = pidfd_open(req->pid, 0);
+	pidfd = pidfd_open(tgid, 0);
 	if (pidfd < 0)
 		return -errno;
 
@@ -1110,6 +1110,36 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 	return UID, GID, fsUID, fsGID, nil
 }
 
+// FindTGID returns the task group leader ID from /proc/<pid> fd
+func FindTGID(procFd int) (int, error) {
+	var statusFile *os.File
+	fd, err := unix.Openat(procFd, "status", os.O_RDONLY, 0)
+	if err != nil {
+		return -1, err
+	}
+	statusFile = os.NewFile(uintptr(fd), "/proc/<pid>/status")
+	status, err := ioutil.ReadAll(statusFile)
+	statusFile.Close()
+	if err != nil {
+		return -1, err
+	}
+
+	reTGID := regexp.MustCompile("Tgid:\\s*([0-9]*)")
+	for _, line := range strings.Split(string(status), "\n") {
+		m := reTGID.FindStringSubmatch(line)
+		if m != nil && len(m) > 1 {
+			result, err := strconv.ParseUint(m[1], 10, 32)
+			if err != nil {
+				return -1, err
+			}
+
+			return int(result), nil
+		}
+	}
+
+	return -1, nil
+}
+
 // CallForkmknod executes fork mknod.
 func CallForkmknod(c Instance, dev deviceConfig.Device, requestPID int, s *state.State) int {
 	uid, gid, fsuid, fsgid, err := TaskIDs(requestPID)
@@ -1825,10 +1855,18 @@ func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
+	tgid, err := FindTGID(siov.procFd)
+	if err != nil || tgid == -1 {
+		ctx["syscall_continue"] = "true"
+		ctx["syscall_handler_reason"] = fmt.Sprintf("Could not find thread group leader ID")
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+		return 0
+	}
+
 	// Locking to a thread shouldn't be necessary but it still makes me
 	// queezy that Go could just wander off to somehwere.
 	runtime.LockOSThread()
-	ret := C.handle_bpf_syscall(C.int(siov.notifyFd), C.int(siov.memFd), siov.msg, siov.req, siov.resp, &bpfCmd, &bpfProgType, &bpfAttachType)
+	ret := C.handle_bpf_syscall(C.int(siov.notifyFd), C.int(siov.memFd), C.int(tgid), siov.msg, siov.req, siov.resp, &bpfCmd, &bpfProgType, &bpfAttachType)
 	runtime.UnlockOSThread()
 	ctx["bpf_cmd"] = fmt.Sprintf("%d", bpfCmd)
 	ctx["bpf_prog_type"] = fmt.Sprintf("%d", bpfProgType)
