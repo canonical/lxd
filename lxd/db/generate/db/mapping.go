@@ -59,6 +59,17 @@ func (m *Mapping) NaturalKey() []*Field {
 	return key
 }
 
+// Identifier returns the field that uniquely identifies this entity.
+func (m *Mapping) Identifier() *Field {
+	for _, field := range m.NaturalKey() {
+		if field.Name == "Name" || field.Name == "Fingerprint" {
+			return field
+		}
+	}
+
+	return nil
+}
+
 // ContainsFields checks that the mapping contains fields with the same type
 // and name of given ones.
 func (m *Mapping) ContainsFields(fields []*Field) bool {
