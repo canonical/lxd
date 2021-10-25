@@ -57,7 +57,7 @@ func (u *URL) Project(projectName string) *URL {
 
 // Target sets the "target" query parameter in the URL if the clusterMemberName is not empty or "default".
 func (u *URL) Target(clusterMemberName string) *URL {
-	if clusterMemberName != "" {
+	if clusterMemberName != "" && clusterMemberName != "none" {
 		queryArgs := u.Query()
 		queryArgs.Add("target", clusterMemberName)
 		u.RawQuery = queryArgs.Encode()
