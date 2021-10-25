@@ -23,10 +23,8 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t instances.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e instance names
-//go:generate mapper stmt -p db -e instance names-by-Project
-//go:generate mapper stmt -p db -e instance names-by-ID
 //go:generate mapper stmt -p db -e instance objects
+//go:generate mapper stmt -p db -e instance objects-by-ID
 //go:generate mapper stmt -p db -e instance objects-by-Project
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Type
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Node
@@ -63,7 +61,7 @@ type Instance struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`
 	Name         string `db:"primary=yes"`
-	Node         string `db:"join=nodes.name&omit=URIs"` // TODO: Implement multiple joins for URI generation.
+	Node         string `db:"join=nodes.name"`
 	Type         instancetype.Type
 	Snapshot     bool `db:"ignore"`
 	Architecture int
@@ -83,7 +81,7 @@ type InstanceFilter struct {
 	ID      *int
 	Project *string
 	Name    *string
-	Node    *string `db:"omit=URIs"` // TODO: Implement multiple joins for URI generation.
+	Node    *string
 	Type    *instancetype.Type
 }
 

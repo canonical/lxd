@@ -16,10 +16,8 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e profile names
-//go:generate mapper stmt -p db -e profile names-by-Project
-//go:generate mapper stmt -p db -e profile names-by-ID
 //go:generate mapper stmt -p db -e profile objects
+//go:generate mapper stmt -p db -e profile objects-by-ID
 //go:generate mapper stmt -p db -e profile objects-by-Project
 //go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile id
