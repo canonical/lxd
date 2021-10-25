@@ -1,9 +1,6 @@
 package cluster
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -74,66 +71,6 @@ var EntityURIs = map[int]string{
 	TypeStorageVolumeSnapshot: "/" + version.APIVersion + "/storage-pools/%s/volumes/%s/%s/snapshots/%s?project=%s",
 	TypeWarning:               "/" + version.APIVersion + "/warnings/%s",
 	TypeClusterGroup:          "/" + version.APIVersion + "/cluster/groups/%s",
-}
-
-// EntityFormatURIs associates an entity code to a formatter function that can be
-// used to format its URI.
-var EntityFormatURIs = map[int]func(a ...interface{}) string{
-	TypeContainer: func(a ...interface{}) string {
-		uri := fmt.Sprintf(EntityURIs[TypeContainer], a[1], a[0])
-		if a[0] == "default" {
-			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
-		}
-
-		return uri
-	},
-	TypeInstance: func(a ...interface{}) string {
-		uri := fmt.Sprintf(EntityURIs[TypeInstance], a[1], a[0])
-		if a[0] == "default" {
-			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
-		}
-
-		return uri
-	},
-	TypeProfile: func(a ...interface{}) string {
-		uri := fmt.Sprintf(EntityURIs[TypeProfile], a[1], a[0])
-		if a[0] == "default" {
-			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
-		}
-
-		return uri
-	},
-	TypeProject: func(a ...interface{}) string {
-		uri := fmt.Sprintf(EntityURIs[TypeProject], a[0])
-		return uri
-	},
-	TypeNetwork: func(a ...interface{}) string {
-		uri := fmt.Sprintf(EntityURIs[TypeNetwork], a[1], a[0])
-		if a[0] == "default" {
-			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
-		}
-
-		return uri
-	},
-	TypeNetworkACL: func(a ...interface{}) string {
-		uri := fmt.Sprintf(EntityURIs[TypeNetworkACL], a[1], a[0])
-		if a[0] == "default" {
-			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
-		}
-
-		return uri
-	},
-	TypeImage: func(a ...interface{}) string {
-		uri := fmt.Sprintf(EntityURIs[TypeImage], a[1], a[0])
-		if a[0] == "default" {
-			return strings.Split(uri, fmt.Sprintf("?project=%s", a[0]))[0]
-		}
-
-		return uri
-	},
-	TypeClusterGroup: func(a ...interface{}) string {
-		return fmt.Sprintf(EntityURIs[TypeClusterGroup], a[0])
-	},
 }
 
 func init() {
