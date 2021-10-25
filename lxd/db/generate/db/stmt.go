@@ -46,8 +46,6 @@ func (s *Stmt) Generate(buf *file.Buffer) error {
 	switch kind {
 	case "objects":
 		return s.objects(buf)
-	case "names":
-		return s.names(buf)
 	case "delete":
 		return s.delete(buf)
 	case "create":
@@ -163,73 +161,6 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	} else {
 		s.register(buf, stmtName, sql)
 	}
-	return nil
-}
-
-func (s *Stmt) names(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Capital(s.entity), s.kind)
-	if err != nil {
-		return err
-	}
-
-	table := entityTable(s.entity)
-	for _, field := range mapping.ScalarFields() {
-		join := field.Config.Get("join")
-		right := strings.Split(join, ".")[0]
-		via := entityTable(s.entity)
-		if field.Config.Get("via") != "" {
-			via = entityTable(field.Config.Get("via"))
-		}
-		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
-	}
-
-	nk := mapping.NaturalKey()
-	columns := make([]string, len(nk))
-	orderBy := make([]string, len(nk))
-	for i, field := range nk {
-		if field.IsScalar() {
-			columns[i] = field.Column()
-			orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
-		} else {
-			columns[i] = mapping.FieldColumnName(field.Name, entityTable(mapping.Name))
-			orderBy[i] = mapping.FieldColumnName(field.Name, entityTable(mapping.Name))
-		}
-	}
-
-	where := ""
-
-	if strings.HasPrefix(s.kind, "names-by") {
-		filters := strings.Split(s.kind[len("names-by-"):], "-and-")
-		where = "WHERE "
-
-		for i, filter := range filters {
-			field, err := mapping.FilterFieldByName(filter)
-
-			if err != nil {
-				return err
-			}
-
-			if i > 0 {
-				where += "AND "
-			}
-
-			var column string
-			if field.IsScalar() {
-				column = lex.Snake(field.Name)
-			} else {
-				column = mapping.FieldColumnName(field.Name, entityTable(mapping.Name))
-			}
-
-			where += fmt.Sprintf("%s = ? ", column)
-		}
-
-	}
-
-	boiler := stmts["names"]
-	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
-	kind := strings.Replace(s.kind, "-", "_", -1)
-	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
 	return nil
 }
 
