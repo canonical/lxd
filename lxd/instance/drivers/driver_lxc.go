@@ -6961,11 +6961,13 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: memoryLimit - uint64(memoryUsage)})
 	}
 
-	swapUsage, err := cg.GetMemorySwapUsage()
-	if err != nil {
-		logger.Warn("Failed to get swap usage", log.Ctx{"err": err})
-	} else {
-		out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: uint64(swapUsage)})
+	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
+		swapUsage, err := cg.GetMemorySwapUsage()
+		if err != nil {
+			logger.Warn("Failed to get swap usage", log.Ctx{"err": err})
+		} else {
+			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: uint64(swapUsage)})
+		}
 	}
 
 	// Get CPU stats
