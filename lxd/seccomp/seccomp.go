@@ -63,6 +63,7 @@ import (
 #include "../include/lxd_seccomp.h"
 #include "../include/memory_utils.h"
 #include "../include/process_utils.h"
+#include "../include/syscall_wrappers.h"
 
 struct seccomp_notif_sizes expected_sizes;
 
@@ -280,7 +281,8 @@ static inline int bpf(int cmd, union bpf_attr *attr, size_t size)
 	return syscall(__NR_bpf, cmd, attr, size);
 }
 
-static int handle_bpf_syscall(int notify_fd, int mem_fd, int tgid, struct seccomp_notify_proxy_msg *msg,
+static int handle_bpf_syscall(pid_t pid_target, int notify_fd, int mem_fd,
+			      int tgid, struct seccomp_notify_proxy_msg *msg,
 			      struct seccomp_notif *req, struct seccomp_notif_resp *resp,
 			      int *bpf_cmd, int *bpf_prog_type, int *bpf_attach_type)
 {
@@ -401,6 +403,21 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, int tgid, struct seccom
 		if (bpf_attach_fd < 0)
 			return -errno;
 
+		if (tgid != pid_target) {
+			// Make sure that the file descriptor table is shared
+			// so we can be sure that we're talking about the same
+			// open files.
+			if (!filetable_shared(tgid, pid_target))
+				return -EINVAL;
+
+			// Make sure that the threadgroup leader hasn't been
+			// recycled in the meantime so we're not accidentally
+			// looking at a different threadgroup with the same
+			// open files.
+			if (!process_still_alive(tgid))
+				return -EINVAL;
+		}
+
 		attr.target_fd		= bpf_target_fd;
 		attr.attach_bpf_fd	= bpf_attach_fd;
 		ret = bpf(cmd, &attr, attr_len);
@@ -418,6 +435,21 @@ static int handle_bpf_syscall(int notify_fd, int mem_fd, int tgid, struct seccom
 		bpf_attach_fd = pidfd_getfd(pidfd, attr.attach_bpf_fd, 0);
 		if (bpf_attach_fd < 0)
 			return -errno;
+
+		if (tgid != pid_target) {
+			// Make sure that the file descriptor table is shared
+			// so we can be sure that we're talking about the same
+			// open files.
+			if (!filetable_shared(tgid, pid_target))
+				return -EINVAL;
+
+			// Make sure that the threadgroup leader hasn't been
+			// recycled in the meantime so we're not accidentally
+			// looking at a different threadgroup with the same
+			// open files.
+			if (!process_still_alive(tgid))
+				return -EINVAL;
+		}
 
 		attr.target_fd		= bpf_target_fd;
 		attr.attach_bpf_fd	= bpf_attach_fd;
@@ -1866,7 +1898,17 @@ func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 	// Locking to a thread shouldn't be necessary but it still makes me
 	// queezy that Go could just wander off to somehwere.
 	runtime.LockOSThread()
-	ret := C.handle_bpf_syscall(C.int(siov.notifyFd), C.int(siov.memFd), C.int(tgid), siov.msg, siov.req, siov.resp, &bpfCmd, &bpfProgType, &bpfAttachType)
+	ret := C.handle_bpf_syscall(
+		C.pid_t(siov.req.pid),
+		C.int(siov.notifyFd),
+		C.int(siov.memFd),
+		C.int(tgid),
+		siov.msg,
+		siov.req,
+		siov.resp,
+		&bpfCmd,
+		&bpfProgType,
+		&bpfAttachType)
 	runtime.UnlockOSThread()
 	ctx["bpf_cmd"] = fmt.Sprintf("%d", bpfCmd)
 	ctx["bpf_prog_type"] = fmt.Sprintf("%d", bpfProgType)
