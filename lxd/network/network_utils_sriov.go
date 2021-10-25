@@ -2,8 +2,10 @@ package network
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +17,7 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/ip"
+	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -26,6 +29,8 @@ var sriovReservedDevicesMutex sync.Mutex
 
 // SRIOVVirtualFunctionMutex used to coordinate access for finding and claiming free virtual functions.
 var SRIOVVirtualFunctionMutex sync.Mutex
+
+var sysClassNet = "/sys/class/net"
 
 // SRIOVGetHostDevicesInUse returns a map of host device names that have been used by devices in other instances
 // and networks on the local node. Used when selecting physical and SR-IOV VF devices to avoid conflicts.
@@ -268,4 +273,127 @@ func SRIOVGetVFDevicePCISlot(parentDev string, vfID string) (pci.Device, error) 
 	}
 
 	return pciDev, nil
+}
+
+// SRIOVSwitchdevEnabled returns true if switchdev mode is enabled on the given device.
+func SRIOVSwitchdevEnabled(deviceName string) bool {
+	var buf bytes.Buffer
+
+	ueventFile := fmt.Sprintf("%s/%s/device/uevent", sysClassNet, deviceName)
+
+	pciDev, err := pci.ParseUeventFile(ueventFile)
+	if err != nil {
+		return false
+	}
+
+	slotName := fmt.Sprintf("pci/%s", pciDev.SlotName)
+
+	err = shared.RunCommandWithFds(nil, &buf, "devlink", "-j", "dev", "eswitch", "show", slotName)
+	if err != nil {
+		return false
+	}
+
+	dev := map[string]map[string]struct {
+		Mode string
+	}{}
+
+	err = json.NewDecoder(&buf).Decode(&dev)
+	if err != nil {
+		return false
+	}
+
+	if dev["dev"][slotName].Mode == "switchdev" {
+		return true
+	}
+
+	return false
+}
+
+// SRIOVFindFreeVFAndRepresentor tries to find a free SR-IOV virtual function of a PF connected to an OVS bridge.
+// To do this it first looks at the ports on the OVS bridge specified and identifies which ones are PF ports in
+// switchdev mode. It then tries to find a free VF on that PF and the representor port associated to the VF ID.
+// It returns the PF name, representor port name, VF name, and VF ID.
+func SRIOVFindFreeVFAndRepresentor(state *state.State, ovsBridgeName string) (string, string, string, int, error) {
+	nics, err := ioutil.ReadDir(sysClassNet)
+	if err != nil {
+		return "", "", "", -1, fmt.Errorf("Failed to read directory %q: %w", sysClassNet, err)
+	}
+
+	findRepresentorPort := func(pfSwitchID string, vfID int) string {
+		for _, nic := range nics {
+			nicSwitchID, err := ioutil.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_switch_id"))
+			if err != nil {
+				continue // Skip non-physical interfaces.
+			}
+
+			if string(nicSwitchID) != pfSwitchID {
+				continue // Skip interfaces not connected to PF's switchdev.
+			}
+
+			// Check if this representor port matches the PF and VF by parsing phys_port_name.
+			physPortName, err := ioutil.ReadFile(filepath.Join(sysClassNet, nic.Name(), "phys_port_name"))
+			if err != nil {
+				continue // Skip interfaes with no physical port name.
+			}
+
+			var pfID, nicVFID int
+			_, err = fmt.Sscanf(string(physPortName), "pf%dvf%d", &pfID, &nicVFID)
+			if err != nil {
+				continue // Skip non-VF interfaces.
+			}
+
+			if nicVFID == vfID {
+				return nic.Name() // We have a match.
+			}
+		}
+
+		return ""
+	}
+
+	ovs := openvswitch.NewOVS()
+
+	// Get all ports on the integration bridge.
+	ports, err := ovs.BridgePortList(ovsBridgeName)
+	if err != nil {
+		return "", "", "", -1, fmt.Errorf("Failed to get port list: %w", err)
+	}
+
+	// Iterate through the list of ports and identify the PFs by trying to locate a VF (virtual function).
+	for _, port := range ports {
+		physPortName, err := ioutil.ReadFile(filepath.Join(sysClassNet, port, "phys_port_name"))
+		if err != nil {
+			continue // Skip non-physical ports connected to bridge.
+		}
+
+		// Check the port is a physical port and not an existing representor port connected to the bridge
+		// but beloning to a physical device. This avoids trying to find a free VF repeatedly for the same
+		// PF by mistakenly considering an existing representor ported connected to the bridge as a PF.
+		if strings.HasPrefix(string(physPortName), "pf") || !strings.HasPrefix(string(physPortName), "p") {
+			continue
+		}
+
+		// Check if switchdev is enabled on physical port.
+		if !SRIOVSwitchdevEnabled(port) {
+			continue
+		}
+
+		physSwitchID, err := ioutil.ReadFile(filepath.Join(sysClassNet, port, "phys_switch_id"))
+		if err != nil {
+			continue
+		}
+
+		vfName, vfID, err := SRIOVFindFreeVirtualFunction(state, port)
+		if err != nil {
+			continue
+		}
+
+		// Track down the representor port. The number of representor ports depends on the number of enabled VFs.
+		// All representor ports have the same phys_switch_id as the PF.
+		representorPort := findRepresentorPort(string(physSwitchID), vfID)
+		if representorPort != "" {
+			return port, representorPort, vfName, vfID, nil
+		}
+	}
+
+	return "", "", "", -1, fmt.Errorf("No free virtual function and representor port found")
 }
