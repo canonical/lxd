@@ -22,8 +22,6 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t images.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e image names
-//go:generate mapper stmt -p db -e image names-by-Project
 //go:generate mapper stmt -p db -e image objects
 //go:generate mapper stmt -p db -e image objects-by-Project
 //go:generate mapper stmt -p db -e image objects-by-Project-and-Cached
