@@ -28,6 +28,11 @@ static inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
 	return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
 }
 
+static inline bool process_still_alive(int pidfd)
+{
+	return pidfd_send_signal(pidfd, 0, NULL, 0) == 0;
+}
+
 static inline int wait_for_pid(pid_t pid)
 {
 	int status, ret;
