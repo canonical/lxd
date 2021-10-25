@@ -6,6 +6,7 @@
 #endif
 #include <asm/unistd.h>
 #include <errno.h>
+#include <linux/kcmp.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -143,6 +144,17 @@ static inline int core_scheduling_cookie_share_to(pid_t pid)
 {
 	return prctl(PR_SCHED_CORE, PR_SCHED_CORE_SHARE_TO, pid,
 		     PR_SCHED_CORE_SCOPE_THREAD, 0);
+}
+
+static int kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1,
+		unsigned long idx2)
+{
+	return syscall(__NR_kcmp, pid1, pid2, type, idx1, idx2);
+}
+
+static inline bool filetable_shared(pid_t pid1, pid_t pid2)
+{
+	return kcmp(pid1, pid2, KCMP_FILES, -EBADF, -EBADF) == 0;
 }
 
 #endif /* __LXD_SYSCALL_WRAPPER_H */
