@@ -368,18 +368,20 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
 
-	// Add CRIO info to source header.
-	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
-	if !s.live {
-		criuType = nil
-		if s.instance.IsRunning() {
-			criuType = migration.CRIUType_NONE.Enum()
-		}
-	}
-	offerHeader.Criu = criuType
+	maxDumpIterations := 0
 
 	// Add idmap info to source header for containers.
 	if s.instance.Type() == instancetype.Container {
+		// Add CRIU info to source header.
+		criuType := migration.CRIUType_CRIU_RSYNC.Enum()
+		if !s.live {
+			criuType = nil
+			if s.instance.IsRunning() {
+				criuType = migration.CRIUType_NONE.Enum()
+			}
+		}
+		offerHeader.Criu = criuType
+
 		ct := s.instance.(instance.Container)
 		idmaps := make([]*migration.IDMapType, 0)
 		idmapset, err := ct.DiskIdmap()
@@ -400,6 +402,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 
 		offerHeader.Idmap = idmaps
+
+		// Add predump info to source header.
+		offerUsePreDumps := false
+		if s.live {
+			offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
+		}
+
+		offerHeader.Predump = proto.Bool(offerUsePreDumps)
 	}
 
 	// Add snapshot info to source header if needed.
@@ -429,15 +439,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		logger.Debugf("Set migration offer volume size for %q: %d", s.instance.Name(), blockSize)
 		offerHeader.VolumeSize = &blockSize
 	}
-
-	// Add predump info to source header.
-	offerUsePreDumps := false
-	maxDumpIterations := 0
-	if s.live {
-		offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
-	}
-
-	offerHeader.Predump = proto.Bool(offerUsePreDumps)
 
 	// Send offer to target.
 	err = s.send(offerHeader)
