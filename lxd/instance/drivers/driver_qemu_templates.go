@@ -259,7 +259,7 @@ qom-type = "memory-backend-memfd"
 size = "{{$memory}}M"
 policy = "bind"
 {{- if eq $.qemuMemObjectFormat "indexed"}}
-host-nodes.{{$index}} = "{{$element}}"
+host-nodes.0 = "{{$element}}"
 {{- else}}
 host-nodes = "{{$element}}"
 {{- end}}
