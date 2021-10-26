@@ -138,6 +138,22 @@ func IsAny(value string) error {
 	return nil
 }
 
+// IsList returns a validator for a list of values.
+func IsListOf(validator func(value string) error) func(value string) error {
+	return func(value string) error {
+		for _, v := range strings.Split(value, ",") {
+			v = strings.TrimSpace(v)
+
+			err := validator(v)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 // IsNotEmpty requires a non-empty string.
 func IsNotEmpty(value string) error {
 	if value == "" {

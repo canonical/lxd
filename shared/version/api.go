@@ -289,6 +289,7 @@ var APIExtensions = []string{
 	"clustering_config",
 	"network_peer",
 	"linux_sysctl",
+	"network_dns",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
