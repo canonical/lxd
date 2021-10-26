@@ -811,7 +811,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
 
 	if b.driver.HasVolume(vol) {
-		return fmt.Errorf("Cannot create volume, already exists on target")
+		return fmt.Errorf("Cannot create volume, already exists on target storage")
 	}
 
 	// Setup reverter.
@@ -1525,9 +1525,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	volExists := b.driver.HasVolume(vol)
 	if args.Refresh && !volExists {
-		return fmt.Errorf("Cannot refresh volume, doesn't exist on target")
+		return fmt.Errorf("Cannot refresh volume, doesn't exist on migration target storage")
 	} else if !args.Refresh && volExists {
-		return fmt.Errorf("Cannot create volume, already exists on target")
+		return fmt.Errorf("Cannot create volume, already exists on migration target storage")
 	}
 
 	var preFiller drivers.VolumeFiller
