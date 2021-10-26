@@ -515,7 +515,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	restoreSuccess := make(chan bool, 1)
 	dumpSuccess := make(chan error, 1)
 
-	if s.live {
+	if s.live && s.instance.Type() == instancetype.Container {
 		if respHeader.Criu == nil {
 			return abort(fmt.Errorf("Got no CRIU socket type for live migration"))
 		} else if *respHeader.Criu != migration.CRIUType_CRIU_RSYNC {
@@ -711,7 +711,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return err
 	}
 
-	if s.live {
+	if s.live && s.instance.Type() == instancetype.Container {
 		restoreSuccess <- *msg.Success
 		err := <-dumpSuccess
 		if err != nil {
@@ -820,7 +820,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			return err
 		}
 
-		if c.src.live {
+		if c.src.live && c.src.instance.Type() == instancetype.Container {
 			c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
 			if err != nil {
 				c.src.sendControl(err)
@@ -1064,7 +1064,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			// If we are doing a stateful live transfer or the CRIU type indicates we
 			// are doing a stateless transfer with a running instance then we should
 			// expect the source to send us a final rootfs sync.
-			if live {
+			if live && c.src.instance.Type() == instancetype.Container {
 				sendFinalFsDelta = true
 			}
 
@@ -1104,7 +1104,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			fsTransfer <- nil
 		}()
 
-		if live {
+		if live && c.src.instance.Type() == instancetype.Container {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
 			if err != nil {
@@ -1170,7 +1170,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			return
 		}
 
-		if live {
+		if live && c.src.instance.Type() == instancetype.Container {
 			criuMigrationArgs := instance.CriuMigrationArgs{
 				Cmd:          liblxc.MIGRATE_RESTORE,
 				StateDir:     imagesDir,
