@@ -26,7 +26,6 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -50,19 +49,18 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	}
 
 	if stateful && inst.IsRunning() {
-		if inst.Type() == instancetype.VM {
-			return nil, errors.Wrap(storageDrivers.ErrNotImplemented, "Unable to perform VM live migration")
-		}
-
-		_, err := exec.LookPath("criu")
-		if err != nil {
-			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
-		}
-
 		ret.live = true
-		ret.criuSecret, err = shared.RandomCryptoString()
-		if err != nil {
-			return nil, err
+
+		if inst.Type() == instancetype.Container {
+			_, err := exec.LookPath("criu")
+			if err != nil {
+				return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
+			}
+
+			ret.criuSecret, err = shared.RandomCryptoString()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -770,14 +768,16 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 		}
 
 		sink.src.criuSecret, ok = args.Secrets["criu"]
-		sink.src.live = ok
+		sink.src.live = ok || args.Live
 	}
 
-	_, err = exec.LookPath("criu")
-	if sink.push && sink.dest.live && err != nil {
-		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
-	} else if sink.src.live && err != nil {
-		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+	if sink.src.instance.Type() == instancetype.Container {
+		_, err = exec.LookPath("criu")
+		if sink.push && sink.dest.live && err != nil {
+			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+		} else if sink.src.live && err != nil {
+			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+		}
 	}
 
 	return &sink, nil
