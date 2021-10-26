@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -37,7 +38,15 @@ func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
 }
 
 func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, poolName string, volName string, migrateOp *operations.Operation) error {
-	<-s.allConnected
+	logger.Info("Waiting for migration channel connections")
+	select {
+	case <-time.After(time.Second * 10):
+		return fmt.Errorf("Timed out waiting for connections")
+	case <-s.allConnected:
+	}
+
+	logger.Info("Migration channels connected")
+
 	defer s.disconnect()
 
 	var poolMigrationTypes []migration.Type
@@ -206,7 +215,13 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	var err error
 
 	if c.push {
-		<-c.allConnected
+		logger.Info("Waiting for migration channel connections")
+		select {
+		case <-time.After(time.Second * 10):
+			return fmt.Errorf("Timed out waiting for connections")
+		case <-c.allConnected:
+		}
+		logger.Info("Migration channels connected")
 	}
 
 	disconnector := c.src.disconnect
