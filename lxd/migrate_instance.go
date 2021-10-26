@@ -1034,7 +1034,8 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				Isgid:    *idmapSet.Isgid,
 				Nsid:     int64(*idmapSet.Nsid),
 				Hostid:   int64(*idmapSet.Hostid),
-				Maprange: int64(*idmapSet.Maprange)}
+				Maprange: int64(*idmapSet.Maprange),
+			}
 			srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
 		}
 
