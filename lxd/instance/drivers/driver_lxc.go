@@ -6912,14 +6912,21 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 
 	memoryLimit := uint64(0)
 
-	limit, err := cg.GetMemoryLimit()
+	// Get total memory
+	totalMemory, err := shared.DeviceTotalMemory()
 	if err != nil {
-		limit, err = shared.DeviceTotalMemory()
-		if err != nil {
-			logger.Warn("Failed to get memory limit", log.Ctx{"err": err})
-		}
+		logger.Warn("Failed to get total memory", log.Ctx{"err": err})
 	} else {
-		memoryLimit = uint64(limit)
+		// Get memory limit
+		limit, err := cg.GetMemoryLimit()
+		if err != nil || limit > totalMemory {
+			// If the memory limit couldn't be determined, use the total memory.
+			// If the value of limit is larger than the total memory, there is no limit set.
+			// In this case, also use the total memory as the limit.
+			memoryLimit = uint64(totalMemory)
+		} else {
+			memoryLimit = uint64(limit)
+		}
 	}
 
 	if memoryLimit > 0 {
