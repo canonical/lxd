@@ -350,7 +350,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		// And finally run the migration.
 		err = sink.Do(d.State(), runRevert, op)
 		if err != nil {
-			return fmt.Errorf("Error transferring instance data: %s", err)
+			return fmt.Errorf("Error transferring instance data: %w", err)
 		}
 
 		err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)
