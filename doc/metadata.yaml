@@ -55,9 +55,6 @@ navigation:
         - title: Virtual machines
           location: virtual-machines.md
 
-        - title: Instance metrics exporter
-          location: metrics.md
-
     - title: Images
       children:
         - title: Architectures
@@ -96,6 +93,9 @@ navigation:
 
         - title: Events API documentation
           location: events.md
+
+        - title: Metrics API documentation
+          location: metrics.md
 
     - title: Internals & debugging
       children:
