@@ -53,6 +53,7 @@ restricted.devices.unix-hotplug      | string    | -                     | block
 restricted.devices.usb               | string    | -                     | block                     | Prevents use of devices of type "usb"
 restricted.networks.subnets          | string    | -                     | block                     | Comma delimited list of network subnets from the uplink networks (in the form `<uplink>:<subnet>`) that are allocated for use in this project
 restricted.networks.uplinks          | string    | -                     | block                     | Comma delimited list of network names that can be used as uplinks for networks in this project
+restricted.networks.zones            | string    | -                     | block                     | Comma delimited list of network zones that can be used (or something under them) in this project
 restricted.snapshots                 | string    | -                     | block                     | Prevents the creation of any instance or volume snapshots.
 restricted.virtual-machines.lowlevel | string    | -                     | block                     | Prevents use of low-level virtual-machine options like raw.qemu, volatile, etc.
 

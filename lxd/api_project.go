@@ -885,11 +885,12 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted.devices.proxy":             isEitherAllowOrBlock,
 		"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
 		"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
-		"restricted.networks.uplinks":          validate.IsAny,
+		"restricted.networks.uplinks":          validate.IsListOf(validate.IsAny),
 		"restricted.networks.subnets": validate.Optional(func(value string) error {
 			return projectValidateRestrictedSubnets(s, value)
 		}),
-		"restricted.snapshots": isEitherAllowOrBlock,
+		"restricted.networks.zones": validate.IsListOf(validate.IsAny),
+		"restricted.snapshots":      isEitherAllowOrBlock,
 	}
 
 	for k, v := range config {

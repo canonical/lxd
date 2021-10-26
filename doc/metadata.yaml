@@ -37,6 +37,9 @@ navigation:
         - title: Network Peers
           location: network-peers.md
 
+        - title: Network Zones
+          location: network-zones.md
+
         - title: Preseed files
           location: preseed.md
 
@@ -54,9 +57,6 @@ navigation:
 
         - title: Virtual machines
           location: virtual-machines.md
-
-        - title: Instance metrics exporter
-          location: metrics.md
 
     - title: Images
       children:
@@ -96,6 +96,9 @@ navigation:
 
         - title: Events API documentation
           location: events.md
+
+        - title: Metrics API documentation
+          location: metrics.md
 
     - title: Internals & debugging
       children:

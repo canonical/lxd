@@ -129,6 +129,16 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 	return nil
 }
 
+// validateZoneName checks that a user provided zone name is valid.
+func (n *common) validateZoneName(name string) error {
+	_, _, _, err := n.state.Cluster.GetNetworkZone(name)
+	if err != nil {
+		return fmt.Errorf("Network zone %q doesn't exist", name)
+	}
+
+	return nil
+}
+
 // ValidateName validates network name.
 func (n *common) ValidateName(name string) error {
 	err := validate.IsURLSegmentSafe(name)

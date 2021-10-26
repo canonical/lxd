@@ -251,6 +251,14 @@ type InstanceServer interface {
 	RenameNetworkACL(name string, acl api.NetworkACLPost) (err error)
 	DeleteNetworkACL(name string) (err error)
 
+	// Network zone functions ("network_dns" API extension)
+	GetNetworkZoneNames() (names []string, err error)
+	GetNetworkZones() (acls []api.NetworkZone, err error)
+	GetNetworkZone(name string) (acl *api.NetworkZone, ETag string, err error)
+	CreateNetworkZone(acl api.NetworkZonesPost) (err error)
+	UpdateNetworkZone(name string, acl api.NetworkZonePut, ETag string) (err error)
+	DeleteNetworkZone(name string) (err error)
+
 	// Operation functions
 	GetOperationUUIDs() (uuids []string, err error)
 	GetOperations() (operations []api.Operation, err error)

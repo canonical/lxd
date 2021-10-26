@@ -81,6 +81,9 @@ bridge.mtu                           | integer   | -                     | 1500 
 dns.domain                           | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
 dns.mode                             | string    | -                     | managed                   | DNS registration mode ("none" for no DNS record, "managed" for LXD generated static records or "dynamic" for client generated records)
 dns.search                           | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
+dns.zone.forward                     | string    | -                     | managed                   | DNS zone name for forward DNS records
+dns.zone.reverse.ipv4                | string    | -                     | managed                   | DNS zone name for IPv4 reverse DNS records
+dns.zone.reverse.ipv6                | string    | -                     | managed                   | DNS zone name for IPv6 reverse DNS records
 fan.overlay\_subnet                  | string    | fan mode              | 240.0.0.0/8               | Subnet to use as the overlay for the FAN (CIDR notation)
 fan.type                             | string    | fan mode              | vxlan                     | The tunneling type for the FAN ("vxlan" or "ipip")
 fan.underlay\_subnet                 | string    | fan mode              | auto (on create only)     | Subnet to use as the underlay for the FAN (CIDR notation). Use "auto" to use default gateway subnet
@@ -380,6 +383,9 @@ bridge.hwaddr                        | string    | -                     | -    
 bridge.mtu                           | integer   | -                     | 1442                      | Bridge MTU (default allows host to host geneve tunnels)
 dns.domain                           | string    | -                     | lxd                       | Domain to advertise to DHCP clients and use for DNS resolution
 dns.search                           | string    | -                     | -                         | Full comma separated domain search list, defaulting to `dns.domain` value
+dns.zone.forward                     | string    | -                     | -                         | DNS zone name for forward DNS records
+dns.zone.reverse.ipv4                | string    | -                     | -                         | DNS zone name for IPv4 reverse DNS records
+dns.zone.reverse.ipv6                | string    | -                     | -                         | DNS zone name for IPv6 reverse DNS records
 ipv4.address                         | string    | standard mode         | auto (on create only)     | IPv4 address for the bridge (CIDR notation). Use "none" to turn off IPv4 or "auto" to generate a new random unused subnet
 ipv4.dhcp                            | boolean   | ipv4 address          | true                      | Whether to allocate addresses using DHCP
 ipv4.nat                             | boolean   | ipv4 address          | false                     | Whether to NAT (will default to true if unset and a random ipv4.address is generated)

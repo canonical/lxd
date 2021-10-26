@@ -77,6 +77,8 @@ var api10 = []APIEndpoint{
 	networkForwardsCmd,
 	networkPeerCmd,
 	networkPeersCmd,
+	networkZoneCmd,
+	networkZonesCmd,
 	operationCmd,
 	operationsCmd,
 	operationWait,
@@ -673,6 +675,7 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 	candidChanged := false
 	rbacChanged := false
 	bgpChanged := false
+	dnsChanged := false
 
 	for key := range clusterChanged {
 		switch key {
@@ -734,6 +737,8 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 			fallthrough
 		case "core.bgp_routerid":
 			bgpChanged = true
+		case "core.dns_address":
+			dnsChanged = true
 		}
 	}
 
@@ -835,6 +840,15 @@ func doApi10UpdateTriggers(d *Daemon, nodeChanged, clusterChanged map[string]str
 		routerid := nodeConfig.BGPRouterID()
 
 		err := s.BGP.Reconfigure(address, uint32(asn), net.ParseIP(routerid))
+		if err != nil {
+			return err
+		}
+	}
+
+	if dnsChanged {
+		address := nodeConfig.DNSAddress()
+
+		err := s.DNS.Reconfigure(address)
 		if err != nil {
 			return err
 		}
