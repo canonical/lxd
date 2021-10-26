@@ -312,7 +312,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 			return response.InternalError(err)
 		}
 
-		// Create the instance DB records only and let the storage layer populate the storage devices.
+		// Create the instance and storage DB records for main instance.
 		// Note: At this stage we do not yet know if snapshots are going to be received and so we cannot
 		// create their DB records. This will be done if needed in the migrationSink.Do() function called
 		// as part of the operation below.
@@ -373,7 +373,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		// And finally run the migration.
 		err = sink.Do(d.State(), runRevert, op)
 		if err != nil {
-			return fmt.Errorf("Error transferring instance data: %s", err)
+			return fmt.Errorf("Error transferring instance data: %w", err)
 		}
 
 		err = inst.DeferTemplateApply(instance.TemplateTriggerCopy)

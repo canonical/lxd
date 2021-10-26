@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
@@ -340,7 +341,14 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 }
 
 func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operation) error {
-	<-s.allConnected
+	logger.Info("Waiting for migration channel connections")
+	select {
+	case <-time.After(time.Second * 10):
+		return fmt.Errorf("Timed out waiting for connections")
+	case <-s.allConnected:
+	}
+
+	logger.Info("Migration channels connected")
 
 	var poolMigrationTypes []migration.Type
 
@@ -779,7 +787,13 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	var err error
 
 	if c.push {
-		<-c.allConnected
+		logger.Info("Waiting for migration channel connections")
+		select {
+		case <-time.After(time.Second * 10):
+			return fmt.Errorf("Timed out waiting for connections")
+		case <-c.allConnected:
+		}
+		logger.Info("Migration channels connected")
 	}
 
 	disconnector := c.src.disconnect
