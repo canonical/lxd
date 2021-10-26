@@ -502,6 +502,13 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		volSourceArgs.MultiSync = s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
 	}
 
+	if s.instance.Type() == instancetype.VM && s.live {
+		err = s.instance.Stop(true)
+		if err != nil {
+			return abort(fmt.Errorf("Failed statefully stopping instance: %w", err))
+		}
+	}
+
 	volSourceArgs.Name = s.instance.Name()
 	volSourceArgs.MigrationType = migrationTypes[0]
 	volSourceArgs.Snapshots = sendSnapshotNames
