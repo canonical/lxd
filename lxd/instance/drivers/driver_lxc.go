@@ -6912,48 +6912,21 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 
 	memoryLimit := uint64(0)
 
-	limit, err := cg.GetMemoryLimit()
+	// Get total memory
+	totalMemory, err := shared.DeviceTotalMemory()
 	if err != nil {
-		// Check /proc/meminfo
-		meminfo, err := ioutil.ReadFile("/proc/meminfo")
-		if err != nil {
-			logger.Warn("Failed to get memory limit", log.Ctx{"err": err})
-		} else {
-			scanner := bufio.NewScanner(bytes.NewReader(meminfo))
-
-			for scanner.Scan() {
-				line := scanner.Text()
-				parts := strings.Fields(line)
-
-				if len(parts) == 0 {
-					continue
-				}
-
-				key := parts[0][:len(parts[0])-1]
-
-				if key != "MemTotal" {
-					continue
-				}
-
-				val, err := strconv.ParseUint(parts[1], 10, 64)
-				if err != nil {
-					return nil, errors.Wrap(err, "Failed to get total memory")
-				}
-
-				switch len(parts) {
-				case 2: // no unit
-				case 3: // has unit, we presume kB
-					val *= 1024
-				default:
-					return nil, errors.Wrap(err, "Failed to get total memory")
-				}
-
-				memoryLimit = val
-				break
-			}
-		}
+		logger.Warn("Failed to get total memory", log.Ctx{"err": err})
 	} else {
-		memoryLimit = uint64(limit)
+		// Get memory limit
+		limit, err := cg.GetMemoryLimit()
+		if err != nil || limit > totalMemory {
+			// If the memory limit couldn't be determined, use the total memory.
+			// If the value of limit is larger than the total memory, there is no limit set.
+			// In this case, also use the total memory as the limit.
+			memoryLimit = uint64(totalMemory)
+		} else {
+			memoryLimit = uint64(limit)
+		}
 	}
 
 	if memoryLimit > 0 {
