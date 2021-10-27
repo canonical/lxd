@@ -1178,21 +1178,29 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			return
 		}
 
-		if live && c.src.instance.Type() == instancetype.Container {
-			criuMigrationArgs := instance.CriuMigrationArgs{
-				Cmd:          liblxc.MIGRATE_RESTORE,
-				StateDir:     imagesDir,
-				Function:     "migration",
-				Stop:         false,
-				ActionScript: false,
-				DumpDir:      "final",
-				PreDumpDir:   "",
+		if live {
+			if c.src.instance.Type() == instancetype.Container {
+				criuMigrationArgs := instance.CriuMigrationArgs{
+					Cmd:          liblxc.MIGRATE_RESTORE,
+					StateDir:     imagesDir,
+					Function:     "migration",
+					Stop:         false,
+					ActionScript: false,
+					DumpDir:      "final",
+					PreDumpDir:   "",
+				}
+
+				// Currently we only do a single CRIU pre-dump so we can hardcode "final"
+				// here since we know that "final" is the folder for CRIU's final dump.
+				err = c.src.instance.Migrate(&criuMigrationArgs)
+				if err != nil {
+					restore <- err
+					return
+				}
 			}
 
-			// Currently we only do a single CRIU pre-dump so we can hardcode "final"
-			// here since we know that "final" is the folder for CRIU's final dump.
-			if c.src.instance.Type() == instancetype.Container {
-				err = c.src.instance.Migrate(&criuMigrationArgs)
+			if c.src.instance.Type() == instancetype.VM {
+				err = c.src.instance.Migrate(nil)
 				if err != nil {
 					restore <- err
 					return
