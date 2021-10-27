@@ -26,7 +26,6 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -50,19 +49,18 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 	}
 
 	if stateful && inst.IsRunning() {
-		if inst.Type() == instancetype.VM {
-			return nil, errors.Wrap(storageDrivers.ErrNotImplemented, "Unable to perform VM live migration")
-		}
-
-		_, err := exec.LookPath("criu")
-		if err != nil {
-			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
-		}
-
 		ret.live = true
-		ret.criuSecret, err = shared.RandomCryptoString()
-		if err != nil {
-			return nil, err
+
+		if inst.Type() == instancetype.Container {
+			_, err := exec.LookPath("criu")
+			if err != nil {
+				return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the source server")
+			}
+
+			ret.criuSecret, err = shared.RandomCryptoString()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -370,18 +368,20 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	// Populate the Fs, ZfsFeatures and RsyncFeatures fields.
 	offerHeader := migration.TypesToHeader(poolMigrationTypes...)
 
-	// Add CRIO info to source header.
-	criuType := migration.CRIUType_CRIU_RSYNC.Enum()
-	if !s.live {
-		criuType = nil
-		if s.instance.IsRunning() {
-			criuType = migration.CRIUType_NONE.Enum()
-		}
-	}
-	offerHeader.Criu = criuType
+	maxDumpIterations := 0
 
 	// Add idmap info to source header for containers.
 	if s.instance.Type() == instancetype.Container {
+		// Add CRIU info to source header.
+		criuType := migration.CRIUType_CRIU_RSYNC.Enum()
+		if !s.live {
+			criuType = nil
+			if s.instance.IsRunning() {
+				criuType = migration.CRIUType_NONE.Enum()
+			}
+		}
+		offerHeader.Criu = criuType
+
 		ct := s.instance.(instance.Container)
 		idmaps := make([]*migration.IDMapType, 0)
 		idmapset, err := ct.DiskIdmap()
@@ -402,6 +402,14 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		}
 
 		offerHeader.Idmap = idmaps
+
+		// Add predump info to source header.
+		offerUsePreDumps := false
+		if s.live {
+			offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
+		}
+
+		offerHeader.Predump = proto.Bool(offerUsePreDumps)
 	}
 
 	// Add snapshot info to source header if needed.
@@ -431,15 +439,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		logger.Debugf("Set migration offer volume size for %q: %d", s.instance.Name(), blockSize)
 		offerHeader.VolumeSize = &blockSize
 	}
-
-	// Add predump info to source header.
-	offerUsePreDumps := false
-	maxDumpIterations := 0
-	if s.live {
-		offerUsePreDumps, maxDumpIterations = s.checkForPreDumpSupport()
-	}
-
-	offerHeader.Predump = proto.Bool(offerUsePreDumps)
 
 	// Send offer to target.
 	err = s.send(offerHeader)
@@ -480,13 +479,6 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return err
 	}
 
-	volSourceArgs := &migration.VolumeSourceArgs{}
-
-	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the
-	// source instance is running and that we should do a two stage transfer to minimize downtime.
-	// Indicate this info to the storage driver so that it can alter its behaviour if needed.
-	volSourceArgs.MultiSync = s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
-
 	rsyncBwlimit = pool.Driver().Config()["rsync.bwlimit"]
 	migrationTypes, err = migration.MatchTypes(respHeader, migration.MigrationFSType_RSYNC, poolMigrationTypes)
 	if err != nil {
@@ -501,10 +493,27 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		sendSnapshotNames = respHeader.GetSnapshotNames()
 	}
 
+	volSourceArgs := &migration.VolumeSourceArgs{}
+
+	// If s.live is true or Criu is set to CRIUTYPE_NONE rather than nil, it indicates that the
+	// source instance is running and that we should do a two stage transfer to minimize downtime.
+	// Indicate this info to the storage driver so that it can alter its behaviour if needed.
+	if s.instance.Type() == instancetype.Container {
+		volSourceArgs.MultiSync = s.live || (respHeader.Criu != nil && *respHeader.Criu == migration.CRIUType_NONE)
+	}
+
+	if s.instance.Type() == instancetype.VM && s.live {
+		err = s.instance.Stop(true)
+		if err != nil {
+			return abort(fmt.Errorf("Failed statefully stopping instance: %w", err))
+		}
+	}
+
 	volSourceArgs.Name = s.instance.Name()
 	volSourceArgs.MigrationType = migrationTypes[0]
 	volSourceArgs.Snapshots = sendSnapshotNames
 	volSourceArgs.TrackProgress = true
+
 	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
 		return abort(err)
@@ -513,7 +522,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	restoreSuccess := make(chan bool, 1)
 	dumpSuccess := make(chan error, 1)
 
-	if s.live {
+	if s.live && s.instance.Type() == instancetype.Container {
 		if respHeader.Criu == nil {
 			return abort(fmt.Errorf("Got no CRIU socket type for live migration"))
 		} else if *respHeader.Criu != migration.CRIUType_CRIU_RSYNC {
@@ -709,7 +718,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		return err
 	}
 
-	if s.live {
+	if s.live && s.instance.Type() == instancetype.Container {
 		restoreSuccess <- *msg.Success
 		err := <-dumpSuccess
 		if err != nil {
@@ -770,14 +779,16 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 		}
 
 		sink.src.criuSecret, ok = args.Secrets["criu"]
-		sink.src.live = ok
+		sink.src.live = ok || args.Live
 	}
 
-	_, err = exec.LookPath("criu")
-	if sink.push && sink.dest.live && err != nil {
-		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
-	} else if sink.src.live && err != nil {
-		return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+	if sink.src.instance.Type() == instancetype.Container {
+		_, err = exec.LookPath("criu")
+		if sink.push && sink.dest.live && err != nil {
+			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+		} else if sink.src.live && err != nil {
+			return nil, fmt.Errorf("Unable to perform container live migration. CRIU isn't installed on the destination server")
+		}
 	}
 
 	return &sink, nil
@@ -816,7 +827,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			return err
 		}
 
-		if c.src.live {
+		if c.src.live && c.src.instance.Type() == instancetype.Container {
 			c.src.criuConn, err = c.connectWithSecret(c.src.criuSecret)
 			if err != nil {
 				c.src.sendControl(err)
@@ -1023,7 +1034,8 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				Isgid:    *idmapSet.Isgid,
 				Nsid:     int64(*idmapSet.Nsid),
 				Hostid:   int64(*idmapSet.Hostid),
-				Maprange: int64(*idmapSet.Maprange)}
+				Maprange: int64(*idmapSet.Maprange),
+			}
 			srcIdmap.Idmap = idmap.Extend(srcIdmap.Idmap, e)
 		}
 
@@ -1060,7 +1072,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			// If we are doing a stateful live transfer or the CRIU type indicates we
 			// are doing a stateless transfer with a running instance then we should
 			// expect the source to send us a final rootfs sync.
-			if live {
+			if live && c.src.instance.Type() == instancetype.Container {
 				sendFinalFsDelta = true
 			}
 
@@ -1100,7 +1112,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			fsTransfer <- nil
 		}()
 
-		if live {
+		if live && c.src.instance.Type() == instancetype.Container {
 			var err error
 			imagesDir, err = ioutil.TempDir("", "lxd_restore_")
 			if err != nil {
@@ -1167,20 +1179,28 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		}
 
 		if live {
-			criuMigrationArgs := instance.CriuMigrationArgs{
-				Cmd:          liblxc.MIGRATE_RESTORE,
-				StateDir:     imagesDir,
-				Function:     "migration",
-				Stop:         false,
-				ActionScript: false,
-				DumpDir:      "final",
-				PreDumpDir:   "",
+			if c.src.instance.Type() == instancetype.Container {
+				criuMigrationArgs := instance.CriuMigrationArgs{
+					Cmd:          liblxc.MIGRATE_RESTORE,
+					StateDir:     imagesDir,
+					Function:     "migration",
+					Stop:         false,
+					ActionScript: false,
+					DumpDir:      "final",
+					PreDumpDir:   "",
+				}
+
+				// Currently we only do a single CRIU pre-dump so we can hardcode "final"
+				// here since we know that "final" is the folder for CRIU's final dump.
+				err = c.src.instance.Migrate(&criuMigrationArgs)
+				if err != nil {
+					restore <- err
+					return
+				}
 			}
 
-			// Currently we only do a single CRIU pre-dump so we can hardcode "final"
-			// here since we know that "final" is the folder for CRIU's final dump.
-			if c.src.instance.Type() == instancetype.Container {
-				err = c.src.instance.Migrate(&criuMigrationArgs)
+			if c.src.instance.Type() == instancetype.VM {
+				err = c.src.instance.Migrate(nil)
 				if err != nil {
 					restore <- err
 					return
