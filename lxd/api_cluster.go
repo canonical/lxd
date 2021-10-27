@@ -2581,7 +2581,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				Name: inst.Name(),
 			}
 
-			err = migrateInstance(d, r, inst, inst.Project(), targetNodeName, false, inst.Name(), inst.Type(), req, op)
+			err = migrateInstance(d, r, inst, targetNodeName, false, req, op)
 			if err != nil {
 				return errors.Wrap(err, "Failed to migrate instance")
 			}
