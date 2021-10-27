@@ -4834,9 +4834,13 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	return meta, nil
 }
 
-// Migrate migrates the instance to another node.
+// Migrate starts the instance from a migrated state file.
 func (d *qemu) Migrate(args *instance.CriuMigrationArgs) error {
-	return instance.ErrNotImplemented
+	// Although the instance technically isn't considered stateful, we set this to allow starting from the
+	// migrated state file.
+	d.stateful = true
+
+	return d.Start(true)
 }
 
 // CGroupSet is not implemented for VMs.

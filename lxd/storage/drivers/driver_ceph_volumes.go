@@ -1232,7 +1232,7 @@ func (d *ceph) RenameVolume(vol Volume, newVolName string, op *operations.Operat
 // MigrateVolume sends a volume for migration.
 func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	// If data is set, this request is coming from the clustering code.
-	// In this case, we only need to unmap and rename the rbd image.
+	// In this case, we only need to unmap and rename the rbd image to the specified storage volume name.
 	if volSrcArgs.Data != nil {
 		data, ok := volSrcArgs.Data.(string)
 		if ok {
