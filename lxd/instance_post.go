@@ -658,8 +658,8 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 				return errors.Wrap(err, "Failed creating mount point of instance on target node")
 			}
 		} else {
-			path := fmt.Sprintf("/internal/cluster/instance-moved/%s?project=%s", newName, inst.Project())
-			resp, _, err := client.RawQuery("POST", path, nil, "")
+			url := api.NewURL().Project(inst.Project()).Path("internal", "cluster", "instance-moved", newName)
+			resp, _, err := client.RawQuery("POST", url.String(), nil, "")
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
 			}
