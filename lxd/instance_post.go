@@ -672,7 +672,6 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 	}
 
 	return run, nil
-
 }
 
 // Notification that an instance was moved.
