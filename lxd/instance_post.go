@@ -634,7 +634,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		args := migration.VolumeSourceArgs{
-			Data: project.Instance(inst.Project(), newName),
+			Data: project.Instance(inst.Project(), newName), // Indicate new storage volume name.
 		}
 
 		// Trigger a rename in the Ceph driver.
