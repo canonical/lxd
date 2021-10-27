@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/shared"
@@ -177,9 +178,20 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 
 	*conn = c
 
-	if s.controlConn != nil && (!s.live || s.criuConn != nil) && s.fsConn != nil {
-		s.allConnected <- true
+	// Check criteria for considering all channels to be connected.
+	if s.instance != nil && s.instance.Type() == instancetype.Container && s.live && s.criuConn == nil {
+		return nil
 	}
+
+	if s.controlConn == nil {
+		return nil
+	}
+
+	if s.fsConn == nil {
+		return nil
+	}
+
+	s.allConnected <- true
 
 	return nil
 }
@@ -335,9 +347,20 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 
 	*conn = c
 
-	if s.dest.controlConn != nil && (!s.dest.live || s.dest.criuConn != nil) && s.dest.fsConn != nil {
-		s.allConnected <- true
+	// Check criteria for considering all channels to be connected.
+	if s.src.instance != nil && s.src.instance.Type() == instancetype.Container && s.dest.live && s.dest.criuConn == nil {
+		return nil
 	}
+
+	if s.dest.controlConn == nil {
+		return nil
+	}
+
+	if s.dest.fsConn == nil {
+		return nil
+	}
+
+	s.allConnected <- true
 
 	return nil
 }
