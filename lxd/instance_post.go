@@ -426,7 +426,7 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 }
 
 // Move a non-ceph container to another cluster node.
-func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, oldName, newName, newNode string, stateful bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, newName string, newNode string, stateful bool) (func(op *operations.Operation) error, error) {
 	var sourceAddress string
 	var targetAddress string
 
@@ -475,13 +475,13 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// If no new name was provided, the user wants to keep the same
 		// container name. In that case we need to generate a temporary
 		// name.
-		if destName == "" || destName == oldName {
+		if destName == "" || destName == inst.Name() {
 			isSameName = true
 			destName = instance.MoveTemporaryName(inst)
 		}
 
 		// First make a copy on the new node of the container to be moved.
-		entry, _, err := source.GetInstance(oldName)
+		entry, _, err := source.GetInstance(inst.Name())
 		if err != nil {
 			return errors.Wrap(err, "Failed to get instance info")
 		}
@@ -495,7 +495,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 					Stateful: true,
 				}
 
-				op, err := source.UpdateInstanceState(oldName, req, "")
+				op, err := source.UpdateInstanceState(inst.Name(), req, "")
 				if err != nil {
 					return err
 				}
@@ -538,7 +538,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		}
 
 		// Delete the container on the original node.
-		deleteOp, err := source.DeleteInstance(oldName)
+		deleteOp, err := source.DeleteInstance(inst.Name())
 		if err != nil {
 			return errors.Wrap(err, "Failed to issue delete instance API request")
 		}
@@ -552,7 +552,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// the new container, so we need to rename it.
 		if isSameName {
 			instancePost := api.InstancePost{
-				Name: oldName,
+				Name: inst.Name(),
 			}
 
 			op, err := dest.RenameInstance(destName, instancePost)
@@ -564,7 +564,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			if err != nil {
 				return errors.Wrap(err, "Rename instance operation failed")
 			}
-			destName = oldName
+			destName = inst.Name()
 		}
 
 		// Restore the original value of "volatile.apply_template"
@@ -619,7 +619,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 }
 
 // Special case migrating a container backed response.Responseby ceph across two cluster nodes.
-func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, projectName, oldName, newName, newNode string, instanceType instancetype.Type) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, newName string, newNode string) (func(op *operations.Operation) error, error) {
 	run := func(op *operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
@@ -634,7 +634,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		args := migration.VolumeSourceArgs{
-			Data: project.Instance(projectName, newName),
+			Data: project.Instance(inst.Project(), newName),
 		}
 
 		// Trigger a rename in the Ceph driver.
@@ -645,10 +645,10 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 
 		// Re-link the database entries against the new node name.
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			err := tx.UpdateInstanceNode(projectName, oldName, newName, newNode)
+			err := tx.UpdateInstanceNode(inst.Project(), inst.Name(), newName, newNode)
 			if err != nil {
 				return errors.Wrapf(
-					err, "Move container %s to %s with new name %s", oldName, newNode, newName)
+					err, "Move container %s to %s with new name %s", inst.Name(), newNode, newName)
 			}
 
 			return nil
@@ -658,17 +658,17 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		// Create the instance mount point on the target node.
-		client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, newName, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
+		client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, inst.Project(), newName, d.endpoints.NetworkCert(), d.serverCert(), r, inst.Type())
 		if err != nil {
 			return errors.Wrap(err, "Failed to connect to target node")
 		}
 		if client == nil {
-			err := instancePostCreateInstanceMountPoint(d, projectName, newName)
+			err := instancePostCreateInstanceMountPoint(d, inst.Project(), newName)
 			if err != nil {
 				return errors.Wrap(err, "Failed creating mount point of instance on target node")
 			}
 		} else {
-			path := fmt.Sprintf("/internal/cluster/instance-moved/%s?project=%s", newName, projectName)
+			path := fmt.Sprintf("/internal/cluster/instance-moved/%s?project=%s", newName, inst.Project())
 			resp, _, err := client.RawQuery("POST", path, nil, "")
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
@@ -721,7 +721,8 @@ func instancePostCreateInstanceMountPoint(d *Daemon, project, instanceName strin
 	return nil
 }
 
-func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, projectName string, targetNode string, sourceNodeOffline bool, name string, instanceType instancetype.Type, req api.InstancePost, op *operations.Operation) error { // Check if we are migrating a ceph-based container.
+func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetNode string, sourceNodeOffline bool, req api.InstancePost, op *operations.Operation) error {
+	// Check if we are migrating a ceph-based container.
 	poolName, err := inst.StoragePool()
 	if err != nil {
 		err = errors.Wrap(err, "Failed to fetch instance's pool name")
@@ -733,7 +734,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, project
 		return err
 	}
 	if pool.Driver == "ceph" {
-		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, projectName, name, req.Name, targetNode, instanceType)
+		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, req.Name, targetNode)
 		if err != nil {
 			return err
 		}
@@ -750,7 +751,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, project
 		return err
 	}
 
-	f, err := instancePostClusteringMigrate(d, r, inst, name, req.Name, targetNode, req.Live)
+	f, err := instancePostClusteringMigrate(d, r, inst, req.Name, targetNode, req.Live)
 	if err != nil {
 		return err
 	}
