@@ -108,7 +108,7 @@ teardown_clustering_netns() {
       fi
 
       pid="$(cat "${TEST_DIR}/ns/${ns}/PID")"
-      kill -9 "${pid}"
+      kill -9 "${pid}" 2>/dev/null || true
 
       umount -l "${TEST_DIR}/ns/${ns}/net" >/dev/null 2>&1 || true
       rm -Rf "${TEST_DIR}/ns/${ns}"
