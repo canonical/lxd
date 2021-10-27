@@ -722,7 +722,7 @@ func instancePostCreateInstanceMountPoint(d *Daemon, project, instanceName strin
 }
 
 func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetNode string, sourceNodeOffline bool, req api.InstancePost, op *operations.Operation) error {
-	// Check if we are migrating a ceph-based container.
+	// Check if we are migrating a ceph-based instance.
 	poolName, err := inst.StoragePool()
 	if err != nil {
 		err = errors.Wrap(err, "Failed to fetch instance's pool name")
@@ -742,10 +742,8 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 		return f(op)
 	}
 
-	// If this is not a ceph-based container, make sure
-	// that the source node is online, and we didn't get
-	// here only to handle the case where the container is
-	// ceph-based.
+	// If this is not a ceph-based instance, make sure that the source node is online, and we didn't get here
+	// only to handle the case where the instance is ceph-based.
 	if sourceNodeOffline {
 		err := fmt.Errorf("The cluster member hosting the instance is offline")
 		return err
