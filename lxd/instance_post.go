@@ -518,7 +518,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 			if err != nil {
 				return errors.Wrap(err, "Failed to create mount point on target node")
 			}
-			if resp.StatusCode != 200 {
+			if resp.StatusCode != http.StatusOK {
 				return fmt.Errorf("Failed to create mount point on target node: %s", resp.Error)
 			}
 		}
