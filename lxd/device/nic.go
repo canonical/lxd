@@ -13,6 +13,7 @@ import (
 func nicValidationRules(requiredFields []string, optionalFields []string, instConf instance.ConfigReader) map[string]func(value string) error {
 	// Define a set of default validators for each field name.
 	defaultValidators := map[string]func(value string) error{
+		"acceleration":                         validate.Optional(networkValidAcceleration),
 		"name":                                 validate.Optional(validate.IsInterfaceName, func(_ string) error { return nicCheckNamesUnique(instConf) }),
 		"parent":                               validate.IsAny,
 		"network":                              validate.IsAny,

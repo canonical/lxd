@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -585,6 +586,23 @@ func bgpRemovePrefix(d *deviceCommon, config map[string]string) error {
 	err := d.state.BGP.RemovePrefixByOwner(fmt.Sprintf("instance_%d_%s", d.inst.ID(), d.name))
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func networkValidAcceleration(value string) error {
+	err := validate.IsOneOf("none", "sriov")(value)
+	if err != nil {
+		return err
+	}
+
+	if value == "sriov" {
+		ovs := openvswitch.NewOVS()
+
+		if !ovs.HardwareOffloadingEnabled() {
+			return errors.New("acceleration=sriov cannot be used if hardware offloading is disabled")
+		}
 	}
 
 	return nil
