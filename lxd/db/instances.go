@@ -461,11 +461,9 @@ SELECT instances.name, nodes.name
 	return result, nil
 }
 
-// UpdateInstanceNode changes the node hosting an instance.
-//
-// It's meant to be used when moving a non-running instance backed by ceph
-// from one cluster node to another.
-func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string) error {
+// UpdateInstanceNode changes the name of an instance and the cluster member hosting it.
+// It's meant to be used when moving a non-running instance backed by ceph from one cluster node to another.
+func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, newNode string, volumeType int) error {
 	// First check that the container to be moved is backed by a ceph
 	// volume.
 	poolName, err := c.GetInstancePool(project, oldName)
@@ -520,7 +518,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName, newName, newNode string
 	}
 
 	stmt = "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
-	result, err = c.tx.Exec(stmt, newName, oldName, poolID, StoragePoolVolumeTypeContainer)
+	result, err = c.tx.Exec(stmt, newName, oldName, poolID, volumeType)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update instance's volume name")
 	}
