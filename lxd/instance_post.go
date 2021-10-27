@@ -482,34 +482,31 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		// First make a copy on the new node of the container to be moved.
 		entry, _, err := source.GetInstance(inst.Name())
 		if err != nil {
-			return errors.Wrap(err, "Failed to get instance info")
+			return fmt.Errorf("Failed getting instance %q state: %w", inst.Name(), err)
 		}
 
-		statefulStart := false
+		startAgain := false
 		if entry.StatusCode != api.Stopped {
-			if stateful {
-				statefulStart = true
-				req := api.InstanceStatePut{
-					Action:   "stop",
-					Stateful: true,
-				}
-
-				op, err := source.UpdateInstanceState(inst.Name(), req, "")
-				if err != nil {
-					return err
-				}
-
-				err = op.Wait()
-				if err != nil {
-					return fmt.Errorf("Stateful stop failed: %w", err)
-				}
-
-				// Copy the stateful indicator to the new instance so that when it is started
-				// again it will use the state file when doing a stateful start.
-				entry.Stateful = true
-			} else {
-				return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to migrate statelessly")
+			startAgain = true
+			req := api.InstanceStatePut{
+				Action:   "stop",
+				Stateful: stateful,
+				Timeout:  30,
 			}
+
+			op, err := source.UpdateInstanceState(inst.Name(), req, "")
+			if err != nil {
+				return err
+			}
+
+			err = op.Wait()
+			if err != nil {
+				return fmt.Errorf("Failed stopping instance %q: %w", inst.Name(), err)
+			}
+
+			// Copy the stateful indicator to the new instance so that when it is started
+			// again it will use the state file when doing a stateful start.
+			entry.Stateful = stateful
 		}
 
 		args := lxd.InstanceCopyArgs{
@@ -594,10 +591,10 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 			return err
 		}
 
-		if statefulStart {
+		if startAgain {
 			req := api.InstanceStatePut{
 				Action:   "start",
-				Stateful: true,
+				Stateful: stateful,
 			}
 
 			op, err := dest.UpdateInstanceState(destName, req, "")
@@ -607,7 +604,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 
 			err = op.Wait()
 			if err != nil {
-				return fmt.Errorf("Stateful start failed: %w", err)
+				return fmt.Errorf("Failed starting instance %q: %w", inst.Name(), err)
 			}
 		}
 
