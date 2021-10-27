@@ -124,7 +124,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			// Load source node.
 			address, err := tx.GetNodeAddressOfInstance(projectName, name, db.InstanceTypeFilter(instanceType))
 			if err != nil {
-				return errors.Wrap(err, "Failed to get address of instance's node")
+				return errors.Wrap(err, "Failed to get address of instance's member")
 			}
 			if address == "" {
 				// Local node.
@@ -133,7 +133,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 			node, err = tx.GetNodeByAddress(address)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to get source node for %s", address)
+				return errors.Wrapf(err, "Failed to get source member for %s", address)
 			}
 			sourceNodeOffline = node.IsOffline(config.OfflineThreshold())
 
