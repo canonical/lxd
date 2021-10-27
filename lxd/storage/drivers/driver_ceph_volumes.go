@@ -1249,6 +1249,14 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 				}
 			}
 
+			if vol.IsVMBlock() {
+				fsVol := vol.NewVMBlockFilesystemVolume()
+				err = d.MigrateVolume(fsVol, conn, volSrcArgs, op)
+				if err != nil {
+					return err
+				}
+			}
+
 			return nil
 		}
 	}
