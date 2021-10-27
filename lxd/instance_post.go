@@ -242,7 +242,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			run := func(op *operations.Operation) error {
-				return migrateInstance(d, r, inst, projectName, targetNode, sourceNodeOffline, name, instanceType, req, op)
+				return migrateInstance(d, r, inst, targetNode, sourceNodeOffline, req, op)
 			}
 
 			resources := map[string][]string{}
