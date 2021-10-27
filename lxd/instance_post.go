@@ -638,8 +638,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			err := tx.UpdateInstanceNode(inst.Project(), inst.Name(), newName, newNode)
 			if err != nil {
-				return errors.Wrapf(
-					err, "Move container %s to %s with new name %s", inst.Name(), newNode, newName)
+				return fmt.Errorf("Failed updating cluster member to %q with new name %q for instance %q: %w", newNode, newName, inst.Name(), err)
 			}
 
 			return nil
