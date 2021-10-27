@@ -22,7 +22,6 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 var internalClusterInstanceMovedCmd = APIEndpoint{
@@ -621,10 +620,6 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 // Special case migrating a container backed response.Responseby ceph across two cluster nodes.
 func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, pool storagePools.Pool, newName string, newNode string) (func(op *operations.Operation) error, error) {
 	run := func(op *operations.Operation) error {
-		// If source node is online (i.e. we're serving the request on
-		// it, and c != nil), let's unmap the RBD volume locally
-		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, inst.Name(), inst.Name(), newName)
-
 		if pool.Driver().Info().Name != "ceph" {
 			return fmt.Errorf("Source instance's storage pool is not of type ceph")
 		}
