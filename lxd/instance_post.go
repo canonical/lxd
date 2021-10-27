@@ -810,6 +810,11 @@ func instancePostCreateInstanceMountPoint(d *Daemon, inst instance.Instance) err
 }
 
 func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetNode string, sourceNodeOffline bool, req api.InstancePost, op *operations.Operation) error {
+	// If target isn't the same as the instance's location.
+	if targetNode == inst.Location() {
+		return fmt.Errorf("Target must be different than instance's current location")
+	}
+
 	// Check if we are migrating a ceph-based instance.
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
