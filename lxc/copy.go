@@ -258,6 +258,8 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			return err
 		}
 
+		// Only start the instance back up if doing a stateless migration.
+		// Its LXD's job to start things back up when receiving a stateful migration.
 		if entry.StatusCode == api.Running && move && !stateful {
 			start = true
 		}
