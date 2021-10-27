@@ -619,15 +619,11 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 }
 
 // Special case migrating a container backed response.Responseby ceph across two cluster nodes.
-func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, newName string, newNode string) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst instance.Instance, pool storagePools.Pool, newName string, newNode string) (func(op *operations.Operation) error, error) {
 	run := func(op *operations.Operation) error {
 		// If source node is online (i.e. we're serving the request on
 		// it, and c != nil), let's unmap the RBD volume locally
 		logger.Debugf(`Renaming RBD storage volume for source container "%s" from "%s" to "%s"`, inst.Name(), inst.Name(), newName)
-		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get source instance's storage pool")
-		}
 
 		if pool.Driver().Info().Name != "ceph" {
 			return fmt.Errorf("Source instance's storage pool is not of type ceph")
@@ -638,7 +634,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		// Trigger a rename in the Ceph driver.
-		err = pool.MigrateInstance(inst, nil, &args, op)
+		err := pool.MigrateInstance(inst, nil, &args, op)
 		if err != nil {
 			return errors.Wrap(err, "Failed to migrate ceph RBD volume")
 		}
@@ -723,18 +719,12 @@ func instancePostCreateInstanceMountPoint(d *Daemon, project, instanceName strin
 
 func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetNode string, sourceNodeOffline bool, req api.InstancePost, op *operations.Operation) error {
 	// Check if we are migrating a ceph-based instance.
-	poolName, err := inst.StoragePool()
+	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
-		err = errors.Wrap(err, "Failed to fetch instance's pool name")
-		return err
+		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
-	_, pool, _, err := d.cluster.GetStoragePool(poolName)
-	if err != nil {
-		err = errors.Wrap(err, "Failed to fetch instance's pool info")
-		return err
-	}
-	if pool.Driver == "ceph" {
-		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, req.Name, targetNode)
+	if pool.Driver().Info().Name == "ceph" {
+		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, pool, req.Name, targetNode)
 		if err != nil {
 			return err
 		}
