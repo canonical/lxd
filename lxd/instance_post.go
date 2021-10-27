@@ -781,7 +781,12 @@ func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Respo
 	projectName := projectParam(r)
 	instanceName := mux.Vars(r)["name"]
 
-	err := instancePostCreateInstanceMountPoint(d, projectName, instanceName)
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, instanceName)
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Failed loading instance on target node: %w", err))
+	}
+
+	err = instancePostCreateInstanceMountPoint(d, inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -790,12 +795,7 @@ func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Respo
 }
 
 // Used after to create the appropriate mounts point after an instance has been moved.
-func instancePostCreateInstanceMountPoint(d *Daemon, project, instanceName string) error {
-	inst, err := instance.LoadByProjectAndName(d.State(), project, instanceName)
-	if err != nil {
-		return errors.Wrap(err, "Failed loading instance on target node")
-	}
-
+func instancePostCreateInstanceMountPoint(d *Daemon, inst instance.Instance) error {
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
 		return errors.Wrap(err, "Failed loading pool of instance on target node")
@@ -816,7 +816,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 	if pool.Driver().Info().Name == "ceph" {
-		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, pool, req.Name, targetNode)
+		f, err := instancePostClusteringMigrateWithCeph(d, r, inst, pool, req.Name, sourceNodeOffline, targetNode, req.Live)
 		if err != nil {
 			return err
 		}
