@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-20 02:09-0400\n"
+"POT-Creation-Date: 2021-10-28 17:42-0400\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1834,7 +1834,7 @@ msgstr "クラスタメンバへの接続に失敗しました"
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/copy.go:407
+#: lxc/copy.go:409
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
@@ -2154,7 +2154,7 @@ msgstr "イメージは以下のフィンガープリントでインポートさ
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
-#: lxc/action.go:121 lxc/launch.go:36
+#: lxc/action.go:121 lxc/launch.go:39
 msgid "Immediately attach to the console"
 msgstr "起動直後にインスタンスのコンソールに接続します"
 
@@ -2218,7 +2218,7 @@ msgstr "インスタンスのみ"
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
 
-#: lxc/copy.go:413 lxc/init.go:364
+#: lxc/copy.go:415 lxc/init.go:364
 #, c-format
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
@@ -2286,7 +2286,7 @@ msgid ""
 msgstr ""
 "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
-#: lxc/main.go:430
+#: lxc/main.go:431
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
@@ -3719,7 +3719,7 @@ msgstr "新たにカスタムストレージボリュームを作成します"
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
-#: lxc/copy.go:374
+#: lxc/copy.go:376
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr "インスタンスの更新中: %s"
@@ -4413,7 +4413,7 @@ msgstr "取得元:"
 msgid "Start instances"
 msgstr "インスタンスを起動します"
 
-#: lxc/launch.go:73
+#: lxc/launch.go:76
 #, c-format
 msgid "Starting %s"
 msgstr "%s を起動中"
@@ -4669,7 +4669,9 @@ msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
 #: lxc/main.go:346
 #, fuzzy
-msgid "To start your first instance, try: lxc launch ubuntu:20.04"
+msgid ""
+"To start your first container, try: lxc launch ubuntu:20.04\n"
+"Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
 msgstr ""
 "初めてインスタンスを起動するには、\"lxc launch ubuntu:18.04\" と実行してみて"
 "ください"
@@ -4708,12 +4710,12 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
 
-#: lxc/copy.go:340 lxc/move.go:278
+#: lxc/copy.go:342 lxc/move.go:278
 #, c-format
 msgid "Transferring instance: %s"
 msgstr "インスタンスを転送中: %s"
 
-#: lxc/action.go:273 lxc/launch.go:104
+#: lxc/action.go:273 lxc/launch.go:107
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "更に情報を得るために `lxc info --show-log %s` を実行してみてください"
@@ -5668,7 +5670,10 @@ msgid ""
 "lxc launch ubuntu:20.04 u1\n"
 "\n"
 "lxc launch ubuntu:20.04 u1 < config.yaml\n"
-"    Create and start the instance with configuration from config.yaml"
+"    Create and start a container with configuration from config.yaml\n"
+"\n"
+"lxc launch ubuntu:20.04 v1 --vm\n"
+"    Create and start a virtual machine"
 msgstr ""
 "lxc launch ubuntu:18.04 u1\n"
 "\n"
