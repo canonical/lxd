@@ -244,7 +244,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					return fmt.Errorf("IPv4 filtering requires a manually specified ipv4.address when using an unmanaged parent bridge")
 				}
 			} else {
-				if d.config["ipv4.address"] != "" {
+				// If MAAS isn't being used, then static IP cannot be used with unmanaged parent.
+				if d.config["ipv4.address"] != "" && d.config["maas.subnet.ipv4"] == "" {
 					return fmt.Errorf("Cannot use manually specified ipv4.address when using unmanaged parent bridge")
 				}
 			}
@@ -254,7 +255,8 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 					return fmt.Errorf("IPv6 filtering requires a manually specified ipv6.address when using an unmanaged parent bridge")
 				}
 			} else {
-				if d.config["ipv6.address"] != "" {
+				// If MAAS isn't being used, then static IP cannot be used with unmanaged parent.
+				if d.config["ipv6.address"] != "" && d.config["maas.subnet.ipv6"] == "" {
 					return fmt.Errorf("Cannot use manually specified ipv6.address when using unmanaged parent bridge")
 				}
 			}
