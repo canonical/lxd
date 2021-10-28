@@ -395,7 +395,7 @@ migration() {
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage delete l1:dir
 
-  if ! which criu >/dev/null 2>&1; then
+  if ! command -v criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
   fi

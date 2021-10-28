@@ -6,7 +6,7 @@ check_dependencies() {
     missing=""
 
     for dep in "$@"; do
-        if ! which "$dep" >/dev/null 2>&1; then
+        if ! command -v "$dep" >/dev/null 2>&1; then
             [ "$missing" ] && missing="$missing $dep" || missing="$dep"
         fi
     done
