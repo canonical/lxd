@@ -10,12 +10,12 @@ test_storage_profiles() {
     LXD_DIR="${LXD_STORAGE_DIR}"
 
     HAS_ZFS="dir"
-    if which zfs >/dev/null 2>&1; then
+    if command -v zfs >/dev/null 2>&1; then
       HAS_ZFS="zfs"
     fi
 
     HAS_BTRFS="dir"
-    if which btrfs >/dev/null 2>&1; then
+    if command -v btrfs >/dev/null 2>&1; then
       HAS_BTRFS="btrfs"
     fi
 

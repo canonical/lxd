@@ -277,7 +277,7 @@ wait_for() {
 }
 
 wipe() {
-    if which btrfs >/dev/null 2>&1; then
+    if command -v btrfs >/dev/null 2>&1; then
         rm -Rf "${1}" 2>/dev/null || true
         if [ -d "${1}" ]; then
             find "${1}" | tac | xargs btrfs subvolume delete >/dev/null 2>&1 || true
