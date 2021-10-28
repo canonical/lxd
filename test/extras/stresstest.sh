@@ -32,7 +32,7 @@ wait_for() {
 
 lxc() {
     INJECTED=0
-    CMD="$(which lxc)"
+    CMD="$(command -v lxc)"
     for arg in $@; do
         if [ "$arg" = "--" ]; then
             INJECTED=1
@@ -80,7 +80,7 @@ cleanup() {
 
 trap cleanup EXIT HUP INT TERM
 
-if [ -z "`which lxc`" ]; then
+if ! command -v lxc > /dev/null; then
     echo "==> Couldn't find lxc" && false
 fi
 

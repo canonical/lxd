@@ -1,5 +1,5 @@
 #!/bin/sh -eu
-if ! which jq >/dev/null 2>&1; then
+if ! command -v jq >/dev/null 2>&1; then
     echo "This tool requires: jq"
     exit 1
 fi
