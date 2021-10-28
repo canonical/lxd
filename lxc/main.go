@@ -339,7 +339,8 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 		}
 
 		if !shared.StringInSlice(cmd.Name(), []string{"init", "launch"}) {
-			fmt.Fprintf(os.Stderr, i18n.G("To start your first instance, try: lxc launch ubuntu:20.04")+"\n")
+			fmt.Fprintf(os.Stderr, i18n.G(`To start your first container, try: lxc launch ubuntu:20.04
+Or for a virtual machine: lxc launch ubuntu:20.04 --vm`)+"\n")
 			flush = true
 		}
 

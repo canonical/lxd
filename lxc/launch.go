@@ -28,7 +28,10 @@ func (c *cmdLaunch) Command() *cobra.Command {
 		`lxc launch ubuntu:20.04 u1
 
 lxc launch ubuntu:20.04 u1 < config.yaml
-    Create and start the instance with configuration from config.yaml`))
+    Create and start a container with configuration from config.yaml
+
+lxc launch ubuntu:20.04 v1 --vm
+    Create and start a virtual machine`))
 	cmd.Hidden = false
 
 	cmd.RunE = c.Run
