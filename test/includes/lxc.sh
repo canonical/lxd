@@ -10,7 +10,8 @@ lxc_remote() {
     local injected cmd arg
 
     injected=0
-    cmd=$(command -v lxc)
+    # shellcheck disable=SC2230
+    cmd=$(which lxc)
 
     # shellcheck disable=SC2048,SC2068
     for arg in "$@"; do
