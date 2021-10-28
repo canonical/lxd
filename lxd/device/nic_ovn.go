@@ -289,10 +289,16 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	// Disable IPv6 on host-side veth interface (prevents host-side interface getting link-local address)
-	// which isn't needed because the host-side interface is connected to a bridge.
+	// Disable IPv6 on host-side veth interface (prevents host-side interface getting link-local address and
+	// accepting router advertisements) as not needed because the host-side interface is connected to a bridge.
 	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", saveData["host_name"]), "1")
 	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	// Attempt to disable IPv4 forwarding.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/forwarding", saveData["host_name"]), "0")
+	if err != nil {
 		return nil, err
 	}
 
@@ -332,18 +338,6 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Link OVS port to OVN logical port.
 	err = ovs.InterfaceAssociateOVNSwitchPort(saveData["host_name"], logicalPortName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Attempt to disable router advertisement acceptance.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	// Attempt to disable IPv4 forwarding.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/forwarding", saveData["host_name"]), "0")
 	if err != nil {
 		return nil, err
 	}
