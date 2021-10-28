@@ -10,6 +10,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -259,92 +260,71 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		return nil, errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
 	}
 
+	// Setup the network interface pair.
 	var peerName string
-
-	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
-	if d.inst.Type() == instancetype.Container {
-		if saveData["host_name"] == "" {
-			saveData["host_name"] = network.RandomDevName("veth")
+	var vfPCIDev pcidev.Device
+	var pciIOMMUGroup uint64
+	if d.config["acceleration"] == "sriov" {
+		// If VM, then try and load the vfio-pci module first.
+		if d.inst.Type() == instancetype.VM {
+			err := util.LoadModule("vfio-pci")
+			if err != nil {
+				return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+			}
 		}
-		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
-	} else if d.inst.Type() == instancetype.VM {
-		if saveData["host_name"] == "" {
-			saveData["host_name"] = network.RandomDevName("tap")
+
+		// Look for an available interface pair.
+		vfParent, vfRepresentor, vfDev, vfID, err := network.SRIOVGetRepresentorPort(d.state, "br-int")
+		if err != nil {
+			return nil, fmt.Errorf("Failed to find a suitable VF: %w", err)
 		}
-		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
-		err = networkCreateTap(saveData["host_name"], d.config)
-	}
 
-	if err != nil {
-		return nil, err
-	}
+		// Track down the PCI information.
+		vfPCIDev, pciIOMMUGroup, err = networkSetupSriovParent(d.deviceCommon, vfParent, vfDev, vfID, saveData)
+		if err != nil {
+			return nil, err
+		}
 
-	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+		// Setup the guest network interface.
+		if d.inst.Type() == instancetype.Container {
+			err := networkSetupContainerVF(saveData["host_name"], d.config)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		peerName = vfDev
+		saveData["host_name"] = vfRepresentor
+	} else {
+		// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
+		if d.inst.Type() == instancetype.Container {
+			if saveData["host_name"] == "" {
+				saveData["host_name"] = network.RandomDevName("veth")
+			}
+
+			peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
+			if err != nil {
+				return nil, err
+			}
+		} else if d.inst.Type() == instancetype.VM {
+			if saveData["host_name"] == "" {
+				saveData["host_name"] = network.RandomDevName("tap")
+			}
+
+			peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
+			err = networkCreateTap(saveData["host_name"], d.config)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+	}
 
 	// Populate device config with volatile fields if needed.
 	networkVethFillFromVolatile(d.config, saveData)
 
-	// Apply host-side limits.
-	err = networkSetupHostVethLimits(d.config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Disable IPv6 on host-side veth interface (prevents host-side interface getting link-local address)
-	// which isn't needed because the host-side interface is connected to a bridge.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", saveData["host_name"]), "1")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	// Add new OVN logical switch port for instance.
-	logicalPortName, err := d.network.InstanceDevicePortSetup(&network.OVNInstanceNICSetupOpts{
-		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
-		DNSName:      d.inst.Name(),
-		DeviceName:   d.name,
-		DeviceConfig: d.config,
-		UplinkConfig: uplink.Config,
-	}, nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed setting up OVN port")
-	}
-
-	revert.Add(func() {
-		d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICStopOpts{
-			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
-			DeviceName:   d.name,
-			DeviceConfig: d.config,
-		})
-	})
-
-	// Attach host side veth interface to bridge.
-	integrationBridge, err := d.getIntegrationBridgeName()
-	if err != nil {
-		return nil, err
-	}
-
-	ovs := openvswitch.NewOVS()
-	err = ovs.BridgePortAdd(integrationBridge, saveData["host_name"], true)
-	if err != nil {
-		return nil, err
-	}
-
-	revert.Add(func() { ovs.BridgePortDelete(integrationBridge, saveData["host_name"]) })
-
-	// Link OVS port to OVN logical port.
-	err = ovs.InterfaceAssociateOVNSwitchPort(saveData["host_name"], logicalPortName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Attempt to disable router advertisement acceptance.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
-	if err != nil && !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	// Attempt to disable IPv4 forwarding.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/forwarding", saveData["host_name"]), "0")
+	err = d.setupHostNIC(revert, saveData["host_name"], uplink)
 	if err != nil {
 		return nil, err
 	}
@@ -364,11 +344,20 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.inst.Type() == instancetype.VM {
-		runConf.NetworkInterface = append(runConf.NetworkInterface,
-			[]deviceConfig.RunConfigItem{
-				{Key: "devName", Value: d.name},
-				{Key: "hwaddr", Value: d.config["hwaddr"]},
-			}...)
+		if d.config["acceleration"] == "sriov" {
+			runConf.NetworkInterface = append(runConf.NetworkInterface,
+				[]deviceConfig.RunConfigItem{
+					{Key: "devName", Value: d.name},
+					{Key: "pciSlotName", Value: vfPCIDev.SlotName},
+					{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+				}...)
+		} else {
+			runConf.NetworkInterface = append(runConf.NetworkInterface,
+				[]deviceConfig.RunConfigItem{
+					{Key: "devName", Value: d.name},
+					{Key: "hwaddr", Value: d.config["hwaddr"]},
+				}...)
+		}
 	}
 
 	revert.Success()
@@ -508,10 +497,20 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 // postStop is run after the device is removed from the instance.
 func (d *nicOVN) postStop() error {
 	defer d.volatileSet(map[string]string{
-		"host_name": "",
+		"host_name":                "",
+		"last_state.hwaddr":        "",
+		"last_state.mtu":           "",
+		"last_state.created":       "",
+		"last_state.vf.id":         "",
+		"last_state.vf.hwaddr":     "",
+		"last_state.vf.vlan":       "",
+		"last_state.vf.spoofcheck": "",
+		"last_state.pci.driver":    "",
 	})
 
-	networkVethFillFromVolatile(d.config, d.volatileGet())
+	v := d.volatileGet()
+
+	networkVethFillFromVolatile(d.config, v)
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
 		integrationBridge, err := d.getIntegrationBridgeName()
@@ -527,10 +526,24 @@ func (d *nicOVN) postStop() error {
 			return errors.Wrapf(err, "Failed to detach interface %q from %q", d.config["host_name"], integrationBridge)
 		}
 
-		// Removing host-side end of veth pair will delete the peer end too.
-		err = network.InterfaceRemove(d.config["host_name"])
-		if err != nil {
-			return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
+		if d.config["acceleration"] == "sriov" {
+			// Restoring host-side interface.
+			err := networkRestoreSriovParent(d.deviceCommon, v)
+			if err != nil {
+				return err
+			}
+
+			link := &ip.Link{Name: d.config["host_name"]}
+			err = link.SetDown()
+			if err != nil {
+				return errors.Wrapf(err, "Failed to bring down the host interface %s", d.config["host_name"])
+			}
+		} else {
+			// Removing host-side end of veth pair will delete the peer end too.
+			err = network.InterfaceRemove(d.config["host_name"])
+			if err != nil {
+				return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
+			}
 		}
 	}
 
@@ -682,6 +695,82 @@ func (d *nicOVN) Register() error {
 	err := bgpAddPrefix(&d.deviceCommon, d.network, d.config)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (d *nicOVN) setupHostNIC(revert *revert.Reverter, name string, uplink *api.Network) error {
+	// Apply host-side limits.
+	err := networkSetupHostVethLimits(d.config)
+	if err != nil {
+		return err
+	}
+
+	// Disable IPv6 on host-side veth interface (prevents host-side interface getting link-local address)
+	// which isn't needed because the host-side interface is connected to a bridge.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", name), "1")
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// Add new OVN logical switch port for instance.
+	logicalPortName, err := d.network.InstanceDevicePortSetup(&network.OVNInstanceNICSetupOpts{
+		InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+		DNSName:      d.inst.Name(),
+		DeviceName:   d.name,
+		DeviceConfig: d.config,
+		UplinkConfig: uplink.Config,
+	}, nil)
+	if err != nil {
+		return errors.Wrapf(err, "Failed setting up OVN port")
+	}
+
+	revert.Add(func() {
+		d.network.InstanceDevicePortDelete("", &network.OVNInstanceNICStopOpts{
+			InstanceUUID: d.inst.LocalConfig()["volatile.uuid"],
+			DeviceName:   d.name,
+			DeviceConfig: d.config,
+		})
+	})
+
+	// Attach host side veth interface to bridge.
+	integrationBridge, err := d.getIntegrationBridgeName()
+	if err != nil {
+		return err
+	}
+
+	ovs := openvswitch.NewOVS()
+	err = ovs.BridgePortAdd(integrationBridge, name, true)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { ovs.BridgePortDelete(integrationBridge, name) })
+
+	// Link OVS port to OVN logical port.
+	err = ovs.InterfaceAssociateOVNSwitchPort(name, logicalPortName)
+	if err != nil {
+		return err
+	}
+
+	// Attempt to disable router advertisement acceptance.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", name), "0")
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// Attempt to disable IPv4 forwarding.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/forwarding", name), "0")
+	if err != nil {
+		return err
+	}
+
+	// Make sure the port is up.
+	link := &ip.Link{Name: name}
+	err = link.SetUp()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to bring up the host interface %s", name)
 	}
 
 	return nil
