@@ -10,6 +10,7 @@ lxc_remote() {
     local injected cmd arg
 
     injected=0
+    # shellcheck disable=SC2230
     cmd=$(which lxc)
 
     # shellcheck disable=SC2048,SC2068

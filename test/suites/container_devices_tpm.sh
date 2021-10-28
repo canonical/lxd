@@ -1,5 +1,5 @@
 test_container_devices_tpm() {
-  if ! which swtpm >/dev/null 2>&1; then
+  if ! command -v swtpm >/dev/null 2>&1; then
     echo "==> SKIP: No swtpm binary could be found"
     return
   fi
