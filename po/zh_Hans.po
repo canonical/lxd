@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-20 02:09-0400\n"
+"POT-Creation-Date: 2021-10-28 17:42-0400\n"
 "PO-Revision-Date: 2020-11-05 02:45+0000\n"
 "Last-Translator: wdggg <wdggg7@gmail.com>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -1656,7 +1656,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:407
+#: lxc/copy.go:409
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -1955,7 +1955,7 @@ msgstr ""
 msgid "Image refreshed successfully!"
 msgstr ""
 
-#: lxc/action.go:121 lxc/launch.go:36
+#: lxc/action.go:121 lxc/launch.go:39
 msgid "Immediately attach to the console"
 msgstr ""
 
@@ -2012,7 +2012,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:413 lxc/init.go:364
+#: lxc/copy.go:415 lxc/init.go:364
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -2076,7 +2076,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:430
+#: lxc/main.go:431
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -3330,7 +3330,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:374
+#: lxc/copy.go:376
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr ""
@@ -3957,7 +3957,7 @@ msgstr ""
 msgid "Start instances"
 msgstr ""
 
-#: lxc/launch.go:73
+#: lxc/launch.go:76
 #, c-format
 msgid "Starting %s"
 msgstr ""
@@ -4193,7 +4193,9 @@ msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
 #: lxc/main.go:346
-msgid "To start your first instance, try: lxc launch ubuntu:20.04"
+msgid ""
+"To start your first container, try: lxc launch ubuntu:20.04\n"
+"Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
 msgstr ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
@@ -4228,12 +4230,12 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:340 lxc/move.go:278
+#: lxc/copy.go:342 lxc/move.go:278
 #, c-format
 msgid "Transferring instance: %s"
 msgstr ""
 
-#: lxc/action.go:273 lxc/launch.go:104
+#: lxc/action.go:273 lxc/launch.go:107
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr ""
@@ -5103,7 +5105,10 @@ msgid ""
 "lxc launch ubuntu:20.04 u1\n"
 "\n"
 "lxc launch ubuntu:20.04 u1 < config.yaml\n"
-"    Create and start the instance with configuration from config.yaml"
+"    Create and start a container with configuration from config.yaml\n"
+"\n"
+"lxc launch ubuntu:20.04 v1 --vm\n"
+"    Create and start a virtual machine"
 msgstr ""
 
 #: lxc/list.go:121
