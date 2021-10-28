@@ -2,7 +2,7 @@
 
 # Return an available random local port
 local_tcp_port() {
-    if which python3 >/dev/null 2>&1; then
+    if command -v python3 >/dev/null 2>&1; then
         (
             cat << EOF
 import socket

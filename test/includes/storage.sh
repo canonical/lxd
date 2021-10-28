@@ -40,7 +40,7 @@ available_storage_backends() {
     fi
 
     for backend in $storage_backends; do
-        if which "$backend" >/dev/null 2>&1; then
+        if command -v "$backend" >/dev/null 2>&1; then
             backends="$backends $backend"
         fi
     done

@@ -13,14 +13,14 @@ test_static_analysis() {
 
     cd ../
     # Python3 static analysis
-    if which flake8 >/dev/null 2>&1; then
+    if command -v flake8 >/dev/null 2>&1; then
       flake8 test/deps/import-busybox
     else
       echo "flake8 not found, python static analysis disabled"
     fi
 
     # Shell static analysis
-    if which shellcheck >/dev/null 2>&1; then
+    if command -v shellcheck >/dev/null 2>&1; then
       shellcheck --shell sh test/*.sh test/includes/*.sh test/suites/*.sh test/backends/*.sh
     else
       echo "shellcheck not found, shell static analysis disabled"
@@ -53,12 +53,12 @@ test_static_analysis() {
     fi
 
     ## vet
-    if which vet >/dev/null 2>&1; then
+    if command -v vet >/dev/null 2>&1; then
       vet --all .
     fi
 
     ## golint
-    if which golint >/dev/null 2>&1; then
+    if command -v golint >/dev/null 2>&1; then
       golint -set_exit_status client/...
 
       golint -set_exit_status fuidshift/...
@@ -136,7 +136,7 @@ test_static_analysis() {
     fi
 
     ## deadcode
-    if which deadcode >/dev/null 2>&1; then
+    if command -v deadcode >/dev/null 2>&1; then
       run_deadcode() {
         for i in client fuidshift lxc lxc-to-lxd lxd lxd-agent lxd-benchmark lxd-p2c shared; do
           find "${i}" -type d | while read -r line; do
@@ -161,7 +161,7 @@ test_static_analysis() {
     fi
 
     ## misspell
-    if which misspell >/dev/null 2>&1; then
+    if command -v misspell >/dev/null 2>&1; then
       OUT=$(misspell ./ | grep -v po/ | grep -v lxd/include/ | grep -v .git/ | grep -Ev "test/includes/lxd.sh.*monitord" | grep -Ev "test/suites/static_analysis.sh.*monitord" | grep -v shared/usbid/load_data.go || true)
       if [ -n "${OUT}" ]; then
         echo "Found some typos"
@@ -171,7 +171,7 @@ test_static_analysis() {
     fi
 
     ## ineffassign
-    if which ineffassign >/dev/null 2>&1; then
+    if command -v ineffassign >/dev/null 2>&1; then
       ineffassign ./...
     fi
 
