@@ -156,8 +156,8 @@ func networkSnapshotPhysicalNIC(hostName string, volatile map[string]string) err
 	return nil
 }
 
-// networkRestorePhysicalNic restores NIC properties from volatile to what they were before it was attached.
-func networkRestorePhysicalNic(hostName string, volatile map[string]string) error {
+// networkRestorePhysicalNIC restores NIC properties from volatile to what they were before it was attached.
+func networkRestorePhysicalNIC(hostName string, volatile map[string]string) error {
 	// If we created the "physical" device and then it should be removed.
 	if shared.IsTrue(volatile["last_state.created"]) {
 		return network.InterfaceRemove(hostName)
