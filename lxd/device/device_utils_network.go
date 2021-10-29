@@ -669,8 +669,14 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 // from an instance. Use volatile data that was stored when the device was first added with networkSRIOVSetupVF().
 // The useSpoofCheck argument controls whether to use the spoof check feature for the VF on the parent device.
 func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[string]string) error {
+	// Retrieve parent interface from config or volatile.
+	parent := d.config["parent"]
+	if parent == "" {
+		parent = volatile["last_state.vf.parent"]
+	}
+
 	// Nothing to do if we don't know the original device name or the VF ID.
-	if volatile["host_name"] == "" || volatile["last_state.vf.id"] == "" || d.config["parent"] == "" {
+	if volatile["host_name"] == "" || volatile["last_state.vf.id"] == "" || parent == "" {
 		return nil
 	}
 
@@ -678,7 +684,7 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 	defer revert.Fail()
 
 	// Get VF device's PCI info so we can unbind and rebind it from the host.
-	vfPCIDev, err := network.SRIOVGetVFDevicePCISlot(d.config["parent"], volatile["last_state.vf.id"])
+	vfPCIDev, err := network.SRIOVGetVFDevicePCISlot(parent, volatile["last_state.vf.id"])
 	if err != nil {
 		return err
 	}
@@ -704,7 +710,7 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 
 	// Reset VF VLAN if specified
 	if volatile["last_state.vf.vlan"] != "" {
-		link := &ip.Link{Name: d.config["parent"]}
+		link := &ip.Link{Name: parent}
 		err := link.SetVfVlan(volatile["last_state.vf.id"], volatile["last_state.vf.vlan"])
 		if err != nil {
 			return err
@@ -719,7 +725,7 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 			mode = "on"
 		}
 
-		link := &ip.Link{Name: d.config["parent"]}
+		link := &ip.Link{Name: parent}
 		err := link.SetVfSpoofchk(volatile["last_state.vf.id"], mode)
 		if err != nil {
 			return err
@@ -728,7 +734,7 @@ func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[stri
 
 	// Reset VF MAC specified if specified.
 	if volatile["last_state.vf.hwaddr"] != "" {
-		link := &ip.Link{Name: d.config["parent"]}
+		link := &ip.Link{Name: parent}
 		err := link.SetVfAddress(volatile["last_state.vf.id"], volatile["last_state.vf.hwaddr"])
 		if err != nil {
 			return err
