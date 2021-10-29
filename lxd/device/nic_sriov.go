@@ -143,7 +143,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
-	vfPCIDev, pciIOMMUGroup, err := networkSRIOVSetupVF(d.deviceCommon, d.config["parent"], vfDev, vfID, saveData)
+	vfPCIDev, pciIOMMUGroup, err := networkSRIOVSetupVF(d.deviceCommon, d.config["parent"], vfDev, vfID, true, saveData)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (d *nicSRIOV) postStop() error {
 
 	v := d.volatileGet()
 
-	err := networkSRIOVRestoreVF(d.deviceCommon, v)
+	err := networkSRIOVRestoreVF(d.deviceCommon, true, v)
 	if err != nil {
 		return err
 	}
