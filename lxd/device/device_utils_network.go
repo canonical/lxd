@@ -136,8 +136,8 @@ func networkCreateVlanDeviceIfNeeded(state *state.State, parent string, vlanDevi
 	return "existing", nil
 }
 
-// networkSnapshotPhysicalNic records properties of the NIC to volatile so they can be restored later.
-func networkSnapshotPhysicalNic(hostName string, volatile map[string]string) error {
+// networkSnapshotPhysicalNIC records properties of the NIC to volatile so they can be restored later.
+func networkSnapshotPhysicalNIC(hostName string, volatile map[string]string) error {
 	// Store current MTU for restoration on detach.
 	mtu, err := network.GetDevMTU(hostName)
 	if err != nil {
