@@ -716,15 +716,9 @@ func (d *nicOVN) Register() error {
 }
 
 func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *api.Network) error {
-	// Apply host-side limits.
-	err := networkSetupHostVethLimits(d.config)
-	if err != nil {
-		return err
-	}
-
 	// Disable IPv6 on host-side veth interface (prevents host-side interface getting link-local address and
 	// accepting router advertisements) as not needed because the host-side interface is connected to a bridge.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", hostName), "1")
+	err := util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", hostName), "1")
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
