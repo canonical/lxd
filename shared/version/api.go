@@ -290,6 +290,7 @@ var APIExtensions = []string{
 	"network_peer",
 	"linux_sysctl",
 	"network_dns",
+	"ovn_nic_acceleration",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

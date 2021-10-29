@@ -328,3 +328,27 @@ func (o *OVS) BridgePortList(bridgeName string) ([]string, error) {
 
 	return ports, nil
 }
+
+// HardwareOffloadingEnabled returns true if hardware offloading is enabled.
+func (o *OVS) HardwareOffloadingEnabled() bool {
+	// ovs-vsctl's get command doesn't support its --format flag, so we always get the output quoted.
+	// However ovs-vsctl's find and list commands don't support retrieving a single column's map field.
+	// And ovs-vsctl's JSON output is unfriendly towards statically typed languages as it mixes data types
+	// in a slice. So stick with "get" command and use Go's strconv.Unquote to return the actual values.
+	offload, err := shared.RunCommand("ovs-vsctl", "--if-exists", "get", "open_vswitch", ".", "other_config:hw-offload")
+	if err != nil {
+		return false
+	}
+
+	offload = strings.TrimSpace(offload)
+	if offload == "" {
+		return false
+	}
+
+	offload, err = unquote(offload)
+	if err != nil {
+		return false
+	}
+
+	return offload == "true"
+}
