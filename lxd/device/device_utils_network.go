@@ -513,8 +513,10 @@ func networkSRIOVParentVFInfo(vfParent string, vfID int) (ip.VirtFuncInfo, error
 
 // networkSRIOVSetupVF configures a SR-IOV virtual function (VF) on the parent (PF) and stores original properties
 // of the PF and VF devices into voltatile for restoration on detach.
+// The useSpoofCheck argument controls whether to use the spoof check feature for the VF on the parent device.
+// If this is false then "security.mac_filtering" must not be enabled.
 // Returns VF PCI device info and IOMMU group number for VMs.
-func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID int, volatile map[string]string) (pcidev.Device, uint64, error) {
+func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID int, useSpoofCheck bool, volatile map[string]string) (pcidev.Device, uint64, error) {
 	var vfPCIDev pcidev.Device
 
 	// Retrieve VF settings from parent device.
@@ -570,6 +572,10 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 	// The ordering of this section is very important, as Intel cards require a very specific
 	// order of setup to allow LXD to set custom MACs when using spoof check mode.
 	if shared.IsTrue(d.config["security.mac_filtering"]) {
+		if !useSpoofCheck {
+			return pcidev.Device{}, 0, fmt.Errorf("security.mac_filtering cannot be enabled when VF spoof check not enabled")
+		}
+
 		// If no MAC specified in config, use current VF interface MAC.
 		mac := d.config["hwaddr"]
 		if mac == "" {
@@ -598,10 +604,12 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 			return vfPCIDev, 0, err
 		}
 
-		// Ensure spoof checking is disabled if not enabled in instance (only for real VF).
-		err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "off")
-		if err != nil {
-			return vfPCIDev, 0, err
+		if useSpoofCheck {
+			// Ensure spoof checking is disabled if not enabled in instance (only for real VF).
+			err = link.SetVfSpoofchk(volatile["last_state.vf.id"], "off")
+			if err != nil {
+				return vfPCIDev, 0, err
+			}
 		}
 
 		// Set MAC on VF if specified (this should be passed through into VM when it is bound to vfio-pci).
@@ -659,7 +667,8 @@ func networkSRIOVSetupVF(d deviceCommon, vfParent string, vfDevice string, vfID 
 
 // networkSRIOVRestoreVF restores SR-IOV VF device settings on parent PF and on VF NIC. Used when removing a VF NIC
 // from an instance. Use volatile data that was stored when the device was first added with networkSRIOVSetupVF().
-func networkSRIOVRestoreVF(d deviceCommon, volatile map[string]string) error {
+// The useSpoofCheck argument controls whether to use the spoof check feature for the VF on the parent device.
+func networkSRIOVRestoreVF(d deviceCommon, useSpoofCheck bool, volatile map[string]string) error {
 	// Nothing to do if we don't know the original device name or the VF ID.
 	if volatile["host_name"] == "" || volatile["last_state.vf.id"] == "" || d.config["parent"] == "" {
 		return nil
@@ -704,7 +713,7 @@ func networkSRIOVRestoreVF(d deviceCommon, volatile map[string]string) error {
 
 	// Reset VF MAC spoofing protection if recorded. Do this first before resetting the MAC
 	// to avoid any issues with zero MACs refusing to be set whilst spoof check is on.
-	if volatile["last_state.vf.spoofcheck"] != "" {
+	if useSpoofCheck && volatile["last_state.vf.spoofcheck"] != "" {
 		mode := "off"
 		if shared.IsTrue(volatile["last_state.vf.spoofcheck"]) {
 			mode = "on"
