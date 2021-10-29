@@ -200,6 +200,7 @@ func (d *nicSRIOV) postStop() error {
 		"last_state.hwaddr":        "",
 		"last_state.mtu":           "",
 		"last_state.created":       "",
+		"last_state.vf.parent":     "",
 		"last_state.vf.id":         "",
 		"last_state.vf.hwaddr":     "",
 		"last_state.vf.vlan":       "",
