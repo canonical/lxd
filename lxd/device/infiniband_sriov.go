@@ -186,7 +186,7 @@ func (d *infinibandSRIOV) postStop() error {
 	// Restore hwaddr and mtu.
 	v := d.volatileGet()
 	if v["host_name"] != "" {
-		err := networkRestorePhysicalNic(v["host_name"], v)
+		err := networkRestorePhysicalNIC(v["host_name"], v)
 		if err != nil {
 			return err
 		}
