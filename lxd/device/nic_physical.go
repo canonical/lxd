@@ -235,7 +235,7 @@ func (d *nicPhysical) postStop() error {
 				return err
 			}
 		} else if v["last_state.pci.slot.name"] == "" {
-			err := networkRestorePhysicalNic(hostName, v)
+			err := networkRestorePhysicalNIC(hostName, v)
 			if err != nil {
 				return err
 			}
