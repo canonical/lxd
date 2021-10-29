@@ -2761,15 +2761,25 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 					val = 30
 				}
 
+				// Attempt a clean stop.
 				stopOp, err := source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: false, Timeout: val}, "")
 				if err != nil {
 					return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
 				}
 
+				// Wait for the stop operation to complete or timeout.
 				err = stopOp.Wait()
 				if err != nil {
+					// On failure, attempt a forceful stop.
 					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
-					if err != nil || errors.Cause(err) != drivers.ErrInstanceIsStopped {
+					if err != nil {
+						// If this fails too, fail the whole operation.
+						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+					}
+
+					// Wait for the forceful stop to complete.
+					err = stopOp.Wait()
+					if err != nil {
 						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
 					}
 				}
