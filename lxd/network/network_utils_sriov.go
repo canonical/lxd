@@ -24,8 +24,8 @@ import (
 // sriovReservedDevicesMutex used to coordinate access for checking reserved devices.
 var sriovReservedDevicesMutex sync.Mutex
 
-// sriovFindFreeVirtualFunctionMutex used to coordinate access for finding free virtual functions.
-var sriovFindFreeVirtualFunctionMutex sync.Mutex
+// SRIOVVirtualFunctionMutex used to coordinate access for finding and claiming free virtual functions.
+var SRIOVVirtualFunctionMutex sync.Mutex
 
 // SRIOVGetHostDevicesInUse returns a map of host device names that have been used by devices in other instances
 // and networks on the local node. Used when selecting physical and SR-IOV VF devices to avoid conflicts.
@@ -104,9 +104,6 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 // SRIOVFindFreeVirtualFunction looks on the specified parent device for an unused virtual function.
 // Returns the name of the interface and virtual function index ID if found, error if not.
 func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int, error) {
-	sriovFindFreeVirtualFunctionMutex.Lock()
-	defer sriovFindFreeVirtualFunctionMutex.Unlock()
-
 	reservedDevices, err := SRIOVGetHostDevicesInUse(s)
 	if err != nil {
 		return "", -1, errors.Wrapf(err, "Failed getting in use device list")

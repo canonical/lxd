@@ -117,7 +117,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		// If we didn't create the device we should track various properties so we can restore them when the
 		// instance is stopped or the device is detached.
 		if !shared.IsTrue(saveData["last_state.created"]) {
-			err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
+			err = networkSnapshotPhysicalNIC(saveData["host_name"], saveData)
 			if err != nil {
 				return nil, err
 			}
@@ -235,7 +235,7 @@ func (d *nicPhysical) postStop() error {
 				return err
 			}
 		} else if v["last_state.pci.slot.name"] == "" {
-			err := networkRestorePhysicalNic(hostName, v)
+			err := networkRestorePhysicalNIC(hostName, v)
 			if err != nil {
 				return err
 			}
