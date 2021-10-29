@@ -138,15 +138,21 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
+	// Find free VF exclusively.
+	network.SRIOVVirtualFunctionMutex.Lock()
 	vfDev, vfID, err := network.SRIOVFindFreeVirtualFunction(d.state, d.config["parent"])
 	if err != nil {
+		network.SRIOVVirtualFunctionMutex.Unlock()
 		return nil, err
 	}
 
+	// Claim the SR-IOV virtual function (VF) on the parent (PF) and get the PCI information.
 	vfPCIDev, pciIOMMUGroup, err := networkSRIOVSetupVF(d.deviceCommon, d.config["parent"], vfDev, vfID, true, saveData)
 	if err != nil {
+		network.SRIOVVirtualFunctionMutex.Unlock()
 		return nil, err
 	}
+	network.SRIOVVirtualFunctionMutex.Unlock()
 
 	if d.inst.Type() == instancetype.Container {
 		err := networkSRIOVSetupContainerVFNIC(saveData["host_name"], d.config)
