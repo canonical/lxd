@@ -24,8 +24,8 @@ import (
 // sriovReservedDevicesMutex used to coordinate access for checking reserved devices.
 var sriovReservedDevicesMutex sync.Mutex
 
-// sriovFindFreeVirtualFunctionMutex used to coordinate access for finding free virtual functions.
-var sriovFindFreeVirtualFunctionMutex sync.Mutex
+// SRIOVVirtualFunctionMutex used to coordinate access for finding and claiming free virtual functions.
+var SRIOVVirtualFunctionMutex sync.Mutex
 
 // SRIOVGetHostDevicesInUse returns a map of host device names that have been used by devices in other instances
 // and networks on the local node. Used when selecting physical and SR-IOV VF devices to avoid conflicts.
