@@ -327,6 +327,10 @@ func ConfigKeyChecker(key string, instanceType instancetype.Type) (func(value st
 			return validate.IsAny, nil
 		}
 
+		if strings.HasSuffix(key, ".last_state.vf.parent") {
+			return validate.IsAny, nil
+		}
+
 		if strings.HasSuffix(key, ".apply_quota") {
 			return validate.IsAny, nil
 		}

@@ -85,7 +85,7 @@ func (d *infinibandPhysical) Start() (*deviceConfig.RunConfig, error) {
 	saveData["host_name"] = ibDev.ID
 
 	// Record hwaddr and mtu before potentially modifying them.
-	err = networkSnapshotPhysicalNic(saveData["host_name"], saveData)
+	err = networkSnapshotPhysicalNIC(saveData["host_name"], saveData)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func (d *infinibandPhysical) postStop() error {
 	// Restpre hwaddr and mtu.
 	v := d.volatileGet()
 	if v["host_name"] != "" {
-		err := networkRestorePhysicalNic(v["host_name"], v)
+		err := networkRestorePhysicalNIC(v["host_name"], v)
 		if err != nil {
 			return err
 		}
