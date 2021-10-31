@@ -39,6 +39,15 @@ _have lxc && {
       COMPREPLY=( $( compgen -W "$( lxc network list --format=csv | cut -d, -f1 )" "$cur" ) )
     }
 
+    _lxd_restore_snapshots()
+    {
+      local name=$1
+
+      local query="/1.0/instances/$name/snapshots"
+
+      COMPREPLY=( $( compgen -W "$( lxc query $query | sed -nr "s \s*\"$query/+(\w*)\",* \1 p" )" "$cur" ) )
+    }
+
     _lxd_storage_pools()
     {
       COMPREPLY=( $( compgen -W "$( lxc storage list --format=csv | cut -d, -f1 )" "$cur" ) )
@@ -219,7 +228,7 @@ _have lxc && {
           _lxd_names
         fi
         ;;
-      "delete"|"info"|"move"|"publish"|"restart"|"restore"|"snapshot"|"rename")
+      "delete"|"info"|"move"|"publish"|"restart"|"snapshot"|"rename")
         _lxd_names
         ;;
       "start")
@@ -339,6 +348,16 @@ _have lxc && {
       "remote")
         COMPREPLY=( $(compgen -W \
           "add remove list rename set-url set-default get-default" -- $cur) )
+        ;;
+      "restore")
+        case $pos in
+          2)
+            _lxd_names
+            ;;
+          3)
+            _lxd_restore_snapshots ${no_dashargs[2]}
+            ;;
+        esac
         ;;
       "storage_pools")
         case $pos in
