@@ -1551,7 +1551,9 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	s := d.State()
 
 	var err error
-	var instances []instance.Instance // If this is left as nil this indicates an error loading instances.
+	var instances []instance.Instance     // If this is left as nil this indicates an error loading instances.
+	var shutDownTimeout = 5 * time.Minute // Default time to wait for operations if not specified in DB.
+
 	if d.cluster != nil {
 		instances, err = instance.LoadNodeAll(s, instancetype.Any)
 		if err != nil {
@@ -1566,15 +1568,29 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			d.gateway.Kill()
 			d.cluster.Close()
 		}
+
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			config, err := cluster.ConfigLoad(tx)
+			if err != nil {
+				return err
+			}
+			shutDownTimeout = config.ShutdownTimeout()
+			return nil
+		})
+		if err != nil {
+			logger.Warn("Failed getting shutdown timeout", log.Ctx{"err": err})
+		}
 	}
 
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
-		// waitForOperations will block until all operations are done, or it's forced to shut down.
-		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-		// initiated using `lxd shutdown`.
-		logger.Info("Waiting for operations to finish")
-		waitForOperations(ctx, s)
+		if d.cluster != nil {
+			// waitForOperations will block until all operations are done, or it's forced to shut down.
+			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
+			// initiated using `lxd shutdown`.
+			logger.Info("Waiting for operations to finish")
+			waitForOperations(ctx, shutDownTimeout)
+		}
 
 		// Unmount daemon image and backup volumes if set.
 		logger.Info("Stopping daemon storage volumes")
