@@ -1857,8 +1857,8 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 		for _, eventParts := range runConf.Uevents {
 			ueventArray := make([]string, 6)
 			ueventArray[0] = "forkuevent"
-			ueventArray[2] = "inject"
-			ueventArray[1] = "--"
+			ueventArray[1] = "inject"
+			ueventArray[2] = "--"
 			ueventArray[3] = fmt.Sprintf("%d", d.InitPID())
 			ueventArray[4] = fmt.Sprintf("%d", pidFdNr)
 			length := 0
