@@ -19,7 +19,6 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -52,23 +51,10 @@ var operationWebsocket = APIEndpoint{
 	Get: APIEndpointAction{Handler: operationWebsocketGet, AllowUntrusted: true},
 }
 
-// waitForOperations waits for operations to finish. There's a timeout for console/exec operations
-// that when reached will shut down the instances forcefully.
-func waitForOperations(ctx context.Context, s *state.State) {
-	var timeout <-chan time.Time
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		config, err := cluster.ConfigLoad(tx)
-		if err != nil {
-			return err
-		}
-		timeout = time.After(config.ShutdownTimeout())
-		return nil
-	})
-	if err != nil {
-		// If something goes really bad just set timeout to 5 minutes
-		timeout = time.After(5 * time.Minute)
-		logger.Error("Failed getting shutdown timeout", log.Ctx{"err": err})
-	}
+// waitForOperations waits for operations to finish.
+// There's a timeout for console/exec operations that when reached will shut down the instances forcefully.
+func waitForOperations(ctx context.Context, consoleShutdownTimeout time.Duration) {
+	timeout := time.After(consoleShutdownTimeout)
 
 	tick := time.Tick(time.Second)
 	logTick := time.Tick(time.Minute)
