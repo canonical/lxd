@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +34,7 @@ func TestCount(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, strconv.Itoa(c.count), func(t *testing.T) {
+		t.Run(strconv.Itoa(c.count), func(t *testing.T) {
 			tx := newTxForCount(t)
 			count, err := query.Count(tx, "test", c.where, c.args...)
 			require.NoError(t, err)

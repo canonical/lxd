@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/config"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,7 +46,7 @@ func TestLoad(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		subtest.Run(t, c.title, func(t *testing.T) {
+		t.Run(c.title, func(t *testing.T) {
 			m, err := config.Load(schema, c.values)
 			require.NoError(t, err)
 
@@ -87,7 +86,7 @@ func TestLoad_Error(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, c.title, func(t *testing.T) {
+		t.Run(c.title, func(t *testing.T) {
 			_, err := config.Load(c.schema, c.values)
 			assert.EqualError(t, err, c.message)
 		})
@@ -152,7 +151,7 @@ func TestChange(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		subtest.Run(t, c.title, func(t *testing.T) {
+		t.Run(c.title, func(t *testing.T) {
 			m, err := config.Load(schema, values)
 			require.NoError(t, err)
 
@@ -206,7 +205,7 @@ func TestMap_ChangeReturnsChangedKeys(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, c.title, func(t *testing.T) {
+		t.Run(c.title, func(t *testing.T) {
 			m, err := config.Load(schema, values)
 			assert.NoError(t, err)
 
@@ -253,7 +252,7 @@ func TestMap_ChangeError(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		subtest.Run(t, c.message, func(t *testing.T) {
+		t.Run(c.message, func(t *testing.T) {
 			m, err := config.Load(schema, nil)
 			assert.NoError(t, err)
 

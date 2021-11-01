@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/canonical/go-dqlite/client"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -54,7 +53,7 @@ func TestDetermineRaftNode(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		subtest.Run(t, c.title, func(t *testing.T) {
+		t.Run(c.title, func(t *testing.T) {
 			tx, cleanup := db.NewTestNodeTx(t)
 			defer cleanup()
 

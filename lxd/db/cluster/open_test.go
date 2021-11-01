@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,7 +86,7 @@ func TestEnsureSchema_ClusterNotUpgradable(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, c.title, func(t *testing.T) {
+		t.Run(c.title, func(t *testing.T) {
 			db := newDB(t)
 			c.setup(t, db)
 			ready, err := cluster.EnsureSchema(db, "1", "/unused/db/dir")
@@ -124,7 +123,7 @@ func TestEnsureSchema_UpdateNodeVersion(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, fmt.Sprintf("%v", c.ready), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%v", c.ready), func(t *testing.T) {
 			db := newDB(t)
 
 			// Add ourselves with an older schema version and API
