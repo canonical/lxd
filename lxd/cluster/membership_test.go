@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -63,7 +62,7 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		subtest.Run(t, c.error, func(t *testing.T) {
+		t.Run(c.error, func(t *testing.T) {
 			state, cleanup := state.NewTestState(t)
 			defer cleanup()
 
@@ -203,7 +202,7 @@ func TestAccept_UnmetPreconditions(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, c.error, func(t *testing.T) {
+		t.Run(c.error, func(t *testing.T) {
 			state, cleanup := state.NewTestState(t)
 			defer cleanup()
 

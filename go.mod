@@ -30,7 +30,6 @@ require (
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
 	github.com/miekg/dns v1.1.43
-	github.com/mpvl/subtest v0.0.0-20160608141506-f6e4cfd4b9ea
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
