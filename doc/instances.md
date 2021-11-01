@@ -181,6 +181,37 @@ instance, relative to any other instance which is using the same CPU(s).
 scheduler priority score when a number of instances sharing a set of
 CPUs have the same percentage of CPU assigned to them.
 
+### VM CPU topology
+LXD virtual machines default to having just one vCPU allocated which
+shows up as matching the host CPU vendor and type but has a single core
+and no threads.
+
+When `limits.cpu` is set to a single integer, this will cause multiple
+vCPUs to be allocated and exposed to the guest as full cores. Those vCPUs
+will not be pinned to specific physical cores on the host.
+
+When `limits.cpu` is set to a range or comma separate list of CPU IDs
+(as provided by `lxc info --resources`), then the vCPUs will be pinned
+to those physical cores. In this scenario, LXD will check whether the
+CPU configuration lines up with a realistic hardware topology and if it
+does, it will replicate that topology in the guest.
+
+This means that if the pinning configuration includes 8 threads, with
+each pair of thread coming from the same core and an even number of
+cores spread across two CPUs, LXD will have the guest show two CPUs,
+each with two cores and each core with two threads. The NUMA layout is
+similarly replicated and in this scenario, the guest would most likely
+end up with two NUMA nodes, one for each CPU socket.
+
+In such an environment with multiple NUMA nodes, the memory will
+similarly be divided across NUMA nodes and be pinned accordingly on the
+host and then exposed to the guest.
+
+All this allows for very high performance operations in the guest as the
+guest scheduler can properly reason about sockets, cores and threads as
+well as consider NUMA topology when sharing memory or moving processes
+across NUMA nodes.
+
 # Devices configuration
 LXD will always provide the instance with the basic devices which are required
 for a standard POSIX system to work. These aren't visible in instance or
