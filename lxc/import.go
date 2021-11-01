@@ -56,12 +56,19 @@ func (c *cmdImport) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	resource := resources[0]
+	srcFile := args[len(args)-1]
 
-	file, err := os.Open(shared.HostPathFollow(args[len(args)-1]))
-	if err != nil {
-		return err
+	var file *os.File
+	if srcFile == "-" {
+		file = os.Stdin
+		c.global.flagQuiet = true
+	} else {
+		file, err = os.Open(shared.HostPathFollow(srcFile))
+		if err != nil {
+			return err
+		}
+		defer file.Close()
 	}
-	defer file.Close()
 
 	fstat, err := file.Stat()
 	if err != nil {
