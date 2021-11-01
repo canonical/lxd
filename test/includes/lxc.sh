@@ -10,8 +10,8 @@ lxc_remote() {
     local injected cmd arg
 
     injected=0
-    # shellcheck disable=SC2230
-    cmd=$(which lxc)
+    # find the path to lxc binary, not the shell wrapper function
+    cmd=$(unset -f lxc; command -v lxc)
 
     # shellcheck disable=SC2048,SC2068
     for arg in "$@"; do
