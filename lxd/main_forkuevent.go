@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -209,6 +211,8 @@ void forkuevent(void)
 		fprintf(stderr, "Failed to inject uevent\n");
 		_exit(1);
 	}
+
+	_exit(0);
 }
 */
 import "C"
@@ -230,7 +234,6 @@ func (c *cmdForkuevent) Command() *cobra.Command {
 `
 	cmd.Hidden = true
 
-	// pull
 	cmdInject := &cobra.Command{}
 	cmdInject.Use = "inject <PID> <PidFd> <len> <uevent parts>..."
 	cmdInject.Args = cobra.MinimumNArgs(4)
@@ -244,5 +247,5 @@ func (c *cmdForkuevent) Command() *cobra.Command {
 }
 
 func (c *cmdForkuevent) Run(cmd *cobra.Command, args []string) error {
-	return nil
+	return fmt.Errorf("This command should have been intercepted in cgo")
 }
