@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,7 +25,7 @@ func Test_CompareConfigsMismatch(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, c.error, func(t *testing.T) {
+		t.Run(c.error, func(t *testing.T) {
 			err := util.CompareConfigs(c.config1, c.config2, nil)
 			assert.EqualError(t, err, c.error)
 		})
