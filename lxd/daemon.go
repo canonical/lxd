@@ -1584,11 +1584,13 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 
 	// Handle shutdown (unix.SIGPWR) and reload (unix.SIGTERM) signals.
 	if sig == unix.SIGPWR || sig == unix.SIGTERM {
-		// waitForOperations will block until all operations are done, or it's forced to shut down.
-		// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
-		// initiated using `lxd shutdown`.
-		logger.Info("Waiting for operations to finish")
-		waitForOperations(ctx, s)
+		if d.cluster != nil {
+			// waitForOperations will block until all operations are done, or it's forced to shut down.
+			// For the latter case, we re-use the shutdown channel which is filled when a shutdown is
+			// initiated using `lxd shutdown`.
+			logger.Info("Waiting for operations to finish")
+			waitForOperations(ctx, shutDownTimeout)
+		}
 
 		// Unmount daemon image and backup volumes if set.
 		logger.Info("Stopping daemon storage volumes")
