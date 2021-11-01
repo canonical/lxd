@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/lxc/lxd/shared/subtest"
 )
 
 func TestSelectURIs(t *testing.T) {
@@ -31,7 +30,7 @@ func TestSelectURIs(t *testing.T) {
 // Exercise possible failure modes.
 func TestStrings_Error(t *testing.T) {
 	for _, c := range testStringsErrorCases {
-		subtest.Run(t, c.query, func(t *testing.T) {
+		t.Run(c.query, func(t *testing.T) {
 			tx := newTxForSlices(t)
 			values, err := query.SelectStrings(tx, c.query)
 			assert.EqualError(t, err, c.error)
@@ -59,7 +58,7 @@ func TestStrings(t *testing.T) {
 // Exercise possible failure modes.
 func TestIntegers_Error(t *testing.T) {
 	for _, c := range testIntegersErrorCases {
-		subtest.Run(t, c.query, func(t *testing.T) {
+		t.Run(c.query, func(t *testing.T) {
 			tx := newTxForSlices(t)
 			values, err := query.SelectIntegers(tx, c.query)
 			assert.EqualError(t, err, c.error)

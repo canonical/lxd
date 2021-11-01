@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 )
 
 // Exercise valid values.
 func TestKey_validate(t *testing.T) {
 	for _, c := range validateCases {
-		subtest.Run(t, c.value, func(t *testing.T) {
+		t.Run(c.value, func(t *testing.T) {
 			assert.NoError(t, c.node.validate(c.value))
 		})
 	}
@@ -42,7 +41,7 @@ func isNotEmptyString(value string) error {
 // Exercise all possible validation errors.
 func TestKey_validateError(t *testing.T) {
 	for _, c := range validateErrorCases {
-		subtest.Run(t, c.message, func(t *testing.T) {
+		t.Run(c.message, func(t *testing.T) {
 			err := c.node.validate(c.value)
 			assert.EqualError(t, err, c.message)
 		})

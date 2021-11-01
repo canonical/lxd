@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,7 +78,7 @@ func TestUpsertObject_Error(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		subtest.Run(t, c.error, func(t *testing.T) {
+		t.Run(c.error, func(t *testing.T) {
 			tx := newTxForObjects(t)
 			id, err := query.UpsertObject(tx, "foo", c.columns, c.values)
 			assert.Equal(t, int64(-1), id)
