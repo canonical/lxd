@@ -40,7 +40,6 @@ require (
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
 	github.com/miekg/dns v1.1.43
-	github.com/mpvl/subtest v0.0.0-20160608141506-f6e4cfd4b9ea
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/osrg/gobgp v0.0.0-20211001064702-91b91278600d
 	github.com/pborman/uuid v1.2.1
@@ -53,7 +52,7 @@ require (
 	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
-	golang.org/x/net v0.0.0-20211004195052-b30845b58a23 // indirect
+	golang.org/x/net v0.0.0-20211004195052-b30845b58a23
 	golang.org/x/sys v0.0.0-20211004093028-2c5d950f24ef
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	golang.org/x/text v0.3.7 // indirect
