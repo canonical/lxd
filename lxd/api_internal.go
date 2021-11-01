@@ -246,6 +246,8 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.ManualResponse(func(w http.ResponseWriter) error {
+		<-d.setupChan // Wait for daemon to start.
+
 		// Run shutdown sequence synchronously.
 		err := d.Stop(forceCtx, unix.SIGPWR)
 		response.SmartError(err).Render(w)
