@@ -1396,7 +1396,9 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	s := d.State()
 
 	var err error
-	var instances []instance.Instance // If this is left as nil this indicates an error loading instances.
+	var instances []instance.Instance     // If this is left as nil this indicates an error loading instances.
+	var shutDownTimeout = 5 * time.Minute // Default time to wait for operations if not specified in DB.
+
 	if d.cluster != nil {
 		instances, err = instance.LoadNodeAll(s, instancetype.Any)
 		if err != nil {
@@ -1410,6 +1412,18 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			// Make all future queries fail fast as DB is not available.
 			d.gateway.Kill()
 			d.cluster.Close()
+		}
+
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			config, err := cluster.ConfigLoad(tx)
+			if err != nil {
+				return err
+			}
+			shutDownTimeout = config.ShutdownTimeout()
+			return nil
+		})
+		if err != nil {
+			logger.Warn("Failed getting shutdown timeout", log.Ctx{"err": err})
 		}
 	}
 
