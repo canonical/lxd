@@ -1613,7 +1613,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return err
 	})
 	if err != nil {
-		return response.SmartError(errors.Wrap(err, "Unable to inspect leader"))
+		return response.SmartError(errors.Wrapf(err, "Unable to inspect leader %q", leader))
 	}
 
 	// Get information about the cluster.
