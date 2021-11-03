@@ -768,6 +768,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 		f, ok := w.(http.Flusher)
 		if ok {
 			f.Flush()
+			time.Sleep(100 * time.Millisecond)
 		} else {
 			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
 		}
