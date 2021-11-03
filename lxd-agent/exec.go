@@ -56,8 +56,14 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 	}
 
+	// snap
 	if shared.PathExists("/snap/bin") {
 		env["PATH"] = fmt.Sprintf("%s:/snap/bin", env["PATH"])
+	}
+
+	// nixOS
+	if shared.PathExists("/run/current-system") {
+		env["PATH"] = fmt.Sprintf("%s:/run/current-system/sw/bin", env["PATH"])
 	}
 
 	// If running as root, set some env variables

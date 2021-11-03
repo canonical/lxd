@@ -519,9 +519,17 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	_, ok := post.Environment["PATH"]
 	if !ok {
 		post.Environment["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+		// snap
 		if inst.FileExists("/snap") == nil {
 			post.Environment["PATH"] = fmt.Sprintf("%s:/snap/bin", post.Environment["PATH"])
 		}
+
+		// nixOS
+		if inst.FileExists("/run/current-system") == nil {
+			post.Environment["PATH"] = fmt.Sprintf("%s:/run/current-system/sw/bin", post.Environment["PATH"])
+		}
+
 	}
 
 	// If running as root, set some env variables.
