@@ -523,6 +523,15 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 			}
 		}
 
+		// Check if it looks like a network peer connection name.
+		if strings.HasPrefix(subject, "@") {
+			if allowSubjectNames {
+				return 0, nil // Found valid subject.
+			}
+
+			return 0, fmt.Errorf("Named subjects not allowed in %q for %q rules", fieldName, direction)
+		}
+
 		return 0, fmt.Errorf("Invalid subject %q", subject)
 	}
 
