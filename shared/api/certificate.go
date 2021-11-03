@@ -18,10 +18,6 @@ const CertificateTypeUnknown = "unknown"
 type CertificatesPost struct {
 	CertificatePut `yaml:",inline"`
 
-	// The certificate itself, as PEM encoded X509
-	// Example: X509 PEM certificate
-	Certificate string `json:"certificate" yaml:"certificate"`
-
 	// Server trust password (used to add an untrusted client)
 	// Example: blah
 	Password string `json:"password" yaml:"password"`
@@ -52,6 +48,12 @@ type CertificatePut struct {
 	//
 	// API extension: certificate_project
 	Projects []string `json:"projects" yaml:"projects"`
+
+	// The certificate itself, as PEM encoded X509
+	// Example: X509 PEM certificate
+	//
+	// API extension: certificate_self_renewal
+	Certificate string `json:"certificate" yaml:"certificate"`
 }
 
 // Certificate represents a LXD certificate
@@ -59,11 +61,6 @@ type CertificatePut struct {
 // swagger:model
 type Certificate struct {
 	CertificatePut `yaml:",inline"`
-
-	// The certificate itself, as PEM encoded X509
-	// Read only: true
-	// Example: X509 PEM certificate
-	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// SHA256 fingerprint of the certificate
 	// Read only: true

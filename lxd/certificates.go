@@ -529,10 +529,12 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 		req := api.CertificatesPost{
-			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+			CertificatePut: api.CertificatePut{
+				Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+				Name:        name,
+				Type:        api.CertificateTypeClient,
+			},
 		}
-		req.Name = name
-		req.Type = api.CertificateTypeClient
 
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.CreateCertificate(req)
