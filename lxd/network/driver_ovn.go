@@ -4531,6 +4531,16 @@ func (n *ovn) PeerDelete(peerName string) error {
 		if err != nil {
 			return fmt.Errorf("Failed deleting OVN network peering: %w", err)
 		}
+
+		err = n.logicalRouterPolicySetup(client, targetOVNNet.ID())
+		if err != nil {
+			return fmt.Errorf("Failed applying local router security policy: %w", err)
+		}
+
+		err = targetOVNNet.logicalRouterPolicySetup(client, n.ID())
+		if err != nil {
+			return fmt.Errorf("Failed applying target router security policy: %w", err)
+		}
 	}
 
 	err = n.state.Cluster.DeleteNetworkPeer(n.ID(), peerID)
