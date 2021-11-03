@@ -137,18 +137,18 @@ func (d *fsnotify) watchFSTree(path string) error {
 	}
 
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		// Ignore files and symlinks
-		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return nil
-		}
-
-		// Check for errors here as we only care about directories. Files and symlinks are aren't of interest for this.
+		// Check for errors here as we only care about directories. Files and symlinks aren't of interest for this.
 		if err != nil {
 			d.logger.Warn("Error visiting path", log.Ctx{"path": path, "err": err})
 			return nil
 		}
 
-		// Only watch on real paths
+		// Ignore files and symlinks.
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+
+		// Only watch on real paths.
 		err = d.watcher.Add(path)
 		if err != nil {
 			d.logger.Warn("Failed to watch path", log.Ctx{"path": path, "err": err})
