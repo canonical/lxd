@@ -4403,7 +4403,7 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 		return fmt.Errorf("Failed getting instance NIC routes on target network: %w", err)
 	}
 
-	// Ensure routes are added target switch address sets.
+	// Ensure routes are added to target switch address sets.
 	err = client.AddressSetAdd(acl.OVNIntSwitchPortGroupAddressSetPrefix(targetOVNNet.ID()), opts.LocalRouterRoutes...)
 	if err != nil {
 		return fmt.Errorf("Failed adding target swith subnet address set entries: %w", err)
