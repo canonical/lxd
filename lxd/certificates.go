@@ -636,9 +636,6 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Expand the fingerprint.
-	fingerprint = oldEntry.Fingerprint
-
 	// Validate the ETag.
 	err = util.EtagCheck(r, oldEntry.ToAPI())
 	if err != nil {
@@ -655,7 +652,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	// Apply the update.
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType, r)
+	return doCertificateUpdate(d, *oldEntry, req, clientType, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -696,9 +693,6 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Expand the fingerprint.
-	fingerprint = oldEntry.Fingerprint
-
 	// Validate the ETag.
 	err = util.EtagCheck(r, oldEntry.ToAPI())
 	if err != nil {
@@ -713,10 +707,10 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType, r)
+	return doCertificateUpdate(d, *oldEntry, req.Writable(), clientType, r)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
+func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
 	if clientType == clusterRequest.ClientTypeNormal {
 		reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
 		if err != nil {
@@ -736,7 +730,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 		}
 
 		// Update the database record.
-		err = d.cluster.UpdateCertificate(fingerprint, cert)
+		err = d.cluster.UpdateCertificate(dbInfo.Fingerprint, cert)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -758,7 +752,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 	// Reload the cache.
 	updateCertificateCache(d)
 
-	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateUpdated.Event(fingerprint, request.CreateRequestor(r), nil))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
