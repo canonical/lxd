@@ -2180,8 +2180,11 @@ func (n *ovn) setup(update bool) error {
 }
 
 // logicalRouterPolicySetup applies the security policy to the logical router (clearing any existing policies).
-func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN) error {
-	//extRouterPort := n.getRouterExtPortName()
+// Optionally excludePeers takes a list of peer network IDs to exclude from the router policy. This is useful
+// when removing a peer connection as it allows the security policy to be removed from OVN for that peer before the
+// peer connection has been removed from the database.
+func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...int64) error {
+	extRouterPort := n.getRouterExtPortName()
 	intRouterPort := n.getRouterIntPortName()
 	addrSetPrefix := acl.OVNIntSwitchPortGroupAddressSetPrefix(n.ID())
 
@@ -2207,6 +2210,35 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN) error {
 			Match:    fmt.Sprintf(`(inport == "%s")`, intRouterPort),
 			Action:   "drop",
 		},
+	}
+
+	// Add rules to drop inbound traffic arriving on external uplink port from peer connection addresses.
+	// This prevents source address spoofing of peer connection routes from the external network, which in
+	// turn allows us to use the peer connection's address set for referencing traffic from the peer in ACL.
+	var err error
+	err = n.forPeers(func(targetOVNNet *ovn) error {
+		if shared.Int64InSlice(targetOVNNet.ID(), excludePeers) {
+			return nil // Don't setup rules for this peer network connection.
+		}
+
+		targetAddrSetPrefix := acl.OVNIntSwitchPortGroupAddressSetPrefix(targetOVNNet.ID())
+
+		// Associate the rules with the local peering port so we can identify them later if needed.
+		comment := n.getLogicRouterPeerPortName(targetOVNNet.ID())
+		policies = append(policies, openvswitch.OVNRouterPolicy{
+			Priority: ovnRouterPolicyPeerDropPriority,
+			Match:    fmt.Sprintf(`(inport == "%s" && ip6 && ip6.src == $%s_ip6) // %s`, extRouterPort, targetAddrSetPrefix, comment),
+			Action:   "drop",
+		}, openvswitch.OVNRouterPolicy{
+			Priority: ovnRouterPolicyPeerDropPriority,
+			Match:    fmt.Sprintf(`(inport == "%s" && ip4 && ip4.src == $%s_ip4) // %s`, extRouterPort, targetAddrSetPrefix, comment),
+			Action:   "drop",
+		})
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return client.LogicalRouterPolicyApply(n.getRouterName(), policies...)
