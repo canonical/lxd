@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-28 17:42-0400\n"
+"POT-Creation-Date: 2021-11-04 12:18-0400\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -2185,7 +2185,7 @@ msgstr ""
 msgid "Importing custom volume: %s"
 msgstr "Editar arquivos no container"
 
-#: lxc/import.go:88
+#: lxc/import.go:94
 #, fuzzy, c-format
 msgid "Importing instance: %s"
 msgstr "Editar arquivos no container"
@@ -5606,3 +5606,7 @@ msgstr "sim"
 
 #~ msgid "CPU:"
 #~ msgstr "CPU:"
+
+#, fuzzy
+#~ msgid "Client certificate stored at server:"
+#~ msgstr "Certificado do cliente armazenado no servidor: "

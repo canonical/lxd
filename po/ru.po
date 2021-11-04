@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-28 17:42-0400\n"
+"POT-Creation-Date: 2021-11-04 12:18-0400\n"
 "PO-Revision-Date: 2020-10-08 08:16+0000\n"
 "Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -2176,7 +2176,7 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Importing custom volume: %s"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/import.go:88
+#: lxc/import.go:94
 #, fuzzy, c-format
 msgid "Importing instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -6200,3 +6200,14 @@ msgstr "да"
 #~ "Проверьте, запущен ли экземпляр LXD.\n"
 #~ "\n"
 #~ "lxc finger [<remote>:]"
+
+#, fuzzy
+#~ msgid "[<remote>:]<token>"
+#~ msgstr ""
+#~ "Изменение состояния одного или нескольких контейнеров %s.\n"
+#~ "\n"
+#~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
+
+#, fuzzy
+#~ msgid "Client certificate stored at server:"
+#~ msgstr "Сертификат клиента хранится на сервере: "
