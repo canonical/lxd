@@ -1,13 +1,13 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"strings"
 	"time"
 
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // Transaction executes the given function within a database transaction.

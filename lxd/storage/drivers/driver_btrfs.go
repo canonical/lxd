@@ -17,10 +17,12 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var btrfsVersion string
 var btrfsLoaded bool
+var btrfsPropertyForce bool
 
 type btrfs struct {
 	common
@@ -62,6 +64,22 @@ func (d *btrfs) load() error {
 		if err != nil || count != 1 {
 			return fmt.Errorf("The 'btrfs' tool isn't working properly")
 		}
+	}
+
+	// Check if we need --force to set properties.
+	ver5142, err := version.Parse("5.14.2")
+	if err != nil {
+		return err
+	}
+
+	ourVer, err := version.Parse(btrfsVersion)
+	if err != nil {
+		return err
+	}
+
+	// If running 5.14.2 or older, we need --force.
+	if ourVer.Compare(ver5142) > 0 {
+		btrfsPropertyForce = true
 	}
 
 	btrfsLoaded = true
