@@ -2687,6 +2687,11 @@ func (d *lxc) Stop(stateful bool) error {
 		os.RemoveAll(d.StatePath())
 	}
 
+	// Release liblxc container once done.
+	defer func() {
+		d.release()
+	}()
+
 	// Load the go-lxc struct
 	if d.expandedConfig["raw.lxc"] != "" {
 		err = d.initLXC(true)
@@ -2805,6 +2810,11 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 	if op.Action() == "stop" {
 		d.logger.Info("Shutting down container", ctxMap)
 	}
+
+	// Release liblxc container once done.
+	defer func() {
+		d.release()
+	}()
 
 	// Load the go-lxc struct
 	if d.expandedConfig["raw.lxc"] != "" {
