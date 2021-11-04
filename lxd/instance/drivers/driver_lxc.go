@@ -5275,12 +5275,14 @@ func (d *lxc) FileExists(path string) error {
 	// Check for ongoing operations (that may involve shifting).
 	operationlock.Get(d.Project(), d.Name()).Wait()
 
-	// Setup container storage if needed
-	_, err := d.mount()
-	if err != nil {
-		return err
+	if !d.IsRunning() {
+		// Setup container storage if needed.
+		_, err := d.mount()
+		if err != nil {
+			return err
+		}
+		defer d.unmount()
 	}
-	defer d.unmount()
 
 	pidFdNr, pidFd := d.inheritInitPidFd()
 	if pidFdNr >= 0 {
@@ -5323,12 +5325,14 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 	// Check for ongoing operations (that may involve shifting).
 	operationlock.Get(d.Project(), d.Name()).Wait()
 
-	// Setup container storage if needed
-	_, err := d.mount()
-	if err != nil {
-		return -1, -1, 0, "", nil, err
+	if !d.IsRunning() {
+		// Setup container storage if needed.
+		_, err := d.mount()
+		if err != nil {
+			return -1, -1, 0, "", nil, err
+		}
+		defer d.unmount()
 	}
-	defer d.unmount()
 
 	pidFdNr, pidFd := d.inheritInitPidFd()
 	if pidFdNr >= 0 {
@@ -5452,8 +5456,8 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 	var rootGID int64
 	var errStr string
 
-	// Map uid and gid if needed
 	if !d.IsRunning() {
+		// Map uid and gid if needed.
 		idmapset, err := d.DiskIdmap()
 		if err != nil {
 			return err
@@ -5463,14 +5467,14 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 			uid, gid = idmapset.ShiftIntoNs(uid, gid)
 			rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
 		}
-	}
 
-	// Setup container storage if needed
-	_, err := d.mount()
-	if err != nil {
-		return err
+		// Setup container storage if needed.
+		_, err = d.mount()
+		if err != nil {
+			return err
+		}
+		defer d.unmount()
 	}
-	defer d.unmount()
 
 	defaultMode := 0640
 	if fileType == "directory" {
