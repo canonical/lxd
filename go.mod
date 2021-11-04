@@ -2,10 +2,6 @@ module github.com/lxc/lxd
 
 go 1.17
 
-replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
-
-replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
-
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
@@ -45,7 +41,6 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
-	golang.org/x/net v0.0.0-20211104170005-ce137452f963
 	golang.org/x/sys v0.0.0-20211103235746-7861aae1554b
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1
@@ -99,6 +94,7 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
+	golang.org/x/net v0.0.0-20211104170005-ce137452f963 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20211102202547-e9cf271f7f2c // indirect
 	google.golang.org/grpc v1.42.0 // indirect
@@ -110,3 +106,7 @@ require (
 	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
+
+replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
+
+replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
