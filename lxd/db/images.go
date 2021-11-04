@@ -563,60 +563,51 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 // getImagesByFingerprintPrefix returns the images with fingerprints matching the prefix.
 // Optional filters 'project' and 'public' will be included if not nil.
 func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, filter ImageFilter) ([]Image, error) {
-	sql := `
+	q := `
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
-FROM images 
+FROM images
 JOIN projects ON images.project_id = projects.id
 WHERE images.fingerprint LIKE ?
 `
 	args := []interface{}{fingerprintPrefix + "%"}
 	if filter.Project != nil {
-		sql += `AND project = ?
+		q += `AND project = ?
 	`
 		args = append(args, *filter.Project)
 	}
 	if filter.Public != nil {
-		sql += `AND images.public = ?
+		q += `AND images.public = ?
 	`
 		args = append(args, *filter.Public)
 	}
-	sql += `ORDER BY projects.id, images.fingerprint
+	q += `ORDER BY projects.id, images.fingerprint
 `
 
-	objects := []Image{}
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, Image{})
-		return []interface{}{
-			&objects[i].ID,
-			&objects[i].Project,
-			&objects[i].Fingerprint,
-			&objects[i].Type,
-			&objects[i].Filename,
-			&objects[i].Size,
-			&objects[i].Public,
-			&objects[i].Architecture,
-			&objects[i].CreationDate,
-			&objects[i].ExpiryDate,
-			&objects[i].UploadDate,
-			&objects[i].Cached,
-			&objects[i].LastUseDate,
-			&objects[i].AutoUpdate,
-		}
-	}
+	images := []Image{}
 
-	stmt, err := c.prepare(sql)
+	err := c.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		var img Image
+		var creationDate sql.NullTime
+		var expiryDate sql.NullTime
+		var lastUsedDate sql.NullTime
+		err := scan(&img.ID, &img.Project, &img.Fingerprint, &img.Type, &img.Filename, &img.Size, &img.Public, &img.Architecture, &creationDate, &expiryDate, &img.UploadDate, &img.Cached, &lastUsedDate, &img.AutoUpdate)
+		if err != nil {
+			return err
+		}
+
+		img.CreationDate = creationDate.Time
+		img.ExpiryDate = expiryDate.Time
+		img.LastUseDate = lastUsedDate.Time
+
+		images = append(images, img)
+
+		return nil
+	}, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	// Select.
-	err = query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch images")
-	}
-
-	return objects, nil
+	return images, nil
 }
 
 // LocateImage returns the address of an online node that has a local copy of
