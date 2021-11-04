@@ -3030,7 +3030,7 @@ test_clustering_remove_leader() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1
 
   # Ensure the remaining node is working
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -qv "node1"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node1" || false
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node2"
 
   # Previous leader should no longer be clustered
