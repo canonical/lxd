@@ -171,11 +171,21 @@ func (d *ceph) Create() error {
 		d.config["volatile.pool.pristine"] = "true"
 	} else {
 		ok := d.HasVolume(placeholderVol)
-		d.config["volatile.pool.pristine"] = "false"
 		if ok {
 			if d.config["ceph.osd.force_reuse"] == "" || !shared.IsTrue(d.config["ceph.osd.force_reuse"]) {
 				return fmt.Errorf("Pool '%s' in cluster '%s' seems to be in use by another LXD instance. Use 'ceph.osd.force_reuse=true' to force", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
 			}
+
+			d.config["volatile.pool.pristine"] = "false"
+		} else {
+			// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
+			// pool is already in use by another LXD instance.
+			err := d.rbdCreateVolume(placeholderVol, "0")
+			if err != nil {
+				return err
+			}
+
+			d.config["volatile.pool.pristine"] = "true"
 		}
 
 		// Use existing OSD pool.
