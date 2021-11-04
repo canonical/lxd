@@ -744,7 +744,6 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	}
 
 	// Reset the cluster database and make it local to this node.
-	d.endpoints.NetworkUpdateCert(networkCert)
 	err = d.gateway.Reset(networkCert)
 	if err != nil {
 		return response.SmartError(err)
