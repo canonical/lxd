@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-10-28 17:42-0400\n"
+"POT-Creation-Date: 2021-11-04 12:18-0400\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -236,7 +236,6 @@ msgstr ""
 "configuration keys can be changed."
 
 #: lxc/network_forward.go:496
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the network forward.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -258,22 +257,25 @@ msgid ""
 "###\n"
 "### Note that the listen_address and location cannot be changed."
 msgstr ""
-"### This is a YAML representation of the network.\n"
+"### This is a YAML representation of the network forward.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
-"### A network consists of a set of configuration items.\n"
+"### A network forward consists of a default target address and optional set "
+"of port forwards for a listen address.\n"
 "###\n"
 "### An example would look like:\n"
-"### name: lxdbr0\n"
-"### config:\n"
-"###   ipv4.address: 10.62.42.1/24\n"
-"###   ipv4.nat: true\n"
-"###   ipv6.address: fd00:56ad:9f7a:9800::1/64\n"
-"###   ipv6.nat: true\n"
-"### managed: true\n"
-"### type: bridge\n"
+"### listen_address: 192.0.2.1\n"
+"### target_address: 198.51.100.2\n"
+"### description: test desc\n"
+"### port:\n"
+"### - description: port forward\n"
+"###   protocol: tcp\n"
+"###   listen_port: 80,81,8080-8090\n"
+"###   target_address: 198.51.100.3\n"
+"###   target_port: 80,81,8080-8090\n"
+"### location: lxd01\n"
 "###\n"
-"### Note that only the configuration can be changed."
+"### Note that the listen_address and location cannot be changed."
 
 #: lxc/network_peer.go:488
 #, fuzzy
@@ -518,9 +520,8 @@ msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr "--instance-only はコピー元がスナップショットの場合は指定できません"
 
 #: lxc/copy.go:85
-#, fuzzy
 msgid "--no-profiles cannot be used with --refresh"
-msgstr "--console と --all は同時に指定できません"
+msgstr "--no-profiles と --refresh は同時に指定できません"
 
 #: lxc/query.go:71
 msgid "--project cannot be used with the query command"
@@ -568,9 +569,8 @@ msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
 
 #: lxc/file.go:416
-#, fuzzy
 msgid "<source path>... [<remote>:]<instance>/<path>"
-msgstr "[<remote>:]<instance>/<path>"
+msgstr "<source path>... [<remote>:]<instance>/<path>"
 
 #: lxc/image.go:633
 msgid ""
@@ -657,10 +657,15 @@ msgid ""
 "- client (default)\n"
 "- metrics\n"
 msgstr ""
+"新たに信頼済みクライアントを追加します。\n"
+"\n"
+"次の証明書タイプをサポートします:\n"
+"- client (デフォルト)\n"
+"- metrics\n"
 
 #: lxc/network_forward.go:704 lxc/network_forward.go:705
 msgid "Add ports to a forward"
-msgstr ""
+msgstr "フォワードにポートを追加します"
 
 #: lxc/profile.go:103 lxc/profile.go:104
 msgid "Add profiles to instances"
@@ -974,9 +979,8 @@ msgid "Certificate fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
 #: lxc/remote.go:465
-#, fuzzy
 msgid "Client certificate now trusted by server:"
-msgstr "クライアント証明書がサーバに格納されました:"
+msgstr "クライアント証明書がサーバに信頼されました:"
 
 #: lxc/version.go:37
 #, c-format
@@ -1229,9 +1233,8 @@ msgid "Create new network ACLs"
 msgstr "新たにネットワーク ACL を作成します"
 
 #: lxc/network_forward.go:230 lxc/network_forward.go:231
-#, fuzzy
 msgid "Create new network forwards"
-msgstr "新たにネットワークを作成します"
+msgstr "新たにネットワークフォワードを作成します"
 
 #: lxc/network_peer.go:215 lxc/network_peer.go:216
 #, fuzzy
@@ -1284,7 +1287,7 @@ msgstr "現在の VF 数: %d"
 
 #: lxc/network_forward.go:146
 msgid "DEFAULT TARGET ADDRESS"
-msgstr ""
+msgstr "DEFAULT TARGET ADDRESS"
 
 #: lxc/cluster.go:174 lxc/image.go:1029 lxc/image_alias.go:237 lxc/list.go:490
 #: lxc/network.go:914 lxc/network_acl.go:144 lxc/network_forward.go:145
@@ -1343,9 +1346,8 @@ msgid "Delete network ACLs"
 msgstr "ネットワーク ACL を削除します"
 
 #: lxc/network_forward.go:627 lxc/network_forward.go:628
-#, fuzzy
 msgid "Delete network forwards"
-msgstr "ネットワークを削除します"
+msgstr "ネットワークフォワードを削除します"
 
 #: lxc/network_peer.go:605 lxc/network_peer.go:606
 #, fuzzy
@@ -1623,9 +1625,8 @@ msgid "Edit network configurations as YAML"
 msgstr "ネットワーク設定をYAMLで編集します"
 
 #: lxc/network_forward.go:486 lxc/network_forward.go:487
-#, fuzzy
 msgid "Edit network forward configurations as YAML"
-msgstr "ネットワーク設定をYAMLで編集します"
+msgstr "ネットワークフォワード設定をYAMLで編集します"
 
 #: lxc/network_peer.go:480 lxc/network_peer.go:481
 #, fuzzy
@@ -2012,9 +2013,8 @@ msgid "Get values for network configuration keys"
 msgstr "ネットワークの設定値を取得します"
 
 #: lxc/network_forward.go:326 lxc/network_forward.go:327
-#, fuzzy
 msgid "Get values for network forward configuration keys"
-msgstr "ネットワークの設定値を取得します"
+msgstr "ネットワークフォワードの設定値を取得します"
 
 #: lxc/network_peer.go:329 lxc/network_peer.go:330
 #, fuzzy
@@ -2197,7 +2197,7 @@ msgstr "インスタンスのバックアップをインポートします"
 msgid "Importing custom volume: %s"
 msgstr "カスタムボリュームのインポート中: %s"
 
-#: lxc/import.go:88
+#: lxc/import.go:94
 #, c-format
 msgid "Importing instance: %s"
 msgstr "インスタンスのインポート中: %s"
@@ -2336,9 +2336,8 @@ msgid "LIMIT"
 msgstr "LIMIT"
 
 #: lxc/network_forward.go:144
-#, fuzzy
 msgid "LISTEN ADDRESS"
-msgstr "IP ADDRESS"
+msgstr "LISTEN ADDRESS"
 
 #: lxc/list.go:518 lxc/network.go:988 lxc/network_forward.go:151
 #: lxc/operation.go:168 lxc/storage_volume.go:1294 lxc/warning.go:219
@@ -2412,9 +2411,8 @@ msgid "List available network ACLS"
 msgstr "利用可能なネットワーク ACL を一覧表示します"
 
 #: lxc/network_forward.go:86 lxc/network_forward.go:87
-#, fuzzy
 msgid "List available network forwards"
-msgstr "利用可能なネットワークを一覧表示します"
+msgstr "利用可能なネットワークフォワードを一覧表示します"
 
 #: lxc/network_peer.go:82 lxc/network_peer.go:83
 #, fuzzy
@@ -2935,14 +2933,12 @@ msgid "Manage network ACLs"
 msgstr "ネットワーク ACL を管理します"
 
 #: lxc/network_forward.go:689 lxc/network_forward.go:690
-#, fuzzy
 msgid "Manage network forward ports"
-msgstr "ネットワーク ACL ルールを管理します"
+msgstr "ネットワークフォワードのポートを管理します"
 
 #: lxc/network_forward.go:29 lxc/network_forward.go:30
-#, fuzzy
 msgid "Manage network forwards"
-msgstr "ネットワーク ACL を管理します"
+msgstr "ネットワークフォワードを管理します"
 
 #: lxc/network_peer.go:29 lxc/network_peer.go:30
 #, fuzzy
@@ -3066,9 +3062,8 @@ msgstr "インスタンス名を指定する必要があります"
 #: lxc/network_forward.go:354 lxc/network_forward.go:414
 #: lxc/network_forward.go:537 lxc/network_forward.go:656
 #: lxc/network_forward.go:733 lxc/network_forward.go:799
-#, fuzzy
 msgid "Missing listen address"
-msgstr "インスタンス名を指定する必要があります"
+msgstr "リッスンアドレスを指定する必要があります"
 
 #: lxc/config_device.go:113 lxc/config_device.go:220 lxc/config_device.go:303
 #: lxc/config_device.go:369 lxc/config_device.go:462 lxc/config_device.go:570
@@ -3318,14 +3313,14 @@ msgid "Network Zone %s deleted"
 msgstr "ネットワーク %s を削除しました"
 
 #: lxc/network_forward.go:311
-#, fuzzy, c-format
+#, c-format
 msgid "Network forward %s created"
-msgstr "ネットワーク %s を作成しました"
+msgstr "ネットワークフォワード %s を作成しました"
 
 #: lxc/network_forward.go:673
-#, fuzzy, c-format
+#, c-format
 msgid "Network forward %s deleted"
-msgstr "ネットワーク %s を削除しました"
+msgstr "ネットワークフォワード %s を削除しました"
 
 #: lxc/init.go:52
 msgid "Network name"
@@ -3469,7 +3464,7 @@ msgstr "PID: %d"
 
 #: lxc/network_forward.go:147
 msgid "PORTS"
-msgstr ""
+msgstr "PORTS"
 
 #: lxc/list.go:498
 msgid "PROCESSES"
@@ -3699,7 +3694,7 @@ msgstr "RESOURCE"
 
 #: lxc/cluster.go:171
 msgid "ROLES"
-msgstr ""
+msgstr "ROLES"
 
 #: lxc/info.go:278 lxc/info.go:287
 #, c-format
@@ -3711,9 +3706,8 @@ msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
 #: lxc/storage_volume.go:338
-#, fuzzy
 msgid "Refresh and update the existing storage volume copies"
-msgstr "新たにカスタムストレージボリュームを作成します"
+msgstr "既存のストレージボリュームのコピーの再読込と更新"
 
 #: lxc/image.go:1287 lxc/image.go:1288
 msgid "Refresh images"
@@ -3786,9 +3780,8 @@ msgid "Remove aliases"
 msgstr "エイリアスを削除します"
 
 #: lxc/network_forward.go:771
-#, fuzzy
 msgid "Remove all ports that match"
-msgstr "マッチするルールをすべて削除します"
+msgstr "マッチするポートをすべて削除します"
 
 #: lxc/network_acl.go:799
 msgid "Remove all rules that match"
@@ -3799,9 +3792,8 @@ msgid "Remove instance devices"
 msgstr "インスタンスのデバイスを削除します"
 
 #: lxc/network_forward.go:769 lxc/network_forward.go:770
-#, fuzzy
 msgid "Remove ports from a forward"
-msgstr "ACL からルールを削除します"
+msgstr "フォワードからポートを削除します"
 
 #: lxc/profile.go:639 lxc/profile.go:640
 msgid "Remove profiles from instances"
@@ -4102,12 +4094,10 @@ msgstr ""
 "    lxc network set [<remote>:]<network> <key> <value>"
 
 #: lxc/network_forward.go:381
-#, fuzzy
 msgid "Set network forward keys"
-msgstr "ネットワークを削除します"
+msgstr "ネットワークフォワードの設定値を設定します"
 
 #: lxc/network_forward.go:382
-#, fuzzy
 msgid ""
 "Set network forward keys\n"
 "\n"
@@ -4115,10 +4105,10 @@ msgid ""
 "with:\n"
 "    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
 msgstr ""
-"ネットワークの設定を行います\n"
+"ネットワークフォワードの設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc network set [<remote>:]<network> <key> <value>"
+"    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
 
 #: lxc/network_peer.go:384
 #, fuzzy
@@ -4303,9 +4293,8 @@ msgid "Show network configurations"
 msgstr "ネットワークの設定を表示します"
 
 #: lxc/network_forward.go:166 lxc/network_forward.go:167
-#, fuzzy
 msgid "Show network forward configurations"
-msgstr "ネットワークの設定を表示します"
+msgstr "ネットワークフォワードの設定を表示します"
 
 #: lxc/network_peer.go:158 lxc/network_peer.go:159
 #, fuzzy
@@ -4725,9 +4714,8 @@ msgid "Type"
 msgstr "タイプ"
 
 #: lxc/config_trust.go:90
-#, fuzzy
 msgid "Type of certificate"
-msgstr "証明書を受け入れます"
+msgstr "証明書の形式"
 
 #: lxc/console.go:44
 msgid ""
@@ -4824,14 +4812,12 @@ msgid "Unset network configuration keys"
 msgstr "ネットワークの設定を削除します"
 
 #: lxc/network_forward.go:459
-#, fuzzy
 msgid "Unset network forward configuration keys"
-msgstr "ネットワークの設定を削除します"
+msgstr "ネットワークフォワードの設定を削除します"
 
 #: lxc/network_forward.go:460
-#, fuzzy
 msgid "Unset network forward keys"
-msgstr "ネットワークを削除します"
+msgstr "ネットワークフォワードの設定を削除します"
 
 #: lxc/network_peer.go:453
 #, fuzzy
@@ -5008,9 +4994,8 @@ msgid "[<remote>:] <cert>"
 msgstr "[<remote>:] <cert>"
 
 #: lxc/config_trust.go:365
-#, fuzzy
 msgid "[<remote>:] <fingerprint>"
-msgstr "[<remote>:]<fingerprint>"
+msgstr "[<remote>:] <fingerprint>"
 
 #: lxc/cluster.go:500
 msgid "[<remote>:] <name>"
@@ -5253,35 +5238,32 @@ msgstr "[<remote>:]<network> <key>=<value>..."
 
 #: lxc/network_forward.go:165 lxc/network_forward.go:485
 #: lxc/network_forward.go:625
-#, fuzzy
 msgid "[<remote>:]<network> <listen_address>"
-msgstr "[<remote>:]<network> <new-name>"
+msgstr "[<remote>:]<network> <listen_address>"
 
 #: lxc/network_forward.go:325 lxc/network_forward.go:458
-#, fuzzy
 msgid "[<remote>:]<network> <listen_address> <key>"
-msgstr "[<remote>:]<network> <new-name>"
+msgstr "[<remote>:]<network> <listen_address> <key>"
 
 #: lxc/network_forward.go:380
-#, fuzzy
 msgid "[<remote>:]<network> <listen_address> <key>=<value>..."
-msgstr "[<remote>:]<network> <key>=<value>..."
+msgstr "[<remote>:]<network> <listen_address> <key>=<value>..."
 
 #: lxc/network_forward.go:703
 msgid ""
 "[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> "
 "<target_address> [<target_port(s)>]"
 msgstr ""
+"[<remote>:]<network> <listen_address> <protocol> <listen_port(s)> "
+"<target_address> [<target_port(s)>]"
 
 #: lxc/network_forward.go:768
-#, fuzzy
 msgid "[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"
-msgstr "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
+msgstr "[<remote>:]<network> <listen_address> [<protocol>] [<listen_port(s)>]"
 
 #: lxc/network_forward.go:229
-#, fuzzy
 msgid "[<remote>:]<network> <listen_address> [key=value...]"
-msgstr "[<remote>:]<network> <new-name>"
+msgstr "[<remote>:]<network> <listen_address> [key=value...]"
 
 #: lxc/network.go:1002
 msgid "[<remote>:]<network> <new-name>"
@@ -5920,6 +5902,22 @@ msgstr "y"
 #: lxc/image.go:1084
 msgid "yes"
 msgstr "yes"
+
+#~ msgid "To start your first instance, try: lxc launch ubuntu:20.04"
+#~ msgstr ""
+#~ "初めてインスタンスを起動するには、\"lxc launch ubuntu:20.04\" と実行してみ"
+#~ "てください"
+
+#~ msgid ""
+#~ "lxc launch ubuntu:20.04 u1\n"
+#~ "\n"
+#~ "lxc launch ubuntu:20.04 u1 < config.yaml\n"
+#~ "    Create and start the instance with configuration from config.yaml"
+#~ msgstr ""
+#~ "lxc launch ubuntu:20.04 u1\n"
+#~ "\n"
+#~ "lxc launch ubuntu:20.04 u1 < config.yaml\n"
+#~ "    config.yaml の設定を使ってインスタンスを作成し、起動します"
 
 #~ msgid "The --stateless flag can't be used with --target"
 #~ msgstr "--stateless と --target は同時に指定できません"
@@ -7826,3 +7824,25 @@ msgstr "yes"
 #~ msgstr ""
 #~ "lxc image import <tarball> [destination] [--created-at=ISO-8601] [--"
 #~ "expires-at=ISO-8601] [--fingerprint=HASH] [proprit=valeur]\n"
+
+#~ msgid "[<remote>:]<token>"
+#~ msgstr "[<remote>:]<token>"
+
+#~ msgid "Client certificate stored at server:"
+#~ msgstr "クライアント証明書がサーバに格納されました:"
+
+#~ msgid "To start your first instance, try: lxc launch ubuntu:18.04"
+#~ msgstr ""
+#~ "初めてインスタンスを起動するには、\"lxc launch ubuntu:18.04\" と実行してみ"
+#~ "てください"
+
+#~ msgid ""
+#~ "lxc launch ubuntu:18.04 u1\n"
+#~ "\n"
+#~ "lxc launch ubuntu:18.04 u1 < config.yaml\n"
+#~ "    Create and start the instance with configuration from config.yaml"
+#~ msgstr ""
+#~ "lxc launch ubuntu:18.04 u1\n"
+#~ "\n"
+#~ "lxc launch ubuntu:18.04 u1 < config.yaml\n"
+#~ "    config.yaml の設定を使ってインスタンスを作成し、起動します"
