@@ -48,8 +48,8 @@ var certificateCmd = APIEndpoint{
 
 	Delete: APIEndpointAction{Handler: certificateDelete},
 	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: allowAuthenticated},
-	Patch:  APIEndpointAction{Handler: certificatePatch},
-	Put:    APIEndpointAction{Handler: certificatePut},
+	Patch:  APIEndpointAction{Handler: certificatePatch, AccessHandler: allowAuthenticated},
+	Put:    APIEndpointAction{Handler: certificatePut, AccessHandler: allowAuthenticated},
 }
 
 // swagger:operation GET /1.0/certificates certificates certificates_get
@@ -718,19 +718,87 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, req api.CertificatePu
 		}
 
 		// Convert to the database type.
-		cert := db.Certificate{
-			// Read-only fields.
+		dbCert := db.Certificate{
 			Certificate: dbInfo.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
+			Restricted:  req.Restricted,
+			Projects:    req.Projects,
+			Name:        req.Name,
+			Type:        reqDBType,
+		}
 
-			Restricted: req.Restricted,
-			Projects:   req.Projects,
-			Name:       req.Name,
-			Type:       reqDBType,
+		// Non-admins are able to change their own certificate but no other fields.
+		// In order to prevent possible future security issues, the certificate information is
+		// reset in case a non-admin user is performing the update.
+		if !rbac.UserIsAdmin(r) {
+			if r.TLS == nil {
+				response.Forbidden(fmt.Errorf("Cannot update certificate information"))
+			}
+
+			// Ensure the user in not trying to change fields other than the certificate.
+			if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) {
+				return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+			}
+
+			for i := 0; i < len(dbInfo.Projects); i++ {
+				if dbInfo.Projects[i] != req.Projects[i] {
+					return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+				}
+			}
+
+			// Reset dbCert in order to prevent possible future security issues.
+			dbCert = db.Certificate{
+				Certificate: dbInfo.Certificate,
+				Fingerprint: dbInfo.Fingerprint,
+				Restricted:  dbInfo.Restricted,
+				Projects:    dbInfo.Projects,
+				Name:        dbInfo.Name,
+				Type:        reqDBType,
+			}
+
+			if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
+				certBlock, _ := pem.Decode([]byte(dbInfo.Certificate))
+
+				oldCert, err := x509.ParseCertificate(certBlock.Bytes)
+				if err != nil {
+					// This should not happen
+					return response.InternalError(err)
+				}
+
+				trustedCerts := map[string]x509.Certificate{
+					dbInfo.Name: *oldCert,
+				}
+
+				trusted := false
+				for _, i := range r.TLS.PeerCertificates {
+					trusted, _ = util.CheckTrustState(*i, trustedCerts, d.endpoints.NetworkCert(), false)
+
+					if trusted {
+						break
+					}
+				}
+
+				if !trusted {
+					return response.Forbidden(fmt.Errorf("Certificate cannot be changed"))
+				}
+			}
+		}
+
+		if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
+			// Add supplied certificate.
+			block, _ := pem.Decode([]byte(req.Certificate))
+
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return response.BadRequest(errors.Wrap(err, "invalid certificate material"))
+			}
+
+			dbCert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+			dbCert.Fingerprint = shared.CertFingerprint(cert)
 		}
 
 		// Update the database record.
-		err = d.cluster.UpdateCertificate(dbInfo.Fingerprint, cert)
+		err = d.cluster.UpdateCertificate(dbInfo.Fingerprint, dbCert)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -742,7 +810,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, req api.CertificatePu
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateCertificate(dbInfo.Fingerprint, req, "")
+			return client.UpdateCertificate(dbCert.Fingerprint, req, "")
 		})
 		if err != nil {
 			return response.SmartError(err)
