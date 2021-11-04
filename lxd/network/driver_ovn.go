@@ -4504,6 +4504,15 @@ func (n *ovn) PeerDelete(peerName string) error {
 		return err
 	}
 
+	isUsed, err := n.peerIsUsed(peer.Name)
+	if err != nil {
+		return err
+	}
+
+	if isUsed {
+		return fmt.Errorf("Cannot delete a Peer that is in use")
+	}
+
 	if peer.Status == api.NetworkStatusCreated {
 		targetNet, err := LoadByName(n.state, peer.TargetProject, peer.TargetNetwork)
 		if err != nil {
