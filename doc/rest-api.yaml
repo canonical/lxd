@@ -2452,6 +2452,16 @@ definitions:
         readOnly: true
         type: string
         x-go-name: TargetProject
+      used_by:
+        description: List of URLs of objects using this network peering
+        example:
+        - /1.0/network-acls/test
+        - /1.0/network-acls/foo
+        items:
+          type: string
+        readOnly: true
+        type: array
+        x-go-name: UsedBy
     title: NetworkPeer used for displaying a LXD network peering.
     type: object
     x-go-package: github.com/lxc/lxd/shared/api

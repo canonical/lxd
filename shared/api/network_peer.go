@@ -63,6 +63,11 @@ type NetworkPeer struct {
 	// Read only: true
 	// Example: Pending
 	Status string `json:"status" yaml:"status"`
+
+	// List of URLs of objects using this network peering
+	// Read only: true
+	// Example: ["/1.0/network-acls/test", "/1.0/network-acls/foo"]
+	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
 
 // Etag returns the values used for etag generation.

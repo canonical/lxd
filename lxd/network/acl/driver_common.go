@@ -304,7 +304,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		return errors.Wrapf(err, "Failed getting network ACLs for security ACL subject validation")
 	}
 
-	validSubjectNames := make([]string, 0, len(acls)+2)
+	validSubjectNames := make([]string, 0, len(acls)+len(ruleSubjectInternalAliases)+len(ruleSubjectExternalAliases))
 	validSubjectNames = append(validSubjectNames, ruleSubjectInternalAliases...)
 	validSubjectNames = append(validSubjectNames, ruleSubjectExternalAliases...)
 
@@ -521,6 +521,15 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 
 				return 0, fmt.Errorf("Named subjects not allowed in %q for %q rules", fieldName, direction)
 			}
+		}
+
+		// Check if it looks like a network peer connection name.
+		if strings.HasPrefix(subject, "@") {
+			if allowSubjectNames {
+				return 0, nil // Found valid subject.
+			}
+
+			return 0, fmt.Errorf("Named subjects not allowed in %q for %q rules", fieldName, direction)
 		}
 
 		return 0, fmt.Errorf("Invalid subject %q", subject)
