@@ -781,8 +781,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	}()
 
 	return response.ManualResponse(func(w http.ResponseWriter) error {
-		emptyResponse := response.EmptySyncResponse
-		err := emptyResponse.Render(w)
+		err := response.EmptySyncResponse.Render(w)
 		if err != nil {
 			return err
 		}
@@ -1691,8 +1690,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return response.ManualResponse(func(w http.ResponseWriter) error {
-			emptyResponse := response.EmptySyncResponse
-			err := emptyResponse.Render(w)
+			err := response.EmptySyncResponse.Render(w)
 			if err != nil {
 				return err
 			}
