@@ -476,7 +476,7 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 
 		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch images")
+			return fmt.Errorf("Failed to fetch images by fingerprint prefix %q: %w", fingerprintPrefix, err)
 		}
 
 		switch len(images) {
@@ -527,7 +527,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	err := c.Transaction(func(tx *ClusterTx) error {
 		images, err := tx.getImagesByFingerprintPrefix(fingerprint, ImageFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch images")
+			return fmt.Errorf("Failed to fetch image by fingerprint %q: %w", fingerprint, err)
 		}
 
 		if len(images) == 0 {
