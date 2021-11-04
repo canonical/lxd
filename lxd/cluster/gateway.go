@@ -630,8 +630,7 @@ func (g *Gateway) getClient() (*client.Client, error) {
 	return client.New(context.Background(), g.bindAddress)
 }
 
-// Reset the gateway, shutting it down and starting against from scratch using
-// the given certificate.
+// Reset the gateway, shutting it down.
 //
 // This is used when disabling clustering on a node.
 func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
@@ -651,7 +650,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 	}
 	g.networkCert = networkCert
 
-	return g.init(false)
+	return nil
 }
 
 // ErrNodeIsNotClustered indicates the node is not clustered.
