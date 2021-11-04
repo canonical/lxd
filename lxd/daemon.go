@@ -96,6 +96,9 @@ type Daemon struct {
 	// Stores startup time of daemon
 	startTime time.Time
 
+	// Whether daemon was started by systemd socket activation.
+	systemdSocketActivated bool
+
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
 	gateway   *cluster.Gateway
@@ -1050,6 +1053,10 @@ func (d *Daemon) init() error {
 	metricsAddress, err := node.MetricsAddress(d.db)
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch metrics address")
+	}
+
+	if os.Getenv("LISTEN_PID") != "" {
+		d.systemdSocketActivated = true
 	}
 
 	/* Setup the web server */
