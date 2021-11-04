@@ -4,6 +4,8 @@ go 1.17
 
 replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
 
+replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
+
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
@@ -43,7 +45,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
-	golang.org/x/net v0.0.0-20211104161157-7594919abe59
+	golang.org/x/net v0.0.0-20211104170005-ce137452f963
 	golang.org/x/sys v0.0.0-20211103235746-7861aae1554b
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1
