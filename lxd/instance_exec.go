@@ -519,8 +519,21 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	_, ok := post.Environment["PATH"]
 	if !ok {
 		post.Environment["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-		if inst.FileExists("/snap") == nil {
-			post.Environment["PATH"] = fmt.Sprintf("%s:/snap/bin", post.Environment["PATH"])
+
+		// Add some additional paths. This directly looks through /proc
+		// rather than use FileExists as none of those paths are expected to be
+		// symlinks and this is much faster than forking a sub-process and
+		// attaching to the instance.
+
+		extraPaths := map[string]string{
+			"/snap":      "/snap/bin",
+			"/etc/NIXOS": "/run/current-system/sw/bin",
+		}
+
+		for k, v := range extraPaths {
+			if shared.PathExists(fmt.Sprintf("/proc/%d/root%s", inst.InitPID(), k)) {
+				post.Environment["PATH"] = fmt.Sprintf("%s:%s", post.Environment["PATH"], v)
+			}
 		}
 	}
 
