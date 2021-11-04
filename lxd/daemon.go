@@ -89,6 +89,9 @@ type Daemon struct {
 	taskPruneImages      *task.Task
 	taskClusterHeartbeat *task.Task
 
+	// Whether daemon was started by systemd socket activation.
+	systemdSocketActivated bool
+
 	config    *DaemonConfig
 	endpoints *endpoints.Endpoints
 	gateway   *cluster.Gateway
@@ -982,6 +985,10 @@ func (d *Daemon) init() error {
 	debugAddress, err := node.DebugAddress(d.db)
 	if err != nil {
 		return errors.Wrap(err, "Failed to fetch debug address")
+	}
+
+	if os.Getenv("LISTEN_PID") != "" {
+		d.systemdSocketActivated = true
 	}
 
 	/* Setup the web server */
