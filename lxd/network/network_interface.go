@@ -65,4 +65,5 @@ type Network interface {
 	PeerCreate(forward api.NetworkPeersPost) error
 	PeerUpdate(peerName string, newPeer api.NetworkPeerPut) error
 	PeerDelete(peerName string) error
+	PeerUsedBy(peerName string) ([]string, error)
 }
