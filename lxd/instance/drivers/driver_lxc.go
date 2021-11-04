@@ -389,6 +389,11 @@ func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (inst
 // Unload is called by the garbage collector
 func lxcUnload(d *lxc) {
 	runtime.SetFinalizer(d, nil)
+	d.release()
+}
+
+// release releases any internal reference to a liblxc container, invalidating the go-lxc cache.
+func (d *lxc) release() {
 	if d.c != nil {
 		d.c.Release()
 		d.c = nil
@@ -3816,10 +3821,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Invalidate the go-lxc cache.
-	if d.c != nil {
-		d.c.Release()
-		d.c = nil
-	}
+	d.release()
 
 	d.cConfig = false
 
@@ -3989,10 +3991,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 			d.localDevices = oldLocalDevices
 			d.profiles = oldProfiles
 			d.expiryDate = oldExpiryDate
-			if d.c != nil {
-				d.c.Release()
-				d.c = nil
-			}
+			d.release()
 			d.cConfig = false
 			d.initLXC(true)
 			cgroup.TaskSchedulerTrigger("container", d.name, "changed")
@@ -4072,11 +4071,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 	// Run through initLXC to catch anything we missed
 	if userRequested {
-		if d.c != nil {
-			d.c.Release()
-			d.c = nil
-		}
-
+		d.release()
 		d.cConfig = false
 		err = d.initLXC(true)
 		if err != nil {
