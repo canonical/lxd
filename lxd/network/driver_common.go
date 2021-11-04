@@ -23,6 +23,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/validate"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Info represents information about a network driver.
@@ -980,4 +981,78 @@ func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
 	}
 
 	return nil
+}
+
+// PeerUsedBy returns a list of API endpoints referencing this peer.
+func (n *common) PeerUsedBy(peerName string) ([]string, error) {
+	return n.peerUsedBy(peerName, false)
+}
+
+// isUsed returns whether or not the peer is in use.
+func (n *common) peerIsUsed(peerName string) (bool, error) {
+	usedBy, err := n.peerUsedBy(peerName, true)
+	if err != nil {
+		return false, err
+	}
+
+	return len(usedBy) > 0, nil
+}
+
+// peerUsedBy returns a list of API endpoints referencing this peer.
+func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
+	usedBy := []string{}
+
+	rulesUsePeer := func(rules []api.NetworkACLRule) bool {
+		for _, rule := range rules {
+			for _, subject := range util.SplitNTrimSpace(rule.Source, ",", -1, true) {
+				if !strings.HasPrefix(subject, "@") {
+					continue
+				}
+
+				peerParts := strings.SplitN(strings.TrimPrefix(subject, "@"), "/", 2)
+				if len(peerParts) != 2 {
+					continue // Not a valid network/peer name combination.
+				}
+
+				peer := db.NetworkPeer{
+					NetworkName: peerParts[0],
+					PeerName:    peerParts[1],
+				}
+
+				if peer.NetworkName == n.Name() && peer.PeerName == peerName {
+					return true
+				}
+			}
+		}
+
+		return false
+	}
+
+	// Find ACLs that have rules that reference the peer connection.
+	aclNames, err := n.state.Cluster.GetNetworkACLs(n.Project())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, aclName := range aclNames {
+		_, aclInfo, err := n.state.Cluster.GetNetworkACL(n.Project(), aclName)
+		if err != nil {
+			return nil, err
+		}
+
+		// Ingress rules can specify peer names in their Source subjects.
+		for _, rules := range [][]api.NetworkACLRule{aclInfo.Ingress, aclInfo.Egress} {
+			if rulesUsePeer(rules) {
+				usedBy = append(usedBy, api.NewURL().Project(n.Project()).Path(version.APIVersion, "network-acls", aclName).String())
+
+				if firstOnly {
+					return usedBy, err
+				}
+
+				break
+			}
+		}
+	}
+
+	return usedBy, nil
 }
