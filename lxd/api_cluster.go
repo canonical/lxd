@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,7 +18,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
@@ -1607,13 +1608,23 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var leaderInfo db.NodeInfo
+	var localInfo db.NodeInfo
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		leaderInfo, err = tx.GetNodeByAddress(leader)
-		return err
+		if err != nil {
+			return fmt.Errorf("Unable to inspect leader %q: %w", leader, err)
+		}
+
+		localInfo, err = tx.GetNodeByAddress(localAddress)
+		if err != nil {
+			return fmt.Errorf("Unable to inspect local node info %q: %w", localAddress, err)
+		}
+
+		return nil
 	})
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Unable to inspect leader %q", leader))
+		return response.SmartError(err)
 	}
 
 	// Get information about the cluster.
@@ -1647,6 +1658,13 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			}
 
 			updateCertificateCache(d)
+
+			return response.EmptySyncResponse
+		}
+
+		if localInfo.Name == name {
+			// If we requested to remove ourselves, disable clustering and restart the daemon.
+			return clusterPutDisable(d, r, api.ClusterPut{})
 		}
 
 		return response.EmptySyncResponse
@@ -1745,11 +1763,21 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		logger.Warnf("Failed to rebalance dqlite nodes: %v", err)
 	}
 
+	leavingAddr, _, err := net.SplitHostPort(util.CanonicalNetworkAddress(address, shared.HTTPSDefaultPort))
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Unable to split host:port for leaving member %q: %w", address, err))
+	}
+
+	reqAddr, _, err := net.SplitHostPort(util.CanonicalNetworkAddress(r.RemoteAddr, shared.HTTPSDefaultPort))
+	if err != nil {
+		return response.SmartError(fmt.Errorf("Unable to split host:port for request address %q: %w", r.RemoteAddr, err))
+	}
+
 	// If this leader node removed itself, just disable clustering.
 	if address == localAddress {
 		return clusterPutDisable(d, r, api.ClusterPut{})
-	} else if force != 1 {
-		// Try to gracefully reset the database on the node.
+	} else if force != 1 && leavingAddr != reqAddr {
+		// Try to gracefully reset the database on the node, if it did not ask to delete itself.
 		client, err := cluster.Connect(address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
