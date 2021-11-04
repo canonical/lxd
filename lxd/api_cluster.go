@@ -740,10 +740,15 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
 		}
 
-		logger.Info("Restarting LXD daemon following removal from cluster")
-		err = util.ReplaceDaemon()
-		if err != nil {
-			return fmt.Errorf("Failed restarting LXD daemon: %w", err)
+		if d.systemdSocketActivated {
+			logger.Info("Exiting LXD daemon following removal from cluster")
+			os.Exit(0)
+		} else {
+			logger.Info("Restarting LXD daemon following removal from cluster")
+			err = util.ReplaceDaemon()
+			if err != nil {
+				return fmt.Errorf("Failed restarting LXD daemon: %w", err)
+			}
 		}
 
 		return nil
