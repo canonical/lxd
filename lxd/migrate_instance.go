@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/proto"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/db"
