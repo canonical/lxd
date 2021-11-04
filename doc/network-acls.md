@@ -49,8 +49,8 @@ Property          | Type       | Required | Description
 action            | string     | yes      | Action to take for matching traffic (`allow`, `reject` or `drop`)
 state             | string     | yes      | State of rule (`enabled`, `disabled` or `logged`)
 description       | string     | no       | Description of rule
-source            | string     | no       | Comma separated list of CIDR or IP ranges, source ACL names or @external/@internal (for ingress rules), or empty for any
-destination       | string     | no       | Comma separated list of CIDR or IP ranges, destination ACL names or @external/@internal (for egress rules), or empty for any
+source            | string     | no       | Comma separated list of CIDR or IP ranges, source subject name selectors (for ingress rules), or empty for any
+destination       | string     | no       | Comma separated list of CIDR or IP ranges, destination subject name selectors (for egress rules), or empty for any
 protocol          | string     | no       | Protocol to match (`icmp4`, `icmp6`, `tcp`, `udp`) or empty for any
 source\_port      | string     | no       | If Protocol is `udp` or `tcp`, then comma separated list of ports or port ranges (start-end inclusive), or empty for any
 destination\_port | string     | no       | If Protocol is `udp` or `tcp`, then comma separated list of ports or port ranges (start-end inclusive), or empty for any
@@ -72,15 +72,29 @@ As soon as one of the rules in the ACLs matches then that action is taken and no
 The default reject action can be modified by using the network and NIC level `security.acls.default.ingress.action`
 and `security.acls.default.egress.action` settings. The NIC level settings will override the network level settings.
 
-## Port group selectors
+# Subject name selectors
 
-The Instance NICs that are assigned a particular ACL make up a logical port group that can then be referenced by
-name in other ACL rules.
+Subject name selectors can be used in the `source` field for ingress rules and in the `destination` field for
+egress rules.
 
-There are also two special selectors called `@internal` and `@external` which represent network local and external
-traffic respectively.
+Instance NICs that are assigned a particular ACL (either directly or via the ACLs assigned to the network it is
+connected to) make up a logical port group named after the ACL that can then be referenced as an ACL subject name
+in other ACL rules using the format `<ACL_name>`.
 
-Port group selectors can be used in the `source` field for ingress rules and in the `destination` field for egress rules.
+E.g. `source=foo`
+
+If the network supports [network peers](network-peers.md) then you can also reference traffic to/from the peer
+connection by way of a network subject selector in the format `@<network_name>/<peer_name>`.
+
+E.g. `source=@ovn1/mypeer`
+
+When using a network subject selector, the network having the ACL applied to it must have the specified peer
+connection or the ACL will refuse to be applied to it.
+
+There are also two special network subject selectors called `@internal` and `@external` which represent network
+local and external traffic respectively.
+
+E.g. `source=@internal`
 
 ## Bridge limitations
 
@@ -88,8 +102,7 @@ Unlike OVN ACLs, `bridge` ACLs are applied *only* on the boundary between the br
 This means they can only be used to apply network policy for traffic going to/from external networks, and cannot be
 used for intra-bridge firewalling (i.e for firewalling traffic between instances connected to the same bridge).
 
-Additionally `bridge` ACLs do not support using the reserved subject names (starting with a `@`) nor do they
-support using other ACL names in the rule subjects.
+Additionally `bridge` ACLs do not support using subject name selectors.
 
 When using the `iptables` firewall driver, you cannot use IP range subjects (e.g. `192.168.1.1-192.168.1.10`).
 

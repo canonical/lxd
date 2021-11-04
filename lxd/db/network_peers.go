@@ -438,3 +438,53 @@ func (c *Cluster) DeleteNetworkPeer(networkID int64, peerID int64) error {
 		return nil
 	})
 }
+
+// NetworkPeer represents a peer connection.
+type NetworkPeer struct {
+	NetworkName string
+	PeerName    string
+}
+
+// GetNetworkPeersTargetNetworkIDs returns a map of peer connections to target network IDs for networks in the
+// specified project and network type.
+func (c *Cluster) GetNetworkPeersTargetNetworkIDs(projectName string, networkType NetworkType) (map[NetworkPeer]int64, error) {
+	var err error
+	peerTargetNetIDs := make(map[NetworkPeer]int64)
+
+	// Build a mapping of network and peer names to target network IDs.
+	q := `SELECT p.name, n.name, p.target_network_id
+		FROM networks_peers AS p
+		JOIN networks AS n ON n.id = p.network_id
+		JOIN projects AS pr ON pr.id = n.project_id
+		WHERE pr.name = ?
+		AND n.type = ?
+		AND p.target_network_id > 0
+	`
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+			var peerName string
+			var networkName string
+			var targetNetworkID int64 = int64(-1)
+
+			err := scan(&peerName, &networkName, &targetNetworkID)
+			if err != nil {
+				return err
+			}
+
+			peer := NetworkPeer{
+				PeerName:    peerName,
+				NetworkName: networkName,
+			}
+
+			peerTargetNetIDs[peer] = targetNetworkID
+
+			return nil
+		}, projectName, networkType)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return peerTargetNetIDs, nil
+}
