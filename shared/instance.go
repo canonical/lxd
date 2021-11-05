@@ -83,6 +83,10 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"boot.stop.priority":         validate.Optional(validate.IsInt64),
 	"boot.host_shutdown_timeout": validate.Optional(validate.IsInt64),
 
+	"cloud-init.network-config": validate.Optional(validate.IsAny),
+	"cloud-init.user-data":      validate.Optional(validate.IsAny),
+	"cloud-init.vendor-data":    validate.Optional(validate.IsAny),
+
 	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "stop")),
 
 	"limits.cpu": func(value string) error {
