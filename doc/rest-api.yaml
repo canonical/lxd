@@ -5,7 +5,6 @@ definitions:
       certificate:
         description: The certificate itself, as PEM encoded X509
         example: X509 PEM certificate
-        readOnly: true
         type: string
         x-go-name: Certificate
       fingerprint:
@@ -44,6 +43,11 @@ definitions:
   CertificatePut:
     description: CertificatePut represents the modifiable fields of a LXD certificate
     properties:
+      certificate:
+        description: The certificate itself, as PEM encoded X509
+        example: X509 PEM certificate
+        type: string
+        x-go-name: Certificate
       name:
         description: Name associated with the certificate
         example: castiana
