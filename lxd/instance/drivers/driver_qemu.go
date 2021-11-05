@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -4039,7 +4040,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		object.Description = d.description
 		object.Architecture = d.architecture
 		object.Ephemeral = d.ephemeral
-		object.ExpiryDate = d.expiryDate
+		object.ExpiryDate = sql.NullTime{Time: d.expiryDate, Valid: true}
 		object.Config = d.localConfig
 		object.Profiles = d.profiles
 		object.Devices = d.localDevices.CloneNative()
