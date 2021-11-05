@@ -656,8 +656,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// If this is a voter node, return the address of the current leader, or
-	// wait a bit until one is elected.
+	// If this is a voter node, return the address of the current leader, or wait a bit until one is elected.
 	if g.server != nil && g.info.Role == db.RaftVoter {
 		for {
 			client, err := g.getClient()
