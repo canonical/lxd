@@ -426,10 +426,10 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	localOperationURLs := func() (shared.Jmap, error) {
-		// Get all the operations
+		// Get all the operations.
 		localOps := operations.Clone()
 
-		// Build a list of URLs
+		// Build a list of URLs.
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
@@ -450,10 +450,10 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	localOperations := func() (shared.Jmap, error) {
-		// Get all the operations
+		// Get all the operations.
 		localOps := operations.Clone()
 
-		// Build a list of operations
+		// Build a list of operations.
 		body := shared.Jmap{}
 
 		for _, v := range localOps {
@@ -478,11 +478,11 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return body, nil
 	}
 
-	// Check if called from a cluster node
+	// Check if called from a cluster node.
 	if isClusterNotification(r) {
-		// Only return the local data
+		// Only return the local data.
 		if recursion {
-			// Recursive queries
+			// Recursive queries.
 			body, err := localOperations()
 			if err != nil {
 				return response.InternalError(err)
@@ -500,7 +500,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, body)
 	}
 
-	// Start with local operations
+	// Start with local operations.
 	var md shared.Jmap
 	var err error
 
@@ -516,23 +516,23 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Check if clustered
+	// Check if clustered.
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	// Return now if not clustered
+	// If not clustered, then just return local operations.
 	if !clustered {
 		return response.SyncResponse(true, md)
 	}
 
 	// Get all nodes with running operations in this project.
-	var nodes []string
+	var nodesWithRunningOps []string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodes, err = tx.GetNodesWithRunningOperations(projectName)
+		nodesWithRunningOps, err = tx.GetNodesWithRunningOperations(projectName)
 		if err != nil {
 			return err
 		}
@@ -543,31 +543,31 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Get local address
-	localAddress, err := node.HTTPSAddress(d.db)
+	// Get local address.
+	localClusterAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	networkCert := d.endpoints.NetworkCert()
-	for _, node := range nodes {
-		if node == localAddress {
+	for _, node := range nodesWithRunningOps {
+		if node == localClusterAddress {
 			continue
 		}
 
-		// Connect to the remote server
+		// Connect to the remote server.
 		client, err := cluster.Connect(node, networkCert, d.serverCert(), r, true)
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		// Get operation data
+		// Get operation data.
 		ops, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
 			return response.SmartError(err)
 		}
 
-		// Merge with existing data
+		// Merge with existing data.
 		for _, o := range ops {
 			op := o // Local var for pointer.
 			status := strings.ToLower(op.Status)
