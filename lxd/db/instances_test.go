@@ -4,6 +4,7 @@
 package db_test
 
 import (
+	"database/sql"
 	"testing"
 	"time"
 
@@ -228,7 +229,7 @@ func TestCreateInstance(t *testing.T) {
 		Architecture: 1,
 		Ephemeral:    true,
 		Stateful:     true,
-		LastUseDate:  time.Now(),
+		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
 		Config:       map[string]string{"x": "y"},
 		Devices:      map[string]map[string]string{"root": {"type": "disk", "x": "y"}},
@@ -262,7 +263,7 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 		Architecture: 2,
 		Ephemeral:    false,
 		Stateful:     false,
-		LastUseDate:  time.Now(),
+		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
 		Config: map[string]string{
 			"image.architecture":  "x86_64",
@@ -288,7 +289,7 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 		Architecture: 2,
 		Ephemeral:    false,
 		Stateful:     false,
-		LastUseDate:  time.Now(),
+		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
 		Config: map[string]string{
 			"image.architecture":      "x86_64",
