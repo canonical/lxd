@@ -4,6 +4,7 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -52,7 +53,7 @@ type InstanceSnapshot struct {
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
 	Devices      map[string]map[string]string
-	ExpiryDate   time.Time
+	ExpiryDate   sql.NullTime
 }
 
 // InstanceSnapshotFilter specifies potential query parameter fields.
@@ -77,7 +78,7 @@ func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) 
 		Ephemeral:    false,
 		CreationDate: snapshot.CreationDate,
 		Stateful:     snapshot.Stateful,
-		LastUseDate:  time.Time{},
+		LastUseDate:  sql.NullTime{},
 		Description:  snapshot.Description,
 		Config:       snapshot.Config,
 		Devices:      snapshot.Devices,
