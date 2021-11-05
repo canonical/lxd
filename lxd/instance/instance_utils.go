@@ -3,6 +3,7 @@ package instance
 import (
 	"bytes"
 	"crypto/rand"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"os"
@@ -1114,12 +1115,12 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			Ephemeral:    args.Ephemeral,
 			CreationDate: args.CreationDate,
 			Stateful:     args.Stateful,
-			LastUseDate:  args.LastUsedDate,
+			LastUseDate:  sql.NullTime{Time: args.LastUsedDate, Valid: true},
 			Description:  args.Description,
 			Config:       args.Config,
 			Devices:      args.Devices.CloneNative(),
 			Profiles:     args.Profiles,
-			ExpiryDate:   args.ExpiryDate,
+			ExpiryDate:   sql.NullTime{Time: args.ExpiryDate, Valid: true},
 		}
 
 		_, err = tx.CreateInstance(dbInst)
