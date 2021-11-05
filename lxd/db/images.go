@@ -282,8 +282,8 @@ func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]str
 	for _, r := range images {
 		// Figure out the expiry
 		timestamp := r.UploadDate
-		if !r.LastUseDate.IsZero() {
-			timestamp = r.LastUseDate
+		if !r.LastUseDate.Time.IsZero() {
+			timestamp = r.LastUseDate.Time
 		}
 
 		imageExpiry := timestamp
@@ -497,7 +497,7 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 
 		err = tx.imageFill(
 			object.ID, &image,
-			&object.CreationDate, &object.ExpiryDate, &object.LastUseDate,
+			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
 			&object.UploadDate, object.Architecture, object.Type)
 		if err != nil {
 			return errors.Wrapf(err, "Fill image details")
@@ -545,7 +545,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 
 		err = tx.imageFill(
 			object.ID, &image,
-			&object.CreationDate, &object.ExpiryDate, &object.LastUseDate,
+			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
 			&object.UploadDate, object.Architecture, object.Type)
 		if err != nil {
 			return errors.Wrapf(err, "Fill image details")
