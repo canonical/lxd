@@ -119,12 +119,12 @@ func InstanceToArgs(inst *Instance) InstanceArgs {
 		Ephemeral:    inst.Ephemeral,
 		CreationDate: inst.CreationDate,
 		Stateful:     inst.Stateful,
-		LastUsedDate: inst.LastUseDate,
+		LastUsedDate: inst.LastUseDate.Time,
 		Description:  inst.Description,
 		Config:       inst.Config,
 		Devices:      deviceConfig.NewDevices(inst.Devices),
 		Profiles:     inst.Profiles,
-		ExpiryDate:   inst.ExpiryDate,
+		ExpiryDate:   inst.ExpiryDate.Time,
 	}
 
 	if args.Devices == nil {
