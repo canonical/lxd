@@ -185,8 +185,11 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 		<-d.setupChan // Wait for daemon to start.
 
 		// Run shutdown sequence synchronously.
-		err := d.Stop(forceCtx, unix.SIGPWR)
-		response.SmartError(err).Render(w)
+		stopErr := d.Stop(forceCtx, unix.SIGPWR)
+		err := response.SmartError(stopErr).Render(w)
+		if err != nil {
+			return err
+		}
 
 		// Send the response before the LXD daemon process ends.
 		f, ok := w.(http.Flusher)
@@ -197,7 +200,10 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Send result of d.Stop() to cmdDaemon so that process stops with correct exit code from Stop().
-		d.shutdownDoneCh <- err
+		go func() {
+			<-r.Context().Done() // Wait until request is finished.
+			d.shutdownDoneCh <- stopErr
+		}()
 
 		return nil
 	})
