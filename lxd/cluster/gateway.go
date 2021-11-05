@@ -661,13 +661,13 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		for {
 			client, err := g.getClient()
 			if err != nil {
-				return "", errors.Wrap(err, "Failed to get dqlite client")
+				return "", fmt.Errorf("Failed to get dqlite client: %w", err)
 			}
 
 			leader, err := client.Leader(context.Background())
 			if err != nil {
 				client.Close()
-				return "", errors.Wrap(err, "Failed to get leader address")
+				return "", fmt.Errorf("Failed to get leader address: %w", err)
 			}
 			if leader != nil {
 				client.Close()
