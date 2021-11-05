@@ -139,7 +139,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w 
 	if clustered {
 		location = c.Location()
 	}
-	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location}, "json")
+	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location, "instance_type": c.Type().String()}, "json")
 }}
 
 var handlers = []devLxdHandler{
