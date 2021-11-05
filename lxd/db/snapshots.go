@@ -77,7 +77,7 @@ func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) 
 		Ephemeral:    false,
 		CreationDate: snapshot.CreationDate,
 		Stateful:     snapshot.Stateful,
-		LastUseDate:  time.Time{},
+		LastUseDate:  nil,
 		Description:  snapshot.Description,
 		Config:       snapshot.Config,
 		Devices:      snapshot.Devices,

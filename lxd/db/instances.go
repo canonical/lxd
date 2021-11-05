@@ -90,12 +90,12 @@ type Instance struct {
 	Ephemeral    bool
 	CreationDate time.Time
 	Stateful     bool
-	LastUseDate  time.Time
+	LastUseDate  *time.Time
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
 	Devices      map[string]map[string]string
 	Profiles     []string
-	ExpiryDate   time.Time
+	ExpiryDate   *time.Time
 }
 
 // InstanceFilter specifies potential query parameter fields.
@@ -108,6 +108,16 @@ type InstanceFilter struct {
 
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
 func InstanceToArgs(inst *Instance) InstanceArgs {
+	expiryDate := time.Time{}
+	if inst.ExpiryDate != nil {
+		expiryDate = *inst.ExpiryDate
+	}
+
+	lastUsedDate := time.Time{}
+	if inst.LastUseDate != nil {
+		lastUsedDate = *inst.LastUseDate
+	}
+
 	args := InstanceArgs{
 		ID:           inst.ID,
 		Project:      inst.Project,
@@ -119,12 +129,12 @@ func InstanceToArgs(inst *Instance) InstanceArgs {
 		Ephemeral:    inst.Ephemeral,
 		CreationDate: inst.CreationDate,
 		Stateful:     inst.Stateful,
-		LastUsedDate: inst.LastUseDate,
+		LastUsedDate: lastUsedDate,
 		Description:  inst.Description,
 		Config:       inst.Config,
 		Devices:      deviceConfig.NewDevices(inst.Devices),
 		Profiles:     inst.Profiles,
-		ExpiryDate:   inst.ExpiryDate,
+		ExpiryDate:   expiryDate,
 	}
 
 	if args.Devices == nil {

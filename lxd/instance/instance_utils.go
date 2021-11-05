@@ -1085,7 +1085,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 				Description:  args.Description,
 				Config:       args.Config,
 				Devices:      args.Devices.CloneNative(),
-				ExpiryDate:   args.ExpiryDate,
+				ExpiryDate:   &args.ExpiryDate,
 			}
 			_, err = tx.CreateInstanceSnapshot(snapshot)
 			if err != nil {
@@ -1114,12 +1114,12 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			Ephemeral:    args.Ephemeral,
 			CreationDate: args.CreationDate,
 			Stateful:     args.Stateful,
-			LastUseDate:  args.LastUsedDate,
+			LastUseDate:  &args.LastUsedDate,
 			Description:  args.Description,
 			Config:       args.Config,
 			Devices:      args.Devices.CloneNative(),
 			Profiles:     args.Profiles,
-			ExpiryDate:   args.ExpiryDate,
+			ExpiryDate:   &args.ExpiryDate,
 		}
 
 		_, err = tx.CreateInstance(dbInst)
