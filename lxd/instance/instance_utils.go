@@ -1085,7 +1085,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 				Description:  args.Description,
 				Config:       args.Config,
 				Devices:      args.Devices.CloneNative(),
-				ExpiryDate:   args.ExpiryDate,
+				ExpiryDate:   sql.NullTime{Time: args.ExpiryDate, Valid: true},
 			}
 			_, err = tx.CreateInstanceSnapshot(snapshot)
 			if err != nil {
