@@ -90,12 +90,12 @@ type Instance struct {
 	Ephemeral    bool
 	CreationDate time.Time
 	Stateful     bool
-	LastUseDate  time.Time
+	LastUseDate  sql.NullTime
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
 	Devices      map[string]map[string]string
 	Profiles     []string
-	ExpiryDate   time.Time
+	ExpiryDate   sql.NullTime
 }
 
 // InstanceFilter specifies potential query parameter fields.
