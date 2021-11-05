@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -871,11 +870,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 // Perform a request to the /internal/cluster/accept endpoint to check if a new
 // node can be accepted into the cluster and obtain joining information such as
 // the cluster private certificate.
-func clusterAcceptMember(
-	client lxd.InstanceServer,
-	name, address string, schema, apiExt int,
-	pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
-
+func clusterAcceptMember(client lxd.InstanceServer, name string, address string, schema int, apiExt int, pools []api.StoragePool, networks []api.Network) (*internalClusterPostAcceptResponse, error) {
 	architecture, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
 		return nil, err
