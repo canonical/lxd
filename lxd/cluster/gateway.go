@@ -682,7 +682,8 @@ func (g *Gateway) LeaderAddress() (string, error) {
 				client.Close()
 				return "", fmt.Errorf("Failed to get leader address: %w", err)
 			}
-			if leader != nil {
+
+			if leader != nil && leader.Address != "" {
 				client.Close()
 				return leader.Address, nil
 			}
