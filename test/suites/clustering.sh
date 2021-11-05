@@ -2997,7 +2997,7 @@ test_clustering_edit_configuration() {
   kill_lxd "${LXD_SIX_DIR}"
 }
 
-test_clustering_remove_leader() {
+test_clustering_remove_members() {
   # shellcheck disable=2039
   local LXD_DIR
 
@@ -3030,7 +3030,7 @@ test_clustering_remove_leader() {
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster rm node1
 
   # Ensure the remaining node is working
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -qv "node1"
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node1" || false
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -q "node2"
 
   # Previous leader should no longer be clustered
@@ -3046,6 +3046,17 @@ test_clustering_remove_leader() {
   # Ensure successful communication
   LXD_DIR="${LXD_TWO_DIR}" lxc info --target node3 | grep -q "server_name: node3"
   LXD_DIR="${LXD_THREE_DIR}" lxc info --target node2 | grep -q "server_name: node2"
+
+  # Remove the third node, via itself
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster rm node3
+
+  # Ensure only node2 is left in the cluster
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster ls | grep -q node2
+  ! LXD_DIR="${LXD_TWO_DIR}" lxc cluster ls -f csv | grep -qv node2 || false
+
+  # Ensure clustering is disabled (no output) on node1 and node3
+  ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls | grep -qv "." || false
+  ! LXD_DIR="${LXD_THREE_DIR}" lxc cluster ls | grep -qv "." || false
 
   # Clean up
   daemon_pid1=$(cat "${LXD_ONE_DIR}/lxd.pid")
