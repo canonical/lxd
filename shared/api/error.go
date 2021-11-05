@@ -8,9 +8,16 @@ import (
 
 // StatusErrorf returns a new StatusError containing the specified status and message.
 func StatusErrorf(status int, format string, a ...interface{}) StatusError {
+	var msg string
+	if len(a) > 0 {
+		msg = fmt.Sprintf(format, a...)
+	} else {
+		msg = format
+	}
+
 	return StatusError{
 		status: status,
-		msg:    fmt.Sprintf(format, a...),
+		msg:    msg,
 	}
 }
 
