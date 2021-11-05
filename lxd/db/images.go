@@ -43,11 +43,11 @@ type Image struct {
 	Size         int64
 	Public       bool
 	Architecture int
-	CreationDate time.Time
-	ExpiryDate   time.Time
+	CreationDate sql.NullTime
+	ExpiryDate   sql.NullTime
 	UploadDate   time.Time
 	Cached       bool
-	LastUseDate  time.Time
+	LastUseDate  sql.NullTime
 	AutoUpdate   bool
 }
 
