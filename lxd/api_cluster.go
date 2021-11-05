@@ -684,6 +684,11 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 	return operations.OperationResponse(op)
 }
 
+// clusterPutDisableMu is used to prevent the LXD process from being replaced/stopped during removal from the
+// cluster until such time as the request that initiated the removal has finished. This allows for self removal
+// from the cluster when not the leader.
+var clusterPutDisableMu sync.Mutex
+
 // Disable clustering on a node.
 func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
 	logger.Info("Disabling clustering", log.Ctx{"serverName": req.ServerName})
@@ -723,7 +728,26 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	// Stop database cluster connection.
 	d.gateway.Kill()
 
-	// Setup a manual response that sends the EmptySyncResponse and then replaces the LXD daemon.
+	go func() {
+		<-r.Context().Done() // Wait until request has finished.
+
+		// Wait until we can acquire the lock. This way if another request is holding the lock we won't
+		// replace/stop the LXD daemon until that request has finished.
+		clusterPutDisableMu.Lock()
+		defer clusterPutDisableMu.Unlock()
+
+		if d.systemdSocketActivated {
+			logger.Info("Exiting LXD daemon following removal from cluster")
+			os.Exit(0)
+		} else {
+			logger.Info("Restarting LXD daemon following removal from cluster")
+			err = util.ReplaceDaemon()
+			if err != nil {
+				logger.Error("Failed restarting LXD daemon", log.Ctx{"err": err})
+			}
+		}
+	}()
+
 	return response.ManualResponse(func(w http.ResponseWriter) error {
 		emptyResponse := response.EmptySyncResponse
 		err := emptyResponse.Render(w)
@@ -735,20 +759,8 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 		f, ok := w.(http.Flusher)
 		if ok {
 			f.Flush()
-			time.Sleep(100 * time.Millisecond)
 		} else {
 			return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
-		}
-
-		if d.systemdSocketActivated {
-			logger.Info("Exiting LXD daemon following removal from cluster")
-			os.Exit(0)
-		} else {
-			logger.Info("Restarting LXD daemon following removal from cluster")
-			err = util.ReplaceDaemon()
-			if err != nil {
-				return fmt.Errorf("Failed restarting LXD daemon: %w", err)
-			}
 		}
 
 		return nil
@@ -1476,14 +1488,22 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	var leaderInfo db.NodeInfo
+	var localInfo, leaderInfo db.NodeInfo
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
+		localInfo, err = tx.GetNodeByAddress(localAddress)
+		if err != nil {
+			return fmt.Errorf("Failed loading local member info %q: %w", localAddress, err)
+		}
+
 		leaderInfo, err = tx.GetNodeByAddress(leader)
-		return err
+		if err != nil {
+			return fmt.Errorf("Failed loading leader member info %q: %w", leader, err)
+		}
+
+		return nil
 	})
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Unable to inspect leader %q", leader))
+		return response.SmartError(err)
 	}
 
 	// Get information about the cluster.
@@ -1498,6 +1518,22 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if localAddress != leader {
+		if localInfo.Name == name {
+			// If the member being removed is ourselves and we are not the leader, then lock the
+			// clusterPutDisableMu before we forward the request to the leader, so that when the leader
+			// goes on to request clusterPutDisable back to ourselves it won't be actioned until we
+			// have returned this request back to the original client.
+			clusterPutDisableMu.Lock()
+			logger.Info("Acquired cluster self removal lock", log.Ctx{"member": localInfo.Name})
+
+			go func() {
+				<-r.Context().Done() // Wait until request is finished.
+
+				logger.Info("Releasing cluster self removal lock", log.Ctx{"member": localInfo.Name})
+				clusterPutDisableMu.Unlock()
+			}()
+		}
+
 		logger.Debugf("Redirect member delete request to %s", leader)
 		client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), r, false)
 		if err != nil {
@@ -1519,7 +1555,23 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			updateCertificateCache(d)
 		}
 
-		return response.EmptySyncResponse
+		return response.ManualResponse(func(w http.ResponseWriter) error {
+			emptyResponse := response.EmptySyncResponse
+			err := emptyResponse.Render(w)
+			if err != nil {
+				return err
+			}
+
+			// Send the response before replacing the LXD daemon process.
+			f, ok := w.(http.Flusher)
+			if ok {
+				f.Flush()
+			} else {
+				return fmt.Errorf("http.ResponseWriter is not type http.Flusher")
+			}
+
+			return nil
+		})
 	}
 
 	// If we are removing the leader of a 2 node cluster, ensure the other node can be a leader.
