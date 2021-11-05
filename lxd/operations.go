@@ -522,17 +522,17 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	// Return now if not clustered
+	// If not clustered, then just return local operations.
 	if !clustered {
 		return response.SyncResponse(true, md)
 	}
 
 	// Get all nodes with running operations in this project.
-	var nodes []string
+	var nodesWithRunningOps []string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodes, err = tx.GetNodesWithRunningOperations(projectName)
+		nodesWithRunningOps, err = tx.GetNodesWithRunningOperations(projectName)
 		if err != nil {
 			return err
 		}
@@ -544,14 +544,14 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get local address.
-	localAddress, err := node.HTTPSAddress(d.db)
+	localClusterAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
 	networkCert := d.endpoints.NetworkCert()
-	for _, node := range nodes {
-		if node == localAddress {
+	for _, node := range nodesWithRunningOps {
+		if node == localClusterAddress {
 			continue
 		}
 
