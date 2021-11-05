@@ -1960,6 +1960,11 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 	}
 	if address != leader {
 		logger.Debugf("Redirect member accept request to %s", leader)
+
+		if leader == "" {
+			return response.SmartError(fmt.Errorf("Unable to find leader address"))
+		}
+
 		url := &url.URL{
 			Scheme: "https",
 			Path:   "/internal/cluster/accept",
