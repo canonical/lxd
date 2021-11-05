@@ -52,7 +52,7 @@ type InstanceSnapshot struct {
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
 	Devices      map[string]map[string]string
-	ExpiryDate   time.Time
+	ExpiryDate   sql.NullTime
 }
 
 // InstanceSnapshotFilter specifies potential query parameter fields.
