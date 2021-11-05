@@ -529,13 +529,23 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			return errors.Wrap(err, "Failed to load node config")
 		}
 
-		// We currently don't allow changing the cluster.https_address
-		// once it's set.
-		curClusterAddress := newNodeConfig.ClusterAddress()
-		newClusterAddress, ok := nodeValues["cluster.https_address"]
+		// We currently don't allow changing the cluster.https_address once it's set.
+		if clustered {
+			curConfig, err := tx.Config()
+			if err != nil {
+				return fmt.Errorf("Cannot fetch node config from database: %w", err)
+			}
 
-		if clustered && ok && curClusterAddress != "" && !util.IsAddressCovered(newClusterAddress.(string), curClusterAddress) {
-			return fmt.Errorf("Changing cluster.https_address is currently not supported")
+			newClusterHTTPSAddress, found := nodeValues["cluster.https_address"]
+			if !found && patch {
+				newClusterHTTPSAddress = curConfig["cluster.https_address"]
+			} else if !found {
+				newClusterHTTPSAddress = ""
+			}
+
+			if curConfig["cluster.https_address"] != newClusterHTTPSAddress.(string) {
+				return fmt.Errorf("Changing cluster.https_address is currently not supported")
+			}
 		}
 
 		// Validate the storage volumes
