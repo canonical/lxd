@@ -462,7 +462,7 @@ for i in $(lspci -nnn | grep "Virtual Function" | cut -d' ' -f1); do echo 0000:$
 
 OVS setup:
 
-Enable hardware offline and add the PF NIC to the integration bridge (normally callled `br-int`):
+Enable hardware offload and add the PF NIC to the integration bridge (normally callled `br-int`):
 
 ```
 ovs-vsctl set open_vswitch . other_config:hw-offload=true
