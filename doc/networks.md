@@ -373,7 +373,7 @@ OVN networks support [network forwards](network-forwards.md#network-ovn).
 
 Network peers:
 
-OVN networks support [network peers](network-peers.md#network-ovn).
+OVN networks support [network peers](network-peers.md).
 
 Network configuration properties:
 
