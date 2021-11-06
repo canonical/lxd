@@ -669,25 +669,33 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// If this is a voter node, return the address of the current leader, or
-	// wait a bit until one is elected.
+	// If this is a voter node, return the address of the current leader, or wait a bit until one is elected.
 	if g.server != nil && g.info.Role == db.RaftVoter {
-		for ctx.Err() == nil {
+		for {
 			client, err := g.getClient()
 			if err != nil {
-				return "", errors.Wrap(err, "Failed to get dqlite client")
+				return "", fmt.Errorf("Failed to get dqlite client: %w", err)
 			}
-			defer client.Close()
+
 			leader, err := client.Leader(context.Background())
 			if err != nil {
-				return "", errors.Wrap(err, "Failed to get leader address")
+				client.Close()
+				return "", fmt.Errorf("Failed to get leader address: %w", err)
 			}
-			if leader != nil {
+
+			if leader != nil && leader.Address != "" {
+				client.Close()
 				return leader.Address, nil
 			}
-			time.Sleep(time.Second)
+			client.Close()
+
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(time.Second):
+				continue
+			}
 		}
-		return "", ctx.Err()
 	}
 
 	// If this isn't a raft node, contact a raft node and ask for the
