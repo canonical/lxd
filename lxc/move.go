@@ -163,6 +163,10 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf(i18n.G("The --storage flag can't be used with --target"))
 			}
 
+			if c.flagTargetProject != "" {
+				return fmt.Errorf(i18n.G("The --target-project flag can't be used with --target"))
+			}
+
 			if c.flagMode != moveDefaultMode {
 				return fmt.Errorf(i18n.G("The --mode flag can't be used with --target"))
 			}
@@ -193,6 +197,22 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 			}
 
 			return moveInstancePool(conf, sourceResource, destResource, c.flagInstanceOnly, c.flagStorage, stateful)
+		}
+	}
+
+	// Support for server-side project move.
+	if c.flagTargetProject != "" && sourceRemote == destRemote {
+		source, err := conf.GetInstanceServer(sourceRemote)
+		if err != nil {
+			return err
+		}
+
+		if source.HasExtension("instance_project_move") {
+			if c.flagMode != moveDefaultMode {
+				return fmt.Errorf(i18n.G("The --mode flag can't be used with --target-project"))
+			}
+
+			return moveInstanceProject(conf, sourceResource, destResource, c.flagTargetProject, c.flagInstanceOnly, stateful)
 		}
 	}
 
@@ -334,6 +354,58 @@ func moveInstancePool(conf *config.Config, sourceResource string, destResource s
 		Name:         destName,
 		Migration:    true,
 		Pool:         storage,
+		InstanceOnly: instanceOnly,
+		Live:         stateful,
+	}
+
+	op, err := source.MigrateInstance(sourceName, req)
+	if err != nil {
+		return errors.Wrap(err, i18n.G("Migration API failure"))
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return errors.Wrap(err, i18n.G("Migration operation failure"))
+	}
+
+	return nil
+}
+
+// Move an instance between projects using special POST /instances/<name> API.
+func moveInstanceProject(conf *config.Config, sourceResource string, destResource string, targetProject string, instanceOnly bool, stateful bool) error {
+	// Parse the source.
+	sourceRemote, sourceName, err := conf.ParseRemote(sourceResource)
+	if err != nil {
+		return err
+	}
+
+	// Parse the destination.
+	_, destName, err := conf.ParseRemote(destResource)
+	if err != nil {
+		return err
+	}
+
+	// Make sure we have an instance or snapshot name.
+	if sourceName == "" {
+		return fmt.Errorf(i18n.G("You must specify a source instance name"))
+	}
+
+	// The destination name is optional.
+	if destName == "" {
+		destName = sourceName
+	}
+
+	// Connect to the source host.
+	source, err := conf.GetInstanceServer(sourceRemote)
+	if err != nil {
+		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
+	}
+
+	// Pass the new project to the migration API.
+	req := api.InstancePost{
+		Name:         destName,
+		Migration:    true,
+		Project:      targetProject,
 		InstanceOnly: instanceOnly,
 		Live:         stateful,
 	}
