@@ -1348,6 +1348,11 @@ definitions:
         example: baz
         type: string
         x-go-name: Pool
+      project:
+        description: Target project for local cross-project move
+        example: foo
+        type: string
+        x-go-name: Project
       target:
         $ref: '#/definitions/InstancePostTarget'
     title: InstancePost represents the fields required to rename/move a LXD instance.
@@ -4952,6 +4957,11 @@ definitions:
         example: remote
         type: string
         x-go-name: Pool
+      project:
+        description: New project name
+        example: foo
+        type: string
+        x-go-name: Project
       target:
         $ref: '#/definitions/StorageVolumePostTarget'
       volume_only:
