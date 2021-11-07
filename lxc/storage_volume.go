@@ -387,10 +387,6 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		mode = c.flagMode
 	}
 
-	if c.flagTargetProject != "" {
-		dstServer = dstServer.UseProject(c.flagTargetProject)
-	}
-
 	var op lxd.RemoteOperation
 
 	// Messages
@@ -428,6 +424,7 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		args.Name = dstVolName
 		args.Mode = mode
 		args.VolumeOnly = false
+		args.Project = c.flagTargetProject
 
 		if isSnapshot {
 			srcVol.Name = srcVolName
@@ -443,6 +440,10 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 		args.Mode = mode
 		args.VolumeOnly = c.flagVolumeOnly
 		args.Refresh = c.flagRefresh
+
+		if c.flagTargetProject != "" {
+			dstServer = dstServer.UseProject(c.flagTargetProject)
+		}
 
 		if isSnapshot {
 			srcVol.Name = srcVolName
