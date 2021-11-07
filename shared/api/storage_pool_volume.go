@@ -60,6 +60,12 @@ type StorageVolumePost struct {
 	//
 	// API extension: storage_api_remote_volume_snapshots
 	VolumeOnly bool `json:"volume_only" yaml:"volume_only"`
+
+	// New project name
+	// Example: foo
+	//
+	// API extension: storage_volume_project_move
+	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
 
 // StorageVolumePostTarget represents the migration target host and operation

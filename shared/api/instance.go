@@ -84,6 +84,12 @@ type InstancePost struct {
 	//
 	// API extension: instance_pool_move
 	Pool string `json:"pool" yaml:"pool"`
+
+	// Target project for local cross-project move
+	// Example: foo
+	//
+	// API extension: instance_project_move
+	Project string `json:"project" yaml:"project"`
 }
 
 // InstancePostTarget represents the migration target host and operation.
