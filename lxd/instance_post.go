@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
@@ -229,6 +230,28 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 			return operations.OperationResponse(op)
 		}
 
+		// Server-side project migration.
+		if req.Project != "" {
+			// Check is user has access to target project
+			if !rbac.UserHasPermission(r, req.Project, "manage-containers") {
+				return response.Forbidden(nil)
+			}
+
+			// Setup the instance move operation.
+			run := func(op *operations.Operation) error {
+				return instancePostProjectMigration(d, inst, req.Name, req.Project, req.InstanceOnly, req.Live, op)
+			}
+
+			resources := map[string][]string{}
+			resources["instances"] = []string{name}
+			op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationInstanceMigrate, resources, nil, run, nil, nil, r)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			return operations.OperationResponse(op)
+		}
+
 		if targetNode != "" {
 			// Check if instance has backups.
 			backups, err := d.cluster.GetInstanceBackups(projectName, name)
@@ -412,6 +435,75 @@ func instancePostPoolMigration(d *Daemon, inst instance.Instance, newName string
 		if err != nil {
 			return err
 		}
+	}
+
+	if statefulStart {
+		err = targetInst.Start(true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Move an instance to another project.
+func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName string, newProject string, instanceOnly bool, stateful bool, op *operations.Operation) error {
+	localConfig := inst.LocalConfig()
+
+	statefulStart := false
+	if inst.IsRunning() {
+		if stateful {
+			statefulStart = true
+			err := inst.Stop(true)
+			if err != nil {
+				return err
+			}
+		} else {
+			return api.StatusErrorf(http.StatusBadRequest, "Instance must be stopped to move between projects statelessly")
+		}
+	}
+
+	// Load source root disk from expanded devices (in case instance doesn't have its own root disk).
+	rootDevKey, rootDev, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
+	if err != nil {
+		return err
+	}
+
+	// Copy device config from instance
+	localDevices := inst.LocalDevices().Clone()
+	localDevices[rootDevKey] = rootDev
+
+	// Specify the target instance config with the new name.
+	args := db.InstanceArgs{
+		Name:         newName,
+		BaseImage:    localConfig["volatile.base_image"],
+		Config:       localConfig,
+		Devices:      localDevices,
+		Project:      newProject,
+		Type:         inst.Type(),
+		Architecture: inst.Architecture(),
+		Description:  inst.Description(),
+		Ephemeral:    inst.IsEphemeral(),
+		Profiles:     inst.Profiles(),
+		Stateful:     inst.IsStateful(),
+	}
+
+	// Copy instance to new target instance.
+	targetInst, err := instanceCreateAsCopy(d.State(), instanceCreateAsCopyOpts{
+		sourceInstance:       inst,
+		targetInstance:       args,
+		instanceOnly:         instanceOnly,
+		applyTemplateTrigger: false, // Don't apply templates when moving.
+	}, op)
+	if err != nil {
+		return err
+	}
+
+	// Delete original instance.
+	err = inst.Delete(true)
+	if err != nil {
+		return err
 	}
 
 	if statefulStart {
