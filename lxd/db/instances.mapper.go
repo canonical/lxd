@@ -8,37 +8,25 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var _ = api.ServerEnvironment{}
-
-var instanceNames = cluster.RegisterStmt(`
-SELECT projects.name AS project, instances.name
-  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  ORDER BY projects.id, instances.name
-`)
-
-var instanceNamesByProject = cluster.RegisterStmt(`
-SELECT projects.name AS project, instances.name
-  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE project = ? ORDER BY projects.id, instances.name
-`)
-
-var instanceNamesByID = cluster.RegisterStmt(`
-SELECT projects.name AS project, instances.name
-  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
-  WHERE instances.id = ? ORDER BY projects.id, instances.name
-`)
 
 var instanceObjects = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
   FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   ORDER BY projects.id, instances.name
+`)
+
+var instanceObjectsByID = cluster.RegisterStmt(`
+SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
+  WHERE instances.id = ? ORDER BY projects.id, instances.name
 `)
 
 var instanceObjectsByProject = cluster.RegisterStmt(`
@@ -259,6 +247,11 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 		args = []interface{}{
 			filter.Name,
 		}
+	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByID)
+		args = []interface{}{
+			filter.ID,
+		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjects)
 		args = []interface{}{}
@@ -334,13 +327,12 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 					return nil, err
 				}
 
-				for i, uri := range profileURIs {
-					if strings.HasPrefix(uri, "/1.0/") {
-						uri = strings.Split(uri, "/1.0/profiles/")[1]
-						uri = strings.Split(uri, "?")[0]
-						profileURIs[i] = uri
-					}
+				uris, err := urlsToResourceNames("/profiles", profileURIs...)
+				if err != nil {
+					return nil, err
 				}
+
+				profileURIs = uris
 				objects[i].Profiles = append(objects[i].Profiles, profileURIs...)
 			}
 		}
@@ -374,29 +366,153 @@ func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) 
 // GetInstanceURIs returns all available instance URIs.
 // generator: instance URIs
 func (c *ClusterTx) GetInstanceURIs(filter InstanceFilter) ([]string, error) {
-	var args []interface{}
+	var err error
+
+	// Result slice.
+	objects := make([]Instance, 0)
+
+	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
-		stmt = c.stmt(instanceNamesByProject)
+	var args []interface{}
+
+	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
+		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNodeAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Type,
+			filter.Node,
+			filter.Name,
+		}
+	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
+		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Type,
+			filter.Node,
+		}
+	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
+		stmt = c.stmt(instanceObjectsByProjectAndTypeAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Type,
+			filter.Name,
+		}
+	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
+		stmt = c.stmt(instanceObjectsByTypeAndNameAndNode)
+		args = []interface{}{
+			filter.Type,
+			filter.Name,
+			filter.Node,
+		}
+	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByProjectAndNameAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+			filter.Node,
+		}
+	} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
+		stmt = c.stmt(instanceObjectsByProjectAndType)
+		args = []interface{}{
+			filter.Project,
+			filter.Type,
+		}
+	} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
+		stmt = c.stmt(instanceObjectsByTypeAndNode)
+		args = []interface{}{
+			filter.Type,
+			filter.Node,
+		}
+	} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
+		stmt = c.stmt(instanceObjectsByTypeAndName)
+		args = []interface{}{
+			filter.Type,
+			filter.Name,
+		}
+	} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByProjectAndNode)
+		args = []interface{}{
+			filter.Project,
+			filter.Node,
+		}
+	} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByProjectAndName)
+		args = []interface{}{
+			filter.Project,
+			filter.Name,
+		}
+	} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByNodeAndName)
+		args = []interface{}{
+			filter.Node,
+			filter.Name,
+		}
+	} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
+		stmt = c.stmt(instanceObjectsByType)
+		args = []interface{}{
+			filter.Type,
+		}
+	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
-		stmt = c.stmt(instanceNamesByID)
+	} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByNode)
+		args = []interface{}{
+			filter.Node,
+		}
+	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByName)
+		args = []interface{}{
+			filter.Name,
+		}
+	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjectsByID)
 		args = []interface{}{
 			filter.ID,
 		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
-		stmt = c.stmt(instanceNames)
+	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+		stmt = c.stmt(instanceObjects)
 		args = []interface{}{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
-	code := cluster.EntityTypes["instance"]
-	formatter := cluster.EntityFormatURIs[code]
+	// Dest function for scanning a row.
+	dest := func(i int) []interface{} {
+		objects = append(objects, Instance{})
+		return []interface{}{
+			&objects[i].ID,
+			&objects[i].Project,
+			&objects[i].Name,
+			&objects[i].Node,
+			&objects[i].Type,
+			&objects[i].Architecture,
+			&objects[i].Ephemeral,
+			&objects[i].CreationDate,
+			&objects[i].Stateful,
+			&objects[i].LastUseDate,
+			&objects[i].Description,
+			&objects[i].ExpiryDate,
+		}
+	}
 
-	return query.SelectURIs(stmt, formatter, args...)
+	// Select.
+	err = query.SelectObjects(stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
+	}
+
+	uris := make([]string, len(objects))
+	for i := range objects {
+		uri := api.NewURL().Path(version.APIVersion, "instances", objects[i].Name)
+		uri.Project(objects[i].Project)
+
+		uris[i] = uri.String()
+	}
+
+	return uris, nil
 }
 
 // GetInstanceID return the ID of the instance with the given key.

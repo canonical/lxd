@@ -12,21 +12,10 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 var _ = api.ServerEnvironment{}
-
-var projectNames = cluster.RegisterStmt(`
-SELECT projects.name
-  FROM projects
-  ORDER BY projects.name
-`)
-
-var projectNamesByID = cluster.RegisterStmt(`
-SELECT projects.name
-  FROM projects
-  WHERE projects.id = ? ORDER BY projects.name
-`)
 
 var projectObjects = cluster.RegisterStmt(`
 SELECT projects.id, projects.description, projects.name
@@ -38,6 +27,12 @@ var projectObjectsByName = cluster.RegisterStmt(`
 SELECT projects.id, projects.description, projects.name
   FROM projects
   WHERE projects.name = ? ORDER BY projects.name
+`)
+
+var projectObjectsByID = cluster.RegisterStmt(`
+SELECT projects.id, projects.description, projects.name
+  FROM projects
+  WHERE projects.id = ? ORDER BY projects.name
 `)
 
 var projectCreate = cluster.RegisterStmt(`
@@ -67,24 +62,56 @@ DELETE FROM projects WHERE name = ?
 // GetProjectURIs returns all available project URIs.
 // generator: project URIs
 func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
-	var args []interface{}
+	var err error
+
+	// Result slice.
+	objects := make([]Project, 0)
+
+	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	if filter.ID != nil && filter.Name == nil {
-		stmt = c.stmt(projectNamesByID)
+	var args []interface{}
+
+	if filter.Name != nil && filter.ID == nil {
+		stmt = c.stmt(projectObjectsByName)
+		args = []interface{}{
+			filter.Name,
+		}
+	} else if filter.ID != nil && filter.Name == nil {
+		stmt = c.stmt(projectObjectsByID)
 		args = []interface{}{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
-		stmt = c.stmt(projectNames)
+		stmt = c.stmt(projectObjects)
 		args = []interface{}{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
-	code := cluster.EntityTypes["project"]
-	formatter := cluster.EntityFormatURIs[code]
+	// Dest function for scanning a row.
+	dest := func(i int) []interface{} {
+		objects = append(objects, Project{})
+		return []interface{}{
+			&objects[i].ID,
+			&objects[i].Description,
+			&objects[i].Name,
+		}
+	}
 
-	return query.SelectURIs(stmt, formatter, args...)
+	// Select.
+	err = query.SelectObjects(stmt, dest, args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
+	}
+
+	uris := make([]string, len(objects))
+	for i := range objects {
+		uri := api.NewURL().Path(version.APIVersion, "projects", objects[i].Name)
+
+		uris[i] = uri.String()
+	}
+
+	return uris, nil
 }
 
 // GetProjects returns all available projects.
@@ -103,6 +130,11 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 		stmt = c.stmt(projectObjectsByName)
 		args = []interface{}{
 			filter.Name,
+		}
+	} else if filter.ID != nil && filter.Name == nil {
+		stmt = c.stmt(projectObjectsByID)
+		args = []interface{}{
+			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(projectObjects)
