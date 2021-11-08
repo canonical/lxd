@@ -11,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // ClusterGroup is a value object holding db-related details about a cluster group.
@@ -26,18 +27,6 @@ type ClusterGroupFilter struct {
 	ID   *int
 	Name *string
 }
-
-var clusterGroupNames = cluster.RegisterStmt(`
-SELECT cluster_groups.name
-  FROM cluster_groups
-  ORDER BY cluster_groups.name
-`)
-
-var clusterGroupNamesByName = cluster.RegisterStmt(`
-SELECT cluster_groups.name
-  FROM cluster_groups
-  WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
-`)
 
 var clusterGroupObjects = cluster.RegisterStmt(`
 SELECT cluster_groups.id, cluster_groups.name, coalesce(cluster_groups.description, '')
@@ -343,23 +332,32 @@ WHERE cluster_groups.name = ?`
 // generator: ClusterGroup URIs
 func (c *ClusterTx) GetClusterGroupURIs(filter ClusterGroupFilter) ([]string, error) {
 	var args []interface{}
-	var stmt *sql.Stmt
+	var sql string
 	if filter.Name != nil && filter.ID == nil {
-		stmt = c.stmt(clusterGroupNamesByName)
+		sql = `SELECT cluster_groups.name FROM cluster_groups
+WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
+`
 		args = []interface{}{
 			filter.Name,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
-		stmt = c.stmt(clusterGroupNames)
+		sql = `SELECT cluster_groups.name FROM cluster_groups ORDER BY cluster_groups.name`
 		args = []interface{}{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
-	code := cluster.EntityTypes["cluster group"]
-	formatter := cluster.EntityFormatURIs[code]
+	names, err := query.SelectStrings(c.tx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
 
-	return query.SelectURIs(stmt, formatter, args...)
+	uris := make([]string, len(names))
+	for i, name := range names {
+		uris[i] = api.NewURL().Path(version.APIVersion, "cluster/groups", name).String()
+	}
+
+	return uris, nil
 }
 
 //AddNodeToClusterGroup adds a given node to the given cluster group.
