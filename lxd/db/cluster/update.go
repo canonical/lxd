@@ -885,7 +885,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		StorageVolumeID int
 		Name            string
 		Description     string
-		ExpiryDate      time.Time
+		ExpiryDate      sql.NullTime
 	}, count)
 
 	dest = func(i int) []interface{} {
@@ -1738,7 +1738,7 @@ CREATE VIEW instances_snapshots_devices_ref (
 		CreationDate time.Time
 		Stateful     bool
 		Description  string
-		ExpiryDate   time.Time
+		ExpiryDate   sql.NullTime
 	}, count)
 
 	dest := func(i int) []interface{} {
