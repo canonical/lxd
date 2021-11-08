@@ -171,14 +171,12 @@ func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
 	runConf.PostHooks = []func() error{d.Register}
 
 	for _, usb := range usbs {
-		if !usbIsOurDevice(d.config, &usb) {
-			continue
+		if usbIsOurDevice(d.config, &usb) {
+			runConf.USBDevice = append(runConf.USBDevice, deviceConfig.USBDeviceItem{
+				DeviceName:     fmt.Sprintf("%s-%d", d.name, len(runConf.USBDevice)),
+				HostDevicePath: fmt.Sprintf("/dev/bus/usb/%03d/%03d", usb.BusNum, usb.DevNum),
+			})
 		}
-
-		runConf.USBDevice = append(runConf.USBDevice, []deviceConfig.RunConfigItem{
-			{Key: "devName", Value: d.name},
-			{Key: "hostDevice", Value: fmt.Sprintf("/dev/bus/usb/%03d/%03d", usb.BusNum, usb.DevNum)},
-		}...)
 	}
 
 	if d.isRequired() && len(runConf.USBDevice) <= 0 {

@@ -33,6 +33,12 @@ type RootFSEntryItem struct {
 	Opts []string // Describes the mount options associated with the filesystem.
 }
 
+// USBDeviceItem represents a single USB device matched from LXD USB device specification.
+type USBDeviceItem struct {
+	DeviceName     string
+	HostDevicePath string
+}
+
 // RunConfig represents LXD defined run-time config used for device setup/cleanup.
 type RunConfig struct {
 	RootFS           RootFSEntryItem  // RootFS to setup.
@@ -42,7 +48,7 @@ type RunConfig struct {
 	Uevents          [][]string       // Uevents to inject.
 	PostHooks        []func() error   // Functions to be run after device attach/detach.
 	GPUDevice        []RunConfigItem  // GPU device configuration settings.
-	USBDevice        []RunConfigItem  // USB device configuration settings.
+	USBDevice        []USBDeviceItem  // USB device configuration settings.
 	TPMDevice        []RunConfigItem  // TPM device configuration settings.
 	PCIDevice        []RunConfigItem  // PCI device configuration settings.
 }
