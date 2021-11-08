@@ -2658,9 +2658,9 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 			}
 		}
 
-		// Add USB device.
-		if len(runConf.USBDevice) > 0 {
-			err = d.addUSBDeviceConfig(sb, bus, runConf.USBDevice)
+		// Add USB devices.
+		for _, usbDev := range runConf.USBDevice {
+			err = d.addUSBDeviceConfig(sb, bus, usbDev)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3294,20 +3294,10 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	return nil
 }
 
-func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig []deviceConfig.RunConfigItem) error {
-	var devName, hostDevice string
-
-	for _, usbItem := range usbConfig {
-		if usbItem.Key == "devName" {
-			devName = usbItem.Value
-		} else if usbItem.Key == "hostDevice" {
-			hostDevice = usbItem.Value
-		}
-	}
-
+func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbDev deviceConfig.USBDeviceItem) error {
 	tplFields := map[string]interface{}{
-		"hostDevice": hostDevice,
-		"devName":    devName,
+		"hostDevice": usbDev.HostDevicePath,
+		"devName":    usbDev.DeviceName,
 	}
 
 	err := qemuUSBDev.Execute(sb, tplFields)
@@ -3316,7 +3306,7 @@ func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbConfig [
 	}
 
 	// Add path to external devPaths. This way, the path will be included in the apparmor profile.
-	d.devPaths = append(d.devPaths, hostDevice)
+	d.devPaths = append(d.devPaths, usbDev.HostDevicePath)
 
 	return nil
 }
