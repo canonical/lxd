@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -635,6 +636,29 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 	}
 
 	return nil
+}
+
+// CheckRestrictedDevicesDiskPaths checks whether the disk's source path is within the allowed paths specified in
+// the project's restricted.devices.disk.paths config setting.
+// If no allowed paths are specified in project, then it allows all paths, and returns true and empty string.
+// If allowed paths are specified, and one matches, returns true and the matching allowed parent source path.
+// Otherwise if sourcePath not allowed returns false and empty string.
+func CheckRestrictedDevicesDiskPaths(projectConfig map[string]string, sourcePath string) (bool, string) {
+	if projectConfig["restricted.devices.disk.paths"] == "" {
+		return true, ""
+	}
+
+	// Clean, then add trailing slash, to ensure we are prefix matching on whole path.
+	sourcePath = fmt.Sprintf("%s/", filepath.Clean(shared.HostPath(sourcePath)))
+	for _, parentSourcePath := range strings.SplitN(projectConfig["restricted.devices.disk.paths"], ",", -1) {
+		// Clean, then add trailing slash, to ensure we are prefix matching on whole path.
+		parentSourcePathTrailing := fmt.Sprintf("%s/", filepath.Clean(shared.HostPath(parentSourcePath)))
+		if strings.HasPrefix(sourcePath, parentSourcePathTrailing) {
+			return true, parentSourcePath
+		}
+	}
+
+	return false, ""
 }
 
 var allAggregateLimits = []string{
