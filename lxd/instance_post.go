@@ -735,6 +735,9 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 				}
 			}
 		} else {
+			// Use the correct project.
+			target = target.UseProject(inst.Project())
+
 			// Create the instance mount point.
 			url := api.NewURL().Project(inst.Project()).Path("internal", "cluster", "instance-moved", newName)
 			resp, _, err := target.RawQuery("POST", url.String(), nil, "")
