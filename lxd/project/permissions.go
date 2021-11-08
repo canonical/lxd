@@ -545,7 +545,14 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 					if device["pool"] == "" {
 						return fmt.Errorf("Attaching disks not backed by a pool is forbidden")
 					}
+				case "allow":
+					var allowed bool
+					allowed, _ = CheckRestrictedDevicesDiskPaths(project.Config, device["source"])
+					if !allowed {
+						return fmt.Errorf("Disk source path %q not allowed", device["source"])
+					}
 				}
+
 				return nil
 			}
 		}
