@@ -142,6 +142,10 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w 
 	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location, "instance_type": c.Type().String()}, "json")
 }}
 
+var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	return okResponse(c.ExpandedDevices(), "json")
+}}
+
 var handlers = []devLxdHandler{
 	{"/", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 		return okResponse([]string{"/1.0"}, "json")
@@ -152,6 +156,7 @@ var handlers = []devLxdHandler{
 	devlxdMetadataGet,
 	devlxdEventsGet,
 	devlxdImageExport,
+	devlxdDevicesGet,
 }
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
