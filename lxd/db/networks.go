@@ -10,10 +10,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // GetNetworksLocalConfig returns a map associating each network name to its
@@ -386,23 +386,16 @@ func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error)
 }
 
 // GetNetworkURIs returns the URIs for the networks with the given project.
-func (c *ClusterTx) GetNetworkURIs(projectID int) ([]string, error) {
-	// No support for per-project networks.
-	if projectID > 1 {
-		return []string{}, nil
-	}
+func (c *ClusterTx) GetNetworkURIs(projectID int, project string) ([]string, error) {
+	sql := `SELECT networks.name from networks`
 
-	stmt, err := c.prepare(`SELECT "default", networks.name from networks`)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to prepare statement for network: %w", err)
-	}
-
-	code := cluster.EntityTypes["network"]
-	formatter := cluster.EntityFormatURIs[code]
-
-	uris, err := query.SelectURIs(stmt, formatter)
+	names, err := query.SelectStrings(c.tx, sql)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get URIs for network: %w", err)
+	}
+	uris := make([]string, len(names))
+	for i := range names {
+		uris[i] = api.NewURL().Path(version.APIVersion, "networks", names[i]).Project(project).String()
 	}
 
 	return uris, nil
