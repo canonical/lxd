@@ -219,12 +219,12 @@ func (c *ClusterTx) GetProjectUsedBy(project Project) ([]string, error) {
 		return nil, err
 	}
 
-	networks, err := c.GetNetworkURIs(project.ID)
+	networks, err := c.GetNetworkURIs(project.ID, project.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	networkACLs, err := c.GetNetworkACLURIs(project.ID)
+	networkACLs, err := c.GetNetworkACLURIs(project.ID, project.Name)
 	if err != nil {
 		return nil, err
 	}
