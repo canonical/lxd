@@ -274,4 +274,5 @@ var columnarTypeNames = []string{
 	"CertificateType",
 	"string",
 	"time.Time",
+	"sql.NullTime",
 }
