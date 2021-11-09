@@ -1101,9 +1101,8 @@ func (d *disk) createDevice(revert *revert.Reverter, srcPath string) (string, er
 	mntOptions := d.config["raw.mount.options"]
 	fsName := "none"
 
-	isFile := false
+	var isFile bool
 	if d.config["pool"] == "" {
-		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
 		if strings.HasPrefix(d.config["source"], "cephfs:") {
 			// Get fs name and path from d.config.
 			fields := strings.SplitN(d.config["source"], ":", 2)
@@ -1156,6 +1155,8 @@ func (d *disk) createDevice(revert *revert.Reverter, srcPath string) (string, er
 
 			srcPath = rbdPath
 			isFile = false
+		} else {
+			isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
 		}
 	}
 
