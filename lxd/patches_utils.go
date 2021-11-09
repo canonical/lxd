@@ -220,7 +220,7 @@ func lvmGetLVSize(lvPath string) (string, error) {
 		return "", err
 	}
 
-	detectedSize := units.GetByteSizeString(size, 0)
+	detectedSize := units.GetByteSizeStringIEC(size, 0)
 
 	return detectedSize, nil
 }
