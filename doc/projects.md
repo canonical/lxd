@@ -27,7 +27,7 @@ limits.disk                          | string    | -                     | -    
 limits.memory                        | string    | -                     | -                         | Maximum value for the sum of individual "limits.memory" configs set on the instances of the project
 limits.processes                     | integer   | -                     | -                         | Maximum value for the sum of individual "limits.processes" configs set on the instances of the project
 limits.virtual-machines              | integer   | -                     | -                         | Maximum number of VMs that can be created in the project
-restricted                           | boolean   | -                     | false                     | Block access to security-sensitive features
+restricted                           | boolean   | -                     | false                     | Block access to security-sensitive features (this must be enabled to allow the `restricted.*` keys to take effect, this is so it can be tempoarily disabled if needed without having to clear the related keys)
 restricted.containers.lowlevel       | string    | -                     | block                     | Prevents use of low-level container options like raw.lxc, raw.idmap, volatile, etc.
 restricted.containers.nesting        | string    | -                     | block                     | Prevents setting security.nesting=true.
 restricted.containers.privilege      | string    | -                     | unpriviliged              | If "unpriviliged", prevents setting security.privileged=true. If "isolated", prevents setting security.privileged=true and also security.idmap.isolated=true. If "allow", no restriction apply.
