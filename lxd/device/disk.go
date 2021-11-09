@@ -1249,9 +1249,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 				isFile = true
 			}
 
-			// Open file handle to local source. Has to be os.O_RDONLY for directory open support, but
-			// this won't prevent a writable mount.
-			f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
+			f, err := d.localSourceOpen(srcPath)
 			if err != nil {
 				return "", false, err
 			}
