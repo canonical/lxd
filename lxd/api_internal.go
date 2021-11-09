@@ -914,10 +914,10 @@ func internalGC(d *Daemon, r *http.Request) response.Response {
 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	logger.Infof("Heap allocated: %s", units.GetByteSizeString(int64(m.Alloc), 2))
-	logger.Infof("Stack in use: %s", units.GetByteSizeString(int64(m.StackInuse), 2))
-	logger.Infof("Requested from system: %s", units.GetByteSizeString(int64(m.Sys), 2))
-	logger.Infof("Releasable to OS: %s", units.GetByteSizeString(int64(m.HeapIdle-m.HeapReleased), 2))
+	logger.Infof("Heap allocated: %s", units.GetByteSizeStringIEC(int64(m.Alloc), 2))
+	logger.Infof("Stack in use: %s", units.GetByteSizeStringIEC(int64(m.StackInuse), 2))
+	logger.Infof("Requested from system: %s", units.GetByteSizeStringIEC(int64(m.Sys), 2))
+	logger.Infof("Releasable to OS: %s", units.GetByteSizeStringIEC(int64(m.HeapIdle-m.HeapReleased), 2))
 
 	logger.Infof("Completed forced garbage collection run")
 
