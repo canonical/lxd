@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 type gpuMdev struct {
@@ -196,7 +195,7 @@ func (d *gpuMdev) postStop() error {
 		if shared.PathExists(path) {
 			err := ioutil.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)
 			if err != nil {
-				logger.Debugf("Failed to remove vgpu %q", v["vgpu.uuid"])
+				d.logger.Error("Failed to remove vgpu", log.Ctx{"device": v["vgpu.uuid"], "err": err})
 			}
 		}
 	}
