@@ -48,6 +48,7 @@ func TestHeartbeat(t *testing.T) {
 
 	// Perform the heartbeat requests.
 	leader.Cluster = leaderState.Cluster
+	leader.HeartbeatNodeHook = func(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {}
 	heartbeat, _ := cluster.HeartbeatTask(leader)
 	ctx := context.Background()
 	heartbeat(ctx)
