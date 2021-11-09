@@ -459,10 +459,9 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Mount the pool volume and set poolVolSrcPath for createDevice below.
-		var poolVolSrcPath string
 		if d.config["pool"] != "" {
 			var err error
-			poolVolSrcPath, err = d.mountPoolVolume(revert)
+			srcPath, err = d.mountPoolVolume(revert)
 			if err != nil {
 				if !isRequired {
 					d.logger.Warn(err.Error())
@@ -474,7 +473,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Mount the source in the instance devices directory.
-		sourceDevPath, err := d.createDevice(revert, poolVolSrcPath)
+		sourceDevPath, err := d.createDevice(revert, srcPath)
 		if err != nil {
 			return nil, err
 		}
@@ -1046,11 +1045,10 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 }
 
 // createDevice creates a disk device mount on host.
-// The poolVolSrcPath takes the path to the mounted custom pool volume when d.config["pool"] is non-empty.
-func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (string, error) {
+// The srcPath argument is the source of the disk device on the host.
+func (d *disk) createDevice(revert *revert.Reverter, srcPath string) (string, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
-	srcPath := shared.HostPath(d.config["source"])
 
 	isRequired := d.isRequired(d.config)
 	isReadOnly := shared.IsTrue(d.config["readonly"])
@@ -1115,8 +1113,6 @@ func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (str
 			srcPath = rbdPath
 			isFile = false
 		}
-	} else {
-		srcPath = poolVolSrcPath // Use pool source path override.
 	}
 
 	// Check if the source exists unless it is a cephfs.
