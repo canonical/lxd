@@ -1355,7 +1355,7 @@ func (c *cmdStorageVolumeList) locationColumnData(vol api.StorageVolume, state a
 
 func (c *cmdStorageVolumeList) usageColumnData(vol api.StorageVolume, state api.StorageVolumeState) string {
 	if state.Usage != nil {
-		return units.GetByteSizeString(int64(state.Usage.Used), 2)
+		return units.GetByteSizeStringIEC(int64(state.Usage.Used), 2)
 	}
 
 	return ""
