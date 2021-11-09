@@ -473,7 +473,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Mount the source in the instance devices directory.
-		sourceDevPath, err := d.createDevice(revert, srcPath)
+		sourceDevPath, err := d.createDevice(srcPath)
 		if err != nil {
 			return nil, err
 		}
@@ -614,7 +614,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
-				srcPath, err = d.createDevice(revert, srcPath)
+				srcPath, err = d.createDevice(srcPath)
 				if err != nil {
 					return nil, err
 				}
@@ -1046,7 +1046,7 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 
 // createDevice creates a disk device mount on host.
 // The srcPath argument is the source of the disk device on the host.
-func (d *disk) createDevice(revert *revert.Reverter, srcPath string) (string, error) {
+func (d *disk) createDevice(srcPath string) (string, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 
@@ -1153,7 +1153,6 @@ func (d *disk) createDevice(revert *revert.Reverter, srcPath string) (string, er
 		return "", err
 	}
 
-	revert.Success()
 	return devPath, nil
 }
 
