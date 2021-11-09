@@ -1157,6 +1157,16 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 			isFile = false
 		} else {
 			isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
+
+			// Open file handle to local source. Has to be os.O_RDONLY for directory open support, but
+			// this won't prevent a writable mount.
+			f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
+			if err != nil {
+				return "", err
+			}
+			defer f.Close()
+
+			srcPath = fmt.Sprintf("/proc/self/fd/%d", f.Fd())
 		}
 	}
 
