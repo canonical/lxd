@@ -1143,18 +1143,28 @@ used as a shortcut to set both soft and hard limit (e.g.
 configured limitation will be inherited from the process starting up the
 instance. Note that this inheritance is not enforced by LXD but by the kernel.
 
-## Snapshot scheduling
+## Snapshot scheduling and configuration
 LXD supports scheduled snapshots which can be created at most once every minute.
-There are three configuration options. `snapshots.schedule` takes a shortened
-cron expression: `<minute> <hour> <day-of-month> <month> <day-of-week>`. If this is
-empty (default), no snapshots will be created. `snapshots.schedule.stopped`
-controls whether or not stopped instance are to be automatically snapshotted.
-It defaults to `false`. `snapshots.pattern` takes a pongo2 template string,
-and the pongo2 context contains the `creation_date` variable. Be aware that you
-should format the date (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`)
-in your template string to avoid forbidden characters in your snapshot name.
-Another way to avoid name collisions is to use the placeholder `%d`. If a snapshot
-with the same name (excluding the placeholder) already exists, all existing snapshot
-names will be taken into account to find the highest number at the placeholders
-position. This number will be incremented by one for the new name. The starting
-number if no snapshot exists will be `0`.
+There are three configuration options: 
+-  `snapshots.schedule` takes a shortened cron expression: 
+`<minute> <hour> <day-of-month> <month> <day-of-week>`. If this is empty
+(default), no snapshots will be created. 
+-  `snapshots.schedule.stopped` controls whether or not stopped instance are to
+be automatically snapshotted.  It defaults to `false`. 
+-  `snapshots.pattern` takes a pongo2 template string to format the snapshot name.
+To name snapshots with time stamps, the pongo2 context variable `creation_date`
+can be used.  Be aware that you should format the date 
+(e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) in your template
+string to avoid forbidden characters in the snapshot name.  Another way to avoid
+name collisions is to use the placeholder `%d`. If a snapshot with the same name
+(excluding the placeholder) already exists, all existing snapshot names will be
+taken into account to find the highest number at the placeholders position. This
+number will be incremented by one for the new name. The starting number if no
+snapshot exists will be `0`. The default behavior of `snapshots.pattern` is
+equivalent to a format string of `snap%d`.
+
+Example of using pongo2 syntax to format snapshot names with timestamps:
+```bash
+lxc config set INSTANCE snapshots.pattern "{{ creation_date|date:'2006-01-02_15-04-05' }}"
+```
+This results in snapshots named `{date/time of creation}` down to the precision of a second. 
