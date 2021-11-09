@@ -87,7 +87,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 			case "runbindable":
 				flags |= unix.MS_UNBINDABLE | unix.MS_REC
 			default:
-				return fmt.Errorf("Invalid propagation mode '%s'", propagation)
+				return fmt.Errorf("Invalid propagation mode %q", propagation)
 			}
 		}
 
@@ -99,7 +99,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	// Mount the filesystem
 	err = unix.Mount(srcPath, dstPath, fsName, uintptr(flags), rawMountOptions)
 	if err != nil {
-		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
+		return fmt.Errorf("Unable to mount %q at %q with filesystem %q: %w", srcPath, dstPath, fsName, err)
 	}
 
 	// Remount bind mounts in readonly mode if requested
@@ -107,14 +107,14 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
 		err = unix.Mount("", dstPath, fsName, uintptr(flags), "")
 		if err != nil {
-			return fmt.Errorf("Unable to mount %s in readonly mode: %s", dstPath, err)
+			return fmt.Errorf("Unable to mount %q in readonly mode: %w", dstPath, err)
 		}
 	}
 
 	flags = unix.MS_REC | unix.MS_SLAVE
 	err = unix.Mount("", dstPath, "", uintptr(flags), "")
 	if err != nil {
-		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
+		return fmt.Errorf("Unable to make mount %q private: %w", dstPath, err)
 	}
 
 	return nil
