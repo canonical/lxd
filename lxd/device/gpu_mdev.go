@@ -14,8 +14,9 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
+	log "github.com/lxc/lxd/shared/log15"
 )
 
 type gpuMdev struct {
@@ -54,6 +55,9 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	var pciAddress string
 	for _, gpu := range gpus.Cards {
@@ -127,6 +131,17 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 
 				return nil, errors.Wrapf(err, "Failed to create virtual gpu %q", mdevUUID)
 			}
+
+			revert.Add(func() {
+				path := fmt.Sprintf("/sys/bus/mdev/devices/%s", mdevUUID)
+
+				if shared.PathExists(path) {
+					err := ioutil.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)
+					if err != nil {
+						d.logger.Error("Failed to remove vgpu", log.Ctx{"device": mdevUUID, "err": err})
+					}
+				}
+			})
 		}
 	}
 
@@ -159,6 +174,8 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 		return nil, err
 	}
 
+	revert.Success()
+
 	return &runConf, nil
 }
 
@@ -178,7 +195,7 @@ func (d *gpuMdev) postStop() error {
 		if shared.PathExists(path) {
 			err := ioutil.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)
 			if err != nil {
-				logger.Debugf("Failed to remove vgpu %q", v["vgpu.uuid"])
+				d.logger.Error("Failed to remove vgpu", log.Ctx{"device": v["vgpu.uuid"], "err": err})
 			}
 		}
 	}
