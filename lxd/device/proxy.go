@@ -121,6 +121,8 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 
 	if shared.IsTrue(d.config["nat"]) {
 		if d.inst != nil {
+			// Default project always has networks feature so don't bother loading the project config
+			// in that case.
 			projectName := d.inst.Project()
 			if projectName != project.Default {
 				// Prevent use of NAT mode on non-default projects with networks feature.
