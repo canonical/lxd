@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	udev "github.com/farjump/go-libudev"
+	udev "github.com/jochenvg/go-udev"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
