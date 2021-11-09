@@ -720,7 +720,7 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 
 func (c *cmdList) memoryUsageColumnData(cInfo api.InstanceFull) string {
 	if cInfo.IsActive() && cInfo.State != nil && cInfo.State.Memory.Usage > 0 {
-		return units.GetByteSizeString(cInfo.State.Memory.Usage, 2)
+		return units.GetByteSizeStringIEC(cInfo.State.Memory.Usage, 2)
 	}
 
 	return ""
@@ -757,7 +757,7 @@ func (c *cmdList) diskUsageColumnData(cInfo api.InstanceFull) string {
 	rootDisk, _, _ := shared.GetRootDiskDevice(cInfo.ExpandedDevices)
 
 	if cInfo.State != nil && cInfo.State.Disk != nil && cInfo.State.Disk[rootDisk].Usage > 0 {
-		return units.GetByteSizeString(cInfo.State.Disk[rootDisk].Usage, 2)
+		return units.GetByteSizeStringIEC(cInfo.State.Disk[rootDisk].Usage, 2)
 	}
 
 	return ""
