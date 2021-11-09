@@ -1101,7 +1101,7 @@ var aggregateLimitConfigValueParsers = map[string]func(string) (int64, error){
 
 var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 	"limits.memory": func(limit int64) string {
-		return units.GetByteSizeString(limit, 1)
+		return units.GetByteSizeStringIEC(limit, 1)
 	},
 	"limits.processes": func(limit int64) string {
 		return fmt.Sprintf("%d", limit)
@@ -1110,7 +1110,7 @@ var aggregateLimitConfigValuePrinters = map[string]func(int64) string{
 		return fmt.Sprintf("%d", limit)
 	},
 	"limits.disk": func(limit int64) string {
-		return units.GetByteSizeString(limit, 1)
+		return units.GetByteSizeStringIEC(limit, 1)
 	},
 }
 
