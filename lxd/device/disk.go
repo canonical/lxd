@@ -1116,15 +1116,6 @@ func (d *disk) createDevice(revert *revert.Reverter, srcPath string) (string, er
 		}
 	}
 
-	// Check if the source exists unless it is a cephfs.
-	if fsName != "ceph" && !shared.PathExists(srcPath) {
-		if !isRequired {
-			return "", nil
-		}
-
-		return "", fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
-	}
-
 	// Create the devices directory if missing.
 	if !shared.PathExists(d.inst.DevicesPath()) {
 		err := os.Mkdir(d.inst.DevicesPath(), 0711)
