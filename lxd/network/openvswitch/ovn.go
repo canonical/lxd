@@ -375,7 +375,7 @@ func (o *OVN) LogicalRouterRouteDelete(routerName OVNRouter, prefixes ...net.IPN
 }
 
 // LogicalRouterPortAdd adds a named logical router port to a logical router.
-func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, ipAddr []*net.IPNet, mayExist bool) error {
+func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort, mac net.HardwareAddr, gatewayMTU uint32, ipAddr []*net.IPNet, mayExist bool) error {
 	if mayExist {
 		// Check if it exists and update addresses.
 		_, err := o.nbctl("list", "Logical_Router_Port", string(portName))
@@ -389,6 +389,7 @@ func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort,
 			_, err := o.nbctl("set", "Logical_Router_Port", string(portName),
 				fmt.Sprintf(`networks="%s"`, strings.Join(ips, `","`)),
 				fmt.Sprintf(`mac="%s"`, fmt.Sprintf(mac.String())),
+				fmt.Sprintf(`options:gateway_mtu=%d`, gatewayMTU),
 			)
 			if err != nil {
 				return err
@@ -402,6 +403,10 @@ func (o *OVN) LogicalRouterPortAdd(routerName OVNRouter, portName OVNRouterPort,
 	for _, ipNet := range ipAddr {
 		args = append(args, ipNet.String())
 	}
+
+	args = append(args, "--", "set", "Logical_Router_Port", string(portName),
+		fmt.Sprintf(`options:gateway_mtu=%d`, gatewayMTU),
+	)
 
 	_, err := o.nbctl(args...)
 	if err != nil {

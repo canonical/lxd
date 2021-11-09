@@ -1815,7 +1815,7 @@ func (n *ovn) setup(update bool) error {
 		}
 
 		// Create external router port.
-		err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, extRouterIPs, update)
+		err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterExtPortName(), routerMAC, bridgeMTU, extRouterIPs, update)
 		if err != nil {
 			return errors.Wrapf(err, "Failed adding external router port")
 		}
@@ -2010,7 +2010,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Create internal router port.
-	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, intRouterIPs, update)
+	err = client.LogicalRouterPortAdd(n.getRouterName(), n.getRouterIntPortName(), routerMAC, bridgeMTU, intRouterIPs, update)
 	if err != nil {
 		return errors.Wrapf(err, "Failed adding internal router port")
 	}
