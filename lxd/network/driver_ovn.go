@@ -2928,17 +2928,10 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 		}
 	}
 
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Load the project to get uplink network restrictions.
-		p, err = tx.GetProject(n.project)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
-		}
-
-		return nil
-	})
+	// Load the project to get uplink network restrictions.
+	p, err = n.state.Cluster.GetProject(n.project)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
 	}
 
 	externalSubnetsInUse, err := n.getExternalSubnetInUse(n.config["network"])
