@@ -480,8 +480,8 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 		poolinfo[infostring][totalspacestring] = strconv.FormatUint(res.Space.Total, 10)
 		poolinfo[infostring][spaceusedstring] = strconv.FormatUint(res.Space.Used, 10)
 	} else {
-		poolinfo[infostring][totalspacestring] = units.GetByteSizeString(int64(res.Space.Total), 2)
-		poolinfo[infostring][spaceusedstring] = units.GetByteSizeString(int64(res.Space.Used), 2)
+		poolinfo[infostring][totalspacestring] = units.GetByteSizeStringIEC(int64(res.Space.Total), 2)
+		poolinfo[infostring][spaceusedstring] = units.GetByteSizeStringIEC(int64(res.Space.Used), 2)
 	}
 
 	poolinfodata, err := yaml.Marshal(poolinfo)
