@@ -58,48 +58,41 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	// Detect the filesystem
-	if IsBlockdev(srcPath) {
-		fsName, err = BlockFsDetect(srcPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		if fsName == "none" {
-			flags |= unix.MS_BIND
-		}
+	if fsName == "none" {
+		flags |= unix.MS_BIND
+	}
 
-		if propagation != "" {
-			switch propagation {
-			case "private":
-				flags |= unix.MS_PRIVATE
-			case "shared":
-				flags |= unix.MS_SHARED
-			case "slave":
-				flags |= unix.MS_SLAVE
-			case "unbindable":
-				flags |= unix.MS_UNBINDABLE
-			case "rprivate":
-				flags |= unix.MS_PRIVATE | unix.MS_REC
-			case "rshared":
-				flags |= unix.MS_SHARED | unix.MS_REC
-			case "rslave":
-				flags |= unix.MS_SLAVE | unix.MS_REC
-			case "runbindable":
-				flags |= unix.MS_UNBINDABLE | unix.MS_REC
-			default:
-				return fmt.Errorf("Invalid propagation mode '%s'", propagation)
-			}
+	if propagation != "" {
+		switch propagation {
+		case "private":
+			flags |= unix.MS_PRIVATE
+		case "shared":
+			flags |= unix.MS_SHARED
+		case "slave":
+			flags |= unix.MS_SLAVE
+		case "unbindable":
+			flags |= unix.MS_UNBINDABLE
+		case "rprivate":
+			flags |= unix.MS_PRIVATE | unix.MS_REC
+		case "rshared":
+			flags |= unix.MS_SHARED | unix.MS_REC
+		case "rslave":
+			flags |= unix.MS_SLAVE | unix.MS_REC
+		case "runbindable":
+			flags |= unix.MS_UNBINDABLE | unix.MS_REC
+		default:
+			return fmt.Errorf("Invalid propagation mode %q", propagation)
 		}
+	}
 
-		if recursive {
-			flags |= unix.MS_REC
-		}
+	if recursive {
+		flags |= unix.MS_REC
 	}
 
 	// Mount the filesystem
 	err = unix.Mount(srcPath, dstPath, fsName, uintptr(flags), rawMountOptions)
 	if err != nil {
-		return fmt.Errorf("Unable to mount %s at %s: %s", srcPath, dstPath, err)
+		return fmt.Errorf("Unable to mount %q at %q with filesystem %q: %w", srcPath, dstPath, fsName, err)
 	}
 
 	// Remount bind mounts in readonly mode if requested
@@ -107,14 +100,14 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 		flags = unix.MS_RDONLY | unix.MS_BIND | unix.MS_REMOUNT
 		err = unix.Mount("", dstPath, fsName, uintptr(flags), "")
 		if err != nil {
-			return fmt.Errorf("Unable to mount %s in readonly mode: %s", dstPath, err)
+			return fmt.Errorf("Unable to mount %q in readonly mode: %w", dstPath, err)
 		}
 	}
 
 	flags = unix.MS_REC | unix.MS_SLAVE
 	err = unix.Mount("", dstPath, "", uintptr(flags), "")
 	if err != nil {
-		return fmt.Errorf("unable to make mount %s private: %s", dstPath, err)
+		return fmt.Errorf("Unable to make mount %q private: %w", dstPath, err)
 	}
 
 	return nil

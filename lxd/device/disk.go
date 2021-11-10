@@ -30,7 +30,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
@@ -48,6 +47,20 @@ type diskBlockLimit struct {
 	readIops  int64
 	writeBps  int64
 	writeIops int64
+}
+
+// diskSourceNotFoundError error used to indicate source not found.
+type diskSourceNotFoundError struct {
+	msg string
+	err error
+}
+
+func (e diskSourceNotFoundError) Error() string {
+	return e.msg
+}
+
+func (e diskSourceNotFoundError) Unwrap() error {
+	return e.err
 }
 
 type disk struct {
@@ -201,12 +214,19 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
+	srcPathIsLocal := d.config["pool"] == "" && d.sourceIsLocalPath(d.config["source"])
+	srcPathIsAbs := filepath.IsAbs(d.config["source"])
+
+	if srcPathIsLocal && !srcPathIsAbs {
+		return fmt.Errorf("Source path must be absolute for local sources")
+	}
+
 	// Check that external disk source path exists. External disk sources have a non-empty "source" property
 	// that contains the path of the external source, and do not have a "pool" property. We only check the
 	// source path exists when the disk device is required, is not an external ceph/cephfs source and is not a
 	// VM cloud-init drive. We only check this when an instance is loaded to avoid validating snapshot configs
 	// that may contain older config that no longer exists which can prevent migrations.
-	if d.inst != nil && d.config["pool"] == "" && d.isRequired(d.config) && d.sourceIsLocalPath(d.config["source"]) && !shared.PathExists(shared.HostPath(d.config["source"])) {
+	if d.inst != nil && srcPathIsLocal && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) {
 		return fmt.Errorf("Missing source path %q for disk %q", d.config["source"], d.name)
 	}
 
@@ -226,7 +246,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes`)
 		}
 
-		if filepath.IsAbs(d.config["source"]) {
+		if srcPathIsAbs {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
@@ -290,10 +310,37 @@ func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) stri
 	return filepath.Join(d.inst.DevicesPath(), devPath)
 }
 
+// validateEnvironmentSourcePath checks the source path property is valid.
+func (d *disk) validateEnvironmentSourcePath() error {
+	srcPathIsLocal := d.config["pool"] == "" && d.sourceIsLocalPath(d.config["source"])
+	if !srcPathIsLocal {
+		return nil
+	}
+
+	sourceHostPath := shared.HostPath(d.config["source"])
+
+	// Check local external disk source path exists and load info about it.
+	_, err := os.Lstat(sourceHostPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return diskSourceNotFoundError{msg: fmt.Sprintf("Missing source path %q", d.config["source"])}
+		}
+
+		return fmt.Errorf("Failed accessing source path %q for disk %q: %w", sourceHostPath, d.name, err)
+	}
+
+	return nil
+}
+
 // validateEnvironment checks the runtime environment for correctness.
 func (d *disk) validateEnvironment() error {
 	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
 		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
+	}
+
+	err := d.validateEnvironmentSourcePath()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -349,23 +396,34 @@ func (d *disk) Register() error {
 
 // Start is run when the device is added to the instance.
 func (d *disk) Start() (*deviceConfig.RunConfig, error) {
+	var runConfig *deviceConfig.RunConfig
+
 	err := d.validateEnvironment()
+	if err == nil {
+		if d.inst.Type() == instancetype.VM {
+			runConfig, err = d.startVM()
+		} else {
+			runConfig, err = d.startContainer()
+		}
+	}
+
 	if err != nil {
+		var sourceNotFound diskSourceNotFoundError
+		if errors.As(err, &sourceNotFound) && !d.isRequired(d.config) {
+			d.logger.Warn(sourceNotFound.msg)
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
-	if d.inst.Type() == instancetype.VM {
-		return d.startVM()
-	}
-
-	return d.startContainer()
+	return runConfig, nil
 }
 
 // startContainer starts the disk device for a container instance.
 func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	isReadOnly := shared.IsTrue(d.config["readonly"])
-	isRequired := d.isRequired(d.config)
 
 	// Apply cgroups only after all the mounts have been processed.
 	runConf.PostHooks = append(runConf.PostHooks, func() error {
@@ -417,13 +475,6 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// Option checks.
 		isRecursive := shared.IsTrue(d.config["recursive"])
 
-		// If we want to mount a storage volume from a storage pool we created via our
-		// storage api, we are always mounting a directory.
-		isFile := false
-		if d.config["pool"] == "" {
-			isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
-		}
-
 		ownerShift := deviceConfig.MountOwnerShiftNone
 		if shared.IsTrue(d.config["shift"]) {
 			ownerShift = deviceConfig.MountOwnerShiftDynamic
@@ -468,31 +519,25 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			options = append(options, d.config["propagation"])
 		}
 
-		if isFile {
-			options = append(options, "create=file")
-		} else {
-			options = append(options, "create=dir")
-		}
-
 		// Mount the pool volume and set poolVolSrcPath for createDevice below.
-		var poolVolSrcPath string
 		if d.config["pool"] != "" {
 			var err error
-			poolVolSrcPath, err = d.mountPoolVolume(revert)
+			srcPath, err = d.mountPoolVolume(revert)
 			if err != nil {
-				if !isRequired {
-					d.logger.Warn(err.Error())
-					return nil, nil
-				}
-
-				return nil, err
+				return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 			}
 		}
 
 		// Mount the source in the instance devices directory.
-		sourceDevPath, err := d.createDevice(revert, poolVolSrcPath)
+		sourceDevPath, isFile, err := d.createDevice(srcPath)
 		if err != nil {
 			return nil, err
+		}
+
+		if isFile {
+			options = append(options, "create=file")
+		} else {
+			options = append(options, "create=dir")
 		}
 
 		if sourceDevPath != "" {
@@ -534,7 +579,6 @@ func (d *disk) vmVirtiofsdPaths() (string, string) {
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
-	isRequired := d.isRequired(d.config)
 
 	if shared.IsRootDiskDevice(d.config) {
 		// Handle previous requests for setting new quotas.
@@ -603,12 +647,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			if d.config["pool"] != "" {
 				srcPath, err = d.mountPoolVolume(revert)
 				if err != nil {
-					if !isRequired {
-						logger.Warn(err.Error())
-						return nil, nil
-					}
-
-					return nil, err
+					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
 			}
 
@@ -631,7 +670,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
-				srcPath, err = d.createDevice(revert, srcPath)
+				srcPath, _, err = d.createDevice(srcPath)
 				if err != nil {
 					return nil, err
 				}
@@ -752,10 +791,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				}()
 				if err != nil {
 					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
-				}
-			} else if !shared.PathExists(srcPath) {
-				if isRequired {
-					return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
 				}
 			}
 
@@ -1090,22 +1125,20 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 }
 
 // createDevice creates a disk device mount on host.
-// The poolVolSrcPath takes the path to the mounted custom pool volume when d.config["pool"] is non-empty.
-func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (string, error) {
+// The srcPath argument is the source of the disk device on the host.
+// Returns the created device path, and whether the path is a file or not.
+func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
-	srcPath := shared.HostPath(d.config["source"])
 
-	isRequired := d.isRequired(d.config)
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 	isRecursive := shared.IsTrue(d.config["recursive"])
 
 	mntOptions := d.config["raw.mount.options"]
 	fsName := "none"
 
-	isFile := false
+	var isFile bool
 	if d.config["pool"] == "" {
-		isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
 		if strings.HasPrefix(d.config["source"], "cephfs:") {
 			// Get fs name and path from d.config.
 			fields := strings.SplitN(d.config["source"], ":", 2)
@@ -1117,7 +1150,7 @@ func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (str
 			// Get the mount options.
 			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
 			if fsErr != nil {
-				return "", fsErr
+				return "", false, fsErr
 			}
 
 			// Join the options with any provided by the user.
@@ -1141,42 +1174,55 @@ func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (str
 			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
 			if err != nil {
-				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
-				if !isRequired {
-					d.logger.Warn(msg)
-					return "", nil
-				}
+				return "", false, diskSourceNotFoundError{msg: "Failed mapping Ceph RBD volume", err: err}
+			}
 
-				return "", fmt.Errorf(msg)
+			fsName, err = BlockFsDetect(rbdPath)
+			if err != nil {
+				return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
 			}
 
 			// Record the device path.
 			err = d.volatileSet(map[string]string{"ceph_rbd": rbdPath})
 			if err != nil {
-				return "", err
+				return "", false, err
 			}
 
 			srcPath = rbdPath
 			isFile = false
-		}
-	} else {
-		srcPath = poolVolSrcPath // Use pool source path override.
-	}
+		} else {
+			fileInfo, err := os.Stat(srcPath)
+			if err != nil {
+				return "", false, fmt.Errorf("Failed accessing source path %q: %w", srcPath, err)
+			}
 
-	// Check if the source exists unless it is a cephfs.
-	if fsName != "ceph" && !shared.PathExists(srcPath) {
-		if !isRequired {
-			return "", nil
-		}
+			fileMode := fileInfo.Mode()
+			if shared.IsBlockdev(fileMode) {
+				fsName, err = BlockFsDetect(srcPath)
+				if err != nil {
+					return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
+				}
+			} else if !fileMode.IsDir() {
+				isFile = true
+			}
 
-		return "", fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
+			// Open file handle to local source. Has to be os.O_RDONLY for directory open support, but
+			// this won't prevent a writable mount.
+			f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
+			if err != nil {
+				return "", false, err
+			}
+			defer f.Close()
+
+			srcPath = fmt.Sprintf("/proc/self/fd/%d", f.Fd())
+		}
 	}
 
 	// Create the devices directory if missing.
 	if !shared.PathExists(d.inst.DevicesPath()) {
 		err := os.Mkdir(d.inst.DevicesPath(), 0711)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	}
 
@@ -1184,7 +1230,7 @@ func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (str
 	if shared.PathExists(devPath) {
 		err := os.Remove(devPath)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	}
 
@@ -1192,25 +1238,24 @@ func (d *disk) createDevice(revert *revert.Reverter, poolVolSrcPath string) (str
 	if isFile {
 		f, err := os.Create(devPath)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 
 		f.Close()
 	} else {
 		err := os.Mkdir(devPath, 0700)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	}
 
 	// Mount the fs.
 	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"], mntOptions, fsName)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	revert.Success()
-	return devPath, nil
+	return devPath, isFile, nil
 }
 
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
