@@ -26,8 +26,13 @@ import (
 type heartbeatMode int
 
 const (
+	// HearbeatNormal normal heartbeat.
 	HearbeatNormal heartbeatMode = iota
+
+	// HearbeatImmediate immediate heartbeat.
 	HearbeatImmediate
+
+	// HearbeatInitial initial heartbeat.
 	HearbeatInitial
 )
 
