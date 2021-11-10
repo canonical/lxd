@@ -806,10 +806,10 @@ func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poo
 func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[string]string) error {
 	str := "INSERT INTO storage_pools_config (storage_pool_id, node_id, key, value) VALUES(?, ?, ?, ?)"
 	stmt, err := tx.Prepare(str)
-	defer stmt.Close()
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	for k, v := range poolConfig {
 		if v == "" {
