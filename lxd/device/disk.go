@@ -396,16 +396,28 @@ func (d *disk) Register() error {
 
 // Start is run when the device is added to the instance.
 func (d *disk) Start() (*deviceConfig.RunConfig, error) {
+	var runConfig *deviceConfig.RunConfig
+
 	err := d.validateEnvironment()
+	if err == nil {
+		if d.inst.Type() == instancetype.VM {
+			runConfig, err = d.startVM()
+		} else {
+			runConfig, err = d.startContainer()
+		}
+	}
+
 	if err != nil {
+		var sourceNotFound diskSourceNotFoundError
+		if errors.As(err, &sourceNotFound) && !d.isRequired(d.config) {
+			d.logger.Warn(sourceNotFound.msg)
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
-	if d.inst.Type() == instancetype.VM {
-		return d.startVM()
-	}
-
-	return d.startContainer()
+	return runConfig, nil
 }
 
 // startContainer starts the disk device for a container instance.
