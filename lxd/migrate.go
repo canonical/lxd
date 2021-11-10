@@ -114,8 +114,8 @@ func (c *migrationFields) sendControl(err error) {
 	}
 }
 
-func (c *migrationFields) controlChannel() <-chan migration.MigrationControl {
-	ch := make(chan migration.MigrationControl)
+func (c *migrationFields) controlChannel() <-chan *migration.MigrationControl {
+	ch := make(chan *migration.MigrationControl)
 	go func() {
 		msg := migration.MigrationControl{}
 		err := c.recv(&msg)
@@ -124,7 +124,7 @@ func (c *migrationFields) controlChannel() <-chan migration.MigrationControl {
 			close(ch)
 			return
 		}
-		ch <- msg
+		ch <- &msg
 	}()
 
 	return ch
