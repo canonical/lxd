@@ -816,10 +816,10 @@ func updateNetworkDescription(tx *sql.Tx, id int64, description string) error {
 func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]string) error {
 	str := fmt.Sprintf("INSERT INTO networks_config (network_id, node_id, key, value) VALUES(?, ?, ?, ?)")
 	stmt, err := tx.Prepare(str)
-	defer stmt.Close()
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	for k, v := range config {
 		if v == "" {
