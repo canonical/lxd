@@ -12,7 +12,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
-	"github.com/juju/httprequest"
+	"github.com/go-httprequest/httprequest"
 	"github.com/rogpeppe/fastuuid"
 )
 
