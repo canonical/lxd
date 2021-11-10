@@ -725,10 +725,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
 				}
-			} else if !shared.PathExists(srcPath) {
-				if isRequired {
-					return nil, fmt.Errorf("Source path %q doesn't exist for device %q", srcPath, d.name)
-				}
 			}
 
 			// Add successfully setup mount config to runConf.
