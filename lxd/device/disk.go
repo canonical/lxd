@@ -417,13 +417,6 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// Option checks.
 		isRecursive := shared.IsTrue(d.config["recursive"])
 
-		// If we want to mount a storage volume from a storage pool we created via our
-		// storage api, we are always mounting a directory.
-		isFile := false
-		if d.config["pool"] == "" {
-			isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
-		}
-
 		ownerShift := deviceConfig.MountOwnerShiftNone
 		if shared.IsTrue(d.config["shift"]) {
 			ownerShift = deviceConfig.MountOwnerShiftDynamic
@@ -468,12 +461,6 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			options = append(options, d.config["propagation"])
 		}
 
-		if isFile {
-			options = append(options, "create=file")
-		} else {
-			options = append(options, "create=dir")
-		}
-
 		// Mount the pool volume and set poolVolSrcPath for createDevice below.
 		if d.config["pool"] != "" {
 			var err error
@@ -489,9 +476,15 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Mount the source in the instance devices directory.
-		sourceDevPath, err := d.createDevice(srcPath)
+		sourceDevPath, isFile, err := d.createDevice(srcPath)
 		if err != nil {
 			return nil, err
+		}
+
+		if isFile {
+			options = append(options, "create=file")
+		} else {
+			options = append(options, "create=dir")
 		}
 
 		if sourceDevPath != "" {
@@ -630,7 +623,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
-				srcPath, err = d.createDevice(srcPath)
+				srcPath, _, err = d.createDevice(srcPath)
 				if err != nil {
 					return nil, err
 				}
