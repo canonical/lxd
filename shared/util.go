@@ -668,20 +668,6 @@ func StringMapHasStringKey(m map[string]string, keys ...string) bool {
 	return false
 }
 
-func IsUnixDev(path string) bool {
-	stat, err := os.Stat(path)
-	if err != nil {
-		return false
-
-	}
-
-	if (stat.Mode() & os.ModeDevice) == 0 {
-		return false
-	}
-
-	return true
-}
-
 func IsBlockdev(fm os.FileMode) bool {
 	return ((fm&os.ModeDevice != 0) && (fm&os.ModeCharDevice == 0))
 }
