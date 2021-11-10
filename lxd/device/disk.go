@@ -1090,7 +1090,8 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 
 // createDevice creates a disk device mount on host.
 // The srcPath argument is the source of the disk device on the host.
-func (d *disk) createDevice(srcPath string) (string, error) {
+// Returns the created device path, and whether the path is a file or not.
+func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 
@@ -1114,7 +1115,7 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 			// Get the mount options.
 			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
 			if fsErr != nil {
-				return "", fsErr
+				return "", false, fsErr
 			}
 
 			// Join the options with any provided by the user.
@@ -1141,43 +1142,46 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
 				if !isRequired {
 					d.logger.Warn(msg)
-					return "", nil
+					return "", false, nil
 				}
 
-				return "", fmt.Errorf(msg)
+				return "", false, fmt.Errorf(msg)
 			}
 
 			fsName, err = BlockFsDetect(rbdPath)
 			if err != nil {
-				return "", fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
+				return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
 			}
 
 			// Record the device path.
 			err = d.volatileSet(map[string]string{"ceph_rbd": rbdPath})
 			if err != nil {
-				return "", err
+				return "", false, err
 			}
 
 			srcPath = rbdPath
 			isFile = false
 		} else {
-			var err error
-			isDir := shared.IsDir(srcPath)
-			isBlockDev := !isDir && IsBlockdev(srcPath)
-			isFile = !isDir && !isBlockDev
+			fileInfo, err := os.Stat(srcPath)
+			if err != nil {
+				return "", false, fmt.Errorf("Failed accessing source path %q: %w", srcPath, err)
+			}
 
-			if isBlockDev {
+			fileMode := fileInfo.Mode()
+			if shared.IsBlockdev(fileMode) {
 				fsName, err = BlockFsDetect(srcPath)
 				if err != nil {
-					return "", fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
+					return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
 				}
+			} else if !fileMode.IsDir() {
+				isFile = true
 			}
 
 			// Open file handle to local source. Has to be os.O_RDONLY for directory open support, but
 			// this won't prevent a writable mount.
 			f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
 			if err != nil {
-				return "", err
+				return "", false, err
 			}
 			defer f.Close()
 
@@ -1189,7 +1193,7 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 	if !shared.PathExists(d.inst.DevicesPath()) {
 		err := os.Mkdir(d.inst.DevicesPath(), 0711)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	}
 
@@ -1197,7 +1201,7 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 	if shared.PathExists(devPath) {
 		err := os.Remove(devPath)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	}
 
@@ -1205,24 +1209,24 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 	if isFile {
 		f, err := os.Create(devPath)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 
 		f.Close()
 	} else {
 		err := os.Mkdir(devPath, 0700)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 	}
 
 	// Mount the fs.
 	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"], mntOptions, fsName)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	return devPath, nil
+	return devPath, isFile, nil
 }
 
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
