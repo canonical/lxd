@@ -294,10 +294,37 @@ func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) stri
 	return filepath.Join(d.inst.DevicesPath(), devPath)
 }
 
+// validateEnvironmentSourcePath checks the source path property is valid.
+func (d *disk) validateEnvironmentSourcePath() error {
+	srcPathIsLocal := d.config["pool"] == "" && d.sourceIsLocalPath(d.config["source"])
+	if !srcPathIsLocal {
+		return nil
+	}
+
+	sourceHostPath := shared.HostPath(d.config["source"])
+
+	// Check local external disk source path exists and load info about it.
+	_, err := os.Lstat(sourceHostPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return diskSourceNotFoundError{msg: fmt.Sprintf("Missing source path %q", d.config["source"])}
+		}
+
+		return fmt.Errorf("Failed accessing source path %q for disk %q: %w", sourceHostPath, d.name, err)
+	}
+
+	return nil
+}
+
 // validateEnvironment checks the runtime environment for correctness.
 func (d *disk) validateEnvironment() error {
 	if d.inst.Type() != instancetype.VM && d.config["source"] == diskSourceCloudInit {
 		return fmt.Errorf("disks with source=%s are only supported by virtual machines", diskSourceCloudInit)
+	}
+
+	err := d.validateEnvironmentSourcePath()
+	if err != nil {
+		return err
 	}
 
 	return nil
