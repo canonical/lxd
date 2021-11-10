@@ -351,7 +351,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		restore <- nil
 	}(c)
 
-	var source <-chan migration.MigrationControl
+	var source <-chan *migration.MigrationControl
 	if c.push {
 		source = c.dest.controlChannel()
 	} else {
