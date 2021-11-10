@@ -1147,6 +1147,11 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 				return "", fmt.Errorf(msg)
 			}
 
+			fsName, err = BlockFsDetect(rbdPath)
+			if err != nil {
+				return "", fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
+			}
+
 			// Record the device path.
 			err = d.volatileSet(map[string]string{"ceph_rbd": rbdPath})
 			if err != nil {
@@ -1156,7 +1161,17 @@ func (d *disk) createDevice(srcPath string) (string, error) {
 			srcPath = rbdPath
 			isFile = false
 		} else {
-			isFile = !shared.IsDir(srcPath) && !IsBlockdev(srcPath)
+			var err error
+			isDir := shared.IsDir(srcPath)
+			isBlockDev := !isDir && IsBlockdev(srcPath)
+			isFile = !isDir && !isBlockDev
+
+			if isBlockDev {
+				fsName, err = BlockFsDetect(srcPath)
+				if err != nil {
+					return "", fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
+				}
+			}
 
 			// Open file handle to local source. Has to be os.O_RDONLY for directory open support, but
 			// this won't prevent a writable mount.
