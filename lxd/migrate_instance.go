@@ -1211,7 +1211,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		restore <- nil
 	}(c)
 
-	var source <-chan migration.MigrationControl
+	var source <-chan *migration.MigrationControl
 	if c.push {
 		source = c.dest.controlChannel()
 	} else {
