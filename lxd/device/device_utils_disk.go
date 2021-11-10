@@ -58,42 +58,35 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	// Detect the filesystem
-	if IsBlockdev(srcPath) {
-		fsName, err = BlockFsDetect(srcPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		if fsName == "none" {
-			flags |= unix.MS_BIND
-		}
+	if fsName == "none" {
+		flags |= unix.MS_BIND
+	}
 
-		if propagation != "" {
-			switch propagation {
-			case "private":
-				flags |= unix.MS_PRIVATE
-			case "shared":
-				flags |= unix.MS_SHARED
-			case "slave":
-				flags |= unix.MS_SLAVE
-			case "unbindable":
-				flags |= unix.MS_UNBINDABLE
-			case "rprivate":
-				flags |= unix.MS_PRIVATE | unix.MS_REC
-			case "rshared":
-				flags |= unix.MS_SHARED | unix.MS_REC
-			case "rslave":
-				flags |= unix.MS_SLAVE | unix.MS_REC
-			case "runbindable":
-				flags |= unix.MS_UNBINDABLE | unix.MS_REC
-			default:
-				return fmt.Errorf("Invalid propagation mode %q", propagation)
-			}
+	if propagation != "" {
+		switch propagation {
+		case "private":
+			flags |= unix.MS_PRIVATE
+		case "shared":
+			flags |= unix.MS_SHARED
+		case "slave":
+			flags |= unix.MS_SLAVE
+		case "unbindable":
+			flags |= unix.MS_UNBINDABLE
+		case "rprivate":
+			flags |= unix.MS_PRIVATE | unix.MS_REC
+		case "rshared":
+			flags |= unix.MS_SHARED | unix.MS_REC
+		case "rslave":
+			flags |= unix.MS_SLAVE | unix.MS_REC
+		case "runbindable":
+			flags |= unix.MS_UNBINDABLE | unix.MS_REC
+		default:
+			return fmt.Errorf("Invalid propagation mode %q", propagation)
 		}
+	}
 
-		if recursive {
-			flags |= unix.MS_REC
-		}
+	if recursive {
+		flags |= unix.MS_REC
 	}
 
 	// Mount the filesystem
