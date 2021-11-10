@@ -210,6 +210,11 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					continue
 				}
 
+				devpath, ok := props["DEVPATH"]
+				if !ok {
+					continue
+				}
+
 				zeroPad := func(s string, l int) string {
 					return strings.Repeat("0", l-len(s)) + s
 				}
@@ -229,6 +234,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					devname,
 					ueventParts[:len(ueventParts)-1],
 					ueventLen,
+					filepath.Base(devpath),
 				)
 				if err != nil {
 					logger.Error("Error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
@@ -261,6 +267,11 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 				}
 
 				minor, ok := props["MINOR"]
+				if !ok {
+					continue
+				}
+
+				devpath, ok := props["DEVPATH"]
 				if !ok {
 					continue
 				}
@@ -301,6 +312,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					devname,
 					ueventParts[:len(ueventParts)-1],
 					ueventLen,
+					filepath.Base(devpath),
 				)
 				if err != nil {
 					logger.Error("Error reading unix device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})

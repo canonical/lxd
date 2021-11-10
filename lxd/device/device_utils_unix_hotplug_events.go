@@ -26,6 +26,8 @@ type UnixHotplugEvent struct {
 	Subsystem   string
 	UeventParts []string
 	UeventLen   int
+
+	PortPath string
 }
 
 // unixHotplugHandlers stores the event handler callbacks for Unix hotplug events.
@@ -95,7 +97,7 @@ func UnixHotplugRunHandlers(state *state.State, event *UnixHotplugEvent) {
 }
 
 // UnixHotplugNewEvent instantiates a new UnixHotplugEvent struct.
-func UnixHotplugNewEvent(action string, vendor string, product string, major string, minor string, subsystem string, devname string, ueventParts []string, ueventLen int) (UnixHotplugEvent, error) {
+func UnixHotplugNewEvent(action string, vendor string, product string, major string, minor string, subsystem string, devname string, ueventParts []string, ueventLen int, portPath string) (UnixHotplugEvent, error) {
 	majorInt, err := strconv.ParseUint(major, 10, 32)
 	if err != nil {
 		return UnixHotplugEvent{}, err
@@ -116,5 +118,6 @@ func UnixHotplugNewEvent(action string, vendor string, product string, major str
 		subsystem,
 		ueventParts,
 		ueventLen,
+		portPath,
 	}, nil
 }

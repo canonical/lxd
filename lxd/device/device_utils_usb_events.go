@@ -29,6 +29,8 @@ type USBEvent struct {
 
 	BusNum int
 	DevNum int
+
+	PortPath string
 }
 
 // usbHandlers stores the event handler callbacks for USB events.
@@ -98,7 +100,7 @@ func USBRunHandlers(state *state.State, event *USBEvent) {
 }
 
 // USBNewEvent instantiates a new USBEvent struct.
-func USBNewEvent(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string, ueventParts []string, ueventLen int) (USBEvent, error) {
+func USBNewEvent(action string, vendor string, product string, major string, minor string, busnum string, devnum string, devname string, ueventParts []string, ueventLen int, portPath string) (USBEvent, error) {
 	majorInt, err := strconv.ParseUint(major, 10, 32)
 	if err != nil {
 		return USBEvent{}, err
@@ -140,5 +142,6 @@ func USBNewEvent(action string, vendor string, product string, major string, min
 		ueventLen,
 		busnumInt,
 		devnumInt,
+		portPath,
 	}, nil
 }

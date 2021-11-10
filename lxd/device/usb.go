@@ -27,6 +27,14 @@ func usbIsOurDevice(config deviceConfig.Device, usb *USBEvent) bool {
 		return false
 	}
 
+	// Optionally match the specific USB port with a glob pattern.
+	if pat := config["portglob"]; pat != "" {
+		ok, _ := path.Match(usb.PortPath, pat)
+		if !ok {
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -57,6 +65,7 @@ func (d *usb) validateConfig(instConf instance.ConfigReader) error {
 	rules := map[string]func(string) error{
 		"vendorid":  validate.Optional(validate.IsDeviceID),
 		"productid": validate.Optional(validate.IsDeviceID),
+		"portglob":  validate.Optional(validate.IsGlob),
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
 		"mode":      unixValidOctalFileMode,
@@ -256,6 +265,7 @@ func (d *usb) loadUsb() ([]USBEvent, error) {
 			values["devname"],
 			[]string{},
 			0,
+			ent.Name(),
 		)
 		if err != nil {
 			if os.IsNotExist(err) {

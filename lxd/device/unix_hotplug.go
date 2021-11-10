@@ -5,6 +5,7 @@ package device
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	udev "github.com/farjump/go-libudev"
@@ -23,6 +24,14 @@ func unixHotplugIsOurDevice(config deviceConfig.Device, unixHotplug *UnixHotplug
 	// Check if event matches criteria for this device, if not return.
 	if (config["vendorid"] != "" && config["vendorid"] != unixHotplug.Vendor) || (config["productid"] != "" && config["productid"] != unixHotplug.Product) {
 		return false
+	}
+
+	// Optionally match the specific USB port with a glob pattern.
+	if pat := config["portglob"]; pat != "" {
+		ok, _ := path.Match(unixHotplug.PortPath, pat)
+		if !ok {
+			return false
+		}
 	}
 
 	return true
@@ -51,6 +60,7 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 	rules := map[string]func(string) error{
 		"vendorid":  validate.Optional(validate.IsDeviceID),
 		"productid": validate.Optional(validate.IsDeviceID),
+		"portglob":  validate.Optional(validate.IsGlob),
 		"uid":       unixValidUserID,
 		"gid":       unixValidUserID,
 		"mode":      unixValidOctalFileMode,
@@ -62,8 +72,8 @@ func (d *unixHotplug) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if d.config["vendorid"] == "" && d.config["productid"] == "" {
-		return fmt.Errorf("Unix hotplug devices require a vendorid or a productid")
+	if d.config["vendorid"] == "" && d.config["productid"] == "" && d.config["portglob"] == "" {
+		return fmt.Errorf("Unix hotplug devices require a vendorid or a productid or a portglob")
 	}
 
 	return nil

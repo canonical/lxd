@@ -826,10 +826,16 @@ Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
 vendorid    | string    | -                 | no        | The vendor id of the USB device
 productid   | string    | -                 | no        | The product id of the USB device
+portglob    | string    | -                 | no        | Glob matching to physical USB port
 uid         | int       | 0                 | no        | UID of the device owner in the instance
 gid         | int       | 0                 | no        | GID of the device owner in the instance
 mode        | int       | 0660              | no        | Mode of the device in the instance
 required    | boolean   | false             | no        | Whether or not this device is required to start the instance. (The default is false, and all devices are hot-pluggable)
+
+USB ports are represented as a sequence of numbers separated by dashes. Each
+number is a physical port on a USB hub. For example the port path 1-2-3
+represents following the 1st port on the root hub, then the 2nd port on the
+next hub and finally the 3rd port on final hub.
 
 ### Type: gpu
 
@@ -993,6 +999,7 @@ Key         | Type      | Default           | Required  | Description
 :--         | :--       | :--               | :--       | :--
 vendorid    | string    | -                 | no        | The vendor id of the unix device
 productid   | string    | -                 | no        | The product id of the unix device
+portglob    | string    | -                 | no        | Glob matching to physical USB port
 uid         | int       | 0                 | no        | UID of the device owner in the instance
 gid         | int       | 0                 | no        | GID of the device owner in the instance
 mode        | int       | 0660              | no        | Mode of the device in the instance

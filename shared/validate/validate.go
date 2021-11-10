@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -718,4 +719,10 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 
 		return nil
 	}
+}
+
+// IsGlob validates whether the value is a valid glob.
+func IsGlob(value string) error {
+	_, err := path.Match("", value)
+	return err
 }
