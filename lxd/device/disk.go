@@ -199,12 +199,19 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
+	srcPathIsLocal := d.config["pool"] == "" && d.sourceIsLocalPath(d.config["source"])
+	srcPathIsAbs := filepath.IsAbs(d.config["source"])
+
+	if srcPathIsLocal && !srcPathIsAbs {
+		return fmt.Errorf("Source path must be absolute for local sources")
+	}
+
 	// Check that external disk source path exists. External disk sources have a non-empty "source" property
 	// that contains the path of the external source, and do not have a "pool" property. We only check the
 	// source path exists when the disk device is required, is not an external ceph/cephfs source and is not a
 	// VM cloud-init drive. We only check this when an instance is loaded to avoid validating snapshot configs
 	// that may contain older config that no longer exists which can prevent migrations.
-	if d.inst != nil && d.config["pool"] == "" && d.isRequired(d.config) && d.sourceIsLocalPath(d.config["source"]) && !shared.PathExists(shared.HostPath(d.config["source"])) {
+	if d.inst != nil && srcPathIsLocal && d.isRequired(d.config) && !shared.PathExists(shared.HostPath(d.config["source"])) {
 		return fmt.Errorf("Missing source path %q for disk %q", d.config["source"], d.name)
 	}
 
@@ -224,7 +231,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes`)
 		}
 
-		if filepath.IsAbs(d.config["source"]) {
+		if srcPathIsAbs {
 			return fmt.Errorf("Storage volumes cannot be specified as absolute paths")
 		}
 
