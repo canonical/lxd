@@ -73,6 +73,8 @@ func (e diskSourceNotFoundError) Unwrap() error {
 
 type disk struct {
 	deviceCommon
+
+	restrictedParentSourcePath string
 }
 
 // CanMigrate returns whether the device can be migrated to any other cluster member.
@@ -318,7 +320,7 @@ func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) stri
 	return filepath.Join(d.inst.DevicesPath(), devPath)
 }
 
-// validateEnvironmentSourcePath checks the source path property is valid.
+// validateEnvironmentSourcePath checks the source path property is valid and allowed by project.
 func (d *disk) validateEnvironmentSourcePath() error {
 	srcPathIsLocal := d.config["pool"] == "" && d.sourceIsLocalPath(d.config["source"])
 	if !srcPathIsLocal {
@@ -327,7 +329,8 @@ func (d *disk) validateEnvironmentSourcePath() error {
 
 	sourceHostPath := shared.HostPath(d.config["source"])
 
-	// Check local external disk source path exists and load info about it.
+	// Check local external disk source path exists, but don't follow symlinks here (as we let openat2 do that
+	// safely later).
 	_, err := os.Lstat(sourceHostPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -335,6 +338,30 @@ func (d *disk) validateEnvironmentSourcePath() error {
 		}
 
 		return fmt.Errorf("Failed accessing source path %q for disk %q: %w", sourceHostPath, d.name, err)
+	}
+
+	// If project not default then check if using restricted disk paths.
+	// Default project cannot be restricted, so don't bother loading the project config in that case.
+	projectName := d.inst.Project()
+	if projectName != project.Default {
+		p, err := d.state.Cluster.GetProject(projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		// If restricted disk paths are in force, then check the disk's source is allowed, and record the
+		// allowed parent path for later user during device start up sequence.
+		if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.devices.disk.paths"] != "" {
+			var allowed bool
+			allowed, d.restrictedParentSourcePath = project.CheckRestrictedDevicesDiskPaths(p.Config, d.config["source"])
+			if !allowed {
+				return fmt.Errorf("Disk source path %q not allowed by project for disk %q", d.config["source"], d.name)
+			}
+
+			if shared.IsTrue(d.config["shift"]) {
+				return fmt.Errorf(`The "shift" property cannot be used with a restricted source path`)
+			}
+		}
 	}
 
 	return nil
