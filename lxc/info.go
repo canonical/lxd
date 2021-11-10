@@ -269,7 +269,7 @@ func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initi
 		fmt.Printf(prefix+i18n.G("Type: %s")+"\n", disk.Type)
 	}
 
-	fmt.Printf(prefix+i18n.G("Size: %s")+"\n", units.GetByteSizeString(int64(disk.Size), 2))
+	fmt.Printf(prefix+i18n.G("Size: %s")+"\n", units.GetByteSizeStringIEC(int64(disk.Size), 2))
 
 	if disk.WWN != "" {
 		fmt.Printf(prefix+i18n.G("WWN: %s")+"\n", disk.WWN)
@@ -285,7 +285,7 @@ func (c *cmdInfo) renderDisk(disk api.ResourcesStorageDisk, prefix string, initi
 			fmt.Printf(prefix+"    "+i18n.G("ID: %s")+"\n", partition.ID)
 			fmt.Printf(prefix+"    "+i18n.G("Device: %s")+"\n", partition.Device)
 			fmt.Printf(prefix+"    "+i18n.G("Read-Only: %v")+"\n", partition.ReadOnly)
-			fmt.Printf(prefix+"    "+i18n.G("Size: %s")+"\n", units.GetByteSizeString(int64(partition.Size), 2))
+			fmt.Printf(prefix+"    "+i18n.G("Size: %s")+"\n", units.GetByteSizeStringIEC(int64(partition.Size), 2))
 		}
 	}
 }
@@ -302,7 +302,7 @@ func (c *cmdInfo) renderCPU(cpu api.ResourcesCPUSocket, prefix string) {
 	if cpu.Cache != nil {
 		fmt.Printf(prefix + i18n.G("Caches:") + "\n")
 		for _, cache := range cpu.Cache {
-			fmt.Printf(prefix+"  "+i18n.G("- Level %d (type: %s): %s")+"\n", cache.Level, cache.Type, units.GetByteSizeString(int64(cache.Size), 0))
+			fmt.Printf(prefix+"  "+i18n.G("- Level %d (type: %s): %s")+"\n", cache.Level, cache.Type, units.GetByteSizeStringIEC(int64(cache.Size), 0))
 		}
 	}
 
@@ -361,9 +361,9 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 		fmt.Printf("\n" + i18n.G("Memory:") + "\n")
 		if resources.Memory.HugepagesTotal > 0 {
 			fmt.Printf("  " + i18n.G("Hugepages:"+"\n"))
-			fmt.Printf("    "+i18n.G("Free: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.HugepagesTotal-resources.Memory.HugepagesUsed), 2))
-			fmt.Printf("    "+i18n.G("Used: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.HugepagesUsed), 2))
-			fmt.Printf("    "+i18n.G("Total: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.HugepagesTotal), 2))
+			fmt.Printf("    "+i18n.G("Free: %v")+"\n", units.GetByteSizeStringIEC(int64(resources.Memory.HugepagesTotal-resources.Memory.HugepagesUsed), 2))
+			fmt.Printf("    "+i18n.G("Used: %v")+"\n", units.GetByteSizeStringIEC(int64(resources.Memory.HugepagesUsed), 2))
+			fmt.Printf("    "+i18n.G("Total: %v")+"\n", units.GetByteSizeStringIEC(int64(resources.Memory.HugepagesTotal), 2))
 		}
 
 		if len(resources.Memory.Nodes) > 1 {
@@ -372,19 +372,19 @@ func (c *cmdInfo) remoteInfo(d lxd.InstanceServer) error {
 				fmt.Printf("    "+i18n.G("Node %d:"+"\n"), node.NUMANode)
 				if node.HugepagesTotal > 0 {
 					fmt.Printf("      " + i18n.G("Hugepages:"+"\n"))
-					fmt.Printf("        "+i18n.G("Free: %v")+"\n", units.GetByteSizeString(int64(node.HugepagesTotal-node.HugepagesUsed), 2))
-					fmt.Printf("        "+i18n.G("Used: %v")+"\n", units.GetByteSizeString(int64(node.HugepagesUsed), 2))
-					fmt.Printf("        "+i18n.G("Total: %v")+"\n", units.GetByteSizeString(int64(node.HugepagesTotal), 2))
+					fmt.Printf("        "+i18n.G("Free: %v")+"\n", units.GetByteSizeStringIEC(int64(node.HugepagesTotal-node.HugepagesUsed), 2))
+					fmt.Printf("        "+i18n.G("Used: %v")+"\n", units.GetByteSizeStringIEC(int64(node.HugepagesUsed), 2))
+					fmt.Printf("        "+i18n.G("Total: %v")+"\n", units.GetByteSizeStringIEC(int64(node.HugepagesTotal), 2))
 				}
-				fmt.Printf("      "+i18n.G("Free: %v")+"\n", units.GetByteSizeString(int64(node.Total-node.Used), 2))
-				fmt.Printf("      "+i18n.G("Used: %v")+"\n", units.GetByteSizeString(int64(node.Used), 2))
-				fmt.Printf("      "+i18n.G("Total: %v")+"\n", units.GetByteSizeString(int64(node.Total), 2))
+				fmt.Printf("      "+i18n.G("Free: %v")+"\n", units.GetByteSizeStringIEC(int64(node.Total-node.Used), 2))
+				fmt.Printf("      "+i18n.G("Used: %v")+"\n", units.GetByteSizeStringIEC(int64(node.Used), 2))
+				fmt.Printf("      "+i18n.G("Total: %v")+"\n", units.GetByteSizeStringIEC(int64(node.Total), 2))
 			}
 		}
 
-		fmt.Printf("  "+i18n.G("Free: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.Total-resources.Memory.Used), 2))
-		fmt.Printf("  "+i18n.G("Used: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.Used), 2))
-		fmt.Printf("  "+i18n.G("Total: %v")+"\n", units.GetByteSizeString(int64(resources.Memory.Total), 2))
+		fmt.Printf("  "+i18n.G("Free: %v")+"\n", units.GetByteSizeStringIEC(int64(resources.Memory.Total-resources.Memory.Used), 2))
+		fmt.Printf("  "+i18n.G("Used: %v")+"\n", units.GetByteSizeStringIEC(int64(resources.Memory.Used), 2))
+		fmt.Printf("  "+i18n.G("Total: %v")+"\n", units.GetByteSizeStringIEC(int64(resources.Memory.Total), 2))
 
 		// GPUs
 		if len(resources.GPU.Cards) == 1 {
