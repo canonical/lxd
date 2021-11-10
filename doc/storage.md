@@ -33,7 +33,7 @@ volatile.initial\_source        | string    | -                                 
 volatile.pool.pristine          | string    | -                                 | true                       | Whether the pool has been empty on creation time.
 volume.block.filesystem         | string    | block based driver (lvm)          | ext4                       | Filesystem to use for new volumes
 volume.block.mount\_options     | string    | block based driver (lvm)          | discard                    | Mount options for block devices
-volume.size                     | string    | appropriate driver                | unlimited (10GB for block) | Default volume size
+volume.size                     | string    | appropriate driver                | unlimited (10GiB for block)| Default volume size
 volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false                      | Remove snapshots as needed
 volume.zfs.use\_refquota        | bool      | zfs driver                        | false                      | Use refquota instead of quota for space.
 zfs.clone\_copy                 | string    | zfs driver                        | true                       | Whether to use ZFS lightweight clones rather than full dataset copies (boolean) or "rebase" to copy based on the initial image.

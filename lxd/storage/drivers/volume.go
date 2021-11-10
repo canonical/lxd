@@ -18,7 +18,7 @@ import (
 const tmpVolSuffix = ".lxdtmp"
 
 // defaultBlockSize Default size of block volumes.
-const defaultBlockSize = "10GB"
+const defaultBlockSize = "10GiB"
 
 // DefaultVMBlockFilesystemSize is the size of a VM block volume's associated filesystem volume.
 const DefaultVMBlockFilesystemSize = "100MB"
