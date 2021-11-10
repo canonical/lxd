@@ -47,6 +47,20 @@ type diskBlockLimit struct {
 	writeIops int64
 }
 
+// diskSourceNotFoundError error used to indicate source not found.
+type diskSourceNotFoundError struct {
+	msg string
+	err error
+}
+
+func (e diskSourceNotFoundError) Error() string {
+	return e.msg
+}
+
+func (e diskSourceNotFoundError) Unwrap() error {
+	return e.err
+}
+
 type disk struct {
 	deviceCommon
 }
