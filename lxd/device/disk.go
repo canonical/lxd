@@ -30,7 +30,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
@@ -603,7 +602,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				srcPath, err = d.mountPoolVolume(revert)
 				if err != nil {
 					if !isRequired {
-						logger.Warn(err.Error())
+						d.logger.Warn(err.Error())
 						return nil, nil
 					}
 
