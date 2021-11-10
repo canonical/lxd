@@ -851,8 +851,8 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 		return -1, -1, -1, -1, err
 	}
 
-	reUID := regexp.MustCompile("Uid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
-	reGID := regexp.MustCompile("Gid:\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)\\s*([0-9]*)")
+	reUID := regexp.MustCompile(`^Uid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
+	reGID := regexp.MustCompile(`^Gid:\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)`)
 	var UID int64 = -1
 	var GID int64 = -1
 	var fsUID int64 = -1
