@@ -385,7 +385,6 @@ func (d *disk) Start() (*deviceConfig.RunConfig, error) {
 func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
 	isReadOnly := shared.IsTrue(d.config["readonly"])
-	isRequired := d.isRequired(d.config)
 
 	// Apply cgroups only after all the mounts have been processed.
 	runConf.PostHooks = append(runConf.PostHooks, func() error {
@@ -486,12 +485,7 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			var err error
 			srcPath, err = d.mountPoolVolume(revert)
 			if err != nil {
-				if !isRequired {
-					d.logger.Warn(err.Error())
-					return nil, nil
-				}
-
-				return nil, err
+				return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 			}
 		}
 
@@ -546,7 +540,6 @@ func (d *disk) vmVirtiofsdPaths() (string, string) {
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{}
-	isRequired := d.isRequired(d.config)
 
 	if shared.IsRootDiskDevice(d.config) {
 		// Handle previous requests for setting new quotas.
@@ -615,12 +608,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			if d.config["pool"] != "" {
 				srcPath, err = d.mountPoolVolume(revert)
 				if err != nil {
-					if !isRequired {
-						d.logger.Warn(err.Error())
-						return nil, nil
-					}
-
-					return nil, err
+					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
 			}
 
@@ -1108,7 +1096,6 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 
-	isRequired := d.isRequired(d.config)
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 	isRecursive := shared.IsTrue(d.config["recursive"])
 
@@ -1152,13 +1139,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
 			if err != nil {
-				msg := fmt.Sprintf("Could not mount map Ceph RBD: %v", err)
-				if !isRequired {
-					d.logger.Warn(msg)
-					return "", false, nil
-				}
-
-				return "", false, fmt.Errorf(msg)
+				return "", false, diskSourceNotFoundError{msg: "Failed mapping Ceph RBD volume", err: err}
 			}
 
 			fsName, err = BlockFsDetect(rbdPath)
