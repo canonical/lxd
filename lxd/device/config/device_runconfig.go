@@ -1,5 +1,7 @@
 package config
 
+import "github.com/lxc/lxd/lxd/revert"
+
 // MountOwnerShiftNone do not use owner shifting.
 const MountOwnerShiftNone = ""
 
@@ -49,4 +51,5 @@ type RunConfig struct {
 	PostHooks        []func() error   // Functions to be run after device attach/detach.
 	GPUDevice        []RunConfigItem  // GPU device configuration settings.
 	USBDevice        []USBDeviceItem  // USB device configuration settings.
+	Revert           *revert.Reverter // Revert setup of device on post-setup error.
 }
