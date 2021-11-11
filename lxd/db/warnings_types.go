@@ -53,6 +53,8 @@ const (
 	WarningOfflineClusterMember
 	// WarningInstanceAutostartFailure represents the failure of instance autostart process after three retries
 	WarningInstanceAutostartFailure
+	//WarningInstanceTypeNotOperational represents the lack of support for an instance driver
+	WarningInstanceTypeNotOperational
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -80,6 +82,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningNetworkStartupFailure:                  "Failed to start network",
 	WarningOfflineClusterMember:                   "Offline cluster member",
 	WarningInstanceAutostartFailure:               "Failed to autostart instance",
+	WarningInstanceTypeNotOperational:             "Instance type not operational",
 }
 
 // WarningTypes associates a warning type to its type code.
@@ -139,6 +142,8 @@ func (t WarningType) Severity() WarningSeverity {
 	case WarningOfflineClusterMember:
 		return WarningSeverityLow
 	case WarningInstanceAutostartFailure:
+		return WarningSeverityLow
+	case WarningInstanceTypeNotOperational:
 		return WarningSeverityLow
 	}
 
