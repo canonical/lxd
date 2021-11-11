@@ -1095,16 +1095,20 @@ func (d *qemu) Start(stateful bool) error {
 			return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 		}
 
-		if runConf == nil {
-			continue
-		}
-
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false)
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
 			}
 		})
+
+		if runConf == nil {
+			continue
+		}
+
+		if runConf.Revert != nil {
+			revert.Add(runConf.Revert.Fail)
+		}
 
 		// Add post-start hooks
 		if len(runConf.PostHooks) > 0 {
@@ -2609,7 +2613,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				} else if drive.FSType == "9p" {
 					err = d.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
 				} else {
-					err = d.addDriveConfig(sb, bootIndexes, drive)
+					err = d.addDriveConfig(sb, fdFiles, bootIndexes, drive)
 				}
 				if err != nil {
 					return "", nil, err
@@ -2872,7 +2876,7 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 		driveConf.Opts = append(driveConf.Opts, qemuUnsafeIO)
 	}
 
-	return d.addDriveConfig(sb, bootIndexes, driveConf)
+	return d.addDriveConfig(sb, nil, bootIndexes, driveConf)
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
@@ -2954,47 +2958,62 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
-	// Use native kernel async IO and O_DIRECT by default.
-	aioMode := "native"
-	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics.
+func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]string, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
+	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
+	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
 
-	readonly := shared.StringInSlice("ro", driveConf.Opts)
+	// Handle local disk devices.
+	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+		srcDevPath := driveConf.DevPath
 
-	// If drive config indicates we need to use unsafe I/O then use it.
-	if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
-		d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": driveConf.DevPath})
-		aioMode = "threads"
-		cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
-	} else if shared.PathExists(driveConf.DevPath) && !shared.IsBlockdevPath(driveConf.DevPath) {
-		// Disk dev path is a file, check whether it is located on a ZFS filesystem.
-		fsType, err := filesystem.Detect(driveConf.DevPath)
-		if err != nil {
-			return errors.Wrapf(err, "Failed detecting filesystem type of %q", driveConf.DevPath)
-		}
-
-		// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
-		// We've seen ZFS lock up and BTRFS checksum issues when using direct I/O on image files.
-		if fsType == "zfs" || fsType == "btrfs" {
-			if driveConf.FSType != "iso9660" {
-				// Only warn about using writeback cache if the drive image is writable.
-				d.logger.Warn("Using writeback cache I/O", log.Ctx{"DevPath": driveConf.DevPath, "fsType": fsType})
+		// Detect if existing file descriptor format is being supplied.
+		if strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
+			// Expect devPath in format "fd:<fdNum>:<devPath>".
+			devPathParts := strings.SplitN(driveConf.DevPath, ":", 3)
+			if len(devPathParts) != 3 || !strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
+				return fmt.Errorf("Unexpected devPath file descriptor format %q", driveConf.DevPath)
 			}
 
+			// Map the file descriptor to the file descriptor path it will be in the QEMU process.
+			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", d.addFileDescriptor(fdFiles, fmt.Sprintf("/proc/self/fd/%s", devPathParts[1])))
+
+			// Extract original dev path for additional probing.
+			srcDevPath = devPathParts[2]
+		}
+
+		// If drive config indicates we need to use unsafe I/O then use it.
+		if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
+			d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": srcDevPath})
 			aioMode = "threads"
-			cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
+			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
+		} else if shared.PathExists(srcDevPath) && !shared.IsBlockdevPath(srcDevPath) {
+			// Disk dev path is a file, check whether it is located on a ZFS filesystem.
+			fsType, err := filesystem.Detect(driveConf.DevPath)
+			if err != nil {
+				return errors.Wrapf(err, "Failed detecting filesystem type of %q", srcDevPath)
+			}
+
+			// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
+			// We've seen ZFS lock up and BTRFS checksum issues when using direct I/O on image files.
+			if fsType == "zfs" || fsType == "btrfs" {
+				if driveConf.FSType != "iso9660" {
+					// Only warn about using writeback cache if the drive image is writable.
+					d.logger.Warn("Using writeback cache I/O", log.Ctx{"DevPath": srcDevPath, "fsType": fsType})
+				}
+
+				aioMode = "threads"
+				cacheMode = "writeback" // Use host cache, with neither O_DSYNC nor O_DIRECT semantics.
+			}
+
+			// Special case ISO images as cdroms.
+			if strings.HasSuffix(srcDevPath, ".iso") {
+				media = "cdrom"
+			}
 		}
 
-		// Special case ISO images as cdroms.
-		if strings.HasSuffix(driveConf.DevPath, ".iso") {
-			media = "cdrom"
-		}
-	}
-
-	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
-		// Add path to external devPaths. This way, the path will be included in the apparmor profile.
-		d.devPaths = append(d.devPaths, driveConf.DevPath)
+		// Add src path to external devPaths. This way, the path will be included in the apparmor profile.
+		d.devPaths = append(d.devPaths, srcDevPath)
 	}
 
 	return qemuDrive.Execute(sb, map[string]interface{}{
@@ -3005,7 +3024,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, bootIndexes map[string]int, d
 		"aioMode":   aioMode,
 		"media":     media,
 		"shared":    driveConf.TargetPath != "/" && !strings.HasPrefix(driveConf.DevPath, "rbd:"),
-		"readonly":  readonly,
+		"readonly":  shared.StringInSlice("ro", driveConf.Opts),
 	})
 }
 
