@@ -432,7 +432,7 @@ func (d *Daemon) State() *state.State {
 	// operations from starting during shutdown.
 
 	// Build a list of supported instance types.
-	supportedInstanceTypesInfo := instanceDrivers.SupportedInstanceTypes()
+	supportedInstanceTypesInfo, _ := instanceDrivers.SupportedInstanceTypes()
 	supportedInstanceTypes := make(map[instancetype.Type]struct{}, len(supportedInstanceTypesInfo))
 	for instanceType := range supportedInstanceTypesInfo {
 		supportedInstanceTypes[instanceType] = struct{}{}
@@ -940,7 +940,8 @@ func (d *Daemon) init() error {
 	}
 
 	// Detect and cached available instance types from operational drivers.
-	instanceDrivers.SupportedInstanceTypes()
+	_, instanceTypesWarnings := instanceDrivers.SupportedInstanceTypes()
+	dbWarnings = append(dbWarnings, instanceTypesWarnings...)
 
 	// Validate the devices storage.
 	testDev := shared.VarPath("devices", ".test")
