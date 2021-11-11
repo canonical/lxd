@@ -320,7 +320,8 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		"shiftfs":                   fmt.Sprintf("%v", d.os.Shiftfs),
 	}
 
-	for _, driverInfo := range instanceDrivers.SupportedInstanceTypes() {
+	instanceTypes, _ := instanceDrivers.SupportedInstanceTypes()
+	for _, driverInfo := range instanceTypes {
 		if env.Driver != "" {
 			env.Driver = env.Driver + " | " + driverInfo.Name
 		} else {
