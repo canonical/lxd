@@ -210,6 +210,16 @@ func (o *OVN) nbctl(args ...string) (string, error) {
 		dbAddr = fmt.Sprintf("unix:%s", shared.HostPathFollow(strings.TrimPrefix(dbAddr, "unix:")))
 	}
 
+	if strings.Contains(dbAddr, "ssl:") {
+		sslArgs := []string{
+			"-c", shared.HostPathFollow("/etc/ovn/cert_host"),
+			"-p", shared.HostPathFollow("/etc/ovn/key_host"),
+			"-C", shared.HostPathFollow("/etc/ovn/ovn-central.crt"),
+		}
+
+		args = append(sslArgs, args...)
+	}
+
 	return shared.RunCommand("ovn-nbctl", append([]string{"--db", dbAddr}, args...)...)
 }
 
