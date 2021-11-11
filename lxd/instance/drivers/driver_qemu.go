@@ -1095,16 +1095,20 @@ func (d *qemu) Start(stateful bool) error {
 			return errors.Wrapf(err, "Failed to start device %q", dev.Name)
 		}
 
-		if runConf == nil {
-			continue
-		}
-
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false)
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
 			}
 		})
+
+		if runConf == nil {
+			continue
+		}
+
+		if runConf.Revert != nil {
+			revert.Add(runConf.Revert.Fail)
+		}
 
 		// Add post-start hooks
 		if len(runConf.PostHooks) > 0 {
