@@ -1910,8 +1910,13 @@ func (d *qemu) generateConfigShare() error {
 		return err
 	}
 
-	if d.ExpandedConfig()["user.user-data"] != "" {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "user-data"), []byte(d.ExpandedConfig()["user.user-data"]), 0400)
+	userData, ok := d.ExpandedConfig()["cloud-init.user-data"]
+	if !ok {
+		userData = d.ExpandedConfig()["user.user-data"]
+	}
+
+	if userData != "" {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "user-data"), []byte(userData), 0400)
 		if err != nil {
 			return err
 		}
@@ -1922,8 +1927,13 @@ func (d *qemu) generateConfigShare() error {
 		}
 	}
 
-	if d.ExpandedConfig()["user.vendor-data"] != "" {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "vendor-data"), []byte(d.ExpandedConfig()["user.vendor-data"]), 0400)
+	vendorData, ok := d.ExpandedConfig()["cloud-init.vendor-data"]
+	if !ok {
+		vendorData = d.ExpandedConfig()["user.vendor-data"]
+	}
+
+	if vendorData != "" {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "vendor-data"), []byte(vendorData), 0400)
 		if err != nil {
 			return err
 		}
@@ -1934,8 +1944,13 @@ func (d *qemu) generateConfigShare() error {
 		}
 	}
 
-	if d.ExpandedConfig()["user.network-config"] != "" {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "network-config"), []byte(d.ExpandedConfig()["user.network-config"]), 0400)
+	networkConfig, ok := d.ExpandedConfig()["cloud-init.network-config"]
+	if !ok {
+		networkConfig = d.ExpandedConfig()["user.network-config"]
+	}
+
+	if networkConfig != "" {
+		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "network-config"), []byte(networkConfig), 0400)
 		if err != nil {
 			return err
 		}
@@ -5700,7 +5715,7 @@ func (d *qemu) writeInstanceData() error {
 	userConfig := make(map[string]string)
 
 	for k, v := range d.ExpandedConfig() {
-		if !strings.HasPrefix(k, "user.") {
+		if !strings.HasPrefix(k, "user.") && !strings.HasPrefix(k, "cloud-init.") {
 			continue
 		}
 
