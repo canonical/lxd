@@ -2701,7 +2701,8 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written and instead just the CPU count is returned.
 func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
-	driverInfo := SupportedInstanceTypes()[instancetype.VM]
+	instanceTypes, _ := SupportedInstanceTypes()
+	driverInfo := instanceTypes[instancetype.VM]
 	if driverInfo.Name == "" {
 		return -1, fmt.Errorf("Unable to ascertain QEMU version")
 	}
