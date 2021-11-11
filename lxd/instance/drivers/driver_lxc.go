@@ -3326,6 +3326,8 @@ func (d *lxc) renderState(statusCode api.StatusCode) (*api.InstanceState, error)
 
 	status.Disk = d.diskState()
 
+	d.release()
+
 	return &status, nil
 }
 
