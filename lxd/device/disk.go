@@ -42,6 +42,13 @@ const diskSourceCloudInit = "cloud-init:config"
 // the QEMU driver.
 const DiskVirtiofsdSockMountOpt = "virtiofsdSock"
 
+// DiskFileDescriptorMountPrefix indicates the mount dev path is using a file descriptor rather than a normal path.
+// The Mount.DevPath field will be expected to be in the format: "fd:<fdNum>:<devPath>".
+// It still includes the original dev path so that the instance driver can perform additional probing of the path
+// to ascertain additional information if needed. However it will not be used to actually pass the path into the
+// instance.
+const DiskFileDescriptorMountPrefix = "fd"
+
 type diskBlockLimit struct {
 	readBps   int64
 	readIops  int64
@@ -578,7 +585,9 @@ func (d *disk) vmVirtiofsdPaths() (string, string) {
 
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
-	runConf := deviceConfig.RunConfig{}
+	runConf := deviceConfig.RunConfig{
+		Revert: revert.New(),
+	}
 
 	if shared.IsRootDiskDevice(d.config) {
 		// Handle previous requests for setting new quotas.
@@ -792,6 +801,19 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
 				}
+			} else {
+				// Open file handle to local source. Has to be os.O_RDONLY for directory open
+				// support, but this won't prevent a writable mount.
+				f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
+				}
+				revert.Add(func() { f.Close() })
+				runConf.PostHooks = append(runConf.PostHooks, f.Close)
+				runConf.Revert.Add(func() { f.Close() }) // Close file on VM start failure.
+
+				// Encode the file descriptor and original srcPath into the DevPath field.
+				mount.DevPath = fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), srcPath)
 			}
 
 			// Add successfully setup mount config to runConf.
