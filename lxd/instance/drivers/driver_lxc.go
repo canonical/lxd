@@ -2091,8 +2091,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
 			}
 		})
+
 		if runConf == nil {
 			continue
+		}
+
+		if runConf.Revert != nil {
+			revert.Add(runConf.Revert.Fail)
 		}
 
 		// Process rootfs setup.
