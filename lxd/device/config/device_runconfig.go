@@ -1,5 +1,7 @@
 package config
 
+import "github.com/lxc/lxd/lxd/revert"
+
 // MountOwnerShiftNone do not use owner shifting.
 const MountOwnerShiftNone = ""
 
@@ -51,4 +53,5 @@ type RunConfig struct {
 	USBDevice        []USBDeviceItem  // USB device configuration settings.
 	TPMDevice        []RunConfigItem  // TPM device configuration settings.
 	PCIDevice        []RunConfigItem  // PCI device configuration settings.
+	Revert           *revert.Reverter // Revert setup of device on post-setup error.
 }
