@@ -48,8 +48,8 @@ var certificateCmd = APIEndpoint{
 
 	Delete: APIEndpointAction{Handler: certificateDelete},
 	Get:    APIEndpointAction{Handler: certificateGet, AccessHandler: allowAuthenticated},
-	Patch:  APIEndpointAction{Handler: certificatePatch},
-	Put:    APIEndpointAction{Handler: certificatePut},
+	Patch:  APIEndpointAction{Handler: certificatePatch, AccessHandler: allowAuthenticated},
+	Put:    APIEndpointAction{Handler: certificatePut, AccessHandler: allowAuthenticated},
 }
 
 // swagger:operation GET /1.0/certificates certificates certificates_get
@@ -529,10 +529,12 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 		req := api.CertificatesPost{
-			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+			CertificatePut: api.CertificatePut{
+				Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+				Name:        name,
+				Type:        api.CertificateTypeClient,
+			},
 		}
-		req.Name = name
-		req.Type = api.CertificateTypeClient
 
 		err = notifier(func(client lxd.InstanceServer) error {
 			return client.CreateCertificate(req)
@@ -634,9 +636,6 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Expand the fingerprint.
-	fingerprint = oldEntry.Fingerprint
-
 	// Validate the ETag.
 	err = util.EtagCheck(r, oldEntry.ToAPI())
 	if err != nil {
@@ -653,7 +652,7 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
 	// Apply the update.
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req, clientType, r)
+	return doCertificateUpdate(d, *oldEntry, req, clientType, r)
 }
 
 // swagger:operation PATCH /1.0/certificates/{fingerprint} certificates certificate_patch
@@ -694,9 +693,6 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	// Expand the fingerprint.
-	fingerprint = oldEntry.Fingerprint
-
 	// Validate the ETag.
 	err = util.EtagCheck(r, oldEntry.ToAPI())
 	if err != nil {
@@ -711,10 +707,10 @@ func certificatePatch(d *Daemon, r *http.Request) response.Response {
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
-	return doCertificateUpdate(d, *oldEntry, fingerprint, req.Writable(), clientType, r)
+	return doCertificateUpdate(d, *oldEntry, req.Writable(), clientType, r)
 }
 
-func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
+func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, req api.CertificatePut, clientType clusterRequest.ClientType, r *http.Request) response.Response {
 	if clientType == clusterRequest.ClientTypeNormal {
 		reqDBType, err := db.CertificateAPITypeToDBType(req.Type)
 		if err != nil {
@@ -722,19 +718,87 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 		}
 
 		// Convert to the database type.
-		cert := db.Certificate{
-			// Read-only fields.
+		dbCert := db.Certificate{
 			Certificate: dbInfo.Certificate,
 			Fingerprint: dbInfo.Fingerprint,
+			Restricted:  req.Restricted,
+			Projects:    req.Projects,
+			Name:        req.Name,
+			Type:        reqDBType,
+		}
 
-			Restricted: req.Restricted,
-			Projects:   req.Projects,
-			Name:       req.Name,
-			Type:       reqDBType,
+		// Non-admins are able to change their own certificate but no other fields.
+		// In order to prevent possible future security issues, the certificate information is
+		// reset in case a non-admin user is performing the update.
+		if !rbac.UserIsAdmin(r) {
+			if r.TLS == nil {
+				response.Forbidden(fmt.Errorf("Cannot update certificate information"))
+			}
+
+			// Ensure the user in not trying to change fields other than the certificate.
+			if dbInfo.Restricted != req.Restricted || dbInfo.Name != req.Name || len(dbInfo.Projects) != len(req.Projects) {
+				return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+			}
+
+			for i := 0; i < len(dbInfo.Projects); i++ {
+				if dbInfo.Projects[i] != req.Projects[i] {
+					return response.Forbidden(fmt.Errorf("Only the certificate can be changed"))
+				}
+			}
+
+			// Reset dbCert in order to prevent possible future security issues.
+			dbCert = db.Certificate{
+				Certificate: dbInfo.Certificate,
+				Fingerprint: dbInfo.Fingerprint,
+				Restricted:  dbInfo.Restricted,
+				Projects:    dbInfo.Projects,
+				Name:        dbInfo.Name,
+				Type:        reqDBType,
+			}
+
+			if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
+				certBlock, _ := pem.Decode([]byte(dbInfo.Certificate))
+
+				oldCert, err := x509.ParseCertificate(certBlock.Bytes)
+				if err != nil {
+					// This should not happen
+					return response.InternalError(err)
+				}
+
+				trustedCerts := map[string]x509.Certificate{
+					dbInfo.Name: *oldCert,
+				}
+
+				trusted := false
+				for _, i := range r.TLS.PeerCertificates {
+					trusted, _ = util.CheckTrustState(*i, trustedCerts, d.endpoints.NetworkCert(), false)
+
+					if trusted {
+						break
+					}
+				}
+
+				if !trusted {
+					return response.Forbidden(fmt.Errorf("Certificate cannot be changed"))
+				}
+			}
+		}
+
+		if req.Certificate != "" && dbInfo.Certificate != req.Certificate {
+			// Add supplied certificate.
+			block, _ := pem.Decode([]byte(req.Certificate))
+
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return response.BadRequest(errors.Wrap(err, "invalid certificate material"))
+			}
+
+			dbCert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+			dbCert.Fingerprint = shared.CertFingerprint(cert)
 		}
 
 		// Update the database record.
-		err = d.cluster.UpdateCertificate(fingerprint, cert)
+		err = d.cluster.UpdateCertificate(dbInfo.Fingerprint, dbCert)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -746,7 +810,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 		}
 
 		err = notifier(func(client lxd.InstanceServer) error {
-			return client.UpdateCertificate(dbInfo.Fingerprint, req, "")
+			return client.UpdateCertificate(dbCert.Fingerprint, req, "")
 		})
 		if err != nil {
 			return response.SmartError(err)
@@ -756,7 +820,7 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, fingerprint string, r
 	// Reload the cache.
 	updateCertificateCache(d)
 
-	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateUpdated.Event(fingerprint, request.CreateRequestor(r), nil))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateUpdated.Event(dbInfo.Fingerprint, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

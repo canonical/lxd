@@ -214,7 +214,6 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 
 	post := api.CertificatesPost{
 		CertificatePut: cert.CertificatePut,
-		Certificate:    cert.Certificate,
 		Password:       targetPassword,
 	}
 
@@ -288,10 +287,10 @@ func generateTrustCertificate(serverCert *shared.CertInfo, serverName string) (*
 	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
 	cert := api.Certificate{
 		CertificatePut: api.CertificatePut{
-			Name: serverName,
-			Type: api.CertificateTypeServer, // Server type for intra-member communication.
+			Certificate: certificate,
+			Name:        serverName,
+			Type:        api.CertificateTypeServer, // Server type for intra-member communication.
 		},
-		Certificate: certificate,
 		Fingerprint: fingerprint,
 	}
 

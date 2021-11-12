@@ -640,8 +640,10 @@ func (f *clusterFixture) RegisterCertificate(daemon1, daemon2 *Daemon, name, pas
 	require.NotNil(f.t, block)
 	certificate := base64.StdEncoding.EncodeToString(block.Bytes)
 	post := api.CertificatesPost{
-		Password:    password,
-		Certificate: certificate,
+		Password: password,
+		CertificatePut: api.CertificatePut{
+			Certificate: certificate,
+		},
 	}
 	post.Name = name
 	post.Type = api.CertificateTypeClient

@@ -291,6 +291,7 @@ var APIExtensions = []string{
 	"linux_sysctl",
 	"network_dns",
 	"ovn_nic_acceleration",
+	"certificate_self_renewal",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
