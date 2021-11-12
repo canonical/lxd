@@ -1492,3 +1492,6 @@ A new REST API is also introduced to manage DNS zones:
 ## ovn\_nic\_acceleration
 Adds new `acceleration` config key to OVN NICs which can be used for enabling hardware offloading.
 It takes the values `none` or `sriov`.
+
+## certificate\_self\_renewal
+This adds support for renewing a client's own trust certificate.
