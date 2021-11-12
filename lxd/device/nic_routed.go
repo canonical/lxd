@@ -46,7 +46,7 @@ func (d *nicRouted) UpdatableFields(oldDevice Type) []string {
 
 // validateConfig checks the supplied config for correctness.
 func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container) {
+	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
 	}
 
@@ -243,6 +243,12 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			saveData["host_name"] = network.RandomDevName("veth")
 		}
 		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
+	} else if d.inst.Type() == instancetype.VM {
+		if saveData["host_name"] == "" {
+			saveData["host_name"] = network.RandomDevName("tap")
+		}
+		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
+		err = networkCreateTap(saveData["host_name"], d.config)
 	}
 	if err != nil {
 		return nil, err
@@ -357,31 +363,41 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Perform instance NIC configuration.
-	nic := []deviceConfig.RunConfigItem{
-		{Key: "type", Value: "phys"},
-		{Key: "name", Value: d.config["name"]},
-		{Key: "flags", Value: "up"},
-		{Key: "link", Value: peerName},
-	}
+	var nic []deviceConfig.RunConfigItem
 
-	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-		if nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
-			// Use a fixed address as the next-hop default gateway.
-			nic = append(nic, deviceConfig.RunConfigItem{Key: fmt.Sprintf("%s.gateway", keyPrefix), Value: d.ipHostAddress(keyPrefix)})
-		}
+	if d.inst.Type() == instancetype.Container {
+		nic = append(nic, []deviceConfig.RunConfigItem{
+			{Key: "type", Value: "phys"},
+			{Key: "link", Value: peerName},
+			{Key: "name", Value: d.config["name"]},
+			{Key: "flags", Value: "up"},
+		}...)
 
-		for _, addrStr := range util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true) {
-			// Add addresses to instance NIC.
-			if keyPrefix == "ipv6" {
-				nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addrStr)})
-			} else {
-				// Specify the broadcast address as 0.0.0.0 as there is no broadcast address on
-				// this link. This stops liblxc from trying to calculate a broadcast address
-				// (and getting it wrong) which can prevent instances communicating with each other
-				// using adjacent IP addresses.
-				nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addrStr)})
+		for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+			if nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
+				// Use a fixed address as the next-hop default gateway.
+				nic = append(nic, deviceConfig.RunConfigItem{Key: fmt.Sprintf("%s.gateway", keyPrefix), Value: d.ipHostAddress(keyPrefix)})
+			}
+
+			for _, addrStr := range util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true) {
+				// Add addresses to instance NIC.
+				if keyPrefix == "ipv6" {
+					nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addrStr)})
+				} else {
+					// Specify the broadcast address as 0.0.0.0 as there is no broadcast address on
+					// this link. This stops liblxc from trying to calculate a broadcast address
+					// (and getting it wrong) which can prevent instances communicating with each other
+					// using adjacent IP addresses.
+					nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addrStr)})
+				}
 			}
 		}
+	} else if d.inst.Type() == instancetype.VM {
+		nic = append(nic, []deviceConfig.RunConfigItem{
+			{Key: "devName", Value: d.name},
+			{Key: "link", Value: peerName},
+			{Key: "hwaddr", Value: d.config["hwaddr"]},
+		}...)
 	}
 
 	runConf := deviceConfig.RunConfig{
