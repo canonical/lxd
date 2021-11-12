@@ -139,7 +139,7 @@ func IsAny(value string) error {
 	return nil
 }
 
-// IsList returns a validator for a list of values.
+// IsListOf returns a validator for a list of values.
 func IsListOf(validator func(value string) error) func(value string) error {
 	return func(value string) error {
 		for _, v := range strings.Split(value, ",") {
