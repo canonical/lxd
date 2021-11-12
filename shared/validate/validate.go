@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -718,4 +719,13 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 
 		return nil
 	}
+}
+
+// IsAbsFilePath checks if value is an absolute file path.
+func IsAbsFilePath(value string) error {
+	if !filepath.IsAbs(value) {
+		return fmt.Errorf("Must be absolute file path")
+	}
+
+	return nil
 }
