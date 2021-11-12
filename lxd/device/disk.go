@@ -1232,6 +1232,21 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	return devPath, isFile, nil
 }
 
+// localSourceOpen opens a local disk source path and returns a file handle to it.
+func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
+	var err error
+	var f *os.File
+
+	// Open file handle to local source. Has to be os.O_RDONLY for directory open
+	// support, but this won't prevent a writable mount.
+	f, err = os.OpenFile(srcPath, os.O_RDONLY, 0)
+	if err != nil {
+		return f, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
+	}
+
+	return f, nil
+}
+
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
 	// Load the DB records.
 	poolID, pool, _, err := d.state.Cluster.GetStoragePool(poolName)
