@@ -35,7 +35,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check custom MAC is applied in container.
-  if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/eth0/address ; then
+  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
     echo "mac invalid"
     false
   fi
@@ -56,7 +56,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check original MAC is restored on physical device.
-   if ! grep -i "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
+   if ! grep -Fix "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
     echo "mac invalid"
     false
   fi
@@ -74,7 +74,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check original MAC is restored on physical device.
-   if ! grep -i "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
+   if ! grep -Fix "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
     echo "mac invalid"
     false
   fi
@@ -100,7 +100,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check custom MAC is applied in container.
-  if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/eth0/address ; then
+  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
     echo "mac invalid"
     false
   fi
@@ -117,7 +117,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check original MAC is restored on physical device.
-   if ! grep -i "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
+   if ! grep -Fix "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
     echo "mac invalid"
     false
   fi
@@ -141,7 +141,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check custom MAC is applied in container.
-  if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/eth0/address ; then
+  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
     echo "mac invalid"
     false
   fi
@@ -158,7 +158,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check original MAC is restored on physical device.
-   if ! grep -i "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
+   if ! grep -Fix "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
     echo "mac invalid"
     false
   fi
@@ -182,7 +182,7 @@ test_container_devices_nic_physical() {
   fi
 
   # Check original MAC is restored on physical device.
-   if ! grep -i "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
+   if ! grep -Fix "${dummyMAC}" /sys/class/net/"${ctName}"/address ; then
     echo "mac invalid"
     false
   fi
