@@ -13,13 +13,16 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 )
 
-const nicRoutedIPv4GW = "169.254.0.1"
-const nicRoutedIPv6GW = "fe80::1"
+var nicRoutedIPGateway = map[string]string{
+	"ipv4": "169.254.0.1",
+	"ipv6": "fe80::1",
+}
 
 type nicRouted struct {
 	deviceCommon
@@ -210,7 +213,6 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	parentName := ""
 	if d.config["parent"] != "" {
 		parentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
-
 		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"], shared.IsTrue(d.config["gvrp"]))
 		if err != nil {
 			return nil, err
@@ -228,68 +230,165 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		}
 	}
 
-	hostName := d.config["host_name"]
-	if hostName == "" {
-		hostName = network.RandomDevName("veth")
+	revert := revert.New()
+	defer revert.Fail()
+
+	saveData["host_name"] = d.config["host_name"]
+
+	var peerName string
+
+	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
+	if d.inst.Type() == instancetype.Container {
+		if saveData["host_name"] == "" {
+			saveData["host_name"] = network.RandomDevName("veth")
+		}
+		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
 	}
-	saveData["host_name"] = hostName
+	if err != nil {
+		return nil, err
+	}
+
+	revert.Add(func() { network.InterfaceRemove(saveData["host_name"]) })
+
+	// Populate device config with volatile fields if needed.
+	networkVethFillFromVolatile(d.config, saveData)
+
+	// Apply host-side limits.
+	err = networkSetupHostVethLimits(d.config)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attempt to disable IPv6 router advertisement acceptance from instance.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", saveData["host_name"]), "0")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	// Prevent source address spoofing by requiring a return path.
+	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/rp_filter", saveData["host_name"]), "1")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
+	err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, saveData["host_name"])
+	if err != nil {
+		return nil, errors.Wrapf(err, "Error setting up reverse path filter")
+	}
+
+	// Perform host-side address configuration.
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		subnetSize := 32
+		ipFamilyArg := ip.FamilyV4
+		if keyPrefix == "ipv6" {
+			subnetSize = 128
+			ipFamilyArg = ip.FamilyV6
+		}
+
+		addresses := util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+
+		// Add host-side gateway addresses.
+		if len(addresses) > 0 {
+			// Add gateway IPs to the host end of the veth pair. This ensures that liveness detection
+			// of the gateways inside the instance work and ensure that traffic doesn't periodically
+			// halt whilst ARP/NDP is re-detected (which is what happens with just neighbour proxies).
+			addr := &ip.Addr{
+				DevName: saveData["host_name"],
+				Address: fmt.Sprintf("%s/%d", d.ipHostAddress(keyPrefix), subnetSize),
+				Family:  ipFamilyArg,
+			}
+			err = addr.Add()
+			if err != nil {
+				return nil, fmt.Errorf("Failed adding host gateway IP %q: %w", addr.Address, err)
+			}
+		}
+
+		// Perform per-address host-side configuration (static routes and neighbour proxy entries).
+		for _, addrStr := range addresses {
+			// Apply host-side static routes to main routing table.
+			r := ip.Route{
+				DevName: saveData["host_name"],
+				Route:   fmt.Sprintf("%s/%d", addrStr, subnetSize),
+				Table:   "main",
+				Family:  ipFamilyArg,
+			}
+			err = r.Add()
+			if err != nil {
+				return nil, fmt.Errorf("Failed adding host route %q: %w", r.Route, err)
+			}
+
+			// Add host-side static routes to instance IPs to custom routing table if specified.
+			// This is in addition to the static route added to the main routing table, which is still
+			// critical to ensure that reverse path filtering doesn't kick in blocking traffic from
+			// the instance.
+			if d.config[fmt.Sprintf("%s.host_table", keyPrefix)] != "" {
+				r := ip.Route{
+					DevName: saveData["host_name"],
+					Route:   fmt.Sprintf("%s/%d", addrStr, subnetSize),
+					Table:   d.config[fmt.Sprintf("%s.host_table", keyPrefix)],
+					Family:  ipFamilyArg,
+				}
+				err = r.Add()
+				if err != nil {
+					return nil, fmt.Errorf("Failed adding host route %q to table %q: %w", r.Route, r.Table, err)
+				}
+			}
+
+			// If there is a parent interface, add neighbour proxy entry.
+			if parentName != "" {
+				np := ip.NeighProxy{
+					DevName: parentName,
+					Addr:    net.ParseIP(addrStr),
+				}
+				err = np.Add()
+				if err != nil {
+					return nil, fmt.Errorf("Failed adding neighbour proxy %q to %q: %w", np.Addr.String(), np.DevName, err)
+				}
+
+				revert.Add(func() { np.Delete() })
+			}
+		}
+	}
 
 	err = d.volatileSet(saveData)
 	if err != nil {
 		return nil, err
 	}
 
-	runConf := deviceConfig.RunConfig{}
+	// Perform instance NIC configuration.
 	nic := []deviceConfig.RunConfigItem{
-		{Key: "type", Value: "veth"},
+		{Key: "type", Value: "phys"},
 		{Key: "name", Value: d.config["name"]},
 		{Key: "flags", Value: "up"},
-		{Key: "veth.mode", Value: "router"},
-		{Key: "veth.pair", Value: saveData["host_name"]},
+		{Key: "link", Value: peerName},
 	}
 
-	// If there is a designated parent interface, activate the layer2 proxy mode to advertise
-	// the instance's IPs over that interface using proxy APR/NDP.
-	if parentName != "" {
-		nic = append(nic,
-			deviceConfig.RunConfigItem{Key: "l2proxy", Value: "1"},
-			deviceConfig.RunConfigItem{Key: "link", Value: parentName},
-		)
-	}
-
-	if d.config["mtu"] != "" {
-		nic = append(nic, deviceConfig.RunConfigItem{Key: "mtu", Value: d.config["mtu"]})
-	}
-
-	if d.config["ipv4.address"] != "" {
-		for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
-			addr = strings.TrimSpace(addr)
-			// Specify the broadcast address as 0.0.0.0 as there is no broadcast address on this link.
-			// This stops liblxc from trying to calculate a broadcast address (and getting it wrong)
-			// which can prevent instances communicating with each other using adjacent IP addresses.
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addr)})
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		if nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
+			// Use a fixed address as the next-hop default gateway.
+			nic = append(nic, deviceConfig.RunConfigItem{Key: fmt.Sprintf("%s.gateway", keyPrefix), Value: d.ipHostAddress(keyPrefix)})
 		}
 
-		if nicHasAutoGateway(d.config["ipv4.gateway"]) {
-			// Use a fixed link-local address as the next-hop default gateway.
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.gateway", Value: d.ipv4HostAddress()})
+		for _, addrStr := range util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true) {
+			// Add addresses to instance NIC.
+			if keyPrefix == "ipv6" {
+				nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addrStr)})
+			} else {
+				// Specify the broadcast address as 0.0.0.0 as there is no broadcast address on
+				// this link. This stops liblxc from trying to calculate a broadcast address
+				// (and getting it wrong) which can prevent instances communicating with each other
+				// using adjacent IP addresses.
+				nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv4.address", Value: fmt.Sprintf("%s/32 0.0.0.0", addrStr)})
+			}
 		}
 	}
 
-	if d.config["ipv6.address"] != "" {
-		for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
-			addr = strings.TrimSpace(addr)
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addr)})
-		}
-
-		if nicHasAutoGateway(d.config["ipv6.gateway"]) {
-			// Use a fixed link-local address as the next-hop default gateway.
-			nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.gateway", Value: d.ipv6HostAddress()})
-		}
+	runConf := deviceConfig.RunConfig{
+		NetworkInterface: nic,
 	}
 
-	runConf.NetworkInterface = nic
-	runConf.PostHooks = append(runConf.PostHooks, d.postStart)
+	revert.Success()
 	return &runConf, nil
 }
 
@@ -348,110 +447,6 @@ func (d *nicRouted) Update(oldDevices deviceConfig.Devices, isRunning bool) erro
 	return nil
 }
 
-// postStart is run after the instance is started.
-func (d *nicRouted) postStart() error {
-	v := d.volatileGet()
-
-	// Populate device config with volatile fields if needed.
-	networkVethFillFromVolatile(d.config, v)
-
-	// Apply host-side limits.
-	err := networkSetupHostVethLimits(d.config)
-	if err != nil {
-		return err
-	}
-
-	// Attempt to disable IPv6 router advertisement acceptance.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv6/conf/%s/accept_ra", d.config["host_name"]), "0")
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	// Prevent source address spoofing by requiring a return path.
-	err = util.SysctlSet(fmt.Sprintf("net/ipv4/conf/%s/rp_filter", d.config["host_name"]), "1")
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
-	err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["host_name"])
-	if err != nil {
-		return errors.Wrapf(err, "Error setting up reverse path filter")
-	}
-
-	if d.config["ipv4.address"] != "" {
-		// Add link-local gateway IPs to the host end of the veth pair. This ensures that
-		// liveness detection of the gateways inside the instance work and ensure that traffic
-		// doesn't periodically halt whilst ARP is re-detected.
-		addr := &ip.Addr{
-			DevName: d.config["host_name"],
-			Address: fmt.Sprintf("%s/32", d.ipv4HostAddress()),
-			Family:  ip.FamilyV4,
-		}
-		err := addr.Add()
-		if err != nil {
-			return err
-		}
-
-		// Add static routes to instance IPs to custom routing tables if specified.
-		// This is in addition to the static route added by liblxc to the main routing table, which
-		// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
-		// from the instance.
-		if d.config["ipv4.host_table"] != "" {
-			for _, addr := range strings.Split(d.config["ipv4.address"], ",") {
-				addr = strings.TrimSpace(addr)
-				r := &ip.Route{
-					DevName: d.config["host_name"],
-					Route:   fmt.Sprintf("%s/32", addr),
-					Table:   d.config["ipv4.host_table"],
-					Family:  ip.FamilyV4,
-				}
-				err := r.Add()
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	if d.config["ipv6.address"] != "" {
-		// Add link-local gateway IPs to the host end of the veth pair. This ensures that
-		// liveness detection of the gateways inside the instance work and ensure that traffic
-		// doesn't periodically halt whilst NDP is re-detected.
-		addr := &ip.Addr{
-			DevName: d.config["host_name"],
-			Address: fmt.Sprintf("%s/128", d.ipv6HostAddress()),
-			Family:  ip.FamilyV6,
-		}
-		err := addr.Add()
-		if err != nil {
-			return err
-		}
-
-		// Add static routes to instance IPs to custom routing tables if specified.
-		// This is in addition to the static route added by liblxc to the main routing table, which
-		// is still critical to ensure that reverse path filtering doesn't kick in blocking traffic
-		// from the instance.
-		if d.config["ipv6.host_table"] != "" {
-			for _, addr := range strings.Split(d.config["ipv6.address"], ",") {
-				addr = strings.TrimSpace(addr)
-				r := &ip.Route{
-					DevName: d.config["host_name"],
-					Route:   fmt.Sprintf("%s/128", addr),
-					Table:   d.config["ipv6.host_table"],
-					Family:  ip.FamilyV6,
-				}
-				err := r.Add()
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 // Stop is run when the device is removed from the instance.
 func (d *nicRouted) Stop() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{
@@ -468,13 +463,18 @@ func (d *nicRouted) postStop() error {
 		"host_name":          "",
 	})
 
+	errs := []error{}
+
 	v := d.volatileGet()
 
 	networkVethFillFromVolatile(d.config, v)
 
-	errs := []error{}
+	parentName := ""
+	if d.config["parent"] != "" {
+		parentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
+	}
 
-	// Delete host-side end of veth pair if not removed by liblxc.
+	// Delete host-side interface.
 	if network.InterfaceExists(d.config["host_name"]) {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
@@ -483,12 +483,12 @@ func (d *nicRouted) postStop() error {
 		}
 	}
 
-	// Delete IP neighbour proxy entries on the parent if they haven't been removed by liblxc.
-	for _, key := range []string{"ipv4.address", "ipv6.address"} {
-		if d.config[key] != "" {
+	// Delete IP neighbour proxy entries on the parent.
+	if parentName != "" {
+		for _, key := range []string{"ipv4.address", "ipv6.address"} {
 			for _, addr := range util.SplitNTrimSpace(d.config[key], ",", -1, true) {
 				neighProxy := &ip.NeighProxy{
-					DevName: d.config["parent"],
+					DevName: parentName,
 					Addr:    net.ParseIP(addr),
 				}
 
@@ -499,7 +499,6 @@ func (d *nicRouted) postStop() error {
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
-		parentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
 		err := networkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			errs = append(errs, err)
@@ -519,20 +518,13 @@ func (d *nicRouted) postStop() error {
 	return nil
 }
 
-func (d *nicRouted) ipv4HostAddress() string {
-	if d.config["ipv4.host_address"] != "" {
-		return d.config["ipv4.host_address"]
+func (d *nicRouted) ipHostAddress(ipFamily string) string {
+	key := fmt.Sprintf("%s.host_address", ipFamily)
+	if d.config[key] != "" {
+		return d.config[key]
 	}
 
-	return nicRoutedIPv4GW
-}
-
-func (d *nicRouted) ipv6HostAddress() string {
-	if d.config["ipv6.host_address"] != "" {
-		return d.config["ipv6.host_address"]
-	}
-
-	return nicRoutedIPv6GW
+	return nicRoutedIPGateway[ipFamily]
 }
 
 func (d *nicRouted) isUniqueWithGatewayAutoMode(instConf instance.ConfigReader) error {
