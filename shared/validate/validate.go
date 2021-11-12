@@ -147,7 +147,7 @@ func IsListOf(validator func(value string) error) func(value string) error {
 
 			err := validator(v)
 			if err != nil {
-				return err
+				return fmt.Errorf("Item %q: %w", v, err)
 			}
 		}
 
