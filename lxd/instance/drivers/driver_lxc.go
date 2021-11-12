@@ -2389,7 +2389,7 @@ func (d *lxc) Start(stateful bool) error {
 	configPath, postStartHooks, err := d.startCommon()
 	if err != nil {
 		op.Done(err)
-		return errors.Wrap(err, "Failed preparing container for start")
+		return err
 	}
 
 	ctxMap = log.Ctx{
