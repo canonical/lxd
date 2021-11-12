@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -408,12 +409,13 @@ func (d *nicRouted) postStop() error {
 	// Delete IP neighbour proxy entries on the parent if they haven't been removed by liblxc.
 	for _, key := range []string{"ipv4.address", "ipv6.address"} {
 		if d.config[key] != "" {
-			for _, addr := range strings.Split(d.config[key], ",") {
-				neigh := &ip.Neigh{
+			for _, addr := range util.SplitNTrimSpace(d.config[key], ",", -1, true) {
+				neighProxy := &ip.NeighProxy{
 					DevName: d.config["parent"],
-					Proxy:   strings.TrimSpace(addr),
+					Addr:    net.ParseIP(addr),
 				}
-				neigh.Delete()
+
+				neighProxy.Delete()
 			}
 		}
 	}
