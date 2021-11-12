@@ -1130,6 +1130,8 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 		ips = append(ips, newIP)
 	}
 
+	hwAddr, _ := net.ParseMAC(d.config["hwaddr"])
+
 	if d.network != nil {
 		// Extract subnet sizes from bridge addresses if available.
 		netConfig := d.network.Config()
@@ -1158,8 +1160,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 			if !shared.IsTrue(d.network.Config()["ipv6.dhcp.stateful"]) && v6subnet != nil {
 				// If stateful DHCPv6 is disabled, and IPv6 is enabled on the bridge, the the NIC
 				// is likely to use its MAC and SLAAC to configure its address.
-				hwAddr, err := net.ParseMAC(d.config["hwaddr"])
-				if err == nil {
+				if hwAddr != nil {
 					ip, err := eui64.ParseMAC(v6subnet.IP, hwAddr)
 					if err == nil {
 						ipStore(ip)
@@ -1170,25 +1171,25 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	}
 
 	// Get IP addresses from IP neighbour cache if present.
-	neighIPs, err := network.GetNeighbourIPs(d.config["parent"], d.config["hwaddr"])
+	neighIPs, err := network.GetNeighbourIPs(d.config["parent"], hwAddr)
 	if err == nil {
 		validStates := []string{
-			string(network.NeighbourIPStatePermanent),
-			string(network.NeighbourIPStateNoARP),
-			string(network.NeighbourIPStateReachable),
+			string(ip.NeighbourIPStatePermanent),
+			string(ip.NeighbourIPStateNoARP),
+			string(ip.NeighbourIPStateReachable),
 		}
 
 		// Add any valid-state neighbour IP entries first.
 		for _, neighIP := range neighIPs {
 			if shared.StringInSlice(string(neighIP.State), validStates) {
-				ipStore(neighIP.IP)
+				ipStore(neighIP.Addr)
 			}
 		}
 
 		// Add any non-failed-state entries.
 		for _, neighIP := range neighIPs {
-			if neighIP.State != network.NeighbourIPStateFailed && !shared.StringInSlice(string(neighIP.State), validStates) {
-				ipStore(neighIP.IP)
+			if neighIP.State != ip.NeighbourIPStateFailed && !shared.StringInSlice(string(neighIP.State), validStates) {
+				ipStore(neighIP.Addr)
 			}
 		}
 	}
