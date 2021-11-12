@@ -76,6 +76,13 @@ test_container_devices_nic_routed() {
     false
   fi
 
+  # Check MAC address is applied.
+  ctMAC=$(lxc config get "${ctName}" volatile.eth0.hwaddr)
+  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
+    echo "mac invalid"
+    false
+  fi
+
   lxc stop "${ctName}" --force
 
   # Check neighbour proxy entries removed from parent interface.
