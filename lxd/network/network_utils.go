@@ -681,75 +681,16 @@ func GetHostDevice(parent string, vlan string) string {
 	return defaultVlan
 }
 
-// NeighbourIPState can be { PERMANENT | NOARP | REACHABLE | STALE | NONE | INCOMPLETE | DELAY | PROBE | FAILED }.
-type NeighbourIPState string
-
-// NeighbourIPStatePermanent the neighbour entry is valid forever and can be only be removed administratively.
-const NeighbourIPStatePermanent = "PERMANENT"
-
-// NeighbourIPStateNoARP the neighbour entry is valid. No attempts to validate this entry will be made but it can
-// be removed when its lifetime expires.
-const NeighbourIPStateNoARP = "NOARP"
-
-// NeighbourIPStateReachable the neighbour entry is valid until the reachability timeout expires.
-const NeighbourIPStateReachable = "REACHABLE"
-
-// NeighbourIPStateStale the neighbour entry is valid but suspicious.
-const NeighbourIPStateStale = "STALE"
-
-// NeighbourIPStateNone this is a pseudo state used when initially creating a neighbour entry or after trying to
-// remove it before it becomes free to do so.
-const NeighbourIPStateNone = "NONE"
-
-// NeighbourIPStateIncomplete the neighbour entry has not (yet) been validated/resolved.
-const NeighbourIPStateIncomplete = "INCOMPLETE"
-
-// NeighbourIPStateDelay neighbor entry validation is currently delayed.
-const NeighbourIPStateDelay = "DELAY"
-
-// NeighbourIPStateProbe neighbor is being probed.
-const NeighbourIPStateProbe = "PROBE"
-
-// NeighbourIPStateFailed max number of probes exceeded without success, neighbor validation has ultimately failed.
-const NeighbourIPStateFailed = "FAILED"
-
-// NeighbourIP represents an IP neighbour entry.
-type NeighbourIP struct {
-	IP    net.IP
-	State NeighbourIPState
-}
-
 // GetNeighbourIPs returns the IP addresses in the neighbour cache for a particular interface and MAC.
-func GetNeighbourIPs(interfaceName string, hwaddr string) ([]NeighbourIP, error) {
-	neigh := &ip.Neigh{DevName: interfaceName}
-	out, err := neigh.Show()
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get IP neighbours for interface %q", interfaceName)
+func GetNeighbourIPs(interfaceName string, hwaddr net.HardwareAddr) ([]ip.Neigh, error) {
+	if hwaddr == nil {
+		return nil, nil
 	}
 
-	neighbours := []NeighbourIP{}
-
-	for _, line := range strings.Split(out, "\n") {
-		// Split fields and early validation.
-		fields := strings.Fields(line)
-		if len(fields) != 4 {
-			continue
-		}
-
-		// Check neighbour matches desired MAC address.
-		if fields[2] != hwaddr {
-			continue
-		}
-
-		ip := net.ParseIP(fields[0])
-		if ip == nil {
-			continue
-		}
-
-		neighbours = append(neighbours, NeighbourIP{
-			IP:    ip,
-			State: NeighbourIPState(fields[3]),
-		})
+	neigh := &ip.Neigh{DevName: interfaceName, MAC: hwaddr}
+	neighbours, err := neigh.Show()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get IP neighbours for interface %q", interfaceName)
 	}
 
 	return neighbours, nil
