@@ -55,7 +55,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check profile custom MAC is applied in container on boot.
-  if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/eth0/address ; then
+  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
     echo "mac invalid"
     false
   fi
@@ -117,7 +117,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check custom MAC is applied on hot-plug.
-  if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/eth0/address ; then
+  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
     echo "mac invalid"
     false
   fi
@@ -197,7 +197,7 @@ test_container_devices_nic_p2p() {
   fi
 
   # Check custom MAC is applied update.
-  if ! lxc exec "${ctName}" -- grep -i "${ctMAC}" /sys/class/net/eth0/address ; then
+  if ! lxc exec "${ctName}" -- grep -Fix "${ctMAC}" /sys/class/net/eth0/address ; then
     echo "mac invalid"
     false
   fi
