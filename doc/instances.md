@@ -478,7 +478,7 @@ boot.priority           | integer | -                 | no       | Boot priority
 
 #### nic: routed
 
-Supported instance types: container
+Supported instance types: container, VM
 
 Selected using: `nictype`
 
@@ -490,10 +490,16 @@ It will also respect netfilter rules on the host and will use the host's routing
 
 IP addresses must be manually specified using either one or both of `ipv4.address` and `ipv6.address` settings before the instance is started.
 
-It sets up a veth pair between host and instance and then configures the following link-local gateway IPs on the host end which are then set as the default gateways in the instance:
+For containers it uses a veth pair, and for VMs it uses a TAP device. It then configures the following link-local gateway IPs on the host end which are then set as the default gateways in the instance:
 
   169.254.0.1
   fe80::1
+
+For containers these are automatically set as default gateways on the instance NIC interface.
+But for VMs the IP addresses and gateways will need to be configured manually or via a mechanism like cloud-init.
+
+Note also that if your container image is configured to perform DHCP on the interface it will likely remove the
+automatically added configuration, and will need to be configured manually or via a mechanism like cloud-init.
 
 It then configures static routes on the host pointing to the instance's veth interface for all of the instance's IPs.
 
