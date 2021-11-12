@@ -651,8 +651,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				DevName: d.name,
 			}
 
-			readonly := shared.IsTrue(d.config["readonly"])
-			if readonly {
+			if shared.IsTrue(d.config["readonly"]) {
 				mount.Opts = append(mount.Opts, "ro")
 			}
 
