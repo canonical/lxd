@@ -1303,6 +1303,55 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	return devPath, isFile, nil
 }
 
+// localSourceOpen opens a local disk source path and returns a file handle to it.
+// If d.restrictedParentSourcePath has been set during validation, then the openat2 syscall is used to ensure that
+// the srcPath opened doesn't resolve above the allowed parent source path.
+func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
+	var err error
+	var f *os.File
+
+	if d.restrictedParentSourcePath != "" {
+		// Get relative srcPath in relation to allowed parent source path.
+		relSrcPath, err := filepath.Rel(d.restrictedParentSourcePath, srcPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed resolving source path %q relative to restricted parent source path %q: %w", srcPath, d.restrictedParentSourcePath, err)
+		}
+
+		// Open file handle to parent for use with openat2 later. Has to be os.O_RDONLY for
+		// directory open support, but this won't prevent a writable mount.
+		allowedParent, err := os.OpenFile(d.restrictedParentSourcePath, os.O_RDONLY, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Failed opening allowed parent source path %q: %w", d.restrictedParentSourcePath, err)
+		}
+		defer allowedParent.Close()
+
+		// For restricted source paths we use openat2 to prevent resolving to a mount path above the
+		// allowed parent source path. Requires Linux kernel >= 5.6.
+		fd, err := unix.Openat2(int(allowedParent.Fd()), relSrcPath, &unix.OpenHow{
+			Flags:   unix.O_RDONLY,
+			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS,
+		})
+		if err != nil {
+			if errors.Is(err, unix.EXDEV) {
+				return nil, fmt.Errorf("Source path %q resolves outside of restricted parent source path %q", srcPath, d.restrictedParentSourcePath)
+			}
+
+			return nil, fmt.Errorf("Failed opening restricted source path %q: %w", srcPath, err)
+		}
+
+		f = os.NewFile(uintptr(fd), srcPath)
+	} else {
+		// Open file handle to local source. Has to be os.O_RDONLY for directory open
+		// support, but this won't prevent a writable mount.
+		f, err = os.OpenFile(srcPath, os.O_RDONLY, 0)
+		if err != nil {
+			return f, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
+		}
+	}
+
+	return f, nil
+}
+
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
 	// Load the DB records.
 	poolID, pool, _, err := d.state.Cluster.GetStoragePool(poolName)
