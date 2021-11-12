@@ -1904,66 +1904,6 @@ func (d *qemu) generateConfigShare() error {
 		return err
 	}
 
-	// Generate the cloud-init config.
-	err = os.MkdirAll(filepath.Join(configDrivePath, "cloud-init"), 0500)
-	if err != nil {
-		return err
-	}
-
-	userData, ok := d.ExpandedConfig()["cloud-init.user-data"]
-	if !ok {
-		userData = d.ExpandedConfig()["user.user-data"]
-	}
-
-	if userData != "" {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "user-data"), []byte(userData), 0400)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "user-data"), []byte("#cloud-config\n"), 0400)
-		if err != nil {
-			return err
-		}
-	}
-
-	vendorData, ok := d.ExpandedConfig()["cloud-init.vendor-data"]
-	if !ok {
-		vendorData = d.ExpandedConfig()["user.vendor-data"]
-	}
-
-	if vendorData != "" {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "vendor-data"), []byte(vendorData), 0400)
-		if err != nil {
-			return err
-		}
-	} else {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "vendor-data"), []byte("#cloud-config\n"), 0400)
-		if err != nil {
-			return err
-		}
-	}
-
-	networkConfig, ok := d.ExpandedConfig()["cloud-init.network-config"]
-	if !ok {
-		networkConfig = d.ExpandedConfig()["user.network-config"]
-	}
-
-	if networkConfig != "" {
-		err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "network-config"), []byte(networkConfig), 0400)
-		if err != nil {
-			return err
-		}
-	} else {
-		os.Remove(filepath.Join(configDrivePath, "cloud-init", "network-config"))
-	}
-
-	// Append any user.meta-data to our predefined meta-data config.
-	err = ioutil.WriteFile(filepath.Join(configDrivePath, "cloud-init", "meta-data"), []byte(fmt.Sprintf("instance-id: %s\nlocal-hostname: %s\n%s\n", d.Name(), d.Name(), d.ExpandedConfig()["user.meta-data"])), 0400)
-	if err != nil {
-		return err
-	}
-
 	// Add the VM agent.
 	lxdAgentSrcPath, err := exec.LookPath("lxd-agent")
 	if err != nil {
