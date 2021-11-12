@@ -66,6 +66,10 @@ test_container_devices_nic_routed() {
   # Check IP is assigned and doesn't have a broadcast address set.
   lxc exec "${ctName}" -- ip a | grep "inet 192.0.2.1${ipRand}/32 scope global eth0"
 
+  # Check neighbour proxy entries added to parent interface.
+  ip neigh show proxy dev "${ctName}" | grep "192.0.2.1${ipRand}"
+  ip neigh show proxy dev "${ctName}" | grep "2001:db8::1${ipRand}"
+
   # Check custom MTU is applied.
   if ! lxc exec "${ctName}" -- ip link show eth0 | grep "mtu 1600" ; then
     echo "mtu invalid"
@@ -73,6 +77,10 @@ test_container_devices_nic_routed() {
   fi
 
   lxc stop "${ctName}" --force
+
+  # Check neighbour proxy entries removed from parent interface.
+  ! ip neigh show proxy dev "${ctName}" | grep "192.0.2.1${ipRand}" || false
+  ! ip neigh show proxy dev "${ctName}" | grep "2001:db8::1${ipRand}" || false
 
   # Check that MTU is inherited from parent device when not specified on device.
   ip link set "${ctName}" mtu 1605
