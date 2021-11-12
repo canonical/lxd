@@ -774,11 +774,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
 				}
 			} else {
-				// Open file handle to local source. Has to be os.O_RDONLY for directory open
-				// support, but this won't prevent a writable mount.
-				f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
+				f, err := d.localSourceOpen(srcPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
+					return nil, err
 				}
 				revert.Add(func() { f.Close() })
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
