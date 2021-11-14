@@ -83,7 +83,7 @@ was marked for public use.
 Trusted clients can be manually added to the trust store on the server
 with `lxc config trust add` or the `core.trust_password` key can be set
 allowing for clients to self-enroll into the trust store at connection
-time by providing the confgiured password.
+time by providing the configured password.
 
 More details about authentication can be found [here](security.md).
 
