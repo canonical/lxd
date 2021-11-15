@@ -5672,10 +5672,11 @@ func (d *qemu) writeInstanceData() error {
 	}
 
 	out, err := json.Marshal(struct {
-		Name     string            `json:"name"`
-		Location string            `json:"location"`
-		Config   map[string]string `json:"config,omitempty"`
-	}{d.Name(), location, userConfig})
+		Name     string                         `json:"name"`
+		Location string                         `json:"location"`
+		Config   map[string]string              `json:"config,omitempty"`
+		Devices  map[string]deviceConfig.Device `json:"devices,omitempty"`
+	}{d.Name(), location, userConfig, d.expandedDevices})
 	if err != nil {
 		return err
 	}
