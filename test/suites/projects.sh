@@ -174,7 +174,14 @@ test_projects_copy() {
   lxc --project foo start c1
   lxc --project foo delete c1 -f
 
+  # Move storage volume between projects
+  pool="lxdtest-$(basename "${LXD_DIR}")"
+
+  lxc --project foo storage volume create "${pool}" vol1
+  lxc --project foo --target-project bar storage volume move "${pool}"/vol1 "${pool}"/vol1
+
   # Clean things up
+  lxc --project bar storage volume delete "${pool}" vol1
   lxc project delete foo
   lxc project delete bar
 }
