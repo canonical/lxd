@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/daemon"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -33,9 +34,10 @@ type devLxdResponse struct {
 }
 
 type instanceData struct {
-	Name     string            `json:"name"`
-	Location string            `json:"location"`
-	Config   map[string]string `json:"config,omitempty"`
+	Name     string                         `json:"name"`
+	Location string                         `json:"location"`
+	Config   map[string]string              `json:"config,omitempty"`
+	Devices  map[string]deviceConfig.Device `json:"devices,omitempty"`
 }
 
 func okResponse(ct interface{}, ctype string) *devLxdResponse {
@@ -143,6 +145,21 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": instance.Location}, "json")
 }}
 
+var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	data, err := ioutil.ReadFile("instance-data")
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	}
+
+	var instance instanceData
+
+	err = json.Unmarshal(data, &instance)
+	if err != nil {
+		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
+	}
+	return okResponse(instance.Devices, "json")
+}}
+
 var handlers = []devLxdHandler{
 	{"/", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 		return okResponse([]string{"/1.0"}, "json")
@@ -152,6 +169,7 @@ var handlers = []devLxdHandler{
 	devlxdConfigKeyGet,
 	devlxdMetadataGet,
 	devLxdEventsGet,
+	devlxdDevicesGet,
 }
 
 func hoistReq(f func(*Daemon, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
