@@ -1135,7 +1135,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Mount the config drive device as readonly. This way it will be readonly irrespective of whether its
 	// exported via 9p for virtio-fs.
 	configSrcPath := filepath.Join(d.Path(), "config")
-	err = device.DiskMount(configSrcPath, configMntPath, true, false, "", "", "none")
+	err = device.DiskMount(configSrcPath, configMntPath, true, false, "", nil, "none")
 	if err != nil {
 		return errors.Wrapf(err, "Failed mounting device mount path %q for config drive", configMntPath)
 	}
