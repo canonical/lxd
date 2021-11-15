@@ -25,6 +25,7 @@ The key/value configuration is namespaced with the following namespaces
 currently supported:
 
  - `boot` (boot related options, timing, dependencies, ...)
+ - `cloud-init` (cloud-init configuration)
  - `environment` (environment variables)
  - `image` (copy of the image properties at time of creation)
  - `limits` (resource limits)
@@ -43,6 +44,9 @@ boot.autostart.delay                        | integer   | 0                 | n/
 boot.autostart.priority                     | integer   | 0                 | n/a           | -                         | What order to start the instances in (starting with highest)
 boot.host\_shutdown\_timeout                | integer   | 30                | yes           | -                         | Seconds to wait for instance to shutdown before it is force stopped
 boot.stop.priority                          | integer   | 0                 | n/a           | -                         | What order to shutdown the instances (starting with highest)
+cloud-init.network-config                   | string    | DHCP on eth0      | no            | -                         | Cloud-init network-config, content is used as seed value
+cloud-init.user-data                        | string    | #cloud-config     | no            | -                         | Cloud-init user-data, content is used as seed value
+cloud-init.vendor-data                      | string    | #cloud-config     | no            | -                         | Cloud-init vendor-data, content is used as seed value
 cluster.evacuate                            | string    | auto              | n/a           | -                         | What to do when evacuating the instance (auto, migrate, or stop)
 environment.\*                              | string    | -                 | yes (exec)    | -                         | key/value environment variables to export to the instance and set on exec
 limits.cpu                                  | string    | -                 | yes           | -                         | Number or range of CPUs to expose to the instance (defaults to 1 CPU for VMs)
@@ -135,10 +139,6 @@ Additionally, those user keys have become common with images (support isn't guar
 Key                         | Type          | Default           | Description
 :--                         | :---          | :------           | :----------
 user.meta-data              | string        | -                 | Cloud-init meta-data, content is appended to seed value
-user.network-config         | string        | DHCP on eth0      | Cloud-init network-config, content is used as seed value
-user.network\_mode          | string        | dhcp              | One of "dhcp" or "link-local". Used to configure network in supported images
-user.user-data              | string        | #!cloud-config    | Cloud-init user-data, content is used as seed value
-user.vendor-data            | string        | #!cloud-config    | Cloud-init vendor-data, content is used as seed value
 
 Note that while a type is defined above as a convenience, all values are
 stored as strings and should be exported over the REST API as strings
