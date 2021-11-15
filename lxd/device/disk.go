@@ -25,6 +25,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1156,7 +1157,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	isReadOnly := shared.IsTrue(d.config["readonly"])
 	isRecursive := shared.IsTrue(d.config["recursive"])
 
-	mntOptions := d.config["raw.mount.options"]
+	mntOptions := util.SplitNTrimSpace(d.config["raw.mount.options"], "-", -1, true)
 	fsName := "none"
 
 	var isFile bool
@@ -1176,11 +1177,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 			}
 
 			// Join the options with any provided by the user.
-			if mntOptions == "" {
-				mntOptions = fsOptions
-			} else {
-				mntOptions += "," + fsOptions
-			}
+			mntOptions = append(mntOptions, fsOptions...)
 
 			fsName = "ceph"
 			srcPath = mntSrcPath
