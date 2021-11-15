@@ -48,7 +48,7 @@ func IsBlockdev(path string) bool {
 }
 
 // DiskMount mounts a disk device.
-func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, propagation string, rawMountOptions string, fsName string) error {
+func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, propagation string, mountOptions []string, fsName string) error {
 	var err error
 
 	// Prepare the mount flags
@@ -90,7 +90,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 	}
 
 	// Mount the filesystem
-	err = unix.Mount(srcPath, dstPath, fsName, uintptr(flags), rawMountOptions)
+	err = unix.Mount(srcPath, dstPath, fsName, uintptr(flags), strings.Join(mountOptions, ","))
 	if err != nil {
 		return fmt.Errorf("Unable to mount %q at %q with filesystem %q: %w", srcPath, dstPath, fsName, err)
 	}
@@ -207,14 +207,19 @@ func cephFsConfig(clusterName string, userName string) ([]string, string, error)
 }
 
 // diskCephfsOptions returns the mntSrcPath and fsOptions to use for mounting a cephfs share.
-func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, string, error) {
+func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, []string, error) {
 	// Get the credentials and host
 	monAddresses, secret, err := cephFsConfig(clusterName, userName)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 
-	fsOptions := fmt.Sprintf("name=%v,secret=%v,mds_namespace=%v", userName, secret, fsName)
+	fsOptions := []string{
+		fmt.Sprintf("name=%v", userName),
+		fmt.Sprintf("secret=%v", secret),
+		fmt.Sprintf("mds_namespace=%v", fsName),
+	}
+
 	srcpath := ""
 	for _, monAddress := range monAddresses {
 		// Add the default port to the mon hosts if not already provided
