@@ -679,7 +679,7 @@ size.state          | string    | -         | no        | Same as size above but
 recursive           | boolean   | false     | no        | Whether or not to recursively mount the source path
 pool                | string    | -         | no        | The storage pool the disk device belongs to. This is only applicable for storage volumes managed by LXD
 propagation         | string    | -         | no        | Controls how a bind-mount is shared between the instance and the host. (Can be one of `private`, the default, or `shared`, `slave`, `unbindable`,  `rshared`, `rslave`, `runbindable`,  `rprivate`. Please see the Linux Kernel [shared subtree](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt) documentation for a full explanation)
-shift               | boolean   | false     | no        | Setup a shifting overlay to translate the source uid/gid to match the instance
+shift               | boolean   | false     | no        | Setup a shifting overlay to translate the source uid/gid to match the instance (only for containers)
 raw.mount.options   | string    | -         | no        | Filesystem specific mount options
 ceph.user\_name     | string    | admin     | no        | If source is ceph or cephfs then ceph user\_name must be specified by user for proper mount
 ceph.cluster\_name  | string    | ceph      | no        | If source is ceph or cephfs then ceph cluster\_name must be specified by user for proper mount
