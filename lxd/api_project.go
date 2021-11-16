@@ -885,6 +885,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted.devices.proxy":             isEitherAllowOrBlock,
 		"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
 		"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
+		"restricted.devices.disk.paths":        validate.Optional(validate.IsListOf(validate.IsAbsFilePath)),
 		"restricted.networks.uplinks":          validate.Optional(validate.IsListOf(validate.IsAny)),
 		"restricted.networks.subnets": validate.Optional(func(value string) error {
 			return projectValidateRestrictedSubnets(s, value)
