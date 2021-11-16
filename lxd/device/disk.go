@@ -73,6 +73,8 @@ func (e diskSourceNotFoundError) Unwrap() error {
 
 type disk struct {
 	deviceCommon
+
+	restrictedParentSourcePath string
 }
 
 // CanMigrate returns whether the device can be migrated to any other cluster member.
@@ -318,7 +320,7 @@ func (d *disk) getDevicePath(devName string, devConfig deviceConfig.Device) stri
 	return filepath.Join(d.inst.DevicesPath(), devPath)
 }
 
-// validateEnvironmentSourcePath checks the source path property is valid.
+// validateEnvironmentSourcePath checks the source path property is valid and allowed by project.
 func (d *disk) validateEnvironmentSourcePath() error {
 	srcPathIsLocal := d.config["pool"] == "" && d.sourceIsLocalPath(d.config["source"])
 	if !srcPathIsLocal {
@@ -327,7 +329,8 @@ func (d *disk) validateEnvironmentSourcePath() error {
 
 	sourceHostPath := shared.HostPath(d.config["source"])
 
-	// Check local external disk source path exists and load info about it.
+	// Check local external disk source path exists, but don't follow symlinks here (as we let openat2 do that
+	// safely later).
 	_, err := os.Lstat(sourceHostPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -335,6 +338,30 @@ func (d *disk) validateEnvironmentSourcePath() error {
 		}
 
 		return fmt.Errorf("Failed accessing source path %q for disk %q: %w", sourceHostPath, d.name, err)
+	}
+
+	// If project not default then check if using restricted disk paths.
+	// Default project cannot be restricted, so don't bother loading the project config in that case.
+	projectName := d.inst.Project()
+	if projectName != project.Default {
+		p, err := d.state.Cluster.GetProject(projectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
+		}
+
+		// If restricted disk paths are in force, then check the disk's source is allowed, and record the
+		// allowed parent path for later user during device start up sequence.
+		if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.devices.disk.paths"] != "" {
+			var allowed bool
+			allowed, d.restrictedParentSourcePath = project.CheckRestrictedDevicesDiskPaths(p.Config, d.config["source"])
+			if !allowed {
+				return fmt.Errorf("Disk source path %q not allowed by project for disk %q", d.config["source"], d.name)
+			}
+
+			if shared.IsTrue(d.config["shift"]) {
+				return fmt.Errorf(`The "shift" property cannot be used with a restricted source path`)
+			}
+		}
 	}
 
 	return nil
@@ -667,8 +694,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				DevName: d.name,
 			}
 
-			readonly := shared.IsTrue(d.config["readonly"])
-			if readonly {
+			if shared.IsTrue(d.config["readonly"]) {
 				mount.Opts = append(mount.Opts, "ro")
 			}
 
@@ -803,11 +829,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
 				}
 			} else {
-				// Open file handle to local source. Has to be os.O_RDONLY for directory open
-				// support, but this won't prevent a writable mount.
-				f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
+				f, err := d.localSourceOpen(srcPath)
 				if err != nil {
-					return nil, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
+					return nil, err
 				}
 				revert.Add(func() { f.Close() })
 				runConf.PostHooks = append(runConf.PostHooks, f.Close)
@@ -1225,9 +1249,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 				isFile = true
 			}
 
-			// Open file handle to local source. Has to be os.O_RDONLY for directory open support, but
-			// this won't prevent a writable mount.
-			f, err := os.OpenFile(srcPath, os.O_RDONLY, 0)
+			f, err := d.localSourceOpen(srcPath)
 			if err != nil {
 				return "", false, err
 			}
@@ -1275,6 +1297,55 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	}
 
 	return devPath, isFile, nil
+}
+
+// localSourceOpen opens a local disk source path and returns a file handle to it.
+// If d.restrictedParentSourcePath has been set during validation, then the openat2 syscall is used to ensure that
+// the srcPath opened doesn't resolve above the allowed parent source path.
+func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
+	var err error
+	var f *os.File
+
+	if d.restrictedParentSourcePath != "" {
+		// Get relative srcPath in relation to allowed parent source path.
+		relSrcPath, err := filepath.Rel(d.restrictedParentSourcePath, srcPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed resolving source path %q relative to restricted parent source path %q: %w", srcPath, d.restrictedParentSourcePath, err)
+		}
+
+		// Open file handle to parent for use with openat2 later. Has to be os.O_RDONLY for
+		// directory open support, but this won't prevent a writable mount.
+		allowedParent, err := os.OpenFile(d.restrictedParentSourcePath, os.O_RDONLY, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Failed opening allowed parent source path %q: %w", d.restrictedParentSourcePath, err)
+		}
+		defer allowedParent.Close()
+
+		// For restricted source paths we use openat2 to prevent resolving to a mount path above the
+		// allowed parent source path. Requires Linux kernel >= 5.6.
+		fd, err := unix.Openat2(int(allowedParent.Fd()), relSrcPath, &unix.OpenHow{
+			Flags:   unix.O_RDONLY,
+			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS,
+		})
+		if err != nil {
+			if errors.Is(err, unix.EXDEV) {
+				return nil, fmt.Errorf("Source path %q resolves outside of restricted parent source path %q", srcPath, d.restrictedParentSourcePath)
+			}
+
+			return nil, fmt.Errorf("Failed opening restricted source path %q: %w", srcPath, err)
+		}
+
+		f = os.NewFile(uintptr(fd), srcPath)
+	} else {
+		// Open file handle to local source. Has to be os.O_RDONLY for directory open
+		// support, but this won't prevent a writable mount.
+		f, err = os.OpenFile(srcPath, os.O_RDONLY, 0)
+		if err != nil {
+			return f, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
+		}
+	}
+
+	return f, nil
 }
 
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {

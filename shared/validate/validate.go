@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -138,7 +139,7 @@ func IsAny(value string) error {
 	return nil
 }
 
-// IsList returns a validator for a list of values.
+// IsListOf returns a validator for a list of values.
 func IsListOf(validator func(value string) error) func(value string) error {
 	return func(value string) error {
 		for _, v := range strings.Split(value, ",") {
@@ -146,7 +147,7 @@ func IsListOf(validator func(value string) error) func(value string) error {
 
 			err := validator(v)
 			if err != nil {
-				return err
+				return fmt.Errorf("Item %q: %w", v, err)
 			}
 		}
 
@@ -718,4 +719,13 @@ func IsListenAddress(allowDNS bool, allowWildcard bool, requirePort bool) func(v
 
 		return nil
 	}
+}
+
+// IsAbsFilePath checks if value is an absolute file path.
+func IsAbsFilePath(value string) error {
+	if !filepath.IsAbs(value) {
+		return fmt.Errorf("Must be absolute file path")
+	}
+
+	return nil
 }
