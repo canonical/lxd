@@ -25,6 +25,7 @@ import (
 #include <limits.h>
 
 #include "lxd.h"
+#include "file_utils.h"
 #include "macro.h"
 #include "memory_utils.h"
 #include "process_utils.h"
@@ -32,57 +33,7 @@ import (
 #include <lxc/attach_options.h>
 #include <lxc/lxccontainer.h>
 
-static bool write_nointr(int fd, const void *buf, size_t count)
-{
-	ssize_t ret;
-
-	do {
-		ret = write(fd, buf, count);
-	} while (ret < 0 && errno == EINTR);
-
-	if (ret < 0)
-		return false;
-
-	return (size_t)ret == count;
-}
-
 define_cleanup_function(struct lxc_container *, lxc_container_put);
-
-static int append_null_to_list(void ***list)
-{
-	int newentry = 0;
-	void **new_list;
-
-	if (*list)
-		for (; (*list)[newentry]; newentry++)
-			;
-
-	new_list = realloc(*list, (newentry + 2) * sizeof(void **));
-	if (!new_list)
-		return ret_errno(ENOMEM);
-
-	*list = new_list;
-	(*list)[newentry + 1] = NULL;
-	return newentry;
-}
-
-static int push_vargs(char ***list, char *entry)
-{
-	__do_free char *copy = NULL;
-	int newentry;
-
-	copy = strdup(entry);
-	if (!copy)
-		return ret_errno(ENOMEM);
-
-	newentry = append_null_to_list((void ***)list);
-	if (newentry < 0)
-		return newentry;
-
-	(*list)[newentry] = move_ptr(copy);
-
-	return 0;
-}
 
 static int fd_cloexec(int fd, bool cloexec)
 {
@@ -218,7 +169,7 @@ __attribute__ ((noinline)) static int __forkexec(void)
 		.program = NULL,
 	};
 	int fds_to_ignore[] = {EXEC_STDIN_FD, EXEC_STDOUT_FD, EXEC_STDERR_FD, EXEC_PIPE_FD};
-	int ret;
+	ssize_t ret;
 	pid_t attached_pid;
 	uid_t uid;
 	gid_t gid;
@@ -317,7 +268,8 @@ __attribute__ ((noinline)) static int __forkexec(void)
 	if (ret < 0)
 		return EXIT_FAILURE;
 
-	if (!write_nointr(status_pipe, &attached_pid, sizeof(attached_pid))) {
+	ret = write_nointr(status_pipe, &attached_pid, sizeof(attached_pid));
+	if (ret < 0) {
 		// Kill the child just to be safe.
 		fprintf(stderr, "Failed to send pid %d of executing child to LXD. Killing child\n", attached_pid);
 		kill(attached_pid, SIGKILL);
