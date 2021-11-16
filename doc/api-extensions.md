@@ -1495,3 +1495,10 @@ It takes the values `none` or `sriov`.
 
 ## certificate\_self\_renewal
 This adds support for renewing a client's own trust certificate.
+
+## instance\_project\_move
+This adds a `project` field to the `POST /1.0/instances/NAME` API,
+allowing for easy move of an instance between projects.
+
+## storage\_volume\_project\_move
+This adds support for moving storage volume between projects.

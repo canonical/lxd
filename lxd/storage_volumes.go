@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
@@ -907,6 +908,16 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	targetProjectName := projectName
+	if req.Project != "" {
+		targetProjectName = req.Project
+
+		// Check is user has access to target project
+		if !rbac.UserHasPermission(r, targetProjectName, "manage-storage-volumes") {
+			return response.Forbidden(nil)
+		}
+	}
+
 	// We need to restore the body of the request since it has already been read, and if we
 	// forwarded it now no body would be written out.
 	buf := bytes.Buffer{}
@@ -949,7 +960,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the name isn't already in use.
-	_, err = d.cluster.GetStoragePoolNodeVolumeID(projectName, req.Name, volumeType, targetPoolID)
+	_, err = d.cluster.GetStoragePoolNodeVolumeID(targetProjectName, req.Name, volumeType, targetPoolID)
 	if err != db.ErrNoSuchObject {
 		if err != nil {
 			return response.InternalError(err)
@@ -997,12 +1008,12 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Detect a rename request.
-	if req.Pool == "" || req.Pool == srcPoolName {
+	if (req.Pool == "" || req.Pool == srcPoolName) && (projectName == targetProjectName) {
 		return storagePoolVolumeTypePostRename(d, r, srcPoolName, projectName, vol, req)
 	}
 
 	// Otherwise this is a move request.
-	return storagePoolVolumeTypePostMove(d, r, srcPoolName, projectParam(r), projectName, vol, req)
+	return storagePoolVolumeTypePostMove(d, r, srcPoolName, projectName, targetProjectName, vol, req)
 }
 
 // storagePoolVolumeTypePostMigration handles volume migration type POST requests.
@@ -1095,7 +1106,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 		defer revert.Fail()
 
 		// Update devices using the volume in instances and profiles.
-		err = storagePoolVolumeUpdateUsers(d, projectName, pool.Name(), vol, newPool.Name(), &newVol)
+		err = storagePoolVolumeUpdateUsers(d, requestProjectName, pool.Name(), vol, newPool.Name(), &newVol)
 		if err != nil {
 			return err
 		}
@@ -1103,12 +1114,12 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
-		err = newPool.CreateCustomVolumeFromCopy(projectName, projectName, newVol.Name, "", nil, pool.Name(), vol.Name, false, op)
+		err = newPool.CreateCustomVolumeFromCopy(projectName, requestProjectName, newVol.Name, "", nil, pool.Name(), vol.Name, false, op)
 		if err != nil {
 			return err
 		}
 
-		err = pool.DeleteCustomVolume(projectName, vol.Name, op)
+		err = pool.DeleteCustomVolume(requestProjectName, vol.Name, op)
 		if err != nil {
 			return err
 		}

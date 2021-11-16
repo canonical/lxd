@@ -577,6 +577,13 @@ func (r *ProtocolLXD) MoveStoragePoolVolume(pool string, source InstanceServer, 
 		Pool: pool,
 	}
 
+	if args.Project != "" {
+		if !r.HasExtension("storage_volume_project_move") {
+			return nil, fmt.Errorf("The server is missing the required \"storage_volume_project_move\" API extension")
+		}
+		req.Project = args.Project
+	}
+
 	// Send the request
 	op, _, err := r.queryOperation("POST", fmt.Sprintf("/storage-pools/%s/volumes/%s/%s", url.PathEscape(sourcePool), url.PathEscape(volume.Type), volume.Name), req, "")
 	if err != nil {

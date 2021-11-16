@@ -478,6 +478,9 @@ type StoragePoolVolumeCopyArgs struct {
 // during storage volume move.
 type StoragePoolVolumeMoveArgs struct {
 	StoragePoolVolumeCopyArgs
+
+	// API extension: storage_volume_project_move
+	Project string
 }
 
 // The StoragePoolVolumeBackupArgs struct is used when creating a storage volume from a backup.
