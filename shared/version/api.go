@@ -292,6 +292,8 @@ var APIExtensions = []string{
 	"network_dns",
 	"ovn_nic_acceleration",
 	"certificate_self_renewal",
+	"instance_project_move",
+	"storage_volume_project_move",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
