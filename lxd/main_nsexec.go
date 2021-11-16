@@ -24,9 +24,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
