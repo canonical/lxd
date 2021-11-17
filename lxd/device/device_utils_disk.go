@@ -317,6 +317,26 @@ func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File,
 	return revertExternal.Fail, cDialUnixFile, err
 }
 
+// DiskVMVirtfsProxyStop stops the virtfs-proxy-helper process.
+func DiskVMVirtfsProxyStop(pidPath string) error {
+	if shared.PathExists(pidPath) {
+		proc, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return err
+		}
+
+		err = proc.Stop()
+		if err != nil && err != subprocess.ErrNotRunning {
+			return err
+		}
+
+		// Remove PID file.
+		os.Remove(pidPath)
+	}
+
+	return nil
+}
+
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
