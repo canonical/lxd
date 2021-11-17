@@ -702,7 +702,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 					os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
@@ -713,6 +713,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 						return err
 					}
 					revert.Add(revertFunc)
+
+					// Request the unix listener is closed after QEMU has connected on startup.
+					runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 					// Add the socket path to the mount options to indicate to the qemu driver
 					// that this share is available.
