@@ -3415,7 +3415,9 @@ func (d *qemu) Stop(stateful bool) error {
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off, but it could also be
 		// because the qemu process is not responding, check if process still exists and kill it if needed.
-		return d.forceStop()
+		err = d.forceStop()
+		op.Done(err)
+		return err
 	}
 
 	// Get the wait channel.
@@ -3425,7 +3427,9 @@ func (d *qemu) Stop(stateful bool) error {
 			// If we fail to wait, it's most likely because the VM is already off, but it could also be
 			// because the qemu process is not responding, check if process still exists and kill it if
 			// needed.
-			return d.forceStop()
+			err = d.forceStop()
+			op.Done(err)
+			return err
 		}
 
 		op.Done(err)
