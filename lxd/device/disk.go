@@ -30,7 +30,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -1505,25 +1504,7 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 	// Stop the virtfs-proxy-helper process and clean up.
-	err := func() error {
-		pidPath := d.vmVirtfsProxyHelperPaths()
-		if shared.PathExists(pidPath) {
-			proc, err := subprocess.ImportProcess(pidPath)
-			if err != nil {
-				return err
-			}
-
-			err = proc.Stop()
-			if err != nil && err != subprocess.ErrNotRunning {
-				return err
-			}
-
-			// Remove PID file.
-			os.Remove(pidPath)
-		}
-
-		return nil
-	}()
+	err := DiskVMVirtfsProxyStop(d.vmVirtfsProxyHelperPaths())
 	if err != nil {
 		return &deviceConfig.RunConfig{}, errors.Wrapf(err, "Failed cleaning up virtfs-proxy-helper")
 	}
