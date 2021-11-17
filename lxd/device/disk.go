@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -554,12 +553,11 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 	return &runConf, nil
 }
 
-// vmVirtfsProxyHelperPaths returns the path for the socket and PID file to use with virtfs-proxy-helper process.
-func (d *disk) vmVirtfsProxyHelperPaths() (string, string) {
-	sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
+// vmVirtfsProxyHelperPaths returns the path for PID file to use with virtfs-proxy-helper process.
+func (d *disk) vmVirtfsProxyHelperPaths() string {
 	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 
-	return sockPath, pidPath
+	return pidPath
 }
 
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
@@ -680,61 +678,17 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 				// Start virtfs-proxy-helper for 9p share.
 				err = func() error {
-					sockPath, pidPath := d.vmVirtfsProxyHelperPaths()
-
-					// Use 9p socket path as dev path so qemu can connect to the proxy.
-					mount.DevPath = sockPath
-
-					// Remove old socket if needed.
-					os.Remove(sockPath)
-
-					// Locate virtfs-proxy-helper.
-					cmd, err := exec.LookPath("virtfs-proxy-helper")
-					if err != nil {
-						if shared.PathExists("/usr/lib/qemu/virtfs-proxy-helper") {
-							cmd = "/usr/lib/qemu/virtfs-proxy-helper"
-						}
-					}
-
-					if cmd == "" {
-						return fmt.Errorf(`Required binary "virtfs-proxy-helper" couldn't be found`)
-					}
-
-					// Start the virtfs-proxy-helper process in non-daemon mode and as root so
-					// that when the VM process is started as an unprivileged user, we can
-					// still share directories that process cannot access.
-					proc, err := subprocess.NewProcess(cmd, []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
+					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.vmVirtfsProxyHelperPaths(), srcPath)
 					if err != nil {
 						return err
 					}
+					revert.Add(revertFunc)
 
-					err = proc.Start()
-					if err != nil {
-						return errors.Wrapf(err, "Failed to start virtfs-proxy-helper")
-					}
+					// Request the unix socket is closed after QEMU has connected on startup.
+					runConf.PostHooks = append(runConf.PostHooks, sockFile.Close)
 
-					revert.Add(func() { proc.Stop() })
-
-					err = proc.Save(pidPath)
-					if err != nil {
-						return errors.Wrapf(err, "Failed to save virtfs-proxy-helper state")
-					}
-
-					// Wait for socket file to exist (as otherwise qemu can race the creation
-					// of this file).
-					waitDuration := time.Second * time.Duration(10)
-					waitUntil := time.Now().Add(waitDuration)
-					for {
-						if shared.PathExists(sockPath) {
-							break
-						}
-
-						if time.Now().After(waitUntil) {
-							return fmt.Errorf("virtfs-proxy-helper failed to bind socket after %v", waitDuration)
-						}
-
-						time.Sleep(50 * time.Millisecond)
-					}
+					// Use 9p socket FD number as dev path so qemu can connect to the proxy.
+					mount.DevPath = fmt.Sprintf("%d", sockFile.Fd())
 
 					return nil
 				}()
@@ -1447,7 +1401,7 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 	// Stop the virtfs-proxy-helper process and clean up.
 	err := func() error {
-		sockPath, pidPath := d.vmVirtfsProxyHelperPaths()
+		pidPath := d.vmVirtfsProxyHelperPaths()
 		if shared.PathExists(pidPath) {
 			proc, err := subprocess.ImportProcess(pidPath)
 			if err != nil {
@@ -1462,9 +1416,6 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 			// Remove PID file.
 			os.Remove(pidPath)
 		}
-
-		// Remove socket file.
-		os.Remove(sockPath)
 
 		return nil
 	}()
