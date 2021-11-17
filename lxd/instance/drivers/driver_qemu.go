@@ -1337,6 +1337,7 @@ func (d *qemu) Start(stateful bool) error {
 	// be used for instance cleanup.
 	err = d.UpdateBackupFile()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
