@@ -567,10 +567,11 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		}
 
 		// Mount the source in the instance devices directory.
-		sourceDevPath, isFile, err := d.createDevice(srcPath)
+		revertFunc, sourceDevPath, isFile, err := d.createDevice(srcPath)
 		if err != nil {
 			return nil, err
 		}
+		revert.Add(revertFunc)
 
 		if isFile {
 			options = append(options, "create=file")
@@ -712,16 +713,12 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
-				srcPath, _, err = d.createDevice(srcPath)
+				var revertFunc func()
+				revertFunc, srcPath, _, err = d.createDevice(srcPath)
 				if err != nil {
 					return nil, err
 				}
-
-				// Something went wrong, but no error returned, meaning required != true so nothing
-				// to do.
-				if srcPath == "" {
-					return nil, err
-				}
+				revert.Add(revertFunc)
 
 				mount.TargetPath = d.config["path"]
 				mount.FSType = "9p"
@@ -1185,7 +1182,10 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 // createDevice creates a disk device mount on host.
 // The srcPath argument is the source of the disk device on the host.
 // Returns the created device path, and whether the path is a file or not.
-func (d *disk) createDevice(srcPath string) (string, bool, error) {
+func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 
@@ -1208,7 +1208,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 			// Get the mount options.
 			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
 			if fsErr != nil {
-				return "", false, fsErr
+				return nil, "", false, fsErr
 			}
 
 			// Join the options with any provided by the user.
@@ -1228,18 +1228,18 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
 			if err != nil {
-				return "", false, diskSourceNotFoundError{msg: "Failed mapping Ceph RBD volume", err: err}
+				return nil, "", false, diskSourceNotFoundError{msg: "Failed mapping Ceph RBD volume", err: err}
 			}
 
 			fsName, err = BlockFsDetect(rbdPath)
 			if err != nil {
-				return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
+				return nil, "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
 			}
 
 			// Record the device path.
 			err = d.volatileSet(map[string]string{"ceph_rbd": rbdPath})
 			if err != nil {
-				return "", false, err
+				return nil, "", false, err
 			}
 
 			srcPath = rbdPath
@@ -1247,14 +1247,14 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 		} else {
 			fileInfo, err := os.Stat(srcPath)
 			if err != nil {
-				return "", false, fmt.Errorf("Failed accessing source path %q: %w", srcPath, err)
+				return nil, "", false, fmt.Errorf("Failed accessing source path %q: %w", srcPath, err)
 			}
 
 			fileMode := fileInfo.Mode()
 			if shared.IsBlockdev(fileMode) {
 				fsName, err = BlockFsDetect(srcPath)
 				if err != nil {
-					return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
+					return nil, "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
 				}
 			} else if !fileMode.IsDir() {
 				isFile = true
@@ -1262,7 +1262,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 
 			f, err := d.localSourceOpen(srcPath)
 			if err != nil {
-				return "", false, err
+				return nil, "", false, err
 			}
 			defer f.Close()
 
@@ -1274,7 +1274,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	if !shared.PathExists(d.inst.DevicesPath()) {
 		err := os.Mkdir(d.inst.DevicesPath(), 0711)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 	}
 
@@ -1282,7 +1282,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	if shared.PathExists(devPath) {
 		err := os.Remove(devPath)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 	}
 
@@ -1290,24 +1290,26 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	if isFile {
 		f, err := os.Create(devPath)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 
 		f.Close()
 	} else {
 		err := os.Mkdir(devPath, 0700)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 	}
 
 	// Mount the fs.
 	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"], mntOptions, fsName)
 	if err != nil {
-		return "", false, err
+		return nil, "", false, err
 	}
 
-	return devPath, isFile, nil
+	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	revert.Success()
+	return revertExternal.Fail, devPath, isFile, err
 }
 
 // localSourceOpen opens a local disk source path and returns a file handle to it.
