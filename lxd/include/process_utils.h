@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "compiler.h"
+#include "memory_utils.h"
 #include "syscall_numbers.h"
 
 static inline int pidfd_open(pid_t pid, unsigned int flags)
@@ -68,6 +69,42 @@ again:
 		goto again;
 
 	return status;
+}
+
+static inline int append_null_to_list(void ***list)
+{
+	int newentry = 0;
+	void **new_list;
+
+	if (*list)
+		for (; (*list)[newentry]; newentry++)
+			;
+
+	new_list = realloc(*list, (newentry + 2) * sizeof(void **));
+	if (!new_list)
+		return ret_errno(ENOMEM);
+
+	*list = new_list;
+	(*list)[newentry + 1] = NULL;
+	return newentry;
+}
+
+static inline int push_vargs(char ***list, char *entry)
+{
+	__do_free char *copy = NULL;
+	int newentry;
+
+	copy = strdup(entry);
+	if (!copy)
+		return ret_errno(ENOMEM);
+
+	newentry = append_null_to_list((void ***)list);
+	if (newentry < 0)
+		return newentry;
+
+	(*list)[newentry] = move_ptr(copy);
+
+	return 0;
 }
 
 #endif /* __LXD_PROCESS_UTILS_H */

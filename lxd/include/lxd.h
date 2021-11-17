@@ -17,6 +17,7 @@ __hidden extern void forknet();
 __hidden extern void forkproxy();
 __hidden extern void forksyscall();
 __hidden extern void forkuevent();
+__hidden extern void forkusernsexec();
 __hidden extern int mount_detach_idmap(const char *path, int fd_userns);
 __hidden extern int pidfd_nsfd(int pidfd, pid_t pid);
 __hidden extern int preserve_ns(pid_t pid, int ns_fd, const char *ns);
