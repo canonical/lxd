@@ -701,7 +701,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 
-					err = DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
+					revertFunc, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
@@ -711,7 +711,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 						return err
 					}
-					revert.Add(func() { DiskVMVirtiofsdStop(sockPath, pidPath) })
+					revert.Add(revertFunc)
 
 					// Add the socket path to the mount options to indicate to the qemu driver
 					// that this share is available.
