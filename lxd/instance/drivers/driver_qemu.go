@@ -1144,7 +1144,7 @@ func (d *qemu) Start(stateful bool) error {
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
-	revertFunc, err := device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
+	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
 	if err != nil {
 		var errUnsupported device.UnsupportedError
 		if errors.As(err, &errUnsupported) {
@@ -1165,6 +1165,9 @@ func (d *qemu) Start(stateful bool) error {
 		}
 	} else {
 		revert.Add(revertFunc)
+
+		// Request the unix listener is closed after QEMU has connected on startup.
+		defer unixListener.Close()
 	}
 
 	// Get qemu configuration and check qemu is installed.
