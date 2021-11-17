@@ -1144,7 +1144,7 @@ func (d *qemu) Start(stateful bool) error {
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
-	err = device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
+	revertFunc, err := device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
 	if err != nil {
 		var errUnsupported device.UnsupportedError
 		if errors.As(err, &errUnsupported) {
@@ -1164,7 +1164,7 @@ func (d *qemu) Start(stateful bool) error {
 			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
 		}
 	}
-	revert.Add(func() { device.DiskVMVirtiofsdStop(configSockPath, configPIDPath) })
+	revert.Add(revertFunc)
 
 	// Get qemu configuration and check qemu is installed.
 	qemuPath, qemuBus, err := d.qemuArchConfig(d.architecture)
