@@ -2943,7 +2943,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 			// Expect devPath in format "fd:<fdNum>:<devPath>".
 			devPathParts := strings.SplitN(driveConf.DevPath, ":", 3)
 			if len(devPathParts) != 3 || !strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
-				return fmt.Errorf("Unexpected devPath file descriptor format %q", driveConf.DevPath)
+				return fmt.Errorf("Unexpected devPath file descriptor format %q for drive %q", driveConf.DevPath, driveConf.DevName)
 			}
 
 			// Map the file descriptor to the file descriptor path it will be in the QEMU process.
