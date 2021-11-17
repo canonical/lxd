@@ -754,7 +754,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 							if errUnsupported == ErrMissingVirtiofsd {
 								d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
 							} else {
-								// Resolve previous warning
+								// Resolve previous warning.
 								warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
 							}
 
