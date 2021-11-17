@@ -117,8 +117,8 @@ _have lxc && {
       snapshots.expiry \
       volatile.apply_quota volatile.apply_template volatile.base_image \
       volatile.idmap.base volatile.idmap.current volatile.idmap.next \
-      volatile.last_state.idmap volatile.last_state.power user.meta-data \
-      user.network-config user.network_mode user.user-data user.vendor-data"
+      volatile.last_state.idmap volatile.last_state.power \
+      cloud-init.network-config cloud-init.user-data cloud-init.vendor-data"
 
     device_keys="limits.ingress limits.egress ipv4.routes \
       ipv4.routes.external ipv6.routes ipv6.routes.external parent \
