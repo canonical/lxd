@@ -110,10 +110,20 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.SmartError(err)
 	}
 
+	var proj *db.Project
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		err := project.AllowSnapshotCreation(tx, projectName)
+		proj, err = tx.GetProject(projectName)
+		if err != nil {
+			return err
+		}
+
 		return err
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = project.AllowSnapshotCreation(proj)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1033,6 +1043,27 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSn
 
 func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
+		// Get projects.
+		var projects map[string]*db.Project
+		err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			projs, err := tx.GetProjects(db.ProjectFilter{})
+			if err != nil {
+				return fmt.Errorf("Failed loading projects: %w", err)
+			}
+
+			// Key by project name for lookup later.
+			projects = make(map[string]*db.Project, len(projs))
+			for _, p := range projs {
+				projects[p.Name] = &p
+			}
+
+			return err
+		})
+		if err != nil {
+			return
+		}
+
 		allVolumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			logger.Error("Failed getting volumes for auto custom volume snapshot task", log.Ctx{"err": err})
@@ -1053,10 +1084,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				continue
 			}
 
-			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				err := project.AllowSnapshotCreation(tx, v.ProjectName)
-				return err
-			})
+			err = project.AllowSnapshotCreation(projects[v.ProjectName])
 			if err != nil {
 				continue
 			}

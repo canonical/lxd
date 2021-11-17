@@ -227,10 +227,20 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
+	var proj *db.Project
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		err := project.AllowSnapshotCreation(tx, projectName)
+		proj, err = tx.GetProject(projectName)
+		if err != nil {
+			return err
+		}
+
 		return err
 	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = project.AllowSnapshotCreation(proj)
 	if err != nil {
 		return response.SmartError(err)
 	}
