@@ -24,9 +24,8 @@ import (
 )
 
 /*
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif
+#include "config.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -42,6 +41,7 @@ import (
 #include <unistd.h>
 
 #include "include/lxd.h"
+#include "include/file_utils.h"
 #include "include/memory_utils.h"
 #include "include/mount_utils.h"
 #include "include/process_utils.h"
@@ -260,17 +260,6 @@ bool change_namespaces(int pidfd, int nsfd, unsigned int flags)
 	return setns(fd, 0) == 0;
 }
 
-static ssize_t lxc_read_nointr(int fd, void *buf, size_t count)
-{
-	ssize_t ret;
-again:
-	ret = read(fd, buf, count);
-	if (ret < 0 && errno == EINTR)
-		goto again;
-
-	return ret;
-}
-
 static char *file_to_buf(char *path, ssize_t *length)
 {
 	__do_close int fd = -EBADF;
@@ -286,10 +275,10 @@ static char *file_to_buf(char *path, ssize_t *length)
 
 	*length = 0;
 	for (;;) {
-		int n;
+		ssize_t n;
 		char *old = copy;
 
-		n = lxc_read_nointr(fd, buf, sizeof(buf));
+		n = read_nointr(fd, buf, sizeof(buf));
 		if (n < 0)
 			return NULL;
 		if (!n)
@@ -360,6 +349,8 @@ __attribute__((constructor)) void init(void) {
 		forkproxy();
 	else if (strcmp(cmdline_cur, "forkuevent") == 0)
 		forkuevent();
+	else if (strcmp(cmdline_cur, "forkusernsexec") == 0)
+		forkusernsexec();
 	else if (strcmp(cmdline_cur, "forkcoresched") == 0)
 		forkcoresched();
 	else if (strcmp(cmdline_cur, "forkzfs") == 0) {
