@@ -144,10 +144,10 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 		return EXIT_SUCCESS;
 
 	if (!fhas_fs_type(FD_PIPE_UIDMAP, PIPEFS_MAGIC))
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Error: Missing UID map FD");
 
 	if (!fhas_fs_type(FD_PIPE_GIDMAP, PIPEFS_MAGIC))
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Error: Missing GID map FD");
 
 	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, fd_socket);
 	if (ret < 0)

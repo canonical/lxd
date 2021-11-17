@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -235,10 +236,112 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 	return srcpath, fsOptions, nil
 }
 
+// DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
+// Returns a revert function, and a file handle to the proxy process.
+func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Locate virtfs-proxy-helper.
+	cmd, err := exec.LookPath("virtfs-proxy-helper")
+	if err != nil {
+		if shared.PathExists("/usr/lib/qemu/virtfs-proxy-helper") {
+			cmd = "/usr/lib/qemu/virtfs-proxy-helper"
+		}
+	}
+
+	if cmd == "" {
+		return nil, nil, fmt.Errorf(`Required binary "virtfs-proxy-helper" couldn't be found`)
+	}
+
+	listener, err := net.Listen("unix", "")
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to create unix listener for virtfs-proxy-helper: %w", err)
+	}
+	revert.Add(func() { listener.Close() })
+
+	cDial, err := net.Dial("unix", listener.Addr().String())
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to connect to virtfs-proxy-helper unix listener: %w", err)
+	}
+	revert.Add(func() { cDial.Close() })
+
+	cDialUnix, ok := cDial.(*net.UnixConn)
+	if !ok {
+		return nil, nil, fmt.Errorf("Dialled virtfs-proxy-helper connection isn't unix socket")
+	}
+
+	cDialUnixFile, err := cDialUnix.File()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed getting virtfs-proxy-helper unix dialed file: %w", err)
+	}
+
+	cAccept, err := listener.Accept()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to accept connection to virtfs-proxy-helper unix listener: %w", err)
+	}
+	revert.Add(func() { cAccept.Close() })
+	listener.Close()
+
+	cAcceptUnix, ok := cAccept.(*net.UnixConn)
+	if !ok {
+		return nil, nil, fmt.Errorf("Accepted virtfs-proxy-helper connection isn't unix socket")
+	}
+
+	acceptFile, err := cAcceptUnix.File()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed getting virtfs-proxy-helper unix listener file: %w", err)
+	}
+
+	// Start the virtfs-proxy-helper process in non-daemon mode and as root so that when the VM process is
+	// started as an unprivileged user, we can still share directories that process cannot access.
+	proc, err := subprocess.NewProcess(cmd, []string{"--nodaemon", "--fd", "3", "--path", sharePath}, "", "")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = proc.StartWithFiles([]*os.File{acceptFile})
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "Failed to start virtfs-proxy-helper")
+	}
+
+	revert.Add(func() { proc.Stop() })
+
+	err = proc.Save(pidPath)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "Failed to save virtfs-proxy-helper state")
+	}
+
+	revertExternal := revert.Clone()
+	revert.Success()
+	return revertExternal.Fail, cDialUnixFile, err
+}
+
+// DiskVMVirtfsProxyStop stops the virtfs-proxy-helper process.
+func DiskVMVirtfsProxyStop(pidPath string) error {
+	if shared.PathExists(pidPath) {
+		proc, err := subprocess.ImportProcess(pidPath)
+		if err != nil {
+			return err
+		}
+
+		err = proc.Stop()
+		if err != nil && err != subprocess.ErrNotRunning {
+			return err
+		}
+
+		// Remove PID file.
+		os.Remove(pidPath)
+	}
+
+	return nil
+}
+
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
-func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) error {
+// Returns revert function and listener file handle on success.
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -254,54 +357,59 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	}
 
 	if cmd == "" {
-		return ErrMissingVirtiofsd
+		return nil, nil, ErrMissingVirtiofsd
 	}
 
 	// Currently, virtiofs is broken on at least the ARM architecture.
 	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
 	if inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
-		return UnsupportedError{msg: "Architecture unsupported"}
+		return nil, nil, UnsupportedError{msg: "Architecture unsupported"}
 	}
 
 	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) {
-		return UnsupportedError{"Stateful migration unsupported"}
+		return nil, nil, UnsupportedError{"Stateful migration unsupported"}
+	}
+
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
+	}
+	revert.Add(func() {
+		listener.Close()
+		os.Remove(socketPath)
+	})
+
+	unixListener, ok := listener.(*net.UnixListener)
+	if !ok {
+		return nil, nil, fmt.Errorf("Failed getting UnixListener for virtiofsd")
+	}
+
+	unixFile, err := unixListener.File()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
 	}
 
 	// Start the virtiofsd process in non-daemon mode.
-	proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", socketPath), "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
+	proc, err := subprocess.NewProcess(cmd, []string{"--fd=3", "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	err = proc.Start()
+	err = proc.StartWithFiles([]*os.File{unixFile})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to start virtiofsd")
+		return nil, nil, errors.Wrapf(err, "Failed to start virtiofsd")
 	}
 
 	revert.Add(func() { proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to save virtiofsd state")
+		return nil, nil, errors.Wrapf(err, "Failed to save virtiofsd state")
 	}
 
-	// Wait for socket file to exist.
-	waitDuration := time.Second * time.Duration(10)
-	waitUntil := time.Now().Add(waitDuration)
-	for {
-		if shared.PathExists(socketPath) {
-			break
-		}
-
-		if time.Now().After(waitUntil) {
-			return fmt.Errorf("virtiofsd failed to bind socket after %v", waitDuration)
-		}
-
-		time.Sleep(50 * time.Millisecond)
-	}
-
+	revertExternal := revert.Clone()
 	revert.Success()
-	return nil
+	return revertExternal.Fail, listener, err
 }
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.
