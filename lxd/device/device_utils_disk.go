@@ -340,7 +340,8 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
-func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) error {
+// Returns revert function on success.
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) (func(), error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -356,35 +357,35 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	}
 
 	if cmd == "" {
-		return ErrMissingVirtiofsd
+		return nil, ErrMissingVirtiofsd
 	}
 
 	// Currently, virtiofs is broken on at least the ARM architecture.
 	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
 	if inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
-		return UnsupportedError{msg: "Architecture unsupported"}
+		return nil, UnsupportedError{msg: "Architecture unsupported"}
 	}
 
 	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) {
-		return UnsupportedError{"Stateful migration unsupported"}
+		return nil, UnsupportedError{"Stateful migration unsupported"}
 	}
 
 	// Start the virtiofsd process in non-daemon mode.
 	proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", socketPath), "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = proc.Start()
 	if err != nil {
-		return errors.Wrapf(err, "Failed to start virtiofsd")
+		return nil, errors.Wrapf(err, "Failed to start virtiofsd")
 	}
 
 	revert.Add(func() { proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to save virtiofsd state")
+		return nil, errors.Wrapf(err, "Failed to save virtiofsd state")
 	}
 
 	// Wait for socket file to exist.
@@ -396,14 +397,15 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 		}
 
 		if time.Now().After(waitUntil) {
-			return fmt.Errorf("virtiofsd failed to bind socket after %v", waitDuration)
+			return nil, fmt.Errorf("virtiofsd failed to bind socket after %v", waitDuration)
 		}
 
 		time.Sleep(50 * time.Millisecond)
 	}
 
+	revertExternal := revert.Clone()
 	revert.Success()
-	return nil
+	return revertExternal.Fail, nil
 }
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.
