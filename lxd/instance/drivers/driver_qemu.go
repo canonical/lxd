@@ -1484,21 +1484,6 @@ func (d *qemu) Start(stateful bool) error {
 	return nil
 }
 
-// openUnixSocket connects to a UNIX socket and returns the connection.
-func (d *qemu) openUnixSocket(sockPath string) (*net.UnixConn, error) {
-	addr, err := net.ResolveUnixAddr("unix", sockPath)
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := net.DialUnix("unix", nil, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
-
 func (d *qemu) setupNvram() error {
 	// UEFI only on x86_64 and aarch64.
 	if !shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
