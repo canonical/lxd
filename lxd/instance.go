@@ -412,11 +412,15 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		// Get project names
-		var projectNames []string
+		// Get projects.
+		var projects []db.Project
 		err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			projectNames, err = tx.GetProjectNames()
+			projects, err = tx.GetProjects(db.ProjectFilter{})
+			if err != nil {
+				return fmt.Errorf("Failed loading projects: %w", err)
+			}
+
 			return err
 		})
 		if err != nil {
@@ -425,17 +429,17 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		// Load local instances by project
 		allInstances := []instance.Instance{}
-		for _, projectName := range projectNames {
-			err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
-				return project.AllowSnapshotCreation(tx, projectName)
-			})
+		for _, p := range projects {
+			err = project.AllowSnapshotCreation(&p)
 			if err != nil {
 				continue
 			}
-			projectInstances, err := instanceLoadNodeProjectAll(d.State(), projectName, instancetype.Any)
+
+			projectInstances, err := instanceLoadNodeProjectAll(d.State(), p.Name, instancetype.Any)
 			if err != nil {
 				continue
 			}
+
 			allInstances = append(allInstances, projectInstances...)
 		}
 
