@@ -171,11 +171,13 @@ func (p *Process) start(fds []*os.File) error {
 	p.chExit = make(chan struct{})
 	p.hasMonitor = true
 	go func() {
+		defer close(p.chExit)
+
 		procstate, err := cmd.Process.Wait()
 		if err != nil {
 			p.exitCode = -1
 			p.exitErr = err
-			close(p.chExit)
+
 			return
 		}
 
@@ -184,7 +186,6 @@ func (p *Process) start(fds []*os.File) error {
 		if p.exitCode != 0 {
 			p.exitErr = fmt.Errorf("Process exited with non-zero value %d", p.exitCode)
 		}
-		close(p.chExit)
 	}()
 
 	return nil
