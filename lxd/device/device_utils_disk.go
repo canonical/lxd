@@ -340,8 +340,8 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
-// Returns revert function on success.
-func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) (func(), error) {
+// Returns revert function and listener file handle on success.
+func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -357,22 +357,22 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	}
 
 	if cmd == "" {
-		return nil, ErrMissingVirtiofsd
+		return nil, nil, ErrMissingVirtiofsd
 	}
 
 	// Currently, virtiofs is broken on at least the ARM architecture.
 	// We therefore restrict virtiofs to 64BIT_INTEL_X86.
 	if inst.Architecture() != osarch.ARCH_64BIT_INTEL_X86 {
-		return nil, UnsupportedError{msg: "Architecture unsupported"}
+		return nil, nil, UnsupportedError{msg: "Architecture unsupported"}
 	}
 
 	if shared.IsTrue(inst.ExpandedConfig()["migration.stateful"]) {
-		return nil, UnsupportedError{"Stateful migration unsupported"}
+		return nil, nil, UnsupportedError{"Stateful migration unsupported"}
 	}
 
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
+		return nil, nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
 	}
 	revert.Add(func() {
 		listener.Close()
@@ -381,35 +381,35 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 
 	unixListener, ok := listener.(*net.UnixListener)
 	if !ok {
-		return nil, fmt.Errorf("Failed getting UnixListener for virtiofsd")
+		return nil, nil, fmt.Errorf("Failed getting UnixListener for virtiofsd")
 	}
 
 	unixFile, err := unixListener.File()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
+		return nil, nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
 	}
 
 	// Start the virtiofsd process in non-daemon mode.
 	proc, err := subprocess.NewProcess(cmd, []string{"--fd=3", "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = proc.StartWithFiles([]*os.File{unixFile})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to start virtiofsd")
+		return nil, nil, errors.Wrapf(err, "Failed to start virtiofsd")
 	}
 
 	revert.Add(func() { proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to save virtiofsd state")
+		return nil, nil, errors.Wrapf(err, "Failed to save virtiofsd state")
 	}
 
 	revertExternal := revert.Clone()
 	revert.Success()
-	return revertExternal.Fail, nil
+	return revertExternal.Fail, listener, err
 }
 
 // DiskVMVirtiofsdStop stops an existing virtiofsd process and cleans up.
