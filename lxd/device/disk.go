@@ -536,20 +536,18 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			options = append(options, "create=dir")
 		}
 
-		if sourceDevPath != "" {
-			// Instruct LXD to perform the mount.
-			runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
-				DevName:    d.name,
-				DevPath:    sourceDevPath,
-				TargetPath: relativeDestPath,
-				FSType:     "none",
-				Opts:       options,
-				OwnerShift: ownerShift,
-			})
+		// Instruct LXD to perform the mount.
+		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
+			DevName:    d.name,
+			DevPath:    sourceDevPath,
+			TargetPath: relativeDestPath,
+			FSType:     "none",
+			Opts:       options,
+			OwnerShift: ownerShift,
+		})
 
-			// Unmount host-side mount once instance is started.
-			runConf.PostHooks = append(runConf.PostHooks, d.postStart)
-		}
+		// Unmount host-side mount once instance is started.
+		runConf.PostHooks = append(runConf.PostHooks, d.postStart)
 	}
 
 	revert.Success()
