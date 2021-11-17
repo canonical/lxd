@@ -370,13 +370,32 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 		return nil, UnsupportedError{"Stateful migration unsupported"}
 	}
 
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
+	}
+	revert.Add(func() {
+		listener.Close()
+		os.Remove(socketPath)
+	})
+
+	unixListener, ok := listener.(*net.UnixListener)
+	if !ok {
+		return nil, fmt.Errorf("Failed getting UnixListener for virtiofsd")
+	}
+
+	unixFile, err := unixListener.File()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
+	}
+
 	// Start the virtiofsd process in non-daemon mode.
-	proc, err := subprocess.NewProcess(cmd, []string{fmt.Sprintf("--socket-path=%s", socketPath), "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
+	proc, err := subprocess.NewProcess(cmd, []string{"--fd=3", "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
 	if err != nil {
 		return nil, err
 	}
 
-	err = proc.Start()
+	err = proc.StartWithFiles([]*os.File{unixFile})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to start virtiofsd")
 	}
@@ -386,21 +405,6 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	err = proc.Save(pidPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to save virtiofsd state")
-	}
-
-	// Wait for socket file to exist.
-	waitDuration := time.Second * time.Duration(10)
-	waitUntil := time.Now().Add(waitDuration)
-	for {
-		if shared.PathExists(socketPath) {
-			break
-		}
-
-		if time.Now().After(waitUntil) {
-			return nil, fmt.Errorf("virtiofsd failed to bind socket after %v", waitDuration)
-		}
-
-		time.Sleep(50 * time.Millisecond)
 	}
 
 	revertExternal := revert.Clone()

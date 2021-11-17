@@ -1149,8 +1149,9 @@ func (d *qemu) Start(stateful bool) error {
 			op.Done(err)
 			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
 		}
+	} else {
+		revert.Add(revertFunc)
 	}
-	revert.Add(revertFunc)
 
 	// Get qemu configuration and check qemu is installed.
 	qemuPath, qemuBus, err := d.qemuArchConfig(d.architecture)
