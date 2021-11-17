@@ -700,6 +700,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				err = func() error {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
+					os.Remove(logPath) // Remove old log if needed.
 
 					revertFunc, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
 					if err != nil {
