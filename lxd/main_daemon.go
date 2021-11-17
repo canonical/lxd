@@ -86,11 +86,11 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 			logger.Info("Received signal", log.Ctx{"signal": sig})
 			if d.shutdownCtx.Err() != nil {
 				logger.Warn("Ignoring signal, shutdown already in progress", log.Ctx{"signal": sig})
+			} else {
+				go func() {
+					d.shutdownDoneCh <- d.Stop(context.Background(), sig)
+				}()
 			}
-
-			go func() {
-				d.shutdownDoneCh <- d.Stop(context.Background(), sig)
-			}()
 		case err = <-d.shutdownDoneCh:
 			return err
 		}
