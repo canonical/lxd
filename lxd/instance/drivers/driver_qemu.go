@@ -1144,27 +1144,31 @@ func (d *qemu) Start(stateful bool) error {
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
-	err = device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
+	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
 	if err != nil {
 		var errUnsupported device.UnsupportedError
 		if errors.As(err, &errUnsupported) {
 			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", log.Ctx{"err": errUnsupported})
 
 			if errUnsupported == device.ErrMissingVirtiofsd {
-				// Create a warning if virtiofsd is missing
+				// Create a warning if virtiofsd is missing.
 				d.state.Cluster.UpsertWarning(d.node, d.project, dbCluster.TypeInstance, d.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
 			} else {
-				// Resolve previous warning
+				// Resolve previous warning.
 				warnings.ResolveWarningsByNodeAndProjectAndType(d.state.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			}
 		} else {
-			// Resolve previous warning
+			// Resolve previous warning.
 			warnings.ResolveWarningsByNodeAndProjectAndType(d.state.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			op.Done(err)
 			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
 		}
+	} else {
+		revert.Add(revertFunc)
+
+		// Request the unix listener is closed after QEMU has connected on startup.
+		defer unixListener.Close()
 	}
-	revert.Add(func() { device.DiskVMVirtiofsdStop(configSockPath, configPIDPath) })
 
 	// Get qemu configuration and check qemu is installed.
 	qemuPath, qemuBus, err := d.qemuArchConfig(d.architecture)
@@ -1174,7 +1178,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// Define a set of files to open and pass their file descriptors to qemu command.
-	fdFiles := make([]string, 0)
+	fdFiles := make([]*os.File, 0)
 
 	confFile, monHooks, err := d.generateQemuConfigFile(mountInfo, qemuBus, devConfs, &fdFiles)
 	if err != nil {
@@ -1327,45 +1331,9 @@ func (d *qemu) Start(stateful bool) error {
 
 	p.SetApparmor(apparmor.InstanceProfileName(d))
 
-	// Open any extra files and pass their file handles to qemu command.
-	files := []*os.File{}
+	// Ensure passed files are closed after qemu has started.
 	for _, file := range fdFiles {
-		info, err := os.Stat(file)
-		if err != nil {
-			err = errors.Wrapf(err, "Error detecting file type %q", file)
-			op.Done(err)
-			return err
-		}
-
-		var f *os.File
-		mode := info.Mode()
-		if mode&os.ModeSocket != 0 {
-			c, err := d.openUnixSocket(file)
-			if err != nil {
-				err = errors.Wrapf(err, "Error opening socket file %q", file)
-				op.Done(err)
-				return err
-			}
-
-			f, err = c.File()
-			if err != nil {
-				err = errors.Wrapf(err, "Error getting socket file descriptor %q", file)
-				op.Done(err)
-				return err
-			}
-			defer c.Close()
-			defer f.Close() // Close file after qemu has started.
-		} else {
-			f, err = os.OpenFile(file, os.O_RDWR, 0)
-			if err != nil {
-				err = errors.Wrapf(err, "Error opening exta file %q", file)
-				op.Done(err)
-				return err
-			}
-			defer f.Close() // Close file after qemu has started.
-		}
-
-		files = append(files, f)
+		defer file.Close()
 	}
 
 	// Update the backup.yaml file just before starting the instance process, but after all devices have been
@@ -1373,13 +1341,14 @@ func (d *qemu) Start(stateful bool) error {
 	// be used for instance cleanup.
 	err = d.UpdateBackupFile()
 	if err != nil {
+		op.Done(err)
 		return err
 	}
 
 	// Reset timeout to 30s.
 	op.Reset()
 
-	err = p.StartWithFiles(files)
+	err = p.StartWithFiles(fdFiles)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -1530,21 +1499,6 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	return nil
-}
-
-// openUnixSocket connects to a UNIX socket and returns the connection.
-func (d *qemu) openUnixSocket(sockPath string) (*net.UnixConn, error) {
-	addr, err := net.ResolveUnixAddr("unix", sockPath)
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := net.DialUnix("unix", nil, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
 }
 
 func (d *qemu) setupNvram() error {
@@ -2404,7 +2358,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 
 // generateQemuConfigFile writes the qemu config file and returns its location.
 // It writes the config file inside the VM's log path.
-func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]string) (string, []monitorHook, error) {
+func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName string, devConfs []*deviceConfig.RunConfig, fdFiles *[]*os.File) (string, []monitorHook, error) {
 	var sb *strings.Builder = &strings.Builder{}
 	var monHooks []monitorHook
 
@@ -2842,9 +2796,9 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 
 // addFileDescriptor adds a file path to the list of files to open and pass file descriptor to qemu.
 // Returns the file descriptor number that qemu will receive.
-func (d *qemu) addFileDescriptor(fdFiles *[]string, filePath string) int {
+func (d *qemu) addFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
 	// Append the tap device file path to the list of files to be opened and passed to qemu.
-	*fdFiles = append(*fdFiles, filePath)
+	*fdFiles = append(*fdFiles, file)
 	return 2 + len(*fdFiles) // Use 2+fdFiles count, as first user file descriptor is 3.
 }
 
@@ -2881,7 +2835,7 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
-func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]string, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*os.File, agentMounts *[]instancetype.VMAgentMount, driveConf deviceConfig.MountEntryItem) error {
 	mountTag := fmt.Sprintf("lxd_%s", driveConf.DevName)
 
 	agentMount := instancetype.VMAgentMount{
@@ -2942,7 +2896,13 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 
 	// Add 9p share config.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
-	proxyFD := d.addFileDescriptor(fdFiles, driveConf.DevPath)
+
+	fd, err := strconv.Atoi(driveConf.DevPath)
+	if err != nil {
+		return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", driveConf.DevPath, driveConf.DevName, err)
+	}
+
+	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
 	return qemuDriveDir.Execute(sb, map[string]interface{}{
 		"bus":           bus.name,
@@ -2959,7 +2919,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]s
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]string, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
@@ -2973,14 +2933,19 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]string, bootIndexe
 			// Expect devPath in format "fd:<fdNum>:<devPath>".
 			devPathParts := strings.SplitN(driveConf.DevPath, ":", 3)
 			if len(devPathParts) != 3 || !strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
-				return fmt.Errorf("Unexpected devPath file descriptor format %q", driveConf.DevPath)
+				return fmt.Errorf("Unexpected devPath file descriptor format %q for drive %q", driveConf.DevPath, driveConf.DevName)
 			}
 
 			// Map the file descriptor to the file descriptor path it will be in the QEMU process.
-			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", d.addFileDescriptor(fdFiles, fmt.Sprintf("/proc/self/fd/%s", devPathParts[1])))
+			fd, err := strconv.Atoi(devPathParts[1])
+			if err != nil {
+				return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", devPathParts[1], driveConf.DevName, err)
+			}
 
 			// Extract original dev path for additional probing.
 			srcDevPath = devPathParts[2]
+
+			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), srcDevPath)))
 		}
 
 		// If drive config indicates we need to use unsafe I/O then use it.
@@ -3450,7 +3415,9 @@ func (d *qemu) Stop(stateful bool) error {
 	if err != nil {
 		// If we fail to connect, it's most likely because the VM is already off, but it could also be
 		// because the qemu process is not responding, check if process still exists and kill it if needed.
-		return d.forceStop()
+		err = d.forceStop()
+		op.Done(err)
+		return err
 	}
 
 	// Get the wait channel.
@@ -3460,7 +3427,9 @@ func (d *qemu) Stop(stateful bool) error {
 			// If we fail to wait, it's most likely because the VM is already off, but it could also be
 			// because the qemu process is not responding, check if process still exists and kill it if
 			// needed.
-			return d.forceStop()
+			err = d.forceStop()
+			op.Done(err)
+			return err
 		}
 
 		op.Done(err)

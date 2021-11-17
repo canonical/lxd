@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -31,7 +30,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	log "github.com/lxc/lxd/shared/log15"
-	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -557,17 +555,21 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// Mount the pool volume and set poolVolSrcPath for createDevice below.
 		if d.config["pool"] != "" {
 			var err error
-			srcPath, err = d.mountPoolVolume(revert)
+			var revertFunc func()
+
+			revertFunc, srcPath, err = d.mountPoolVolume()
 			if err != nil {
 				return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 			}
+			revert.Add(revertFunc)
 		}
 
 		// Mount the source in the instance devices directory.
-		sourceDevPath, isFile, err := d.createDevice(srcPath)
+		revertFunc, sourceDevPath, isFile, err := d.createDevice(srcPath)
 		if err != nil {
 			return nil, err
 		}
+		revert.Add(revertFunc)
 
 		if isFile {
 			options = append(options, "create=file")
@@ -575,32 +577,29 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 			options = append(options, "create=dir")
 		}
 
-		if sourceDevPath != "" {
-			// Instruct LXD to perform the mount.
-			runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
-				DevName:    d.name,
-				DevPath:    sourceDevPath,
-				TargetPath: relativeDestPath,
-				FSType:     "none",
-				Opts:       options,
-				OwnerShift: ownerShift,
-			})
+		// Instruct LXD to perform the mount.
+		runConf.Mounts = append(runConf.Mounts, deviceConfig.MountEntryItem{
+			DevName:    d.name,
+			DevPath:    sourceDevPath,
+			TargetPath: relativeDestPath,
+			FSType:     "none",
+			Opts:       options,
+			OwnerShift: ownerShift,
+		})
 
-			// Unmount host-side mount once instance is started.
-			runConf.PostHooks = append(runConf.PostHooks, d.postStart)
-		}
+		// Unmount host-side mount once instance is started.
+		runConf.PostHooks = append(runConf.PostHooks, d.postStart)
 	}
 
 	revert.Success()
 	return &runConf, nil
 }
 
-// vmVirtfsProxyHelperPaths returns the path for the socket and PID file to use with virtfs-proxy-helper process.
-func (d *disk) vmVirtfsProxyHelperPaths() (string, string) {
-	sockPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.sock", d.name))
+// vmVirtfsProxyHelperPaths returns the path for PID file to use with virtfs-proxy-helper process.
+func (d *disk) vmVirtfsProxyHelperPaths() string {
 	pidPath := filepath.Join(d.inst.DevicesPath(), fmt.Sprintf("%s.pid", d.name))
 
-	return sockPath, pidPath
+	return pidPath
 }
 
 // vmVirtiofsdPaths returns the path for the socket and PID file to use with virtiofsd process.
@@ -682,10 +681,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// if the volume is a filesystem volume type (if it is a block volume the srcPath will
 			// be returned as the path to the block device).
 			if d.config["pool"] != "" {
-				srcPath, err = d.mountPoolVolume(revert)
+				var revertFunc func()
+
+				revertFunc, srcPath, err = d.mountPoolVolume()
 				if err != nil {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
+				revert.Add(revertFunc)
 			}
 
 			// Default to block device or image file passthrough first.
@@ -706,77 +708,29 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
-				srcPath, _, err = d.createDevice(srcPath)
+				var revertFunc func()
+				revertFunc, srcPath, _, err = d.createDevice(srcPath)
 				if err != nil {
 					return nil, err
 				}
-
-				// Something went wrong, but no error returned, meaning required != true so nothing
-				// to do.
-				if srcPath == "" {
-					return nil, err
-				}
+				revert.Add(revertFunc)
 
 				mount.TargetPath = d.config["path"]
 				mount.FSType = "9p"
 
 				// Start virtfs-proxy-helper for 9p share.
 				err = func() error {
-					sockPath, pidPath := d.vmVirtfsProxyHelperPaths()
-
-					// Use 9p socket path as dev path so qemu can connect to the proxy.
-					mount.DevPath = sockPath
-
-					// Remove old socket if needed.
-					os.Remove(sockPath)
-
-					// Locate virtfs-proxy-helper.
-					cmd, err := exec.LookPath("virtfs-proxy-helper")
-					if err != nil {
-						if shared.PathExists("/usr/lib/qemu/virtfs-proxy-helper") {
-							cmd = "/usr/lib/qemu/virtfs-proxy-helper"
-						}
-					}
-
-					if cmd == "" {
-						return fmt.Errorf(`Required binary "virtfs-proxy-helper" couldn't be found`)
-					}
-
-					// Start the virtfs-proxy-helper process in non-daemon mode and as root so
-					// that when the VM process is started as an unprivileged user, we can
-					// still share directories that process cannot access.
-					proc, err := subprocess.NewProcess(cmd, []string{"-n", "-u", "0", "-g", "0", "-s", sockPath, "-p", srcPath}, "", "")
+					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.vmVirtfsProxyHelperPaths(), srcPath)
 					if err != nil {
 						return err
 					}
+					revert.Add(revertFunc)
 
-					err = proc.Start()
-					if err != nil {
-						return errors.Wrapf(err, "Failed to start virtfs-proxy-helper")
-					}
+					// Request the unix socket is closed after QEMU has connected on startup.
+					runConf.PostHooks = append(runConf.PostHooks, sockFile.Close)
 
-					revert.Add(func() { proc.Stop() })
-
-					err = proc.Save(pidPath)
-					if err != nil {
-						return errors.Wrapf(err, "Failed to save virtfs-proxy-helper state")
-					}
-
-					// Wait for socket file to exist (as otherwise qemu can race the creation
-					// of this file).
-					waitDuration := time.Second * time.Duration(10)
-					waitUntil := time.Now().Add(waitDuration)
-					for {
-						if shared.PathExists(sockPath) {
-							break
-						}
-
-						if time.Now().After(waitUntil) {
-							return fmt.Errorf("virtfs-proxy-helper failed to bind socket after %v", waitDuration)
-						}
-
-						time.Sleep(50 * time.Millisecond)
-					}
+					// Use 9p socket FD number as dev path so qemu can connect to the proxy.
+					mount.DevPath = fmt.Sprintf("%d", sockFile.Fd())
 
 					return nil
 				}()
@@ -789,8 +743,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				err = func() error {
 					sockPath, pidPath := d.vmVirtiofsdPaths()
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
+					os.Remove(logPath) // Remove old log if needed.
 
-					err = DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
@@ -799,7 +754,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 							if errUnsupported == ErrMissingVirtiofsd {
 								d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
 							} else {
-								// Resolve previous warning
+								// Resolve previous warning.
 								warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
 							}
 
@@ -808,11 +763,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 						return err
 					}
+					revert.Add(revertFunc)
+
+					// Request the unix listener is closed after QEMU has connected on startup.
+					runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 					// Resolve previous warning
 					warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
-
-					revert.Add(func() { DiskVMVirtiofsdStop(sockPath, pidPath) })
 
 					// Add the socket path to the mount options to indicate to the qemu driver
 					// that this share is available.
@@ -1085,7 +1042,10 @@ func (w *cgroupWriter) Set(version cgroup.Backend, controller string, key string
 
 // mountPoolVolume mounts the pool volume specified in d.config["source"] from pool specified in d.config["pool"]
 // and return the mount path. If the instance type is container volume will be shifted if needed.
-func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
+func (d *disk) mountPoolVolume() (func(), string, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Deal with mounting storage volumes created via the storage api. Extract the name of the storage volume
 	// that we are supposed to attach. We assume that the only syntactically valid ways of specifying a
 	// storage volume are:
@@ -1094,7 +1054,7 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 	// Currently, <type> must either be empty or "custom".
 	// We do not yet support instance mounts.
 	if filepath.IsAbs(d.config["source"]) {
-		return "", fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
+		return nil, "", fmt.Errorf(`When the "pool" property is set "source" must specify the name of a volume, not a path`)
 	}
 
 	volumeTypeName := ""
@@ -1112,7 +1072,7 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 	// Check volume type name is custom.
 	switch volumeTypeName {
 	case db.StoragePoolVolumeTypeNameContainer:
-		return "", fmt.Errorf("Using instance storage volumes is not supported")
+		return nil, "", fmt.Errorf("Using instance storage volumes is not supported")
 	case "":
 		// We simply received the name of a storage volume.
 		volumeTypeName = db.StoragePoolVolumeTypeNameCustom
@@ -1120,15 +1080,15 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 	case db.StoragePoolVolumeTypeNameCustom:
 		break
 	case db.StoragePoolVolumeTypeNameImage:
-		return "", fmt.Errorf("Using image storage volumes is not supported")
+		return nil, "", fmt.Errorf("Using image storage volumes is not supported")
 	default:
-		return "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
+		return nil, "", fmt.Errorf("Unknown storage type prefix %q found", volumeTypeName)
 	}
 
 	// Only custom volumes can be attached currently.
 	storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
 	volStorageName := project.StorageVolume(storageProjectName, volumeName)
@@ -1136,45 +1096,50 @@ func (d *disk) mountPoolVolume(revert *revert.Reverter) (string, error) {
 
 	pool, err := storagePools.GetPoolByName(d.state, d.config["pool"])
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
 	err = pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+		return nil, "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 	}
 	revert.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to fetch local storage volume record")
+		return nil, "", errors.Wrapf(err, "Failed to fetch local storage volume record")
 	}
 
 	if d.inst.Type() == instancetype.Container {
 		if vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
 			err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+				return nil, "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
 			}
 		} else {
-			return "", fmt.Errorf("Only filesystem volumes are supported for containers")
+			return nil, "", fmt.Errorf("Only filesystem volumes are supported for containers")
 		}
 	}
 
 	if vol.ContentType == db.StoragePoolVolumeContentTypeNameBlock {
 		srcPath, err = pool.GetCustomVolumeDisk(storageProjectName, volumeName)
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to get disk path")
+			return nil, "", errors.Wrapf(err, "Failed to get disk path")
 		}
 	}
 
-	return srcPath, nil
+	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	revert.Success()
+	return revertExternal.Fail, srcPath, err
 }
 
 // createDevice creates a disk device mount on host.
 // The srcPath argument is the source of the disk device on the host.
 // Returns the created device path, and whether the path is a file or not.
-func (d *disk) createDevice(srcPath string) (string, bool, error) {
+func (d *disk) createDevice(srcPath string) (func(), string, bool, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Paths.
 	devPath := d.getDevicePath(d.name, d.config)
 
@@ -1197,7 +1162,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 			// Get the mount options.
 			mntSrcPath, fsOptions, fsErr := diskCephfsOptions(clusterName, userName, mdsName, mdsPath)
 			if fsErr != nil {
-				return "", false, fsErr
+				return nil, "", false, fsErr
 			}
 
 			// Join the options with any provided by the user.
@@ -1217,18 +1182,18 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 			// Map the RBD.
 			rbdPath, err := diskCephRbdMap(clusterName, userName, poolName, volumeName)
 			if err != nil {
-				return "", false, diskSourceNotFoundError{msg: "Failed mapping Ceph RBD volume", err: err}
+				return nil, "", false, diskSourceNotFoundError{msg: "Failed mapping Ceph RBD volume", err: err}
 			}
 
 			fsName, err = BlockFsDetect(rbdPath)
 			if err != nil {
-				return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
+				return nil, "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", rbdPath, err)
 			}
 
 			// Record the device path.
 			err = d.volatileSet(map[string]string{"ceph_rbd": rbdPath})
 			if err != nil {
-				return "", false, err
+				return nil, "", false, err
 			}
 
 			srcPath = rbdPath
@@ -1236,14 +1201,14 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 		} else {
 			fileInfo, err := os.Stat(srcPath)
 			if err != nil {
-				return "", false, fmt.Errorf("Failed accessing source path %q: %w", srcPath, err)
+				return nil, "", false, fmt.Errorf("Failed accessing source path %q: %w", srcPath, err)
 			}
 
 			fileMode := fileInfo.Mode()
 			if shared.IsBlockdev(fileMode) {
 				fsName, err = BlockFsDetect(srcPath)
 				if err != nil {
-					return "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
+					return nil, "", false, fmt.Errorf("Failed detecting source path %q block device filesystem: %w", srcPath, err)
 				}
 			} else if !fileMode.IsDir() {
 				isFile = true
@@ -1251,7 +1216,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 
 			f, err := d.localSourceOpen(srcPath)
 			if err != nil {
-				return "", false, err
+				return nil, "", false, err
 			}
 			defer f.Close()
 
@@ -1263,7 +1228,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	if !shared.PathExists(d.inst.DevicesPath()) {
 		err := os.Mkdir(d.inst.DevicesPath(), 0711)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 	}
 
@@ -1271,7 +1236,7 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	if shared.PathExists(devPath) {
 		err := os.Remove(devPath)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 	}
 
@@ -1279,24 +1244,26 @@ func (d *disk) createDevice(srcPath string) (string, bool, error) {
 	if isFile {
 		f, err := os.Create(devPath)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 
 		f.Close()
 	} else {
 		err := os.Mkdir(devPath, 0700)
 		if err != nil {
-			return "", false, err
+			return nil, "", false, err
 		}
 	}
 
 	// Mount the fs.
 	err := DiskMount(srcPath, devPath, isReadOnly, isRecursive, d.config["propagation"], mntOptions, fsName)
 	if err != nil {
-		return "", false, err
+		return nil, "", false, err
 	}
 
-	return devPath, isFile, nil
+	revertExternal := revert.Clone() // Clone before calling revert.Success() so we can return the Fail func.
+	revert.Success()
+	return revertExternal.Fail, devPath, isFile, err
 }
 
 // localSourceOpen opens a local disk source path and returns a file handle to it.
@@ -1540,28 +1507,7 @@ func (d *disk) Stop() (*deviceConfig.RunConfig, error) {
 
 func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 	// Stop the virtfs-proxy-helper process and clean up.
-	err := func() error {
-		sockPath, pidPath := d.vmVirtfsProxyHelperPaths()
-		if shared.PathExists(pidPath) {
-			proc, err := subprocess.ImportProcess(pidPath)
-			if err != nil {
-				return err
-			}
-
-			err = proc.Stop()
-			if err != nil && err != subprocess.ErrNotRunning {
-				return err
-			}
-
-			// Remove PID file.
-			os.Remove(pidPath)
-		}
-
-		// Remove socket file.
-		os.Remove(sockPath)
-
-		return nil
-	}()
+	err := DiskVMVirtfsProxyStop(d.vmVirtfsProxyHelperPaths())
 	if err != nil {
 		return &deviceConfig.RunConfig{}, errors.Wrapf(err, "Failed cleaning up virtfs-proxy-helper")
 	}
