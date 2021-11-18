@@ -258,40 +258,43 @@ func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File,
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create unix listener for virtfs-proxy-helper: %w", err)
 	}
-	revert.Add(func() { listener.Close() })
+	defer listener.Close()
 
 	cDial, err := net.Dial("unix", listener.Addr().String())
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to connect to virtfs-proxy-helper unix listener: %w", err)
 	}
-	revert.Add(func() { cDial.Close() })
+	defer cDial.Close()
 
 	cDialUnix, ok := cDial.(*net.UnixConn)
 	if !ok {
 		return nil, nil, fmt.Errorf("Dialled virtfs-proxy-helper connection isn't unix socket")
 	}
+	defer cDialUnix.Close()
 
 	cDialUnixFile, err := cDialUnix.File()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed getting virtfs-proxy-helper unix dialed file: %w", err)
 	}
+	revert.Add(func() { cDialUnixFile.Close() })
 
 	cAccept, err := listener.Accept()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to accept connection to virtfs-proxy-helper unix listener: %w", err)
 	}
-	revert.Add(func() { cAccept.Close() })
-	listener.Close()
+	defer cAccept.Close()
 
 	cAcceptUnix, ok := cAccept.(*net.UnixConn)
 	if !ok {
 		return nil, nil, fmt.Errorf("Accepted virtfs-proxy-helper connection isn't unix socket")
 	}
+	defer cAcceptUnix.Close()
 
 	acceptFile, err := cAcceptUnix.File()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed getting virtfs-proxy-helper unix listener file: %w", err)
 	}
+	defer acceptFile.Close()
 
 	// Start the virtfs-proxy-helper process in non-daemon mode and as root so that when the VM process is
 	// started as an unprivileged user, we can still share directories that process cannot access.
@@ -388,6 +391,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
 	}
+	defer unixFile.Close()
 
 	// Start the virtiofsd process in non-daemon mode.
 	proc, err := subprocess.NewProcess(cmd, []string{"--fd=3", "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
