@@ -332,7 +332,7 @@ func lxcValidConfig(rawLxc string) error {
 
 // AllowedUnprivilegedOnlyMap checks that root user is not mapped into instance.
 func AllowedUnprivilegedOnlyMap(rawIdmap string) error {
-	rawMaps, err := ParseRawIdmap(rawIdmap)
+	rawMaps, err := idmap.ParseRawIdmap(rawIdmap)
 	if err != nil {
 		return err
 	}
