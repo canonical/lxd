@@ -112,6 +112,47 @@ func (e *IdmapEntry) Intersects(i IdmapEntry) bool {
 	return false
 }
 
+// HostIDsCoveredBy returns whether or not the entry is covered by the supplied host UID and GID ID maps.
+// If e.Isuid is true then host IDs must be covered by an entry in allowedHostUIDs, and if e.Isgid is true then
+// host IDs must be covered by an entry in allowedHostGIDs.
+func (e *IdmapEntry) HostIDsCoveredBy(allowedHostUIDs []IdmapEntry, allowedHostGIDs []IdmapEntry) bool {
+	if !e.Isuid && !e.Isgid {
+		return false // This is an invalid idmap entry.
+	}
+
+	isUIDAllowed := false
+
+	if e.Isuid {
+		for _, allowedIDMap := range allowedHostUIDs {
+			if !allowedIDMap.Isuid {
+				continue
+			}
+
+			if e.Hostid >= allowedIDMap.Hostid && (e.Hostid+e.Maprange) <= (allowedIDMap.Hostid+allowedIDMap.Maprange) {
+				isUIDAllowed = true
+				break
+			}
+		}
+	}
+
+	isGIDAllowed := false
+
+	if e.Isgid {
+		for _, allowedIDMap := range allowedHostGIDs {
+			if !allowedIDMap.Isgid {
+				continue
+			}
+
+			if e.Hostid >= allowedIDMap.Hostid && (e.Hostid+e.Maprange) <= (allowedIDMap.Hostid+allowedIDMap.Maprange) {
+				isGIDAllowed = true
+				break
+			}
+		}
+	}
+
+	return e.Isuid == isUIDAllowed && e.Isgid == isGIDAllowed
+}
+
 func (e *IdmapEntry) Usable() error {
 	kernelIdmap, err := CurrentIdmapSet()
 	if err != nil {
