@@ -391,6 +391,7 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to getting unix listener file for virtiofsd: %w", err)
 	}
+	defer unixFile.Close()
 
 	// Start the virtiofsd process in non-daemon mode.
 	proc, err := subprocess.NewProcess(cmd, []string{"--fd=3", "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
