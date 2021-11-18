@@ -335,4 +335,7 @@ enum {
 		__ret_strnprintf;                                                         \
 	})
 
+#define STRINGIFY(a) __STRINGIFY(a)
+#define __STRINGIFY(a) #a
+
 #endif /* __LXC_MACRO_H */

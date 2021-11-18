@@ -28,6 +28,7 @@ import (
 #include <unistd.h>
 
 #include "lxd.h"
+#include "error_utils.h"
 #include "file_utils.h"
 #include "macro.h"
 #include "memory_utils.h"
@@ -220,6 +221,10 @@ out_reap:
 
 	if (!argvp || !*argvp)
 		return log_error(EXIT_FAILURE, "No command specified");
+
+	ret = lxd_close_range(FD_PIPE_UIDMAP, FD_PIPE_GIDMAP, CLOSE_RANGE_CLOEXEC);
+	if (ret && !IN_SET(errno, ENOSYS, EINVAL))
+		return log_error(EXIT_FAILURE, "Aborting forkusernsexec to prevent leaking file descriptors");
 
 	execvp(argvp[0], argvp);
 	return EXIT_FAILURE;
