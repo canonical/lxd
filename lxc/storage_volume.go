@@ -27,8 +27,9 @@ type volumeColumn struct {
 }
 
 type cmdStorageVolume struct {
-	global  *cmdGlobal
-	storage *cmdStorage
+	global                *cmdGlobal
+	storage               *cmdStorage
+	flagDestinationTarget string
 }
 
 func (c *cmdStorageVolume) Command() *cobra.Command {
@@ -307,6 +308,7 @@ func (c *cmdStorageVolumeCopy) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.storageVolume.flagDestinationTarget, "destination-target", "", i18n.G("Destination cluster member name")+"``")
 	cmd.Flags().BoolVar(&c.flagVolumeOnly, "volume-only", false, i18n.G("Copy the volume without its snapshots"))
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.RunE = c.Run
@@ -335,6 +337,11 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 
 	srcServer := srcResource.server
 	srcPath := srcResource.name
+
+	// If a target was specified, specify the volume on the given member.
+	if c.storage.flagTarget != "" {
+		srcServer = srcServer.UseTarget(c.storage.flagTarget)
+	}
 
 	// Destination
 	dstResource := resources[1]
@@ -394,6 +401,19 @@ func (c *cmdStorageVolumeCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 	if err != nil {
 		return err
+	}
+
+	// If destination target was specified, copy the volume onto the given member.
+	// If no destination target is specified, this will be the same as the source.
+	if c.storageVolume.flagDestinationTarget != "" {
+		dstServer = dstServer.UseTarget(c.storageVolume.flagDestinationTarget)
+	} else {
+		dstServer = dstServer.UseTarget(srcVol.Location)
+	}
+
+	// If no target is specified, use the member that contains the source volume.
+	if c.storage.flagTarget == "" {
+		srcServer = srcServer.UseTarget(srcVol.Location)
 	}
 
 	if cmd.Name() == "move" && srcServer == dstServer {
@@ -1241,6 +1261,7 @@ func (c *cmdStorageVolumeMove) Command() *cobra.Command {
 
 	cmd.Flags().StringVar(&c.storageVolumeCopy.flagMode, "mode", "pull", i18n.G("Transfer mode, one of pull (default), push or relay")+"``")
 	cmd.Flags().StringVar(&c.storage.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
+	cmd.Flags().StringVar(&c.storageVolume.flagDestinationTarget, "destination-target", "", i18n.G("Destination cluster member name")+"``")
 	cmd.Flags().StringVar(&c.storageVolumeCopy.flagTargetProject, "target-project", "", i18n.G("Move to a project different from the source")+"``")
 	cmd.RunE = c.Run
 
