@@ -16,6 +16,7 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
 )
@@ -306,8 +307,9 @@ func forkusernsexecWriteIdmaps(wUIDMapPipe *os.File, wGIDMapPipe *os.File, idmap
 }
 
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
+// If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns a revert function, and a file handle to the proxy process.
-func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File, error) {
+func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), *os.File, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -365,14 +367,46 @@ func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File,
 	}
 	defer acceptFile.Close()
 
+	var args []string
+	var fdFiles []*os.File
+
+	if len(idmaps) > 0 {
+		rUIDMapPipe, wUIDMapPipe, err := os.Pipe()
+		if err != nil {
+			return nil, nil, err
+		}
+		defer rUIDMapPipe.Close()
+		defer wUIDMapPipe.Close()
+
+		rGIDMapPipe, wGIDMapPipe, err := os.Pipe()
+		if err != nil {
+			return nil, nil, err
+		}
+		defer rGIDMapPipe.Close()
+		defer wGIDMapPipe.Close()
+
+		err = forkusernsexecWriteIdmaps(wUIDMapPipe, wGIDMapPipe, idmaps)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Run proxy command via forkusernsexec, passing in the UID/GID map file handles.
+		// Instruct forkusernsexec to not close FD 5 as this will be used for passing the proxy socket FD.
+		fdFiles = append(fdFiles, rUIDMapPipe, rGIDMapPipe)
+		args = append(args, "forkusernsexec", fmt.Sprintf("--keep-fd-up-to=%d", 5), cmd)
+		cmd = execPath
+	}
+
 	// Start the virtfs-proxy-helper process in non-daemon mode and as root so that when the VM process is
 	// started as an unprivileged user, we can still share directories that process cannot access.
-	proc, err := subprocess.NewProcess(cmd, []string{"--nodaemon", "--fd", "3", "--path", sharePath}, "", "")
+	fdFiles = append(fdFiles, acceptFile)
+	args = append(args, "--nodaemon", "--fd", fmt.Sprintf("%d", 2+len(fdFiles)), "--path", sharePath)
+	proc, err := subprocess.NewProcess(cmd, args, "", "")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = proc.StartWithFiles([]*os.File{acceptFile})
+	err = proc.StartWithFiles(fdFiles)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to start virtfs-proxy-helper: %w", err)
 	}
