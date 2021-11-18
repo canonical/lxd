@@ -18,6 +18,10 @@
 #define CLOSE_RANGE_UNSHARE (1U << 1)
 #endif
 
+#ifndef CLOSE_RANGE_CLOEXEC
+#define CLOSE_RANGE_CLOEXEC (1U << 2)
+#endif
+
 static inline int lxd_close_range(unsigned int fd, unsigned int max_fd, unsigned int flags)
 {
 	return syscall(__NR_close_range, fd, max_fd, flags);
