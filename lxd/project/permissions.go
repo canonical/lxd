@@ -584,10 +584,7 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 			}
 			err := checker(value)
 			if err != nil {
-				return errors.Wrapf(
-					err,
-					"Invalid value %q for config %q on %s %q of project %q",
-					value, key, entityType, entityName, project.Name)
+				return fmt.Errorf("Invalid value %q for config %q on %s %q of project %q: %w", value, key, entityType, entityName, project.Name, err)
 			}
 		}
 		return nil
