@@ -103,4 +103,3 @@ static inline int push_vargs(char ***list, char *entry)
 }
 
 #endif /* __LXD_PROCESS_UTILS_H */
-
