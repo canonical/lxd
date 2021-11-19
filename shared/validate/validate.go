@@ -590,32 +590,28 @@ func IsNetworkPort(value string) error {
 	return nil
 }
 
-// IsNetworkPortRange validates an IP port range in the format "start-end".
+// IsNetworkPortRange validates an IP port range in the format "port" or "start-end".
 func IsNetworkPortRange(value string) error {
 	ports := strings.SplitN(value, "-", 2)
-	if len(ports) != 2 {
-		return fmt.Errorf("Port range must contain start and end port numbers")
-	}
-
-	for _, port := range ports {
-		err := IsNetworkPort(port)
-		if err != nil {
-			return err
-		}
+	portsLen := len(ports)
+	if portsLen != 1 && portsLen != 2 {
+		return fmt.Errorf("Port range must contain either a single port or start and end port numbers")
 	}
 
 	startPort, err := strconv.ParseUint(ports[0], 10, 32)
 	if err != nil {
-		return fmt.Errorf("Invalid start port number %q", value)
+		return fmt.Errorf("Invalid port number %q", value)
 	}
 
-	endPort, err := strconv.ParseUint(ports[1], 10, 32)
-	if err != nil {
-		return fmt.Errorf("Invalid end port number %q", value)
-	}
+	if portsLen == 2 {
+		endPort, err := strconv.ParseUint(ports[1], 10, 32)
+		if err != nil {
+			return fmt.Errorf("Invalid end port number %q", value)
+		}
 
-	if startPort >= endPort {
-		return fmt.Errorf("Start port %d must be lower than end port %d", startPort, endPort)
+		if startPort >= endPort {
+			return fmt.Errorf("Start port %d must be lower than end port %d", startPort, endPort)
+		}
 	}
 
 	return nil
