@@ -13,7 +13,7 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
-	"gopkg.in/robfig/cron.v2"
+	"github.com/robfig/cron/v3"
 
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
@@ -658,7 +658,7 @@ func IsCron(aliases []string) func(value string) error {
 				return fmt.Errorf("Schedule must be of the form: <minute> <hour> <day-of-month> <month> <day-of-week>")
 			}
 
-			_, err := cron.Parse(fmt.Sprintf("* %s", value))
+			_, err := cron.ParseStandard(value)
 			if err != nil {
 				return errors.Wrap(err, "Error parsing schedule")
 			}
