@@ -154,6 +154,11 @@ static int safe_uint(const char *numstr, unsigned int *converted)
 	return 0;
 }
 
+static inline bool is_empty_string(const char *s)
+{
+	return !s || strcmp(s, "") == 0;
+}
+
 __attribute__ ((noinline)) int __forkusernsexec(void)
 {
 	__do_free_string_list char **argvp = NULL;
@@ -172,8 +177,23 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 	     strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
 		return EXIT_SUCCESS;
 
-	if (strncmp(cur, "--keep-fd-up-to=", STRLITERALLEN("--keep-fd-up-to=")) == 0) {
-		cur += STRLITERALLEN("--keep-fd-up-to=");
+	if (strncmp(cur, "--keep-fd-up-to", STRLITERALLEN("--keep-fd-up-to")) == 0) {
+		cur += STRLITERALLEN("--keep-fd-up-to");
+		if (is_empty_string(cur))
+			return log_error(EXIT_FAILURE, "Missing value for \"--keep-fd-up-to\"");
+
+		// allow both --keep-fd-up-to=<nr> and --keep-fd-up-to <nr>
+		if (*cur == '=')
+			cur++;
+
+		if (is_empty_string(cur))
+			return log_error(EXIT_FAILURE, "Missing value for \"--keep-fd-up-to\"");
+
+		// allow whitespace
+		cur += strspn(cur, " \t\r");
+		if (is_empty_string(cur))
+			return log_error(EXIT_FAILURE, "Missing value for \"--keep-fd-up-to\"");
+
 		ret = safe_uint(cur, &keep_fd_up_to);
 		if (ret)
 			return log_error(EXIT_FAILURE, "Invalid fd number %s specified", cur);
