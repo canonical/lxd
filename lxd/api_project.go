@@ -819,6 +819,13 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		}
 	}
 
+	// Ensure that restricted projects have their own profiles. Otherwise restrictions in this project could
+	// be bypassed by settings from the default project's profiles that are not checked against this project's
+	// restrictions when they are configured.
+	if shared.IsTrue(config["restricted"]) && !shared.IsTrue(config["features.profiles"]) {
+		return fmt.Errorf("Projects without their own profiles cannot be restricted")
+	}
+
 	return nil
 }
 
