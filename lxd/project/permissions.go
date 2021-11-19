@@ -14,9 +14,12 @@ import (
 	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // AllowInstanceCreation returns an error if any project-specific limit or
@@ -399,6 +402,28 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 		}
 	}
 	return nil
+}
+
+// parseHostIDMapRange parse the supplied list of host ID map ranges into a idmap.IdmapEntry slice.
+func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.IdmapEntry, error) {
+	var idmaps []idmap.IdmapEntry
+
+	for _, listItem := range util.SplitNTrimSpace(listValue, ",", -1, true) {
+		rangeStart, rangeSize, err := validate.ParseUint32Range(listItem)
+		if err != nil {
+			return nil, err
+		}
+
+		idmaps = append(idmaps, idmap.IdmapEntry{
+			Hostid:   int64(rangeStart),
+			Maprange: int64(rangeSize),
+			Isuid:    isUID,
+			Isgid:    isGID,
+			Nsid:     -1, // We don't have this as we are just parsing host IDs.
+		})
+	}
+
+	return idmaps, nil
 }
 
 // Check that the project's restrictions are not violated across the given
