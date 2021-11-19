@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/robfig/cron.v2"
+	"github.com/robfig/cron/v3"
 
 	"github.com/lxc/lxd/lxd/util"
 )
@@ -14,13 +14,13 @@ import (
 // SnapshotScheduleAliases contains the mapping of scheduling aliases to cron syntax
 // including placeholders for scheduled time obfuscation.
 var SnapshotScheduleAliases = map[string]string{
-	"@hourly":   "%s %s * * * *",
-	"@daily":    "* %s %s * * *",
-	"@midnight": "%s %s 0 * * *",
-	"@weekly":   "* %s %s * * 0",
-	"@monthly":  "* %s %s 1 * *",
-	"@annually": "* %s %s 1 1 *",
-	"@yearly":   "* %s %s 1 1 *",
+	"@hourly":   "%s * * * *",
+	"@daily":    "%s %s * * *",
+	"@midnight": "%s 0 * * *",
+	"@weekly":   "%s %s * * 0",
+	"@monthly":  "%s %s 1 * *",
+	"@annually": "%s %s 1 1 *",
+	"@yearly":   "%s %s 1 1 *",
 }
 
 func snapshotIsScheduledNow(spec string, subjectID int64) bool {
@@ -41,7 +41,8 @@ func buildCronSpecs(spec string, subjectID int64) []string {
 	var result []string
 
 	if strings.Contains(spec, ", ") {
-		for _, curSpec := range strings.Split(spec, ", ") {
+		for _, curSpec := range util.SplitNTrimSpace(spec, ",", -1, true) {
+
 			result = append(result, getCronSyntax(curSpec, subjectID))
 		}
 	} else {
@@ -56,10 +57,14 @@ func getCronSyntax(spec string, subjectID int64) string {
 	if isAlias {
 		obfuscatedMinute, obfuscatedHour := getObfuscatedTimeValuesForSubject(subjectID)
 
-		return fmt.Sprintf(alias, obfuscatedMinute, obfuscatedHour)
+		if strings.Count(alias, "%s") > 1 {
+			return fmt.Sprintf(alias, obfuscatedMinute, obfuscatedHour)
+		} else {
+			return fmt.Sprintf(alias, obfuscatedMinute)
+		}
 	}
 
-	return "* " + spec
+	return spec
 }
 
 func getObfuscatedTimeValuesForSubject(subjectID int64) (string, string) {
@@ -82,7 +87,7 @@ func getObfuscatedTimeValuesForSubject(subjectID int64) (string, string) {
 }
 
 func cronSpecIsNow(spec string) (bool, error) {
-	sched, err := cron.Parse(spec)
+	sched, err := cron.ParseStandard(spec)
 	if err != nil {
 		return false, fmt.Errorf("Could not parse cron '%s'", spec)
 	}
@@ -90,9 +95,9 @@ func cronSpecIsNow(spec string) (bool, error) {
 	// Check if it's time to snapshot
 	now := time.Now()
 
-	// Truncate the time now back to the start of the minute, before passing to
-	// the cron scheduler, as it will add 1s to the scheduled time and we don't
-	// want the next scheduled time to roll over to the next minute and break
+	// Truncate the time now back to the start of the minute.
+	// This is neded because the cron scheduler will add a minute to the scheduled time
+	// and we don't want the next scheduled time to roll over to the next minute and break
 	// the time comparison below.
 	now = now.Truncate(time.Minute)
 
@@ -100,10 +105,7 @@ func cronSpecIsNow(spec string) (bool, error) {
 	// pattern and the time now.
 	next := sched.Next(now)
 
-	// Ignore everything that is more precise than minutes.
-	next = next.Truncate(time.Minute)
-
-	if !now.Equal(next) {
+	if !now.Add(time.Minute).Equal(next) {
 		return false, nil
 	}
 
