@@ -84,6 +84,44 @@ func IsUint32(value string) error {
 	return nil
 }
 
+// ParseUint32Range parses a uint32 range in the form "number" or "start-end".
+// Returns the start number and the size of the range.
+func ParseUint32Range(value string) (uint32, uint32, error) {
+	rangeParts := strings.SplitN(value, "-", 2)
+	rangeLen := len(rangeParts)
+	if rangeLen != 1 && rangeLen != 2 {
+		return 0, 0, fmt.Errorf("Range must contain a single number or start and end numbers")
+	}
+
+	startNum, err := strconv.ParseUint(rangeParts[0], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Invalid number %q", value)
+	}
+
+	var rangeSize uint32 = 1
+
+	if rangeLen == 2 {
+		endNum, err := strconv.ParseUint(rangeParts[1], 10, 32)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Invalid end number %q", value)
+		}
+
+		if startNum >= endNum {
+			return 0, 0, fmt.Errorf("Start number %d must be lower than end number %d", startNum, endNum)
+		}
+
+		rangeSize = uint32(endNum) - uint32(startNum)
+	}
+
+	return uint32(startNum), rangeSize, err
+}
+
+// IsUint32Range validates whether the string is a uint32 range in the form "number" or "start-end".
+func IsUint32Range(value string) error {
+	_, _, err := ParseUint32Range(value)
+	return err
+}
+
 // IsInRange checks whether an integer is within a specific range.
 func IsInRange(min int64, max int64) func(value string) error {
 	return func(value string) error {
