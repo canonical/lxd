@@ -718,9 +718,23 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				mount.TargetPath = d.config["path"]
 				mount.FSType = "9p"
 
+				rawIDMaps, err := idmap.ParseRawIdmap(d.inst.ExpandedConfig()["raw.idmap"])
+				if err != nil {
+					return nil, fmt.Errorf(`Failed parsing instance "raw.idmap": %w`, err)
+				}
+
+				// If we are using restricted parent source path mode, or if a non-empty set of
+				// raw ID maps have been supplied, then we will be running the disk proxy processes
+				// inside a user namespace as the root userns user. Therefore we need to ensure
+				// that there is a root UID and GID mapping in the raw ID maps, and if not then add
+				// one mapping the root userns user to the the nouser/nogroup host ID.
+				if d.restrictedParentSourcePath != "" || len(rawIDMaps) > 0 {
+					rawIDMaps = diskAddRootUserNSEntry(rawIDMaps, 65534)
+				}
+
 				// Start virtfs-proxy-helper for 9p share.
 				err = func() error {
-					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.vmVirtfsProxyHelperPaths(), srcPath)
+					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), srcPath, rawIDMaps)
 					if err != nil {
 						return err
 					}
@@ -745,7 +759,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 					os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.inst, sockPath, pidPath, logPath, srcPath)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.ExecPath, d.inst, sockPath, pidPath, logPath, srcPath, rawIDMaps)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
