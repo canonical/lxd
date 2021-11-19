@@ -154,6 +154,11 @@ static int safe_uint(const char *numstr, unsigned int *converted)
 	return 0;
 }
 
+static inline bool is_empty_string(const char *s)
+{
+	return !s || strcmp(s, "") == 0;
+}
+
 __attribute__ ((noinline)) int __forkusernsexec(void)
 {
 	__do_free_string_list char **argvp = NULL;
@@ -172,11 +177,28 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 	     strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
 		return EXIT_SUCCESS;
 
-	if (strncmp(cur, "--keep-fd-up-to=", STRLITERALLEN("--keep-fd-up-to=")) == 0) {
-		cur += STRLITERALLEN("--keep-fd-up-to=");
+	if (strncmp(cur, "--keep-fd-up-to", STRLITERALLEN("--keep-fd-up-to")) == 0) {
+		cur += STRLITERALLEN("--keep-fd-up-to");
+		if (is_empty_string(cur))
+			return log_error(EXIT_FAILURE, "Missing value for \"--keep-fd-up-to\"");
+
+		// allow both --keep-fd-up-to=<nr> and --keep-fd-up-to <nr>
+		if (*cur == '=')
+			cur++;
+
+		if (is_empty_string(cur))
+			return log_error(EXIT_FAILURE, "Missing value for \"--keep-fd-up-to\"");
+
+		// allow whitespace
+		cur += strspn(cur, " \t\r");
+		if (is_empty_string(cur))
+			return log_error(EXIT_FAILURE, "Missing value for \"--keep-fd-up-to\"");
+
 		ret = safe_uint(cur, &keep_fd_up_to);
 		if (ret)
 			return log_error(EXIT_FAILURE, "Invalid fd number %s specified", cur);
+
+		cur = advance_arg(true);
 	}
 
 	if (!fhas_fs_type(FD_PIPE_UIDMAP, PIPEFS_MAGIC))
@@ -187,7 +209,7 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 
 	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, fd_socket);
 	if (ret < 0)
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Failed to create socketpair");
 
 	pid = fork();
 	if (pid < 0)
@@ -216,6 +238,7 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 	ret = unshare(CLONE_NEWUSER);
 	if (ret) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to create user namespace");
 		goto out_reap;
 	}
 
@@ -224,16 +247,19 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 		ret = read_nointr(fd_socket[0], &c, 1);
 	if (ret != 1) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to read or write to socketpair fd");
 		goto out_reap;
 	}
 
 	if (!drop_groups()) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to drop supplimentary groups");
 		goto out_reap;
 	}
 
 	if (!switch_resids(0, 0)) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to switch uid and gid to 0");
 		goto out_reap;
 	}
 
@@ -242,13 +268,9 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 out_reap:
 	ret = wait_for_pid(pid);
 	if (ret)
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Child process failed");
 
-	ret = push_vargs(&argvp, cur);
-	if (ret < 0)
-		return log_error(EXIT_FAILURE, "Failed to add %s to arg array", cur);
-
-	for (cur = NULL; (cur = advance_arg(false)); ) {
+	for (; cur; cur = advance_arg(false)) {
 		ret = push_vargs(&argvp, cur);
 		if (ret < 0)
 			return log_error(EXIT_FAILURE, "Failed to add %s to arg array", cur);
@@ -262,7 +284,7 @@ out_reap:
 		return log_error(EXIT_FAILURE, "Aborting forkusernsexec to prevent leaking file descriptors");
 
 	execvp(argvp[0], argvp);
-	return EXIT_FAILURE;
+	return log_error(EXIT_FAILURE, "Failed to execute \"%s\"", argvp[0]);
 }
 
 void forkusernsexec(void)
