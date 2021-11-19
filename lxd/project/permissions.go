@@ -690,6 +690,8 @@ var allRestrictions = map[string]string{
 	"restricted.devices.nic":               "managed",
 	"restricted.devices.disk":              "managed",
 	"restricted.devices.disk.paths":        "",
+	"restricted.idmap.uid":                 "",
+	"restricted.idmap.gid":                 "",
 	"restricted.snapshots":                 "block",
 }
 
