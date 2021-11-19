@@ -273,6 +273,38 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 	return idmaps
 }
 
+// forkusernsexecWriteIdmaps writes the idmap entries to the forkusernsexec pipes.
+func forkusernsexecWriteIdmaps(wUIDMapPipe *os.File, wGIDMapPipe *os.File, idmaps []idmap.IdmapEntry) error {
+	for _, idmap := range idmaps {
+		if idmap.Isuid {
+			_, err := wUIDMapPipe.WriteString(fmt.Sprintf("%d %d %d\n", idmap.Nsid, idmap.Hostid, idmap.Maprange))
+			if err != nil {
+				return err
+			}
+		}
+
+		if idmap.Isgid {
+			_, err := wGIDMapPipe.WriteString(fmt.Sprintf("%d %d %d\n", idmap.Nsid, idmap.Hostid, idmap.Maprange))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Make sure the strings are \x00 terminated so they are parseable as C strings.
+	_, err := wUIDMapPipe.WriteString("\x00")
+	if err != nil {
+		return err
+	}
+
+	_, err = wGIDMapPipe.WriteString("\x00")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
 // Returns a revert function, and a file handle to the proxy process.
 func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File, error) {
