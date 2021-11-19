@@ -236,6 +236,43 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 	return srcpath, fsOptions, nil
 }
 
+// diskAddRootUserNSEntry takes a set of idmap entries, and adds host -> userns root uid/gid mappings if needed.
+// Returns the supplied idmap entries with any added root entries.
+func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap.IdmapEntry {
+	needsNSUIDRootEntry := true
+	needsNSGIDRootEntry := true
+
+	for _, idmap := range idmaps {
+		// Check if the idmap entry contains the userns root user.
+		if idmap.Nsid == 0 {
+			if idmap.Isuid {
+				needsNSUIDRootEntry = false // Root UID mapping already present.
+			}
+
+			if idmap.Isgid {
+				needsNSGIDRootEntry = false // Root GID mapping already present.
+			}
+
+			if !needsNSUIDRootEntry && needsNSGIDRootEntry {
+				break // If we've found a root entry for UID and GID then we don't need to add one.
+			}
+		}
+	}
+
+	// Add UID/GID/both mapping entry if needed.
+	if needsNSUIDRootEntry || needsNSGIDRootEntry {
+		idmaps = append(idmaps, idmap.IdmapEntry{
+			Hostid:   hostRootID,
+			Isuid:    needsNSUIDRootEntry,
+			Isgid:    needsNSGIDRootEntry,
+			Nsid:     0,
+			Maprange: 1,
+		})
+	}
+
+	return idmaps
+}
+
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
 // Returns a revert function, and a file handle to the proxy process.
 func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File, error) {
