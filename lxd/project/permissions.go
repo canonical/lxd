@@ -689,6 +689,7 @@ var allRestrictions = map[string]string{
 	"restricted.devices.proxy":             "block",
 	"restricted.devices.nic":               "managed",
 	"restricted.devices.disk":              "managed",
+	"restricted.devices.disk.paths":        "",
 	"restricted.snapshots":                 "block",
 }
 
