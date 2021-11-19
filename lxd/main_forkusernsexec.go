@@ -177,6 +177,8 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 		ret = safe_uint(cur, &keep_fd_up_to);
 		if (ret)
 			return log_error(EXIT_FAILURE, "Invalid fd number %s specified", cur);
+
+		cur = advance_arg(true);
 	}
 
 	if (!fhas_fs_type(FD_PIPE_UIDMAP, PIPEFS_MAGIC))
@@ -244,11 +246,7 @@ out_reap:
 	if (ret)
 		return EXIT_FAILURE;
 
-	ret = push_vargs(&argvp, cur);
-	if (ret < 0)
-		return log_error(EXIT_FAILURE, "Failed to add %s to arg array", cur);
-
-	for (cur = NULL; (cur = advance_arg(false)); ) {
+	for (; cur; cur = advance_arg(false)) {
 		ret = push_vargs(&argvp, cur);
 		if (ret < 0)
 			return log_error(EXIT_FAILURE, "Failed to add %s to arg array", cur);
