@@ -85,7 +85,7 @@ static inline bool match_stdfds(int fd)
 	return (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO);
 }
 
-static int close_inherited(int *fds_to_ignore, size_t len_fds)
+int close_inherited(int *fds_to_ignore, size_t len_fds)
 {
 	int fddir;
 	DIR *dir;

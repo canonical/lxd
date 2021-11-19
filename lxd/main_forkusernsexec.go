@@ -12,6 +12,7 @@ import (
 /*
 #include "config.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -28,6 +29,7 @@ import (
 #include <unistd.h>
 
 #include "lxd.h"
+#include "error_utils.h"
 #include "file_utils.h"
 #include "macro.h"
 #include "memory_utils.h"
@@ -126,6 +128,32 @@ static int write_id_mappings(void)
 	return ret;
 }
 
+static int safe_uint(const char *numstr, unsigned int *converted)
+{
+	char *err = NULL;
+	unsigned long int uli;
+
+	while (isspace(*numstr))
+		numstr++;
+
+	if (*numstr == '-')
+		return -EINVAL;
+
+	errno = 0;
+	uli = strtoul(numstr, &err, 0);
+	if (errno == ERANGE && uli == ULONG_MAX)
+		return -ERANGE;
+
+	if (err == numstr || *err != '\0')
+		return -EINVAL;
+
+	if (uli > UINT_MAX)
+		return -ERANGE;
+
+	*converted = (unsigned int)uli;
+	return 0;
+}
+
 __attribute__ ((noinline)) int __forkusernsexec(void)
 {
 	__do_free_string_list char **argvp = NULL;
@@ -134,6 +162,7 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 	int fd_socket[2];
 	char c;
 	char *cur;
+	unsigned int keep_fd_up_to = STDERR_FILENO;
 
 	if (geteuid() != 0)
 		return log_error(EXIT_FAILURE, "Error: forkexec requires root privileges");
@@ -142,6 +171,13 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 	if (!cur || (strcmp(cur, "--help") == 0 ||
 	     strcmp(cur, "--version") == 0 || strcmp(cur, "-h") == 0))
 		return EXIT_SUCCESS;
+
+	if (strncmp(cur, "--keep-fd-up-to=", STRLITERALLEN("--keep-fd-up-to=")) == 0) {
+		cur += STRLITERALLEN("--keep-fd-up-to=");
+		ret = safe_uint(cur, &keep_fd_up_to);
+		if (ret)
+			return log_error(EXIT_FAILURE, "Invalid fd number %s specified", cur);
+	}
 
 	if (!fhas_fs_type(FD_PIPE_UIDMAP, PIPEFS_MAGIC))
 		return log_error(EXIT_FAILURE, "Error: Missing UID map FD");
@@ -221,6 +257,10 @@ out_reap:
 	if (!argvp || !*argvp)
 		return log_error(EXIT_FAILURE, "No command specified");
 
+	ret = lxd_close_range(keep_fd_up_to + 1, UINT_MAX, CLOSE_RANGE_CLOEXEC);
+	if (ret && !IN_SET(errno, ENOSYS, EINVAL))
+		return log_error(EXIT_FAILURE, "Aborting forkusernsexec to prevent leaking file descriptors");
+
 	execvp(argvp[0], argvp);
 	return EXIT_FAILURE;
 }
@@ -233,7 +273,8 @@ void forkusernsexec(void)
 import "C"
 
 type cmdForkusernsexec struct {
-	global *cmdGlobal
+	global     *cmdGlobal
+	keepFdUpTo int
 }
 
 func (c *cmdForkusernsexec) Command() *cobra.Command {
@@ -241,6 +282,7 @@ func (c *cmdForkusernsexec) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "forkusernsexec <cmd> <args>"
 	cmd.Short = "Run command in user namespace"
+	cmd.Flags().IntVar(&c.keepFdUpTo, "keep-fd-up-to", (1 << 31), fmt.Sprintf("Keep all fds below and including this one and close all the ones above it"))
 	cmd.Long = `Description:
   Run command in user namespace
 
