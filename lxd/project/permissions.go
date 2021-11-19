@@ -559,19 +559,22 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 	}
 
 	// Common config check logic between instances and profiles.
-	entityConfigChecker := func(entityType, entityName string, config map[string]string) error {
-		isContainerOrProfile := shared.StringInSlice(entityType, []string{"container", "profile"})
-		isVMOrProfile := shared.StringInSlice(entityType, []string{"virtual machine", "profile"})
+	entityConfigChecker := func(instType instancetype.Type, entityName string, config map[string]string) error {
+		entityTypeLabel := instType.String()
+		if instType == instancetype.Any {
+			entityTypeLabel = "profile"
+		}
+
+		isContainerOrProfile := instType == instancetype.Container || instType == instancetype.Any
+		isVMOrProfile := instType == instancetype.VM || instType == instancetype.Any
 		for key, value := range config {
 			// First check if the key is a forbidden low-level one.
 			if isContainerOrProfile && !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {
-				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden",
-					key, entityType, entityName, project.Name)
+				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden", key, entityTypeLabel, entityName, project.Name)
 			}
 
 			if isVMOrProfile && !allowVMLowLevel && isVMLowLevelOptionForbidden(key) {
-				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden",
-					key, entityType, entityName, project.Name)
+				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden", key, entityTypeLabel, entityName, project.Name)
 			}
 
 			var checker func(value string) error
@@ -584,14 +587,19 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 			}
 			err := checker(value)
 			if err != nil {
-				return fmt.Errorf("Invalid value %q for config %q on %s %q of project %q: %w", value, key, entityType, entityName, project.Name, err)
+				return fmt.Errorf("Invalid value %q for config %q on %s %q of project %q: %w", value, key, instType, entityName, project.Name, err)
 			}
 		}
 		return nil
 	}
 
 	// Common devices check logic between instances and profiles.
-	entityDevicesChecker := func(entityType, entityName string, devices map[string]map[string]string) error {
+	entityDevicesChecker := func(instType instancetype.Type, entityName string, devices map[string]map[string]string) error {
+		entityTypeLabel := instType.String()
+		if instType == instancetype.Any {
+			entityTypeLabel = "profile"
+		}
+
 		for name, device := range devices {
 			check, ok := devicesChecks[device["type"]]
 			if !ok {
@@ -600,40 +608,31 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 
 			err := check(device)
 			if err != nil {
-				return errors.Wrapf(
-					err,
-					"Invalid device %q on %s %q of project %q",
-					name, entityType, entityName, project.Name)
+				return fmt.Errorf("Invalid device %q on %s %q of project %q: %w", name, entityTypeLabel, entityName, project.Name, err)
 			}
 		}
 		return nil
 	}
 
 	for _, instance := range instances {
-		var err error
-		switch instance.Type {
-		case instancetype.Container:
-			err = entityConfigChecker("container", instance.Name, instance.Config)
-		case instancetype.VM:
-			err = entityConfigChecker("virtual machine", instance.Name, instance.Config)
-		}
+		err := entityConfigChecker(instance.Type, instance.Name, instance.Config)
 		if err != nil {
 			return err
 		}
 
-		err = entityDevicesChecker("instance", instance.Name, instance.Devices)
+		err = entityDevicesChecker(instance.Type, instance.Name, instance.Devices)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, profile := range profiles {
-		err := entityConfigChecker("profile", profile.Name, profile.Config)
+		err := entityConfigChecker(instancetype.Any, profile.Name, profile.Config)
 		if err != nil {
 			return err
 		}
 
-		err = entityDevicesChecker("profile", profile.Name, profile.Devices)
+		err = entityDevicesChecker(instancetype.Any, profile.Name, profile.Devices)
 		if err != nil {
 			return err
 		}
