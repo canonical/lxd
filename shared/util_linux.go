@@ -325,21 +325,20 @@ func DeviceTotalMemory() (int64, error) {
 // OpenPtyInDevpts creates a new PTS pair, configures them and returns them.
 func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) {
 	revert := true
+	var fd int
 	var ptx *os.File
 	var err error
 
 	// Create a PTS pair.
 	if devpts_fd >= 0 {
-		fd, err := unix.Openat(devpts_fd, "ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
-		if err == nil {
-			ptx = os.NewFile(uintptr(fd), "/dev/pts/ptmx")
-		}
+		fd, err = unix.Openat(devpts_fd, "ptmx", unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOCTTY, 0)
 	} else {
-		ptx, err = os.OpenFile("/dev/ptmx", os.O_RDWR|unix.O_CLOEXEC, 0)
-		if err != nil {
-			return nil, nil, err
-		}
+		fd, err = unix.Openat(-1, "/dev/ptmx", unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOCTTY, 0)
 	}
+	if err != nil {
+		return nil, nil, err
+	}
+	ptx = os.NewFile(uintptr(fd), "/dev/pts/ptmx")
 	defer func() {
 		if revert {
 			ptx.Close()
@@ -378,7 +377,7 @@ func OpenPtyInDevpts(devpts_fd int, uid, gid int64) (*os.File, *os.File, error) 
 		}
 
 		// Open the pty.
-		pty, err = os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), os.O_RDWR|unix.O_NOCTTY, 0)
+		pty, err = os.OpenFile(fmt.Sprintf("/dev/pts/%d", id), unix.O_NOCTTY|unix.O_CLOEXEC|os.O_RDWR, 0)
 		if err != nil {
 			return nil, nil, err
 		}
