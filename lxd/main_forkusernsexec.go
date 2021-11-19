@@ -189,7 +189,7 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 
 	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, fd_socket);
 	if (ret < 0)
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Failed to create socketpair");
 
 	pid = fork();
 	if (pid < 0)
@@ -218,6 +218,7 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 	ret = unshare(CLONE_NEWUSER);
 	if (ret) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to create user namespace");
 		goto out_reap;
 	}
 
@@ -226,16 +227,19 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 		ret = read_nointr(fd_socket[0], &c, 1);
 	if (ret != 1) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to read or write to socketpair fd");
 		goto out_reap;
 	}
 
 	if (!drop_groups()) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to drop supplimentary groups");
 		goto out_reap;
 	}
 
 	if (!switch_resids(0, 0)) {
 		kill(pid, SIGKILL);
+		fprintf(stderr, "%m - Failed to switch uid and gid to 0");
 		goto out_reap;
 	}
 
@@ -244,7 +248,7 @@ __attribute__ ((noinline)) int __forkusernsexec(void)
 out_reap:
 	ret = wait_for_pid(pid);
 	if (ret)
-		return EXIT_FAILURE;
+		return log_error(EXIT_FAILURE, "Child process failed");
 
 	for (; cur; cur = advance_arg(false)) {
 		ret = push_vargs(&argvp, cur);
@@ -260,7 +264,7 @@ out_reap:
 		return log_error(EXIT_FAILURE, "Aborting forkusernsexec to prevent leaking file descriptors");
 
 	execvp(argvp[0], argvp);
-	return EXIT_FAILURE;
+	return log_error(EXIT_FAILURE, "Failed to execute \"%s\"", argvp[0]);
 }
 
 void forkusernsexec(void)
