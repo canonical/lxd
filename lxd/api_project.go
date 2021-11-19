@@ -886,6 +886,8 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted.devices.nic":               isEitherAllowOrBlockOrManaged,
 		"restricted.devices.disk":              isEitherAllowOrBlockOrManaged,
 		"restricted.devices.disk.paths":        validate.Optional(validate.IsListOf(validate.IsAbsFilePath)),
+		"restricted.idmap.uid":                 validate.Optional(validate.IsListOf(validate.IsUint32Range)),
+		"restricted.idmap.gid":                 validate.Optional(validate.IsListOf(validate.IsUint32Range)),
 		"restricted.networks.uplinks":          validate.Optional(validate.IsListOf(validate.IsAny)),
 		"restricted.networks.subnets": validate.Optional(func(value string) error {
 			return projectValidateRestrictedSubnets(s, value)
