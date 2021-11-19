@@ -8,6 +8,7 @@ __hidden extern void attach_userns_fd(int ns_fd);
 __hidden extern int can_inject_uevent(const char *uevent, size_t len);
 __hidden extern void checkfeature();
 __hidden extern bool change_namespaces(int pidfd, int nsfd, unsigned int flags);
+__hidden extern int close_inherited(int *fds_to_ignore, size_t len_fds);
 __hidden extern void error(char *msg);
 __hidden extern void forkcoresched();
 __hidden extern void forkexec();
