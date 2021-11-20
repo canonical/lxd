@@ -560,26 +560,8 @@ func (d *common) validateRuleSubjects(fieldName string, direction ruleDirection,
 
 // validatePorts checks that the source or destination ports for a rule are valid.
 func (d *common) validatePorts(ports []string) error {
-	checks := []func(s string) error{
-		validate.IsNetworkPort,
-		validate.IsNetworkPortRange,
-	}
-
-	validPort := func(port string) error {
-		// Check if it is one of the network port types.
-		for _, c := range checks {
-			err := c(port)
-			if err == nil {
-				return nil // Found valid port.
-
-			}
-		}
-
-		return fmt.Errorf("Invalid port %q", port)
-	}
-
 	for _, port := range ports {
-		err := validPort(port)
+		err := validate.IsNetworkPortRange(port)
 		if err != nil {
 			return err
 		}

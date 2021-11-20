@@ -305,14 +305,14 @@ func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File,
 
 	err = proc.StartWithFiles([]*os.File{acceptFile})
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to start virtfs-proxy-helper")
+		return nil, nil, fmt.Errorf("Failed to start virtfs-proxy-helper: %w", err)
 	}
 
 	revert.Add(func() { proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to save virtfs-proxy-helper state")
+		return nil, nil, fmt.Errorf("Failed to save virtfs-proxy-helper state: %w", err)
 	}
 
 	revertExternal := revert.Clone()

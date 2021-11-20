@@ -505,7 +505,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 		isolated = true
 	}
 
-	rawMaps, err := instance.ParseRawIdmap(rawIdmap)
+	rawMaps, err := idmap.ParseRawIdmap(rawIdmap)
 	if err != nil {
 		return nil, 0, err
 	}
