@@ -294,6 +294,7 @@ var APIExtensions = []string{
 	"certificate_self_renewal",
 	"instance_project_move",
 	"storage_volume_project_move",
+	"cloud_init",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
