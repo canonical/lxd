@@ -11,7 +11,7 @@ LXD Currently supports three event types.
 - **Lifecycle**: Shows an audit trail for specific actions occurring over LXD.
 
 ## Event structure
-#### Example:
+### Example:
 ```yaml
 location: cluster_name
 metadata:
@@ -28,12 +28,12 @@ type: lifecycle
 - `type`: The type of event this is (one of `logging`, `operation`, or `lifecycle`).
 - `metadata`: Information about the specific event type.
 
-#### Logging event structure
+### Logging event structure
 - `message`: The log message.
 - `level`: The log-level of the log.
 - `context`: Additional information included in the event.
 
-#### Operation event structure
+### Operation event structure
 - `id`: The UUID of the operation.
 - `class`: The type of operation (task, token, or websocket).
 - `description`: A description of the operation.
@@ -47,7 +47,7 @@ type: lifecycle
 - `err`: Error message of the operation.
 - `location`: The cluster member name (if clustered).
 
-#### Lifecycle event structure
+### Lifecycle event structure
 - `action`: The lifecycle action that occurred.
 - `requestor`: Information about who is making the request (if applicable).
 - `source`: Path to what is being acted upon.
