@@ -7,8 +7,8 @@ Doing so comes with a performance impact for the syscall in question and
 will cause some work for LXD to evaluate the request and if allowed,
 process it with elevated privileges.
 
-# Available system calls
-## mknod / mknodat
+## Available system calls
+### mknod / mknodat
 The `mknod` and `mknodat` system calls can be used to create a variety of special files.
 
 Most commonly inside containers, they may be called to create block or character devices.
@@ -37,7 +37,7 @@ at all.
 
 This can be enabled by setting `security.syscalls.intercept.mknod` to `true`.
 
-## setxattr
+### setxattr
 The `setxattr` system call is used to set extended attributes on files.
 
 The attributes which are handled by this currently are:

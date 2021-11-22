@@ -430,7 +430,7 @@ ipv6.routes.anycast             | boolean   | ipv6 address          | false     
 dns.nameservers                 | string    | standard mode         | -                         | List of DNS server IPs on physical network
 ovn.ingress\_mode               | string    | standard mode         | l2proxy                   | Sets the method that OVN NIC external IPs will be advertised on uplink network. Either `l2proxy` (proxy ARP/NDP) or `routed`.
 
-# BGP integration
+## BGP integration
 LXD can act as a BGP server, effectively allowing to establish sessions with upstream BGP routers and announce the addresses and subnets that it's using.
 
 This can be used to allow a LXD server or cluster to directly use internal/external address space, getting the specific subnets or addresses routed to the correct host for it to forward onto the target instance.
