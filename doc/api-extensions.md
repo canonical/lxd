@@ -39,7 +39,7 @@ A number of new syscalls related container configuration keys were introduced.
  * `security.syscalls.blacklist`
  * `security.syscalls.whitelist`
 
-See [configuration.md](configuration.md) for how to use them.
+See [Instance configuration](instances.md) for how to use them.
 
 ## auth\_pki
 This indicates support for PKI authentication mode.
@@ -122,7 +122,7 @@ Network management API for LXD.
 This includes:
 
  * Addition of the "managed" property on `/1.0/networks` entries
- * All the network configuration options (see [configuration.md](configuration.md) for details)
+ * All the network configuration options (see [Network configuration](networks.md) for details)
  * `POST /1.0/networks` (see [RESTful API](rest-api.md) for details)
  * `PUT /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
  * `PATCH /1.0/networks/<entry>` (see [RESTful API](rest-api.md) for details)
@@ -215,7 +215,7 @@ This includes:
 * `PATCH /1.0/storage-pools/<pool>/volumes/<volume_type>/<name>` (see [RESTful API](rest-api.md) for details)
 * `DELETE /1.0/storage-pools/<pool>/volumes/<volume_type>/<name>` (see [RESTful API](rest-api.md) for details)
 
-* All storage configuration options (see [configuration.md](configuration.md) for details)
+* All storage configuration options (see [Storage configuration](storage.md) for details)
 
 ## file\_delete
 Implements `DELETE` in `/1.0/containers/<name>/files`
