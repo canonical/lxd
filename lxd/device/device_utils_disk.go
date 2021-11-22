@@ -16,6 +16,7 @@ import (
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
 )
@@ -236,9 +237,79 @@ func diskCephfsOptions(clusterName string, userName string, fsName string, fsPat
 	return srcpath, fsOptions, nil
 }
 
+// diskAddRootUserNSEntry takes a set of idmap entries, and adds host -> userns root uid/gid mappings if needed.
+// Returns the supplied idmap entries with any added root entries.
+func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap.IdmapEntry {
+	needsNSUIDRootEntry := true
+	needsNSGIDRootEntry := true
+
+	for _, idmap := range idmaps {
+		// Check if the idmap entry contains the userns root user.
+		if idmap.Nsid == 0 {
+			if idmap.Isuid {
+				needsNSUIDRootEntry = false // Root UID mapping already present.
+			}
+
+			if idmap.Isgid {
+				needsNSGIDRootEntry = false // Root GID mapping already present.
+			}
+
+			if !needsNSUIDRootEntry && needsNSGIDRootEntry {
+				break // If we've found a root entry for UID and GID then we don't need to add one.
+			}
+		}
+	}
+
+	// Add UID/GID/both mapping entry if needed.
+	if needsNSUIDRootEntry || needsNSGIDRootEntry {
+		idmaps = append(idmaps, idmap.IdmapEntry{
+			Hostid:   hostRootID,
+			Isuid:    needsNSUIDRootEntry,
+			Isgid:    needsNSGIDRootEntry,
+			Nsid:     0,
+			Maprange: 1,
+		})
+	}
+
+	return idmaps
+}
+
+// forkusernsexecWriteIdmaps writes the idmap entries to the forkusernsexec pipes.
+func forkusernsexecWriteIdmaps(wUIDMapPipe *os.File, wGIDMapPipe *os.File, idmaps []idmap.IdmapEntry) error {
+	for _, idmap := range idmaps {
+		if idmap.Isuid {
+			_, err := wUIDMapPipe.WriteString(fmt.Sprintf("%d %d %d\n", idmap.Nsid, idmap.Hostid, idmap.Maprange))
+			if err != nil {
+				return err
+			}
+		}
+
+		if idmap.Isgid {
+			_, err := wGIDMapPipe.WriteString(fmt.Sprintf("%d %d %d\n", idmap.Nsid, idmap.Hostid, idmap.Maprange))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Make sure the strings are \x00 terminated so they are parseable as C strings.
+	_, err := wUIDMapPipe.WriteString("\x00")
+	if err != nil {
+		return err
+	}
+
+	_, err = wGIDMapPipe.WriteString("\x00")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
+// If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns a revert function, and a file handle to the proxy process.
-func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File, error) {
+func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), *os.File, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -296,14 +367,46 @@ func DiskVMVirtfsProxyStart(pidPath string, sharePath string) (func(), *os.File,
 	}
 	defer acceptFile.Close()
 
+	var args []string
+	var fdFiles []*os.File
+
+	if len(idmaps) > 0 {
+		rUIDMapPipe, wUIDMapPipe, err := os.Pipe()
+		if err != nil {
+			return nil, nil, err
+		}
+		defer rUIDMapPipe.Close()
+		defer wUIDMapPipe.Close()
+
+		rGIDMapPipe, wGIDMapPipe, err := os.Pipe()
+		if err != nil {
+			return nil, nil, err
+		}
+		defer rGIDMapPipe.Close()
+		defer wGIDMapPipe.Close()
+
+		err = forkusernsexecWriteIdmaps(wUIDMapPipe, wGIDMapPipe, idmaps)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Run proxy command via forkusernsexec, passing in the UID/GID map file handles.
+		// Instruct forkusernsexec to not close FD 5 as this will be used for passing the proxy socket FD.
+		fdFiles = append(fdFiles, rUIDMapPipe, rGIDMapPipe)
+		args = append(args, "forkusernsexec", fmt.Sprintf("--keep-fd-up-to=%d", 5), cmd)
+		cmd = execPath
+	}
+
 	// Start the virtfs-proxy-helper process in non-daemon mode and as root so that when the VM process is
 	// started as an unprivileged user, we can still share directories that process cannot access.
-	proc, err := subprocess.NewProcess(cmd, []string{"--nodaemon", "--fd", "3", "--path", sharePath}, "", "")
+	fdFiles = append(fdFiles, acceptFile)
+	args = append(args, "--nodaemon", "--fd", fmt.Sprintf("%d", 2+len(fdFiles)), "--path", sharePath)
+	proc, err := subprocess.NewProcess(cmd, args, "", "")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = proc.StartWithFiles([]*os.File{acceptFile})
+	err = proc.StartWithFiles(fdFiles)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to start virtfs-proxy-helper: %w", err)
 	}
@@ -341,10 +444,11 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 }
 
 // DiskVMVirtiofsdStart starts a new virtiofsd process.
+// If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns UnsupportedError error if the host system or instance does not support virtiosfd, returns normal error
 // type if process cannot be started for other reasons.
 // Returns revert function and listener file handle on success.
-func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string) (func(), net.Listener, error) {
+func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -393,13 +497,45 @@ func DiskVMVirtiofsdStart(inst instance.Instance, socketPath string, pidPath str
 	}
 	defer unixFile.Close()
 
+	var args []string
+	var fdFiles []*os.File
+
+	if len(idmaps) > 0 {
+		rUIDMapPipe, wUIDMapPipe, err := os.Pipe()
+		if err != nil {
+			return nil, nil, err
+		}
+		defer rUIDMapPipe.Close()
+		defer wUIDMapPipe.Close()
+
+		rGIDMapPipe, wGIDMapPipe, err := os.Pipe()
+		if err != nil {
+			return nil, nil, err
+		}
+		defer rGIDMapPipe.Close()
+		defer wGIDMapPipe.Close()
+
+		err = forkusernsexecWriteIdmaps(wUIDMapPipe, wGIDMapPipe, idmaps)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Run proxy command via forkusernsexec, passing in the UID/GID map file handles.
+		// Instruct forkusernsexec to not close FD 5 as this will be used for passing the proxy socket FD.
+		fdFiles = append(fdFiles, rUIDMapPipe, rGIDMapPipe)
+		args = append(args, "forkusernsexec", fmt.Sprintf("--keep-fd-up-to=%d", 5), cmd)
+		cmd = execPath
+	}
+
 	// Start the virtiofsd process in non-daemon mode.
-	proc, err := subprocess.NewProcess(cmd, []string{"--fd=3", "-o", fmt.Sprintf("source=%s", sharePath)}, logPath, logPath)
+	fdFiles = append(fdFiles, unixFile)
+	args = append(args, fmt.Sprintf("--fd=%d", 2+len(fdFiles)), "-o", fmt.Sprintf("source=%s", sharePath))
+	proc, err := subprocess.NewProcess(cmd, args, logPath, logPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = proc.StartWithFiles([]*os.File{unixFile})
+	err = proc.StartWithFiles(fdFiles)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "Failed to start virtiofsd")
 	}

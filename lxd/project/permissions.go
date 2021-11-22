@@ -14,9 +14,12 @@ import (
 	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/rbac"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/units"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // AllowInstanceCreation returns an error if any project-specific limit or
@@ -401,6 +404,28 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 	return nil
 }
 
+// parseHostIDMapRange parse the supplied list of host ID map ranges into a idmap.IdmapEntry slice.
+func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.IdmapEntry, error) {
+	var idmaps []idmap.IdmapEntry
+
+	for _, listItem := range util.SplitNTrimSpace(listValue, ",", -1, true) {
+		rangeStart, rangeSize, err := validate.ParseUint32Range(listItem)
+		if err != nil {
+			return nil, err
+		}
+
+		idmaps = append(idmaps, idmap.IdmapEntry{
+			Hostid:   int64(rangeStart),
+			Maprange: int64(rangeSize),
+			Isuid:    isUID,
+			Isgid:    isGID,
+			Nsid:     -1, // We don't have this as we are just parsing host IDs.
+		})
+	}
+
+	return idmaps, nil
+}
+
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
 func checkRestrictions(project *db.Project, instances []db.Instance, profiles []db.Profile) error {
@@ -409,6 +434,7 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 
 	allowContainerLowLevel := false
 	allowVMLowLevel := false
+	var allowedIDMapHostUIDs, allowedIDMapHostGIDs []idmap.IdmapEntry
 
 	for key, defaultValue := range allRestrictions {
 		// Check if this particular restriction is defined explicitly
@@ -555,6 +581,18 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 
 				return nil
 			}
+		case "restricted.idmap.uid":
+			var err error
+			allowedIDMapHostUIDs, err = parseHostIDMapRange(true, false, restrictionValue)
+			if err != nil {
+				return fmt.Errorf(`Failed parsing "restricted.idmap.uid": %w`, err)
+			}
+		case "restricted.idmap.gid":
+			var err error
+			allowedIDMapHostGIDs, err = parseHostIDMapRange(false, true, restrictionValue)
+			if err != nil {
+				return fmt.Errorf(`Failed parsing "restricted.idmap.uid": %w`, err)
+			}
 		}
 	}
 
@@ -567,14 +605,33 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 
 		isContainerOrProfile := instType == instancetype.Container || instType == instancetype.Any
 		isVMOrProfile := instType == instancetype.VM || instType == instancetype.Any
-		for key, value := range config {
-			// First check if the key is a forbidden low-level one.
-			if isContainerOrProfile && !allowContainerLowLevel && isContainerLowLevelOptionForbidden(key) {
-				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden", key, entityTypeLabel, entityName, project.Name)
-			}
 
-			if isVMOrProfile && !allowVMLowLevel && isVMLowLevelOptionForbidden(key) {
-				return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden", key, entityTypeLabel, entityName, project.Name)
+		// Check if unrestricted low-level options are available. For profiles we require that low-level
+		// features for both containers and VMs are enabled as we don't know which instance the profile
+		// will be used on.
+		allowUnrestrictedLowLevel := (instType == instancetype.Any && allowContainerLowLevel && allowVMLowLevel) ||
+			(instType == instancetype.Container && allowContainerLowLevel) ||
+			(instType == instancetype.VM && allowVMLowLevel)
+
+		for key, value := range config {
+			if !allowUnrestrictedLowLevel {
+				if key == "raw.idmap" {
+					// If the low-level raw.idmap is used check whether the raw.idmap host IDs
+					// are allowed based on the project's allowed ID map Host UIDs and GIDs.
+					idmaps, err := idmap.ParseRawIdmap(value)
+					if err != nil {
+						return err
+					}
+
+					for idmapIndex, idmap := range idmaps {
+						if !idmap.HostIDsCoveredBy(allowedIDMapHostUIDs, allowedIDMapHostGIDs) {
+							return fmt.Errorf(`Use of low-level "raw.idmap" element %d on %s %q of project %q is forbidden`, idmapIndex, entityTypeLabel, entityName, project.Name)
+						}
+					}
+				} else if (isContainerOrProfile && isContainerLowLevelOptionForbidden(key)) || (isVMOrProfile && isVMLowLevelOptionForbidden(key)) {
+					// Otherwise check if the key is a forbidden low-level one.
+					return fmt.Errorf("Use of low-level config %q on %s %q of project %q is forbidden", key, entityTypeLabel, entityName, project.Name)
+				}
 			}
 
 			var checker func(value string) error
@@ -590,6 +647,7 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 				return fmt.Errorf("Invalid value %q for config %q on %s %q of project %q: %w", value, key, instType, entityName, project.Name, err)
 			}
 		}
+
 		return nil
 	}
 
@@ -689,6 +747,9 @@ var allRestrictions = map[string]string{
 	"restricted.devices.proxy":             "block",
 	"restricted.devices.nic":               "managed",
 	"restricted.devices.disk":              "managed",
+	"restricted.devices.disk.paths":        "",
+	"restricted.idmap.uid":                 "",
+	"restricted.idmap.gid":                 "",
 	"restricted.snapshots":                 "block",
 }
 
@@ -720,6 +781,7 @@ func isVMLowLevelOptionForbidden(key string) bool {
 	if shared.StringInSlice(key, []string{
 		"boot.host_shutdown_timeout",
 		"limits.memory.hugepages",
+		"raw.idmap",
 		"raw.qemu",
 	}) {
 		return true

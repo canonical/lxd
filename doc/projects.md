@@ -52,6 +52,8 @@ restricted.devices.unix-block        | string    | -                     | block
 restricted.devices.unix-char         | string    | -                     | block                     | Prevents use of devices of type "unix-char"
 restricted.devices.unix-hotplug      | string    | -                     | block                     | Prevents use of devices of type "unix-hotplug"
 restricted.devices.usb               | string    | -                     | block                     | Prevents use of devices of type "usb"
+restricted.idmap.uid                 | string    | -                     | -                         | Specifies the allowed host UID ranges allowed in the instance `raw.idmap` setting.
+restricted.idmap.gid                 | string    | -                     | -                         | Specifies the allowed host GID ranges allowed in the instance `raw.idmap` setting.
 restricted.networks.subnets          | string    | -                     | block                     | Comma delimited list of network subnets from the uplink networks (in the form `<uplink>:<subnet>`) that are allocated for use in this project
 restricted.networks.uplinks          | string    | -                     | block                     | Comma delimited list of network names that can be used as uplinks for networks in this project
 restricted.networks.zones            | string    | -                     | block                     | Comma delimited list of network zones that can be used (or something under them) in this project

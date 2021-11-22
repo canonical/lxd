@@ -9,11 +9,14 @@ test_container_devices_disk_restricted() {
   # Create directory for use as allowed disk source path prefix in project.
   mkdir "${testRoot}/allowed1"
   mkdir "${testRoot}/allowed2"
-  touch "${testRoot}/allowed1/foo"
+  touch "${testRoot}/allowed1/foo1"
+  touch "${testRoot}/allowed1/foo2"
+  chown 1000:1000 "${testRoot}/allowed1/foo1"
+  chown 1001:1001 "${testRoot}/allowed1/foo2"
   mkdir "${testRoot}/not-allowed1"
   ln -s "${testRoot}/not-allowed1" "${testRoot}/allowed1/not-allowed1"
   ln -s "${testRoot}/allowed2" "${testRoot}/allowed1/not-allowed2"
-  (cd "${testRoot}/allowed1" || false; ln -s foo foolink)
+  (cd "${testRoot}/allowed1" || false; ln -s foo1 foolink)
 
 
   # Create project with restricted disk source path.
@@ -50,24 +53,49 @@ test_container_devices_disk_restricted() {
   # Check adding a disk with a source path that is allowed is allowed.
   lxc config device set c1 d1 source="${testRoot}/allowed1" shift=false
   lxc start c1
-  lxc exec c1 --project restricted -- ls /mnt/foo
+  lxc exec c1 --project restricted -- ls /mnt/foo1
 
   # Check adding a disk with a source path that is allowed that symlinks to another allowed source path isn't
   # allowed at start time.
   ! lxc config device set c1 d1 source="${testRoot}/allowed1/not-allowed2" || false
 
-  # Check relative symlink inside allowed path is
+  # Check relative symlink inside allowed parent path is allowed.
   lxc stop -f c1
   lxc config device set c1 d1 source="${testRoot}/allowed1/foolink" path=/mnt/foolink
   lxc start c1
-  lxc exec c1 --project restricted -- ls /mnt/foolink
+  [ "$(lxc exec c1 --project restricted  -- stat /mnt/foolink -c '%u:%g')" = "65534:65534" ] || false
+  lxc stop -f c1
+
+  # Check usage of raw.idmap is restricted.
+  ! lxc config set c1 raw.idmap="both 1000 1000" || false
+
+  # Allow specific raw.idmap host UID/GID.
+  lxc project set restricted restricted.idmap.uid=1000
+  ! lxc config set c1 raw.idmap="both 1000 1000" || false
+  ! lxc config set c1 raw.idmap="gid 1000 1000" || false
+  lxc config set c1 raw.idmap="uid 1000 1000"
+
+  lxc project set restricted restricted.idmap.gid=1000
+  lxc config set c1 raw.idmap="gid 1000 1000"
+  lxc config set c1 raw.idmap="both 1000 1000"
+
+  # Check conflict detection works.
+  ! lxc project unset restricted restricted.idmap.uid || false
+  ! lxc project unset restricted restricted.idmap.gid || false
+
+  # Check single entry raw.idmap has taken effect on disk share.
+  lxc config device set c1 d1 source="${testRoot}/allowed1" path=/mnt
+  lxc start c1 || (lxc info --show-log c1 ; false)
+  [ "$(lxc exec c1 --project restricted  -- stat /mnt/foo1 -c '%u:%g')" = "1000:1000" ] || false
+  [ "$(lxc exec c1 --project restricted  -- stat /mnt/foo2 -c '%u:%g')" = "65534:65534" ] || false
 
   lxc delete -f c1
   lxc project switch default
   lxc project delete restricted
   rm "${testRoot}/allowed1/not-allowed1"
   rm "${testRoot}/allowed1/not-allowed2"
-  rm "${testRoot}/allowed1/foo"
+  rm "${testRoot}/allowed1/foo1"
+  rm "${testRoot}/allowed1/foo2"
   rm "${testRoot}/allowed1/foolink"
   rmdir "${testRoot}/allowed1"
   rmdir "${testRoot}/allowed2"
