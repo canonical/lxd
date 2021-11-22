@@ -3,6 +3,7 @@ package shared
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/gob"
 	"encoding/hex"
@@ -1017,12 +1018,19 @@ func SetProgressMetadata(metadata map[string]interface{}, stage, displayPrefix s
 	}
 }
 
-func DownloadFileHash(httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker) (int64, error) {
+func DownloadFileHash(ctx context.Context, httpClient *http.Client, useragent string, progress func(progress ioprogress.ProgressData), canceler *cancel.Canceler, filename string, url string, hash string, hashFunc hash.Hash, target io.WriteSeeker) (int64, error) {
 	// Always seek to the beginning
 	target.Seek(0, 0)
 
+	var req *http.Request
+	var err error
+
 	// Prepare the download request
-	req, err := http.NewRequest("GET", url, nil)
+	if ctx != nil {
+		req, err = http.NewRequestWithContext(ctx, "GET", url, nil)
+	} else {
+		req, err = http.NewRequest("GET", url, nil)
+	}
 	if err != nil {
 		return -1, err
 	}
