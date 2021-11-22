@@ -1144,7 +1144,7 @@ func (d *qemu) Start(stateful bool) error {
 	// This is used by the lxd-agent in preference to 9p (due to its improved performance) and in scenarios
 	// where 9p isn't available in the VM guest OS.
 	configSockPath, configPIDPath := d.configVirtiofsdPaths()
-	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d, configSockPath, configPIDPath, "", configMntPath)
+	revertFunc, unixListener, err := device.DiskVMVirtiofsdStart(d.state.OS.ExecPath, d, configSockPath, configPIDPath, "", configMntPath, nil)
 	if err != nil {
 		var errUnsupported device.UnsupportedError
 		if errors.As(err, &errUnsupported) {

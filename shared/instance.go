@@ -167,6 +167,9 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"volatile.apply_quota":      validate.IsAny,
 	"volatile.uuid":             validate.Optional(validate.IsUUID),
 	"volatile.vsock_id":         validate.Optional(validate.IsInt64),
+
+	// Caller is responsible for full validation of any raw.* value.
+	"raw.idmap": validate.IsAny,
 }
 
 // InstanceConfigKeysContainer is a map of config key to validator. (keys applying to containers only)
@@ -227,7 +230,6 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"nvidia.require.driver":      validate.IsAny,
 
 	// Caller is responsible for full validation of any raw.* value.
-	"raw.idmap":   validate.IsAny,
 	"raw.lxc":     validate.IsAny,
 	"raw.seccomp": validate.IsAny,
 
