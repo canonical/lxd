@@ -56,7 +56,7 @@ test_container_devices_disk_restricted() {
   # allowed at start time.
   ! lxc config device set c1 d1 source="${testRoot}/allowed1/not-allowed2" || false
 
-  # Check relative symlink inside allowed path is
+  # Check relative symlink inside allowed parent path is allowed.
   lxc stop -f c1
   lxc config device set c1 d1 source="${testRoot}/allowed1/foolink" path=/mnt/foolink
   lxc start c1
