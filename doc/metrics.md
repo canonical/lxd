@@ -4,7 +4,7 @@ In cluster environments, LXD will only return the values for instances running o
 The instance metrics are updated when calling the `/1.0/metrics` endpoint.
 They are cached for 15s to handle multiple scrapers. Fetching metrics is a relatively expensive operation for LXD to perform so we would recommend scraping at a 30s or 60s rate to limit impact.
 
-# Create metrics certificate
+## Create metrics certificate
 The `/1.0/metrics` endpoint is a special one as it also accepts a `metrics` type certificate.
 This kind of certificate is meant for metrics only, and won't work for interaction with instances or any other LXD objects.
 
@@ -20,7 +20,7 @@ Now, this certificate needs to be added to the list of trusted clients:
 lxc config trust add ~/.config/lxc/metrics.crt --type=metrics
 ```
 
-# Add target to Prometheus
+## Add target to Prometheus
 In order for Prometheus to scrape from LXD, it has to be added to the targets.
 
 First, one needs to ensure that `core.https_address` is set so LXD can be reached over the network.

@@ -34,7 +34,7 @@ target\_address   | string     | yes      | IP address to forward to
 target\_port      | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as `listen_port` if empty
 description       | string     | no       | Description of port(s)
 
-# Network types
+## Network types
 
 The following network types support forwards. See each network type section for more details.
 
@@ -42,13 +42,13 @@ The following network types support forwards. See each network type section for 
  - [ovn](#network-ovn)
 
 
-## network: bridge
+### network: bridge
 
 Any non-conflicting listen address is allowed.
 
 The listen address used cannot overlap with a subnet that is in use with another network.
 
-## network: ovn
+### network: ovn
 
 The allowed listen addresses are those that are defined in the uplink network's `ipv{n}.routes` settings, and the
 project's `restricted.networks.subnets` setting (if set).
