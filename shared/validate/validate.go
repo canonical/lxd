@@ -110,7 +110,7 @@ func ParseUint32Range(value string) (uint32, uint32, error) {
 			return 0, 0, fmt.Errorf("Start number %d must be lower than end number %d", startNum, endNum)
 		}
 
-		rangeSize = uint32(endNum) - uint32(startNum)
+		rangeSize += uint32(endNum) - uint32(startNum)
 	}
 
 	return uint32(startNum), rangeSize, err
