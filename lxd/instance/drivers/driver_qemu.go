@@ -655,7 +655,15 @@ func (d *qemu) onStop(target string) error {
 	d.cleanupDevices() // Must be called before unmount.
 	os.Remove(d.pidFilePath())
 	os.Remove(d.monitorPath())
-	d.unmount()
+
+	// Stop the storage for the instance.
+	op.Reset()
+	_, err = d.unmount()
+	if err != nil {
+		err = fmt.Errorf("Failed unmounting instance: %w", err)
+		op.Done(err)
+		return err
+	}
 
 	// Unload the apparmor profile
 	err = apparmor.InstanceUnload(d.state, d)
