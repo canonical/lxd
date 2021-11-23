@@ -742,6 +742,7 @@ var allAggregateLimits = []string{
 // allRestrictions lists all available 'restrict.*' config keys along with their default setting.
 var allRestrictions = map[string]string{
 	"restricted.backups":                   "block",
+	"restricted.cluster.groups":            "",
 	"restricted.cluster.target":            "block",
 	"restricted.containers.nesting":        "block",
 	"restricted.containers.lowlevel":       "block",
