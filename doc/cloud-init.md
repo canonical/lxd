@@ -45,7 +45,7 @@ An instance's rootfs will contain the following files as a result:
  * `/etc/network/interfaces.d/50-cloud-init.cfg` (if using ifupdown)
  * `/etc/netplan/50-cloud-init.yaml` (if using netplan)
 
-# Implementation Details
+## Implementation Details
 
 cloud-init allows you to seed instance configuration using the following files
 located at `/var/lib/cloud/seed/nocloud-net`:

@@ -73,7 +73,7 @@ way, unless you explicitly express that in the provided YAML payload.
 For instance, you will typically want to attach a root disk device and
 a network interface to your default profile. See below for an example.
 
-# Configuration format
+## Configuration format
 
 The supported keys and values of the various entities are the same as
 the ones documented in the [RESTful API](rest-api.md), but converted
@@ -96,7 +96,7 @@ config:
 storage_pools:
 - name: data
   driver: zfs
-  config:     
+  config:
     source: my-zfs-pool/my-zfs-dataset
 
 # Network devices

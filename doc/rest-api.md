@@ -20,7 +20,7 @@ There are three standard return types:
  * Background operation
  * Error
 
-#### Standard return value
+### Standard return value
 For a standard synchronous operation, the following dict is returned:
 
 ```js
@@ -34,7 +34,7 @@ For a standard synchronous operation, the following dict is returned:
 
 HTTP code must be 200.
 
-#### Background operation
+### Background operation
 When a request results in a background operation, the HTTP code is set to 202 (Accepted)
 and the Location HTTP header is set to the operation URL.
 
@@ -80,7 +80,7 @@ The body is mostly provided as a user friendly way of seeing what's
 going on without having to pull the target operation, all information in
 the body can also be retrieved from the background operation URL.
 
-#### Error
+### Error
 There are various situations in which something may immediately go
 wrong, in those cases, the following return value is used:
 
