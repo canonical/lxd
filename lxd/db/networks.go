@@ -76,6 +76,17 @@ func (c *ClusterTx) GetCreatedNetworks() (map[string]map[int64]api.Network, erro
 	return c.getCreatedNetworks("")
 }
 
+// GetCreatedNetworksByProject returns a map of api.Network in a project associated to network ID.
+// Only networks that have are in state networkCreated are returned.
+func (c *ClusterTx) GetCreatedNetworksByProject(projectName string) (map[int64]api.Network, error) {
+	nets, err := c.getCreatedNetworks(projectName)
+	if err != nil {
+		return nil, err
+	}
+
+	return nets[projectName], nil
+}
+
 // getCreatedNetworks returns a map of api.Network associated to project and network ID.
 // Supports an optional projectName filter. If projectName is empty, all networks in created state are returned.
 func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64]api.Network, error) {
