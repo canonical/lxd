@@ -2983,9 +2983,11 @@ func (d *lxc) onStop(args map[string]string) error {
 		}
 
 		// Stop the storage for this container
+		op.Reset()
 		_, err = d.unmount()
 		if err != nil {
-			op.Done(errors.Wrap(err, "Failed unmounting container"))
+			err = fmt.Errorf("Failed unmounting instance: %w", err)
+			op.Done(err)
 			return
 		}
 
