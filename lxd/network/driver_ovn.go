@@ -1573,47 +1573,50 @@ func (n *ovn) Create(clientType request.ClientType) error {
 
 // allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
 func (n *ovn) allowedUplinkNetworks(p *db.Project) ([]string, error) {
-	// Uplink networks are always from the default project.
-	networks, err := n.state.Cluster.GetNetworks(project.Default)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting uplink networks")
-	}
+	var uplinkNetworkNames []string
 
-	// Remove ourselves from the networks list if we are in the default project.
-	if n.project == project.Default {
-		allNets := networks
-		networks = make([]string, 0, len(allNets)-1)
-		for _, network := range allNets {
-			if network == n.name {
-				continue
-			}
-
-			networks = append(networks, network)
+	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Uplink networks are always from the default project.
+		networks, err := tx.GetCreatedNetworksByProject(project.Default)
+		if err != nil {
+			return errors.Wrapf(err, "Failed getting uplink networks")
 		}
+
+		// Add any compatible networks to the uplink network list.
+		for _, network := range networks {
+			if network.Type == "bridge" || network.Type == "physical" {
+				uplinkNetworkNames = append(uplinkNetworkNames, network.Name)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	// If project is not restricted, return full network list.
 	if !shared.IsTrue(p.Config["restricted"]) {
-		return networks, nil
+		return uplinkNetworkNames, nil
 	}
 
-	allowedNetworks := []string{}
+	allowedUplinkNetworkNames := []string{}
 
 	// There are no allowed networks if restricted.networks.uplinks is not set.
 	if p.Config["restricted.networks.uplinks"] == "" {
-		return allowedNetworks, nil
+		return allowedUplinkNetworkNames, nil
 	}
 
 	// Parse the allowed uplinks and return any that are present in the actual defined networks.
 	allowedRestrictedUplinks := util.SplitNTrimSpace(p.Config["restricted.networks.uplinks"], ",", -1, false)
 
 	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
-		if shared.StringInSlice(allowedRestrictedUplink, networks) {
-			allowedNetworks = append(allowedNetworks, allowedRestrictedUplink)
+		if shared.StringInSlice(allowedRestrictedUplink, uplinkNetworkNames) {
+			allowedUplinkNetworkNames = append(allowedUplinkNetworkNames, allowedRestrictedUplink)
 		}
 	}
 
-	return allowedNetworks, nil
+	return allowedUplinkNetworkNames, nil
 }
 
 // validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
