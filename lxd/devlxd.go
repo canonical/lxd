@@ -63,7 +63,7 @@ type devLxdHandler struct {
 var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	filtered := []string{}
 	for k := range c.ExpandedConfig() {
-		if strings.HasPrefix(k, "user.") {
+		if strings.HasPrefix(k, "user.") || strings.HasPrefix(k, "cloud-init.") {
 			filtered = append(filtered, fmt.Sprintf("/1.0/config/%s", k))
 		}
 	}
@@ -72,7 +72,7 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, c instance.In
 
 var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
 	key := mux.Vars(r)["key"]
-	if !strings.HasPrefix(key, "user.") {
+	if !strings.HasPrefix(key, "user.") && !strings.HasPrefix(key, "cloud-init.") {
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 
@@ -139,7 +139,11 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, c instance.Instance, w 
 	if clustered {
 		location = c.Location()
 	}
-	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location}, "json")
+	return okResponse(shared.Jmap{"api_version": version.APIVersion, "location": location, "instance_type": c.Type().String()}, "json")
+}}
+
+var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	return okResponse(c.ExpandedDevices(), "json")
 }}
 
 var handlers = []devLxdHandler{
@@ -152,6 +156,7 @@ var handlers = []devLxdHandler{
 	devlxdMetadataGet,
 	devlxdEventsGet,
 	devlxdImageExport,
+	devlxdDevicesGet,
 }
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {

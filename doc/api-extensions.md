@@ -1502,3 +1502,12 @@ allowing for easy move of an instance between projects.
 
 ## storage\_volume\_project\_move
 This adds support for moving storage volume between projects.
+
+## cloud\_init
+This adds a new `cloud-init` config key namespace which contains the following keys:
+
+ - `cloud-init.vendor-data`
+ - `cloud-init.user-data`
+ - `cloud-init.network-config`
+
+ It also adds a new endpoint `/1.0/devices` to devlxd which shows an instance's devices.
