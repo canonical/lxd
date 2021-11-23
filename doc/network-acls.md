@@ -72,7 +72,7 @@ As soon as one of the rules in the ACLs matches then that action is taken and no
 The default reject action can be modified by using the network and NIC level `security.acls.default.ingress.action`
 and `security.acls.default.egress.action` settings. The NIC level settings will override the network level settings.
 
-# Subject name selectors
+## Subject name selectors
 
 Subject name selectors can be used in the `source` field for ingress rules and in the `destination` field for
 egress rules.
