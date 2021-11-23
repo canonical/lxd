@@ -2867,14 +2867,27 @@ func (d *lxc) Shutdown(timeout time.Duration) error {
 		break
 	}
 
+	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
+	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
+	// However if the operation has failed for another reason we will collect the error here.
 	err = op.Wait()
-	if err != nil && d.IsRunning() {
-		return err
+	status := d.statusCode()
+	if status != api.Stopped {
+		errPrefix := fmt.Errorf("Failed shutting down instance, status is %q", status)
+
+		if err != nil {
+			return fmt.Errorf("%s: %w", errPrefix.Error(), err)
+		}
+
+		return errPrefix
+	} else if op.Action() == "stop" {
+		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
 	}
 
-	if op.Action() == "stop" {
-		d.logger.Info("Shut down container", ctxMap)
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceShutdown.Event(d, nil))
+	// Now handle errors from shutdown sequence and return to caller if wasn't completed cleanly.
+	if err != nil {
+		return err
 	}
 
 	return nil
