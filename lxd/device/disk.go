@@ -1941,9 +1941,12 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	instanceConfig := d.inst.ExpandedConfig()
 
 	// Use an empty vendor-data file if no custom vendor-data supplied.
-	vendorData := instanceConfig["user.vendor-data"]
-	if vendorData == "" {
-		vendorData = "#cloud-config\n{}"
+	vendorData, ok := instanceConfig["cloud-init.vendor-data"]
+	if !ok {
+		vendorData = instanceConfig["user.vendor-data"]
+		if vendorData == "" {
+			vendorData = "#cloud-config\n{}"
+		}
 	}
 
 	err = ioutil.WriteFile(filepath.Join(scratchDir, "vendor-data"), []byte(vendorData), 0400)
@@ -1952,9 +1955,12 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	}
 
 	// Use an empty user-data file if no custom user-data supplied.
-	userData := instanceConfig["user.user-data"]
-	if userData == "" {
-		userData = "#cloud-config\n{}"
+	userData, ok := instanceConfig["cloud-init.user-data"]
+	if !ok {
+		userData = instanceConfig["user.user-data"]
+		if userData == "" {
+			userData = "#cloud-config\n{}"
+		}
 	}
 
 	err = ioutil.WriteFile(filepath.Join(scratchDir, "user-data"), []byte(userData), 0400)
@@ -1963,7 +1969,11 @@ func (d *disk) generateVMConfigDrive() (string, error) {
 	}
 
 	// Include a network-config file if the user configured it.
-	networkConfig := instanceConfig["user.network-config"]
+	networkConfig, ok := instanceConfig["cloud-init.network-config"]
+	if !ok {
+		networkConfig = instanceConfig["user.network-config"]
+	}
+
 	if networkConfig != "" {
 		err = ioutil.WriteFile(filepath.Join(scratchDir, "network-config"), []byte(networkConfig), 0400)
 		if err != nil {

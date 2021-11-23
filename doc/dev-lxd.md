@@ -40,6 +40,7 @@ authentication support in the `/dev/lxd/sock` API.
    * /1.0
      * /1.0/config
        * /1.0/config/{key}
+     * /1.0/devices
      * /1.0/events
      * /1.0/images/{fingerprint}/export
      * /1.0/meta-data
@@ -77,7 +78,7 @@ Return value:
 Note that the configuration key names match those in the instance
 config, however not all configuration namespaces will be exported to
 `/dev/lxd/sock`.
-Currently only the `user.*` keys are accessible to the instance.
+Currently only the `cloud-init.*` and `user.*` keys are accessible to the instance.
 
 At this time, there also aren't any instance-writable namespace.
 
@@ -97,6 +98,28 @@ Return value:
 Return value:
 
     blah
+
+#### `/1.0/devices`
+##### GET
+ * Description: Map of instance devices
+ * Return: dict
+
+Return value:
+
+```json
+{
+    "eth0": {
+        "name": "eth0",
+        "network": "lxdbr0",
+        "type": "nic"
+    },
+    "root": {
+        "path": "/",
+        "pool": "default",
+        "type": "disk"
+    }
+}
+```
 
 #### `/1.0/events`
 ##### GET
