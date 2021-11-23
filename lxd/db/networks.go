@@ -73,17 +73,27 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
 // GetCreatedNetworks returns a map of api.Network associated to project and network ID.
 // Only networks that have are in state networkCreated are returned.
 func (c *ClusterTx) GetCreatedNetworks() (map[string]map[int64]api.Network, error) {
-	stmt, err := c.tx.Prepare(`SELECT projects.name, networks.id, networks.name, coalesce(networks.description, ''), networks.type, networks.state
-		FROM networks
-		JOIN projects on projects.id = networks.project_id
-		WHERE networks.state = ?
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
+	return c.getCreatedNetworks("")
+}
 
-	rows, err := stmt.Query(networkCreated)
+// getCreatedNetworks returns a map of api.Network associated to project and network ID.
+// Supports an optional projectName filter. If projectName is empty, all networks in created state are returned.
+func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64]api.Network, error) {
+	var sb strings.Builder
+	sb.WriteString(`SELECT projects.name, networks.id, networks.name, coalesce(networks.description, ''), networks.type, networks.state
+	FROM networks
+	JOIN projects on projects.id = networks.project_id
+	WHERE networks.state = ?
+	`)
+
+	args := []interface{}{networkCreated}
+
+	if projectName != "" {
+		sb.WriteString(" AND projects.name = ?")
+		args = append(args, projectName)
+	}
+
+	rows, err := c.tx.Query(sb.String(), args...)
 	if err != nil {
 		return nil, err
 	}
