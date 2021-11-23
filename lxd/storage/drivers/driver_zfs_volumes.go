@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/backup"
+	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
@@ -1279,8 +1280,11 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 					return false, errors.Wrapf(err, "Failed locating zvol for deactivation")
 				}
 
-				waitDuration := time.Duration(time.Second * time.Duration(5))
+				// We cannot wait longer than the operationlock.TimeoutSeconds to avoid continuing
+				// the unmount process beyond the ongoing request.
+				waitDuration := time.Duration(operationlock.TimeoutSeconds * time.Second)
 				waitUntil := time.Now().Add(waitDuration)
+				i := 0
 				for {
 					// Sometimes it takes multiple attempts for ZFS to actually apply this.
 					err = d.setDatasetProperties(dataset, "volmode=none")
@@ -1297,8 +1301,17 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 						return false, fmt.Errorf("Failed to deactivate zvol after %v", waitDuration)
 					}
 
-					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"volName": vol.name, "dev": dataset, "path": devPath})
-					time.Sleep(time.Millisecond * time.Duration(500))
+					// Wait for ZFS a chance to flush and udev to remove the device path.
+					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
+
+					if i <= 5 {
+						// Retry more quickly early on.
+						time.Sleep(time.Second * time.Duration(i))
+					} else {
+						time.Sleep(time.Second * time.Duration(5))
+					}
+
+					i++
 				}
 
 				ourUnmount = true
