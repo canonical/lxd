@@ -3482,21 +3482,27 @@ func (d *qemu) Stop(stateful bool) error {
 	// Wait for QEMU to exit (can take a while if pending I/O).
 	<-chDisconnect
 
-	// Wait for onStop (which checks for QEMU process to end).
+	// Wait for operation lock to be Done. This is normally completed by onStop which picks up the same
+	// operation lock and then marks it as Done after the instance stops and the devices have been cleaned up.
+	// However if the operation has failed for another reason we will collect the error here.
 	err = op.Wait()
 	status := d.statusCode()
 	if status != api.Stopped {
 		errPrefix := fmt.Errorf("Failed stopping instance, status is %q", status)
 
 		if err != nil {
-			return errors.Wrap(err, errPrefix.Error())
+			return fmt.Errorf("%s: %w", errPrefix.Error(), err)
 		}
 
 		return errPrefix
+	} else if op.Action() == "stop" {
+		// If instance stopped, send lifecycle event (even if there has been an error cleaning up).
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
 	}
 
-	if op.Action() == "stop" {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceStopped.Event(d, nil))
+	// Now handle errors from stop sequence and return to caller if wasn't completed cleanly.
+	if err != nil {
+		return err
 	}
 
 	return nil
