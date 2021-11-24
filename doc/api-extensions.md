@@ -1524,3 +1524,15 @@ Adds new "database-leader" role which is assigned to cluster leader.
 
 ## instance\_all\_projects
 This adds support for displaying instances from all projects.
+
+## clustering\_groups
+Add support for grouping cluster members.
+
+This introduces the following new endpoints:
+
+ - `/1.0/cluster/groups` (GET, POST)
+ - `/1.0/cluster/groups/<name>` (GET, POST, PUT, PATCH, DELETE)
+
+ The following project restriction is added:
+
+  - `restricted.cluster.groups`
