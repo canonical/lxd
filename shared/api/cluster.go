@@ -212,6 +212,12 @@ type ClusterMemberPut struct {
 	//
 	// API extension: clustering_config
 	Config map[string]string `json:"config" yaml:"config"`
+
+	// List of cluster groups this member belongs to
+	// Example: ["group1", "group2"]
+	//
+	// API extension: clustering_groups
+	Groups []string `json:"groups" yaml:"groups"`
 }
 
 // ClusterCertificatePut represents the certificate and key pair for all members in a LXD Cluster
@@ -238,4 +244,58 @@ type ClusterMemberStatePost struct {
 	// The action to be performed. Valid actions are "evacuate" and "restore".
 	// Example: evacuate
 	Action string `json:"action" yaml:"action"`
+}
+
+// ClusterGroupsPost represents the fields available for a new cluster group.
+//
+// swagger:model
+//
+// API extension: clustering_groups
+type ClusterGroupsPost struct {
+	ClusterGroupPut
+
+	// The new name of the cluster group
+	// Example: group1
+	Name string `json:"name" yaml:"name"`
+}
+
+// ClusterGroup represents a cluster group.
+//
+// swagger:model
+//
+// API extension: clustering_groups
+type ClusterGroup struct {
+	ClusterGroupPut  `yaml:",inline"`
+	ClusterGroupPost `yaml:",inline"`
+}
+
+// ClusterGroupPost represents the fields required to rename a cluster group.
+//
+// swagger:model
+//
+// API extension: clustering_groups
+type ClusterGroupPost struct {
+	// The new name of the cluster group
+	// Example: group1
+	Name string `json:"name" yaml:"name"`
+}
+
+// ClusterGroupPut represents the modifiable fields of a cluster group.
+//
+// swagger:model
+//
+// API extension: clustering_groups
+type ClusterGroupPut struct {
+	// The description of the cluster group
+	// Example: amd64 servers
+	Description string `json:"description" yaml:"description"`
+
+	// List of members in this group
+	// Example: ["node1", "node3"]
+	Members []string `json:"members" yaml:"members"`
+}
+
+// Writable converts a full ClusterGroup struct into a ClusterGroupPut struct (filters read-only fields)
+func (c *ClusterGroup) Writable() ClusterGroupPut {
+	return c.ClusterGroupPut
 }
