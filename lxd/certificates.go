@@ -528,7 +528,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 		req := api.CertificatesPost{
-			Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+			CertificatePut: api.CertificatePut{
+				Certificate: base64.StdEncoding.EncodeToString(cert.Raw),
+			},
 		}
 		req.Name = name
 		req.Type = api.CertificateTypeClient
