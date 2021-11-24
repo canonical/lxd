@@ -3262,14 +3262,14 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		if validate.IsOneOf("none", "")(n.getRouterIntPortIPv4Net()) != nil {
 			routerIntPortIPv4, _, err = net.ParseCIDR(n.getRouterIntPortIPv4Net())
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed parsing local router's peering port IPv4 Net")
+				return "", fmt.Errorf("Failed parsing local router's peering port IPv4 Net: %w", err)
 			}
 		}
 
 		if validate.IsOneOf("none", "")(n.getRouterIntPortIPv6Net()) != nil {
 			routerIntPortIPv6, _, err = net.ParseCIDR(n.getRouterIntPortIPv6Net())
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed parsing local router's peering port IPv6 Net")
+				return "", fmt.Errorf("Failed parsing local router's peering port IPv6 Net: %w", err)
 			}
 		}
 
