@@ -1,4 +1,6 @@
 import datetime
+import os
+import yaml
 
 # Project config.
 project = "LXD"
@@ -20,6 +22,10 @@ myst_enable_extensions = [
     "deflist",
     "linkify"
 ]
+
+if os.path.exists("doc/substitutions.yaml"):
+    with open("doc/substitutions.yaml", "r") as fd:
+        myst_substitutions = yaml.load(fd.read())
 
 # Setup theme.
 html_theme_path = ["themes"]
