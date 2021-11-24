@@ -358,3 +358,17 @@ The `hello-ubuntu.json` file referenced above could contain something like:
     }
 }
 ```
+
+```{toctree}
+:hidden:
+:titlesonly:
+
+self
+getting_started
+configuration
+images
+operation
+restapi_landing
+internals
+external_resources
+```
