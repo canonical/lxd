@@ -9,6 +9,7 @@ HASH := \#
 TAG_SQLITE3=$(shell printf "$(HASH)include <dqlite.h>\nvoid main(){dqlite_node_id n = 1;}" | $(CC) ${CGO_CFLAGS} -o /dev/null -xc - >/dev/null 2>&1 && echo "libsqlite3")
 GOPATH ?= $(shell go env GOPATH)
 CGO_LDFLAGS_ALLOW ?= (-Wl,-wrap,pthread_create)|(-Wl,-z,now)
+SPHINXENV=.sphinx/venv/bin/activate
 
 ifneq "$(wildcard vendor)" ""
 	RAFT_PATH=$(CURDIR)/vendor/raft
@@ -110,6 +111,22 @@ ifeq "$(LXD_OFFLINE)" ""
 	(cd / ; GO111MODULE=on go get -v -x github.com/go-swagger/go-swagger/cmd/swagger)
 endif
 	swagger generate spec -o doc/rest-api.yaml -w ./lxd -m
+
+.PHONY: doc
+doc:
+	@echo "Setting up documentation build environment"
+	python3 -m venv .sphinx/venv
+	. $(SPHINXENV) ; pip install --upgrade -r .sphinx/requirements.txt
+	mkdir -p .sphinx/deps/ .sphinx/themes/
+	git -C .sphinx/deps/vanilla pull || git clone https://github.com/evildmp/vanilla-sphinx-test .sphinx/deps/vanilla
+	ln -sf ../deps/vanilla/vanilla .sphinx/themes/vanilla
+	rm -Rf doc/html
+	make doc-incremental
+
+.PHONY: doc-incremental
+doc-incremental:
+	@echo "Build the documentation"
+	. $(SPHINXENV) ; sphinx-build -c .sphinx/ -b dirhtml doc/ doc/html/ -w .sphinx/warnings.txt
 
 .PHONY: debug
 debug:

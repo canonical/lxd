@@ -8,6 +8,13 @@ test/macaroon-identity/macaroon-identity
 *~
 tags
 
+# Sphinx
+doc/html/
+.sphinx/deps/
+.sphinx/themes/
+.sphinx/venv/
+.sphinx/warnings.txt
+
 # For Atom ctags
 .tags
 .tags1
