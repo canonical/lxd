@@ -350,8 +350,7 @@ func (d *disk) validateEnvironmentSourcePath() error {
 		// If restricted disk paths are in force, then check the disk's source is allowed, and record the
 		// allowed parent path for later user during device start up sequence.
 		if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.devices.disk.paths"] != "" {
-			var allowed bool
-			allowed, d.restrictedParentSourcePath = project.CheckRestrictedDevicesDiskPaths(p.Config, d.config["source"])
+			allowed, restrictedParentSourcePath := project.CheckRestrictedDevicesDiskPaths(p.Config, d.config["source"])
 			if !allowed {
 				return fmt.Errorf("Disk source path %q not allowed by project for disk %q", d.config["source"], d.name)
 			}
@@ -359,6 +358,8 @@ func (d *disk) validateEnvironmentSourcePath() error {
 			if shared.IsTrue(d.config["shift"]) {
 				return fmt.Errorf(`The "shift" property cannot be used with a restricted source path`)
 			}
+
+			d.restrictedParentSourcePath = shared.HostPath(restrictedParentSourcePath)
 		}
 	}
 
