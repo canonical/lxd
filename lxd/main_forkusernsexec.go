@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/sys/unix"
 
 	// Used by cgo
 	_ "github.com/lxc/lxd/lxd/include"
@@ -304,7 +305,7 @@ func (c *cmdForkusernsexec) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = "forkusernsexec <cmd> <args>"
 	cmd.Short = "Run command in user namespace"
-	cmd.Flags().IntVar(&c.keepFdUpTo, "keep-fd-up-to", (1 << 31), fmt.Sprintf("Keep all fds below and including this one and close all the ones above it"))
+	cmd.Flags().IntVar(&c.keepFdUpTo, "keep-fd-up-to", unix.Stderr, fmt.Sprintf("Keep all fds below and including this one and close all the ones above it"))
 	cmd.Long = `Description:
   Run command in user namespace
 
