@@ -3284,7 +3284,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 					nexthop = routerIntPortIPv6
 				}
 
-				if nexthop != nil {
+				if nexthop == nil {
 					continue // Skip routes that cannot be supported by local router.
 				}
 
@@ -3295,7 +3295,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 				})
 			}
 
-			err = client.LogicalRouterRouteAdd(targetRouterName, true, routes...)
+			err = client.LogicalRouterRouteAdd(targetRouterName, true, targetRouterRoutes...)
 			if err != nil {
 				return fmt.Errorf("Failed adding static routes to peer network %q in project %q: %w", targetOVNNet.Name(), targetOVNNet.Project(), err)
 			}
