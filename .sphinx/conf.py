@@ -43,3 +43,8 @@ html_sidebars = {
 }
 
 source_suffix = ".md"
+
+# Setup redirects (https://documatt.gitlab.io/sphinx-reredirects/usage.html)
+# redirects = {
+#     "redirect/index": "../configuration/",
+# }
