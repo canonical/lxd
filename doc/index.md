@@ -170,7 +170,7 @@ find and subscribe to those at: <https://lists.linuxcontainers.org>
 If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat.
 
 ## FAQ
-#### How to enable LXD server for remote access?
+### How to enable LXD server for remote access?
 By default LXD server is not accessible from the networks as it only listens
 on a local unix socket. You can make LXD available from the network by specifying
 additional addresses to listen to. This is done with the `core.https_address`
@@ -190,7 +190,7 @@ ip addr
 lxc config set core.https_address 192.168.1.15
 ```
 
-#### When I do a `lxc remote add` over https, it asks for a password?
+### When I do a `lxc remote add` over https, it asks for a password?
 By default, LXD has no password for security reasons, so you can't do a remote
 add this way. In order to set a password, do:
 
@@ -208,7 +208,7 @@ certificate from `.config/lxc/client.crt` to the server and adding it with:
 lxc config trust add client.crt
 ```
 
-#### How do I configure LXD storage?
+### How do I configure LXD storage?
 LXD supports btrfs, ceph, directory, lvm and zfs based storage.
 
 First make sure you have the relevant tools for your filesystem of
@@ -236,7 +236,7 @@ Unless specified otherwise, LXD will setup loop based storage with a sane defaul
 For production environments, you should be using block backed storage
 instead both for performance and reliability reasons.
 
-#### How can I live migrate a container using LXD?
+### How can I live migrate a container using LXD?
 Live migration requires a tool installed on both hosts called
 [CRIU](https://criu.org), which is available in Ubuntu via:
 
@@ -256,7 +256,7 @@ And with luck you'll have migrated the container :). Migration is still in
 experimental stages and may not work for all workloads. Please report bugs on
 lxc-devel, and we can escalate to CRIU lists as necessary.
 
-#### Can I bind mount my home directory in a container?
+### Can I bind mount my home directory in a container?
 Yes. This can be done using a disk device:
 
 ```bash
@@ -277,7 +277,7 @@ and access to anything that's not world readable will fail.
 Privileged containers do not have this issue as all uid/gid inthe container are the same outside.
 But that's also the cause of most of the security issues with such privileged containers.
 
-#### How can I run docker inside a LXD container?
+### How can I run docker inside a LXD container?
 In order to run Docker inside a LXD container the `security.nesting` property of the container should be set to `true`. 
 
 ```bash
