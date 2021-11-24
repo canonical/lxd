@@ -740,8 +740,8 @@ func (n *ovn) getLoadBalancerName(listenAddress string) openvswitch.OVNLoadBalan
 	return openvswitch.OVNLoadBalancer(fmt.Sprintf("%s-lb-%s", n.getNetworkPrefix(), listenAddress))
 }
 
-// getLogicRouterPeerPortName returns OVN logical router port name to use for a peer connection.
-func (n *ovn) getLogicRouterPeerPortName(peerNetworkID int64) openvswitch.OVNRouterPort {
+// getLogicalRouterPeerPortName returns OVN logical router port name to use for a peer connection.
+func (n *ovn) getLogicalRouterPeerPortName(peerNetworkID int64) openvswitch.OVNRouterPort {
 	return openvswitch.OVNRouterPort(fmt.Sprintf("%s-lrp-peer-net%d", n.getRouterName(), peerNetworkID))
 }
 
@@ -2227,7 +2227,7 @@ func (n *ovn) logicalRouterPolicySetup(client *openvswitch.OVN, excludePeers ...
 		targetAddrSetPrefix := acl.OVNIntSwitchPortGroupAddressSetPrefix(targetOVNNet.ID())
 
 		// Associate the rules with the local peering port so we can identify them later if needed.
-		comment := n.getLogicRouterPeerPortName(targetOVNNet.ID())
+		comment := n.getLogicalRouterPeerPortName(targetOVNNet.ID())
 		policies = append(policies, openvswitch.OVNRouterPolicy{
 			Priority: ovnRouterPolicyPeerDropPriority,
 			Match:    fmt.Sprintf(`(inport == "%s" && ip6 && ip6.src == $%s_ip6) // %s`, extRouterPort, targetAddrSetPrefix, comment),
@@ -3276,7 +3276,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 		// Add routes to peer routers, and security policies for each peer port on local router.
 		err = n.forPeers(func(targetOVNNet *ovn) error {
 			targetRouterName := targetOVNNet.getRouterName()
-			targetRouterPort := targetOVNNet.getLogicRouterPeerPortName(n.ID())
+			targetRouterPort := targetOVNNet.getLogicalRouterPeerPortName(n.ID())
 			targetRouterRoutes := make([]openvswitch.OVNRouterRoute, 0, len(routes))
 			for _, route := range routes {
 				nexthop := routerIntPortIPv4
@@ -4375,9 +4375,9 @@ func (n *ovn) peerSetup(client *openvswitch.OVN, targetOVNNet *ovn, opts openvsw
 	}
 
 	// Populate config based on target network.
-	opts.LocalRouterPort = n.getLogicRouterPeerPortName(targetOVNNet.ID())
+	opts.LocalRouterPort = n.getLogicalRouterPeerPortName(targetOVNNet.ID())
 	opts.TargetRouter = targetOVNNet.getRouterName()
-	opts.TargetRouterPort = targetOVNNet.getLogicRouterPeerPortName(n.ID())
+	opts.TargetRouterPort = targetOVNNet.getLogicalRouterPeerPortName(n.ID())
 	opts.TargetRouterPortMAC = targetRouterMAC
 
 	if validate.IsOneOf("none", "")(targetOVNNet.getRouterIntPortIPv4Net()) != nil {
@@ -4522,9 +4522,9 @@ func (n *ovn) PeerDelete(peerName string) error {
 
 		opts := openvswitch.OVNRouterPeering{
 			LocalRouter:      n.getRouterName(),
-			LocalRouterPort:  n.getLogicRouterPeerPortName(targetOVNNet.ID()),
+			LocalRouterPort:  n.getLogicalRouterPeerPortName(targetOVNNet.ID()),
 			TargetRouter:     targetOVNNet.getRouterName(),
-			TargetRouterPort: targetOVNNet.getLogicRouterPeerPortName(n.ID()),
+			TargetRouterPort: targetOVNNet.getLogicalRouterPeerPortName(n.ID()),
 		}
 
 		client, err := openvswitch.NewOVN(n.state)
