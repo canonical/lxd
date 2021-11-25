@@ -13,7 +13,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -26,26 +25,19 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/version"
 )
 
 type execWs struct {
 	req api.InstanceExecPost
 
-	instance             instance.Instance
-	rootUid              int64
-	rootGid              int64
-	conns                map[int]*websocket.Conn
-	connsLock            sync.Mutex
-	allConnected         chan struct{}
-	allConnectedDone     bool
-	controlConnected     chan struct{}
-	controlConnectedDone bool
-	fds                  map[int]string
-	devptsFd             *os.File
-	s                    *state.State
+	instance         instance.Instance
+	conns            map[int]*websocket.Conn
+	connsLock        sync.Mutex
+	allConnected     chan struct{}
+	allConnectedDone bool
+	fds              map[int]string
+	s                *state.State
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -81,31 +73,22 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 
 			s.connsLock.Lock()
 			s.conns[fd] = conn
-
-			if fd == -1 {
-				if s.controlConnectedDone {
-					return fmt.Errorf("Control websocket already connected")
-				}
-
-				// Control WS is now connected.
-				s.controlConnectedDone = true
-				close(s.controlConnected)
-				s.connsLock.Unlock()
-				return nil
-			}
+			logger.Error("tomp fd connected", "fd", fd)
 
 			if s.allConnectedDone {
 				return fmt.Errorf("All websockets already connected")
 			}
 
-			for i, c := range s.conns {
-				if i != -1 && c == nil {
+			for _, c := range s.conns {
+				if c == nil {
+					// Still more needed to connect.
 					s.connsLock.Unlock()
 					return nil
 				}
 			}
 
 			// All WS now connected.
+			logger.Error("tomp all connected", "conns", len(s.conns))
 			s.allConnectedDone = true
 			close(s.allConnected)
 
@@ -123,290 +106,18 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 func (s *execWs) Do(op *operations.Operation) error {
 	<-s.allConnected
 
-	var err error
-	var ttys []*os.File
-	var ptys []*os.File
-
-	var stdin *os.File
-	var stdout *os.File
-	var stderr *os.File
-
-	if s.req.Interactive {
-		ttys = make([]*os.File, 1)
-		ptys = make([]*os.File, 1)
-
-		if s.devptsFd != nil && s.s.OS.NativeTerminals {
-			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(s.devptsFd.Fd()), s.rootUid, s.rootGid)
-			s.devptsFd.Close()
-			s.devptsFd = nil
-		} else {
-			ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
-		}
-		if err != nil {
-			return err
-		}
-
-		stdin = ttys[0]
-		stdout = ttys[0]
-		stderr = ttys[0]
-
-		if s.req.Width > 0 && s.req.Height > 0 {
-			shared.SetSize(int(ptys[0].Fd()), s.req.Width, s.req.Height)
-		}
-	} else {
-		ttys = make([]*os.File, 3)
-		ptys = make([]*os.File, 3)
-		for i := 0; i < len(ttys); i++ {
-			ptys[i], ttys[i], err = os.Pipe()
-			if err != nil {
-				return err
-			}
-		}
-
-		stdin = ptys[0]
-		stdout = ttys[1]
-		stderr = ttys[2]
-	}
-
-	controlExit := make(chan struct{})
-	attachedChildIsDead := make(chan struct{})
-	var wgEOF sync.WaitGroup
-
-	// Define a function to clean up TTYs and sockets when done.
-	finisher := func(cmdResult int, cmdErr error) error {
-		for _, tty := range ttys {
-			tty.Close()
-		}
-
-		s.connsLock.Lock()
-		conn := s.conns[-1]
-		s.connsLock.Unlock()
-
-		if conn == nil {
-			close(controlExit)
-		} else {
-			conn.Close()
-		}
-
-		close(attachedChildIsDead)
-
-		wgEOF.Wait()
-
-		for _, pty := range ptys {
-			pty.Close()
-		}
-
-		metadata := shared.Jmap{"return": cmdResult}
-		err = op.UpdateMetadata(metadata)
-		if err != nil {
-			return err
-		}
-
-		return cmdErr
-	}
-
-	cmd, err := s.instance.Exec(s.req, stdin, stdout, stderr)
+	exitCode, err := s.instance.Exec(s.req, s.conns, nil, nil)
 	if err != nil {
-		return finisher(-1, err)
+		return err
 	}
 
-	logger := logging.AddContext(logger.Log, log.Ctx{"instance": s.instance.Name(), "PID": cmd.PID()})
-	logger.Debug("Instance process started")
-
-	// Now that process has started, we can start the mirroring of the process channels and websockets.
-	if s.req.Interactive {
-		wgEOF.Add(1)
-		go func() {
-			logger.Debug("Interactive child process handler started")
-			defer logger.Debug("Interactive child process handler finished")
-
-			select {
-			case <-s.controlConnected:
-				break
-
-			case <-controlExit:
-				return
-			}
-
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
-
-				mt, r, err := conn.NextReader()
-				if mt == websocket.CloseMessage {
-					break
-				}
-
-				if err != nil {
-					logger.Debug("Got error getting next reader", log.Ctx{"err": err})
-					er, ok := err.(*websocket.CloseError)
-					if !ok {
-						break
-					}
-
-					if er.Code != websocket.CloseAbnormalClosure {
-						break
-					}
-
-					// If an abnormal closure occurred, kill the attached child.
-					err := cmd.Signal(unix.SIGKILL)
-					if err != nil {
-						logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
-					} else {
-						logger.Debug("Sent SIGKILL signal")
-					}
-					return
-				}
-
-				buf, err := ioutil.ReadAll(r)
-				if err != nil {
-					logger.Debug("Failed to read message", log.Ctx{"err": err})
-					break
-				}
-
-				command := api.InstanceExecControl{}
-
-				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
-					continue
-				}
-
-				if command.Command == "window-resize" {
-					winchWidth, err := strconv.Atoi(command.Args["width"])
-					if err != nil {
-						logger.Debug("Unable to extract window width", log.Ctx{"err": err})
-						continue
-					}
-
-					winchHeight, err := strconv.Atoi(command.Args["height"])
-					if err != nil {
-						logger.Debug("Unable to extract window height", log.Ctx{"err": err})
-						continue
-					}
-
-					err = cmd.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
-					if err != nil {
-						logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
-						continue
-					}
-				} else if command.Command == "signal" {
-					err := cmd.Signal(unix.Signal(command.Signal))
-					if err != nil {
-						logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
-						continue
-					}
-				}
-			}
-		}()
-
-		go func() {
-			s.connsLock.Lock()
-			conn := s.conns[0]
-			s.connsLock.Unlock()
-
-			logger.Debug("Started mirroring websocket")
-			defer logger.Debug("Finished mirroring websocket")
-			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
-
-			<-readDone
-			<-writeDone
-			conn.Close()
-			wgEOF.Done()
-		}()
-	} else {
-		wgEOF.Add(len(ttys) - 1)
-		for i := 0; i < len(ttys); i++ {
-			go func(i int) {
-				if i == 0 {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
-
-					<-shared.WebsocketRecvStream(ttys[i], conn)
-					ttys[i].Close()
-				} else {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
-
-					<-shared.WebsocketSendStream(conn, ptys[i], -1)
-					ptys[i].Close()
-					wgEOF.Done()
-				}
-			}(i)
-		}
-		wgEOF.Add(1)
-		go func() {
-			defer wgEOF.Done()
-
-			logger.Debug("Non-Interactive child process handler started")
-			defer logger.Debug("Non-Interactive child process handler finished")
-
-			select {
-			case <-s.controlConnected:
-				break
-			case <-controlExit:
-				return
-			}
-
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
-
-				mt, r, err := conn.NextReader()
-				if mt == websocket.CloseMessage {
-					break
-				}
-
-				if err != nil {
-					logger.Debug("Got error getting next reader", log.Ctx{"err": err})
-					er, ok := err.(*websocket.CloseError)
-					if !ok {
-						break
-					}
-
-					if er.Code != websocket.CloseAbnormalClosure {
-						break
-					}
-
-					// If an abnormal closure occurred, kill the attached child.
-					err := cmd.Signal(unix.SIGKILL)
-					if err != nil {
-						logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
-					} else {
-						logger.Debug("Sent SIGKILL signal")
-					}
-					return
-				}
-
-				buf, err := ioutil.ReadAll(r)
-				if err != nil {
-					logger.Debug("Failed to read message", log.Ctx{"err": err})
-					break
-				}
-
-				command := api.InstanceExecControl{}
-
-				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
-					continue
-				}
-				if command.Command == "signal" {
-					err := cmd.Signal(unix.Signal(command.Signal))
-					if err != nil {
-						logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
-						continue
-					}
-				}
-			}
-		}()
+	metadata := shared.Jmap{"return": exitCode}
+	opErr := op.UpdateMetadata(metadata)
+	if opErr != nil {
+		return opErr
 	}
 
-	exitCode, err := cmd.Wait()
-	logger.Debug("Instance process stopped")
-	return finisher(exitCode, err)
+	return err
 }
 
 // swagger:operation POST /1.0/instances/{name}/exec instances instance_exec_post
@@ -563,33 +274,19 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.s = d.State()
 		ws.fds = map[int]string{}
 
-		if inst.Type() == instancetype.Container {
-			c := inst.(instance.Container)
-			idmapset, err := c.CurrentIdmap()
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			if idmapset != nil {
-				ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
-			}
-
-			devptsFd, err := c.DevptsFd()
-			if err == nil {
-				ws.devptsFd = devptsFd
-			}
-		}
-
 		ws.conns = map[int]*websocket.Conn{}
-		ws.conns[-1] = nil
-		ws.conns[0] = nil
-		if !post.Interactive {
+		if post.Interactive {
+			ws.conns[-1] = nil
+			ws.conns[0] = nil
+		} else {
+			ws.conns[0] = nil
 			ws.conns[1] = nil
 			ws.conns[2] = nil
 		}
+
 		ws.allConnected = make(chan struct{})
-		ws.controlConnected = make(chan struct{})
-		for i := -1; i < len(ws.conns)-1; i++ {
+
+		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return response.InternalError(err)
@@ -632,12 +329,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			defer stderr.Close()
 
 			// Run the command
-			cmd, err := inst.Exec(post, nil, stdout, stderr)
-			if err != nil {
-				return err
-			}
-
-			exitCode, err := cmd.Wait()
+			exitCode, err := inst.Exec(post, nil, stdout, stderr)
 			if err != nil {
 				return err
 			}
@@ -649,12 +341,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 				"2": fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
 		} else {
-			cmd, err := inst.Exec(post, nil, nil, nil)
-			if err != nil {
-				return err
-			}
-
-			exitCode, err := cmd.Wait()
+			exitCode, err := inst.Exec(post, nil, nil, nil)
 			if err != nil {
 				return err
 			}
