@@ -60,6 +60,7 @@ type NodeInfo struct {
 	Architecture  int               // Node architecture
 	State         int               // Node state
 	Config        map[string]string // Configuration for the node
+	Groups        []string          // Cluster groups
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -141,6 +142,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	result.Database = false
 	result.Config = n.Config
 	result.Roles = n.Roles
+	result.Groups = n.Groups
 
 	// Check if node is the leader node
 	if leader == n.Address {
@@ -465,6 +467,42 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 		rows.Close()
 	}
 
+	// Get node groups
+	sql = `SELECT node_id, cluster_groups.name FROM nodes_cluster_groups
+JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
+	nodeGroups := map[int64][]string{}
+
+	rows, err = c.tx.Query(sql)
+	if err != nil {
+		// Don't fail on a missing table, we need to handle updates
+		if err.Error() != "no such table: nodes_cluster_groups" {
+			return nil, err
+		}
+	} else {
+		defer rows.Close()
+
+		for i := 0; rows.Next(); i++ {
+			var nodeID int64
+			var group string
+
+			err := rows.Scan(&nodeID, &group)
+			if err != nil {
+				return nil, err
+			}
+
+			if nodeGroups[nodeID] == nil {
+				nodeGroups[nodeID] = []string{}
+			}
+
+			nodeGroups[nodeID] = append(nodeGroups[nodeID], group)
+		}
+
+		err = rows.Err()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Process node entries
 	nodes := []NodeInfo{}
 	dest := func(i int) []interface{} {
@@ -516,6 +554,14 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 		roles, ok := nodeRoles[node.ID]
 		if ok {
 			nodes[i].Roles = roles
+		}
+	}
+
+	// Add the groups
+	for i, node := range nodes {
+		groups, ok := nodeGroups[node.ID]
+		if ok {
+			nodes[i].Groups = groups
 		}
 	}
 
