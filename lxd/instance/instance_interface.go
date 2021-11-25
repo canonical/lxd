@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/websocket"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -102,7 +103,7 @@ type Instance interface {
 
 	// Console - Allocate and run a console tty or a spice Unix socket.
 	Console(protocol string) (*os.File, chan error, error)
-	Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (Cmd, error)
+	Exec(req api.InstanceExecPost, conns map[int]*websocket.Conn, stdout *os.File, stderr *os.File) (int, error)
 
 	// Status
 	Render(options ...func(response interface{}) error) (interface{}, interface{}, error)
