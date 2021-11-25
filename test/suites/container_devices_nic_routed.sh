@@ -11,6 +11,7 @@ test_container_devices_nic_routed() {
   ipRand=$(shuf -i 0-9 -n 1)
 
   # These special values are needed to be enabled in kernel.
+  sysctl net.ipv4.conf.all.forwarding=1
   sysctl net.ipv6.conf.all.forwarding=1
   sysctl net.ipv6.conf.all.proxy_ndp=1
 
@@ -132,14 +133,10 @@ test_container_devices_nic_routed() {
 
   # Check comms between containers.
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}" -- ping6 -c3 -W5 "2001:db8::1"
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}" -- ping6 -c3 -W5 "2001:db8::1"
+  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::1"
 
   lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}2" -- ping6 -c3 -W5 "2001:db8::1"
-  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}2" -- ping6 -c3 -W5 "2001:db8::1"
+  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1"
 
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.3${ipRand}"
