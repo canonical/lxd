@@ -153,11 +153,8 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 		defer termios.Restore(stdinFd, oldttystate)
 	}
 
-	// Setup interactive console handler
+	// Setup signal and console handler
 	handler := c.controlSocketHandler
-	if !interactive {
-		handler = nil
-	}
 
 	// Grab current terminal dimensions
 	var width, height int
