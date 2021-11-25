@@ -132,14 +132,10 @@ test_container_devices_nic_routed() {
 
   # Check comms between containers.
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}" -- ping6 -c3 -W5 "2001:db8::1"
-  lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}" -- ping6 -c3 -W5 "2001:db8::1"
+  lxc exec "${ctName}" -- ping6 -c2 -W5 "2001:db8::1"
 
   lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}2" -- ping6 -c3 -W5 "2001:db8::1"
-  lxc exec "${ctName}2" -- ping -c2 -W5 "192.0.2.1"
-  lxc exec "${ctName}2" -- ping6 -c3 -W5 "2001:db8::1"
+  lxc exec "${ctName}2" -- ping6 -c2 -W5 "2001:db8::1"
 
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.2${ipRand}"
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.3${ipRand}"
