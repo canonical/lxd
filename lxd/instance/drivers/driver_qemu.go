@@ -5013,19 +5013,21 @@ func (d *qemu) vga() (*os.File, chan error, error) {
 }
 
 // Exec a command inside the instance.
-func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
+func (d *qemu) Exec(req api.InstanceExecPost, conns map[int]*websocket.Conn, stdout *os.File, stderr *os.File) (int, error) {
+	var stdin *os.File
+
 	revert := revert.New()
 	defer revert.Fail()
 
 	client, err := d.getAgentClient()
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
 		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
-		return nil, fmt.Errorf("Failed to connect to lxd-agent")
+		return -1, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	revert.Add(agent.Disconnect)
 
@@ -5034,7 +5036,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		// Set console to raw.
 		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
 		if err != nil {
-			return nil, err
+			return -1, err
 		}
 
 		revert.Add(func() { termios.Restore(int(stdin.Fd()), oldttystate) })
@@ -5069,7 +5071,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 
 	op, err := agent.ExecInstance("", req, &args)
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
 	instCmd := &qemuCmd{
@@ -5083,8 +5085,10 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, log.Ctx{"command": req.Command}))
 
+	exitCode, err := instCmd.Wait()
+
 	revert.Success()
-	return instCmd, nil
+	return exitCode, err
 }
 
 // Render returns info about the instance.
