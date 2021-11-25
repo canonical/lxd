@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
+	"github.com/gorilla/websocket"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -5734,22 +5735,103 @@ func (d *lxc) ConsoleLog(opts liblxc.ConsoleLogOptions) (string, error) {
 }
 
 // Exec executes a command inside the instance.
-func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, stderr *os.File) (instance.Cmd, error) {
-	// Prepare the environment
-	envSlice := []string{}
+func (d *lxc) Exec(req api.InstanceExecPost, conns map[int]*websocket.Conn, stdout *os.File, stderr *os.File) (int, error) {
+	var err error
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Websocket related vars.
+	var ttys, ptys []*os.File
+	var stdin *os.File
+	var wgEOF sync.WaitGroup
+	attachedChildIsDead := make(chan struct{})
+
+	if conns != nil {
+		var rootUID, rootGID int64
+
+		defer func() {
+			conn := conns[-1]
+			if conn != nil {
+				conn.Close()
+			}
+		}()
+
+		idmapset, err := d.CurrentIdmap()
+		if err != nil {
+			return -1, err
+		}
+
+		if idmapset != nil {
+			rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
+		}
+
+		devptsFd, _ := d.DevptsFd()
+
+		if req.Interactive {
+			ttys = make([]*os.File, 1)
+			ptys = make([]*os.File, 1)
+
+			if devptsFd != nil && d.state.OS.NativeTerminals {
+				ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(devptsFd.Fd()), rootUID, rootGID)
+				devptsFd.Close()
+				devptsFd = nil
+			} else {
+				ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
+			}
+			if err != nil {
+				return -1, err
+			}
+
+			stdin = ttys[0]
+			stdout = ttys[0]
+			stderr = ttys[0]
+
+			if req.Width > 0 && req.Height > 0 {
+				shared.SetSize(int(ptys[0].Fd()), req.Width, req.Height)
+			}
+		} else {
+			ttys = make([]*os.File, 3)
+			ptys = make([]*os.File, 3)
+			for i := 0; i < len(ttys); i++ {
+				ptys[i], ttys[i], err = os.Pipe()
+				if err != nil {
+					return -1, err
+				}
+			}
+
+			stdin = ptys[0]
+			stdout = ttys[1]
+			stderr = ttys[2]
+		}
+
+		revert.Add(func() {
+			for _, tty := range ttys {
+				tty.Close()
+			}
+
+			for _, pty := range ptys {
+				pty.Close()
+			}
+
+			close(attachedChildIsDead)
+		})
+	}
+
+	// Prepare the environment.
+	envSlice := make([]string, 0, len(req.Environment))
 	for k, v := range req.Environment {
 		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Setup logfile
+	// Setup logfile.
 	logPath := filepath.Join(d.LogPath(), "forkexec.log")
 	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_SYNC, 0644)
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
-	// Prepare the subcommand
+	// Prepare the subcommand.
 	cname := project.Instance(d.Project(), d.Name())
 	args := []string{
 		d.state.OS.ExecPath,
@@ -5784,7 +5866,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
-	// Mitigation for CVE-2019-5736
+	// Mitigation for CVE-2019-5736.
 	useRexec := false
 	if d.expandedConfig["raw.idmap"] != "" {
 		err := instance.AllowedUnprivilegedOnlyMap(d.expandedConfig["raw.idmap"])
@@ -5801,25 +5883,25 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		cmd.Env = append(os.Environ(), "LXC_MEMFD_REXEC=1")
 	}
 
-	// Setup communication PIPE
+	// Setup communication PIPE.
 	rStatus, wStatus, err := os.Pipe()
 	defer rStatus.Close()
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
 	cmd.ExtraFiles = []*os.File{stdin, stdout, stderr, wStatus}
 	err = cmd.Start()
 	wStatus.Close()
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
 	attachedPid := shared.ReadPid(rStatus)
 	if attachedPid <= 0 {
 		cmd.Wait()
 		d.logger.Error("Failed to retrieve PID of executing child process")
-		return nil, fmt.Errorf("Failed to retrieve PID of executing child process")
+		return -1, fmt.Errorf("Failed to retrieve PID of executing child process")
 	}
 	d.logger.Debug("Retrieved PID of executing child process", log.Ctx{"attachedPid": attachedPid})
 
@@ -5830,7 +5912,202 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 		attachedChildPid: int(attachedPid),
 	}
 
-	return instCmd, nil
+	logger := logging.AddContext(d.logger, log.Ctx{"PID": instCmd.PID()})
+	logger.Debug("Instance process started")
+	defer logger.Debug("Instance process stopped")
+
+	// Now that process has started, we can start the mirroring of the process channels and websockets.
+	if conns != nil {
+		if req.Interactive {
+			wgEOF.Add(1)
+			go func() {
+				logger.Debug("Interactive child process handler started")
+				defer logger.Debug("Interactive child process handler finished")
+
+				for {
+					conn := conns[-1]
+
+					mt, r, err := conn.NextReader()
+					if mt == websocket.CloseMessage {
+						break
+					}
+
+					if err != nil {
+						logger.Debug("Got error getting next reader", log.Ctx{"err": err})
+						er, ok := err.(*websocket.CloseError)
+						if !ok {
+							break
+						}
+
+						if er.Code != websocket.CloseAbnormalClosure {
+							break
+						}
+
+						// If an abnormal closure occurred, kill the attached child.
+						err := instCmd.Signal(unix.SIGKILL)
+						if err != nil {
+							logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
+						} else {
+							logger.Debug("Sent SIGKILL signal")
+						}
+						return
+					}
+
+					buf, err := ioutil.ReadAll(r)
+					if err != nil {
+						logger.Debug("Failed to read message", log.Ctx{"err": err})
+						break
+					}
+
+					command := api.InstanceExecControl{}
+
+					if err := json.Unmarshal(buf, &command); err != nil {
+						logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
+						continue
+					}
+
+					if command.Command == "window-resize" {
+						winchWidth, err := strconv.Atoi(command.Args["width"])
+						if err != nil {
+							logger.Debug("Unable to extract window width", log.Ctx{"err": err})
+							continue
+						}
+
+						winchHeight, err := strconv.Atoi(command.Args["height"])
+						if err != nil {
+							logger.Debug("Unable to extract window height", log.Ctx{"err": err})
+							continue
+						}
+
+						err = instCmd.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
+						if err != nil {
+							logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+							continue
+						}
+					} else if command.Command == "signal" {
+						err := instCmd.Signal(unix.Signal(command.Signal))
+						if err != nil {
+							logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
+							continue
+						}
+					}
+				}
+			}()
+
+			go func() {
+				conn := conns[0]
+
+				logger.Debug("Started mirroring websocket")
+				defer logger.Debug("Finished mirroring websocket")
+				readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+
+				<-readDone
+				<-writeDone
+				conn.Close()
+				wgEOF.Done()
+			}()
+		} else {
+			wgEOF.Add(len(ttys) - 1)
+			for i := 0; i < len(ttys); i++ {
+				go func(i int) {
+					logger.Error("Started mirroring websocket", "tty", i)
+					defer logger.Debug("Finished mirroring websocket", "tty", i)
+					if i == 0 {
+						conn := conns[i]
+
+						<-shared.WebsocketRecvStream(ttys[i], conn)
+						ttys[i].Close()
+					} else {
+						conn := conns[i]
+
+						<-shared.WebsocketSendStream(conn, ptys[i], -1)
+						ptys[i].Close()
+						wgEOF.Done()
+					}
+				}(i)
+			}
+			/*wgEOF.Add(1)
+			go func() {
+				defer wgEOF.Done()
+
+				logger.Debug("Non-Interactive child process handler started")
+				defer logger.Debug("Non-Interactive child process handler finished")
+
+				for {
+					conn := conns[-1]
+
+					mt, r, err := conn.NextReader()
+					if mt == websocket.CloseMessage {
+						break
+					}
+
+					if err != nil {
+						logger.Debug("Got error getting next reader", log.Ctx{"err": err})
+						er, ok := err.(*websocket.CloseError)
+						if !ok {
+							break
+						}
+
+						if er.Code != websocket.CloseAbnormalClosure {
+							break
+						}
+
+						// If an abnormal closure occurred, kill the attached child.
+						err := instCmd.Signal(unix.SIGKILL)
+						if err != nil {
+							logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
+						} else {
+							logger.Debug("Sent SIGKILL signal")
+						}
+						return
+					}
+
+					buf, err := ioutil.ReadAll(r)
+					if err != nil {
+						logger.Debug("Failed to read message", log.Ctx{"err": err})
+						break
+					}
+
+					command := api.InstanceExecControl{}
+
+					if err := json.Unmarshal(buf, &command); err != nil {
+						logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
+						continue
+					}
+					if command.Command == "signal" {
+						err := instCmd.Signal(unix.Signal(command.Signal))
+						if err != nil {
+							logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
+							continue
+						}
+					}
+				}
+			}()
+			*/
+		}
+	}
+
+	exitCode, err := instCmd.Wait()
+	logger.Error("tomp process ended")
+
+	if conns != nil {
+		for _, tty := range ttys {
+			tty.Close()
+		}
+
+		close(attachedChildIsDead)
+
+		logger.Error("tomp waiting on wgEOF started")
+		wgEOF.Wait()
+		logger.Error("tomp waiting on wgEOF finished")
+
+		for _, pty := range ptys {
+			pty.Close()
+		}
+	}
+
+	revert.Success()
+	return exitCode, err
 }
 
 func (d *lxc) cpuState() api.InstanceStateCPU {
