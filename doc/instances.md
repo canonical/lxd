@@ -633,12 +633,12 @@ limits.egress           | string  | -                 | no       | I/O limit in 
 limits.max              | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
 ipv4.address            | string  | -                 | no       | Comma delimited list of IPv4 static addresses to add to the instance
 ipv4.gateway            | string  | auto              | no       | Whether to add an automatic default IPv4 gateway, can be "auto" or "none"
-ipv4.host\_address      | string  | 169.254.0.1       | no       | The IPv4 address to add to the host-side veth interface.
-ipv4.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table).
+ipv4.host\_address      | string  | 169.254.0.1       | no       | The IPv4 address to add to the host-side veth interface
+ipv4.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table)
 ipv6.address            | string  | -                 | no       | Comma delimited list of IPv6 static addresses to add to the instance
 ipv6.gateway            | string  | auto              | no       | Whether to add an automatic default IPv6 gateway, can be "auto" or "none"
-ipv6.host\_address      | string  | fe80::1           | no       | The IPv6 address to add to the host-side veth interface.
-ipv6.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table).
+ipv6.host\_address      | string  | fe80::1           | no       | The IPv6 address to add to the host-side veth interface
+ipv6.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table)
 vlan                    | integer | -                 | no       | The VLAN ID to attach to
 gvrp                    | boolean | false             | no       | Register VLAN using GARP VLAN Registration Protocol
 
