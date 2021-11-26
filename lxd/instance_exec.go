@@ -596,7 +596,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ws.conns[2] = nil
 		}
 		ws.allConnected = make(chan struct{})
-		for i := -1; i < len(ws.conns)-1; i++ {
+
+		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return response.InternalError(err)
