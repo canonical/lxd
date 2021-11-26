@@ -40,6 +40,8 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+var targetGroupPrefix = "@"
+
 var clusterCmd = APIEndpoint{
 	Path: "cluster",
 
@@ -303,6 +305,10 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 	}
 	if req.ServerName != "" && !req.Enabled {
 		return response.BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
+	}
+
+	if req.ServerName != "" && strings.HasPrefix(req.ServerName, targetGroupPrefix) {
+		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", targetGroupPrefix))
 	}
 
 	// Disable clustering.
