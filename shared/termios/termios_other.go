@@ -1,5 +1,5 @@
-//go:build windows || !cgo
-// +build windows !cgo
+//go:build !linux
+// +build !linux
 
 package termios
 
