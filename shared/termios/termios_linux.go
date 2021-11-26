@@ -5,8 +5,6 @@ package termios
 
 import (
 	"golang.org/x/sys/unix"
-
-	"github.com/lxc/lxd/shared"
 )
 
 const ioctlReadTermios = unix.TCGETS
@@ -48,18 +46,12 @@ func GetSize(fd int) (int, int, error) {
 
 // MakeRaw put the terminal connected to the given file descriptor into raw mode and returns the previous state of the terminal so that it can be restored.
 func MakeRaw(fd int) (*State, error) {
-	var err error
-	var oldState, newState *State
-
-	oldState, err = GetState(fd)
+	oldState, err := GetState(fd)
 	if err != nil {
 		return nil, err
 	}
 
-	err = shared.DeepCopy(&oldState, &newState)
-	if err != nil {
-		return nil, err
-	}
+	newState := *oldState
 
 	// This attempts to replicate the behaviour documented for cfmakeraw in the termios(3) manpage.
 	newState.Termios.Iflag &^= unix.BRKINT | unix.ICRNL | unix.INPCK | unix.ISTRIP | unix.IXON
@@ -70,7 +62,7 @@ func MakeRaw(fd int) (*State, error) {
 	newState.Termios.Cc[unix.VMIN] = 1
 	newState.Termios.Cc[unix.VTIME] = 0
 
-	err = Restore(fd, newState)
+	err = Restore(fd, &newState)
 	if err != nil {
 		return nil, err
 	}
