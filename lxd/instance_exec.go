@@ -35,18 +35,15 @@ import (
 type execWs struct {
 	req api.InstanceExecPost
 
-	instance             instance.Instance
-	rootUid              int64
-	rootGid              int64
-	conns                map[int]*websocket.Conn
-	connsLock            sync.Mutex
-	allConnected         chan struct{}
-	allConnectedDone     bool
-	controlConnected     chan struct{}
-	controlConnectedDone bool
-	fds                  map[int]string
-	devptsFd             *os.File
-	s                    *state.State
+	instance     instance.Instance
+	rootUid      int64
+	rootGid      int64
+	conns        map[int]*websocket.Conn
+	connsLock    sync.Mutex
+	allConnected chan struct{}
+	fds          map[int]string
+	devptsFd     *os.File
+	s            *state.State
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -81,36 +78,26 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			s.connsLock.Lock()
-			s.conns[fd] = conn
+			defer s.connsLock.Unlock()
 
-			if fd == -1 {
-				if s.controlConnectedDone {
-					return fmt.Errorf("Control websocket already connected")
-				}
+			val, found := s.conns[fd]
 
-				// Control WS is now connected.
-				s.controlConnectedDone = true
-				close(s.controlConnected)
-				s.connsLock.Unlock()
-				return nil
+			if found && val == nil {
+				s.conns[fd] = conn
+			} else if !found {
+				return fmt.Errorf("Unknown websocket number")
+			} else {
+				return fmt.Errorf("Websocket number already connected")
 			}
 
-			if s.allConnectedDone {
-				return fmt.Errorf("All websockets already connected")
-			}
-
-			for i, c := range s.conns {
-				if i != -1 && c == nil {
-					s.connsLock.Unlock()
-					return nil
+			for _, c := range s.conns {
+				if c == nil {
+					return nil // More connections expected.
 				}
 			}
 
 			// All WS now connected.
-			s.allConnectedDone = true
 			close(s.allConnected)
-
-			s.connsLock.Unlock()
 
 			return nil
 		}
@@ -240,14 +227,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 			logger.Debug("Interactive child process handler started")
 			defer logger.Debug("Interactive child process handler finished")
 
-			select {
-			case <-s.controlConnected:
-				break
-
-			case <-controlExit:
-				return
-			}
-
 			for {
 				s.connsLock.Lock()
 				conn := s.conns[-1]
@@ -362,13 +341,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			logger.Debug("Non-Interactive child process handler started")
 			defer logger.Debug("Non-Interactive child process handler finished")
-
-			select {
-			case <-s.controlConnected:
-				break
-			case <-controlExit:
-				return
-			}
 
 			for {
 				s.connsLock.Lock()
