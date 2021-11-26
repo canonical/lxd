@@ -5748,6 +5748,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	if err != nil {
 		return nil, err
 	}
+	defer logFile.Close()
 
 	// Prepare the subcommand
 	cname := project.Instance(d.Project(), d.Name())
