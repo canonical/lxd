@@ -136,6 +136,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return fmt.Errorf("Timed out waiting for websockets to connect")
 	}
 
+	s.connsLock.Lock()
+	conns := s.conns
+	s.connsLock.Unlock()
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -218,11 +222,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 			logger.Debug("Interactive child process handler started")
 			defer logger.Debug("Interactive child process handler finished")
 
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[execWSControl]
-				s.connsLock.Unlock()
+			conn := conns[execWSControl]
 
+			for {
 				mt, r, err := conn.NextReader()
 				if mt == websocket.CloseMessage {
 					break
@@ -291,33 +293,26 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}()
 
 		go func() {
-			s.connsLock.Lock()
-			conn := s.conns[0]
-			s.connsLock.Unlock()
-
 			logger.Debug("Started mirroring websocket")
 			defer logger.Debug("Finished mirroring websocket")
-			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+
+			readDone, writeDone := netutils.WebsocketExecMirror(conns[0], ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
-			conn.Close()
+			conns[0].Close()
 			wgEOF.Done()
 		}()
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
+				conn := conns[i]
+
 				if i == execWSStdin {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
 					<-shared.WebsocketRecvStream(ttys[i], conn)
 					ttys[i].Close()
 				} else {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
 					<-shared.WebsocketSendStream(conn, ptys[i], -1)
 					ptys[i].Close()
 					wgEOF.Done()
@@ -332,11 +327,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 			logger.Debug("Non-Interactive child process handler started")
 			defer logger.Debug("Non-Interactive child process handler finished")
 
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[execWSControl]
-				s.connsLock.Unlock()
+			conn := conns[execWSControl]
 
+			for {
 				mt, r, err := conn.NextReader()
 				if mt == websocket.CloseMessage {
 					break
@@ -396,9 +389,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	// Close the control socket, this will cause the control socket go routine above to end.
 	// The other websockets are expected to be closed by the caller of Do().
-	s.connsLock.Lock()
-	s.conns[execWSControl].Close()
-	s.connsLock.Unlock()
+	conns[execWSControl].Close()
 
 	// Indicate to the go routines above that the command has finished.
 	close(attachedChildIsDead)
