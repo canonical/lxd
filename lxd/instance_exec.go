@@ -22,6 +22,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -130,6 +131,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return fmt.Errorf("Timed out waiting for websockets to connect")
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	var err error
 	var ttys []*os.File
 	var ptys []*os.File
@@ -175,46 +179,28 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[2]
 	}
 
-	controlExit := make(chan struct{})
-	attachedChildIsDead := make(chan struct{})
-	var wgEOF sync.WaitGroup
-
-	// Define a function to clean up TTYs and sockets when done.
-	finisher := func(cmdResult int, cmdErr error) error {
+	// Ensure any configured TTY and PTY handles are closed on error.
+	revert.Add(func() {
 		for _, tty := range ttys {
 			tty.Close()
 		}
 
-		s.connsLock.Lock()
-		conn := s.conns[-1]
-		s.connsLock.Unlock()
-
-		if conn == nil {
-			close(controlExit)
-		} else {
-			conn.Close()
-		}
-
-		close(attachedChildIsDead)
-
-		wgEOF.Wait()
-
 		for _, pty := range ptys {
 			pty.Close()
 		}
+	})
 
-		metadata := shared.Jmap{"return": cmdResult}
-		err = op.UpdateMetadata(metadata)
-		if err != nil {
-			return err
-		}
+	// Create channel for indicating once the command has finished, and ensure its closed on error.
+	attachedChildIsDead := make(chan struct{})
+	revert.Add(func() { close(attachedChildIsDead) })
 
-		return cmdErr
-	}
+	// Create wait group to indicate when the websocket go routines have finished.
+	var wgEOF sync.WaitGroup
 
+	// Run the command in the instance.
 	cmd, err := s.instance.Exec(s.req, stdin, stdout, stderr)
 	if err != nil {
-		return finisher(-1, err)
+		return err
 	}
 
 	logger := logging.AddContext(logger.Log, log.Ctx{"instance": s.instance.Name(), "PID": cmd.PID()})
@@ -398,7 +384,37 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	exitCode, err := cmd.Wait()
 	logger.Debug("Instance process stopped")
-	return finisher(exitCode, err)
+
+	// Close any of the active TTY handles now command has finished.
+	for _, tty := range ttys {
+		tty.Close()
+	}
+
+	// Close the control socket, this will cause the control socket go routine above to end.
+	// The other websockets are expected to be closed by the caller of Do().
+	s.connsLock.Lock()
+	s.conns[-1].Close()
+	s.connsLock.Unlock()
+
+	// Indicate to the go routines above that the command has finished.
+	close(attachedChildIsDead)
+
+	wgEOF.Wait() // Wait for go routines to finish.
+
+	// Now the go routines have finished, close the PTY handles.
+	for _, pty := range ptys {
+		pty.Close()
+	}
+
+	// Store the command's exit code in the operation's metadata to be returned to caller.
+	metadata := shared.Jmap{"return": exitCode}
+	opErr := op.UpdateMetadata(metadata)
+	if opErr != nil {
+		return opErr
+	}
+
+	revert.Success()
+	return err
 }
 
 // swagger:operation POST /1.0/instances/{name}/exec instances instance_exec_post
