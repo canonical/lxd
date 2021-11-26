@@ -1854,7 +1854,6 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 
 	// Generate uevent inside container if requested.
 	if len(runConf.Uevents) > 0 {
-
 		pidFdNr, pidFd := d.inheritInitPidFd()
 		if pidFdNr >= 0 {
 			defer pidFd.Close()
