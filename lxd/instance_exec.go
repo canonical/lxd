@@ -33,6 +33,11 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+const execWSControl = -1
+const execWSStdin = 0
+const execWSStdout = 1
+const execWSSterr = 2
+
 type execWs struct {
 	req api.InstanceExecPost
 
@@ -50,7 +55,7 @@ type execWs struct {
 func (s *execWs) Metadata() interface{} {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
-		if fd == -1 {
+		if fd == execWSControl {
 			fds["control"] = secret
 		} else {
 			fds[strconv.Itoa(fd)] = secret
@@ -174,9 +179,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 		}
 
-		stdin = ptys[0]
-		stdout = ttys[1]
-		stderr = ttys[2]
+		stdin = ptys[execWSStdin]
+		stdout = ttys[execWSStdout]
+		stderr = ttys[execWSSterr]
 	}
 
 	// Ensure any configured TTY and PTY handles are closed on error.
@@ -215,7 +220,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			for {
 				s.connsLock.Lock()
-				conn := s.conns[-1]
+				conn := s.conns[execWSControl]
 				s.connsLock.Unlock()
 
 				mt, r, err := conn.NextReader()
@@ -303,24 +308,23 @@ func (s *execWs) Do(op *operations.Operation) error {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
-				if i == 0 {
+				if i == execWSStdin {
 					s.connsLock.Lock()
 					conn := s.conns[i]
 					s.connsLock.Unlock()
-
 					<-shared.WebsocketRecvStream(ttys[i], conn)
 					ttys[i].Close()
 				} else {
 					s.connsLock.Lock()
 					conn := s.conns[i]
 					s.connsLock.Unlock()
-
 					<-shared.WebsocketSendStream(conn, ptys[i], -1)
 					ptys[i].Close()
 					wgEOF.Done()
 				}
 			}(i)
 		}
+
 		wgEOF.Add(1)
 		go func() {
 			defer wgEOF.Done()
@@ -330,7 +334,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			for {
 				s.connsLock.Lock()
-				conn := s.conns[-1]
+				conn := s.conns[execWSControl]
 				s.connsLock.Unlock()
 
 				mt, r, err := conn.NextReader()
@@ -393,7 +397,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	// Close the control socket, this will cause the control socket go routine above to end.
 	// The other websockets are expected to be closed by the caller of Do().
 	s.connsLock.Lock()
-	s.conns[-1].Close()
+	s.conns[execWSControl].Close()
 	s.connsLock.Unlock()
 
 	// Indicate to the go routines above that the command has finished.
@@ -589,12 +593,14 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		ws.conns = map[int]*websocket.Conn{}
-		ws.conns[-1] = nil
-		ws.conns[0] = nil
+		ws.conns[execWSControl] = nil
+		ws.conns[0] = nil // This is used for either TTY or Stdin.
+
 		if !post.Interactive {
-			ws.conns[1] = nil
-			ws.conns[2] = nil
+			ws.conns[execWSStdout] = nil
+			ws.conns[execWSSterr] = nil
 		}
+
 		ws.allConnected = make(chan struct{})
 
 		for i := range ws.conns {
