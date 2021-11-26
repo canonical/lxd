@@ -56,7 +56,7 @@ func copyTermios(state *State, cTermios *C.struct_termios) {
 	cTermios.c_ospeed = C.speed_t(state.Termios.Ospeed)
 
 	for i := 0; i < len(state.Termios.Cc) && i < C.NCCS; i++ {
-		cTermios.c_cc[i] = C.uchar(i)
+		cTermios.c_cc[i] = C.uchar(state.Termios.Cc[i])
 	}
 }
 
