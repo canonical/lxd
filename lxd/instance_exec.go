@@ -540,19 +540,21 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	if !ok {
 		post.Environment["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-		// Add some additional paths. This directly looks through /proc
-		// rather than use FileExists as none of those paths are expected to be
-		// symlinks and this is much faster than forking a sub-process and
-		// attaching to the instance.
+		if inst.Type() == instancetype.Container {
+			// Add some additional paths. This directly looks through /proc
+			// rather than use FileExists as none of those paths are expected to be
+			// symlinks and this is much faster than forking a sub-process and
+			// attaching to the instance.
+			extraPaths := map[string]string{
+				"/snap":      "/snap/bin",
+				"/etc/NIXOS": "/run/current-system/sw/bin",
+			}
 
-		extraPaths := map[string]string{
-			"/snap":      "/snap/bin",
-			"/etc/NIXOS": "/run/current-system/sw/bin",
-		}
-
-		for k, v := range extraPaths {
-			if shared.PathExists(fmt.Sprintf("/proc/%d/root%s", inst.InitPID(), k)) {
-				post.Environment["PATH"] = fmt.Sprintf("%s:%s", post.Environment["PATH"], v)
+			initPID := inst.InitPID() // This calls liblxc, so don't do it repeatedly to get same info.
+			for k, v := range extraPaths {
+				if shared.PathExists(fmt.Sprintf("/proc/%d/root%s", initPID, k)) {
+					post.Environment["PATH"] = fmt.Sprintf("%s:%s", post.Environment["PATH"], v)
+				}
 			}
 		}
 	}
