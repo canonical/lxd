@@ -644,14 +644,27 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Handle optional service integration on cluster join
 		var clusterConfig *cluster.Config
+
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
+
 			clusterConfig, err = cluster.ConfigLoad(tx)
-			return err
+			if err != nil {
+				return err
+			}
+
+			// Add the new node to the default cluster group.
+			err = tx.AddNodeToClusterGroup("default", req.ServerName)
+			if err != nil {
+				return fmt.Errorf("Failed to add new member to the default cluster group: %w", err)
+			}
+
+			return nil
 		})
 		if err != nil {
 			return err
 		}
+
 		var nodeConfig *node.Config
 		err = d.db.Transaction(func(tx *db.NodeTx) error {
 			var err error
