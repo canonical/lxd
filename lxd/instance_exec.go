@@ -236,6 +236,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.req.Interactive {
 		wgEOF.Add(1)
 		go func() {
+			defer wgEOF.Done()
+
 			logger.Debug("Interactive child process handler started")
 			defer logger.Debug("Interactive child process handler finished")
 
@@ -309,7 +311,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 		}()
 
+		wgEOF.Add(1)
 		go func() {
+			defer wgEOF.Done()
+
 			logger.Debug("Started mirroring websocket")
 			defer logger.Debug("Finished mirroring websocket")
 
@@ -318,12 +323,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 			<-readDone
 			<-writeDone
 			conns[0].Close()
-			wgEOF.Done()
 		}()
 	} else {
-		wgEOF.Add(len(ttys) - 1)
+		wgEOF.Add(len(ttys))
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
+				defer wgEOF.Done()
+
 				conn := conns[i]
 
 				if i == execWSStdin {
@@ -332,7 +338,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 				} else {
 					<-shared.WebsocketSendStream(conn, ptys[i], -1)
 					ptys[i].Close()
-					wgEOF.Done()
 				}
 			}(i)
 		}
