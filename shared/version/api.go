@@ -297,6 +297,7 @@ var APIExtensions = []string{
 	"cloud_init",
 	"network_dns_nat",
 	"database_leader",
+	"instance_all_projects",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
