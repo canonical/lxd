@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -250,7 +251,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	controlExit := make(chan bool, 1)
 	attachedChildIsBorn := make(chan int)
-	attachedChildIsDead := make(chan struct{})
+	attachedChildCtx, attachedChildDone := context.WithCancel(context.Background())
+	defer attachedChildDone()
 	var wgEOF sync.WaitGroup
 
 	if s.interactive {
@@ -347,7 +349,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			s.connsLock.Unlock()
 
 			logger.Info("Started mirroring websocket")
-			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+			readDone, writeDone := netutils.WebsocketExecMirror(attachedChildCtx, conn, ptys[0], ptys[0], int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
@@ -397,7 +399,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn.Close()
 		}
 
-		close(attachedChildIsDead)
+		attachedChildDone()
 
 		wgEOF.Wait()
 
