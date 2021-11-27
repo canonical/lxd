@@ -5049,6 +5049,7 @@ func (d *qemu) Render(options ...func(response interface{}) error) (interface{},
 	instState.LastUsedAt = d.lastUsedDate
 	instState.Profiles = d.profiles
 	instState.Stateful = d.stateful
+	instState.Project = d.project
 
 	for _, option := range options {
 		err := option(&instState)
