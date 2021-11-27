@@ -4,6 +4,7 @@
 package netutils
 
 import (
+	"context"
 	"io"
 
 	"github.com/gorilla/websocket"
@@ -13,14 +14,14 @@ import (
 )
 
 // WebsocketExecMirror mirrors a websocket connection with a set of Writer/Reader.
-func WebsocketExecMirror(conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, exited chan struct{}, fd int) (chan bool, chan bool) {
+func WebsocketExecMirror(ctx context.Context, conn *websocket.Conn, w io.WriteCloser, r io.ReadCloser, fd int) (chan bool, chan bool) {
 	readDone := make(chan bool, 1)
 	writeDone := make(chan bool, 1)
 
 	go shared.DefaultWriter(conn, w, writeDone)
 
 	go func(conn *websocket.Conn, r io.ReadCloser) {
-		in := shared.ExecReaderToChannel(r, -1, exited, fd)
+		in := shared.ExecReaderToChannel(ctx, r, -1, fd)
 		for {
 			buf, ok := <-in
 			if !ok {
