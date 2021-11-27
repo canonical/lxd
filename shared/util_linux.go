@@ -5,6 +5,7 @@ package shared
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -445,7 +446,7 @@ func OpenPty(uid, gid int64) (*os.File, *os.File, error) {
 // Extensively commented directly in the code. Please leave the comments!
 // Looking at this in a couple of months noone will know why and how this works
 // anymore.
-func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd int) <-chan []byte {
+func ExecReaderToChannel(ctx context.Context, r io.Reader, bufferSize int, fd int) <-chan []byte {
 	if bufferSize <= (128 * 1024) {
 		bufferSize = (128 * 1024)
 	}
@@ -474,7 +475,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 	// that there's nothing buffered on stdout and exit.
 	var attachedChildIsDead int32 = 0
 	go func() {
-		<-exited
+		<-ctx.Done()
 
 		atomic.StoreInt32(&attachedChildIsDead, 1)
 
