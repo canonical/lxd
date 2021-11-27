@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -64,6 +65,10 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //     description: Collection filter
 //     type: string
 //     example: default
+//   - in: query
+//     name: all-projects
+//     description: Retrieve instances from all projects
+//     type: boolean
 // responses:
 //   "200":
 //     description: API endpoints
@@ -118,6 +123,10 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //     description: Collection filter
 //     type: string
 //     example: default
+//   - in: query
+//     name: all-projects
+//     description: Retrieve instances from all projects
+//     type: boolean
 // responses:
 //   "200":
 //     description: API endpoints
@@ -171,6 +180,10 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //     description: Collection filter
 //     type: string
 //     example: default
+//   - in: query
+//     name: all-projects
+//     description: Retrieve instances from all projects
+//     type: boolean
 // responses:
 //   "200":
 //     description: API endpoints
@@ -199,6 +212,7 @@ func urlInstanceTypeDetect(r *http.Request) (instancetype.Type, error) {
 //     $ref: "#/responses/Forbidden"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
+
 func instancesGet(d *Daemon, r *http.Request) response.Response {
 	for i := 0; i < 100; i++ {
 		result, err := doInstancesGet(d, r)
@@ -251,18 +265,39 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	// Parse the project field
 	projectName := projectParam(r)
 
+	// Parse all-projects field
+	allProjects := r.FormValue("all-projects")
+
 	// Get the list and location of all containers
 	var result map[string][]string // Containers by node address
 	var nodes map[string]string    // Node names by container
+	filteredProjects := []string{}
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		result, err = tx.GetInstanceNamesByNodeAddress(projectName, db.InstanceTypeFilter(instanceType))
+		if allProjects == "true" {
+			projects, err := tx.GetProjects(db.ProjectFilter{})
+			if err != nil {
+				return err
+			}
+
+			for _, project := range projects {
+				if !rbac.UserHasPermission(r, project.Name, "view") {
+					continue
+				}
+
+				filteredProjects = append(filteredProjects, project.Name)
+			}
+		} else {
+			filteredProjects = []string{projectName}
+		}
+
+		result, err = tx.GetInstanceNamesByNodeAddress(filteredProjects, db.InstanceTypeFilter(instanceType))
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.GetInstanceToNodeMap(projectName, db.InstanceTypeFilter(instanceType))
+		nodes, err = tx.GetInstanceToNodeMap(filteredProjects, db.InstanceTypeFilter(instanceType))
 		if err != nil {
 			return err
 		}
@@ -277,13 +312,15 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	nodeInstances := map[string]instance.Instance{}
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
-		insts, err := instanceLoadNodeProjectAll(d.State(), projectName, instanceType)
-		if err != nil {
-			return nil, err
-		}
+		for _, project := range filteredProjects {
+			insts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
+			if err != nil {
+				return nil, err
+			}
 
-		for _, inst := range insts {
-			nodeInstances[inst.Name()] = inst
+			for _, inst := range insts {
+				nodeInstances[inst.Name()] = inst
+			}
 		}
 	}
 
@@ -348,7 +385,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 				defer wg.Done()
 
 				if recursion == 1 {
-					cs, err := doContainersGetFromNode(projectName, address, networkCert, d.serverCert(), r, instanceType)
+					cs, err := doContainersGetFromNode(filteredProjects, address, allProjects, networkCert, d.serverCert(), r, instanceType)
 					if err != nil {
 						for _, name := range containers {
 							resultListAppend(name, api.Instance{}, err)
@@ -364,7 +401,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 					return
 				}
 
-				cs, err := doContainersFullGetFromNode(projectName, address, networkCert, d.serverCert(), r, instanceType)
+				cs, err := doContainersFullGetFromNode(filteredProjects, address, allProjects, networkCert, d.serverCert(), r, instanceType)
 				if err != nil {
 					for _, name := range containers {
 						resultFullListAppend(name, api.InstanceFull{}, err)
@@ -486,18 +523,31 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 // Fetch information about the containers on the given remote node, using the
 // rest API and with a timeout of 30 seconds.
-func doContainersGetFromNode(project, node string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.Instance, error) {
+func doContainersGetFromNode(projects []string, node, allProjects string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.Instance, error) {
 	f := func() ([]api.Instance, error) {
 		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
 		}
 
-		client = client.UseProject(project)
+		var containers []api.Instance
+		if allProjects == "true" {
+			containers, err = client.GetInstancesAllProjects(api.InstanceType(instanceType.String()))
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+			}
 
-		containers, err := client.GetInstances(api.InstanceType(instanceType.String()))
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+		} else {
+			for _, project := range projects {
+				client = client.UseProject(project)
+
+				tmpContainers, err := client.GetInstances(api.InstanceType(instanceType.String()))
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+				}
+				containers = append(containers, tmpContainers...)
+			}
+
 		}
 
 		return containers, nil
@@ -523,18 +573,30 @@ func doContainersGetFromNode(project, node string, networkCert *shared.CertInfo,
 	return containers, err
 }
 
-func doContainersFullGetFromNode(project, node string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.InstanceFull, error) {
+func doContainersFullGetFromNode(projects []string, node, allProjects string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) ([]api.InstanceFull, error) {
 	f := func() ([]api.InstanceFull, error) {
 		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
 		}
 
-		client = client.UseProject(project)
+		var instances []api.InstanceFull
+		if allProjects == "true" {
+			instances, err = client.GetInstancesFullAllProjects(api.InstanceType(instanceType.String()))
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+			}
+		} else {
+			for _, project := range projects {
+				client = client.UseProject(project)
 
-		instances, err := client.GetInstancesFull(api.InstanceType(instanceType.String()))
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+				tmpInstances, err := client.GetInstancesFull(api.InstanceType(instanceType.String()))
+				if err != nil {
+					return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+				}
+
+				instances = append(instances, tmpInstances...)
+			}
 		}
 
 		return instances, nil
