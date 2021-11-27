@@ -1148,3 +1148,6 @@ to be set at image copy time.
 
 ## database\_leader
 Adds new "database-leader" role which is assigned to cluster leader.
+
+## instance\_all\_projects
+This adds support for displaying instances from all projects.
