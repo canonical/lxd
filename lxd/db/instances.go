@@ -252,7 +252,7 @@ SELECT nodes.id, nodes.address
 // string, to distinguish it from remote nodes.
 //
 // Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, filter InstanceFilter) (map[string][]string, error) {
+func (c *ClusterTx) GetInstanceNamesByNodeAddress(projects []string, filter InstanceFilter) (map[string][]string, error) {
 	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -262,8 +262,10 @@ func (c *ClusterTx) GetInstanceNamesByNodeAddress(project string, filter Instanc
 	var filters strings.Builder
 
 	// Project filter.
-	filters.WriteString("projects.name = ?")
-	args = append(args, project)
+	filters.WriteString(fmt.Sprintf("projects.name IN (%s)", generateInClauseParams(len(projects))))
+	for _, project := range projects {
+		args = append(args, project)
+	}
 
 	// Instance type filter.
 	if filter.Type != nil {
@@ -394,14 +396,16 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 }
 
 // GetInstanceToNodeMap returns a map associating the name of each
-// instance in the given project to the name of the node hosting the instance.
-func (c *ClusterTx) GetInstanceToNodeMap(project string, filter InstanceFilter) (map[string]string, error) {
+// instance in the given projects to the name of the node hosting the instance.
+func (c *ClusterTx) GetInstanceToNodeMap(projects []string, filter InstanceFilter) (map[string]string, error) {
 	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
 	// Project filter.
-	filters.WriteString("projects.name = ?")
-	args = append(args, project)
+	filters.WriteString(fmt.Sprintf("projects.name IN (%s)", generateInClauseParams(len(projects))))
+	for _, project := range projects {
+		args = append(args, project)
+	}
 
 	// Instance type filter.
 	if filter.Type != nil {
@@ -968,4 +972,13 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	}
 
 	return nil
+}
+
+// Generates '?' signs for sql IN clause.
+func generateInClauseParams(length int) string {
+	result := []string{}
+	for i := 0; i < length; i++ {
+		result = append(result, "?")
+	}
+	return strings.Join(result, ",")
 }
