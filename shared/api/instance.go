@@ -193,6 +193,12 @@ type Instance struct {
 	// The type of instance (container or virtual-machine)
 	// Example: container
 	Type string `json:"type" yaml:"type"`
+
+	// Instance project name
+	// Example: foo
+	//
+	// API extension: instance_all_projects
+	Project string `json:"project" yaml:"project"`
 }
 
 // InstanceFull is a combination of Instance, InstanceBackup, InstanceState and InstanceSnapshot.
