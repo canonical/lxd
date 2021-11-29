@@ -254,11 +254,11 @@ func (s *execWs) Do(op *operations.Operation) error {
 				return
 			}
 
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[execWSControl]
-				s.connsLock.Unlock()
+			s.connsLock.Lock()
+			conn := s.conns[execWSControl]
+			s.connsLock.Unlock()
 
+			for {
 				mt, r, err := conn.NextReader()
 				if mt == websocket.CloseMessage {
 					break
