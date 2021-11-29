@@ -23,6 +23,11 @@ import (
 	"github.com/lxc/lxd/shared/netutils"
 )
 
+const execWSControl = -1
+const execWSStdin = 0
+const execWSStdout = 1
+const execWSStderr = 2
+
 var execCmd = APIEndpoint{
 	Name: "exec",
 	Path: "exec",
@@ -93,11 +98,11 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 	ws.fds = map[int]string{}
 
 	ws.conns = map[int]*websocket.Conn{}
-	ws.conns[-1] = nil
+	ws.conns[execWSControl] = nil
 	ws.conns[0] = nil
 	if !post.Interactive {
-		ws.conns[1] = nil
-		ws.conns[2] = nil
+		ws.conns[execWSStdout] = nil
+		ws.conns[execWSStderr] = nil
 	}
 	ws.allConnected = make(chan bool, 1)
 	ws.controlConnected = make(chan bool, 1)
@@ -151,7 +156,7 @@ type execWs struct {
 func (s *execWs) Metadata() interface{} {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
-		if fd == -1 {
+		if fd == execWSControl {
 			fds["control"] = secret
 		} else {
 			fds[strconv.Itoa(fd)] = secret
@@ -243,9 +248,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 		}
 
-		stdin = ptys[0]
-		stdout = ttys[1]
-		stderr = ttys[2]
+		stdin = ptys[execWSStdin]
+		stdout = ttys[execWSStdout]
+		stderr = ttys[execWSStderr]
 	}
 
 	controlExit := make(chan bool, 1)
