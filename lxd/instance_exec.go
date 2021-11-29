@@ -129,6 +129,17 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 func (s *execWs) Do(op *operations.Operation) error {
+	// Once this function ends ensure that any connected websockets are closed.
+	defer func() {
+		s.connsLock.Lock()
+		for i := range s.conns {
+			if s.conns[i] != nil {
+				s.conns[i].Close()
+			}
+		}
+		s.connsLock.Unlock()
+	}()
+
 	// As this function only gets called when the exec request has WaitForWS enabled, we expect the client to
 	// connect to all of the required websockets within a short period of time and we won't proceed until then.
 	logger.Debug("Waiting for exec websockets to connect")
