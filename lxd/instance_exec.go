@@ -240,6 +240,16 @@ func (s *execWs) Do(op *operations.Operation) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"project": s.instance.Project(), "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	logger.Debug("Instance process started")
 
+	var cmdKillOnce sync.Once
+	cmdKill := func() {
+		err := cmd.Signal(unix.SIGKILL)
+		if err != nil {
+			logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
+		} else {
+			logger.Debug("Sent SIGKILL signal")
+		}
+	}
+
 	// Now that process has started, we can start the control handler.
 	wgEOF.Add(1)
 	go func() {
@@ -277,12 +287,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				// If an abnormal closure occurred, kill the attached child.
-				err := cmd.Signal(unix.SIGKILL)
-				if err != nil {
-					logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
-				} else {
-					logger.Debug("Sent SIGKILL signal")
-				}
+				cmdKillOnce.Do(cmdKill)
+
 				return
 			}
 
