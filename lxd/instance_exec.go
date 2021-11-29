@@ -237,7 +237,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(-1, err)
 	}
 
-	logger := logging.AddContext(logger.Log, log.Ctx{"instance": s.instance.Name(), "PID": cmd.PID()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"project": s.instance.Project(), "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	logger.Debug("Instance process started")
 
 	// Now that process has started, we can start the mirroring of the process channels and websockets.
