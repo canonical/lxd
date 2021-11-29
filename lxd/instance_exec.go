@@ -250,7 +250,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 			select {
 			case <-s.controlConnectedCtx.Done():
 				break
-
 			case <-controlExit:
 				return
 			}
