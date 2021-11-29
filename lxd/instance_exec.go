@@ -334,12 +334,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 		go func() {
 			defer wgEOF.Done()
 
+			logger.Debug("Exec mirror websocket started", log.Ctx{"number": 0})
+			defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": 0})
+
 			s.connsLock.Lock()
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			logger.Debug("Started mirroring websocket")
-			defer logger.Debug("Finished mirroring websocket")
 			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
@@ -350,6 +351,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
+				logger.Debug("Exec mirror websocket started", log.Ctx{"number": i})
+				defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": i})
+
 				if i == execWSStdin {
 					s.connsLock.Lock()
 					conn := s.conns[i]
