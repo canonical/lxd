@@ -497,23 +497,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 	}
 
 	err = cmd.Wait()
-	logger.Debug("Instance process stopped")
-	if err == nil {
-		return finisher(0, nil)
-	}
-
-	exitErr, ok := err.(*exec.ExitError)
-	if ok {
-		status, ok := exitErr.Sys().(syscall.WaitStatus)
-		if ok {
-			return finisher(status.ExitStatus(), nil)
-		}
-
-		if status.Signaled() {
-			// 128 + n == Fatal error signal "n"
-			return finisher(128+int(status.Signal()), nil)
+	exitCode := 0
+	if err != nil {
+		exitCode = -1 // Unknown error.
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
 		}
 	}
 
-	return finisher(-1, nil)
+	logger.Debug("Instance process stopped", log.Ctx{"exitCode": exitCode})
+	return finisher(exitCode, nil)
 }
