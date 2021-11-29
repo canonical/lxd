@@ -7,6 +7,9 @@ navigation:
         - title: Requirements
           location: requirements.md
 
+        - title: Installing LXD
+          location: installing.md
+
         - title: Frequently asked
           location: faq.md
 
