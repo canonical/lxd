@@ -598,7 +598,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
 		ws.controlConnectedCtx, ws.controlConnectedDone = context.WithCancel(context.Background())
 
-		for i := -1; i < len(ws.conns)-1; i++ {
+		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return response.InternalError(err)
