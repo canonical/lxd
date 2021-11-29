@@ -42,8 +42,6 @@ type execWs struct {
 	req api.InstanceExecPost
 
 	instance              instance.Instance
-	rootUid               int64
-	rootGid               int64
 	conns                 map[int]*websocket.Conn
 	connsLock             sync.Mutex
 	requiredConnectedCtx  context.Context
@@ -51,7 +49,6 @@ type execWs struct {
 	controlConnectedCtx   context.Context
 	controlConnectedDone  func()
 	fds                   map[int]string
-	devptsFd              *os.File
 	s                     *state.State
 }
 
@@ -162,12 +159,29 @@ func (s *execWs) Do(op *operations.Operation) error {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
 
-		if s.devptsFd != nil && s.s.OS.NativeTerminals {
-			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(s.devptsFd.Fd()), s.rootUid, s.rootGid)
-			s.devptsFd.Close()
-			s.devptsFd = nil
+		var rootUID, rootGID int64
+		var devptsFd *os.File
+
+		if s.instance.Type() == instancetype.Container {
+			c := s.instance.(instance.Container)
+			idmapset, err := c.CurrentIdmap()
+			if err != nil {
+				return err
+			}
+
+			if idmapset != nil {
+				rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
+			}
+
+			devptsFd, _ = c.DevptsFd()
+		}
+
+		if devptsFd != nil && s.s.OS.NativeTerminals {
+			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(devptsFd.Fd()), rootUID, rootGID)
+			devptsFd.Close()
+			devptsFd = nil
 		} else {
-			ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
+			ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
 		}
 		if err != nil {
 			return err
@@ -555,23 +569,6 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws := &execWs{}
 		ws.s = d.State()
 		ws.fds = map[int]string{}
-
-		if inst.Type() == instancetype.Container {
-			c := inst.(instance.Container)
-			idmapset, err := c.CurrentIdmap()
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			if idmapset != nil {
-				ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
-			}
-
-			devptsFd, err := c.DevptsFd()
-			if err == nil {
-				ws.devptsFd = devptsFd
-			}
-		}
 
 		ws.conns = map[int]*websocket.Conn{}
 		ws.conns[execWSControl] = nil
