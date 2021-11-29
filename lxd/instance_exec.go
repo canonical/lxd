@@ -86,35 +86,39 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			s.connsLock.Lock()
-			s.conns[fd] = conn
+			defer s.connsLock.Unlock()
 
-			if fd == execWSControl {
-				if s.controlConnectedCtx.Err() != nil {
-					return fmt.Errorf("Control websocket already connected")
+			val, found := s.conns[fd]
+			if found && val == nil {
+				s.conns[fd] = conn
+
+				if fd == execWSControl {
+					s.controlConnectedDone() // Control connection connected.
 				}
 
-				// Control WS is now connected.
-				s.controlConnectedDone()
-				s.connsLock.Unlock()
+				for i, c := range s.conns {
+					if i == execWSControl && s.req.WaitForWS && !s.req.Interactive {
+						// Due to a historical bug in the LXC CLI command, we cannot force
+						// the client to connect a control socket when in non-interactive
+						// mode. This is because the older CLI tools did not connect this
+						// channel and so we would prevent the older CLIs connecitng to
+						// newer servers. So skip the control connection from being
+						// considered as a required connection in this case.
+						continue
+					}
+
+					if c == nil {
+						return nil // Not all required connections connected yet.
+					}
+				}
+
+				s.requiredConnectedDone() // All required connections now connected.
 				return nil
+			} else if !found {
+				return fmt.Errorf("Unknown websocket number")
+			} else {
+				return fmt.Errorf("Websocket number already connected")
 			}
-
-			if s.requiredConnectedCtx.Err() != nil {
-				return fmt.Errorf("All websockets already connected")
-			}
-
-			for i, c := range s.conns {
-				if i != execWSControl && c == nil {
-					s.connsLock.Unlock()
-					return nil
-				}
-			}
-
-			// All required WS now connected.
-			s.requiredConnectedCtx.Done()
-
-			s.connsLock.Unlock()
-			return nil
 		}
 	}
 
