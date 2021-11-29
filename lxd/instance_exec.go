@@ -195,7 +195,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	controlExit := make(chan struct{})
 	attachedChildIsDead := make(chan struct{})
 	var wgEOF sync.WaitGroup
 
@@ -210,9 +209,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		if conn == nil {
-			close(controlExit)
+			s.controlConnectedDone() // Request control go routine to end if no control connection.
 		} else {
-			conn.Close()
+			conn.Close() // Close control connection (will cause control go routine to end).
 		}
 
 		close(attachedChildIsDead)
@@ -255,16 +254,15 @@ func (s *execWs) Do(op *operations.Operation) error {
 	go func() {
 		defer wgEOF.Done()
 
-		select {
-		case <-s.controlConnectedCtx.Done():
-			break
-		case <-controlExit:
-			return
-		}
+		<-s.controlConnectedCtx.Done() // Indicates control connection has started or command has ended.
 
 		s.connsLock.Lock()
 		conn := s.conns[execWSControl]
 		s.connsLock.Unlock()
+
+		if conn == nil {
+			return // No connection, command has ended, being asked to end.
+		}
 
 		logger.Debug("Exec control handler started")
 		defer logger.Debug("Exec control handler finished")
