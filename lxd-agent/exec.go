@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
@@ -216,7 +217,15 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 func (s *execWs) Do(op *operations.Operation) error {
-	<-s.requiredConnectedCtx.Done()
+	// As this function only gets called when the exec request has WaitForWS enabled, we expect the client to
+	// connect to all of the required websockets within a short period of time and we won't proceed until then.
+	logger.Debug("Waiting for exec websockets to connect")
+	select {
+	case <-s.requiredConnectedCtx.Done():
+		break
+	case <-time.After(time.Second * 5):
+		return fmt.Errorf("Timed out waiting for websockets to connect")
+	}
 
 	var err error
 	var ttys []*os.File
