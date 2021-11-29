@@ -47,8 +47,8 @@ type execWs struct {
 	connsLock             sync.Mutex
 	requiredConnectedCtx  context.Context
 	requiredConnectedDone func()
-	controlConnected      chan struct{}
-	controlConnectedDone  bool
+	controlConnectedCtx   context.Context
+	controlConnectedDone  func()
 	fds                   map[int]string
 	devptsFd              *os.File
 	s                     *state.State
@@ -89,13 +89,12 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			s.conns[fd] = conn
 
 			if fd == execWSControl {
-				if s.controlConnectedDone {
+				if s.controlConnectedCtx.Err() != nil {
 					return fmt.Errorf("Control websocket already connected")
 				}
 
 				// Control WS is now connected.
-				s.controlConnectedDone = true
-				close(s.controlConnected)
+				s.controlConnectedDone()
 				s.connsLock.Unlock()
 				return nil
 			}
@@ -225,7 +224,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			defer logger.Debug("Interactive child process handler finished")
 
 			select {
-			case <-s.controlConnected:
+			case <-s.controlConnectedCtx.Done():
 				break
 
 			case <-controlExit:
@@ -348,7 +347,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			defer logger.Debug("Non-Interactive child process handler finished")
 
 			select {
-			case <-s.controlConnected:
+			case <-s.controlConnectedCtx.Done():
 				break
 			case <-controlExit:
 				return
@@ -593,7 +592,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
-		ws.controlConnected = make(chan struct{})
+		ws.controlConnectedCtx, ws.controlConnectedDone = context.WithCancel(context.Background())
 
 		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
