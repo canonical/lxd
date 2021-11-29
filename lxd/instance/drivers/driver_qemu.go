@@ -5029,7 +5029,6 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 	}
 	revert.Add(agent.Disconnect)
 
-	req.WaitForWS = true
 	if req.Interactive {
 		// Set console to raw.
 		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
