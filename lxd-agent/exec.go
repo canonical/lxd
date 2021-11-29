@@ -291,7 +291,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 			select {
 			case <-s.controlConnected:
 				break
-
 			case <-controlExit:
 				return
 			}
