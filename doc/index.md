@@ -1,17 +1,17 @@
 [![LXD](https://linuxcontainers.org/static/img/containers.png)](https://linuxcontainers.org/lxd)
 # LXD
-LXD is a next generation system container and virtual machine manager.  
+LXD is a next generation system container and virtual machine manager.
 It offers a unified user experience around full Linux systems running inside containers or virtual machines.
 
-It's image based with pre-made images available for a [wide number of Linux distributions](https://images.linuxcontainers.org)  
+It's image based with pre-made images available for a [wide number of Linux distributions](https://images.linuxcontainers.org)
 and is built around a very powerful, yet pretty simple, REST API.
 
-To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!  
+To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!
 Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
 
-Release announcements can be found here: <https://linuxcontainers.org/lxd/news/>  
-And the release tarballs here: <https://linuxcontainers.org/lxd/downloads/>
-The documentation is here: <https://linuxcontainers.org/lxd/docs/master/>
+- Release announcements: <https://linuxcontainers.org/lxd/news/>
+- Release tarballs: <https://linuxcontainers.org/lxd/downloads/>
+- Documentation: <https://linuxcontainers.org/lxd/docs/master/>
 
 ## Status
 Type                | Service               | Status
