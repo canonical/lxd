@@ -589,7 +589,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 		ws.conns = map[int]*websocket.Conn{}
 		ws.conns[execWSControl] = nil
-		ws.conns[0] = nil
+		ws.conns[0] = nil // This is used for either TTY or Stdin.
 		if !post.Interactive {
 			ws.conns[execWSStdout] = nil
 			ws.conns[execWSStderr] = nil
