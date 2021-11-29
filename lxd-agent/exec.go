@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -104,7 +105,7 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		ws.conns[execWSStdout] = nil
 		ws.conns[execWSStderr] = nil
 	}
-	ws.allConnected = make(chan bool, 1)
+	ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
 	ws.controlConnected = make(chan bool, 1)
 	ws.interactive = post.Interactive
 	for i := -1; i < len(ws.conns)-1; i++ {
@@ -138,19 +139,20 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 }
 
 type execWs struct {
-	command          []string
-	env              map[string]string
-	conns            map[int]*websocket.Conn
-	connsLock        sync.Mutex
-	allConnected     chan bool
-	controlConnected chan bool
-	interactive      bool
-	fds              map[int]string
-	width            int
-	height           int
-	uid              uint32
-	gid              uint32
-	cwd              string
+	command               []string
+	env                   map[string]string
+	conns                 map[int]*websocket.Conn
+	connsLock             sync.Mutex
+	requiredConnectedCtx  context.Context
+	requiredConnectedDone func()
+	controlConnected      chan bool
+	interactive           bool
+	fds                   map[int]string
+	width                 int
+	height                int
+	uid                   uint32
+	gid                   uint32
+	cwd                   string
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -202,7 +204,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 			s.connsLock.Unlock()
 
-			s.allConnected <- true
+			s.requiredConnectedDone()
 			return nil
 		}
 	}
@@ -213,7 +215,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 func (s *execWs) Do(op *operations.Operation) error {
-	<-s.allConnected
+	<-s.requiredConnectedCtx.Done()
 
 	var err error
 	var ttys []*os.File
