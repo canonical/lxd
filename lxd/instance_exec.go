@@ -362,6 +362,29 @@ func (s *execWs) Do(op *operations.Operation) error {
 				conn := s.conns[i]
 				s.connsLock.Unlock()
 
+				if i == execWSStdout {
+					// Launch a go routine that reads from stdout. This will be used to detect
+					// when the client disconnects, as normally there should be no data
+					// received on the stdout channel from the client. This is needed in cases
+					// where the control connection isn't used by the client and so we need to
+					// detect when the client disconnects to avoid leaving the command running
+					// in the background.
+					go func() {
+						_, _, err := conn.ReadMessage()
+
+						// If there is a control connection, then leave it to that handler
+						// to clean the command up. If there's no control connection, the
+						// control context gets cancelled when the command exits, so this
+						// can also be used indicate that the command has already finished.
+						// In either case there is no need to kill the command, but if not
+						// then it is our responsibility to kill the command now.
+						if s.controlConnectedCtx.Err() == nil {
+							logger.Warn("Unexpected read on stdout websocket, killing command", log.Ctx{"number": i, "err": err})
+							cmdKillOnce.Do(cmdKill)
+						}
+					}()
+				}
+
 				if i == execWSStdin {
 					<-shared.WebsocketRecvStream(ttys[i], conn)
 					ttys[i].Close()
