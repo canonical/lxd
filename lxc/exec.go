@@ -155,9 +155,6 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 
 	// Setup interactive console handler
 	handler := c.controlSocketHandler
-	if !interactive {
-		handler = nil
-	}
 
 	// Grab current terminal dimensions
 	var width, height int
