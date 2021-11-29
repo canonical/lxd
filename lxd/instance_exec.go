@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -39,18 +40,18 @@ const execWSStderr = 2
 type execWs struct {
 	req api.InstanceExecPost
 
-	instance             instance.Instance
-	rootUid              int64
-	rootGid              int64
-	conns                map[int]*websocket.Conn
-	connsLock            sync.Mutex
-	allConnected         chan struct{}
-	allConnectedDone     bool
-	controlConnected     chan struct{}
-	controlConnectedDone bool
-	fds                  map[int]string
-	devptsFd             *os.File
-	s                    *state.State
+	instance              instance.Instance
+	rootUid               int64
+	rootGid               int64
+	conns                 map[int]*websocket.Conn
+	connsLock             sync.Mutex
+	requiredConnectedCtx  context.Context
+	requiredConnectedDone func()
+	controlConnected      chan struct{}
+	controlConnectedDone  bool
+	fds                   map[int]string
+	devptsFd              *os.File
+	s                     *state.State
 }
 
 func (s *execWs) Metadata() interface{} {
@@ -99,7 +100,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				return nil
 			}
 
-			if s.allConnectedDone {
+			if s.requiredConnectedCtx.Err() != nil {
 				return fmt.Errorf("All websockets already connected")
 			}
 
@@ -110,12 +111,10 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 				}
 			}
 
-			// All WS now connected.
-			s.allConnectedDone = true
-			close(s.allConnected)
+			// All required WS now connected.
+			s.requiredConnectedCtx.Done()
 
 			s.connsLock.Unlock()
-
 			return nil
 		}
 	}
@@ -126,7 +125,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 func (s *execWs) Do(op *operations.Operation) error {
-	<-s.allConnected
+	<-s.requiredConnectedCtx.Done()
 
 	var err error
 	var ttys []*os.File
@@ -592,8 +591,10 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			ws.conns[execWSStdout] = nil
 			ws.conns[execWSStderr] = nil
 		}
-		ws.allConnected = make(chan struct{})
+
+		ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
 		ws.controlConnected = make(chan struct{})
+
 		for i := -1; i < len(ws.conns)-1; i++ {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
