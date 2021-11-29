@@ -48,28 +48,27 @@ When listening on the network, the same API is available on a TLS socket
 (HTTPS), specific access on the remote API can be restricted through
 Canonical RBAC.
 
-
 More details are [available here](security.md).
 
-## Getting started with LXD
-Now that you have LXD running on your system you can read the [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/) or go through more examples and configurations in [our documentation](https://linuxcontainers.org/lxd/docs/master/).
+## Support and community
 
-## Bug reports
-Bug reports and Feature requests can be filed at: <https://github.com/lxc/lxd/issues/new>
+The following channels are available for you to interact with the LXD community.
 
-## Contributing
-Fixes and new features are greatly appreciated but please read our [contributing guidelines](contributing.md) first.
+### Bug reports
+You can file bug reports and feature requests at: <https://github.com/lxc/lxd/issues/new>
 
-## Support and discussions
 ### Forum
 A discussion forum is available at: <https://discuss.linuxcontainers.org>
 
 ### Mailing-lists
-We use the LXC mailing-lists for developer and user discussions, you can
+We use the LXC mailing lists for developer and user discussions. You can
 find and subscribe to those at: <https://lists.linuxcontainers.org>
 
 ### IRC
-If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat.
+If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
+
+## Contributing
+Fixes and new features are greatly appreciated. Make sure to read our [contributing guidelines](contributing.md) first!
 
 ```{toctree}
 :hidden:
