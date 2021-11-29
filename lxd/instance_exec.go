@@ -31,6 +31,11 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+const execWSControl = -1
+const execWSStdin = 0
+const execWSStdout = 1
+const execWSStderr = 2
+
 type execWs struct {
 	req api.InstanceExecPost
 
@@ -51,7 +56,7 @@ type execWs struct {
 func (s *execWs) Metadata() interface{} {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
-		if fd == -1 {
+		if fd == execWSControl {
 			fds["control"] = secret
 		} else {
 			fds[strconv.Itoa(fd)] = secret
@@ -82,7 +87,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			s.connsLock.Lock()
 			s.conns[fd] = conn
 
-			if fd == -1 {
+			if fd == execWSControl {
 				if s.controlConnectedDone {
 					return fmt.Errorf("Control websocket already connected")
 				}
@@ -99,7 +104,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			for i, c := range s.conns {
-				if i != -1 && c == nil {
+				if i != execWSControl && c == nil {
 					s.connsLock.Unlock()
 					return nil
 				}
@@ -163,9 +168,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 		}
 
-		stdin = ptys[0]
-		stdout = ttys[1]
-		stderr = ttys[2]
+		stdin = ptys[execWSStdin]
+		stdout = ttys[execWSStdout]
+		stderr = ttys[execWSStderr]
 	}
 
 	controlExit := make(chan struct{})
@@ -179,7 +184,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}
 
 		s.connsLock.Lock()
-		conn := s.conns[-1]
+		conn := s.conns[execWSControl]
 		s.connsLock.Unlock()
 
 		if conn == nil {
@@ -230,7 +235,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			for {
 				s.connsLock.Lock()
-				conn := s.conns[-1]
+				conn := s.conns[execWSControl]
 				s.connsLock.Unlock()
 
 				mt, r, err := conn.NextReader()
@@ -318,7 +323,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
-				if i == 0 {
+				if i == execWSStdin {
 					s.connsLock.Lock()
 					conn := s.conns[i]
 					s.connsLock.Unlock()
@@ -352,7 +357,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			for {
 				s.connsLock.Lock()
-				conn := s.conns[-1]
+				conn := s.conns[execWSControl]
 				s.connsLock.Unlock()
 
 				mt, r, err := conn.NextReader()
@@ -581,11 +586,11 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		ws.conns = map[int]*websocket.Conn{}
-		ws.conns[-1] = nil
+		ws.conns[execWSControl] = nil
 		ws.conns[0] = nil
 		if !post.Interactive {
-			ws.conns[1] = nil
-			ws.conns[2] = nil
+			ws.conns[execWSStdout] = nil
+			ws.conns[execWSStderr] = nil
 		}
 		ws.allConnected = make(chan struct{})
 		ws.controlConnected = make(chan struct{})
