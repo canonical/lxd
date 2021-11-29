@@ -412,7 +412,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	}
 
 	exitCode, err := cmd.Wait()
-	logger.Debug("Instance process stopped")
+	logger.Debug("Instance process stopped", log.Ctx{"exitCode": exitCode})
 	return finisher(exitCode, err)
 }
 
