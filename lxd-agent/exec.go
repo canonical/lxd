@@ -21,7 +21,9 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"
 )
 
@@ -483,11 +485,15 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(-1, err)
 	}
 
+	logger := logging.AddContext(logger.Log, log.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
+	logger.Debug("Instance process started")
+
 	if s.interactive {
 		attachedChildIsBorn <- cmd.Process.Pid
 	}
 
 	err = cmd.Wait()
+	logger.Debug("Instance process stopped")
 	if err == nil {
 		return finisher(0, nil)
 	}
