@@ -354,18 +354,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 				logger.Debug("Exec mirror websocket started", log.Ctx{"number": i})
 				defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": i})
 
-				if i == execWSStdin {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
+				s.connsLock.Lock()
+				conn := s.conns[i]
+				s.connsLock.Unlock()
 
+				if i == execWSStdin {
 					<-shared.WebsocketRecvStream(ttys[i], conn)
 					ttys[i].Close()
 				} else {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
-
 					<-shared.WebsocketSendStream(conn, ptys[i], -1)
 					ptys[i].Close()
 					wgEOF.Done()
