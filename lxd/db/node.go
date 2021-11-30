@@ -740,6 +740,50 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	return nil
 }
 
+// UpdateNodeClusterGroups changes the list of cluster groups the member belongs to.
+func (c *ClusterTx) UpdateNodeClusterGroups(id int64, groups []string) error {
+	nodeInfo, err := c.GetNodeWithID(int(id))
+	if err != nil {
+		return err
+	}
+
+	oldGroups, err := c.GetClusterGroupsWithNode(nodeInfo.Name)
+	if err != nil {
+		return err
+	}
+
+	skipGroups := []string{}
+
+	// Check if node already belongs to the given groups.
+	for _, newGroup := range groups {
+		if shared.StringInSlice(newGroup, oldGroups) {
+			// Node already belongs to this group.
+			skipGroups = append(skipGroups, newGroup)
+			continue
+		}
+
+		// Add node to new group.
+		err = c.AddNodeToClusterGroup(newGroup, nodeInfo.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to add member to cluster group: %w", err)
+		}
+	}
+
+	for _, oldGroup := range oldGroups {
+		if shared.StringInSlice(oldGroup, skipGroups) {
+			continue
+		}
+
+		// Remove node from group.
+		err = c.RemoveNodeFromClusterGroup(oldGroup, nodeInfo.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to remove member from cluster group: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // UpdateNodeFailureDomain changes the failure domain of a node.
 func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
 	var domainID interface{}
