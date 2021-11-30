@@ -277,7 +277,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	controlExit := make(chan bool, 1)
 	attachedChildIsDead := make(chan struct{})
 	var wgEOF sync.WaitGroup
 
@@ -290,12 +289,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 		conn := s.conns[-1]
 		s.connsLock.Unlock()
 
-		if conn == nil {
-			if s.interactive {
-				controlExit <- true
-			}
-		} else {
-			conn.Close()
+		if conn != nil {
+			conn.Close() // Close control connection (will cause control go routine to end).
 		}
 
 		close(attachedChildIsDead)
