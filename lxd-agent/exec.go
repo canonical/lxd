@@ -110,7 +110,6 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		ws.conns[execWSStderr] = nil
 	}
 	ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
-	ws.controlConnected = make(chan bool, 1)
 	ws.interactive = post.Interactive
 
 	for i := range ws.conns {
@@ -150,7 +149,6 @@ type execWs struct {
 	connsLock             sync.Mutex
 	requiredConnectedCtx  context.Context
 	requiredConnectedDone func()
-	controlConnected      chan bool
 	interactive           bool
 	fds                   map[int]string
 	width                 int
@@ -192,25 +190,25 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			s.connsLock.Lock()
-			s.conns[fd] = conn
-			s.connsLock.Unlock()
+			defer s.connsLock.Unlock()
 
-			if fd == -1 {
-				s.controlConnected <- true
-				return nil
-			}
+			val, found := s.conns[fd]
+			if found && val == nil {
+				s.conns[fd] = conn
 
-			s.connsLock.Lock()
-			for i, c := range s.conns {
-				if i != -1 && c == nil {
-					s.connsLock.Unlock()
-					return nil
+				for _, c := range s.conns {
+					if c == nil {
+						return nil // Not all required connections connected yet.
+					}
 				}
-			}
-			s.connsLock.Unlock()
 
-			s.requiredConnectedDone()
-			return nil
+				s.requiredConnectedDone() // All required connections now connected.
+				return nil
+			} else if !found {
+				return fmt.Errorf("Unknown websocket number")
+			} else {
+				return fmt.Errorf("Websocket number already connected")
+			}
 		}
 	}
 
@@ -372,13 +370,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 	if s.interactive {
 		wgEOF.Add(1)
 		go func() {
-			select {
-			case <-s.controlConnected:
-				break
-			case <-controlExit:
-				return
-			}
-
 			logger.Debug("Exec control handler started")
 			defer logger.Debug("Exec control handler finished")
 
