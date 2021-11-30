@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"os/exec"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 
@@ -36,20 +35,11 @@ func (c *lxcCmd) Signal(sig unix.Signal) error {
 func (c *lxcCmd) Wait() (int, error) {
 	err := c.cmd.Wait()
 	if err != nil {
-		exitErr, ok := err.(*exec.ExitError)
-		if ok {
-			status, ok := exitErr.Sys().(syscall.WaitStatus)
-			if ok {
-				return status.ExitStatus(), nil
-			}
-
-			if status.Signaled() {
-				// 128 + n == Fatal error signal "n"
-				return 128 + int(status.Signal()), nil
-			}
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return exitErr.ExitCode(), nil
 		}
 
-		return -1, err
+		return -1, err // Unknown error.
 	}
 
 	return 0, nil
