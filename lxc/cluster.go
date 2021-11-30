@@ -91,6 +91,9 @@ func (c *cmdCluster) Command() *cobra.Command {
 	cmdClusterRestore := cmdClusterRestore{global: c.global, cluster: c}
 	cmd.AddCommand(cmdClusterRestore.Command())
 
+	clusterGroupCmd := cmdClusterGroup{global: c.global, cluster: c}
+	cmd.AddCommand(clusterGroupCmd.Command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
