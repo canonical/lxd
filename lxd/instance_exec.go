@@ -156,13 +156,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 	var stderr *os.File
 
 	if s.req.Interactive {
-		ttys = make([]*os.File, 1)
-		ptys = make([]*os.File, 1)
-
-		var rootUID, rootGID int64
-		var devptsFd *os.File
-
 		if s.instance.Type() == instancetype.Container {
+			// For containers, we setup a PTY on the LXD server.
+			ttys = make([]*os.File, 1)
+			ptys = make([]*os.File, 1)
+
+			var rootUID, rootGID int64
+			var devptsFd *os.File
+
 			c := s.instance.(instance.Container)
 			idmapset, err := c.CurrentIdmap()
 			if err != nil {
@@ -174,25 +175,38 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 
 			devptsFd, _ = c.DevptsFd()
-		}
 
-		if devptsFd != nil && s.s.OS.NativeTerminals {
-			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(devptsFd.Fd()), rootUID, rootGID)
-			devptsFd.Close()
-			devptsFd = nil
+			if devptsFd != nil && s.s.OS.NativeTerminals {
+				ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(devptsFd.Fd()), rootUID, rootGID)
+				devptsFd.Close()
+				devptsFd = nil
+			} else {
+				ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
+			}
+			if err != nil {
+				return err
+			}
+
+			stdin = ttys[0]
+			stdout = ttys[0]
+			stderr = ttys[0]
+
+			if s.req.Width > 0 && s.req.Height > 0 {
+				shared.SetSize(int(ptys[0].Fd()), s.req.Width, s.req.Height)
+			}
 		} else {
-			ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
-		}
-		if err != nil {
-			return err
-		}
+			// For VMs we rely on the lxd-agent PTY running inside the VM guest.
+			ttys = make([]*os.File, 2)
+			ptys = make([]*os.File, 2)
+			for i := 0; i < len(ttys); i++ {
+				ptys[i], ttys[i], err = os.Pipe()
+				if err != nil {
+					return err
+				}
+			}
 
-		stdin = ttys[0]
-		stdout = ttys[0]
-		stderr = ttys[0]
-
-		if s.req.Width > 0 && s.req.Height > 0 {
-			shared.SetSize(int(ptys[0].Fd()), s.req.Width, s.req.Height)
+			stdin = ptys[execWSStdin]
+			stdout = ttys[execWSStdout]
 		}
 	} else {
 		ttys = make([]*os.File, 3)
@@ -359,7 +373,19 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+			var readDone, writeDone chan bool
+
+			if s.instance.Type() == instancetype.Container {
+				// For containers, we are running the command via the local LXD managed PTY and so
+				// need special signal handling provided by netutils.WebsocketExecMirror.
+				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
+
+			} else {
+				// For VMs we are just relaying the websockets between client and lxd-agent, so no
+				// need for the special signal handling provided by netutils.WebsocketExecMirror.
+				readDone = shared.WebsocketSendStream(conn, ptys[execWSStdout], -1)
+				writeDone = shared.WebsocketRecvStream(ttys[execWSStdin], conn)
+			}
 
 			<-readDone
 			<-writeDone
