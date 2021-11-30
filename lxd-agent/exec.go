@@ -367,85 +367,90 @@ func (s *execWs) Do(op *operations.Operation) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
 	logger.Debug("Instance process started")
 
-	if s.interactive {
-		wgEOF.Add(1)
-		go func() {
-			logger.Debug("Exec control handler started")
-			defer logger.Debug("Exec control handler finished")
+	wgEOF.Add(1)
+	go func() {
+		defer wgEOF.Done()
 
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
+		logger.Debug("Exec control handler started")
+		defer logger.Debug("Exec control handler finished")
 
-				mt, r, err := conn.NextReader()
-				if mt == websocket.CloseMessage {
+		s.connsLock.Lock()
+		conn := s.conns[-1]
+		s.connsLock.Unlock()
+
+		for {
+			mt, r, err := conn.NextReader()
+			if mt == websocket.CloseMessage {
+				break
+			}
+
+			if err != nil {
+				logger.Debug("Got error getting next reader", log.Ctx{"err": err})
+				er, ok := err.(*websocket.CloseError)
+				if !ok {
 					break
 				}
 
-				if err != nil {
-					logger.Debug("Got error getting next reader", log.Ctx{"err": err})
-					er, ok := err.(*websocket.CloseError)
-					if !ok {
-						break
-					}
-
-					if er.Code != websocket.CloseAbnormalClosure {
-						break
-					}
-
-					// If an abnormal closure occurred, kill the attached process.
-					err := unix.Kill(cmd.Process.Pid, unix.SIGKILL)
-					if err != nil {
-						logger.Error("Failed to send SIGKILL")
-					} else {
-						logger.Info("Sent SIGKILL")
-					}
-					return
-				}
-
-				buf, err := ioutil.ReadAll(r)
-				if err != nil {
-					logger.Debug("Failed to read message", log.Ctx{"err": err})
+				if er.Code != websocket.CloseAbnormalClosure {
 					break
 				}
 
-				command := api.ContainerExecControl{}
+				// If an abnormal closure occurred, kill the attached process.
+				err := unix.Kill(cmd.Process.Pid, unix.SIGKILL)
+				if err != nil {
+					logger.Error("Failed to send SIGKILL")
+				} else {
+					logger.Info("Sent SIGKILL")
+				}
+				return
+			}
 
-				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
+			buf, err := ioutil.ReadAll(r)
+			if err != nil {
+				logger.Debug("Failed to read message", log.Ctx{"err": err})
+				break
+			}
+
+			command := api.ContainerExecControl{}
+
+			if err := json.Unmarshal(buf, &command); err != nil {
+				logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
+				continue
+			}
+
+			if command.Command == "window-resize" && s.interactive {
+				winchWidth, err := strconv.Atoi(command.Args["width"])
+				if err != nil {
+					logger.Debug("Unable to extract window width", log.Ctx{"err": err})
 					continue
 				}
 
-				if command.Command == "window-resize" {
-					winchWidth, err := strconv.Atoi(command.Args["width"])
-					if err != nil {
-						logger.Debug("Unable to extract window width", log.Ctx{"err": err})
-						continue
-					}
-
-					winchHeight, err := strconv.Atoi(command.Args["height"])
-					if err != nil {
-						logger.Debug("Unable to extract window height", log.Ctx{"err": err})
-						continue
-					}
-
-					err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
-					if err != nil {
-						logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
-						continue
-					}
-				} else if command.Command == "signal" {
-					if err := unix.Kill(cmd.Process.Pid, unix.Signal(command.Signal)); err != nil {
-						logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
-						continue
-					}
-					logger.Info("Forwarded signal", log.Ctx{"signal": command.Signal})
+				winchHeight, err := strconv.Atoi(command.Args["height"])
+				if err != nil {
+					logger.Debug("Unable to extract window height", log.Ctx{"err": err})
+					continue
 				}
-			}
-		}()
 
+				err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
+				if err != nil {
+					logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+					continue
+				}
+			} else if command.Command == "signal" {
+				if err := unix.Kill(cmd.Process.Pid, unix.Signal(command.Signal)); err != nil {
+					logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
+					continue
+				}
+				logger.Info("Forwarded signal", log.Ctx{"signal": command.Signal})
+			}
+		}
+	}()
+
+	if s.interactive {
+		wgEOF.Add(1)
 		go func() {
+			defer wgEOF.Done()
+
 			logger.Debug("Exec mirror websocket started", log.Ctx{"number": 0})
 			defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": 0})
 
@@ -458,7 +463,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 			<-readDone
 			<-writeDone
 			conn.Close()
-			wgEOF.Done()
 		}()
 	} else {
 		wgEOF.Add(len(ttys) - 1)
