@@ -63,7 +63,6 @@ import (
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
-	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -5028,16 +5027,6 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	revert.Add(agent.Disconnect)
-
-	if req.Interactive {
-		// Set console to raw.
-		oldttystate, err := termios.MakeRaw(int(stdin.Fd()))
-		if err != nil {
-			return nil, err
-		}
-
-		revert.Add(func() { termios.Restore(int(stdin.Fd()), oldttystate) })
-	}
 
 	dataDone := make(chan bool)
 	controlSendCh := make(chan api.InstanceExecControl)
