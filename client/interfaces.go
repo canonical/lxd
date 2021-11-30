@@ -343,6 +343,13 @@ type InstanceServer interface {
 	CreateClusterMember(member api.ClusterMembersPost) (op Operation, err error)
 	UpdateClusterCertificate(certs api.ClusterCertificatePut, ETag string) (err error)
 	UpdateClusterMemberState(name string, state api.ClusterMemberStatePost) (op Operation, err error)
+	GetClusterGroups() ([]api.ClusterGroup, error)
+	GetClusterGroupNames() ([]string, error)
+	RenameClusterGroup(name string, group api.ClusterGroupPost) error
+	CreateClusterGroup(group api.ClusterGroupsPost) error
+	DeleteClusterGroup(name string) error
+	UpdateClusterGroup(name string, group api.ClusterGroupPut, ETag string) error
+	GetClusterGroup(name string) (*api.ClusterGroup, string, error)
 
 	// Warning functions
 	GetWarningUUIDs() (uuids []string, err error)
