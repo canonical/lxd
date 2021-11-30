@@ -124,7 +124,7 @@ Now, the `lxd` and `lxc` binaries will be available to you and can be used to se
 You'll need sub{u,g}ids for root, so that LXD can create the unprivileged containers:
 
 ```bash
-echo "root:1000000:65536" | sudo tee -a /etc/subuid /etc/subgid
+echo "root:1000000:1000000000" | sudo tee -a /etc/subuid /etc/subgid
 ```
 
 Now you can run the daemon (the `--group sudo` bit allows everyone in the `sudo`
