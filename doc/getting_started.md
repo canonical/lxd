@@ -6,6 +6,7 @@ In addition to the documentation in this section, see the [Getting Started guide
 :maxdepth: 1
 
 requirements
+installing
 Frequently asked <faq>
 security
 contributing
