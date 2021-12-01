@@ -46,7 +46,7 @@ func (c *cmdAgent) Command() *cobra.Command {
 
 func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
-	log, err := logging.GetLogger("lxd-agent", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
+	log, err := logging.GetLogger("", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
 	if err != nil {
 		os.Exit(1)
 	}
