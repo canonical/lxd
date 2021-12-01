@@ -387,10 +387,10 @@ You can launch an instance on any node in the cluster from any node in
 the cluster. For example, from node1:
 
 ```bash
-lxc launch --target node2 ubuntu:18.04 bionic
+lxc launch --target node2 ubuntu:20.04 c1
 ```
 
-will launch an Ubuntu 18.04 container on node2.
+will launch an Ubuntu 20.04 container on node2.
 
 When you launch an instance without defining a target, the instance will be 
 launched on the server which has the lowest number of instances.
@@ -408,10 +408,10 @@ After an instance is launched, you can operate it from any node. For
 example, from node1:
 
 ```bash
-lxc exec bionic ls /
-lxc stop bionic
-lxc delete bionic
-lxc pull file bionic/etc/hosts .
+lxc exec c1 ls /
+lxc stop c1
+lxc delete c1
+lxc pull file c1/etc/hosts .
 ```
 
 ### Manually altering Raft membership
