@@ -192,7 +192,7 @@ type ImageAlias struct {
 // swagger:model
 type ImageSource struct {
 	// Source alias to download from
-	// Example: bionic
+	// Example: focal
 	Alias string `json:"alias" yaml:"alias"`
 
 	// Source server certificate (if not trusted by system CA)
