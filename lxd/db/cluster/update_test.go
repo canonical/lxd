@@ -72,13 +72,13 @@ func TestUpdateFromV1_Containers(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.Exec(`
-INSERT INTO containers VALUES (1, 1, 'bionic', 1, 1, 0, ?, 0, ?, 'Bionic Beaver')
+INSERT INTO containers VALUES (1, 1, 'focal', 1, 1, 0, ?, 0, ?, 'Focal Fossa')
 `, time.Now(), time.Now())
 	require.NoError(t, err)
 
 	// Unique constraint on name
 	_, err = db.Exec(`
-INSERT INTO containers VALUES (2, 2, 'bionic', 2, 2, 1, ?, 1, ?, 'Ubuntu LTS')
+INSERT INTO containers VALUES (2, 2, 'focal', 2, 2, 1, ?, 1, ?, 'Ubuntu LTS')
 `, time.Now(), time.Now())
 	require.Error(t, err)
 

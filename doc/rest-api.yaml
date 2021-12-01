@@ -746,7 +746,7 @@ definitions:
     properties:
       alias:
         description: Source alias to download from
-        example: bionic
+        example: focal
         type: string
         x-go-name: Alias
       certificate:
@@ -837,7 +837,7 @@ definitions:
     properties:
       alias:
         description: Source alias to download from
-        example: bionic
+        example: focal
         type: string
         x-go-name: Alias
       certificate:
