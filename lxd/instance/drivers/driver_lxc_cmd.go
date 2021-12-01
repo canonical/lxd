@@ -33,16 +33,9 @@ func (c *lxcCmd) Signal(sig unix.Signal) error {
 
 // Wait for the command to end and returns its exit code and any error.
 func (c *lxcCmd) Wait() (int, error) {
-	err := c.cmd.Wait()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return exitErr.ExitCode(), nil
-		}
+	exitStatus, err := shared.ExitStatus(c.cmd.Wait())
 
-		return -1, err // Unknown error.
-	}
-
-	return 0, nil
+	return exitStatus, err
 }
 
 // WindowResize resizes the running command's window.
