@@ -666,7 +666,6 @@ func ExitStatus(err error) (int, error) {
 
 		// Otherwise capture the exit status from the command.
 		return exitErr.ExitCode(), nil
-
 	}
 
 	return -1, err // Not able to extract an exit status.

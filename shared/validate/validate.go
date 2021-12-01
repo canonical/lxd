@@ -113,7 +113,7 @@ func ParseUint32Range(value string) (uint32, uint32, error) {
 		rangeSize += uint32(endNum) - uint32(startNum)
 	}
 
-	return uint32(startNum), rangeSize, err
+	return uint32(startNum), rangeSize, nil
 }
 
 // IsUint32Range validates whether the string is a uint32 range in the form "number" or "start-end".
