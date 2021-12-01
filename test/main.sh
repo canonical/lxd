@@ -238,6 +238,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_image_auto_update "image auto-update"
     run_test test_image_prefer_cached "image prefer cached"
     run_test test_image_import_dir "import image from directory"
+    run_test test_exec "exec"
     run_test test_concurrent_exec "concurrent exec"
     run_test test_concurrent "concurrent startup"
     run_test test_snapshots "container snapshots"
