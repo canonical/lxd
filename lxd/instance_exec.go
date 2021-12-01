@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -31,27 +33,29 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+const execWSControl = -1
+const execWSStdin = 0
+const execWSStdout = 1
+const execWSStderr = 2
+
 type execWs struct {
 	req api.InstanceExecPost
 
-	instance             instance.Instance
-	rootUid              int64
-	rootGid              int64
-	conns                map[int]*websocket.Conn
-	connsLock            sync.Mutex
-	allConnected         chan struct{}
-	allConnectedDone     bool
-	controlConnected     chan struct{}
-	controlConnectedDone bool
-	fds                  map[int]string
-	devptsFd             *os.File
-	s                    *state.State
+	instance              instance.Instance
+	conns                 map[int]*websocket.Conn
+	connsLock             sync.Mutex
+	requiredConnectedCtx  context.Context
+	requiredConnectedDone func()
+	controlConnectedCtx   context.Context
+	controlConnectedDone  func()
+	fds                   map[int]string
+	s                     *state.State
 }
 
 func (s *execWs) Metadata() interface{} {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
-		if fd == -1 {
+		if fd == execWSControl {
 			fds["control"] = secret
 		} else {
 			fds[strconv.Itoa(fd)] = secret
@@ -80,38 +84,39 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 			}
 
 			s.connsLock.Lock()
-			s.conns[fd] = conn
+			defer s.connsLock.Unlock()
 
-			if fd == -1 {
-				if s.controlConnectedDone {
-					return fmt.Errorf("Control websocket already connected")
+			val, found := s.conns[fd]
+			if found && val == nil {
+				s.conns[fd] = conn
+
+				if fd == execWSControl {
+					s.controlConnectedDone() // Control connection connected.
 				}
 
-				// Control WS is now connected.
-				s.controlConnectedDone = true
-				close(s.controlConnected)
-				s.connsLock.Unlock()
+				for i, c := range s.conns {
+					if i == execWSControl && s.req.WaitForWS && !s.req.Interactive {
+						// Due to a historical bug in the LXC CLI command, we cannot force
+						// the client to connect a control socket when in non-interactive
+						// mode. This is because the older CLI tools did not connect this
+						// channel and so we would prevent the older CLIs connecitng to
+						// newer servers. So skip the control connection from being
+						// considered as a required connection in this case.
+						continue
+					}
+
+					if c == nil {
+						return nil // Not all required connections connected yet.
+					}
+				}
+
+				s.requiredConnectedDone() // All required connections now connected.
 				return nil
+			} else if !found {
+				return fmt.Errorf("Unknown websocket number")
+			} else {
+				return fmt.Errorf("Websocket number already connected")
 			}
-
-			if s.allConnectedDone {
-				return fmt.Errorf("All websockets already connected")
-			}
-
-			for i, c := range s.conns {
-				if i != -1 && c == nil {
-					s.connsLock.Unlock()
-					return nil
-				}
-			}
-
-			// All WS now connected.
-			s.allConnectedDone = true
-			close(s.allConnected)
-
-			s.connsLock.Unlock()
-
-			return nil
 		}
 	}
 
@@ -121,7 +126,26 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 }
 
 func (s *execWs) Do(op *operations.Operation) error {
-	<-s.allConnected
+	// Once this function ends ensure that any connected websockets are closed.
+	defer func() {
+		s.connsLock.Lock()
+		for i := range s.conns {
+			if s.conns[i] != nil {
+				s.conns[i].Close()
+			}
+		}
+		s.connsLock.Unlock()
+	}()
+
+	// As this function only gets called when the exec request has WaitForWS enabled, we expect the client to
+	// connect to all of the required websockets within a short period of time and we won't proceed until then.
+	logger.Debug("Waiting for exec websockets to connect")
+	select {
+	case <-s.requiredConnectedCtx.Done():
+		break
+	case <-time.After(time.Second * 5):
+		return fmt.Errorf("Timed out waiting for websockets to connect")
+	}
 
 	var err error
 	var ttys []*os.File
@@ -135,12 +159,29 @@ func (s *execWs) Do(op *operations.Operation) error {
 		ttys = make([]*os.File, 1)
 		ptys = make([]*os.File, 1)
 
-		if s.devptsFd != nil && s.s.OS.NativeTerminals {
-			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(s.devptsFd.Fd()), s.rootUid, s.rootGid)
-			s.devptsFd.Close()
-			s.devptsFd = nil
+		var rootUID, rootGID int64
+		var devptsFd *os.File
+
+		if s.instance.Type() == instancetype.Container {
+			c := s.instance.(instance.Container)
+			idmapset, err := c.CurrentIdmap()
+			if err != nil {
+				return err
+			}
+
+			if idmapset != nil {
+				rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
+			}
+
+			devptsFd, _ = c.DevptsFd()
+		}
+
+		if devptsFd != nil && s.s.OS.NativeTerminals {
+			ptys[0], ttys[0], err = shared.OpenPtyInDevpts(int(devptsFd.Fd()), rootUID, rootGID)
+			devptsFd.Close()
+			devptsFd = nil
 		} else {
-			ptys[0], ttys[0], err = shared.OpenPty(s.rootUid, s.rootGid)
+			ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
 		}
 		if err != nil {
 			return err
@@ -163,12 +204,11 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 		}
 
-		stdin = ptys[0]
-		stdout = ttys[1]
-		stderr = ttys[2]
+		stdin = ptys[execWSStdin]
+		stdout = ttys[execWSStdout]
+		stderr = ttys[execWSStderr]
 	}
 
-	controlExit := make(chan struct{})
 	attachedChildIsDead := make(chan struct{})
 	var wgEOF sync.WaitGroup
 
@@ -179,13 +219,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}
 
 		s.connsLock.Lock()
-		conn := s.conns[-1]
+		conn := s.conns[execWSControl]
 		s.connsLock.Unlock()
 
 		if conn == nil {
-			close(controlExit)
+			s.controlConnectedDone() // Request control go routine to end if no control connection.
 		} else {
-			conn.Close()
+			conn.Close() // Close control connection (will cause control go routine to end).
 		}
 
 		close(attachedChildIsDead)
@@ -210,202 +250,169 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(-1, err)
 	}
 
-	logger := logging.AddContext(logger.Log, log.Ctx{"instance": s.instance.Name(), "PID": cmd.PID()})
+	logger := logging.AddContext(logger.Log, log.Ctx{"project": s.instance.Project(), "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
 	logger.Debug("Instance process started")
+
+	var cmdKillOnce sync.Once
+	cmdKill := func() {
+		err := cmd.Signal(unix.SIGKILL)
+		if err != nil {
+			logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
+		} else {
+			logger.Debug("Sent SIGKILL signal")
+		}
+	}
+
+	// Now that process has started, we can start the control handler.
+	wgEOF.Add(1)
+	go func() {
+		defer wgEOF.Done()
+
+		<-s.controlConnectedCtx.Done() // Indicates control connection has started or command has ended.
+
+		s.connsLock.Lock()
+		conn := s.conns[execWSControl]
+		s.connsLock.Unlock()
+
+		if conn == nil {
+			return // No connection, command has ended, being asked to end.
+		}
+
+		logger.Debug("Exec control handler started")
+		defer logger.Debug("Exec control handler finished")
+
+		for {
+			mt, r, err := conn.NextReader()
+			if mt == websocket.CloseMessage {
+				break
+			}
+
+			if err != nil {
+				logger.Debug("Got error getting next reader", log.Ctx{"err": err})
+				er, ok := err.(*websocket.CloseError)
+				if !ok {
+					break
+				}
+
+				if er.Code != websocket.CloseAbnormalClosure {
+					break
+				}
+
+				// If an abnormal closure occurred, kill the attached child.
+				cmdKillOnce.Do(cmdKill)
+
+				return
+			}
+
+			buf, err := ioutil.ReadAll(r)
+			if err != nil {
+				logger.Debug("Failed to read message", log.Ctx{"err": err})
+				break
+			}
+
+			command := api.InstanceExecControl{}
+
+			if err := json.Unmarshal(buf, &command); err != nil {
+				logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
+				continue
+			}
+
+			// Only handle window-resize requests for interactive sessions.
+			if command.Command == "window-resize" && s.req.Interactive {
+				winchWidth, err := strconv.Atoi(command.Args["width"])
+				if err != nil {
+					logger.Debug("Unable to extract window width", log.Ctx{"err": err})
+					continue
+				}
+
+				winchHeight, err := strconv.Atoi(command.Args["height"])
+				if err != nil {
+					logger.Debug("Unable to extract window height", log.Ctx{"err": err})
+					continue
+				}
+
+				err = cmd.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
+				if err != nil {
+					logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+					continue
+				}
+			} else if command.Command == "signal" {
+				err := cmd.Signal(unix.Signal(command.Signal))
+				if err != nil {
+					logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
+					continue
+				}
+			}
+		}
+	}()
 
 	// Now that process has started, we can start the mirroring of the process channels and websockets.
 	if s.req.Interactive {
 		wgEOF.Add(1)
 		go func() {
-			logger.Debug("Interactive child process handler started")
-			defer logger.Debug("Interactive child process handler finished")
+			defer wgEOF.Done()
 
-			select {
-			case <-s.controlConnected:
-				break
+			logger.Debug("Exec mirror websocket started", log.Ctx{"number": 0})
+			defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": 0})
 
-			case <-controlExit:
-				return
-			}
-
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
-
-				mt, r, err := conn.NextReader()
-				if mt == websocket.CloseMessage {
-					break
-				}
-
-				if err != nil {
-					logger.Debug("Got error getting next reader", log.Ctx{"err": err})
-					er, ok := err.(*websocket.CloseError)
-					if !ok {
-						break
-					}
-
-					if er.Code != websocket.CloseAbnormalClosure {
-						break
-					}
-
-					// If an abnormal closure occurred, kill the attached child.
-					err := cmd.Signal(unix.SIGKILL)
-					if err != nil {
-						logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
-					} else {
-						logger.Debug("Sent SIGKILL signal")
-					}
-					return
-				}
-
-				buf, err := ioutil.ReadAll(r)
-				if err != nil {
-					logger.Debug("Failed to read message", log.Ctx{"err": err})
-					break
-				}
-
-				command := api.InstanceExecControl{}
-
-				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
-					continue
-				}
-
-				if command.Command == "window-resize" {
-					winchWidth, err := strconv.Atoi(command.Args["width"])
-					if err != nil {
-						logger.Debug("Unable to extract window width", log.Ctx{"err": err})
-						continue
-					}
-
-					winchHeight, err := strconv.Atoi(command.Args["height"])
-					if err != nil {
-						logger.Debug("Unable to extract window height", log.Ctx{"err": err})
-						continue
-					}
-
-					err = cmd.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
-					if err != nil {
-						logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
-						continue
-					}
-				} else if command.Command == "signal" {
-					err := cmd.Signal(unix.Signal(command.Signal))
-					if err != nil {
-						logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
-						continue
-					}
-				}
-			}
-		}()
-
-		go func() {
 			s.connsLock.Lock()
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			logger.Debug("Started mirroring websocket")
-			defer logger.Debug("Finished mirroring websocket")
 			readDone, writeDone := netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
 
 			<-readDone
 			<-writeDone
 			conn.Close()
-			wgEOF.Done()
 		}()
 	} else {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
-				if i == 0 {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
+				logger.Debug("Exec mirror websocket started", log.Ctx{"number": i})
+				defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": i})
 
+				s.connsLock.Lock()
+				conn := s.conns[i]
+				s.connsLock.Unlock()
+
+				if i == execWSStdout {
+					// Launch a go routine that reads from stdout. This will be used to detect
+					// when the client disconnects, as normally there should be no data
+					// received on the stdout channel from the client. This is needed in cases
+					// where the control connection isn't used by the client and so we need to
+					// detect when the client disconnects to avoid leaving the command running
+					// in the background.
+					go func() {
+						_, _, err := conn.ReadMessage()
+
+						// If there is a control connection, then leave it to that handler
+						// to clean the command up. If there's no control connection, the
+						// control context gets cancelled when the command exits, so this
+						// can also be used indicate that the command has already finished.
+						// In either case there is no need to kill the command, but if not
+						// then it is our responsibility to kill the command now.
+						if s.controlConnectedCtx.Err() == nil {
+							logger.Warn("Unexpected read on stdout websocket, killing command", log.Ctx{"number": i, "err": err})
+							cmdKillOnce.Do(cmdKill)
+						}
+					}()
+				}
+
+				if i == execWSStdin {
 					<-shared.WebsocketRecvStream(ttys[i], conn)
 					ttys[i].Close()
 				} else {
-					s.connsLock.Lock()
-					conn := s.conns[i]
-					s.connsLock.Unlock()
-
 					<-shared.WebsocketSendStream(conn, ptys[i], -1)
 					ptys[i].Close()
 					wgEOF.Done()
 				}
 			}(i)
 		}
-		wgEOF.Add(1)
-		go func() {
-			defer wgEOF.Done()
-
-			logger.Debug("Non-Interactive child process handler started")
-			defer logger.Debug("Non-Interactive child process handler finished")
-
-			select {
-			case <-s.controlConnected:
-				break
-			case <-controlExit:
-				return
-			}
-
-			for {
-				s.connsLock.Lock()
-				conn := s.conns[-1]
-				s.connsLock.Unlock()
-
-				mt, r, err := conn.NextReader()
-				if mt == websocket.CloseMessage {
-					break
-				}
-
-				if err != nil {
-					logger.Debug("Got error getting next reader", log.Ctx{"err": err})
-					er, ok := err.(*websocket.CloseError)
-					if !ok {
-						break
-					}
-
-					if er.Code != websocket.CloseAbnormalClosure {
-						break
-					}
-
-					// If an abnormal closure occurred, kill the attached child.
-					err := cmd.Signal(unix.SIGKILL)
-					if err != nil {
-						logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
-					} else {
-						logger.Debug("Sent SIGKILL signal")
-					}
-					return
-				}
-
-				buf, err := ioutil.ReadAll(r)
-				if err != nil {
-					logger.Debug("Failed to read message", log.Ctx{"err": err})
-					break
-				}
-
-				command := api.InstanceExecControl{}
-
-				if err := json.Unmarshal(buf, &command); err != nil {
-					logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
-					continue
-				}
-				if command.Command == "signal" {
-					err := cmd.Signal(unix.Signal(command.Signal))
-					if err != nil {
-						logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
-						continue
-					}
-				}
-			}
-		}()
 	}
 
 	exitCode, err := cmd.Wait()
-	logger.Debug("Instance process stopped")
+	logger.Debug("Instance process stopped", log.Ctx{"exitCode": exitCode})
 	return finisher(exitCode, err)
 }
 
@@ -520,19 +527,21 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	if !ok {
 		post.Environment["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-		// Add some additional paths. This directly looks through /proc
-		// rather than use FileExists as none of those paths are expected to be
-		// symlinks and this is much faster than forking a sub-process and
-		// attaching to the instance.
+		if inst.Type() == instancetype.Container {
+			// Add some additional paths. This directly looks through /proc
+			// rather than use FileExists as none of those paths are expected to be
+			// symlinks and this is much faster than forking a sub-process and
+			// attaching to the instance.
+			extraPaths := map[string]string{
+				"/snap":      "/snap/bin",
+				"/etc/NIXOS": "/run/current-system/sw/bin",
+			}
 
-		extraPaths := map[string]string{
-			"/snap":      "/snap/bin",
-			"/etc/NIXOS": "/run/current-system/sw/bin",
-		}
-
-		for k, v := range extraPaths {
-			if shared.PathExists(fmt.Sprintf("/proc/%d/root%s", inst.InitPID(), k)) {
-				post.Environment["PATH"] = fmt.Sprintf("%s:%s", post.Environment["PATH"], v)
+			instPID := inst.InitPID()
+			for k, v := range extraPaths {
+				if shared.PathExists(fmt.Sprintf("/proc/%d/root%s", instPID, k)) {
+					post.Environment["PATH"] = fmt.Sprintf("%s:%s", post.Environment["PATH"], v)
+				}
 			}
 		}
 	}
@@ -563,33 +572,18 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		ws.s = d.State()
 		ws.fds = map[int]string{}
 
-		if inst.Type() == instancetype.Container {
-			c := inst.(instance.Container)
-			idmapset, err := c.CurrentIdmap()
-			if err != nil {
-				return response.InternalError(err)
-			}
-
-			if idmapset != nil {
-				ws.rootUid, ws.rootGid = idmapset.ShiftIntoNs(0, 0)
-			}
-
-			devptsFd, err := c.DevptsFd()
-			if err == nil {
-				ws.devptsFd = devptsFd
-			}
-		}
-
 		ws.conns = map[int]*websocket.Conn{}
-		ws.conns[-1] = nil
-		ws.conns[0] = nil
+		ws.conns[execWSControl] = nil
+		ws.conns[0] = nil // This is used for either TTY or Stdin.
 		if !post.Interactive {
-			ws.conns[1] = nil
-			ws.conns[2] = nil
+			ws.conns[execWSStdout] = nil
+			ws.conns[execWSStderr] = nil
 		}
-		ws.allConnected = make(chan struct{})
-		ws.controlConnected = make(chan struct{})
-		for i := -1; i < len(ws.conns)-1; i++ {
+
+		ws.requiredConnectedCtx, ws.requiredConnectedDone = context.WithCancel(context.Background())
+		ws.controlConnectedCtx, ws.controlConnectedDone = context.WithCancel(context.Background())
+
+		for i := range ws.conns {
 			ws.fds[i], err = shared.RandomCryptoString()
 			if err != nil {
 				return response.InternalError(err)
