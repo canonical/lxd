@@ -998,10 +998,15 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	if recursion {
 		result := []api.ClusterMember{}
 		for _, node := range nodes {
-			member, err := node.ToAPI(state.Cluster, state.Node)
+			member, err := node.ToAPI(state.Cluster, state.Node, leader)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -1227,12 +1232,17 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
 	for _, node := range nodes {
 		if node.Name != name {
 			continue
 		}
 
-		member, err := node.ToAPI(state.Cluster, state.Node)
+		member, err := node.ToAPI(state.Cluster, state.Node, leader)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1325,7 +1335,12 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	member, err := node.ToAPI(state.Cluster, state.Node)
+	leader, err := d.gateway.LeaderAddress()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	member, err := node.ToAPI(state.Cluster, state.Node, leader)
 	if err != nil {
 		return response.InternalError(err)
 	}
