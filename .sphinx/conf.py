@@ -34,6 +34,9 @@ html_show_sphinx = False
 html_last_updated_fmt = ""
 html_favicon = "https://linuxcontainers.org/static/img/favicon.ico"
 html_logo = "https://linuxcontainers.org/static/img/containers.small.png"
+html_static_path = ['_static']
+html_css_files = ['custom.css']
+
 
 # Uses global TOC for side nav instead of default local TOC.
 html_sidebars = {
