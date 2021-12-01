@@ -349,14 +349,14 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	err = cmd.Start()
 	if err != nil {
-		exitCode := -1
+		exitStatus := -1
 
 		if errors.Is(err, exec.ErrNotFound) {
-			exitCode = 127
+			exitStatus = 127
 			err = nil // Allow the exit code to be returned.
 		}
 
-		return finisher(exitCode, err)
+		return finisher(exitStatus, err)
 	}
 
 	logger := logging.AddContext(logger.Log, log.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
@@ -486,15 +486,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}
 	}
 
-	err = cmd.Wait()
-	exitCode := 0
-	if err != nil {
-		exitCode = -1 // Unknown error.
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		}
-	}
+	exitStatus, err := shared.ExitStatus(cmd.Wait())
 
-	logger.Debug("Instance process stopped", log.Ctx{"exitCode": exitCode})
-	return finisher(exitCode, nil)
+	logger.Debug("Instance process stopped", log.Ctx{"exitStatus": exitStatus})
+	return finisher(exitStatus, nil)
 }
