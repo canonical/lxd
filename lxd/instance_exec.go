@@ -411,9 +411,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}
 	}
 
-	exitCode, err := cmd.Wait()
-	logger.Debug("Instance process stopped", log.Ctx{"exitCode": exitCode})
-	return finisher(exitCode, err)
+	exitStatus, err := cmd.Wait()
+	logger.Debug("Instance process stopped", log.Ctx{"exitStatus": exitStatus})
+	return finisher(exitStatus, err)
 }
 
 // swagger:operation POST /1.0/instances/{name}/exec instances instance_exec_post
@@ -631,13 +631,13 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			exitCode, err := cmd.Wait()
+			exitStatus, err := cmd.Wait()
 			if err != nil {
 				return err
 			}
 
 			// Update metadata with the right URLs
-			metadata["return"] = exitCode
+			metadata["return"] = exitStatus
 			metadata["output"] = shared.Jmap{
 				"1": fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
 				"2": fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
@@ -648,12 +648,12 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			exitCode, err := cmd.Wait()
+			exitStatus, err := cmd.Wait()
 			if err != nil {
 				return err
 			}
 
-			metadata["return"] = exitCode
+			metadata["return"] = exitStatus
 		}
 
 		err = op.UpdateMetadata(metadata)
