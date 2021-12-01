@@ -1,0 +1,73 @@
+
+/** Fix for issue #28 **/
+footer {
+    color: #666
+}
+
+footer::before {
+    border-top: 1px #ebebeb solid;
+    content: "";
+    display: inherit;
+    padding-bottom: 10px;
+}
+
+/** Fix for issue #26 **/
+
+td p:first-child, th p:first-child {
+    padding-top: 0
+}
+
+td p:last-child, th p:last-child {
+    margin-bottom: 0
+}
+
+/** Fix for issue #24 **/
+.caption[role="heading"] {
+    font-size: 2rem;
+    line-height: 2.5rem;
+    font-weight: 100;
+}
+
+/** Some tweaks for issue #16 **/
+
+[role="tablist"] {
+    border-bottom: 1px solid #d9d9d9;
+}
+
+.sphinx-tabs-tab[aria-selected="true"] {
+    border: 0;
+    border-bottom: 2px solid #111;
+    background-color: #ebebeb;
+    font-weight:300;
+}
+
+.sphinx-tabs-tab{
+    color: #111;
+    font-weight:300;
+    border-radius: 0;
+}
+
+.sphinx-tabs-panel {
+    border: 0;
+    border-bottom: 1px solid #d9d9d9;
+    border-radius: 0;
+}
+
+button.sphinx-tabs-tab:hover {
+    background-color: #f7f7f7;
+}
+
+/** Fix for issue #14 **/
+
+ol.lowerroman li {
+    list-style: lower-roman;
+}
+ol.upperroman li {
+    list-style: upper-roman;
+}
+ol.loweralpha li {
+    list-style: lower-alpha;
+}
+ol.upperalpha li {
+    list-style: upper-alpha;
+}
