@@ -55,9 +55,9 @@ func (c *qemuCmd) Wait() (int, error) {
 
 	opAPI := c.cmd.Get()
 	<-c.dataDone
-	exitCode := int(opAPI.Metadata["return"].(float64))
+	exitStatus := int(opAPI.Metadata["return"].(float64))
 
-	return exitCode, nil
+	return exitStatus, nil
 }
 
 // WindowResize resizes the running command's window.
