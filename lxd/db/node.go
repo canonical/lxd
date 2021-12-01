@@ -29,6 +29,9 @@ const ClusterRoleDatabase = ClusterRole("database")
 // ClusterRoleDatabaseStandBy represents the database stand-by role in a cluster.
 const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 
+// ClusterRoleDatabaseLeader represents the database leader role in a cluster.
+const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
+
 // ClusterRoles maps role ids into human-readable names.
 //
 // Note: the database role is currently stored directly in the raft
@@ -56,7 +59,7 @@ func (n NodeInfo) IsOffline(threshold time.Duration) bool {
 }
 
 // ToAPI returns a LXD API entry.
-func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error) {
+func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.ClusterMember, error) {
 	// Load some needed data.
 	var err error
 	var offlineThreshold time.Duration
@@ -112,6 +115,13 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node) (*api.ClusterMember, error
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = false
 	result.Roles = n.Roles
+
+	// Check if node is the leader node
+	if leader == n.Address {
+		result.Roles = append(result.Roles, string(ClusterRoleDatabaseLeader))
+		result.Database = true
+	}
+
 	if raftNode != nil && raftNode.Role == RaftVoter {
 		result.Roles = append(result.Roles, string(ClusterRoleDatabase))
 		result.Database = true
@@ -575,6 +585,11 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	// Translate role names to ids
 	roleIDs := []int{}
 	for _, role := range roles {
+		// Skip internal-only roles.
+		if role == ClusterRoleDatabase || role == ClusterRoleDatabaseStandBy || role == ClusterRoleDatabaseLeader {
+			continue
+		}
+
 		roleID, err := getRoleID(role)
 		if err != nil {
 			return err
