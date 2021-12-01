@@ -986,6 +986,11 @@ definitions:
           type: string
         type: array
         x-go-name: Profiles
+      project:
+        description: Instance project name
+        example: foo
+        type: string
+        x-go-name: Project
       restore:
         description: If set, instance will be restored to the provided snapshot name
         example: snap0
@@ -1281,6 +1286,11 @@ definitions:
           type: string
         type: array
         x-go-name: Profiles
+      project:
+        description: Instance project name
+        example: foo
+        type: string
+        x-go-name: Project
       restore:
         description: If set, instance will be restored to the provided snapshot name
         example: snap0
@@ -6968,6 +6978,10 @@ paths:
         in: query
         name: filter
         type: string
+      - description: Retrieve instances from all projects
+        in: query
+        name: all-projects
+        type: boolean
       produces:
       - application/json
       responses:
@@ -8390,6 +8404,10 @@ paths:
         in: query
         name: filter
         type: string
+      - description: Retrieve instances from all projects
+        in: query
+        name: all-projects
+        type: boolean
       produces:
       - application/json
       responses:
@@ -8443,6 +8461,10 @@ paths:
         in: query
         name: filter
         type: string
+      - description: Retrieve instances from all projects
+        in: query
+        name: all-projects
+        type: boolean
       produces:
       - application/json
       responses:
