@@ -201,9 +201,9 @@ LXD, at the moment, this contains:
 architecture: x86_64
 creation_date: 1424284563
 properties:
-  description: Ubuntu 18.04 LTS Intel 64bit
+  description: Ubuntu 20.04 LTS Intel 64bit
   os: Ubuntu
-  release: bionic 18.04
+  release: focal 20.04
 templates:
   /etc/hosts:
     when:
