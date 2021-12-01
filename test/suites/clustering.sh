@@ -243,7 +243,7 @@ test_clustering_membership() {
   # List all nodes, using clients points to different nodes and
   # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -q "\- database$"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
   LXD_DIR="${LXD_FOUR_DIR}" lxc cluster show node2 | grep -q "\- database$"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby$"
@@ -2305,7 +2305,7 @@ test_clustering_remove_raft_node() {
 
   # There are only 2 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
 
   # The second node is still in the raft_nodes table.
@@ -2319,7 +2319,7 @@ test_clustering_remove_raft_node() {
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
