@@ -242,6 +242,12 @@ lxc storage create pool2 dir source=/data/lxd
   hold OSD storage pools. Using `ext4` as the underlying filesystem for the
   storage entities is not recommended by Ceph upstream. You may see unexpected
   and erratic failures which are unrelated to LXD itself.
+- To use ceph osd pool of type "erasure" you __must__ have the osd pool created
+  beforehand, as well as a separate osd pool of type "replicated" that will be used for
+  storing metadata. This is required as RBD & CephFS do not support omap.
+  To specify which pool is "earasure coded" you need to use the
+  `ceph.osd.data_pool_name=<erasure-coded-pool-name>` and
+  `source=<replicated-pool-name>` for the replicated pool.
 
 #### The following commands can be used to create Ceph storage pools
 
@@ -269,6 +275,11 @@ lxc storage create pool1 ceph ceph.osd.pool_name=my-osd
 lxc storage create pool1 ceph source=my-already-existing-osd
 ```
 
+- Use the existing osd erasure coded pool "ecpool" and osd replicated pool "rpl-pool".
+
+```bash
+lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
+```
 ### CEPHFS
 
  - Can only be used for custom storage volumes
