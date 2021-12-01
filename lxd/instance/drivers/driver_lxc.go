@@ -1870,7 +1870,6 @@ func (d *lxc) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 
 	// Generate uevent inside container if requested.
 	if len(runConf.Uevents) > 0 {
-
 		pidFdNr, pidFd := d.inheritInitPidFd()
 		if pidFdNr >= 0 {
 			defer pidFd.Close()
@@ -5748,6 +5747,7 @@ func (d *lxc) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, st
 	if err != nil {
 		return nil, err
 	}
+	defer logFile.Close()
 
 	// Prepare the subcommand
 	cname := project.Instance(d.Project(), d.Name())
@@ -6725,6 +6725,7 @@ func (d *lxc) DevptsFd() (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer d.release()
 
 	if !liblxc.HasApiExtension("devpts_fd") {
 		return nil, fmt.Errorf("Missing devpts_fd extension")
