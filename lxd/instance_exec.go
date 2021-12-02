@@ -637,50 +637,46 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	run := func(op *operations.Operation) error {
 		metadata := shared.Jmap{}
 
+		var err error
+		var stdout, stderr *os.File
+
 		if post.RecordOutput {
-			// Prepare stdout and stderr recording
-			stdout, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stdout", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			// Prepare stdout and stderr recording.
+			stdout, err = os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stdout", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 			defer stdout.Close()
 
-			stderr, err := os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stderr", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+			stderr, err = os.OpenFile(filepath.Join(inst.LogPath(), fmt.Sprintf("exec_%s.stderr", op.ID())), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 			if err != nil {
 				return err
 			}
 			defer stderr.Close()
 
-			// Run the command
-			cmd, err := inst.Exec(post, nil, stdout, stderr)
-			if err != nil {
-				return err
-			}
-
-			exitStatus, err := cmd.Wait()
-			if err != nil {
-				return err
-			}
-
-			// Update metadata with the right URLs
-			metadata["return"] = exitStatus
+			// Update metadata with the right URLs.
 			metadata["output"] = shared.Jmap{
 				"1": fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stdout.Name())),
 				"2": fmt.Sprintf("/%s/instances/%s/logs/%s", version.APIVersion, inst.Name(), filepath.Base(stderr.Name())),
 			}
-		} else {
-			cmd, err := inst.Exec(post, nil, nil, nil)
-			if err != nil {
-				return err
-			}
-
-			exitStatus, err := cmd.Wait()
-			if err != nil {
-				return err
-			}
-
-			metadata["return"] = exitStatus
 		}
+
+		// Run the command.
+		cmd, err := inst.Exec(post, nil, stdout, stderr)
+		if err != nil {
+			return err
+		}
+
+		logger := logging.AddContext(logger.Log, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
+		logger.Debug("Instance process started")
+
+		exitStatus, err := cmd.Wait()
+		logger.Debug("Instance process stopped", log.Ctx{"exitStatus": exitStatus})
+		if err != nil {
+			return err
+		}
+
+		metadata["return"] = exitStatus
 
 		err = op.UpdateMetadata(metadata)
 		if err != nil {
