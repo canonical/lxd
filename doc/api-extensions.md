@@ -1511,3 +1511,10 @@ This adds a new `cloud-init` config key namespace which contains the following k
  - `cloud-init.network-config`
 
  It also adds a new endpoint `/1.0/devices` to devlxd which shows an instance's devices.
+
+## network\_dns\_nat
+This introduces `network.nat` as a config option on network zones (DNS).
+
+It defaults to the current behavior of generating records for all
+instances NICs but if set to `false`, it will instruct LXD to only
+generate records for externally reachable addreses.

@@ -144,6 +144,7 @@ func (d *zone) validateConfig(info *api.NetworkZonePut) error {
 
 	// Regular config keys.
 	rules["dns.nameservers"] = validate.IsListOf(validate.IsAny)
+	rules["network.nat"] = validate.Optional(validate.IsBool)
 
 	// Validate peer config.
 	for k := range info.Config {
@@ -291,6 +292,10 @@ func (d *zone) Delete() error {
 func (d *zone) Content() (*strings.Builder, error) {
 	records := []map[string]string{}
 
+	// Check if we should include NAT records.
+	val, ok := d.info.Config["network.nat"]
+	includeNAT := !ok || shared.IsTrue(val)
+
 	// Load all networks for the zone.
 	networks, err := d.state.Cluster.GetNetworksForZone(d.projectName, d.info.Name)
 	if err != nil {
@@ -310,6 +315,13 @@ func (d *zone) Content() (*strings.Builder, error) {
 			return nil, err
 		}
 
+		// Check whether what records to include.
+		val, _ = n.Config()["ipv4.nat"]
+		includeV4 := includeNAT || !shared.IsTrue(val)
+
+		val, _ = n.Config()["ipv6.nat"]
+		includeV6 := includeNAT || !shared.IsTrue(val)
+
 		// Check if dealing with a reverse zone.
 		isReverse4 := strings.HasSuffix(d.info.Name, ip4Arpa)
 		isReverse6 := strings.HasSuffix(d.info.Name, ip6Arpa)
@@ -317,9 +329,20 @@ func (d *zone) Content() (*strings.Builder, error) {
 		forwardZone := n.Config()["dns.zone.forward"]
 
 		genRecord := func(name string, addr string) map[string]string {
+			isV4 := net.ParseIP(addr).To4() != nil
+
+			// Skip disabled families.
+			if isV4 && !includeV4 {
+				return nil
+			}
+
+			if !isV4 && !includeV6 {
+				return nil
+			}
+
 			record := map[string]string{}
 			if !isReverse {
-				if net.ParseIP(addr).To4() != nil {
+				if isV4 {
 					record["type"] = "A"
 				} else {
 					record["type"] = "AAAA"
@@ -334,12 +357,11 @@ func (d *zone) Content() (*strings.Builder, error) {
 				}
 
 				// Skip PTR records for wrong family.
-				ip4 := net.ParseIP(addr).To4()
-				if ip4 != nil && !isReverse4 {
+				if isV4 && !isReverse4 {
 					return nil
 				}
 
-				if ip4 == nil && !isReverse6 {
+				if !isV4 && !isReverse6 {
 					return nil
 				}
 
