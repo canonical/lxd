@@ -939,6 +939,12 @@ func (d *Daemon) init() error {
 		}
 	}
 
+	if kernelSupportsIdmappedMounts() {
+		logger.Info("- idmapped mounts kernel support: yes")
+	} else {
+		logger.Info("- idmapped mounts kernel support: no")
+	}
+
 	// Detect and cached available instance types from operational drivers.
 	_, instanceTypesWarnings := instanceDrivers.SupportedInstanceTypes()
 	dbWarnings = append(dbWarnings, instanceTypesWarnings...)

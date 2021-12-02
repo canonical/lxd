@@ -38,6 +38,7 @@ import (
 #include "compiler.h"
 #include "lxd_seccomp.h"
 #include "memory_utils.h"
+#include "mount_utils.h"
 #include "process_utils.h"
 #include "syscall_numbers.h"
 #include "syscall_wrappers.h"
@@ -558,6 +559,33 @@ static bool is_empty_string(char *s)
 {
 	return (errbuf[0] == '\0');
 }
+
+static bool kernel_supports_idmapped_mounts(void)
+{
+	__do_close int fd_devnull = -EBADF, fd_tree = -EBADF;
+	struct lxc_mount_attr attr = {
+	    .attr_set		= MOUNT_ATTR_IDMAP,
+
+	};
+	int ret;
+
+	fd_tree = open_tree(-EBADF, "/", OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	if (fd_tree < 0)
+		return false;
+
+	fd_devnull = open("/dev/null", O_PATH | O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NOCTTY);
+	if (fd_devnull < 0)
+		return false;
+
+	// If the kernel supports idmapped mounts at all we will get a EBADF
+	// for trying to create one from an invalid O_PATH fd.
+	attr.userns_fd = fd_devnull;
+	ret = mount_setattr(fd_tree, "", AT_EMPTY_PATH, &attr, sizeof(attr));
+	if (ret && (errno == EBADF))
+		return true;
+
+	return false;
+}
 */
 import "C"
 
@@ -624,6 +652,14 @@ func canUseShiftfs() bool {
 	}
 
 	return true
+}
+
+// We're only using this during daemon startup to give an indication whether
+// the underlying kernel has the necessary infrastructure to support idmapped
+// mounts. This check does not give any indication whether the relevant
+// filesystem used for a container does have this support.
+func kernelSupportsIdmappedMounts() bool {
+	return bool(C.kernel_supports_idmapped_mounts())
 }
 
 func canUseNativeTerminals() bool {
