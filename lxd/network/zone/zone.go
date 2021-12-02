@@ -144,6 +144,7 @@ func (d *zone) validateConfig(info *api.NetworkZonePut) error {
 
 	// Regular config keys.
 	rules["dns.nameservers"] = validate.IsListOf(validate.IsAny)
+	rules["network.nat"] = validate.Optional(validate.IsBool)
 
 	// Validate peer config.
 	for k := range info.Config {
