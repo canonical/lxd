@@ -21,6 +21,7 @@ import (
 //
 //go:generate mapper stmt -p db -e project objects
 //go:generate mapper stmt -p db -e project objects-by-Name
+//go:generate mapper stmt -p db -e project objects-by-ID
 //go:generate mapper stmt -p db -e project create struct=Project
 //go:generate mapper stmt -p db -e project id
 //go:generate mapper stmt -p db -e project rename
