@@ -37,10 +37,11 @@ through the `restricted.networks.zones` project configuration key.
 ## Properties
 The following are network zone properties:
 
-Property            | Type       | Required | Description
-:--                 | :--        | :--      | :--
-peers.NAME.address  | string     | no       | IP address of a DNS server
-peers.NAME.key      | string     | no       | TSIG key for the server
-dns.nameservers     | string set | no       | Comma separated list of DNS server FQDNs (for NS records)
+Property            | Type       | Required | Default | Description
+:--                 | :--        | :--      | -       | :--
+peers.NAME.address  | string     | no       | -       | IP address of a DNS server
+peers.NAME.key      | string     | no       | -       | TSIG key for the server
+dns.nameservers     | string set | no       | -       | Comma separated list of DNS server FQDNs (for NS records)
+network.nat         | bool       | no       | true    | Whether to generate records for NAT-ed subnets
 
 Additionally the `user.` key namespace is also supported for user-provided free-form key/value.
