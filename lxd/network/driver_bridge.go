@@ -2403,7 +2403,7 @@ func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*ap
 			return nil // Managed bridge networks can only exist in default project.
 		}
 
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
 
 		// Iterate through each of the instance's devices, looking for bridged NICs that are linked to
 		// networks specified.
@@ -2630,8 +2630,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 					if instNetworkProject != project.Default {
 						return nil // Managed bridge networks can only exist in default project.
 					}
-
-					devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+					devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
 
 					// Iterate through each of the instance's devices, looking for bridged NICs
 					// that are linked to this network.

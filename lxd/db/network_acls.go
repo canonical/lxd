@@ -10,6 +10,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -311,4 +313,25 @@ func (c *Cluster) DeleteNetworkACL(id int64) error {
 		_, err := tx.tx.Exec("DELETE FROM networks_acls WHERE id=?", id)
 		return err
 	})
+}
+
+// GetNetworkACLURIs returns the URIs for the network ACLs with the given project.
+func (c *ClusterTx) GetNetworkACLURIs(projectID int) ([]string, error) {
+	stmt, err := c.prepare(`
+SELECT projects.name, networks_acls.name from networks_acls
+JOIN projects ON networks_acls.project_id = projects.id
+WHERE networks_acls.project_id = ?`)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to prepare statement for network acl: %w", err)
+	}
+
+	code := cluster.EntityTypes["network acl"]
+	formatter := cluster.EntityFormatURIs[code]
+
+	uris, err := query.SelectURIs(stmt, formatter, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get URIs for network acl: %w", err)
+	}
+
+	return uris, nil
 }

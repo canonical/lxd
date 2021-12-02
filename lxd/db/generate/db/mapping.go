@@ -11,11 +11,31 @@ import (
 
 // Mapping holds information for mapping database tables to a Go structure.
 type Mapping struct {
-	Package string   // Package of the Go struct
-	Name    string   // Name of the Go struct.
-	Fields  []*Field // Metadata about the Go struct.
-	Filters []*Field // Metadata about the Go struct used for filter fields.
+	Package    string    // Package of the Go struct
+	Name       string    // Name of the Go struct.
+	Fields     []*Field  // Metadata about the Go struct.
+	Filterable bool      // Whether the Go struct has a Filter companion struct for filtering queries.
+	Filters    []*Field  // Metadata about the Go struct used for filter fields.
+	Type       TableType // Type of table structure for this Go struct.
+
 }
+
+// TableType represents the logical type of the table defined by the Go struct.
+type TableType int
+
+// EntityTable represents the type for any entity that maps to a Go struct.
+var EntityTable = TableType(0)
+
+// ReferenceTable represents the type for for any entity that contains an
+// 'entity_id' field mapping to a parent entity.
+var ReferenceTable = TableType(1)
+
+// AssociationTable represents the type for an entity that associates two
+// other entities.
+var AssociationTable = TableType(2)
+
+// MapTable represents the type for a table storing key/value pairs.
+var MapTable = TableType(3)
 
 // NaturalKey returns the struct fields that can be used as natural key for
 // uniquely identifying a row in the underlying table (==.
@@ -272,6 +292,7 @@ var columnarTypeNames = []string{
 	"int64",
 	"OperationType",
 	"CertificateType",
+	"DeviceType",
 	"string",
 	"time.Time",
 	"sql.NullTime",

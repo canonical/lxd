@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -40,47 +39,9 @@ SELECT instances_snapshots.id FROM instances_snapshots JOIN projects ON instance
   WHERE projects.name = ? AND instances.name = ? AND instances_snapshots.name = ?
 `)
 
-var instanceSnapshotConfigRef = cluster.RegisterStmt(`
-SELECT project, instance, name, key, value FROM instances_snapshots_config_ref ORDER BY project, instance, name
-`)
-
-var instanceSnapshotConfigRefByProjectAndInstance = cluster.RegisterStmt(`
-SELECT project, instance, name, key, value FROM instances_snapshots_config_ref WHERE project = ? AND instance = ? ORDER BY project, instance, name
-`)
-
-var instanceSnapshotConfigRefByProjectAndInstanceAndName = cluster.RegisterStmt(`
-SELECT project, instance, name, key, value FROM instances_snapshots_config_ref WHERE project = ? AND instance = ? AND name = ? ORDER BY project, instance, name
-`)
-
-var instanceSnapshotDevicesRef = cluster.RegisterStmt(`
-SELECT project, instance, name, device, type, key, value FROM instances_snapshots_devices_ref ORDER BY project, instance, name
-`)
-
-var instanceSnapshotDevicesRefByProjectAndInstance = cluster.RegisterStmt(`
-SELECT project, instance, name, device, type, key, value FROM instances_snapshots_devices_ref WHERE project = ? AND instance = ? ORDER BY project, instance, name
-`)
-
-var instanceSnapshotDevicesRefByProjectAndInstanceAndName = cluster.RegisterStmt(`
-SELECT project, instance, name, device, type, key, value FROM instances_snapshots_devices_ref WHERE project = ? AND instance = ? AND name = ? ORDER BY project, instance, name
-`)
-
 var instanceSnapshotCreate = cluster.RegisterStmt(`
 INSERT INTO instances_snapshots (instance_id, name, creation_date, stateful, description, expiry_date)
   VALUES ((SELECT instances.id FROM instances JOIN projects ON projects.id = instances.project_id WHERE projects.name = ? AND instances.name = ?), ?, ?, ?, ?, ?)
-`)
-
-var instanceSnapshotCreateConfigRef = cluster.RegisterStmt(`
-INSERT INTO instances_snapshots_config (instance_snapshot_id, key, value)
-  VALUES (?, ?, ?)
-`)
-
-var instanceSnapshotCreateDevicesRef = cluster.RegisterStmt(`
-INSERT INTO instances_snapshots_devices (instance_snapshot_id, name, type)
-  VALUES (?, ?, ?)
-`)
-var instanceSnapshotCreateDevicesConfigRef = cluster.RegisterStmt(`
-INSERT INTO instances_snapshots_devices_config (instance_snapshot_device_id, key, value)
-  VALUES (?, ?, ?)
 `)
 
 var instanceSnapshotRename = cluster.RegisterStmt(`
@@ -94,6 +55,8 @@ DELETE FROM instances_snapshots WHERE instance_id = (SELECT instances.id FROM in
 // GetInstanceSnapshots returns all available instance_snapshots.
 // generator: instance_snapshot GetMany
 func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]InstanceSnapshot, 0)
 
@@ -137,61 +100,38 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch instance_snapshots")
+		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
 	}
 
-	// Fill field Config.
-	configObjects, err := c.InstanceSnapshotConfigRef(filter)
+	config, err := c.GetConfig("instance_snapshot")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Config")
+		return nil, err
 	}
 
 	for i := range objects {
-		_, ok0 := configObjects[objects[i].Project]
-		if !ok0 {
-			subIndex := map[string]map[string]map[string]string{}
-			configObjects[objects[i].Project] = subIndex
+		if _, ok := config[objects[i].ID]; !ok {
+			objects[i].Config = map[string]string{}
+		} else {
+			objects[i].Config = config[objects[i].ID]
 		}
-
-		_, ok1 := configObjects[objects[i].Project][objects[i].Instance]
-		if !ok1 {
-			subIndex := map[string]map[string]string{}
-			configObjects[objects[i].Project][objects[i].Instance] = subIndex
-		}
-
-		value := configObjects[objects[i].Project][objects[i].Instance][objects[i].Name]
-		if value == nil {
-			value = map[string]string{}
-		}
-		objects[i].Config = value
 	}
 
-	// Fill field Devices.
-	devicesObjects, err := c.InstanceSnapshotDevicesRef(filter)
+	devices, err := c.GetDevices("instance_snapshot")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Devices")
+		return nil, err
 	}
 
 	for i := range objects {
-		_, ok0 := devicesObjects[objects[i].Project]
-		if !ok0 {
-			subIndex := map[string]map[string]map[string]map[string]string{}
-			devicesObjects[objects[i].Project] = subIndex
+		objects[i].Devices = map[string]Device{}
+		for _, obj := range devices[objects[i].ID] {
+			if _, ok := objects[i].Devices[obj.Name]; !ok {
+				objects[i].Devices[obj.Name] = obj
+			} else {
+				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
+			}
 		}
-
-		_, ok1 := devicesObjects[objects[i].Project][objects[i].Instance]
-		if !ok1 {
-			subIndex := map[string]map[string]map[string]string{}
-			devicesObjects[objects[i].Project][objects[i].Instance] = subIndex
-		}
-
-		value := devicesObjects[objects[i].Project][objects[i].Instance][objects[i].Name]
-		if value == nil {
-			value = map[string]map[string]string{}
-		}
-		objects[i].Devices = value
 	}
 
 	return objects, nil
@@ -207,7 +147,7 @@ func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name st
 
 	objects, err := c.GetInstanceSnapshots(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch InstanceSnapshot")
+		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -216,7 +156,7 @@ func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name st
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one instance_snapshot matches")
+		return nil, fmt.Errorf("More than one \"instances_snapshots\" entry matches")
 	}
 }
 
@@ -226,8 +166,9 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 	stmt := c.stmt(instanceSnapshotID)
 	rows, err := stmt.Query(project, instance, name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get instance_snapshot ID")
+		return -1, fmt.Errorf("Failed to get \"instances_snapshots\" ID: %w", err)
 	}
+
 	defer rows.Close()
 
 	// Ensure we read one and only one row.
@@ -237,14 +178,15 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
+
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -270,10 +212,11 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 	// Check if a instance_snapshot with the same key exists.
 	exists, err := c.InstanceSnapshotExists(object.Project, object.Instance, object.Name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
+
 	if exists {
-		return -1, fmt.Errorf("This instance_snapshot already exists")
+		return -1, fmt.Errorf("This \"instances_snapshots\" entry already exists")
 	}
 
 	args := make([]interface{}, 7)
@@ -293,249 +236,37 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create instance_snapshot")
+		return -1, fmt.Errorf("Failed to create \"instances_snapshots\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch instance_snapshot ID")
+		return -1, fmt.Errorf("Failed to fetch \"instances_snapshots\" entry ID: %w", err)
 	}
 
-	// Insert config reference.
-	stmt = c.stmt(instanceSnapshotCreateConfigRef)
+	referenceID := int(id)
 	for key, value := range object.Config {
-		_, err := stmt.Exec(id, key, value)
-		if err != nil {
-			return -1, errors.Wrap(err, "Insert config for instance_snapshot")
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
 		}
-	}
 
-	// Insert devices reference.
-	for name, config := range object.Devices {
-		typ, ok := config["type"]
-		if !ok {
-			return -1, fmt.Errorf("No type for device %s", name)
-		}
-		typCode, err := deviceTypeToInt(typ)
+		err = c.CreateConfig("instance_snapshot", insert)
 		if err != nil {
-			return -1, errors.Wrapf(err, "Device type code for %s", typ)
+			return -1, fmt.Errorf("Insert Config failed for InstanceSnapshot: %w", err)
 		}
-		stmt = c.stmt(instanceSnapshotCreateDevicesRef)
-		result, err := stmt.Exec(id, name, typCode)
-		if err != nil {
-			return -1, errors.Wrapf(err, "Insert device %s", name)
-		}
-		deviceID, err := result.LastInsertId()
-		if err != nil {
-			return -1, errors.Wrap(err, "Failed to fetch device ID")
-		}
-		stmt = c.stmt(instanceSnapshotCreateDevicesConfigRef)
-		for key, value := range config {
-			_, err := stmt.Exec(deviceID, key, value)
-			if err != nil {
-				return -1, errors.Wrap(err, "Insert config for instance_snapshot")
-			}
-		}
-	}
 
+	}
+	for _, insert := range object.Devices {
+		insert.ReferenceID = int(id)
+		err = c.CreateDevice("instance_snapshot", insert)
+		if err != nil {
+			return -1, fmt.Errorf("Insert Devices failed for InstanceSnapshot: %w", err)
+		}
+
+	}
 	return id, nil
-}
-
-// InstanceSnapshotConfigRef returns entities used by instance_snapshots.
-// generator: instance_snapshot ConfigRef
-func (c *ClusterTx) InstanceSnapshotConfigRef(filter InstanceSnapshotFilter) (map[string]map[string]map[string]map[string]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Project  string
-		Instance string
-		Name     string
-		Key      string
-		Value    string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
-		stmt = c.stmt(instanceSnapshotConfigRefByProjectAndInstanceAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Instance,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
-		stmt = c.stmt(instanceSnapshotConfigRefByProjectAndInstance)
-		args = []interface{}{
-			filter.Project,
-			filter.Instance,
-		}
-	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
-		stmt = c.stmt(instanceSnapshotConfigRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Project  string
-			Instance string
-			Name     string
-			Key      string
-			Value    string
-		}{})
-		return []interface{}{
-			&objects[i].Project,
-			&objects[i].Instance,
-			&objects[i].Name,
-			&objects[i].Key,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch  ref for instance_snapshots")
-	}
-
-	// Build index by primary name.
-	index := map[string]map[string]map[string]map[string]string{}
-
-	for _, object := range objects {
-		_, ok0 := index[object.Project]
-		if !ok0 {
-			subIndex := map[string]map[string]map[string]string{}
-			index[object.Project] = subIndex
-		}
-
-		_, ok1 := index[object.Project][object.Instance]
-		if !ok1 {
-			subIndex := map[string]map[string]string{}
-			index[object.Project][object.Instance] = subIndex
-		}
-
-		item, ok := index[object.Project][object.Instance][object.Name]
-		if !ok {
-			item = map[string]string{}
-		}
-
-		index[object.Project][object.Instance][object.Name] = item
-		item[object.Key] = object.Value
-	}
-
-	return index, nil
-}
-
-// InstanceSnapshotDevicesRef returns entities used by instance_snapshots.
-// generator: instance_snapshot DevicesRef
-func (c *ClusterTx) InstanceSnapshotDevicesRef(filter InstanceSnapshotFilter) (map[string]map[string]map[string]map[string]map[string]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Project  string
-		Instance string
-		Name     string
-		Device   string
-		Type     int
-		Key      string
-		Value    string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
-		stmt = c.stmt(instanceSnapshotDevicesRefByProjectAndInstanceAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Instance,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
-		stmt = c.stmt(instanceSnapshotDevicesRefByProjectAndInstance)
-		args = []interface{}{
-			filter.Project,
-			filter.Instance,
-		}
-	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
-		stmt = c.stmt(instanceSnapshotDevicesRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Project  string
-			Instance string
-			Name     string
-			Device   string
-			Type     int
-			Key      string
-			Value    string
-		}{})
-		return []interface{}{
-			&objects[i].Project,
-			&objects[i].Instance,
-			&objects[i].Name,
-			&objects[i].Device,
-			&objects[i].Type,
-			&objects[i].Key,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch  ref for instance_snapshots")
-	}
-
-	// Build index by primary name.
-	index := map[string]map[string]map[string]map[string]map[string]string{}
-
-	for _, object := range objects {
-		_, ok0 := index[object.Project]
-		if !ok0 {
-			subIndex := map[string]map[string]map[string]map[string]string{}
-			index[object.Project] = subIndex
-		}
-
-		_, ok1 := index[object.Project][object.Instance]
-		if !ok1 {
-			subIndex := map[string]map[string]map[string]string{}
-			index[object.Project][object.Instance] = subIndex
-		}
-
-		item, ok := index[object.Project][object.Instance][object.Name]
-		if !ok {
-			item = map[string]map[string]string{}
-		}
-
-		index[object.Project][object.Instance][object.Name] = item
-		config, ok := item[object.Device]
-		if !ok {
-			// First time we see this device, let's int the config
-			// and add the type.
-			deviceType, err := deviceTypeToString(object.Type)
-			if err != nil {
-				return nil, errors.Wrapf(
-					err, "unexpected device type code '%d'", object.Type)
-			}
-			config = map[string]string{}
-			config["type"] = deviceType
-			item[object.Device] = config
-		}
-		if object.Key != "" {
-			config[object.Key] = object.Value
-		}
-	}
-
-	return index, nil
 }
 
 // RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.
@@ -544,13 +275,14 @@ func (c *ClusterTx) RenameInstanceSnapshot(project string, instance string, name
 	stmt := c.stmt(instanceSnapshotRename)
 	result, err := stmt.Exec(to, project, instance, name)
 	if err != nil {
-		return errors.Wrap(err, "Rename instance_snapshot")
+		return fmt.Errorf("Rename InstanceSnapshot failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
@@ -563,13 +295,14 @@ func (c *ClusterTx) DeleteInstanceSnapshot(project string, instance string, name
 	stmt := c.stmt(instanceSnapshotDeleteByProjectAndInstanceAndName)
 	result, err := stmt.Exec(project, instance, name)
 	if err != nil {
-		return errors.Wrap(err, "Delete instance_snapshot")
+		return fmt.Errorf("Delete \"instances_snapshots\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}

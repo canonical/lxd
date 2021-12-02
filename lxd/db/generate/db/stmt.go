@@ -7,7 +7,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
 	"github.com/lxc/lxd/lxd/db/generate/lex"
-	"github.com/pkg/errors"
 )
 
 // Stmt generates a particular database query statement.
@@ -42,31 +41,15 @@ func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stm
 
 // Generate plumbing and wiring code for the desired statement.
 func (s *Stmt) Generate(buf *file.Buffer) error {
-	if strings.HasPrefix(s.kind, "objects") {
+	kind := strings.Split(s.kind, "-by-")[0]
+
+	switch kind {
+	case "objects":
 		return s.objects(buf)
-	}
-
-	if strings.HasPrefix(s.kind, "create") && strings.HasSuffix(s.kind, "-ref") {
-		return s.createRef(buf)
-	}
-
-	if strings.HasPrefix(s.kind, "delete") && strings.HasSuffix(s.kind, "-ref") {
-		return s.deleteRef(buf)
-	}
-
-	if strings.HasSuffix(s.kind, "-ref") || strings.Contains(s.kind, "-ref-by-") {
-		return s.ref(buf)
-	}
-
-	if strings.HasPrefix(s.kind, "names") {
+	case "names":
 		return s.names(buf)
-	}
-
-	if strings.HasPrefix(s.kind, "delete") {
+	case "delete":
 		return s.delete(buf)
-	}
-
-	switch s.kind {
 	case "create":
 		return s.create(buf, false)
 	case "create-or-replace":
@@ -88,10 +71,14 @@ func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
 }
 
 func (s *Stmt) objects(buf *file.Buffer) error {
-	table := entityTable(s.entity)
 	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
+	}
+
+	table := entityTable(s.entity)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		table = "%s_" + table
 	}
 
 	where := ""
@@ -135,6 +122,10 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 			columns[i] = field.Column()
 		} else {
 			columns[i] = mapping.FieldColumnName(field.Name, table)
+			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+				columns[i] = strings.Replace(columns[i], "reference", "%s", -1)
+			}
+
 			coalesce, ok := field.Config["coalesce"]
 			if ok {
 				columns[i] = fmt.Sprintf("coalesce(%s, %s)", columns[i], coalesce[0])
@@ -148,6 +139,9 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 			orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
 		} else {
 			orderBy[i] = mapping.FieldColumnName(field.Name, table)
+			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+				orderBy[i] = strings.Replace(orderBy[i], "reference", "%s", -1)
+			}
 		}
 	}
 
@@ -164,7 +158,11 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		buf.L("const %s = `%s`", stmtName, sql)
+	} else {
+		s.register(buf, stmtName, sql)
+	}
 	return nil
 }
 
@@ -235,106 +233,6 @@ func (s *Stmt) names(buf *file.Buffer) error {
 	return nil
 }
 
-func (s *Stmt) ref(buf *file.Buffer) error {
-	// Base snake-case name of the references (e.g. "used-by-ref" -> "used_by")
-	name := strings.Replace(s.kind[:strings.Index(s.kind, "-ref")], "-", "_", -1)
-
-	// Object type of the reference
-	typ := lex.Camel(name)
-
-	// Table name where reference objects can be fetched.
-	table := fmt.Sprintf("%s_%s_ref", entityTable(s.entity), name)
-
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
-	if err != nil {
-		return err
-	}
-
-	field := mapping.FieldByName(typ)
-	if field == nil {
-		return fmt.Errorf("Entity %s has no field named %s", s.entity, typ)
-	}
-
-	nk := mapping.NaturalKey()
-
-	var columns []string
-
-	if IsColumnType(lex.Element(field.Type.Name)) {
-		columns = make([]string, len(nk)+1)
-		for i, field := range nk {
-			columns[i] = lex.Snake(field.Name)
-		}
-		columns[len(columns)-1] = "value"
-	} else if field.Type.Name == "map[string]string" {
-		// By default we consider string->string maps of "config" type
-		columns = make([]string, len(nk)+2)
-		for i, field := range nk {
-			columns[i] = lex.Snake(field.Name)
-		}
-		columns[len(columns)-2] = "key"
-		columns[len(columns)-1] = "value"
-	} else if field.Type.Name == "map[string]map[string]string" {
-		// By default we consider string->map[string]string maps of "device" type
-		columns = make([]string, len(nk)+4)
-		for i, field := range nk {
-			columns[i] = lex.Snake(field.Name)
-		}
-		columns[len(columns)-4] = "device"
-		columns[len(columns)-3] = "type"
-		columns[len(columns)-2] = "key"
-		columns[len(columns)-1] = "value"
-	} else {
-		ref, err := Parse(s.packages["db"], typ, s.kind)
-		if err != nil {
-			return errors.Wrap(err, "Parse referenced entity")
-		}
-
-		// Check that the reference object contains the primary key of the
-		// entity.
-		if !ref.ContainsFields(nk) {
-			return fmt.Errorf("Reference type %s does not contain %s's primary key", typ, s.entity)
-		}
-
-		//columns = FieldColumns(ref.Fields)
-	}
-
-	where := ""
-	if strings.Contains(s.kind, "-ref-by-") {
-		filters := strings.Split(s.kind[strings.Index(s.kind, "-ref-by-")+len("-ref-by-"):], "-and-")
-		where = "WHERE "
-
-		for i, filter := range filters {
-			field, err := mapping.FilterFieldByName(filter)
-
-			if err != nil {
-				return err
-			}
-
-			if i > 0 {
-				where += "AND "
-			}
-
-			column := lex.Snake(field.Name)
-			where += fmt.Sprintf("%s = ? ", column)
-		}
-	}
-
-	orderBy := make([]string, len(nk))
-	for i, field := range nk {
-		orderBy[i] = lex.Snake(field.Name)
-	}
-
-	sql := fmt.Sprintf(
-		"SELECT %s FROM %s %sORDER BY %s", strings.Join(columns, ", "),
-		table, where, strings.Join(orderBy, ", "))
-
-	kind := strings.Replace(s.kind, "-", "_", -1)
-	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
-
-	return nil
-}
-
 func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityCreate, ok := s.config["struct"]
@@ -344,7 +242,7 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 
 	mapping, err := Parse(s.packages[s.pkg], entityCreate, s.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 	all := mapping.ColumnFields("ID") // This exclude the ID column, which is autogenerated.
 	via := map[string][]*Field{}      // Map scalar fields to their additional indirect fields
@@ -385,6 +283,10 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		} else {
 			columns[i] = field.Column()
 			params[i] = "?"
+
+			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+				columns[i] = strings.Replace(columns[i], "reference", "%s", -1)
+			}
 		}
 	}
 
@@ -393,62 +295,20 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 		tmpl = stmts["replace"]
 	}
 
+	table := entityTable(s.entity)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		table = "%s_" + table
+	}
+
 	sql := fmt.Sprintf(
-		tmpl, entityTable(s.entity),
+		tmpl, table,
 		strings.Join(columns, ", "), strings.Join(params, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
-
-	return nil
-}
-
-func (s *Stmt) createRef(buf *file.Buffer) error {
-	// Base snake-case name of the references (e.g. "used-by-ref" -> "used_by")
-	name := strings.Replace(s.kind[len("create-"):strings.Index(s.kind, "-ref")], "-", "_", -1)
-
-	// Field name of the reference
-	fieldName := lex.Camel(name)
-
-	// Table name where reference objects can be fetched.
-	table := fmt.Sprintf("%s_%s", entityTable(s.entity), name)
-
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
-	if err != nil {
-		return err
-	}
-
-	field := mapping.FieldByName(fieldName)
-	if field == nil {
-		return fmt.Errorf("Entity %s has no field named %s", s.entity, fieldName)
-	}
-
-	if field.Type.Name == "map[string]string" {
-		// Assume this is a config table
-		columns := fmt.Sprintf("%s_id, key, value", s.entity)
-		params := "?, ?, ?"
-
-		sql := fmt.Sprintf(stmts["create"], table, columns, params)
-		kind := strings.Replace(s.kind, "-", "_", -1)
-		stmtName := stmtCodeVar(s.entity, kind)
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		buf.L("const %s = `%s`", stmtName, sql)
+	} else {
 		s.register(buf, stmtName, sql)
-	} else if field.Type.Name == "map[string]map[string]string" {
-		// Assume this is a devices table
-		columns := fmt.Sprintf("%s_id, name, type", s.entity)
-		params := "?, ?, ?"
-
-		sql := fmt.Sprintf(stmts["create"], table, columns, params)
-		kind := strings.Replace(s.kind, "-", "_", -1)
-		stmtName := stmtCodeVar(s.entity, kind)
-		s.register(buf, stmtName, sql)
-
-		columns = fmt.Sprintf("%s_device_id, key, value", s.entity)
-		params = "?, ?, ?"
-
-		sql = fmt.Sprintf(stmts["create"], table+"_config", columns, params)
-
-		kind = fmt.Sprintf("Create%sConfigRef", field.Name)
-		buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtCodeVar(s.entity, kind), s.db, sql)
 	}
 
 	return nil
@@ -457,7 +317,7 @@ func (s *Stmt) createRef(buf *file.Buffer) error {
 func (s *Stmt) id(buf *file.Buffer) error {
 	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 	sql := naturalKeySelect(s.entity, mapping)
 	stmtName := stmtCodeVar(s.entity, "ID")
@@ -491,7 +351,7 @@ func (s *Stmt) update(buf *file.Buffer) error {
 
 	mapping, err := Parse(s.packages[s.pkg], entityUpdate, s.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 	fields := mapping.ColumnFields("ID") // This exclude the ID column, which is autogenerated.
 
@@ -526,9 +386,15 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 
 	table := entityTable(s.entity)
 
-	fields := []*Field{}
-	where := whereClause(mapping.NaturalKey())
+	var where string
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		where = "%s_id = ?"
+		table = "%s_" + table
+	} else {
+		where = whereClause(mapping.NaturalKey())
+	}
 
+	fields := []*Field{}
 	if strings.HasPrefix(s.kind, "delete-by") {
 		filters := strings.Split(s.kind[len("delete-by-"):], "-and-")
 		for _, filter := range filters {
@@ -544,37 +410,11 @@ func (s *Stmt) delete(buf *file.Buffer) error {
 	sql := fmt.Sprintf(stmts["delete"], table, where)
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
-	return nil
-}
-
-func (s *Stmt) deleteRef(buf *file.Buffer) error {
-	// Base snake-case name of the references (e.g. "used-by-ref" -> "used_by")
-	name := strings.Replace(s.kind[len("create-"):strings.Index(s.kind, "-ref")], "-", "_", -1)
-
-	// Field name of the reference
-	fieldName := lex.Camel(name)
-
-	// Table name where reference objects can be fetched.
-	table := fmt.Sprintf("%s_%s", entityTable(s.entity), name)
-
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
-	if err != nil {
-		return err
+	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+		buf.L("const %s = `%s`", stmtName, sql)
+	} else {
+		s.register(buf, stmtName, sql)
 	}
-
-	field := mapping.FieldByName(fieldName)
-	if field == nil {
-		return fmt.Errorf("Entity %s has no field named %s", s.entity, fieldName)
-	}
-
-	where := fmt.Sprintf("%s_id = ?", s.entity)
-
-	sql := fmt.Sprintf(stmts["delete"], table, where)
-	kind := strings.Replace(s.kind, "-", "_", -1)
-	stmtName := stmtCodeVar(s.entity, kind)
-	s.register(buf, stmtName, sql)
-
 	return nil
 }
 

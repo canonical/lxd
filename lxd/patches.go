@@ -2522,11 +2522,16 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 			// devices in order to add the new root device including the
 			// newly added storage pool.
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				devices, err := db.APIToDevices(p.Devices)
+				if err != nil {
+					return err
+				}
+
 				return tx.UpdateProfile("default", pName, db.Profile{
 					Project: "default",
 					Name:    pName,
 					Config:  p.Config,
-					Devices: p.Devices,
+					Devices: devices,
 				})
 			})
 			if err != nil {

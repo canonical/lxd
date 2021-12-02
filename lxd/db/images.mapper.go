@@ -12,10 +12,21 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
+
+var imageNames = cluster.RegisterStmt(`
+SELECT projects.name AS project, images.fingerprint
+  FROM images JOIN projects ON images.project_id = projects.id
+  ORDER BY projects.id, images.fingerprint
+`)
+
+var imageNamesByProject = cluster.RegisterStmt(`
+SELECT projects.name AS project, images.fingerprint
+  FROM images JOIN projects ON images.project_id = projects.id
+  WHERE project = ? ORDER BY projects.id, images.fingerprint
+`)
 
 var imageObjects = cluster.RegisterStmt(`
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
@@ -62,6 +73,8 @@ SELECT images.id, projects.name AS project, images.fingerprint, images.type, ima
 // GetImages returns all available images.
 // generator: image GetMany
 func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Image, 0)
 
@@ -130,9 +143,9 @@ func (c *ClusterTx) GetImages(filter ImageFilter) ([]Image, error) {
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch images")
+		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
 	}
 
 	return objects, nil
@@ -147,7 +160,7 @@ func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error)
 
 	objects, err := c.GetImages(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Image")
+		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -156,6 +169,29 @@ func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error)
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one image matches")
+		return nil, fmt.Errorf("More than one \"images\" entry matches")
 	}
+}
+
+// GetImageURIs returns all available image URIs.
+// generator: image URIs
+func (c *ClusterTx) GetImageURIs(filter ImageFilter) ([]string, error) {
+	var args []interface{}
+	var stmt *sql.Stmt
+	if filter.Project != nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+		stmt = c.stmt(imageNamesByProject)
+		args = []interface{}{
+			filter.Project,
+		}
+	} else if filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
+		stmt = c.stmt(imageNames)
+		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	code := cluster.EntityTypes["image"]
+	formatter := cluster.EntityFormatURIs[code]
+
+	return query.SelectURIs(stmt, formatter, args...)
 }

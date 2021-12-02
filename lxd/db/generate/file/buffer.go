@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-
-	"github.com/pkg/errors"
 )
 
 // Buffer for accumulating source code output.
@@ -35,7 +33,7 @@ func (b *Buffer) N() {
 func (b *Buffer) code() ([]byte, error) {
 	code, err := format.Source(b.buf.Bytes())
 	if err != nil {
-		return nil, errors.Wrap(err, "Can't format generated source code")
+		return nil, fmt.Errorf("Can't format generated source code: %w", err)
 	}
 	return code, nil
 }

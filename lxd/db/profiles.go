@@ -18,27 +18,14 @@ import (
 //
 //go:generate mapper stmt -p db -e profile names
 //go:generate mapper stmt -p db -e profile names-by-Project
-//go:generate mapper stmt -p db -e profile names-by-Project-and-Name
+//go:generate mapper stmt -p db -e profile names-by-ID
 //go:generate mapper stmt -p db -e profile objects
 //go:generate mapper stmt -p db -e profile objects-by-Project
 //go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile config-ref
-//go:generate mapper stmt -p db -e profile config-ref-by-Project
-//go:generate mapper stmt -p db -e profile config-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile devices-ref
-//go:generate mapper stmt -p db -e profile devices-ref-by-Project
-//go:generate mapper stmt -p db -e profile devices-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile used-by-ref
-//go:generate mapper stmt -p db -e profile used-by-ref-by-Project
-//go:generate mapper stmt -p db -e profile used-by-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile id
 //go:generate mapper stmt -p db -e profile create struct=Profile
-//go:generate mapper stmt -p db -e profile create-config-ref
-//go:generate mapper stmt -p db -e profile create-devices-ref
 //go:generate mapper stmt -p db -e profile rename
 //go:generate mapper stmt -p db -e profile delete-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile delete-config-ref
-//go:generate mapper stmt -p db -e profile delete-devices-ref
 //go:generate mapper stmt -p db -e profile update struct=Profile
 //
 //go:generate mapper method -p db -e profile URIs
@@ -46,9 +33,6 @@ import (
 //go:generate mapper method -p db -e profile GetOne
 //go:generate mapper method -p db -e profile Exists struct=Profile
 //go:generate mapper method -p db -e profile ID struct=Profile
-//go:generate mapper method -p db -e profile ConfigRef
-//go:generate mapper method -p db -e profile DevicesRef
-//go:generate mapper method -p db -e profile UsedByRef
 //go:generate mapper method -p db -e profile Create struct=Profile
 //go:generate mapper method -p db -e profile Rename
 //go:generate mapper method -p db -e profile DeleteOne-by-Project-and-Name
@@ -57,11 +41,12 @@ import (
 // Profile is a value object holding db-related details about a profile.
 type Profile struct {
 	ID          int
+	ProjectID   int    `db:"omit=create,update"`
 	Project     string `db:"primary=yes&join=projects.name"`
 	Name        string `db:"primary=yes"`
 	Description string `db:"coalesce=''"`
 	Config      map[string]string
-	Devices     map[string]map[string]string
+	Devices     map[string]Device
 	UsedBy      []string
 }
 
@@ -74,15 +59,37 @@ func ProfileToAPI(profile *Profile) *api.Profile {
 	}
 	p.Description = profile.Description
 	p.Config = profile.Config
-	p.Devices = profile.Devices
+	p.Devices = DevicesToAPI(profile.Devices)
 
 	return p
 }
 
 // ProfileFilter specifies potential query parameter fields.
 type ProfileFilter struct {
+	ID      *int
 	Project *string
 	Name    *string
+}
+
+// GetProfileUsedBy returns all the instances that use the given profile.
+func (c *ClusterTx) GetProfileUsedBy(profile Profile) ([]string, error) {
+	usedBy := []string{}
+
+	profileInstances, err := c.GetProfileInstances()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, instanceID := range profileInstances[profile.ID] {
+		instanceURIs, err := c.GetInstanceURIs(InstanceFilter{ID: &instanceID})
+		if err != nil {
+			return nil, err
+		}
+
+		usedBy = append(usedBy, instanceURIs...)
+	}
+
+	return usedBy, nil
 }
 
 // GetProjectProfileNames returns slice of profile names keyed on the project they belong to.

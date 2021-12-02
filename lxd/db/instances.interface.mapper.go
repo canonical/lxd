@@ -13,6 +13,10 @@ type InstanceGenerated interface {
 	// generator: instance GetOne
 	GetInstance(project string, name string) (*Instance, error)
 
+	// GetInstanceURIs returns all available instance URIs.
+	// generator: instance URIs
+	GetInstanceURIs(filter InstanceFilter) ([]string, error)
+
 	// GetInstanceID return the ID of the instance with the given key.
 	// generator: instance ID
 	GetInstanceID(project string, name string) (int64, error)
@@ -24,18 +28,6 @@ type InstanceGenerated interface {
 	// CreateInstance adds a new instance to the database.
 	// generator: instance Create
 	CreateInstance(object Instance) (int64, error)
-
-	// InstanceProfilesRef returns entities used by instances.
-	// generator: instance ProfilesRef
-	InstanceProfilesRef(filter InstanceFilter) (map[string]map[string][]string, error)
-
-	// InstanceConfigRef returns entities used by instances.
-	// generator: instance ConfigRef
-	InstanceConfigRef(filter InstanceFilter) (map[string]map[string]map[string]string, error)
-
-	// InstanceDevicesRef returns entities used by instances.
-	// generator: instance DevicesRef
-	InstanceDevicesRef(filter InstanceFilter) (map[string]map[string]map[string]map[string]string, error)
 
 	// RenameInstance renames the instance matching the given key parameters.
 	// generator: instance Rename

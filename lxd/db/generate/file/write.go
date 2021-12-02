@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // BuildComment includes the necessary comments for building. The extra new line at the end is required.
@@ -48,7 +46,7 @@ import (
 	}
 
 	if err != nil {
-		errors.Wrapf(err, "Reset target source file '%s'", path)
+		return fmt.Errorf("Reset target source file %q: %w", path, err)
 	}
 
 	return nil
@@ -76,7 +74,7 @@ func Append(path string, snippet Snippet) error {
 
 	err := snippet.Generate(buffer)
 	if err != nil {
-		return errors.Wrap(err, "Generate code snippet")
+		return fmt.Errorf("Generate code snippet: %w", err)
 	}
 
 	var file *os.File
@@ -86,7 +84,7 @@ func Append(path string, snippet Snippet) error {
 	} else {
 		file, err = os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0644)
 		if err != nil {
-			return errors.Wrapf(err, "Open target source code file '%s'", path)
+			return fmt.Errorf("Open target source code file %q: %w", path, err)
 		}
 		defer file.Close()
 	}
@@ -98,7 +96,7 @@ func Append(path string, snippet Snippet) error {
 
 	_, err = file.Write(bytes)
 	if err != nil {
-		return errors.Wrapf(err, "Append snippet to target source code file '%s'", path)
+		return fmt.Errorf("Append snippet to target source code file %q: %w", path, err)
 	}
 
 	return nil
@@ -115,13 +113,13 @@ func appendInterface(path string, snippet Snippet) error {
 
 	file, err := os.OpenFile(interfacePath, os.O_WRONLY, 0644)
 	if err != nil {
-		return errors.Wrapf(err, "Open target source code file '%s'", interfacePath)
+		return fmt.Errorf("Open target source code file %q: %w", interfacePath, err)
 	}
 	defer file.Close()
 
 	err = snippet.GenerateSignature(buffer)
 	if err != nil {
-		return errors.Wrap(err, "Generate interface snippet")
+		return fmt.Errorf("Generate interface snippet: %w", err)
 	}
 
 	bytes, err := buffer.code()
@@ -130,7 +128,7 @@ func appendInterface(path string, snippet Snippet) error {
 	}
 	stat, err := file.Stat()
 	if err != nil {
-		return errors.Wrapf(err, "could not get file info for path %q", interfacePath)
+		return fmt.Errorf("could not get file info for path %q: %w", interfacePath, err)
 	}
 
 	content := fmt.Sprintf("%spackage %s", BuildComment, os.Getenv("GOPACKAGE"))
@@ -152,7 +150,7 @@ func appendInterface(path string, snippet Snippet) error {
 		_, err = file.WriteAt(bytes[startIndex:], stat.Size()-2)
 	}
 	if err != nil {
-		return errors.Wrapf(err, "Append snippet to target source code file '%s'", interfacePath)
+		return fmt.Errorf("Append snippet to target source code file %q: %w", interfacePath, err)
 	}
 
 	return nil

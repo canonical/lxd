@@ -20,15 +20,7 @@ import (
 //go:generate mapper stmt -p db -e instance_snapshot objects-by-Project-and-Instance
 //go:generate mapper stmt -p db -e instance_snapshot objects-by-Project-and-Instance-and-Name
 //go:generate mapper stmt -p db -e instance_snapshot id
-//go:generate mapper stmt -p db -e instance_snapshot config-ref
-//go:generate mapper stmt -p db -e instance_snapshot config-ref-by-Project-and-Instance
-//go:generate mapper stmt -p db -e instance_snapshot config-ref-by-Project-and-Instance-and-Name
-//go:generate mapper stmt -p db -e instance_snapshot devices-ref
-//go:generate mapper stmt -p db -e instance_snapshot devices-ref-by-Project-and-Instance
-//go:generate mapper stmt -p db -e instance_snapshot devices-ref-by-Project-and-Instance-and-Name
 //go:generate mapper stmt -p db -e instance_snapshot create struct=InstanceSnapshot
-//go:generate mapper stmt -p db -e instance_snapshot create-config-ref
-//go:generate mapper stmt -p db -e instance_snapshot create-devices-ref
 //go:generate mapper stmt -p db -e instance_snapshot rename
 //go:generate mapper stmt -p db -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
@@ -37,8 +29,6 @@ import (
 //go:generate mapper method -p db -e instance_snapshot ID struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot Exists struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot Create struct=InstanceSnapshot
-//go:generate mapper method -p db -e instance_snapshot ConfigRef
-//go:generate mapper method -p db -e instance_snapshot DevicesRef
 //go:generate mapper method -p db -e instance_snapshot Rename
 //go:generate mapper method -p db -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
 
@@ -52,7 +42,7 @@ type InstanceSnapshot struct {
 	Stateful     bool
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
-	Devices      map[string]map[string]string
+	Devices      map[string]Device
 	ExpiryDate   sql.NullTime
 }
 

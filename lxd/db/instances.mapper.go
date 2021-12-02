@@ -8,14 +8,32 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
+
+var instanceNames = cluster.RegisterStmt(`
+SELECT projects.name AS project, instances.name
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
+  ORDER BY projects.id, instances.name
+`)
+
+var instanceNamesByProject = cluster.RegisterStmt(`
+SELECT projects.name AS project, instances.name
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
+  WHERE project = ? ORDER BY projects.id, instances.name
+`)
+
+var instanceNamesByID = cluster.RegisterStmt(`
+SELECT projects.name AS project, instances.name
+  FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
+  WHERE instances.id = ? ORDER BY projects.id, instances.name
+`)
 
 var instanceObjects = cluster.RegisterStmt(`
 SELECT instances.id, projects.name AS project, instances.name, nodes.name AS node, instances.type, instances.architecture, instances.ephemeral, instances.creation_date, instances.stateful, instances.last_use_date, coalesce(instances.description, ''), instances.expiry_date
@@ -113,66 +131,6 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
   WHERE instances.name = ? ORDER BY projects.id, instances.name
 `)
 
-var instanceProfilesRef = cluster.RegisterStmt(`
-SELECT project, name, value FROM instances_profiles_ref ORDER BY project, name
-`)
-
-var instanceProfilesRefByProject = cluster.RegisterStmt(`
-SELECT project, name, value FROM instances_profiles_ref WHERE project = ? ORDER BY project, name
-`)
-
-var instanceProfilesRefByNode = cluster.RegisterStmt(`
-SELECT project, name, value FROM instances_profiles_ref WHERE node = ? ORDER BY project, name
-`)
-
-var instanceProfilesRefByProjectAndNode = cluster.RegisterStmt(`
-SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND node = ? ORDER BY project, name
-`)
-
-var instanceProfilesRefByProjectAndName = cluster.RegisterStmt(`
-SELECT project, name, value FROM instances_profiles_ref WHERE project = ? AND name = ? ORDER BY project, name
-`)
-
-var instanceConfigRef = cluster.RegisterStmt(`
-SELECT project, name, key, value FROM instances_config_ref ORDER BY project, name
-`)
-
-var instanceConfigRefByProject = cluster.RegisterStmt(`
-SELECT project, name, key, value FROM instances_config_ref WHERE project = ? ORDER BY project, name
-`)
-
-var instanceConfigRefByNode = cluster.RegisterStmt(`
-SELECT project, name, key, value FROM instances_config_ref WHERE node = ? ORDER BY project, name
-`)
-
-var instanceConfigRefByProjectAndNode = cluster.RegisterStmt(`
-SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND node = ? ORDER BY project, name
-`)
-
-var instanceConfigRefByProjectAndName = cluster.RegisterStmt(`
-SELECT project, name, key, value FROM instances_config_ref WHERE project = ? AND name = ? ORDER BY project, name
-`)
-
-var instanceDevicesRef = cluster.RegisterStmt(`
-SELECT project, name, device, type, key, value FROM instances_devices_ref ORDER BY project, name
-`)
-
-var instanceDevicesRefByProject = cluster.RegisterStmt(`
-SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? ORDER BY project, name
-`)
-
-var instanceDevicesRefByNode = cluster.RegisterStmt(`
-SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE node = ? ORDER BY project, name
-`)
-
-var instanceDevicesRefByProjectAndNode = cluster.RegisterStmt(`
-SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND node = ? ORDER BY project, name
-`)
-
-var instanceDevicesRefByProjectAndName = cluster.RegisterStmt(`
-SELECT project, name, device, type, key, value FROM instances_devices_ref WHERE project = ? AND name = ? ORDER BY project, name
-`)
-
 var instanceID = cluster.RegisterStmt(`
 SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
   WHERE projects.name = ? AND instances.name = ?
@@ -183,38 +141,12 @@ INSERT INTO instances (project_id, name, node_id, type, architecture, ephemeral,
   VALUES ((SELECT projects.id FROM projects WHERE projects.name = ?), ?, (SELECT nodes.id FROM nodes WHERE nodes.name = ?), ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
-var instanceCreateConfigRef = cluster.RegisterStmt(`
-INSERT INTO instances_config (instance_id, key, value)
-  VALUES (?, ?, ?)
-`)
-
-var instanceCreateDevicesRef = cluster.RegisterStmt(`
-INSERT INTO instances_devices (instance_id, name, type)
-  VALUES (?, ?, ?)
-`)
-var instanceCreateDevicesConfigRef = cluster.RegisterStmt(`
-INSERT INTO instances_devices_config (instance_device_id, key, value)
-  VALUES (?, ?, ?)
-`)
-
 var instanceRename = cluster.RegisterStmt(`
 UPDATE instances SET name = ? WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
 `)
 
 var instanceDeleteByProjectAndName = cluster.RegisterStmt(`
 DELETE FROM instances WHERE project_id = (SELECT projects.id FROM projects WHERE projects.name = ?) AND name = ?
-`)
-
-var instanceDeleteConfigRef = cluster.RegisterStmt(`
-DELETE FROM instances_config WHERE instance_id = ?
-`)
-
-var instanceDeleteDevicesRef = cluster.RegisterStmt(`
-DELETE FROM instances_devices WHERE instance_id = ?
-`)
-
-var instanceDeleteProfilesRef = cluster.RegisterStmt(`
-DELETE FROM instances_profiles WHERE instance_id = ?
 `)
 
 var instanceUpdate = cluster.RegisterStmt(`
@@ -226,6 +158,8 @@ UPDATE instances
 // GetInstances returns all available instances.
 // generator: instance GetMany
 func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Instance, 0)
 
@@ -233,7 +167,7 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil {
+	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNodeAndName)
 		args = []interface{}{
 			filter.Project,
@@ -241,91 +175,91 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 			filter.Node,
 			filter.Name,
 		}
-	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name == nil {
+	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
 			filter.Node,
 		}
-	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.Node == nil {
+	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
 			filter.Name,
 		}
-	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.Project == nil {
+	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNameAndNode)
 		args = []interface{}{
 			filter.Type,
 			filter.Name,
 			filter.Node,
 		}
-	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.Type == nil {
+	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNameAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 			filter.Node,
 		}
-	} else if filter.Project != nil && filter.Type != nil && filter.Name == nil && filter.Node == nil {
+	} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndType)
 		args = []interface{}{
 			filter.Project,
 			filter.Type,
 		}
-	} else if filter.Type != nil && filter.Node != nil && filter.Project == nil && filter.Name == nil {
+	} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNode)
 		args = []interface{}{
 			filter.Type,
 			filter.Node,
 		}
-	} else if filter.Type != nil && filter.Name != nil && filter.Project == nil && filter.Node == nil {
+	} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndName)
 		args = []interface{}{
 			filter.Type,
 			filter.Name,
 		}
-	} else if filter.Project != nil && filter.Node != nil && filter.Name == nil && filter.Type == nil {
+	} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNode)
 		args = []interface{}{
 			filter.Project,
 			filter.Node,
 		}
-	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil && filter.Type == nil {
+	} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndName)
 		args = []interface{}{
 			filter.Project,
 			filter.Name,
 		}
-	} else if filter.Node != nil && filter.Name != nil && filter.Project == nil && filter.Type == nil {
+	} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNodeAndName)
 		args = []interface{}{
 			filter.Node,
 			filter.Name,
 		}
-	} else if filter.Type != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
+	} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByType)
 		args = []interface{}{
 			filter.Type,
 		}
-	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProject)
 		args = []interface{}{
 			filter.Project,
 		}
-	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
+	} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNode)
 		args = []interface{}{
 			filter.Node,
 		}
-	} else if filter.Name != nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
+	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByName)
 		args = []interface{}{
 			filter.Name,
 		}
-	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
+	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjects)
 		args = []interface{}{}
 	} else {
@@ -352,69 +286,64 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch instances")
+		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
 
-	// Fill field Config.
-	configObjects, err := c.InstanceConfigRef(filter)
+	config, err := c.GetConfig("instance")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Config")
+		return nil, err
 	}
 
 	for i := range objects {
-		_, ok0 := configObjects[objects[i].Project]
-		if !ok0 {
-			subIndex := map[string]map[string]string{}
-			configObjects[objects[i].Project] = subIndex
+		if _, ok := config[objects[i].ID]; !ok {
+			objects[i].Config = map[string]string{}
+		} else {
+			objects[i].Config = config[objects[i].ID]
 		}
-
-		value := configObjects[objects[i].Project][objects[i].Name]
-		if value == nil {
-			value = map[string]string{}
-		}
-		objects[i].Config = value
 	}
 
-	// Fill field Devices.
-	devicesObjects, err := c.InstanceDevicesRef(filter)
+	devices, err := c.GetDevices("instance")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Devices")
+		return nil, err
 	}
 
 	for i := range objects {
-		_, ok0 := devicesObjects[objects[i].Project]
-		if !ok0 {
-			subIndex := map[string]map[string]map[string]string{}
-			devicesObjects[objects[i].Project] = subIndex
+		objects[i].Devices = map[string]Device{}
+		for _, obj := range devices[objects[i].ID] {
+			if _, ok := objects[i].Devices[obj.Name]; !ok {
+				objects[i].Devices[obj.Name] = obj
+			} else {
+				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
+			}
 		}
-
-		value := devicesObjects[objects[i].Project][objects[i].Name]
-		if value == nil {
-			value = map[string]map[string]string{}
-		}
-		objects[i].Devices = value
 	}
 
-	// Fill field Profiles.
-	profilesObjects, err := c.InstanceProfilesRef(filter)
+	instanceProfiles, err := c.GetInstanceProfiles()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Profiles")
+		return nil, err
 	}
 
 	for i := range objects {
-		_, ok0 := profilesObjects[objects[i].Project]
-		if !ok0 {
-			subIndex := map[string][]string{}
-			profilesObjects[objects[i].Project] = subIndex
-		}
+		objects[i].Profiles = make([]string, 0)
+		if refIDs, ok := instanceProfiles[objects[i].ID]; ok {
+			for _, refID := range refIDs {
+				profileURIs, err := c.GetProfileURIs(ProfileFilter{ID: &refID})
+				if err != nil {
+					return nil, err
+				}
 
-		value := profilesObjects[objects[i].Project][objects[i].Name]
-		if value == nil {
-			value = []string{}
+				for i, uri := range profileURIs {
+					if strings.HasPrefix(uri, "/1.0/") {
+						uri = strings.Split(uri, "/1.0/profiles/")[1]
+						uri = strings.Split(uri, "?")[0]
+						profileURIs[i] = uri
+					}
+				}
+				objects[i].Profiles = append(objects[i].Profiles, profileURIs...)
+			}
 		}
-		objects[i].Profiles = value
 	}
 
 	return objects, nil
@@ -429,7 +358,7 @@ func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) 
 
 	objects, err := c.GetInstances(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Instance")
+		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -438,8 +367,36 @@ func (c *ClusterTx) GetInstance(project string, name string) (*Instance, error) 
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one instance matches")
+		return nil, fmt.Errorf("More than one \"instances\" entry matches")
 	}
+}
+
+// GetInstanceURIs returns all available instance URIs.
+// generator: instance URIs
+func (c *ClusterTx) GetInstanceURIs(filter InstanceFilter) ([]string, error) {
+	var args []interface{}
+	var stmt *sql.Stmt
+	if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
+		stmt = c.stmt(instanceNamesByProject)
+		args = []interface{}{
+			filter.Project,
+		}
+	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
+		stmt = c.stmt(instanceNamesByID)
+		args = []interface{}{
+			filter.ID,
+		}
+	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
+		stmt = c.stmt(instanceNames)
+		args = []interface{}{}
+	} else {
+		return nil, fmt.Errorf("No statement exists for the given Filter")
+	}
+
+	code := cluster.EntityTypes["instance"]
+	formatter := cluster.EntityFormatURIs[code]
+
+	return query.SelectURIs(stmt, formatter, args...)
 }
 
 // GetInstanceID return the ID of the instance with the given key.
@@ -448,8 +405,9 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	stmt := c.stmt(instanceID)
 	rows, err := stmt.Query(project, name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get instance ID")
+		return -1, fmt.Errorf("Failed to get \"instances\" ID: %w", err)
 	}
+
 	defer rows.Close()
 
 	// Ensure we read one and only one row.
@@ -459,14 +417,15 @@ func (c *ClusterTx) GetInstanceID(project string, name string) (int64, error) {
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
+
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -492,10 +451,11 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	// Check if a instance with the same key exists.
 	exists, err := c.InstanceExists(object.Project, object.Name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
+
 	if exists {
-		return -1, fmt.Errorf("This instance already exists")
+		return -1, fmt.Errorf("This \"instances\" entry already exists")
 	}
 
 	args := make([]interface{}, 11)
@@ -519,338 +479,44 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create instance")
+		return -1, fmt.Errorf("Failed to create \"instances\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch instance ID")
+		return -1, fmt.Errorf("Failed to fetch \"instances\" entry ID: %w", err)
 	}
 
-	// Insert config reference.
-	stmt = c.stmt(instanceCreateConfigRef)
+	referenceID := int(id)
 	for key, value := range object.Config {
-		_, err := stmt.Exec(id, key, value)
-		if err != nil {
-			return -1, errors.Wrap(err, "Insert config for instance")
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
 		}
-	}
 
-	// Insert devices reference.
-	for name, config := range object.Devices {
-		typ, ok := config["type"]
-		if !ok {
-			return -1, fmt.Errorf("No type for device %s", name)
-		}
-		typCode, err := deviceTypeToInt(typ)
+		err = c.CreateConfig("instance", insert)
 		if err != nil {
-			return -1, errors.Wrapf(err, "Device type code for %s", typ)
+			return -1, fmt.Errorf("Insert Config failed for Instance: %w", err)
 		}
-		stmt = c.stmt(instanceCreateDevicesRef)
-		result, err := stmt.Exec(id, name, typCode)
-		if err != nil {
-			return -1, errors.Wrapf(err, "Insert device %s", name)
-		}
-		deviceID, err := result.LastInsertId()
-		if err != nil {
-			return -1, errors.Wrap(err, "Failed to fetch device ID")
-		}
-		stmt = c.stmt(instanceCreateDevicesConfigRef)
-		for key, value := range config {
-			_, err := stmt.Exec(deviceID, key, value)
-			if err != nil {
-				return -1, errors.Wrap(err, "Insert config for instance")
-			}
-		}
-	}
 
-	// Insert profiles reference.
-	err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
+	}
+	for _, insert := range object.Devices {
+		insert.ReferenceID = int(id)
+		err = c.CreateDevice("instance", insert)
+		if err != nil {
+			return -1, fmt.Errorf("Insert Devices failed for Instance: %w", err)
+		}
+
+	}
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateInstanceProfiles(object)
 	if err != nil {
-		return -1, errors.Wrap(err, "Insert profiles for instance")
+		return -1, fmt.Errorf("Could not update association table: %w", err)
 	}
+
 	return id, nil
-}
-
-// InstanceProfilesRef returns entities used by instances.
-// generator: instance ProfilesRef
-func (c *ClusterTx) InstanceProfilesRef(filter InstanceFilter) (map[string]map[string][]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Project string
-		Name    string
-		Value   string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Project != nil && filter.Node != nil && filter.Name == nil {
-		stmt = c.stmt(instanceProfilesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil {
-		stmt = c.stmt(instanceProfilesRefByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil {
-		stmt = c.stmt(instanceProfilesRefByProject)
-		args = []interface{}{
-			filter.Project,
-		}
-	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil {
-		stmt = c.stmt(instanceProfilesRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
-	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil {
-		stmt = c.stmt(instanceProfilesRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Project string
-			Name    string
-			Value   string
-		}{})
-		return []interface{}{
-			&objects[i].Project,
-			&objects[i].Name,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch string ref for instances")
-	}
-
-	// Build index by primary name.
-	index := map[string]map[string][]string{}
-
-	for _, object := range objects {
-		_, ok0 := index[object.Project]
-		if !ok0 {
-			subIndex := map[string][]string{}
-			index[object.Project] = subIndex
-		}
-
-		item, ok := index[object.Project][object.Name]
-		if !ok {
-			item = []string{}
-		}
-
-		index[object.Project][object.Name] = append(item, object.Value)
-	}
-
-	return index, nil
-}
-
-// InstanceConfigRef returns entities used by instances.
-// generator: instance ConfigRef
-func (c *ClusterTx) InstanceConfigRef(filter InstanceFilter) (map[string]map[string]map[string]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Project string
-		Name    string
-		Key     string
-		Value   string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Project != nil && filter.Node != nil && filter.Name == nil {
-		stmt = c.stmt(instanceConfigRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil {
-		stmt = c.stmt(instanceConfigRefByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil {
-		stmt = c.stmt(instanceConfigRefByProject)
-		args = []interface{}{
-			filter.Project,
-		}
-	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil {
-		stmt = c.stmt(instanceConfigRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
-	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil {
-		stmt = c.stmt(instanceConfigRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Project string
-			Name    string
-			Key     string
-			Value   string
-		}{})
-		return []interface{}{
-			&objects[i].Project,
-			&objects[i].Name,
-			&objects[i].Key,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch  ref for instances")
-	}
-
-	// Build index by primary name.
-	index := map[string]map[string]map[string]string{}
-
-	for _, object := range objects {
-		_, ok0 := index[object.Project]
-		if !ok0 {
-			subIndex := map[string]map[string]string{}
-			index[object.Project] = subIndex
-		}
-
-		item, ok := index[object.Project][object.Name]
-		if !ok {
-			item = map[string]string{}
-		}
-
-		index[object.Project][object.Name] = item
-		item[object.Key] = object.Value
-	}
-
-	return index, nil
-}
-
-// InstanceDevicesRef returns entities used by instances.
-// generator: instance DevicesRef
-func (c *ClusterTx) InstanceDevicesRef(filter InstanceFilter) (map[string]map[string]map[string]map[string]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Project string
-		Name    string
-		Device  string
-		Type    int
-		Key     string
-		Value   string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Project != nil && filter.Node != nil && filter.Name == nil {
-		stmt = c.stmt(instanceDevicesRefByProjectAndNode)
-		args = []interface{}{
-			filter.Project,
-			filter.Node,
-		}
-	} else if filter.Project != nil && filter.Name != nil && filter.Node == nil {
-		stmt = c.stmt(instanceDevicesRefByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.Name == nil && filter.Node == nil {
-		stmt = c.stmt(instanceDevicesRefByProject)
-		args = []interface{}{
-			filter.Project,
-		}
-	} else if filter.Node != nil && filter.Project == nil && filter.Name == nil {
-		stmt = c.stmt(instanceDevicesRefByNode)
-		args = []interface{}{
-			filter.Node,
-		}
-	} else if filter.Project == nil && filter.Name == nil && filter.Node == nil {
-		stmt = c.stmt(instanceDevicesRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Project string
-			Name    string
-			Device  string
-			Type    int
-			Key     string
-			Value   string
-		}{})
-		return []interface{}{
-			&objects[i].Project,
-			&objects[i].Name,
-			&objects[i].Device,
-			&objects[i].Type,
-			&objects[i].Key,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch  ref for instances")
-	}
-
-	// Build index by primary name.
-	index := map[string]map[string]map[string]map[string]string{}
-
-	for _, object := range objects {
-		_, ok0 := index[object.Project]
-		if !ok0 {
-			subIndex := map[string]map[string]map[string]string{}
-			index[object.Project] = subIndex
-		}
-
-		item, ok := index[object.Project][object.Name]
-		if !ok {
-			item = map[string]map[string]string{}
-		}
-
-		index[object.Project][object.Name] = item
-		config, ok := item[object.Device]
-		if !ok {
-			// First time we see this device, let's int the config
-			// and add the type.
-			deviceType, err := deviceTypeToString(object.Type)
-			if err != nil {
-				return nil, errors.Wrapf(
-					err, "unexpected device type code '%d'", object.Type)
-			}
-			config = map[string]string{}
-			config["type"] = deviceType
-			item[object.Device] = config
-		}
-		if object.Key != "" {
-			config[object.Key] = object.Value
-		}
-	}
-
-	return index, nil
 }
 
 // RenameInstance renames the instance matching the given key parameters.
@@ -859,13 +525,14 @@ func (c *ClusterTx) RenameInstance(project string, name string, to string) error
 	stmt := c.stmt(instanceRename)
 	result, err := stmt.Exec(to, project, name)
 	if err != nil {
-		return errors.Wrap(err, "Rename instance")
+		return fmt.Errorf("Rename Instance failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
@@ -878,13 +545,14 @@ func (c *ClusterTx) DeleteInstance(project string, name string) error {
 	stmt := c.stmt(instanceDeleteByProjectAndName)
 	result, err := stmt.Exec(project, name)
 	if err != nil {
-		return errors.Wrap(err, "Delete instance")
+		return fmt.Errorf("Delete \"instances\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}
@@ -897,91 +565,40 @@ func (c *ClusterTx) DeleteInstance(project string, name string) error {
 func (c *ClusterTx) UpdateInstance(project string, name string, object Instance) error {
 	id, err := c.GetInstanceID(project, name)
 	if err != nil {
-		return errors.Wrap(err, "Get instance")
+		return err
 	}
 
 	stmt := c.stmt(instanceUpdate)
 	result, err := stmt.Exec(object.Project, object.Name, object.Node, object.Type, object.Architecture, object.Ephemeral, object.CreationDate, object.Stateful, object.LastUseDate, object.Description, object.ExpiryDate, id)
 	if err != nil {
-		return errors.Wrap(err, "Update instance")
+		return fmt.Errorf("Update \"instances\" entry failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
-	// Delete current config.
-	stmt = c.stmt(instanceDeleteConfigRef)
-	_, err = stmt.Exec(id)
+	err = c.UpdateConfig("instance", int(id), object.Config)
 	if err != nil {
-		return errors.Wrap(err, "Delete current config")
+		return fmt.Errorf("Replace Config for Instance failed: %w", err)
 	}
 
-	// Insert config reference.
-	stmt = c.stmt(instanceCreateConfigRef)
-	for key, value := range object.Config {
-		if value == "" {
-			continue
-		}
-		_, err := stmt.Exec(id, key, value)
-		if err != nil {
-			return errors.Wrap(err, "Insert config for instance")
-		}
-	}
-
-	// Delete current devices.
-	stmt = c.stmt(instanceDeleteDevicesRef)
-	_, err = stmt.Exec(id)
+	err = c.UpdateDevice("instance", int(id), object.Devices)
 	if err != nil {
-		return errors.Wrap(err, "Delete current devices")
+		return fmt.Errorf("Replace Devices for Instance failed: %w", err)
 	}
 
-	// Insert devices reference.
-	for name, config := range object.Devices {
-		typ, ok := config["type"]
-		if !ok {
-			return fmt.Errorf("No type for device %s", name)
-		}
-		typCode, err := deviceTypeToInt(typ)
-		if err != nil {
-			return errors.Wrapf(err, "Device type code for %s", typ)
-		}
-		stmt = c.stmt(instanceCreateDevicesRef)
-		result, err := stmt.Exec(id, name, typCode)
-		if err != nil {
-			return errors.Wrapf(err, "Insert device %s", name)
-		}
-		deviceID, err := result.LastInsertId()
-		if err != nil {
-			return errors.Wrap(err, "Failed to fetch device ID")
-		}
-		stmt = c.stmt(instanceCreateDevicesConfigRef)
-		for key, value := range config {
-			if value == "" {
-				continue
-			}
-			_, err := stmt.Exec(deviceID, key, value)
-			if err != nil {
-				return errors.Wrap(err, "Insert config for instance")
-			}
-		}
-	}
-
-	// Delete current profiles.
-	stmt = c.stmt(instanceDeleteProfilesRef)
-	_, err = stmt.Exec(id)
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateInstanceProfiles(object)
 	if err != nil {
-		return errors.Wrap(err, "Delete current profiles")
+		return fmt.Errorf("Could not update association table: %w", err)
 	}
 
-	// Insert profiles reference.
-	err = addProfilesToInstance(c.tx, int(id), object.Project, object.Profiles)
-	if err != nil {
-		return errors.Wrap(err, "Insert profiles for instance")
-	}
 	return nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/lxd/db/generate/db"
@@ -160,7 +159,7 @@ func parseParams(args []string) (map[string]string, error) {
 	for _, arg := range args {
 		key, value, err := lex.KeyValue(arg)
 		if err != nil {
-			return nil, errors.Wrap(err, "Invalid config parameter")
+			return nil, fmt.Errorf("Invalid config parameter: %w", err)
 		}
 		config[key] = value
 	}

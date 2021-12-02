@@ -243,6 +243,11 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Update DB entry.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		devices, err := db.APIToDevices(req.Devices)
+		if err != nil {
+			return err
+		}
+
 		current, _ := tx.GetProfile(projectName, req.Name)
 		if current != nil {
 			return fmt.Errorf("The profile already exists")
@@ -253,7 +258,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 			Name:        req.Name,
 			Description: req.Description,
 			Config:      req.Config,
-			Devices:     req.Devices,
+			Devices:     devices,
 		}
 		_, err = tx.CreateProfile(profile)
 		return err
