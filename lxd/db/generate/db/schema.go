@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
@@ -11,12 +11,12 @@ import (
 func UpdateSchema() error {
 	err := cluster.SchemaDotGo()
 	if err != nil {
-		return errors.Wrap(err, "Update cluster database schema")
+		return fmt.Errorf("Update cluster database schema: %w", err)
 	}
 
 	err = node.SchemaDotGo()
 	if err != nil {
-		return errors.Wrap(err, "Update node database schema")
+		return fmt.Errorf("Update node database schema: %w", err)
 	}
 
 	return nil

@@ -12,7 +12,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/generate/lex"
 	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
 )
 
 // Packages returns the the AST packages in which to search for structs.
@@ -26,7 +25,7 @@ func Packages() (map[string]*ast.Package, error) {
 	for _, name := range defaultPackages {
 		pkg, err := lex.Parse(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", name))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Parse %q", name)
+			return nil, fmt.Errorf("Parse %q: %w", name, err)
 		}
 		parts := strings.Split(name, "/")
 		packages[parts[len(parts)-1]] = pkg
@@ -142,7 +141,7 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 
 	fields, err := parseStruct(str, kind)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse %q", name)
+		return nil, fmt.Errorf("Failed to parse %q: %w", name, err)
 	}
 
 	m := &Mapping{
@@ -168,7 +167,7 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 
 		filters, err := parseStruct(filterStr, kind)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to parse %q", name)
+			return nil, fmt.Errorf("Failed to parse %q: %w", name, err)
 		}
 
 		for i, filter := range filters {
@@ -268,7 +267,7 @@ func parseStruct(str *ast.StructType, kind string) ([]*Field, error) {
 
 			parentFields, err := parseStruct(parentStr, kind)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse parent struct")
+				return nil, fmt.Errorf("Failed to parse parent struct: %w", err)
 			}
 			fields = append(fields, parentFields...)
 
@@ -334,7 +333,7 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 		var err error
 		config, err = url.ParseQuery(reflect.StructTag(tag[1 : len(tag)-1]).Get("db"))
 		if err != nil {
-			return nil, errors.Wrap(err, "Parse 'db' structure tag")
+			return nil, fmt.Errorf("Parse 'db' structure tag: %w", err)
 		}
 	}
 
