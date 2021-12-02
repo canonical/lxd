@@ -247,7 +247,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		if d.config["shift"] != "" {
-			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes. Set "security.shifted=true" on the volume.`)
+			return fmt.Errorf(`The "shift" property cannot be used with custom storage volumes (set "security.shifted=true" on the volume instead)`)
 		}
 
 		if srcPathIsAbs {
