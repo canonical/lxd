@@ -317,9 +317,11 @@ func (d *zone) Content() (*strings.Builder, error) {
 		forwardZone := n.Config()["dns.zone.forward"]
 
 		genRecord := func(name string, addr string) map[string]string {
+			isV4 := net.ParseIP(addr).To4() != nil
+
 			record := map[string]string{}
 			if !isReverse {
-				if net.ParseIP(addr).To4() != nil {
+				if isV4 {
 					record["type"] = "A"
 				} else {
 					record["type"] = "AAAA"
@@ -334,12 +336,11 @@ func (d *zone) Content() (*strings.Builder, error) {
 				}
 
 				// Skip PTR records for wrong family.
-				ip4 := net.ParseIP(addr).To4()
-				if ip4 != nil && !isReverse4 {
+				if isV4 && !isReverse4 {
 					return nil
 				}
 
-				if ip4 == nil && !isReverse6 {
+				if !isV4 && !isReverse6 {
 					return nil
 				}
 
