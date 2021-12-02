@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-12-06 16:11-0500\n"
+"POT-Creation-Date: 2021-12-07 16:58-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -596,7 +596,7 @@ msgstr "ALIAS"
 msgid "ALIASES"
 msgstr "ALIASES"
 
-#: lxc/cluster.go:176 lxc/image.go:1030 lxc/list.go:487
+#: lxc/cluster.go:176 lxc/image.go:1030 lxc/list.go:504
 msgid "ARCHITECTURE"
 msgstr "ARQUITECTURA"
 
@@ -785,7 +785,7 @@ msgstr "Auto actualización: %s"
 msgid "Available projects:"
 msgstr ""
 
-#: lxc/list.go:492 lxc/list.go:493
+#: lxc/list.go:510 lxc/list.go:511
 msgid "BASE IMAGE"
 msgstr ""
 
@@ -868,7 +868,7 @@ msgstr ""
 msgid "CPU (%s):"
 msgstr "Uso de CPU:"
 
-#: lxc/list.go:504
+#: lxc/list.go:522
 msgid "CPU USAGE"
 msgstr ""
 
@@ -889,7 +889,7 @@ msgstr ""
 msgid "CREATED"
 msgstr "CREADO"
 
-#: lxc/list.go:489
+#: lxc/list.go:506
 msgid "CREATED AT"
 msgstr "CREADO EN"
 
@@ -929,8 +929,12 @@ msgstr "No se peude leer desde stdin: %s"
 msgid "Can't remove the default remote"
 msgstr ""
 
-#: lxc/list.go:510
+#: lxc/list.go:528
 msgid "Can't specify --fast with --columns"
+msgstr ""
+
+#: lxc/list.go:399
+msgid "Can't specify --project with --all-projects"
 msgstr ""
 
 #: lxc/rename.go:51
@@ -938,7 +942,7 @@ msgstr ""
 msgid "Can't specify a different remote for rename"
 msgstr "No se puede especificar un remote diferente para renombrar."
 
-#: lxc/list.go:522 lxc/storage_volume.go:1319 lxc/warning.go:223
+#: lxc/list.go:548 lxc/storage_volume.go:1319 lxc/warning.go:223
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
@@ -1009,7 +1013,7 @@ msgstr "Nombre del Miembro del Cluster"
 msgid "Clustering enabled"
 msgstr ""
 
-#: lxc/image.go:1015 lxc/list.go:131 lxc/storage_volume.go:1213
+#: lxc/image.go:1015 lxc/list.go:133 lxc/storage_volume.go:1213
 #: lxc/warning.go:93
 msgid "Columns"
 msgstr "Columnas"
@@ -1276,7 +1280,7 @@ msgstr ""
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
-#: lxc/cluster.go:178 lxc/image.go:1029 lxc/image_alias.go:237 lxc/list.go:490
+#: lxc/cluster.go:178 lxc/image.go:1029 lxc/image_alias.go:237 lxc/list.go:507
 #: lxc/network.go:914 lxc/network_acl.go:144 lxc/network_forward.go:145
 #: lxc/network_peer.go:141 lxc/network_zone.go:135 lxc/operation.go:163
 #: lxc/profile.go:624 lxc/project.go:473 lxc/storage.go:577
@@ -1284,7 +1288,7 @@ msgstr ""
 msgid "DESCRIPTION"
 msgstr "DESCRIPCIÓN"
 
-#: lxc/list.go:491
+#: lxc/list.go:508
 msgid "DISK USAGE"
 msgstr ""
 
@@ -1395,7 +1399,7 @@ msgstr ""
 #: lxc/image.go:1367 lxc/image.go:1426 lxc/image.go:1478 lxc/image.go:1534
 #: lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108
 #: lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29
-#: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:49 lxc/main.go:80
+#: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:80
 #: lxc/manpage.go:22 lxc/monitor.go:32 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
@@ -1552,6 +1556,11 @@ msgstr "Uso del disco:"
 msgid "Disks:"
 msgstr "Uso del disco:"
 
+#: lxc/list.go:136
+#, fuzzy
+msgid "Display instances from all projects"
+msgstr "No se puede proveer el nombre del container a la lista"
+
 #: lxc/cluster.go:428
 msgid "Don't require user confirmation for using --force"
 msgstr ""
@@ -1565,7 +1574,7 @@ msgstr ""
 msgid "Driver: %v (%v)"
 msgstr ""
 
-#: lxc/list.go:772
+#: lxc/list.go:802
 msgid "EPHEMERAL"
 msgstr ""
 
@@ -1645,7 +1654,7 @@ msgstr ""
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
-#: lxc/image.go:1041 lxc/list.go:534 lxc/storage_volume.go:1330
+#: lxc/image.go:1041 lxc/list.go:560 lxc/storage_volume.go:1330
 #: lxc/warning.go:234
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
@@ -1815,7 +1824,7 @@ msgstr ""
 msgid "Failed to walk path for %s: %s"
 msgstr ""
 
-#: lxc/list.go:133
+#: lxc/list.go:135
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
@@ -1879,7 +1888,7 @@ msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:116 lxc/cluster.go:805
 #: lxc/config_template.go:241 lxc/config_trust.go:290 lxc/image.go:1016
-#: lxc/image_alias.go:158 lxc/list.go:132 lxc/network.go:845 lxc/network.go:938
+#: lxc/image_alias.go:158 lxc/list.go:134 lxc/network.go:845 lxc/network.go:938
 #: lxc/network_acl.go:94 lxc/network_forward.go:90 lxc/network_peer.go:86
 #: lxc/network_zone.go:85 lxc/operation.go:107 lxc/profile.go:584
 #: lxc/project.go:394 lxc/project.go:749 lxc/remote.go:531 lxc/storage.go:518
@@ -2038,11 +2047,11 @@ msgstr ""
 msgid "IP addresses"
 msgstr "Expira: %s"
 
-#: lxc/list.go:485 lxc/network.go:912
+#: lxc/list.go:502 lxc/network.go:912
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:486 lxc/network.go:913
+#: lxc/list.go:503 lxc/network.go:913
 msgid "IPV6"
 msgstr ""
 
@@ -2189,12 +2198,12 @@ msgstr ""
 msgid "Invalid certificate"
 msgstr ""
 
-#: lxc/list.go:566
+#: lxc/list.go:592
 #, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:560
+#: lxc/list.go:586
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
@@ -2214,17 +2223,17 @@ msgstr "Nombre del contenedor es: %s"
 msgid "Invalid instance name: %s"
 msgstr "Nombre del contenedor es: %s"
 
-#: lxc/list.go:585
+#: lxc/list.go:611
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:582
+#: lxc/list.go:608
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr ""
 
-#: lxc/list.go:573
+#: lxc/list.go:599
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -2271,7 +2280,7 @@ msgstr ""
 msgid "LAST SEEN"
 msgstr ""
 
-#: lxc/list.go:494
+#: lxc/list.go:512
 msgid "LAST USED AT"
 msgstr ""
 
@@ -2283,7 +2292,7 @@ msgstr ""
 msgid "LISTEN ADDRESS"
 msgstr ""
 
-#: lxc/list.go:518 lxc/network.go:988 lxc/network_forward.go:151
+#: lxc/list.go:544 lxc/network.go:988 lxc/network_forward.go:151
 #: lxc/operation.go:168 lxc/storage_volume.go:1315 lxc/warning.go:219
 msgid "LOCATION"
 msgstr ""
@@ -2433,12 +2442,12 @@ msgstr ""
 msgid "List instance file templates"
 msgstr ""
 
-#: lxc/list.go:48
+#: lxc/list.go:49
 #, fuzzy
 msgid "List instances"
 msgstr "Aliases:"
 
-#: lxc/list.go:49
+#: lxc/list.go:50
 #, c-format
 msgid ""
 "List instances\n"
@@ -2494,6 +2503,7 @@ msgid ""
 "  c - Creation date\n"
 "  d - Description\n"
 "  D - disk usage\n"
+"  e - Project name\n"
 "  l - Last used date\n"
 "  m - Memory usage\n"
 "  M - Memory usage (%)\n"
@@ -2629,11 +2639,11 @@ msgstr "Cacheado: %s"
 msgid "MANAGED"
 msgstr ""
 
-#: lxc/list.go:495
+#: lxc/list.go:513
 msgid "MEMORY USAGE"
 msgstr ""
 
-#: lxc/list.go:496
+#: lxc/list.go:514
 #, c-format
 msgid "MEMORY USAGE%"
 msgstr ""
@@ -2998,7 +3008,7 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:173 lxc/cluster.go:885 lxc/config_trust.go:346
-#: lxc/list.go:497 lxc/network.go:909 lxc/network_acl.go:143
+#: lxc/list.go:515 lxc/network.go:909 lxc/network_acl.go:143
 #: lxc/network_peer.go:140 lxc/network_zone.go:134 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:590 lxc/storage.go:570
 #: lxc/storage_volume.go:1307
@@ -3244,7 +3254,7 @@ msgstr ""
 msgid "PEER"
 msgstr ""
 
-#: lxc/list.go:499
+#: lxc/list.go:517
 msgid "PID"
 msgstr ""
 
@@ -3257,15 +3267,15 @@ msgstr ""
 msgid "PORTS"
 msgstr ""
 
-#: lxc/list.go:498
+#: lxc/list.go:516
 msgid "PROCESSES"
 msgstr ""
 
-#: lxc/list.go:500 lxc/project.go:470
+#: lxc/list.go:518 lxc/project.go:470
 msgid "PROFILES"
 msgstr ""
 
-#: lxc/warning.go:211
+#: lxc/list.go:509 lxc/warning.go:211
 msgid "PROJECT"
 msgstr ""
 
@@ -3735,7 +3745,7 @@ msgstr ""
 msgid "SIZE"
 msgstr ""
 
-#: lxc/list.go:501
+#: lxc/list.go:519
 msgid "SNAPSHOTS"
 msgstr ""
 
@@ -3747,7 +3757,7 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:179 lxc/list.go:502 lxc/network.go:918
+#: lxc/cluster.go:179 lxc/list.go:520 lxc/network.go:918
 #: lxc/network_peer.go:143 lxc/storage.go:580
 msgid "STATE"
 msgstr ""
@@ -3760,7 +3770,7 @@ msgstr ""
 msgid "STATUS"
 msgstr ""
 
-#: lxc/list.go:488
+#: lxc/list.go:505
 msgid "STORAGE POOL"
 msgstr ""
 
@@ -4265,7 +4275,7 @@ msgid "TOKEN"
 msgstr ""
 
 #: lxc/config_trust.go:345 lxc/image.go:1033 lxc/image_alias.go:236
-#: lxc/list.go:503 lxc/network.go:910 lxc/network.go:985 lxc/operation.go:162
+#: lxc/list.go:521 lxc/network.go:910 lxc/network.go:985 lxc/operation.go:162
 #: lxc/storage_volume.go:1306 lxc/warning.go:214
 msgid "TYPE"
 msgstr ""
@@ -4499,7 +4509,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/image.go:1048 lxc/list.go:548 lxc/storage_volume.go:1337
+#: lxc/image.go:1048 lxc/list.go:574 lxc/storage_volume.go:1337
 #: lxc/warning.go:241
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
@@ -4736,7 +4746,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:] <name>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/image.go:987 lxc/list.go:46
+#: lxc/image.go:987 lxc/list.go:47
 #, fuzzy
 msgid "[<remote>:] [<filter>...]"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -5435,7 +5445,7 @@ msgid ""
 "    Create and start a virtual machine"
 msgstr ""
 
-#: lxc/list.go:121
+#: lxc/list.go:123
 msgid ""
 "lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
 "parent:ETHP\n"
