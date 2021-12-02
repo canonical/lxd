@@ -292,6 +292,10 @@ func (d *zone) Delete() error {
 func (d *zone) Content() (*strings.Builder, error) {
 	records := []map[string]string{}
 
+	// Check if we should include NAT records.
+	val, ok := d.info.Config["network.nat"]
+	includeNAT := !ok || shared.IsTrue(val)
+
 	// Load all networks for the zone.
 	networks, err := d.state.Cluster.GetNetworksForZone(d.projectName, d.info.Name)
 	if err != nil {
@@ -311,6 +315,13 @@ func (d *zone) Content() (*strings.Builder, error) {
 			return nil, err
 		}
 
+		// Check whether what records to include.
+		val, _ = n.Config()["ipv4.nat"]
+		includeV4 := includeNAT || !shared.IsTrue(val)
+
+		val, _ = n.Config()["ipv6.nat"]
+		includeV6 := includeNAT || !shared.IsTrue(val)
+
 		// Check if dealing with a reverse zone.
 		isReverse4 := strings.HasSuffix(d.info.Name, ip4Arpa)
 		isReverse6 := strings.HasSuffix(d.info.Name, ip6Arpa)
@@ -319,6 +330,15 @@ func (d *zone) Content() (*strings.Builder, error) {
 
 		genRecord := func(name string, addr string) map[string]string {
 			isV4 := net.ParseIP(addr).To4() != nil
+
+			// Skip disabled families.
+			if isV4 && !includeV4 {
+				return nil
+			}
+
+			if !isV4 && !includeV6 {
+				return nil
+			}
 
 			record := map[string]string{}
 			if !isReverse {
