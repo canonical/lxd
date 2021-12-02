@@ -7,7 +7,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
 	"github.com/lxc/lxd/lxd/db/generate/lex"
-	"github.com/pkg/errors"
 )
 
 // Method generates a code snippet for a particular database query method.
@@ -97,7 +96,7 @@ func (m *Method) GenerateSignature(buf *file.Buffer) error {
 func (m *Method) uris(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	filters, ignoredFilters := FiltersFromStmt(m.packages["db"], "names", m.entity, mapping.Filters)
@@ -150,7 +149,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 func (m *Method) getMany(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	// Go type name the objects to return (e.g. api.Foo).
@@ -230,7 +229,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	buf.N()
 	buf.L("// Select.")
 	buf.L("err = query.SelectObjects(stmt, dest, args...)")
-	m.ifErrNotNil(buf, "nil", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s\")", lex.Plural(m.entity)))
+	m.ifErrNotNil(buf, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
 
 	for _, field := range mapping.RefFields() {
 		// TODO: Eliminate UsedBy fields and replace with dedicated slices for entities.
@@ -360,7 +359,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 func (m *Method) getOne(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	nk := mapping.NaturalKey()
@@ -377,14 +376,14 @@ func (m *Method) getOne(buf *file.Buffer) error {
 	}
 	buf.N()
 	buf.L("objects, err := c.Get%s(filter)", lex.Plural(lex.Camel(m.entity)))
-	m.ifErrNotNil(buf, "nil", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s\")", lex.Camel(m.entity)))
+	m.ifErrNotNil(buf, "nil", fmt.Sprintf(`fmt.Errorf("Failed to fetch from \"%s\" table: %%w", err)`, entityTable(m.entity)))
 	buf.L("switch len(objects) {")
 	buf.L("case 0:")
 	buf.L("        return nil, ErrNoSuchObject")
 	buf.L("case 1:")
 	buf.L("        return &objects[0], nil")
 	buf.L("default:")
-	buf.L("        return nil, fmt.Errorf(\"More than one %s matches\")", m.entity)
+	buf.L(`        return nil, fmt.Errorf("More than one \"%s\" entry matches")`, entityTable(m.entity))
 	buf.L("}")
 
 	return nil
@@ -399,7 +398,7 @@ func (m *Method) id(buf *file.Buffer) error {
 
 	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	nk := mapping.NaturalKey()
@@ -412,7 +411,7 @@ func (m *Method) id(buf *file.Buffer) error {
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "ID"))
 	buf.L("rows, err := stmt.Query(%s)", mapping.FieldParams(nk))
-	m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Failed to get %s ID\")", m.entity))
+	m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to get \"%s\" ID: %%w", err)`, entityTable(m.entity)))
 	buf.L("defer rows.Close()")
 	buf.N()
 	buf.L("// Ensure we read one and only one row.")
@@ -421,12 +420,12 @@ func (m *Method) id(buf *file.Buffer) error {
 	buf.L("}")
 	buf.L("var id int64")
 	buf.L("err = rows.Scan(&id)")
-	m.ifErrNotNil(buf, "-1", "errors.Wrap(err, \"Failed to scan ID\")")
+	m.ifErrNotNil(buf, "-1", "fmt.Errorf(\"Failed to scan ID: %w\", err)")
 	buf.L("if rows.Next() {")
 	buf.L("        return -1, fmt.Errorf(\"More than one row returned\")")
 	buf.L("}")
 	buf.L("err = rows.Err()")
-	m.ifErrNotNil(buf, "-1", "errors.Wrap(err, \"Result set failure\")")
+	m.ifErrNotNil(buf, "-1", "fmt.Errorf(\"Result set failure: %w\", err)")
 	buf.L("return id, nil")
 
 	return nil
@@ -441,7 +440,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 
 	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	nk := mapping.NaturalKey()
@@ -468,7 +467,7 @@ func (m *Method) exists(buf *file.Buffer) error {
 func (m *Method) create(buf *file.Buffer, replace bool) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	if err := m.signature(buf, false); err != nil {
@@ -508,12 +507,12 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		refFields := mapping.RefFields()
 		if len(refFields) == 0 {
 			buf.L("_, err = stmt.Exec(%s)", createParams)
-			m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrapf(err, \"Insert entry %%s_%s\", parent)", lex.Plural(m.entity)))
+			m.ifErrNotNil(buf, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 		} else {
 			buf.L("result, err := stmt.Exec(%s)", createParams)
-			m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrapf(err, \"Insert entry %%s_%s\", parent)", lex.Plural(m.entity)))
+			m.ifErrNotNil(buf, fmt.Sprintf(`fmt.Errorf("Insert failed for \"%%s_%s\" table: %%w", parent, err)`, lex.Plural(m.entity)))
 			buf.L("id, err := result.LastInsertId()")
-			m.ifErrNotNil(buf, "errors.Wrap(err, \"Failed to fetch device ID\")")
+			m.ifErrNotNil(buf, "fmt.Errorf(\"Failed to fetch ID: %w\", err)")
 		}
 	} else {
 		nk := mapping.NaturalKey()
@@ -529,9 +528,9 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 			} else {
 				buf.L("// Check if a %s with the same key exists.", m.entity)
 				buf.L("exists, err := c.%sExists(%s)", lex.Camel(m.entity), strings.Join(nkParams, ", "))
-				m.ifErrNotNil(buf, "-1", "errors.Wrap(err, \"Failed to check for duplicates\")")
+				m.ifErrNotNil(buf, "-1", "fmt.Errorf(\"Failed to check for duplicates: %w\", err)")
 				buf.L("if exists {")
-				buf.L("        return -1, fmt.Errorf(\"This %s already exists\")", m.entity)
+				buf.L(`        return -1, fmt.Errorf("This \"%s\" entry already exists")`, entityTable(m.entity))
 				buf.L("}")
 				buf.N()
 			}
@@ -553,9 +552,9 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		buf.N()
 		buf.L("// Execute the statement. ")
 		buf.L("result, err := stmt.Exec(args...)")
-		m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Failed to create %s\")", m.entity))
+		m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to create \"%s\" entry: %%w", err)`, entityTable(m.entity)))
 		buf.L("id, err := result.LastInsertId()")
-		m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Failed to fetch %s ID\")", m.entity))
+		m.ifErrNotNil(buf, "-1", fmt.Sprintf(`fmt.Errorf("Failed to fetch \"%s\" entry ID: %%w", err)`, entityTable(m.entity)))
 	}
 
 	for _, field := range mapping.RefFields() {
@@ -566,7 +565,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		refStruct := lex.Singular(field.Name)
 		refMapping, err := Parse(m.packages[m.pkg], lex.Singular(field.Name), "")
 		if err != nil {
-			return errors.Wrap(err, "Parse entity struct")
+			return fmt.Errorf("Parse entity struct: %w", err)
 		}
 
 		switch refMapping.Type {
@@ -593,10 +592,10 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 
 		if mapping.Type != EntityTable {
 			buf.L("err = c.Create%s(parent + \"_%s\", insert)", refStruct, m.entity)
-			m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Insert %s for %s\")", field.Name, m.entity))
+			m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", field.Name, mapping.Name))
 		} else {
 			buf.L("err = c.Create%s(\"%s\", insert)", refStruct, m.entity)
-			m.ifErrNotNil(buf, "-1", fmt.Sprintf("errors.Wrap(err, \"Insert %s for %s\")", field.Name, m.entity))
+			m.ifErrNotNil(buf, "-1", fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", field.Name, mapping.Name))
 		}
 		buf.L("}")
 	}
@@ -612,7 +611,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 func (m *Method) rename(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	nk := mapping.NaturalKey()
@@ -625,9 +624,9 @@ func (m *Method) rename(buf *file.Buffer) error {
 
 	buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "rename"))
 	buf.L("result, err := stmt.Exec(%s)", "to, "+mapping.FieldParams(nk))
-	m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Rename %s\")", m.entity))
+	m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Rename %s failed: %%w\", err)", mapping.Name))
 	buf.L("n, err := result.RowsAffected()")
-	m.ifErrNotNil(buf, "errors.Wrap(err, \"Fetch affected rows\")")
+	m.ifErrNotNil(buf, "fmt.Errorf(\"Fetch affected rows failed: %w\", err)")
 	buf.L("if n != 1 {")
 	buf.L("        return fmt.Errorf(\"Query affected %%d rows instead of 1\", n)")
 	buf.L("}")
@@ -640,7 +639,7 @@ func (m *Method) rename(buf *file.Buffer) error {
 func (m *Method) update(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	// Support using a different structure or package to pass arguments to Create.
@@ -701,7 +700,7 @@ func (m *Method) update(buf *file.Buffer) error {
 	case EntityTable:
 		updateMapping, err := Parse(m.packages[m.pkg], entityUpdate, m.kind)
 		if err != nil {
-			return errors.Wrap(err, "Parse entity struct")
+			return fmt.Errorf("Parse entity struct: %w", err)
 		}
 		fields := updateMapping.ColumnFields("ID") // This exclude the ID column, which is autogenerated.
 
@@ -712,12 +711,12 @@ func (m *Method) update(buf *file.Buffer) error {
 		}
 
 		buf.L("id, err := c.Get%sID(%s)", lex.Camel(m.entity), mapping.FieldParams(nk))
-		m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Get %s\")", m.entity))
+		m.ifErrNotNil(buf, "err")
 		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "update"))
 		buf.L("result, err := stmt.Exec(%s)", strings.Join(params, ", ")+", id")
-		m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Update %s\")", m.entity))
+		m.ifErrNotNil(buf, fmt.Sprintf(`fmt.Errorf("Update \"%s\" entry failed: %%w", err)`, entityTable(m.entity)))
 		buf.L("n, err := result.RowsAffected()")
-		m.ifErrNotNil(buf, "errors.Wrap(err, \"Fetch affected rows\")")
+		m.ifErrNotNil(buf, "fmt.Errorf(\"Fetch affected rows: %w\", err)")
 		buf.L("if n != 1 {")
 		buf.L("        return fmt.Errorf(\"Query updated %%d rows instead of 1\", n)")
 		buf.L("}")
@@ -732,7 +731,7 @@ func (m *Method) update(buf *file.Buffer) error {
 			refStruct := lex.Singular(field.Name)
 			refMapping, err := Parse(m.packages[m.pkg], lex.Singular(field.Name), "")
 			if err != nil {
-				return errors.Wrap(err, "Parse entity struct")
+				return fmt.Errorf("Parse entity struct: %w", err)
 			}
 
 			switch refMapping.Type {
@@ -744,10 +743,10 @@ func (m *Method) update(buf *file.Buffer) error {
 				m.ifErrNotNil(buf, "fmt.Errorf(\"Could not update association table: %w\", err)")
 			case ReferenceTable:
 				buf.L("err = c.Update%s(\"%s\", int(id), object.%s)", lex.Singular(field.Name), m.entity, field.Name)
-				m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Replace %s for %s\")", field.Name, lex.Camel(m.entity)))
+				m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Replace %s for %s failed: %%w\", err)", field.Name, mapping.Name))
 			case MapTable:
 				buf.L("err = c.Update%s(\"%s\", int(id), object.%s)", lex.Singular(field.Name), m.entity, field.Name)
-				m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Replace %s for %s\")", field.Name, lex.Camel(m.entity)))
+				m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Replace %s for %s failed: %%w\", err)", field.Name, mapping.Name))
 				buf.N()
 			}
 
@@ -762,7 +761,7 @@ func (m *Method) update(buf *file.Buffer) error {
 func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	if err := m.signature(buf, false); err != nil {
@@ -773,7 +772,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 	if mapping.Type == AssociationTable {
 		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "delete", m.config["struct"]+"ID"))
 		buf.L("result, err := stmt.Exec(int(object.ID))")
-		m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Delete %s\")", m.entity))
+		m.ifErrNotNil(buf, fmt.Sprintf(`fmt.Errorf("Delete \"%s\" entry failed: %%w", err)`, entityTable(m.entity)))
 	} else if mapping.Type == ReferenceTable || mapping.Type == MapTable {
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
@@ -786,12 +785,12 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		buf.L("stmt, err := c.prepare(fmt.Sprintf(%s, fillParent...))", stmtLocal)
 		m.ifErrNotNil(buf, "err")
 		buf.L("result, err := stmt.Exec(referenceID)")
-		m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrapf(err, \"Delete entry %%s_%s\", parent)", m.entity))
+		m.ifErrNotNil(buf, fmt.Sprintf(`fmt.Errorf("Delete entry for \"%%s_%s\" failed: %%w", parent, err)`, m.entity))
 	} else {
 		activeFilters := mapping.ActiveFilters(m.kind)
 		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "delete", FieldNames(activeFilters)...))
 		buf.L("result, err := stmt.Exec(%s)", mapping.FieldParams(activeFilters))
-		m.ifErrNotNil(buf, fmt.Sprintf("errors.Wrap(err, \"Delete %s\")", m.entity))
+		m.ifErrNotNil(buf, fmt.Sprintf(`fmt.Errorf("Delete \"%s\": %%w", err)`, entityTable(m.entity)))
 	}
 
 	if deleteOne {
@@ -800,7 +799,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		buf.L("_, err = result.RowsAffected()")
 	}
 
-	m.ifErrNotNil(buf, "errors.Wrap(err, \"Fetch affected rows\")")
+	m.ifErrNotNil(buf, "fmt.Errorf(\"Fetch affected rows: %w\", err)")
 	if deleteOne {
 		buf.L("if n != 1 {")
 		buf.L("        return fmt.Errorf(\"Query deleted %%d rows instead of 1\", n)")
@@ -816,7 +815,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
 	if isInterface {
@@ -964,7 +963,7 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 func (m *Method) begin(buf *file.Buffer, comment string, args string, rets string, isInterface bool) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
-		return errors.Wrap(err, "Parse entity struct")
+		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 	name := ""
 	entity := lex.Camel(m.entity)

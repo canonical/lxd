@@ -7,5 +7,4 @@ var Imports = []string{
 	"github.com/lxc/lxd/lxd/db/cluster",
 	"github.com/lxc/lxd/lxd/db/query",
 	"github.com/lxc/lxd/shared/api",
-	"github.com/pkg/errors",
 }
