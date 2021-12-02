@@ -1145,3 +1145,6 @@ This adds the received and sent errors as well as inbound and outbound dropped p
 ## image\_source\_project
 Adds a new `project` field to `POST /1.0/images` allowing for the source project
 to be set at image copy time.
+
+## database\_leader
+Adds new "database-leader" role which is assigned to cluster leader.

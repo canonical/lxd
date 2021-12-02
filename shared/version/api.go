@@ -233,6 +233,7 @@ var APIExtensions = []string{
 	"resources_gpu_usb",
 	"network_counters_errors_dropped",
 	"image_source_project",
+	"database_leader",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
