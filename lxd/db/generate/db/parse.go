@@ -12,7 +12,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/generate/lex"
 	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
 )
 
 // Packages returns the the AST packages in which to search for structs.
@@ -26,7 +25,7 @@ func Packages() (map[string]*ast.Package, error) {
 	for _, name := range defaultPackages {
 		pkg, err := lex.Parse(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", name))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Parse %q", name)
+			return nil, fmt.Errorf("Parse %q: %w", name, err)
 		}
 		parts := strings.Split(name, "/")
 		packages[parts[len(parts)-1]] = pkg
@@ -142,54 +141,86 @@ func Parse(pkg *ast.Package, name string, kind string) (*Mapping, error) {
 
 	fields, err := parseStruct(str, kind)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse %q", name)
+		return nil, fmt.Errorf("Failed to parse %q: %w", name, err)
 	}
 
 	m := &Mapping{
-		Package: pkg.Name,
-		Name:    name,
-		Fields:  fields,
+		Package:    pkg.Name,
+		Name:       name,
+		Fields:     fields,
+		Type:       tableType(pkg, name, fields),
+		Filterable: true,
 	}
 
-	// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
-	filterName := name + "Filter"
-	filterStr := findStruct(pkg.Scope, filterName)
-	if filterStr == nil {
-		return nil, fmt.Errorf("No declaration found for %q", filterName)
+	// Reference tables rely on ReferenceID for filtering, instead of a Filter struct.
+	if m.Type == ReferenceTable || m.Type == MapTable {
+		m.Filterable = false
 	}
 
-	filters, err := parseStruct(filterStr, kind)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to parse %q", name)
-	}
-
-	for i, filter := range filters {
-		// Any field in EntityFilter must be present in the original struct.
-		field := m.FieldByName(filter.Name)
-		if field == nil {
-			return nil, fmt.Errorf("Filter field %q is not in struct %q", filter.Name, name)
+	if m.Filterable {
+		// The 'EntityFilter' struct. This is used for filtering on specific fields of the entity.
+		filterName := name + "Filter"
+		filterStr := findStruct(pkg.Scope, filterName)
+		if filterStr == nil {
+			return nil, fmt.Errorf("No declaration found for %q", filterName)
 		}
 
-		// Assign the config tags from the main entity struct to the Filter struct.
-		filters[i].Config = field.Config
+		filters, err := parseStruct(filterStr, kind)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse %q: %w", name, err)
+		}
 
-		// A Filter field and its indirect references must all be in the Filter struct.
-		if field.IsIndirect() {
-			indirectField := lex.Camel(field.Config.Get("via"))
-			for i, f := range filters {
-				if f.Name == indirectField {
-					break
-				}
-				if i == len(filters)-1 {
-					return nil, fmt.Errorf("Field %q requires field %q in struct %q", field.Name, indirectField, name+"Filter")
+		for i, filter := range filters {
+			// Any field in EntityFilter must be present in the original struct.
+			field := m.FieldByName(filter.Name)
+			if field == nil {
+				return nil, fmt.Errorf("Filter field %q is not in struct %q", filter.Name, name)
+			}
+
+			// Assign the config tags from the main entity struct to the Filter struct.
+			filters[i].Config = field.Config
+
+			// A Filter field and its indirect references must all be in the Filter struct.
+			if field.IsIndirect() {
+				indirectField := lex.Camel(field.Config.Get("via"))
+				for i, f := range filters {
+					if f.Name == indirectField {
+						break
+					}
+					if i == len(filters)-1 {
+						return nil, fmt.Errorf("Field %q requires field %q in struct %q", field.Name, indirectField, name+"Filter")
+					}
 				}
 			}
 		}
+
+		m.Filters = filters
 	}
 
-	m.Filters = filters
-
 	return m, nil
+}
+
+// tableType determines the TableType for the given struct fields.
+func tableType(pkg *ast.Package, name string, fields []*Field) TableType {
+	fieldNames := FieldNames(fields)
+	entities := strings.Split(lex.Snake(name), "_")
+	if len(entities) == 2 {
+		struct1 := findStruct(pkg.Scope, lex.Camel(lex.Singular(entities[0])))
+		struct2 := findStruct(pkg.Scope, lex.Camel(lex.Singular(entities[1])))
+		if struct1 != nil && struct2 != nil {
+			return AssociationTable
+		}
+	}
+
+	if shared.StringInSlice("ReferenceID", fieldNames) {
+		if shared.StringInSlice("Key", fieldNames) && shared.StringInSlice("Value", fieldNames) {
+			return MapTable
+		}
+
+		return ReferenceTable
+	}
+
+	return EntityTable
 }
 
 // Find the StructType node for the structure with the given name
@@ -236,7 +267,7 @@ func parseStruct(str *ast.StructType, kind string) ([]*Field, error) {
 
 			parentFields, err := parseStruct(parentStr, kind)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse parent struct")
+				return nil, fmt.Errorf("Failed to parse parent struct: %w", err)
 			}
 			fields = append(fields, parentFields...)
 
@@ -302,7 +333,7 @@ func parseField(f *ast.Field, kind string) (*Field, error) {
 		var err error
 		config, err = url.ParseQuery(reflect.StructTag(tag[1 : len(tag)-1]).Get("db"))
 		if err != nil {
-			return nil, errors.Wrap(err, "Parse 'db' structure tag")
+			return nil, fmt.Errorf("Parse 'db' structure tag: %w", err)
 		}
 	}
 

@@ -79,12 +79,17 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 	// Update the database.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		devices, err := db.APIToDevices(req.Devices)
+		if err != nil {
+			return err
+		}
+
 		return tx.UpdateProfile(projectName, name, db.Profile{
 			Project:     projectName,
 			Name:        name,
 			Description: req.Description,
 			Config:      req.Config,
-			Devices:     req.Devices,
+			Devices:     devices,
 		})
 	})
 	if err != nil {

@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -23,48 +22,27 @@ SELECT projects.name
   ORDER BY projects.name
 `)
 
-var projectNamesByName = cluster.RegisterStmt(`
+var projectNamesByID = cluster.RegisterStmt(`
 SELECT projects.name
   FROM projects
-  WHERE projects.name = ? ORDER BY projects.name
+  WHERE projects.id = ? ORDER BY projects.name
 `)
 
 var projectObjects = cluster.RegisterStmt(`
-SELECT projects.description, projects.name
+SELECT projects.id, projects.description, projects.name
   FROM projects
   ORDER BY projects.name
 `)
 
 var projectObjectsByName = cluster.RegisterStmt(`
-SELECT projects.description, projects.name
+SELECT projects.id, projects.description, projects.name
   FROM projects
   WHERE projects.name = ? ORDER BY projects.name
-`)
-
-var projectUsedByRef = cluster.RegisterStmt(`
-SELECT name, value FROM projects_used_by_ref ORDER BY name
-`)
-
-var projectUsedByRefByName = cluster.RegisterStmt(`
-SELECT name, value FROM projects_used_by_ref WHERE name = ? ORDER BY name
-`)
-
-var projectConfigRef = cluster.RegisterStmt(`
-SELECT name, key, value FROM projects_config_ref ORDER BY name
-`)
-
-var projectConfigRefByName = cluster.RegisterStmt(`
-SELECT name, key, value FROM projects_config_ref WHERE name = ? ORDER BY name
 `)
 
 var projectCreate = cluster.RegisterStmt(`
 INSERT INTO projects (description, name)
   VALUES (?, ?)
-`)
-
-var projectCreateConfigRef = cluster.RegisterStmt(`
-INSERT INTO projects_config (project_id, key, value)
-  VALUES (?, ?, ?)
 `)
 
 var projectID = cluster.RegisterStmt(`
@@ -91,12 +69,12 @@ DELETE FROM projects WHERE name = ?
 func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
 	var args []interface{}
 	var stmt *sql.Stmt
-	if filter.Name != nil {
-		stmt = c.stmt(projectNamesByName)
+	if filter.ID != nil && filter.Name == nil {
+		stmt = c.stmt(projectNamesByID)
 		args = []interface{}{
-			filter.Name,
+			filter.ID,
 		}
-	} else if filter.Name == nil {
+	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(projectNames)
 		args = []interface{}{}
 	} else {
@@ -112,6 +90,8 @@ func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
 // GetProjects returns all available projects.
 // generator: project GetMany
 func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Project, 0)
 
@@ -119,12 +99,12 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	var stmt *sql.Stmt
 	var args []interface{}
 
-	if filter.Name != nil {
+	if filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(projectObjectsByName)
 		args = []interface{}{
 			filter.Name,
 		}
-	} else if filter.Name == nil {
+	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(projectObjects)
 		args = []interface{}{}
 	} else {
@@ -135,51 +115,39 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	dest := func(i int) []interface{} {
 		objects = append(objects, Project{})
 		return []interface{}{
+			&objects[i].ID,
 			&objects[i].Description,
 			&objects[i].Name,
 		}
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch projects")
+		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
 
-	// Fill field UsedBy.
-	usedByObjects, err := c.ProjectUsedByRef(filter)
+	// Use non-generated custom method for UsedBy fields.
+	for i := range objects {
+		usedBy, err := c.GetProjectUsedBy(objects[i])
+		if err != nil {
+			return nil, err
+		}
+
+		objects[i].UsedBy = usedBy
+	}
+
+	config, err := c.GetConfig("project")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field UsedBy")
+		return nil, err
 	}
 
 	for i := range objects {
-		value := usedByObjects[objects[i].Name]
-		if value == nil {
-			value = []string{}
+		if _, ok := config[objects[i].ID]; !ok {
+			objects[i].Config = map[string]string{}
+		} else {
+			objects[i].Config = config[objects[i].ID]
 		}
-		for j := range value {
-			if len(value[j]) > 12 && value[j][len(value[j])-12:] == "&target=none" {
-				value[j] = value[j][0 : len(value[j])-12]
-			}
-			if len(value[j]) > 16 && value[j][len(value[j])-16:] == "?project=default" {
-				value[j] = value[j][0 : len(value[j])-16]
-			}
-		}
-		objects[i].UsedBy = value
-	}
-
-	// Fill field Config.
-	configObjects, err := c.ProjectConfigRef(filter)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Config")
-	}
-
-	for i := range objects {
-		value := configObjects[objects[i].Name]
-		if value == nil {
-			value = map[string]string{}
-		}
-		objects[i].Config = value
 	}
 
 	return objects, nil
@@ -193,7 +161,7 @@ func (c *ClusterTx) GetProject(name string) (*Project, error) {
 
 	objects, err := c.GetProjects(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Project")
+		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -202,70 +170,8 @@ func (c *ClusterTx) GetProject(name string) (*Project, error) {
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one project matches")
+		return nil, fmt.Errorf("More than one \"projects\" entry matches")
 	}
-}
-
-// ProjectConfigRef returns entities used by projects.
-// generator: project ConfigRef
-func (c *ClusterTx) ProjectConfigRef(filter ProjectFilter) (map[string]map[string]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Name  string
-		Key   string
-		Value string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Name != nil {
-		stmt = c.stmt(projectConfigRefByName)
-		args = []interface{}{
-			filter.Name,
-		}
-	} else if filter.Name == nil {
-		stmt = c.stmt(projectConfigRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Name  string
-			Key   string
-			Value string
-		}{})
-		return []interface{}{
-			&objects[i].Name,
-			&objects[i].Key,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch  ref for projects")
-	}
-
-	// Build index by primary name.
-	index := map[string]map[string]string{}
-
-	for _, object := range objects {
-		item, ok := index[object.Name]
-		if !ok {
-			item = map[string]string{}
-		}
-
-		index[object.Name] = item
-		item[object.Key] = object.Value
-	}
-
-	return index, nil
 }
 
 // ProjectExists checks if a project with the given key exists.
@@ -288,10 +194,11 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 	// Check if a project with the same key exists.
 	exists, err := c.ProjectExists(object.Name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
+
 	if exists {
-		return -1, fmt.Errorf("This project already exists")
+		return -1, fmt.Errorf("This \"projects\" entry already exists")
 	}
 
 	args := make([]interface{}, 2)
@@ -306,82 +213,29 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create project")
+		return -1, fmt.Errorf("Failed to create \"projects\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch project ID")
+		return -1, fmt.Errorf("Failed to fetch \"projects\" entry ID: %w", err)
 	}
 
-	// Insert config reference.
-	stmt = c.stmt(projectCreateConfigRef)
+	referenceID := int(id)
 	for key, value := range object.Config {
-		_, err := stmt.Exec(id, key, value)
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
+		}
+
+		err = c.CreateConfig("project", insert)
 		if err != nil {
-			return -1, errors.Wrap(err, "Insert config for project")
+			return -1, fmt.Errorf("Insert Config failed for Project: %w", err)
 		}
-	}
 
+	}
 	return id, nil
-}
-
-// ProjectUsedByRef returns entities used by projects.
-// generator: project UsedByRef
-func (c *ClusterTx) ProjectUsedByRef(filter ProjectFilter) (map[string][]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Name  string
-		Value string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Name != nil {
-		stmt = c.stmt(projectUsedByRefByName)
-		args = []interface{}{
-			filter.Name,
-		}
-	} else if filter.Name == nil {
-		stmt = c.stmt(projectUsedByRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Name  string
-			Value string
-		}{})
-		return []interface{}{
-			&objects[i].Name,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch string ref for projects")
-	}
-
-	// Build index by primary name.
-	index := map[string][]string{}
-
-	for _, object := range objects {
-		item, ok := index[object.Name]
-		if !ok {
-			item = []string{}
-		}
-
-		index[object.Name] = append(item, object.Value)
-	}
-
-	return index, nil
 }
 
 // GetProjectID return the ID of the project with the given key.
@@ -390,8 +244,9 @@ func (c *ClusterTx) GetProjectID(name string) (int64, error) {
 	stmt := c.stmt(projectID)
 	rows, err := stmt.Query(name)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get project ID")
+		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
 	}
+
 	defer rows.Close()
 
 	// Ensure we read one and only one row.
@@ -401,14 +256,15 @@ func (c *ClusterTx) GetProjectID(name string) (int64, error) {
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
+
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -420,13 +276,14 @@ func (c *ClusterTx) RenameProject(name string, to string) error {
 	stmt := c.stmt(projectRename)
 	result, err := stmt.Exec(to, name)
 	if err != nil {
-		return errors.Wrap(err, "Rename project")
+		return fmt.Errorf("Rename Project failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows failed: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query affected %d rows instead of 1", n)
 	}
@@ -439,13 +296,14 @@ func (c *ClusterTx) DeleteProject(name string) error {
 	stmt := c.stmt(projectDeleteByName)
 	result, err := stmt.Exec(name)
 	if err != nil {
-		return errors.Wrap(err, "Delete project")
+		return fmt.Errorf("Delete \"projects\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}

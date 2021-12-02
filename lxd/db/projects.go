@@ -20,15 +20,10 @@ import (
 //go:generate mapper reset
 //
 //go:generate mapper stmt -p db -e project names
-//go:generate mapper stmt -p db -e project names-by-Name
+//go:generate mapper stmt -p db -e project names-by-ID
 //go:generate mapper stmt -p db -e project objects
 //go:generate mapper stmt -p db -e project objects-by-Name
-//go:generate mapper stmt -p db -e project used-by-ref
-//go:generate mapper stmt -p db -e project used-by-ref-by-Name
-//go:generate mapper stmt -p db -e project config-ref
-//go:generate mapper stmt -p db -e project config-ref-by-Name
 //go:generate mapper stmt -p db -e project create struct=Project
-//go:generate mapper stmt -p db -e project create-config-ref
 //go:generate mapper stmt -p db -e project id
 //go:generate mapper stmt -p db -e project rename
 //go:generate mapper stmt -p db -e project update struct=Project
@@ -37,16 +32,15 @@ import (
 //go:generate mapper method -p db -e project URIs
 //go:generate mapper method -p db -e project GetMany
 //go:generate mapper method -p db -e project GetOne struct=Project
-//go:generate mapper method -p db -e project ConfigRef
 //go:generate mapper method -p db -e project Exists struct=Project
 //go:generate mapper method -p db -e project Create struct=Project
-//go:generate mapper method -p db -e project UsedByRef
 //go:generate mapper method -p db -e project ID struct=Project
 //go:generate mapper method -p db -e project Rename
 //go:generate mapper method -p db -e project DeleteOne-by-Name
 
 // Project represents a LXD project
 type Project struct {
+	ID          int
 	Description string
 	Name        string   `db:"omit=update"`
 	UsedBy      []string `db:"omit=create"`
@@ -55,6 +49,7 @@ type Project struct {
 
 // ProjectFilter specifies potential query parameter fields.
 type ProjectFilter struct {
+	ID   *int
 	Name *string `db:"omit=update"` // If non-empty, return only the project with this name.
 }
 
@@ -181,17 +176,9 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 		return errors.Wrap(err, "Delete project config")
 	}
 
-	// Insert new config.
-	stmt = c.stmt(projectCreateConfigRef)
-	for key, value := range object.Config {
-		if value == "" {
-			continue
-		}
-
-		_, err := stmt.Exec(id, key, value)
-		if err != nil {
-			return errors.Wrap(err, "Insert config for project")
-		}
+	err = c.UpdateConfig("project", int(id), object.Config)
+	if err != nil {
+		return fmt.Errorf("Insert config for project: %w", err)
 	}
 
 	return nil
@@ -209,6 +196,49 @@ func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	SELECT images.id, ? FROM images WHERE project_id=1`
 	_, err = c.tx.Exec(stmt, defaultProfileID)
 	return err
+}
+
+// GetProjectUsedBy returns all the instances, images, profiles, storage
+// volumes, networks, and acls that use the given project.
+func (c *ClusterTx) GetProjectUsedBy(project Project) ([]string, error) {
+	instances, err := c.GetInstanceURIs(InstanceFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	images, err := c.GetImageURIs(ImageFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	profiles, err := c.GetProfileURIs(ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	volumes, err := c.GetStorageVolumeURIs(project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	networks, err := c.GetNetworkURIs(project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	networkACLs, err := c.GetNetworkACLURIs(project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBy := instances
+	usedBy = append(usedBy, images...)
+	usedBy = append(usedBy, profiles...)
+	usedBy = append(usedBy, volumes...)
+	usedBy = append(usedBy, networks...)
+	usedBy = append(usedBy, networkACLs...)
+
+	return usedBy, nil
 }
 
 // GetProject returns the project with the given key.

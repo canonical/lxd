@@ -78,7 +78,7 @@ func usedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 		}
 
 		// Look for NIC devices using this network.
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(inst.Devices), profiles)
+		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
 		for devName, devConfig := range devices {
 			if isInUseByDevice(networkName, devConfig) {
 				err := usageFunc(inst, devName, devConfig)
@@ -215,7 +215,7 @@ func usedByProfileDevices(s *state.State, profile db.Profile, networkProjectName
 		return false, nil
 	}
 
-	for _, d := range deviceConfig.NewDevices(profile.Devices) {
+	for _, d := range deviceConfig.NewDevices(db.DevicesToAPI(profile.Devices)) {
 		if isInUseByDevice(networkName, d) {
 			return true, nil
 		}

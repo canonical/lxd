@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -460,6 +461,27 @@ func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error)
 	}
 
 	return netNodes, nil
+}
+
+// GetNetworkURIs returns the URIs for the networks with the given project.
+func (c *ClusterTx) GetNetworkURIs(projectID int) ([]string, error) {
+	stmt, err := c.prepare(`
+SELECT projects.name, networks.name from networks
+JOIN projects ON networks.project_id = projects.id
+WHERE networks.project_id = ?`)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to prepare statement for network: %w", err)
+	}
+
+	code := cluster.EntityTypes["network"]
+	formatter := cluster.EntityFormatURIs[code]
+
+	uris, err := query.SelectURIs(stmt, formatter, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get URIs for network: %w", err)
+	}
+
+	return uris, nil
 }
 
 // GetNetworks returns the names of existing networks.

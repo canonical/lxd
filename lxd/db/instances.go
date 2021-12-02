@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
 
@@ -24,6 +23,9 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t instances.mapper.go
 //go:generate mapper reset
 //
+//go:generate mapper stmt -p db -e instance names
+//go:generate mapper stmt -p db -e instance names-by-Project
+//go:generate mapper stmt -p db -e instance names-by-ID
 //go:generate mapper stmt -p db -e instance objects
 //go:generate mapper stmt -p db -e instance objects-by-Project
 //go:generate mapper stmt -p db -e instance objects-by-Project-and-Type
@@ -40,40 +42,18 @@ import (
 //go:generate mapper stmt -p db -e instance objects-by-Node
 //go:generate mapper stmt -p db -e instance objects-by-Node-and-Name
 //go:generate mapper stmt -p db -e instance objects-by-Name
-//go:generate mapper stmt -p db -e instance profiles-ref
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Node
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance profiles-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance config-ref
-//go:generate mapper stmt -p db -e instance config-ref-by-Project
-//go:generate mapper stmt -p db -e instance config-ref-by-Node
-//go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance config-ref-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance devices-ref
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project
-//go:generate mapper stmt -p db -e instance devices-ref-by-Node
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance devices-ref-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance id
 //go:generate mapper stmt -p db -e instance create struct=Instance
-//go:generate mapper stmt -p db -e instance create-config-ref
-//go:generate mapper stmt -p db -e instance create-devices-ref
 //go:generate mapper stmt -p db -e instance rename
 //go:generate mapper stmt -p db -e instance delete-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance delete-config-ref
-//go:generate mapper stmt -p db -e instance delete-devices-ref
-//go:generate mapper stmt -p db -e instance delete-profiles-ref
 //go:generate mapper stmt -p db -e instance update struct=Instance
 //
 //go:generate mapper method -p db -e instance GetMany
 //go:generate mapper method -p db -e instance GetOne
+//go:generate mapper method -p db -e instance URIs
 //go:generate mapper method -p db -e instance ID struct=Instance
 //go:generate mapper method -p db -e instance Exists struct=Instance
 //go:generate mapper method -p db -e instance Create struct=Instance
-//go:generate mapper method -p db -e instance ProfilesRef
-//go:generate mapper method -p db -e instance ConfigRef
-//go:generate mapper method -p db -e instance DevicesRef
 //go:generate mapper method -p db -e instance Rename
 //go:generate mapper method -p db -e instance DeleteOne-by-Project-and-Name
 //go:generate mapper method -p db -e instance Update struct=Instance
@@ -83,7 +63,7 @@ type Instance struct {
 	ID           int
 	Project      string `db:"primary=yes&join=projects.name"`
 	Name         string `db:"primary=yes"`
-	Node         string `db:"join=nodes.name"`
+	Node         string `db:"join=nodes.name&omit=URIs"` // TODO: Implement multiple joins for URI generation.
 	Type         instancetype.Type
 	Snapshot     bool `db:"ignore"`
 	Architecture int
@@ -93,17 +73,18 @@ type Instance struct {
 	LastUseDate  sql.NullTime
 	Description  string `db:"coalesce=''"`
 	Config       map[string]string
-	Devices      map[string]map[string]string
+	Devices      map[string]Device
 	Profiles     []string
 	ExpiryDate   sql.NullTime
 }
 
 // InstanceFilter specifies potential query parameter fields.
 type InstanceFilter struct {
+	ID      *int
 	Project *string
 	Name    *string
-	Node    *string
-	Type    *instancetype.Type `db:"omit=profiles-ref,config-ref,devices-ref"`
+	Node    *string `db:"omit=URIs"` // TODO: Implement multiple joins for URI generation.
+	Type    *instancetype.Type
 }
 
 // InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
@@ -122,7 +103,7 @@ func InstanceToArgs(inst *Instance) InstanceArgs {
 		LastUsedDate: inst.LastUseDate.Time,
 		Description:  inst.Description,
 		Config:       inst.Config,
-		Devices:      deviceConfig.NewDevices(inst.Devices),
+		Devices:      deviceConfig.NewDevices(DevicesToAPI(inst.Devices)),
 		Profiles:     inst.Profiles,
 		ExpiryDate:   inst.ExpiryDate.Time,
 	}
@@ -980,47 +961,6 @@ func UpdateInstance(tx *sql.Tx, id int, description string, architecture int, ep
 	}
 	if err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// Associate the instance with the given ID with the profiles with the given
-// names in the given project.
-func addProfilesToInstance(tx *sql.Tx, id int, project string, profiles []string) error {
-	enabled, err := projectHasProfiles(tx, project)
-	if err != nil {
-		return errors.Wrap(err, "Check if project has profiles")
-	}
-	if !enabled {
-		project = "default"
-	}
-
-	applyOrder := 1
-	str := `
-INSERT INTO instances_profiles (instance_id, profile_id, apply_order)
-  VALUES (
-    ?,
-    (SELECT profiles.id
-     FROM profiles
-     JOIN projects ON projects.id=profiles.project_id
-     WHERE projects.name=? AND profiles.name=?),
-    ?
-  )
-`
-	stmt, err := tx.Prepare(str)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-	for _, profile := range profiles {
-		_, err = stmt.Exec(id, project, profile, applyOrder)
-		if err != nil {
-			logger.Debugf("Error adding profile %s to container: %s",
-				profile, err)
-			return err
-		}
-		applyOrder = applyOrder + 1
 	}
 
 	return nil

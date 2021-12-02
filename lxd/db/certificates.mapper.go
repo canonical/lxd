@@ -8,11 +8,11 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -27,14 +27,6 @@ var certificateObjectsByFingerprint = cluster.RegisterStmt(`
 SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
   FROM certificates
   WHERE certificates.fingerprint = ? ORDER BY certificates.fingerprint
-`)
-
-var certificateProjectsRef = cluster.RegisterStmt(`
-SELECT fingerprint, value FROM certificates_projects_ref ORDER BY fingerprint
-`)
-
-var certificateProjectsRefByFingerprint = cluster.RegisterStmt(`
-SELECT fingerprint, value FROM certificates_projects_ref WHERE fingerprint = ? ORDER BY fingerprint
 `)
 
 var certificateID = cluster.RegisterStmt(`
@@ -64,6 +56,8 @@ UPDATE certificates
 // GetCertificates returns all available certificates.
 // generator: certificate GetMany
 func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, error) {
+	var err error
+
 	// Result slice.
 	objects := make([]Certificate, 0)
 
@@ -97,23 +91,35 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 	}
 
 	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
+	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch certificates")
+		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
 	}
 
-	// Fill field Projects.
-	projectsObjects, err := c.CertificateProjectsRef(filter)
+	certificateProjects, err := c.GetCertificateProjects()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch field Projects")
+		return nil, err
 	}
 
 	for i := range objects {
-		value := projectsObjects[objects[i].Fingerprint]
-		if value == nil {
-			value = []string{}
+		objects[i].Projects = make([]string, 0)
+		if refIDs, ok := certificateProjects[objects[i].ID]; ok {
+			for _, refID := range refIDs {
+				projectURIs, err := c.GetProjectURIs(ProjectFilter{ID: &refID})
+				if err != nil {
+					return nil, err
+				}
+
+				for i, uri := range projectURIs {
+					if strings.HasPrefix(uri, "/1.0/") {
+						uri = strings.Split(uri, "/1.0/projects/")[1]
+						uri = strings.Split(uri, "?")[0]
+						projectURIs[i] = uri
+					}
+				}
+				objects[i].Projects = append(objects[i].Projects, projectURIs...)
+			}
 		}
-		objects[i].Projects = value
 	}
 
 	return objects, nil
@@ -127,7 +133,7 @@ func (c *ClusterTx) GetCertificate(fingerprint string) (*Certificate, error) {
 
 	objects, err := c.GetCertificates(filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch Certificate")
+		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
 	}
 
 	switch len(objects) {
@@ -136,7 +142,7 @@ func (c *ClusterTx) GetCertificate(fingerprint string) (*Certificate, error) {
 	case 1:
 		return &objects[0], nil
 	default:
-		return nil, fmt.Errorf("More than one certificate matches")
+		return nil, fmt.Errorf("More than one \"certificates\" entry matches")
 	}
 }
 
@@ -146,8 +152,9 @@ func (c *ClusterTx) GetCertificateID(fingerprint string) (int64, error) {
 	stmt := c.stmt(certificateID)
 	rows, err := stmt.Query(fingerprint)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get certificate ID")
+		return -1, fmt.Errorf("Failed to get \"certificates\" ID: %w", err)
 	}
+
 	defer rows.Close()
 
 	// Ensure we read one and only one row.
@@ -157,14 +164,15 @@ func (c *ClusterTx) GetCertificateID(fingerprint string) (int64, error) {
 	var id int64
 	err = rows.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
 	}
+
 	if rows.Next() {
 		return -1, fmt.Errorf("More than one row returned")
 	}
 	err = rows.Err()
 	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
+		return -1, fmt.Errorf("Result set failure: %w", err)
 	}
 
 	return id, nil
@@ -190,10 +198,11 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 	// Check if a certificate with the same key exists.
 	exists, err := c.CertificateExists(object.Fingerprint)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
+
 	if exists {
-		return -1, fmt.Errorf("This certificate already exists")
+		return -1, fmt.Errorf("This \"certificates\" entry already exists")
 	}
 
 	args := make([]interface{}, 5)
@@ -211,78 +220,22 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create certificate")
+		return -1, fmt.Errorf("Failed to create \"certificates\" entry: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch certificate ID")
+		return -1, fmt.Errorf("Failed to fetch \"certificates\" entry ID: %w", err)
 	}
 
-	// Update certificates_projects table.
-	err = c.UpdateCertificateProjects(int(id), object.Projects)
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateCertificateProjects(object)
 	if err != nil {
-		return -1, fmt.Errorf("Could not update certificates_projects table: %w", err)
+		return -1, fmt.Errorf("Could not update association table: %w", err)
 	}
+
 	return id, nil
-}
-
-// CertificateProjectsRef returns entities used by certificates.
-// generator: certificate ProjectsRef
-func (c *ClusterTx) CertificateProjectsRef(filter CertificateFilter) (map[string][]string, error) {
-	// Result slice.
-	objects := make([]struct {
-		Fingerprint string
-		Value       string
-	}, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Fingerprint != nil && filter.Name == nil && filter.Type == nil {
-		stmt = c.stmt(certificateProjectsRefByFingerprint)
-		args = []interface{}{
-			filter.Fingerprint,
-		}
-	} else if filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
-		stmt = c.stmt(certificateProjectsRef)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, struct {
-			Fingerprint string
-			Value       string
-		}{})
-		return []interface{}{
-			&objects[i].Fingerprint,
-			&objects[i].Value,
-		}
-	}
-
-	// Select.
-	err := query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch string ref for certificates")
-	}
-
-	// Build index by primary name.
-	index := map[string][]string{}
-
-	for _, object := range objects {
-		item, ok := index[object.Fingerprint]
-		if !ok {
-			item = []string{}
-		}
-
-		index[object.Fingerprint] = append(item, object.Value)
-	}
-
-	return index, nil
 }
 
 // DeleteCertificate deletes the certificate matching the given key parameters.
@@ -291,13 +244,14 @@ func (c *ClusterTx) DeleteCertificate(fingerprint string) error {
 	stmt := c.stmt(certificateDeleteByFingerprint)
 	result, err := stmt.Exec(fingerprint)
 	if err != nil {
-		return errors.Wrap(err, "Delete certificate")
+		return fmt.Errorf("Delete \"certificates\": %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query deleted %d rows instead of 1", n)
 	}
@@ -311,12 +265,12 @@ func (c *ClusterTx) DeleteCertificates(name string, certificateType CertificateT
 	stmt := c.stmt(certificateDeleteByNameAndType)
 	result, err := stmt.Exec(name, certificateType)
 	if err != nil {
-		return errors.Wrap(err, "Delete certificate")
+		return fmt.Errorf("Delete \"certificates\": %w", err)
 	}
 
 	_, err = result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	return nil
@@ -327,27 +281,30 @@ func (c *ClusterTx) DeleteCertificates(name string, certificateType CertificateT
 func (c *ClusterTx) UpdateCertificate(fingerprint string, object Certificate) error {
 	id, err := c.GetCertificateID(fingerprint)
 	if err != nil {
-		return errors.Wrap(err, "Get certificate")
+		return err
 	}
 
 	stmt := c.stmt(certificateUpdate)
 	result, err := stmt.Exec(object.Fingerprint, object.Type, object.Name, object.Certificate, object.Restricted, id)
 	if err != nil {
-		return errors.Wrap(err, "Update certificate")
+		return fmt.Errorf("Update \"certificates\" entry failed: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
+
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
-	// Update certificates_projects table.
-	err = c.UpdateCertificateProjects(int(id), object.Projects)
+	// Update association table.
+	object.ID = int(id)
+	err = c.UpdateCertificateProjects(object)
 	if err != nil {
-		return fmt.Errorf("Could not update certificates_projects table: %w", err)
+		return fmt.Errorf("Could not update association table: %w", err)
 	}
+
 	return nil
 }

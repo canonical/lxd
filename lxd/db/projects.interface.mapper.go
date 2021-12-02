@@ -17,10 +17,6 @@ type ProjectGenerated interface {
 	// generator: project GetOne
 	GetProject(name string) (*Project, error)
 
-	// ProjectConfigRef returns entities used by projects.
-	// generator: project ConfigRef
-	ProjectConfigRef(filter ProjectFilter) (map[string]map[string]string, error)
-
 	// ProjectExists checks if a project with the given key exists.
 	// generator: project Exists
 	ProjectExists(name string) (bool, error)
@@ -28,10 +24,6 @@ type ProjectGenerated interface {
 	// CreateProject adds a new project to the database.
 	// generator: project Create
 	CreateProject(object Project) (int64, error)
-
-	// ProjectUsedByRef returns entities used by projects.
-	// generator: project UsedByRef
-	ProjectUsedByRef(filter ProjectFilter) (map[string][]string, error)
 
 	// GetProjectID return the ID of the project with the given key.
 	// generator: project ID

@@ -11,7 +11,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 var _ = api.ServerEnvironment{}
@@ -24,14 +23,6 @@ const configCreate = `INSERT INTO %s_config (%s_id, key, value)
   VALUES (?, ?, ?)`
 
 const configDelete = `DELETE FROM %s_config WHERE %s_id = ?`
-
-// Config represents one configuration entry for an entity.
-type Config struct {
-	ID          int
-	ReferenceID int
-	Key         string
-	Value       string
-}
 
 // GetConfig returns all available config.
 // generator: config GetMany
@@ -68,7 +59,7 @@ func (c *ClusterTx) GetConfig(parent string) (map[int]map[string]string, error) 
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch config")
+		return nil, fmt.Errorf("Failed to fetch from \"config\" table: %w", err)
 	}
 
 	resultMap := map[int]map[string]string{}
@@ -103,7 +94,7 @@ func (c *ClusterTx) CreateConfig(parent string, object Config) error {
 
 	_, err = stmt.Exec(object.ReferenceID, object.Key, object.Value)
 	if err != nil {
-		return errors.Wrapf(err, "Insert entry %s_config", parent)
+		return fmt.Errorf("Insert failed for \"%s_config\" table: %w", parent, err)
 	}
 
 	return nil
@@ -151,12 +142,12 @@ func (c *ClusterTx) DeleteConfig(parent string, referenceID int) error {
 
 	result, err := stmt.Exec(referenceID)
 	if err != nil {
-		return errors.Wrapf(err, "Delete entry %s_config", parent)
+		return fmt.Errorf("Delete entry for \"%s_config\" failed: %w", parent, err)
 	}
 
 	_, err = result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
 	return nil

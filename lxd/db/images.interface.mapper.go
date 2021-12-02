@@ -12,4 +12,8 @@ type ImageGenerated interface {
 	// GetImage returns the image with the given key.
 	// generator: image GetOne
 	GetImage(project string, fingerprint string) (*Image, error)
+
+	// GetImageURIs returns all available image URIs.
+	// generator: image URIs
+	GetImageURIs(filter ImageFilter) ([]string, error)
 }

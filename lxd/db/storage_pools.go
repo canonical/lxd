@@ -160,12 +160,12 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 	}
 
 	for _, profile := range profiles {
-		for _, v := range profile.Devices {
-			if v["type"] != "disk" {
+		for _, device := range profile.Devices {
+			if device.Type != TypeDisk {
 				continue
 			}
 
-			if v["pool"] != name {
+			if device.Config["pool"] != name {
 				continue
 			}
 
