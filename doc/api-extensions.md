@@ -1518,3 +1518,6 @@ This introduces `network.nat` as a config option on network zones (DNS).
 It defaults to the current behavior of generating records for all
 instances NICs but if set to `false`, it will instruct LXD to only
 generate records for externally reachable addreses.
+
+## database\_leader
+Adds new "database-leader" role which is assigned to cluster leader.
