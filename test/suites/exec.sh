@@ -21,6 +21,19 @@ test_exec() {
     exec_container_noninteractive "${i}" > "${LXD_DIR}/exec-${i}.out" 2>&1
   done
 
+  # Check non-websocket based exec works.
+  opID=$(lxc query -X POST -d '{\"command\":[\"touch\",\"/root/foo1\"],\"record-output\":false}' /1.0/instances/x1/exec | jq -r .id)
+  lxc query  /1.0/operations/"${opID}" | jq .metadata.return | grep -F "0"
+  lxc exec x1 -- stat /root/foo1
+
+  opID=$(lxc query -X POST -d '{\"command\":[\"missingcmd\"],\"record-output\":false}' /1.0/instances/x1/exec | jq -r .id)
+  lxc query  /1.0/operations/"${opID}" | jq .metadata.return | grep -F "127"
+
+  echo "hello" | lxc exec x1 -- tee /root/foo1
+  opID=$(lxc query -X POST -d '{\"command\":[\"cat\",\"/root/foo1\"],\"record-output\":true}' /1.0/instances/x1/exec | jq -r .id)
+  stdOutURL=$(lxc query  /1.0/operations/"${opID}" | jq '.metadata.output["1"]')
+  lxc query "${stdOutURL}" | grep -F "hello"
+
   lxc stop "${name}" --force
   lxc delete "${name}"
 }
