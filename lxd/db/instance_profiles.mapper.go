@@ -15,10 +15,16 @@ import (
 
 var _ = api.ServerEnvironment{}
 
-var instanceProfileObjects = cluster.RegisterStmt(`
+var instanceProfileObjectsByProfileID = cluster.RegisterStmt(`
 SELECT instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order
   FROM instances_profiles
-  ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
+  WHERE instances_profiles.profile_id = ? ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
+`)
+
+var instanceProfileObjectsByInstanceID = cluster.RegisterStmt(`
+SELECT instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order
+  FROM instances_profiles
+  WHERE instances_profiles.instance_id = ? ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
 `)
 
 var instanceProfileCreate = cluster.RegisterStmt(`
@@ -32,14 +38,14 @@ DELETE FROM instances_profiles WHERE instance_id = ?
 
 // GetProfileInstances returns all available instance_profiles.
 // generator: instance_profile GetMany
-func (c *ClusterTx) GetProfileInstances() (map[int][]int, error) {
+func (c *ClusterTx) GetProfileInstances(profile Profile) ([]Instance, error) {
 	var err error
 
 	// Result slice.
 	objects := make([]InstanceProfile, 0)
 
-	stmt := c.stmt(instanceProfileObjects)
-	args := []interface{}{}
+	stmt := c.stmt(instanceProfileObjectsByProfileID)
+	args := []interface{}{profile.ID}
 
 	// Dest function for scanning a row.
 	dest := func(i int) []interface{} {
@@ -57,24 +63,29 @@ func (c *ClusterTx) GetProfileInstances() (map[int][]int, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}
 
-	resultMap := map[int][]int{}
-	for _, object := range objects {
-		resultMap[object.ProfileID] = append(resultMap[object.ProfileID], object.InstanceID)
+	result := make([]Instance, len(objects))
+	for i, object := range objects {
+		instance, err := c.GetInstances(InstanceFilter{ID: &object.InstanceID})
+		if err != nil {
+			return nil, err
+		}
+
+		result[i] = instance[0]
 	}
 
-	return resultMap, nil
+	return result, nil
 }
 
 // GetInstanceProfiles returns all available instance_profiles.
 // generator: instance_profile GetMany
-func (c *ClusterTx) GetInstanceProfiles() (map[int][]int, error) {
+func (c *ClusterTx) GetInstanceProfiles(instance Instance) ([]Profile, error) {
 	var err error
 
 	// Result slice.
 	objects := make([]InstanceProfile, 0)
 
-	stmt := c.stmt(instanceProfileObjects)
-	args := []interface{}{}
+	stmt := c.stmt(instanceProfileObjectsByInstanceID)
+	args := []interface{}{instance.ID}
 
 	// Dest function for scanning a row.
 	dest := func(i int) []interface{} {
@@ -92,12 +103,17 @@ func (c *ClusterTx) GetInstanceProfiles() (map[int][]int, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"instances_profiles\" table: %w", err)
 	}
 
-	resultMap := map[int][]int{}
-	for _, object := range objects {
-		resultMap[object.InstanceID] = append(resultMap[object.InstanceID], object.ProfileID)
+	result := make([]Profile, len(objects))
+	for i, object := range objects {
+		profile, err := c.GetProfiles(ProfileFilter{ID: &object.ProfileID})
+		if err != nil {
+			return nil, err
+		}
+
+		result[i] = profile[0]
 	}
 
-	return resultMap, nil
+	return result, nil
 }
 
 // CreateInstanceProfile adds a new instance_profile to the database.

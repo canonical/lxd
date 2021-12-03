@@ -10,7 +10,8 @@ import "fmt"
 //go:generate -command mapper lxd-generate db mapper -t instance_profiles.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e instance_profile objects
+//go:generate mapper stmt -p db -e instance_profile objects-by-ProfileID
+//go:generate mapper stmt -p db -e instance_profile objects-by-InstanceID
 //go:generate mapper stmt -p db -e instance_profile create struct=InstanceProfile
 //go:generate mapper stmt -p db -e instance_profile delete-by-InstanceID
 //

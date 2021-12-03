@@ -7,7 +7,7 @@ package db
 type CertificateProjectGenerated interface {
 	// GetCertificateProjects returns all available certificate_projects.
 	// generator: certificate_project GetMany
-	GetCertificateProjects() (map[int][]int, error)
+	GetCertificateProjects(certificate Certificate) ([]Project, error)
 
 	// DeleteCertificateProjects deletes the certificate_project matching the given key parameters.
 	// generator: certificate_project DeleteMany
@@ -19,5 +19,5 @@ type CertificateProjectGenerated interface {
 
 	// UpdateCertificateProjects updates the certificate_project matching the given key parameters.
 	// generator: certificate_project Update
-	UpdateCertificateProjects(object Certificate) error
+	UpdateCertificateProjects(certificate Certificate, projects []Project) error
 }
