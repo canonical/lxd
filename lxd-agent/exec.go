@@ -52,6 +52,10 @@ func execPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	if !post.WaitForWS {
+		return response.BadRequest(fmt.Errorf("Websockets are required for VM exec"))
+	}
+
 	env := map[string]string{}
 
 	if post.Environment != nil {
