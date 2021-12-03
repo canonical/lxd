@@ -195,6 +195,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_remove_members "clustering config remove members"
     run_test test_clustering_autotarget "clustering autotarget member"
     # run_test test_clustering_upgrade "clustering upgrade"
+    run_test test_clustering_groups "clustering groups"
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
