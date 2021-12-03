@@ -15,10 +15,10 @@ import (
 
 var _ = api.ServerEnvironment{}
 
-var certificateProjectObjects = cluster.RegisterStmt(`
+var certificateProjectObjectsByCertificateID = cluster.RegisterStmt(`
 SELECT certificates_projects.certificate_id, certificates_projects.project_id
   FROM certificates_projects
-  ORDER BY certificates_projects.certificate_id
+  WHERE certificates_projects.certificate_id = ? ORDER BY certificates_projects.certificate_id
 `)
 
 var certificateProjectCreate = cluster.RegisterStmt(`
@@ -32,14 +32,14 @@ DELETE FROM certificates_projects WHERE certificate_id = ?
 
 // GetCertificateProjects returns all available certificate_projects.
 // generator: certificate_project GetMany
-func (c *ClusterTx) GetCertificateProjects() (map[int][]int, error) {
+func (c *ClusterTx) GetCertificateProjects(certificate Certificate) ([]Project, error) {
 	var err error
 
 	// Result slice.
 	objects := make([]CertificateProject, 0)
 
-	stmt := c.stmt(certificateProjectObjects)
-	args := []interface{}{}
+	stmt := c.stmt(certificateProjectObjectsByCertificateID)
+	args := []interface{}{certificate.ID}
 
 	// Dest function for scanning a row.
 	dest := func(i int) []interface{} {
@@ -56,12 +56,17 @@ func (c *ClusterTx) GetCertificateProjects() (map[int][]int, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"certificates_projects\" table: %w", err)
 	}
 
-	resultMap := map[int][]int{}
-	for _, object := range objects {
-		resultMap[object.CertificateID] = append(resultMap[object.CertificateID], object.ProjectID)
+	result := make([]Project, len(objects))
+	for i, object := range objects {
+		project, err := c.GetProjects(ProjectFilter{ID: &object.ProjectID})
+		if err != nil {
+			return nil, err
+		}
+
+		result[i] = project[0]
 	}
 
-	return resultMap, nil
+	return result, nil
 }
 
 // DeleteCertificateProjects deletes the certificate_project matching the given key parameters.
@@ -109,21 +114,21 @@ func (c *ClusterTx) CreateCertificateProject(object CertificateProject) (int64, 
 
 // UpdateCertificateProjects updates the certificate_project matching the given key parameters.
 // generator: certificate_project Update
-func (c *ClusterTx) UpdateCertificateProjects(object Certificate) error {
+func (c *ClusterTx) UpdateCertificateProjects(certificate Certificate, projects []Project) error {
 	// Delete current entry.
-	err := c.DeleteCertificateProjects(object)
+	err := c.DeleteCertificateProjects(certificate)
 	if err != nil {
 		return err
 	}
 
 	// Insert new entries.
-	for _, key := range object.Projects {
-		refID, err := c.GetProjectID(key)
+	for _, entry := range projects {
+		refID, err := c.GetProjectID(entry.Name)
 		if err != nil {
 			return err
 		}
 
-		certificateProject := CertificateProject{CertificateID: object.ID, ProjectID: int(refID)}
+		certificateProject := CertificateProject{CertificateID: certificate.ID, ProjectID: int(refID)}
 		_, err = c.CreateCertificateProject(certificateProject)
 		if err != nil {
 			return err

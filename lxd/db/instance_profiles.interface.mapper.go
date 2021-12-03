@@ -7,11 +7,11 @@ package db
 type InstanceProfileGenerated interface {
 	// GetProfileInstances returns all available instance_profiles.
 	// generator: instance_profile GetMany
-	GetProfileInstances() (map[int][]int, error)
+	GetProfileInstances(profile Profile) ([]Instance, error)
 
 	// GetInstanceProfiles returns all available instance_profiles.
 	// generator: instance_profile GetMany
-	GetInstanceProfiles() (map[int][]int, error)
+	GetInstanceProfiles(instance Instance) ([]Profile, error)
 
 	// CreateInstanceProfile adds a new instance_profile to the database.
 	// generator: instance_profile Create

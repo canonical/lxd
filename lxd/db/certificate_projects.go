@@ -8,7 +8,7 @@ package db
 //go:generate -command mapper lxd-generate db mapper -t certificate_projects.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e certificate_project objects
+//go:generate mapper stmt -p db -e certificate_project objects-by-CertificateID
 //go:generate mapper stmt -p db -e certificate_project create struct=CertificateProject
 //go:generate mapper stmt -p db -e certificate_project delete-by-CertificateID
 //

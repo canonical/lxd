@@ -242,8 +242,9 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		m.ifErrNotNil(buf, "nil", "err")
 		buf.L("args := []interface{}{}")
 	} else if mapping.Type == AssociationTable {
-		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
-		buf.L("args := []interface{}{}")
+		filter := m.config["struct"] + "ID"
+		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "objects", filter))
+		buf.L("args := []interface{}{%s.ID}", lex.Minuscule(m.config["struct"]))
 	} else {
 		filters, ignoredFilters := FiltersFromStmt(m.packages["db"], "objects", m.entity, mapping.Filters)
 		buf.N()
@@ -383,12 +384,14 @@ func (m *Method) getMany(buf *file.Buffer) error {
 	switch mapping.Type {
 	case AssociationTable:
 		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
-		buf.L("resultMap := map[int][]int{}")
-		buf.L("for _, object := range objects {")
-		buf.L("resultMap[object.%sID] = append(resultMap[object.%sID], object.%sID)", m.config["struct"], m.config["struct"], ref)
+		buf.L("result := make([]%s, len(objects))", ref)
+		buf.L("for i, object := range objects {")
+		buf.L("%s, err := c.Get%s(%sFilter{ID: &object.%sID})", lex.Minuscule(ref), lex.Plural(ref), ref, ref)
+		m.ifErrNotNil(buf, "nil", "err")
+		buf.L("result[i] = %s[0]", lex.Minuscule(ref))
 		buf.L("}")
 		buf.N()
-		buf.L("return resultMap, nil")
+		buf.L("return result, nil")
 	case ReferenceTable:
 		buf.L("resultMap := map[int][]%s{}", mapping.Name)
 		buf.L("for _, object := range objects {")
@@ -825,14 +828,19 @@ func (m *Method) update(buf *file.Buffer) error {
 	switch mapping.Type {
 	case AssociationTable:
 		ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
+		refMapping, err := Parse(m.packages[m.pkg], ref, "")
+		if err != nil {
+			return fmt.Errorf("Parse entity struct: %w", err)
+		}
+
 		buf.L("// Delete current entry.")
-		buf.L("err := c.Delete%s%s(object)", m.config["struct"], lex.Plural(ref))
+		buf.L("err := c.Delete%s%s(%s)", m.config["struct"], lex.Plural(ref), lex.Minuscule(m.config["struct"]))
 		m.ifErrNotNil(buf, "err")
 		buf.L("// Insert new entries.")
-		buf.L("for _, key := range object.%s {", lex.Plural(ref))
-		buf.L("refID, err := c.Get%sID(key)", ref)
+		buf.L("for _, entry := range %s {", lex.Plural(lex.Minuscule(ref)))
+		buf.L("refID, err := c.Get%sID(entry.%s)", ref, refMapping.Identifier().Name)
 		m.ifErrNotNil(buf, "err")
-		fields := fmt.Sprintf("%sID: object.ID, %sID: int(refID)", m.config["struct"], ref)
+		fields := fmt.Sprintf("%sID: %s.ID, %sID: int(refID)", m.config["struct"], lex.Minuscule(m.config["struct"]), ref)
 		buf.L("%s := %s{%s}", lex.Minuscule(mapping.Name), mapping.Name, fields)
 		buf.L("_, err = c.Create%s%s(%s)", m.config["struct"], ref, lex.Minuscule(mapping.Name))
 		m.ifErrNotNil(buf, "err")
@@ -1015,16 +1023,18 @@ func (m *Method) signature(buf *file.Buffer, isInterface bool) error {
 	case AssociationTable:
 		switch operation(m.kind) {
 		case "GetMany":
+			ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
 			comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-			args = ""
-			rets = "(map[int][]int, error)"
+			args = fmt.Sprintf("%s %s", lex.Minuscule(m.config["struct"]), m.config["struct"])
+			rets = fmt.Sprintf("([]%s, error)", ref)
 		case "Create":
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
 			args = fmt.Sprintf("object %s", mapping.Name)
 			rets = "(int64, error)"
 		case "Update":
+			ref := strings.Replace(mapping.Name, m.config["struct"], "", -1)
 			comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
-			args = fmt.Sprintf("object %s", m.config["struct"])
+			args = fmt.Sprintf("%s %s, %s []%s", lex.Minuscule(m.config["struct"]), m.config["struct"], lex.Plural(lex.Minuscule(ref)), ref)
 			rets = "error"
 		case "DeleteMany":
 			comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
