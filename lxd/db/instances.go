@@ -46,15 +46,15 @@ import (
 //go:generate mapper stmt -p db -e instance delete-by-Project-and-Name
 //go:generate mapper stmt -p db -e instance update struct=Instance
 //
-//go:generate mapper method -p db -e instance GetMany
+//go:generate mapper method -p db -e instance GetMany references=Device,Config
 //go:generate mapper method -p db -e instance GetOne
 //go:generate mapper method -p db -e instance URIs
 //go:generate mapper method -p db -e instance ID struct=Instance
 //go:generate mapper method -p db -e instance Exists struct=Instance
-//go:generate mapper method -p db -e instance Create struct=Instance
+//go:generate mapper method -p db -e instance Create references=Device,Config
 //go:generate mapper method -p db -e instance Rename
 //go:generate mapper method -p db -e instance DeleteOne-by-Project-and-Name
-//go:generate mapper method -p db -e instance Update struct=Instance
+//go:generate mapper method -p db -e instance Update references=Device,Config
 
 // Instance is a value object holding db-related details about an instance.
 type Instance struct {
@@ -70,8 +70,6 @@ type Instance struct {
 	Stateful     bool
 	LastUseDate  sql.NullTime
 	Description  string `db:"coalesce=''"`
-	Config       map[string]string
-	Devices      map[string]Device
 	Profiles     []string
 	ExpiryDate   sql.NullTime
 }
@@ -100,16 +98,11 @@ func InstanceToArgs(inst *Instance) InstanceArgs {
 		Stateful:     inst.Stateful,
 		LastUsedDate: inst.LastUseDate.Time,
 		Description:  inst.Description,
-		Config:       inst.Config,
-		Devices:      deviceConfig.NewDevices(DevicesToAPI(inst.Devices)),
 		Profiles:     inst.Profiles,
 		ExpiryDate:   inst.ExpiryDate.Time,
 	}
 
-	if args.Devices == nil {
-		args.Devices = deviceConfig.Devices{}
-	}
-
+	// TODO: fetch instance devices, config, and profiles, and handle errors if necessary.
 	return args
 }
 
