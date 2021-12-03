@@ -52,6 +52,23 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		if err != nil {
 			return err
 		}
+
+		// Create empty file so we can set the nodatacow property on it.
+		f, err := os.OpenFile(rootBlockPath, os.O_RDWR|os.O_CREATE, 0600)
+		if err != nil {
+			return fmt.Errorf("Failed opening %q: %w", rootBlockPath, err)
+		}
+		f.Close()
+
+		// Enable nodatacow so that random writes don't cause fragmentation and old extents to be kept.
+		// BTRFS extents are immutable so when blocks are written they end up in new extents and the old
+		// ones remains until all of its data is dereferenced or rewritten. These old extents are counted
+		// in the quota, and so leaving CoW enabled can cause the BTRFS subvolume quota to be reached even
+		// if the block volume file isn't full.
+		_, err = shared.RunCommand("chattr", "+C", rootBlockPath)
+		if err != nil {
+			return fmt.Errorf("Failed setting nodatacow on %q: %w", rootBlockPath, err)
+		}
 	}
 
 	err = d.runFiller(vol, rootBlockPath, filler)
