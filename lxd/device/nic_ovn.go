@@ -488,6 +488,25 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 		d.logger.Warn("Could not find OVN Switch port associated to OVS interface", log.Ctx{"interface": d.config["host_name"]})
 	}
 
+	// If there is a host_name specified, then try and remove it from the OVS integration bridge.
+	// Do this early on during the stop process to prevent any future error from leaving the OVS port present
+	// as if the instance is being migrated, this can cause port conflicts in OVN if the instance comes up on
+	// another LXD host later.
+	if d.config["host_name"] != "" {
+		integrationBridge, err := d.getIntegrationBridgeName()
+		if err == nil {
+			// Detach host-side end of veth pair from OVS integration bridge.
+			err = ovs.BridgePortDelete(integrationBridge, d.config["host_name"])
+			if err != nil {
+				// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
+				d.logger.Error("Failed detaching interface from OVS integration bridge", log.Ctx{"interface": d.config["host_name"], "bridge": integrationBridge, "err": err})
+			}
+		} else {
+			// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
+			d.logger.Error("Failed getting OVS integration bridge name to remove bridge port", log.Ctx{"err": err})
+		}
+	}
+
 	instanceUUID := d.inst.LocalConfig()["volatile.uuid"]
 	err = d.network.InstanceDevicePortDelete(ovsExternalOVNPort, &network.OVNInstanceNICStopOpts{
 		InstanceUUID: instanceUUID,
@@ -528,19 +547,6 @@ func (d *nicOVN) postStop() error {
 	networkVethFillFromVolatile(d.config, v)
 
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
-		integrationBridge, err := d.getIntegrationBridgeName()
-		if err != nil {
-			return err
-		}
-
-		ovs := openvswitch.NewOVS()
-
-		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
-		err = ovs.BridgePortDelete(integrationBridge, d.config["host_name"])
-		if err != nil {
-			return errors.Wrapf(err, "Failed to detach interface %q from %q", d.config["host_name"], integrationBridge)
-		}
-
 		if d.config["acceleration"] == "sriov" {
 			// Restoring host-side interface.
 			err := networkSRIOVRestoreVF(d.deviceCommon, false, v)
@@ -555,7 +561,7 @@ func (d *nicOVN) postStop() error {
 			}
 		} else {
 			// Removing host-side end of veth pair will delete the peer end too.
-			err = network.InterfaceRemove(d.config["host_name"])
+			err := network.InterfaceRemove(d.config["host_name"])
 			if err != nil {
 				return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
 			}
