@@ -389,7 +389,7 @@ func (c *ClusterTx) GetNetworkURIs(projectID int) ([]string, error) {
 	code := cluster.EntityTypes["network"]
 	formatter := cluster.EntityFormatURIs[code]
 
-	uris, err := query.SelectURIs(stmt, formatter, projectID)
+	uris, err := query.SelectURIs(stmt, formatter)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get URIs for network: %w", err)
 	}
