@@ -4964,6 +4964,10 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		Control:  controlHandler,
 	}
 
+	// Always needed for VM exec, as even for non-websocket requests from the client we need to connect the
+	// websockets for control and for capturing output to a file on the LXD server.
+	req.WaitForWS = true
+
 	op, err := agent.ExecInstance("", req, &args)
 	if err != nil {
 		return nil, err
