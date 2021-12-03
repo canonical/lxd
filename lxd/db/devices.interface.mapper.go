@@ -5,7 +5,7 @@ package db
 
 // DeviceGenerated is an interface of generated methods for Device
 type DeviceGenerated interface {
-	// GetDevices returns all available devices.
+	// GetDevices returns all available devices for the parent entity.
 	// generator: device GetMany
 	GetDevices(parent string) (map[int][]Device, error)
 

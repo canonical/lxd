@@ -24,7 +24,7 @@ const deviceCreate = `INSERT INTO %s_devices (%s_id, name, type)
 
 const deviceDelete = `DELETE FROM %s_devices WHERE %s_id = ?`
 
-// GetDevices returns all available devices.
+// GetDevices returns all available devices for the parent entity.
 // generator: device GetMany
 func (c *ClusterTx) GetDevices(parent string) (map[int][]Device, error) {
 	var err error

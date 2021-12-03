@@ -284,35 +284,6 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
 
-	config, err := c.GetConfig("instance")
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		if _, ok := config[objects[i].ID]; !ok {
-			objects[i].Config = map[string]string{}
-		} else {
-			objects[i].Config = config[objects[i].ID]
-		}
-	}
-
-	devices, err := c.GetDevices("instance")
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		objects[i].Devices = map[string]Device{}
-		for _, obj := range devices[objects[i].ID] {
-			if _, ok := objects[i].Devices[obj.Name]; !ok {
-				objects[i].Devices[obj.Name] = obj
-			} else {
-				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
-			}
-		}
-	}
-
 	instanceProfiles, err := c.GetInstanceProfiles()
 	if err != nil {
 		return nil, err
@@ -339,6 +310,40 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 	}
 
 	return objects, nil
+}
+
+// GetInstanceConfig returns all available Instance Config
+// generator: instance GetMany
+func (c *ClusterTx) GetInstanceConfig(instanceID int) (map[string]string, error) {
+	instanceConfig, err := c.GetConfig("instance")
+	if err != nil {
+		return nil, err
+	}
+
+	config, ok := instanceConfig[instanceID]
+	if !ok {
+		config = map[string]string{}
+	}
+	return config, nil
+}
+
+// GetInstanceDevices returns all available Instance Devices
+// generator: instance GetMany
+func (c *ClusterTx) GetInstanceDevices(instanceID int) (map[string]Device, error) {
+	instanceDevices, err := c.GetDevices("instance")
+	if err != nil {
+		return nil, err
+	}
+
+	devices := map[string]Device{}
+	for _, ref := range instanceDevices[instanceID] {
+		if _, ok := devices[ref.Name]; !ok {
+			devices[ref.Name] = ref
+		} else {
+			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
+		}
+	}
+	return devices, nil
 }
 
 // GetInstance returns the instance with the given key.
@@ -603,28 +608,6 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 		return -1, fmt.Errorf("Failed to fetch \"instances\" entry ID: %w", err)
 	}
 
-	referenceID := int(id)
-	for key, value := range object.Config {
-		insert := Config{
-			ReferenceID: referenceID,
-			Key:         key,
-			Value:       value,
-		}
-
-		err = c.CreateConfig("instance", insert)
-		if err != nil {
-			return -1, fmt.Errorf("Insert Config failed for Instance: %w", err)
-		}
-
-	}
-	for _, insert := range object.Devices {
-		insert.ReferenceID = int(id)
-		err = c.CreateDevice("instance", insert)
-		if err != nil {
-			return -1, fmt.Errorf("Insert Devices failed for Instance: %w", err)
-		}
-
-	}
 	// Update association table.
 	object.ID = int(id)
 	err = c.UpdateInstanceProfiles(object)
@@ -633,6 +616,38 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 	}
 
 	return id, nil
+}
+
+// CreateInstanceConfig adds a new instance Config to the database.
+// generator: instance Create
+func (c *ClusterTx) CreateInstanceConfig(instanceID int64, config map[string]string) error {
+	referenceID := int(instanceID)
+	for key, value := range config {
+		insert := Config{
+			ReferenceID: referenceID,
+			Key:         key,
+			Value:       value,
+		}
+
+		err := c.CreateConfig("instance", insert)
+		if err != nil {
+			return fmt.Errorf("Insert Config failed for Instance: %w", err)
+		}
+
+	}
+	return nil
+}
+
+// CreateInstanceDevice adds a new instance Device to the database.
+// generator: instance Create
+func (c *ClusterTx) CreateInstanceDevice(instanceID int64, device Device) error {
+	device.ReferenceID = int(instanceID)
+	err := c.CreateDevice("instance", device)
+	if err != nil {
+		return fmt.Errorf("Insert Device failed for Instance: %w", err)
+	}
+
+	return nil
 }
 
 // RenameInstance renames the instance matching the given key parameters.
@@ -699,21 +714,33 @@ func (c *ClusterTx) UpdateInstance(project string, name string, object Instance)
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
-	err = c.UpdateConfig("instance", int(id), object.Config)
-	if err != nil {
-		return fmt.Errorf("Replace Config for Instance failed: %w", err)
-	}
-
-	err = c.UpdateDevice("instance", int(id), object.Devices)
-	if err != nil {
-		return fmt.Errorf("Replace Devices for Instance failed: %w", err)
-	}
-
 	// Update association table.
 	object.ID = int(id)
 	err = c.UpdateInstanceProfiles(object)
 	if err != nil {
 		return fmt.Errorf("Could not update association table: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateInstanceConfig updates the instance Config matching the given key parameters.
+// generator: instance Update
+func (c *ClusterTx) UpdateInstanceConfig(instanceID int64, config map[string]string) error {
+	err := c.UpdateConfig("instance", int(instanceID), config)
+	if err != nil {
+		return fmt.Errorf("Replace Config for Instance failed: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateInstanceDevices updates the instance Device matching the given key parameters.
+// generator: instance Update
+func (c *ClusterTx) UpdateInstanceDevices(instanceID int64, devices map[string]Device) error {
+	err := c.UpdateDevices("instance", int(instanceID), devices)
+	if err != nil {
+		return fmt.Errorf("Replace Device for Instance failed: %w", err)
 	}
 
 	return nil

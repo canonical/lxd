@@ -5,6 +5,14 @@ package db
 
 // InstanceSnapshotGenerated is an interface of generated methods for InstanceSnapshot
 type InstanceSnapshotGenerated interface {
+	// GetInstanceSnapshotDevices returns all available InstanceSnapshot Devices
+	// generator: instance_snapshot GetMany
+	GetInstanceSnapshotDevices(instanceSnapshotID int) (map[string]Device, error)
+
+	// GetInstanceSnapshotConfig returns all available InstanceSnapshot Config
+	// generator: instance_snapshot GetMany
+	GetInstanceSnapshotConfig(instanceSnapshotID int) (map[string]string, error)
+
 	// GetInstanceSnapshots returns all available instance_snapshots.
 	// generator: instance_snapshot GetMany
 	GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]InstanceSnapshot, error)
@@ -20,6 +28,14 @@ type InstanceSnapshotGenerated interface {
 	// InstanceSnapshotExists checks if a instance_snapshot with the given key exists.
 	// generator: instance_snapshot Exists
 	InstanceSnapshotExists(project string, instance string, name string) (bool, error)
+
+	// CreateInstanceSnapshotDevice adds a new instance_snapshot Device to the database.
+	// generator: instance_snapshot Create
+	CreateInstanceSnapshotDevice(instanceSnapshotID int64, device Device) error
+
+	// CreateInstanceSnapshotConfig adds a new instance_snapshot Config to the database.
+	// generator: instance_snapshot Create
+	CreateInstanceSnapshotConfig(instanceSnapshotID int64, config map[string]string) error
 
 	// CreateInstanceSnapshot adds a new instance_snapshot to the database.
 	// generator: instance_snapshot Create
