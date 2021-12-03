@@ -29,10 +29,10 @@ import (
 //go:generate mapper stmt -p db -e project delete-by-Name
 //
 //go:generate mapper method -p db -e project URIs
-//go:generate mapper method -p db -e project GetMany
+//go:generate mapper method -p db -e project GetMany references=Config
 //go:generate mapper method -p db -e project GetOne struct=Project
 //go:generate mapper method -p db -e project Exists struct=Project
-//go:generate mapper method -p db -e project Create struct=Project
+//go:generate mapper method -p db -e project Create references=Config
 //go:generate mapper method -p db -e project ID struct=Project
 //go:generate mapper method -p db -e project Rename
 //go:generate mapper method -p db -e project DeleteOne-by-Name
@@ -43,7 +43,6 @@ type Project struct {
 	Description string
 	Name        string   `db:"omit=update"`
 	UsedBy      []string `db:"omit=create"`
-	Config      map[string]string
 }
 
 // ProjectFilter specifies potential query parameter fields.
@@ -56,12 +55,13 @@ type ProjectFilter struct {
 func (p *Project) ToAPI() api.Project {
 	return api.Project{
 		ProjectPut: api.ProjectPut{
-			Config:      p.Config,
 			Description: p.Description,
 		},
 		Name:   p.Name,
 		UsedBy: p.UsedBy,
 	}
+
+	// TODO: fetch project config, and handle errors if necessary.
 }
 
 // ProjectHasProfiles is a helper to check if a project has the profiles

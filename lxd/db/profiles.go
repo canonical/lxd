@@ -27,14 +27,14 @@ import (
 //go:generate mapper stmt -p db -e profile update struct=Profile
 //
 //go:generate mapper method -p db -e profile URIs
-//go:generate mapper method -p db -e profile GetMany
+//go:generate mapper method -p db -e profile GetMany references=Device,Config
 //go:generate mapper method -p db -e profile GetOne
 //go:generate mapper method -p db -e profile Exists struct=Profile
 //go:generate mapper method -p db -e profile ID struct=Profile
-//go:generate mapper method -p db -e profile Create struct=Profile
+//go:generate mapper method -p db -e profile Create references=Device,Config
 //go:generate mapper method -p db -e profile Rename
 //go:generate mapper method -p db -e profile DeleteOne-by-Project-and-Name
-//go:generate mapper method -p db -e profile Update struct=Profile
+//go:generate mapper method -p db -e profile Update references=Device,Config
 
 // Profile is a value object holding db-related details about a profile.
 type Profile struct {
@@ -43,8 +43,6 @@ type Profile struct {
 	Project     string `db:"primary=yes&join=projects.name"`
 	Name        string `db:"primary=yes"`
 	Description string `db:"coalesce=''"`
-	Config      map[string]string
-	Devices     map[string]Device
 	UsedBy      []string
 }
 
@@ -56,8 +54,7 @@ func ProfileToAPI(profile *Profile) *api.Profile {
 		UsedBy: profile.UsedBy,
 	}
 	p.Description = profile.Description
-	p.Config = profile.Config
-	p.Devices = DevicesToAPI(profile.Devices)
+	// TODO: fetch profile device/config and handle errors.
 
 	return p
 }

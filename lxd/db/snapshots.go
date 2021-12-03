@@ -24,11 +24,11 @@ import (
 //go:generate mapper stmt -p db -e instance_snapshot rename
 //go:generate mapper stmt -p db -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
-//go:generate mapper method -p db -e instance_snapshot GetMany
+//go:generate mapper method -p db -e instance_snapshot GetMany references=Device,Config
 //go:generate mapper method -p db -e instance_snapshot GetOne
 //go:generate mapper method -p db -e instance_snapshot ID struct=InstanceSnapshot
 //go:generate mapper method -p db -e instance_snapshot Exists struct=InstanceSnapshot
-//go:generate mapper method -p db -e instance_snapshot Create struct=InstanceSnapshot
+//go:generate mapper method -p db -e instance_snapshot Create references=Device,Config
 //go:generate mapper method -p db -e instance_snapshot Rename
 //go:generate mapper method -p db -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
 
@@ -41,8 +41,6 @@ type InstanceSnapshot struct {
 	CreationDate time.Time
 	Stateful     bool
 	Description  string `db:"coalesce=''"`
-	Config       map[string]string
-	Devices      map[string]Device
 	ExpiryDate   sql.NullTime
 }
 
@@ -70,11 +68,11 @@ func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) 
 		Stateful:     snapshot.Stateful,
 		LastUseDate:  sql.NullTime{},
 		Description:  snapshot.Description,
-		Config:       snapshot.Config,
-		Devices:      snapshot.Devices,
 		Profiles:     instance.Profiles,
 		ExpiryDate:   snapshot.ExpiryDate,
 	}
+
+	// TODO: fetch instance devices and config, and handle errors if necessary.
 }
 
 // UpdateInstanceSnapshotConfig inserts/updates/deletes the provided config keys.
