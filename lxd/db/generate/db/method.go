@@ -1245,6 +1245,7 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 			name = fmt.Sprintf("%s%s", entity, m.kind)
 		}
 	}
+
 	receiver := fmt.Sprintf("c %s", dbTxType(m.db))
 
 	buf.L("// %s %s", name, comment)

@@ -182,35 +182,6 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"profiles\" table: %w", err)
 	}
 
-	config, err := c.GetConfig("profile")
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		if _, ok := config[objects[i].ID]; !ok {
-			objects[i].Config = map[string]string{}
-		} else {
-			objects[i].Config = config[objects[i].ID]
-		}
-	}
-
-	devices, err := c.GetDevices("profile")
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		objects[i].Devices = map[string]Device{}
-		for _, obj := range devices[objects[i].ID] {
-			if _, ok := objects[i].Devices[obj.Name]; !ok {
-				objects[i].Devices[obj.Name] = obj
-			} else {
-				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
-			}
-		}
-	}
-
 	// Use non-generated custom method for UsedBy fields.
 	for i := range objects {
 		usedBy, err := c.GetProfileUsedBy(objects[i])
@@ -222,6 +193,40 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 	}
 
 	return objects, nil
+}
+
+// GetProfileConfig returns all available Profile Config
+// generator: profile GetMany
+func (c *ClusterTx) GetProfileConfig(profileID int) (map[string]string, error) {
+	profileConfig, err := c.GetConfig("profile")
+	if err != nil {
+		return nil, err
+	}
+
+	config, ok := profileConfig[profileID]
+	if !ok {
+		config = map[string]string{}
+	}
+	return config, nil
+}
+
+// GetProfileDevices returns all available Profile Devices
+// generator: profile GetMany
+func (c *ClusterTx) GetProfileDevices(profileID int) (map[string]Device, error) {
+	profileDevices, err := c.GetDevices("profile")
+	if err != nil {
+		return nil, err
+	}
+
+	devices := map[string]Device{}
+	for _, ref := range profileDevices[profileID] {
+		if _, ok := devices[ref.Name]; !ok {
+			devices[ref.Name] = ref
+		} else {
+			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
+		}
+	}
+	return devices, nil
 }
 
 // GetProfile returns the profile with the given key.
@@ -326,29 +331,39 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 		return -1, fmt.Errorf("Failed to fetch \"profiles\" entry ID: %w", err)
 	}
 
-	referenceID := int(id)
-	for key, value := range object.Config {
+	return id, nil
+}
+
+// CreateProfileConfig adds a new profile Config to the database.
+// generator: profile Create
+func (c *ClusterTx) CreateProfileConfig(profileID int64, config map[string]string) error {
+	referenceID := int(profileID)
+	for key, value := range config {
 		insert := Config{
 			ReferenceID: referenceID,
 			Key:         key,
 			Value:       value,
 		}
 
-		err = c.CreateConfig("profile", insert)
+		err := c.CreateConfig("profile", insert)
 		if err != nil {
-			return -1, fmt.Errorf("Insert Config failed for Profile: %w", err)
+			return fmt.Errorf("Insert Config failed for Profile: %w", err)
 		}
 
 	}
-	for _, insert := range object.Devices {
-		insert.ReferenceID = int(id)
-		err = c.CreateDevice("profile", insert)
-		if err != nil {
-			return -1, fmt.Errorf("Insert Devices failed for Profile: %w", err)
-		}
+	return nil
+}
 
+// CreateProfileDevice adds a new profile Device to the database.
+// generator: profile Create
+func (c *ClusterTx) CreateProfileDevice(profileID int64, device Device) error {
+	device.ReferenceID = int(profileID)
+	err := c.CreateDevice("profile", device)
+	if err != nil {
+		return fmt.Errorf("Insert Device failed for Profile: %w", err)
 	}
-	return id, nil
+
+	return nil
 }
 
 // RenameProfile renames the profile matching the given key parameters.
@@ -415,14 +430,26 @@ func (c *ClusterTx) UpdateProfile(project string, name string, object Profile) e
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
 	}
 
-	err = c.UpdateConfig("profile", int(id), object.Config)
+	return nil
+}
+
+// UpdateProfileConfig updates the profile Config matching the given key parameters.
+// generator: profile Update
+func (c *ClusterTx) UpdateProfileConfig(profileID int64, config map[string]string) error {
+	err := c.UpdateConfig("profile", int(profileID), config)
 	if err != nil {
 		return fmt.Errorf("Replace Config for Profile failed: %w", err)
 	}
 
-	err = c.UpdateDevice("profile", int(id), object.Devices)
+	return nil
+}
+
+// UpdateProfileDevices updates the profile Device matching the given key parameters.
+// generator: profile Update
+func (c *ClusterTx) UpdateProfileDevices(profileID int64, devices map[string]Device) error {
+	err := c.UpdateDevices("profile", int(profileID), devices)
 	if err != nil {
-		return fmt.Errorf("Replace Devices for Profile failed: %w", err)
+		return fmt.Errorf("Replace Device for Profile failed: %w", err)
 	}
 
 	return nil

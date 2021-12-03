@@ -105,36 +105,41 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 		return nil, fmt.Errorf("Failed to fetch from \"instances_snapshots\" table: %w", err)
 	}
 
-	config, err := c.GetConfig("instance_snapshot")
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		if _, ok := config[objects[i].ID]; !ok {
-			objects[i].Config = map[string]string{}
-		} else {
-			objects[i].Config = config[objects[i].ID]
-		}
-	}
-
-	devices, err := c.GetDevices("instance_snapshot")
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		objects[i].Devices = map[string]Device{}
-		for _, obj := range devices[objects[i].ID] {
-			if _, ok := objects[i].Devices[obj.Name]; !ok {
-				objects[i].Devices[obj.Name] = obj
-			} else {
-				return nil, fmt.Errorf("Found duplicate Device with name %q", obj.Name)
-			}
-		}
-	}
-
 	return objects, nil
+}
+
+// GetInstanceSnapshotConfig returns all available InstanceSnapshot Config
+// generator: instance_snapshot GetMany
+func (c *ClusterTx) GetInstanceSnapshotConfig(instanceSnapshotID int) (map[string]string, error) {
+	instanceSnapshotConfig, err := c.GetConfig("instance_snapshot")
+	if err != nil {
+		return nil, err
+	}
+
+	config, ok := instanceSnapshotConfig[instanceSnapshotID]
+	if !ok {
+		config = map[string]string{}
+	}
+	return config, nil
+}
+
+// GetInstanceSnapshotDevices returns all available InstanceSnapshot Devices
+// generator: instance_snapshot GetMany
+func (c *ClusterTx) GetInstanceSnapshotDevices(instanceSnapshotID int) (map[string]Device, error) {
+	instanceSnapshotDevices, err := c.GetDevices("instance_snapshot")
+	if err != nil {
+		return nil, err
+	}
+
+	devices := map[string]Device{}
+	for _, ref := range instanceSnapshotDevices[instanceSnapshotID] {
+		if _, ok := devices[ref.Name]; !ok {
+			devices[ref.Name] = ref
+		} else {
+			return nil, fmt.Errorf("Found duplicate Device with name %q", ref.Name)
+		}
+	}
+	return devices, nil
 }
 
 // GetInstanceSnapshot returns the instance_snapshot with the given key.
@@ -244,29 +249,39 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 		return -1, fmt.Errorf("Failed to fetch \"instances_snapshots\" entry ID: %w", err)
 	}
 
-	referenceID := int(id)
-	for key, value := range object.Config {
+	return id, nil
+}
+
+// CreateInstanceSnapshotConfig adds a new instance_snapshot Config to the database.
+// generator: instance_snapshot Create
+func (c *ClusterTx) CreateInstanceSnapshotConfig(instanceSnapshotID int64, config map[string]string) error {
+	referenceID := int(instanceSnapshotID)
+	for key, value := range config {
 		insert := Config{
 			ReferenceID: referenceID,
 			Key:         key,
 			Value:       value,
 		}
 
-		err = c.CreateConfig("instance_snapshot", insert)
+		err := c.CreateConfig("instance_snapshot", insert)
 		if err != nil {
-			return -1, fmt.Errorf("Insert Config failed for InstanceSnapshot: %w", err)
+			return fmt.Errorf("Insert Config failed for InstanceSnapshot: %w", err)
 		}
 
 	}
-	for _, insert := range object.Devices {
-		insert.ReferenceID = int(id)
-		err = c.CreateDevice("instance_snapshot", insert)
-		if err != nil {
-			return -1, fmt.Errorf("Insert Devices failed for InstanceSnapshot: %w", err)
-		}
+	return nil
+}
 
+// CreateInstanceSnapshotDevice adds a new instance_snapshot Device to the database.
+// generator: instance_snapshot Create
+func (c *ClusterTx) CreateInstanceSnapshotDevice(instanceSnapshotID int64, device Device) error {
+	device.ReferenceID = int(instanceSnapshotID)
+	err := c.CreateDevice("instance_snapshot", device)
+	if err != nil {
+		return fmt.Errorf("Insert Device failed for InstanceSnapshot: %w", err)
 	}
-	return id, nil
+
+	return nil
 }
 
 // RenameInstanceSnapshot renames the instance_snapshot matching the given key parameters.

@@ -169,20 +169,22 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 		objects[i].UsedBy = usedBy
 	}
 
-	config, err := c.GetConfig("project")
+	return objects, nil
+}
+
+// GetProjectConfig returns all available Project Config
+// generator: project GetMany
+func (c *ClusterTx) GetProjectConfig(projectID int) (map[string]string, error) {
+	projectConfig, err := c.GetConfig("project")
 	if err != nil {
 		return nil, err
 	}
 
-	for i := range objects {
-		if _, ok := config[objects[i].ID]; !ok {
-			objects[i].Config = map[string]string{}
-		} else {
-			objects[i].Config = config[objects[i].ID]
-		}
+	config, ok := projectConfig[projectID]
+	if !ok {
+		config = map[string]string{}
 	}
-
-	return objects, nil
+	return config, nil
 }
 
 // GetProject returns the project with the given key.
@@ -253,21 +255,27 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 		return -1, fmt.Errorf("Failed to fetch \"projects\" entry ID: %w", err)
 	}
 
-	referenceID := int(id)
-	for key, value := range object.Config {
+	return id, nil
+}
+
+// CreateProjectConfig adds a new project Config to the database.
+// generator: project Create
+func (c *ClusterTx) CreateProjectConfig(projectID int64, config map[string]string) error {
+	referenceID := int(projectID)
+	for key, value := range config {
 		insert := Config{
 			ReferenceID: referenceID,
 			Key:         key,
 			Value:       value,
 		}
 
-		err = c.CreateConfig("project", insert)
+		err := c.CreateConfig("project", insert)
 		if err != nil {
-			return -1, fmt.Errorf("Insert Config failed for Project: %w", err)
+			return fmt.Errorf("Insert Config failed for Project: %w", err)
 		}
 
 	}
-	return id, nil
+	return nil
 }
 
 // GetProjectID return the ID of the project with the given key.

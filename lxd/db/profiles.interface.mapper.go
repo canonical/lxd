@@ -9,6 +9,14 @@ type ProfileGenerated interface {
 	// generator: profile URIs
 	GetProfileURIs(filter ProfileFilter) ([]string, error)
 
+	// GetProfileDevices returns all available Profile Devices
+	// generator: profile GetMany
+	GetProfileDevices(profileID int) (map[string]Device, error)
+
+	// GetProfileConfig returns all available Profile Config
+	// generator: profile GetMany
+	GetProfileConfig(profileID int) (map[string]string, error)
+
 	// GetProfiles returns all available profiles.
 	// generator: profile GetMany
 	GetProfiles(filter ProfileFilter) ([]Profile, error)
@@ -25,6 +33,14 @@ type ProfileGenerated interface {
 	// generator: profile ID
 	GetProfileID(project string, name string) (int64, error)
 
+	// CreateProfileDevice adds a new profile Device to the database.
+	// generator: profile Create
+	CreateProfileDevice(profileID int64, device Device) error
+
+	// CreateProfileConfig adds a new profile Config to the database.
+	// generator: profile Create
+	CreateProfileConfig(profileID int64, config map[string]string) error
+
 	// CreateProfile adds a new profile to the database.
 	// generator: profile Create
 	CreateProfile(object Profile) (int64, error)
@@ -36,6 +52,14 @@ type ProfileGenerated interface {
 	// DeleteProfile deletes the profile matching the given key parameters.
 	// generator: profile DeleteOne-by-Project-and-Name
 	DeleteProfile(project string, name string) error
+
+	// UpdateProfileDevices updates the profile Device matching the given key parameters.
+	// generator: profile Update
+	UpdateProfileDevices(profileID int64, devices map[string]Device) error
+
+	// UpdateProfileConfig updates the profile Config matching the given key parameters.
+	// generator: profile Update
+	UpdateProfileConfig(profileID int64, config map[string]string) error
 
 	// UpdateProfile updates the profile matching the given key parameters.
 	// generator: profile Update

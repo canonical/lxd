@@ -9,6 +9,10 @@ type ProjectGenerated interface {
 	// generator: project URIs
 	GetProjectURIs(filter ProjectFilter) ([]string, error)
 
+	// GetProjectConfig returns all available Project Config
+	// generator: project GetMany
+	GetProjectConfig(projectID int) (map[string]string, error)
+
 	// GetProjects returns all available projects.
 	// generator: project GetMany
 	GetProjects(filter ProjectFilter) ([]Project, error)
@@ -20,6 +24,10 @@ type ProjectGenerated interface {
 	// ProjectExists checks if a project with the given key exists.
 	// generator: project Exists
 	ProjectExists(name string) (bool, error)
+
+	// CreateProjectConfig adds a new project Config to the database.
+	// generator: project Create
+	CreateProjectConfig(projectID int64, config map[string]string) error
 
 	// CreateProject adds a new project to the database.
 	// generator: project Create
