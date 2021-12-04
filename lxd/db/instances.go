@@ -529,18 +529,6 @@ func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instanc
 	return c.GetInstances(filter)
 }
 
-// CreateInstanceConfig inserts a new config for the container with the given ID.
-func (c *ClusterTx) CreateInstanceConfig(id int, config map[string]string) error {
-	return CreateInstanceConfig(c.tx, id, config)
-}
-
-// UpdateInstanceConfig inserts/updates/deletes the provided keys
-func (c *ClusterTx) UpdateInstanceConfig(id int, values map[string]string) error {
-	insertSQL := fmt.Sprintf("INSERT OR REPLACE INTO instances_config (instance_id, key, value) VALUES")
-	deleteSQL := "DELETE FROM instances_config WHERE key IN %s AND instance_id=?"
-	return c.configUpdate(id, values, insertSQL, deleteSQL)
-}
-
 func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, deleteSQL string) error {
 	changes := map[string]string{}
 	deletes := []string{}
@@ -912,28 +900,6 @@ func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) 
 		return err
 	})
 	return poolName, err
-}
-
-// CreateInstanceConfig inserts a new config for the instance with the given ID.
-func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
-	stmt, err := tx.Prepare("INSERT INTO instances_config (instance_id, key, value) values (?, ?, ?)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	for k, v := range config {
-		if v == "" {
-			continue
-		}
-
-		_, err := stmt.Exec(id, k, v)
-		if err != nil {
-			return errors.Wrapf(err, "Error adding configuration item %q = %q to instance %d", k, v, id)
-		}
-	}
-
-	return nil
 }
 
 // UpdateInstance updates the description, architecture and ephemeral flag of
