@@ -6,12 +6,10 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
-	"unsafe"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
@@ -144,8 +142,8 @@ var handlers = []devLxdHandler{
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		conn := extractUnderlyingConn(w)
-		cred, ok := pidMapper.m[conn]
+		conn := ucred.GetConnFromWriter(w)
+		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
 		if !ok {
 			http.Error(w, pidNotInContainerErr.Error(), 500)
 			return
@@ -267,27 +265,6 @@ func (m *ConnPidMapper) ConnStateHandler(conn net.Conn, state http.ConnState) {
 	default:
 		logger.Debugf("Unknown state for connection %s", state)
 	}
-}
-
-/*
- * As near as I can tell, there is no nice way of extracting an underlying
- * net.Conn (or in our case, net.UnixConn) from an http.Request or
- * ResponseWriter without hijacking it [1]. Since we want to send and receive
- * unix creds to figure out which container this request came from, we need to
- * do this.
- *
- * [1]: https://groups.google.com/forum/#!topic/golang-nuts/_FWdFXJa6QA
- */
-func extractUnderlyingConn(w http.ResponseWriter) *net.UnixConn {
-	v := reflect.Indirect(reflect.ValueOf(w))
-	connPtr := v.FieldByName("conn")
-	conn := reflect.Indirect(connPtr)
-	rwc := conn.FieldByName("rwc")
-
-	netConnPtr := (*net.Conn)(unsafe.Pointer(rwc.UnsafeAddr()))
-	unixConnPtr := (*netConnPtr).(*net.UnixConn)
-
-	return unixConnPtr
 }
 
 var pidNotInContainerErr = fmt.Errorf("pid not in container?")
