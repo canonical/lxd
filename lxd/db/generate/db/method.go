@@ -1246,6 +1246,10 @@ func (m *Method) begin(buf *file.Buffer, comment string, args string, rets strin
 		case "Rename":
 			name = fmt.Sprintf("Rename%s", entity)
 		case "Update":
+			if mapping.Type == ReferenceTable || m.ref != "" {
+				entity = lex.Plural(entity)
+			}
+
 			name = fmt.Sprintf("Update%s", entity)
 		case "DeleteOne":
 			name = fmt.Sprintf("Delete%s", entity)

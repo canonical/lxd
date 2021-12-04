@@ -13,9 +13,9 @@ type DeviceGenerated interface {
 	// generator: device Create
 	CreateDevice(parent string, object Device) error
 
-	// UpdateDevice updates the device matching the given key parameters.
+	// UpdateDevices updates the device matching the given key parameters.
 	// generator: device Update
-	UpdateDevice(parent string, referenceID int, devices map[string]Device) error
+	UpdateDevices(parent string, referenceID int, devices map[string]Device) error
 
 	// DeleteDevices deletes the device matching the given key parameters.
 	// generator: device DeleteMany

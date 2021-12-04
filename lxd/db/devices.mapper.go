@@ -127,9 +127,9 @@ func (c *ClusterTx) CreateDevice(parent string, object Device) error {
 	return nil
 }
 
-// UpdateDevice updates the device matching the given key parameters.
+// UpdateDevices updates the device matching the given key parameters.
 // generator: device Update
-func (c *ClusterTx) UpdateDevice(parent string, referenceID int, devices map[string]Device) error {
+func (c *ClusterTx) UpdateDevices(parent string, referenceID int, devices map[string]Device) error {
 	// Delete current entry.
 	err := c.DeleteDevices(parent, referenceID)
 	if err != nil {
