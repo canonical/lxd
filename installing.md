@@ -1,0 +1,1 @@
+doc/installing.md
