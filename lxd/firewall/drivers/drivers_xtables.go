@@ -952,7 +952,41 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 		}
 	}
 
-	for i := range forward.ListenPorts {
+	nProcessedSNATPorts := 0
+	listenPortRanges := PortRangesFromSlice(forward.ListenPorts)
+	for i, listenPortRange := range listenPortRanges {
+		var targetPortRange [2]uint64
+		if i < len(targetPortRanges) && listenPortRange[1] == targetPortRanges[i][1] && listenPortRange[0] == targetPortRanges[i][0] {
+			targetPortRange = targetPortRanges[i]
+		} else if targetPortsLen == 1 {
+			targetPortRange = targetPortRanges[0]
+		} else {
+			break
+		}
+
+		listenPortStr := portRangeStr(listenPortRange)
+
+		targetDest := targetAddressStr
+		if targetPortRange[1] == 1 {
+			targetPortStr := portRangeStr(targetPortRange)
+			targetDest = destinationStr(ipVersion, targetAddressStr, targetPortStr)
+		}
+
+		err := d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to", targetDest)
+		if err != nil {
+			return err
+		}
+
+		// host <-> instance.
+		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to", targetDest)
+		if err != nil {
+			return err
+		}
+
+		nProcessedSNATPorts += int(listenPortRange[1])
+	}
+
+	for i := nProcessedSNATPorts; i < listenPortsLen; i++ {
 		// Use the target port that corresponds to the listen port (unless only 1 is specified, in which
 		// case use the same target port for all listen ports).
 		targetIndex := 0
@@ -964,10 +998,7 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 		targetPortStr := fmt.Sprintf("%d", forward.TargetPorts[targetIndex])
 
 		// Format the destination host/port as appropriate.
-		targetDest := fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
-		if ipVersion == 6 {
-			targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
-		}
+		targetDest := destinationStr(ipVersion, targetAddressStr, targetPortStr)
 
 		// outbound <-> instance.
 		err := d.iptablesPrepend(ipVersion, comment, "nat", "PREROUTING", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to-destination", targetDest)
