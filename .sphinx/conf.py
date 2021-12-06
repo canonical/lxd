@@ -36,6 +36,7 @@ html_favicon = "https://linuxcontainers.org/static/img/favicon.ico"
 html_logo = "https://linuxcontainers.org/static/img/containers.small.png"
 html_static_path = ['_static']
 html_css_files = ['custom.css']
+html_extra_path = ['_extra']
 
 
 # Uses global TOC for side nav instead of default local TOC.
