@@ -1,6 +1,7 @@
 # Main API specification
 
 <link rel="stylesheet" type="text/css" href="../_static/swagger-ui/swagger-ui.css" ></link>
+<link rel="stylesheet" type="text/css" href="../_static/swagger-override.css" ></link>
 <div id="swagger-ui"></div>
 
 <script src="../_static/swagger-ui/swagger-ui-bundle.js" charset="UTF-8"> </script>
