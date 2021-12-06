@@ -160,7 +160,11 @@ func (c *cmdClusterList) Run(cmd *cobra.Command, args []string) error {
 	data := [][]string{}
 	for _, member := range members {
 		roles := member.ClusterMemberPut.Roles
-		line := []string{member.ServerName, member.URL, strings.Join(roles, "\n"), member.Architecture, member.FailureDomain, member.Description, strings.ToUpper(member.Status), member.Message}
+		rolesDelimiter := "\n"
+		if c.flagFormat == "csv" {
+			rolesDelimiter = ","
+		}
+		line := []string{member.ServerName, member.URL, strings.Join(roles, rolesDelimiter), member.Architecture, member.FailureDomain, member.Description, strings.ToUpper(member.Status), member.Message}
 		data = append(data, line)
 	}
 	sort.Sort(byName(data))
