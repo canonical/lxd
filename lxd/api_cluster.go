@@ -1564,7 +1564,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 // clusterValidateConfig validates the configuration keys/values for cluster members.
 func clusterValidateConfig(config map[string]string) error {
 	clusterConfigKeys := map[string]func(value string) error{
-		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "manual")),
+		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "group", "manual")),
 	}
 
 	for k, v := range config {
