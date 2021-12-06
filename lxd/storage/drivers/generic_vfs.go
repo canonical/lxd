@@ -688,13 +688,6 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 
 			srcFile := fmt.Sprintf("%s.%s", srcPrefix, genericVolumeBlockExtension)
 
-			logMsg := "Unpacking virtual machine block volume"
-			if vol.volType == VolumeTypeCustom {
-				logMsg = "Unpacking custom block volume"
-			}
-
-			d.Logger().Debug(logMsg, log.Ctx{"source": srcFile, "target": targetPath})
-
 			tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
 			if err != nil {
 				return err
@@ -731,6 +724,12 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 						return err
 					}
 
+					logMsg := "Unpacking virtual machine block volume"
+					if vol.volType == VolumeTypeCustom {
+						logMsg = "Unpacking custom block volume"
+					}
+
+					d.Logger().Debug(logMsg, log.Ctx{"source": srcFile, "target": targetPath})
 					_, err = io.Copy(to, tr)
 					if err != nil {
 						return err
