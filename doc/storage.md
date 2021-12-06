@@ -295,6 +295,17 @@ lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
    quotas that are set. If adherence to strict quotas is a necessity users
    should be mindful of this and maybe consider using a zfs storage pool with
    refquotas.
+ - When using quotas it is critical to take into account that btrfs extents are immutable so when blocks are
+   written they end up in new extents and the old ones remain until all of its data is dereferenced or rewritten.
+   This means that a quota can be reached even if the total amount of space used by the current files in the
+   subvolume is smaller than the quota. This is seen most often when using VMs on BTRFS due to the random I/O
+   nature of using aw disk image files ontop of a btrfs subvolume. Our recommendation is to not use VMs with btrfs
+   storage pools, but if you insist then please ensure that the instance root disk's `size.state` property is set
+   to 2x the size of the root disk's size to allow all blocks in the disk image file to be rewritten without
+   reaching the qgroup quota. You may also find that using the `btrfs.mount_options=compress-force` storage pool
+   option avoids this scenario as a side effect of enabling compression is to reduce the maximum extent size such
+   that block rewrites don't cause as much storage to be double tracked. However as this is a storage pool option
+   it will affect all volumes on the pool.
 
 #### The following commands can be used to create BTRFS storage pools
 
