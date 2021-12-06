@@ -840,20 +840,66 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if targetNode == "" {
+	if targetNode == "" || strings.HasPrefix(targetNode, "@") {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if
 		// the selected node is the local one, this is effectively a
 		// no-op, since GetNodeWithLeastInstances() will return an empty
 		// string.
-		architectures, err := instance.SuitableArchitectures(d.State(), targetProject, req)
-		if err != nil {
-			return response.BadRequest(err)
+		// If the target is a cluster group, find a suitable node.
+
+		group := ""
+
+		if strings.HasPrefix(targetNode, "@") {
+			group = strings.TrimPrefix(targetNode, "@")
 		}
 
 		p, err := d.cluster.GetProject(targetProject)
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		if group != "" {
+			var groupExists bool
+
+			// Check if the group exists.
+			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				groupExists, err = tx.ClusterGroupExists(group)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+			if err != nil {
+				return response.SmartError(err)
+			}
+
+			if !groupExists {
+				return response.BadRequest(fmt.Errorf("Cluster group %q doesn't exist", group))
+			}
+
+			// Validate restrictions.
+			if shared.IsTrue(p.Config["restricted"]) {
+				found := false
+				for _, entry := range strings.Split(p.Config["restricted.cluster.groups"], ",") {
+					entry = strings.TrimSpace(entry)
+
+					if group == entry {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					return response.Forbidden(fmt.Errorf("Project isn't allowed to use this cluster group"))
+				}
+			}
+		}
+
+		architectures, err := instance.SuitableArchitectures(d.State(), targetProject, req)
+		if err != nil {
+			return response.BadRequest(err)
 		}
 
 		defaultArch := ""
@@ -876,7 +922,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchId)
+			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchId, group)
 			return err
 		})
 		if err != nil {
