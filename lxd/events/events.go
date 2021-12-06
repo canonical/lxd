@@ -178,7 +178,7 @@ type Listener struct {
 	id           string
 	lock         sync.Mutex
 	location     string
-	lastPong     time.Time
+	pongsPending uint
 
 	// If true, this listener won't get events forwarded from other
 	// nodes. It only used by listeners created internally by LXD nodes
@@ -190,10 +190,12 @@ func (e *Listener) heartbeat() {
 	defer e.Close()
 
 	pingInterval := time.Second * 5
-	e.lastPong = time.Now() // To allow initial heartbeat ping to be sent.
+	e.pongsPending = 0
 
 	e.SetPongHandler(func(msg string) error {
-		e.lastPong = time.Now()
+		e.lock.Lock()
+		e.pongsPending = 0
+		e.lock.Unlock()
 		return nil
 	})
 
@@ -209,17 +211,19 @@ func (e *Listener) heartbeat() {
 			return
 		}
 
-		if e.lastPong.Add(pingInterval * 2).Before(time.Now()) {
+		e.lock.Lock()
+		if e.pongsPending > 2 {
+			e.lock.Unlock()
 			logger.Warn("Hearbeat for event listener timed out", log.Ctx{"listener": e.ID()})
 			return
 		}
-
-		e.lock.Lock()
 		err := e.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
 		if err != nil {
 			e.lock.Unlock()
 			return
 		}
+
+		e.pongsPending++
 		e.lock.Unlock()
 
 		select {
