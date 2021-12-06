@@ -513,14 +513,16 @@ test_basic_usage() {
 
   # Ephemeral
   lxc launch testimage foo -e
-
   OLD_INIT=$(lxc info foo | awk '/^Pid:/ {print $2}')
+
+  # Wait for init to be ready and signal a reboot
+  sleep 3
   lxc exec foo reboot || true
 
   REBOOTED="false"
 
   # shellcheck disable=SC2034
-  for i in $(seq 30); do
+  for i in $(seq 60); do
     NEW_INIT=$(lxc info foo | awk '/^Pid:/ {print $2}' || true)
 
     if [ -n "${NEW_INIT}" ] && [ "${OLD_INIT}" != "${NEW_INIT}" ]; then
