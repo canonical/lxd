@@ -1,5 +1,7 @@
 package drivers
 
+import "fmt"
+
 // portRangesFromSlice checks if adjacent indices in the given slice contain consecutive
 // numbers and returns a slice of port ranges ([startNumber, rangeSize]) accordingly.
 //
@@ -23,4 +25,13 @@ func portRangesFromSlice(ports []uint64) [][2]uint64 {
 	}
 
 	return portRanges
+}
+
+func portRangeStr(portRange [2]uint64, delimiter string) string {
+	if portRange[1] < 1 {
+		return ""
+	} else if portRange[1] == 1 {
+		return fmt.Sprintf("%d", portRange[0])
+	}
+	return fmt.Sprintf("%d%s%d", portRange[0], delimiter, portRange[0]+portRange[1]-1)
 }

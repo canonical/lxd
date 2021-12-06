@@ -542,6 +542,19 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 
 	comment := d.instanceDeviceIPTablesComment(projectName, instanceName, deviceName)
 
+	targetPortRanges := portRangesFromSlice(forward.TargetPorts)
+	for _, targetPortRange := range targetPortRanges {
+		targetPortRangeStr := portRangeStr(targetPortRange, ":")
+
+		// Apply MASQUERADE rule for each target range.
+		// instance <-> instance.
+		// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
+		err := d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", forward.Protocol, "--source", targetAddressStr, "--destination", targetAddressStr, "--dport", targetPortRangeStr, "-j", "MASQUERADE")
+		if err != nil {
+			return err
+		}
+	}
+
 	for i := range forward.ListenPorts {
 		// Use the target port that corresponds to the listen port (unless only 1 is specified, in which
 		// case use the same target port for all listen ports).
@@ -569,15 +582,6 @@ func (d Xtables) InstanceSetupProxyNAT(projectName string, instanceName string, 
 		err = d.iptablesPrepend(ipVersion, comment, "nat", "OUTPUT", "-p", forward.Protocol, "--destination", listenAddressStr, "--dport", listenPortStr, "-j", "DNAT", "--to-destination", targetDest)
 		if err != nil {
 			return err
-		}
-
-		if targetIndex == i {
-			// instance <-> instance.
-			// Requires instance's bridge port has hairpin mode enabled when br_netfilter is loaded.
-			err = d.iptablesPrepend(ipVersion, comment, "nat", "POSTROUTING", "-p", forward.Protocol, "--source", targetAddressStr, "--destination", targetAddressStr, "--dport", targetPortStr, "-j", "MASQUERADE")
-			if err != nil {
-				return err
-			}
 		}
 	}
 
