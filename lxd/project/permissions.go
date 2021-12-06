@@ -1070,6 +1070,25 @@ func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map
 
 				return nil, fmt.Errorf("Failed parsing %q for instance %q in project %q", key, instance.Name, instance.Project)
 			}
+
+			// Add size.state accounting for VM root disks.
+			if instance.Type == instancetype.VM {
+				sizeStateValue, ok := device["size.state"]
+				if !ok {
+					sizeStateValue = deviceconfig.DefaultVMBlockFilesystemSize
+				}
+
+				sizeStateLimit, err := parser(sizeStateValue)
+				if err != nil {
+					if skipUnset {
+						continue
+					}
+
+					return nil, fmt.Errorf("Failed parsing %q for instance %q in project %q", "size.state", instance.Name, instance.Project)
+				}
+
+				limit += sizeStateLimit
+			}
 		} else {
 			value, ok := instance.Config[key]
 			if !ok || value == "" {
