@@ -1107,7 +1107,7 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (string, error) {
+func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
@@ -1124,6 +1124,19 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (str
 	for _, node := range nodes {
 		if node.Config["scheduler.instance"] == "manual" {
 			continue
+		}
+
+		// If scheduler.instance is "all", skip the node if group is set and the node doesn't belong to it.
+		if node.Config["scheduler.instance"] == "all" && group != "" && !shared.StringInSlice(group, node.Groups) {
+			continue
+		}
+
+		// If scheduler.instance is "group", skip the node if it doesn't belong to the group.
+		// The node will also be skipped if the group is empty.
+		if node.Config["scheduler.instance"] == "group" {
+			if !shared.StringInSlice(group, node.Groups) {
+				continue
+			}
 		}
 
 		if node.State == ClusterMemberStateEvacuated || node.IsOffline(threshold) {
