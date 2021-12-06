@@ -103,7 +103,7 @@ table {{.family}} {{.namespace}} {
 	chain {{.chainPrefix}}pstrt{{.chainSeparator}}{{.label}} {
 		type nat hook postrouting priority 100; policy accept;
 		{{- range .snatRules}}
-		{{.ipFamily}} saddr {{.targetHost}} {{.ipFamily}} daddr {{.targetHost}} {{if .protocol}}{{.protocol}} dport {{.targetPort}}{{end}} masquerade
+		{{.ipFamily}} saddr {{.targetHost}} {{.ipFamily}} daddr {{.targetHost}} {{if .protocol}}{{.protocol}} dport {{.targetPorts}}{{end}} masquerade
 		{{- end}}
 	}
 }
