@@ -52,6 +52,20 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		if err != nil {
 			return err
 		}
+
+		// Enable nodatacow on the parent directory so that when the root disk file is created the setting
+		// is inherited and random writes don't cause fragmentation and old extents to be kept.
+		// BTRFS extents are immutable so when blocks are written they end up in new extents and the old
+		// ones remains until all of its data is dereferenced or rewritten. These old extents are counted
+		// in the quota, and so leaving CoW enabled can cause the BTRFS subvolume quota to be reached even
+		// before the block file itself is full. This setting does not totally prevents CoW from happening
+		// as when a snapshot is taken, writes that happen on the original volume necessarily create a CoW
+		// in order to track the difference between original and snapshot. This will increase the size of
+		// data being referenced.
+		_, err = shared.RunCommand("chattr", "+C", volPath)
+		if err != nil {
+			return fmt.Errorf("Failed setting nodatacow on %q: %w", volPath, err)
+		}
 	}
 
 	err = d.runFiller(vol, rootBlockPath, filler)
