@@ -1544,6 +1544,11 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 			return errors.Wrap(err, "Update failure domain")
 		}
 
+		// Update the cluster groups.
+		err = tx.UpdateNodeClusterGroups(nodeInfo.ID, req.Groups)
+		if err != nil {
+			return fmt.Errorf("Update cluster groups: %w", err)
+		}
 		return nil
 	})
 	if err != nil {
