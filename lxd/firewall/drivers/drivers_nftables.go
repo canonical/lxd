@@ -443,6 +443,17 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	var dnatRules []map[string]interface{}
 	var snatRules []map[string]interface{}
 
+	targetPortRanges := portRangesFromSlice(forward.TargetPorts)
+	for _, targetPortRange := range targetPortRanges {
+		targetPortRangeStr := portRangeStr(targetPortRange, "-")
+		snatRules = append(snatRules, map[string]interface{}{
+			"ipFamily":    ipFamily,
+			"protocol":    forward.Protocol,
+			"targetHost":  targetAddressStr,
+			"targetPorts": targetPortRangeStr,
+		})
+	}
+
 	for i := range forward.ListenPorts {
 		// Use the target port that corresponds to the listen port (unless only 1 is specified, in which
 		// case use the same target port for all listen ports).
@@ -468,16 +479,6 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 			"targetHost":    targetAddressStr,
 			"targetPort":    targetPort,
 		})
-
-		// Only add >1 hairpin NAT rules if target range used.
-		if targetIndex == i {
-			snatRules = append(snatRules, map[string]interface{}{
-				"ipFamily":   ipFamily,
-				"protocol":   forward.Protocol,
-				"targetHost": targetAddressStr,
-				"targetPort": targetPort,
-			})
-		}
 	}
 
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
