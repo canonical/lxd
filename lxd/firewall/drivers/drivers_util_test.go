@@ -60,3 +60,86 @@ func Test_portRangesFromSlice(t *testing.T) {
 		assert.ElementsMatch(t, ranges, tt.expected)
 	}
 }
+
+func Test_getOptimisedSNATRanges(t *testing.T) {
+	tests := []struct {
+		name     string
+		forward  *AddressForward
+		expected map[[2]uint64][2]uint64
+	}{
+		{
+			name: "Equal ports (single)",
+			forward: &AddressForward{
+				ListenPorts: []uint64{80},
+				TargetPorts: []uint64{80},
+			},
+			expected: map[[2]uint64][2]uint64{
+				{80, 1}: {80, 1},
+			},
+		},
+		{
+			name: "Equal ports (range)",
+			forward: &AddressForward{
+				ListenPorts: []uint64{80, 81, 82, 83},
+				TargetPorts: []uint64{80, 81, 82, 83},
+			},
+			expected: map[[2]uint64][2]uint64{
+				{80, 4}: {80, 4},
+			},
+		},
+		{
+			name: "Unequal ports (single)",
+			forward: &AddressForward{
+				ListenPorts: []uint64{80},
+				TargetPorts: []uint64{8080},
+			},
+			expected: map[[2]uint64][2]uint64{
+				{80, 1}: {8080, 1},
+			},
+		},
+		{
+			name: "Unequal ports (range)",
+			forward: &AddressForward{
+				ListenPorts: []uint64{80, 81, 82, 83},
+				TargetPorts: []uint64{90, 91, 92, 93},
+			},
+			expected: map[[2]uint64][2]uint64{
+				{80, 1}: {90, 1},
+				{81, 1}: {91, 1},
+				{82, 1}: {92, 1},
+				{83, 1}: {93, 1},
+			},
+		},
+		{
+			name: "Unequal ports (range)",
+			forward: &AddressForward{
+				ListenPorts: []uint64{80, 81, 82, 83},
+				TargetPorts: []uint64{90, 91, 92, 93},
+			},
+			expected: map[[2]uint64][2]uint64{
+				{80, 1}: {90, 1},
+				{81, 1}: {91, 1},
+				{82, 1}: {92, 1},
+				{83, 1}: {93, 1},
+			},
+		},
+		{
+			name: "Mixed ranges and single ports",
+			forward: &AddressForward{
+				ListenPorts: []uint64{80, 81, 82, 83, 200, 201, 202, 203, 100, 101},
+				TargetPorts: []uint64{80, 81, 110, 120, 200, 201, 202, 203, 100, 101},
+			},
+			expected: map[[2]uint64][2]uint64{
+				{80, 2}:  {80, 2},
+				{82, 1}:  {110, 1},
+				{83, 1}:  {120, 1},
+				{200, 4}: {200, 4},
+				{100, 2}: {100, 2},
+			},
+		},
+	}
+	for _, tt := range tests {
+		actual := getOptimisedDNATRanges(tt.forward)
+		assert.Equal(t, tt.expected, actual)
+	}
+}
