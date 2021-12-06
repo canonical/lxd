@@ -729,7 +729,8 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		// Apply quota config from root device if its set. Should be done after driver's post hook if set
 		// so that any volume initialisation has been completed first.
 		if rootDiskConf["size"] != "" {
-			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": rootDiskConf["size"]})
+			size := rootDiskConf["size"]
+			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": size})
 
 			allowUnsafeResize := false
 
@@ -746,7 +747,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				allowUnsafeResize = true
 			}
 
-			err = b.driver.SetVolumeQuota(vol, rootDiskConf["size"], allowUnsafeResize, op)
+			err = b.driver.SetVolumeQuota(vol, size, allowUnsafeResize, op)
 			if err != nil {
 				// The restored volume can end up being larger than the root disk config's size
 				// property due to the block boundary rounding some storage drivers use. As such
@@ -757,6 +758,30 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 					logger.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
 				} else {
 					return errors.Wrapf(err, "Failed applying volume quota to root disk")
+				}
+			}
+
+			// Apply the filesystem volume quota (only when main volume is block).
+			if vol.IsVMBlock() {
+				vmStateSize := rootDiskConf["size.state"]
+
+				// Apply default VM config filesystem size if main volume size is specified and
+				// no custom vmStateSize is specified. This way if the main volume size is empty
+				// (i.e removing quota) then this will also pass empty quota for the config
+				// filesystem volume as well, allowing a former quota to be removed from both
+				// volumes.
+				if vmStateSize == "" && size != "" {
+					vmStateSize = drivers.DefaultVMBlockFilesystemSize
+				}
+
+				logger.Debug("Applying filesystem volume quota from root disk config", log.Ctx{"size.state": vmStateSize})
+
+				fsVol := vol.NewVMBlockFilesystemVolume()
+				err := b.driver.SetVolumeQuota(fsVol, vmStateSize, allowUnsafeResize, op)
+				if errors.Cause(err) == drivers.ErrCannotBeShrunk {
+					logger.Warn("Could not apply VM filesystem volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
+				} else if err != nil {
+					return fmt.Errorf("Failed applying filesystem volume quota to root disk: %w", err)
 				}
 			}
 		}
