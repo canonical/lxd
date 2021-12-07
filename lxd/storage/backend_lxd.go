@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -2070,7 +2071,7 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 		// this will also pass empty quota for the config filesystem volume as well, allowing a former
 		// quota to be removed from both volumes.
 		if vmStateSize == "" && size != "" {
-			vmStateSize = drivers.DefaultVMBlockFilesystemSize
+			vmStateSize = deviceConfig.DefaultVMBlockFilesystemSize
 		}
 
 		fsVol := vol.NewVMBlockFilesystemVolume()

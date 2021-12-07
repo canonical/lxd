@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/refcount"
@@ -19,9 +20,6 @@ const tmpVolSuffix = ".lxdtmp"
 
 // defaultBlockSize Default size of block volumes.
 const defaultBlockSize = "10GiB"
-
-// DefaultVMBlockFilesystemSize is the size of a VM block volume's associated filesystem volume.
-const DefaultVMBlockFilesystemSize = "100MiB"
 
 // DefaultFilesystem filesytem to use for block devices by default.
 const DefaultFilesystem = "ext4"
@@ -372,7 +370,7 @@ func (v Volume) NewVMBlockFilesystemVolume() Volume {
 		newConf["size"] = v.config["size.state"]
 	} else {
 		// Fallback to the default VM filesystem size.
-		newConf["size"] = DefaultVMBlockFilesystemSize
+		newConf["size"] = deviceConfig.DefaultVMBlockFilesystemSize
 	}
 
 	vol := NewVolume(v.driver, v.pool, v.volType, ContentTypeFS, v.name, newConf, v.poolConfig)

@@ -1227,54 +1227,73 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 
 // Return the effective instance-level values for the limits with the given keys.
 func getInstanceLimits(instance db.Instance, keys []string, skipUnset bool) (map[string]int64, error) {
+	var err error
 	limits := map[string]int64{}
 
 	for _, key := range keys {
-		var value string
-		var ok bool
+		var limit int64
+		parser := aggregateLimitConfigValueParsers[key]
+
 		if key == "limits.disk" {
 			_, device, err := shared.GetRootDiskDevice(db.DevicesToAPI(instance.Devices))
 			if err != nil {
-				return nil, fmt.Errorf(
-					"Instance %s in project %s has no root device",
-					instance.Name, instance.Project)
+				return nil, fmt.Errorf("Failed getting root disk device for instance %q in project %q: %w", instance.Name, instance.Project, err)
 			}
 
-			value, ok = device["size"]
+			value, ok := device["size"]
 			if !ok || value == "" {
 				if skipUnset {
 					continue
 				}
 
-				return nil, fmt.Errorf(
-					"Instance %s in project %s has no 'size' config set on the root device, "+
-						"either directly or via a profile",
-					instance.Name, instance.Project)
+				return nil, fmt.Errorf(`Instance %q in project %q has no "size" config set on the root device either directly or via a profile`, instance.Name, instance.Project)
+			}
+
+			limit, err = parser(value)
+			if err != nil {
+				if skipUnset {
+					continue
+				}
+
+				return nil, fmt.Errorf("Failed parsing %q for instance %q in project %q", key, instance.Name, instance.Project)
+			}
+
+			// Add size.state accounting for VM root disks.
+			if instance.Type == instancetype.VM {
+				sizeStateValue, ok := device["size.state"]
+				if !ok {
+					sizeStateValue = deviceconfig.DefaultVMBlockFilesystemSize
+				}
+
+				sizeStateLimit, err := parser(sizeStateValue)
+				if err != nil {
+					if skipUnset {
+						continue
+					}
+
+					return nil, fmt.Errorf("Failed parsing %q for instance %q in project %q", "size.state", instance.Name, instance.Project)
+				}
+
+				limit += sizeStateLimit
 			}
 		} else {
-			value, ok = instance.Config[key]
+			value, ok := instance.Config[key]
 			if !ok || value == "" {
 				if skipUnset {
 					continue
 				}
 
-				return nil, fmt.Errorf(
-					"Instance %s in project %s has no '%s' config, "+
-						"either directly or via a profile",
-					instance.Name, instance.Project, key)
-			}
-		}
-
-		parser := aggregateLimitConfigValueParsers[key]
-		limit, err := parser(value)
-		if err != nil {
-			if skipUnset {
-				continue
+				return nil, fmt.Errorf("Instance %q in project %s has no %q config, either directly or via a profile", instance.Name, instance.Project, key)
 			}
 
-			return nil, errors.Wrapf(
-				err, "Parse '%s' for instance %s in project %s",
-				key, instance.Name, instance.Project)
+			limit, err = parser(value)
+			if err != nil {
+				if skipUnset {
+					continue
+				}
+
+				return nil, fmt.Errorf("Failed parsing %q for instance %q in project %q", key, instance.Name, instance.Project)
+			}
 		}
 
 		limits[key] = limit
