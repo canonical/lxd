@@ -33,12 +33,17 @@ const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 // ClusterRoleDatabaseLeader represents the database leader role in a cluster.
 const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 
+// ClusterRoleEventHub represents a cluster member who operates as an event hub.
+const ClusterRoleEventHub = ClusterRole("event-hub")
+
 // ClusterRoles maps role ids into human-readable names.
 //
 // Note: the database role is currently stored directly in the raft
 // configuration which acts as single source of truth for it. This map should
 // only contain LXD-specific cluster roles.
-var ClusterRoles = map[int]ClusterRole{}
+var ClusterRoles = map[int]ClusterRole{
+	1: ClusterRoleEventHub,
+}
 
 // Numeric type codes identifying different cluster member states.
 const (
