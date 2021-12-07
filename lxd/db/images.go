@@ -212,6 +212,8 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 // imageFillProfiles populates the  image.Profiles field with the profiles associated to the image in the project.
 // If the project doesn't have its own profiles then the default project is used.
+// If the project has its own profiles, but doesn't have its own images, then image.Profiles is set to nil which
+// can be used as an indicator that the "default" profile should be used as a fallback for the image.
 func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, projectName string) error {
 	// Check which project name to use.
 	project, err := c.GetProject(projectName)
@@ -222,6 +224,13 @@ func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, projectName stri
 	if !shared.IsTrue(project.Config["features.profiles"]) {
 		// If the project doesn't have its own profiles, then use image profiles from default project.
 		projectName = "default"
+	} else if !shared.IsTrue(project.Config["features.images"]) {
+		// If the project has its own profiles, but doesn't have its own images then we will not be able to
+		// find any image profiles for this project. So ensure that the image.Profiles property is set to
+		// nil rather than empty []string slice, so that instance.CreateInternal function will use the
+		// profile "default" as a fallback.
+		image.Profiles = nil
+		return nil
 	}
 
 	// Get the profiles.
