@@ -140,6 +140,11 @@ func (acl *NetworkACL) Writable() NetworkACLPut {
 	return acl.NetworkACLPut
 }
 
+// URL returns the URL for the network acl.
+func (acl *NetworkACL) URL(apiVersion string, project string) *URL {
+	return NewURL().Path(apiVersion, "networks-acls", acl.Name).Project(project)
+}
+
 // NetworkACLsPost used for creating an ACL.
 //
 // swagger:model

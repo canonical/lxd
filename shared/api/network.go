@@ -105,6 +105,11 @@ func (network *Network) Writable() NetworkPut {
 	return network.NetworkPut
 }
 
+// URL returns the URL for the network.
+func (network *Network) URL(apiVersion string, project string) *URL {
+	return NewURL().Path(apiVersion, "networks", network.Name).Project(project)
+}
+
 // NetworkLease represents a DHCP lease
 //
 // swagger:model
