@@ -14,6 +14,7 @@ doc/html/
 .sphinx/themes/
 .sphinx/venv/
 .sphinx/warnings.txt
+.sphinx/_static/swagger-ui
 
 # For Atom ctags
 .tags
