@@ -10,9 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 // GetNetworkACLs returns the names of existing Network ACLs.
@@ -313,21 +311,4 @@ func (c *Cluster) DeleteNetworkACL(id int64) error {
 		_, err := tx.tx.Exec("DELETE FROM networks_acls WHERE id=?", id)
 		return err
 	})
-}
-
-// GetNetworkACLURIs returns the URIs for the network ACLs with the given project.
-func (c *ClusterTx) GetNetworkACLURIs(projectID int, project string) ([]string, error) {
-	sql := `SELECT networks_acls.name from networks_acls WHERE networks_acls.project_id = ?`
-
-	names, err := query.SelectStrings(c.tx, sql, projectID)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to get URIs for network acl: %w", err)
-	}
-
-	uris := make([]string, len(names))
-	for i := range names {
-		uris[i] = api.NewURL().Path(version.APIVersion, "network-acls", names[i]).Project(project).String()
-	}
-
-	return uris, nil
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
 )
 
@@ -1057,38 +1056,4 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	}
 
 	return volumes, nil
-}
-
-// GetStorageVolumeURIs returns the URIs of the storage volumes, specifying
-// target node if applicable
-func (c *ClusterTx) GetStorageVolumeURIs(project string) ([]string, error) {
-	volInfo, err := c.GetCustomVolumesInProject(project)
-	if err != nil {
-		return nil, err
-	}
-
-	uris := []string{}
-	for _, info := range volInfo {
-		volPath := fmt.Sprintf("%s/volumes/custom/%s", info.PoolName, info.Name)
-		uri := api.NewURL().Path(version.APIVersion, "storage-pools", volPath).Project(project)
-
-		// Skip checking nodes if node_id is NULL.
-		if info.NodeID != -1 {
-			nodeInfo, err := c.GetNodes()
-			if err != nil {
-				return nil, err
-			}
-
-			for _, node := range nodeInfo {
-				if node.ID == info.NodeID {
-					uri.Target(node.Name)
-					break
-				}
-			}
-		}
-
-		uris = append(uris, uri.String())
-	}
-
-	return uris, nil
 }

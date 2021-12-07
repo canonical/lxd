@@ -48,7 +48,6 @@ import (
 //
 //go:generate mapper method -p db -e instance GetMany references=Device,Config
 //go:generate mapper method -p db -e instance GetOne
-//go:generate mapper method -p db -e instance URIs
 //go:generate mapper method -p db -e instance ID struct=Instance
 //go:generate mapper method -p db -e instance Exists struct=Instance
 //go:generate mapper method -p db -e instance Create references=Device,Config

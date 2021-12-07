@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 var _ = api.ServerEnvironment{}
@@ -64,70 +63,6 @@ UPDATE profiles
   SET project_id = (SELECT id FROM projects WHERE name = ?), name = ?, description = ?
  WHERE id = ?
 `)
-
-// GetProfileURIs returns all available profile URIs.
-// generator: profile URIs
-func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
-	var err error
-
-	// Result slice.
-	objects := make([]Profile, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Project != nil && filter.Name != nil && filter.ID == nil {
-		stmt = c.stmt(profileObjectsByProjectAndName)
-		args = []interface{}{
-			filter.Project,
-			filter.Name,
-		}
-	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil {
-		stmt = c.stmt(profileObjectsByProject)
-		args = []interface{}{
-			filter.Project,
-		}
-	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
-		stmt = c.stmt(profileObjectsByID)
-		args = []interface{}{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
-		stmt = c.stmt(profileObjects)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, Profile{})
-		return []interface{}{
-			&objects[i].ID,
-			&objects[i].ProjectID,
-			&objects[i].Project,
-			&objects[i].Name,
-			&objects[i].Description,
-		}
-	}
-
-	// Select.
-	err = query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"profiles\" table: %w", err)
-	}
-
-	uris := make([]string, len(objects))
-	for i := range objects {
-		uri := api.NewURL().Path(version.APIVersion, "profiles", objects[i].Name)
-		uri.Project(objects[i].Project)
-
-		uris[i] = uri.String()
-	}
-
-	return uris, nil
-}
 
 // GetProfiles returns all available profiles.
 // generator: profile GetMany

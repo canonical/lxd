@@ -26,7 +26,6 @@ import (
 //go:generate mapper stmt -p db -e profile delete-by-Project-and-Name
 //go:generate mapper stmt -p db -e profile update struct=Profile
 //
-//go:generate mapper method -p db -e profile URIs
 //go:generate mapper method -p db -e profile GetMany references=Device,Config
 //go:generate mapper method -p db -e profile GetOne
 //go:generate mapper method -p db -e profile Exists struct=Profile
