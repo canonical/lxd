@@ -118,7 +118,7 @@ doc:
 	python3 -m venv .sphinx/venv
 	. $(SPHINXENV) ; pip install --upgrade -r .sphinx/requirements.txt
 	mkdir -p .sphinx/deps/ .sphinx/themes/
-	git -C .sphinx/deps/vanilla pull || git clone https://github.com/evildmp/vanilla-sphinx-test .sphinx/deps/vanilla
+	git -C .sphinx/deps/vanilla pull || git clone --depth 1 https://github.com/evildmp/vanilla-sphinx-test .sphinx/deps/vanilla
 	ln -sf ../deps/vanilla/vanilla .sphinx/themes/vanilla
 	git -C .sphinx/deps/swagger-ui pull || git clone --depth 1 https://github.com/swagger-api/swagger-ui.git .sphinx/deps/swagger-ui
 	ln -sf ../deps/swagger-ui/dist .sphinx/_static/swagger-ui
