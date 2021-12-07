@@ -92,7 +92,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
 	}
 
-	// Set the default profiles if necessary.
+	// Use default profiles from image if request doesn't specify profiles to use.
 	if args.Profiles == nil {
 		args.Profiles = img.Profiles
 	}
