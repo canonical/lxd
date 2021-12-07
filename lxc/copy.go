@@ -174,9 +174,9 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			return err
 		}
 
-		// Allow adding additional profiles
+		// Overwrite profiles.
 		if c.flagProfile != nil {
-			entry.Profiles = append(entry.Profiles, c.flagProfile...)
+			entry.Profiles = c.flagProfile
 		} else if c.flagNoProfiles {
 			entry.Profiles = []string{}
 		}
@@ -264,9 +264,9 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 			start = true
 		}
 
-		// Allow adding additional profiles
+		// Overwrite profiles.
 		if c.flagProfile != nil {
-			entry.Profiles = append(entry.Profiles, c.flagProfile...)
+			entry.Profiles = c.flagProfile
 		} else if c.flagNoProfiles {
 			entry.Profiles = []string{}
 		}
