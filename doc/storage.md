@@ -352,6 +352,11 @@ sudo btrfs filesystem resize max /var/lib/lxd/storage-pools/<POOL>/
 ```
 
 (NOTE: For users of the snap, use `/var/snap/lxd/common/lxd/` instead of `/var/lib/lxd/`)
+- LOOPDEV refers to the mounted loop device (e.g. `/dev/loop8`) associated with the storage pool image.
+- The mounted loop devices can be found using the following command:
+```bash
+losetup -l
+```
 
 ### LVM
 
