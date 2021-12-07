@@ -13,6 +13,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
 )
@@ -209,24 +210,28 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 	return nil
 }
 
-func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) error {
-	// Check which project name to use
-	enabled, err := c.ProjectHasProfiles(project)
+// imageFillProfiles populates the  image.Profiles field with the profiles associated to the image in the project.
+// If the project doesn't have its own profiles then the default project is used.
+func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, projectName string) error {
+	// Check which project name to use.
+	project, err := c.GetProject(projectName)
 	if err != nil {
-		return errors.Wrap(err, "Check if project has profiles")
-	}
-	if !enabled {
-		project = "default"
+		return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 	}
 
-	// Get the profiles
+	if !shared.IsTrue(project.Config["features.profiles"]) {
+		// If the project doesn't have its own profiles, then use image profiles from default project.
+		projectName = "default"
+	}
+
+	// Get the profiles.
 	q := `
 SELECT profiles.name FROM profiles
 	JOIN images_profiles ON images_profiles.profile_id = profiles.id
 	JOIN projects ON profiles.project_id = projects.id
 WHERE images_profiles.image_id = ? AND projects.name = ?
 `
-	profiles, err := query.SelectStrings(c.tx, q, id, project)
+	profiles, err := query.SelectStrings(c.tx, q, id, projectName)
 	if err != nil {
 		return err
 	}
