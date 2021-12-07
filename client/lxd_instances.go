@@ -63,6 +63,35 @@ func (r *ProtocolLXD) GetInstanceNames(instanceType api.InstanceType) ([]string,
 	return urlsToResourceNames(baseURL, urls...)
 }
 
+// GetInstanceNamesAllProjects returns a list of instance names from all projects.
+func (r *ProtocolLXD) GetInstanceNamesAllProjects(instanceType api.InstanceType) (map[string][]string, error) {
+	instances := []api.Instance{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Set("recursion", "1")
+	v.Set("all-projects", "true")
+
+	// Fetch the raw URL values.
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	names := map[string][]string{}
+	for _, instance := range instances {
+		if _, ok := names[instance.Project]; ok {
+			names[instance.Project] = append(names[instance.Project], instance.Name)
+		} else {
+			names[instance.Project] = []string{instance.Name}
+		}
+	}
+	return names, nil
+}
+
 // GetInstances returns a list of instances.
 func (r *ProtocolLXD) GetInstances(instanceType api.InstanceType) ([]api.Instance, error) {
 	instances := []api.Instance{}
@@ -73,6 +102,31 @@ func (r *ProtocolLXD) GetInstances(instanceType api.InstanceType) ([]api.Instanc
 	}
 
 	v.Set("recursion", "1")
+
+	// Fetch the raw value
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// GetInstancesAllProjects returns a list of instances from all projects.
+func (r *ProtocolLXD) GetInstancesAllProjects(instanceType api.InstanceType) ([]api.Instance, error) {
+	instances := []api.Instance{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Set("recursion", "1")
+	v.Set("all-projects", "true")
+
+	if !r.HasExtension("instance_all_projects") {
+		return nil, fmt.Errorf("The server is missing the required \"instance_all_projects\" API extension")
+	}
 
 	// Fetch the raw value
 	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
@@ -112,6 +166,35 @@ func (r *ProtocolLXD) GetInstancesFull(instanceType api.InstanceType) ([]api.Ins
 
 	if !r.HasExtension("container_full") {
 		return nil, fmt.Errorf("The server is missing the required \"container_full\" API extension")
+	}
+
+	// Fetch the raw value
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// GetInstancesFullAllProjects returns a list of instances including snapshots, backups and state from all projects.
+func (r *ProtocolLXD) GetInstancesFullAllProjects(instanceType api.InstanceType) ([]api.InstanceFull, error) {
+	instances := []api.InstanceFull{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Set("recursion", "2")
+	v.Set("all-projects", "true")
+
+	if !r.HasExtension("container_full") {
+		return nil, fmt.Errorf("The server is missing the required \"container_full\" API extension")
+	}
+
+	if !r.HasExtension("instance_all_projects") {
+		return nil, fmt.Errorf("The server is missing the required \"instance_all_projects\" API extension")
 	}
 
 	// Fetch the raw value

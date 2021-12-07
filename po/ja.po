@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-12-06 16:11-0500\n"
+"POT-Creation-Date: 2021-12-07 16:58-0500\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -590,7 +590,7 @@ msgstr "ALIAS"
 msgid "ALIASES"
 msgstr "ALIASES"
 
-#: lxc/cluster.go:176 lxc/image.go:1030 lxc/list.go:487
+#: lxc/cluster.go:176 lxc/image.go:1030 lxc/list.go:504
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
@@ -794,7 +794,7 @@ msgstr "自動更新: %s"
 msgid "Available projects:"
 msgstr "利用可能なプロジェクト:"
 
-#: lxc/list.go:492 lxc/list.go:493
+#: lxc/list.go:510 lxc/list.go:511
 msgid "BASE IMAGE"
 msgstr "BASE IMAGE"
 
@@ -877,7 +877,7 @@ msgstr "COUNT"
 msgid "CPU (%s):"
 msgstr "CPU (%s):"
 
-#: lxc/list.go:504
+#: lxc/list.go:522
 msgid "CPU USAGE"
 msgstr "CPU USAGE"
 
@@ -898,7 +898,7 @@ msgstr "CPUs (%s):"
 msgid "CREATED"
 msgstr "CREATED"
 
-#: lxc/list.go:489
+#: lxc/list.go:506
 msgid "CREATED AT"
 msgstr "CREATED AT"
 
@@ -938,15 +938,20 @@ msgstr "標準入力から読み込めません: %s"
 msgid "Can't remove the default remote"
 msgstr "デフォルトのリモートは削除できません"
 
-#: lxc/list.go:510
+#: lxc/list.go:528
 msgid "Can't specify --fast with --columns"
+msgstr "--fast と --columns は同時に指定できません"
+
+#: lxc/list.go:399
+#, fuzzy
+msgid "Can't specify --project with --all-projects"
 msgstr "--fast と --columns は同時に指定できません"
 
 #: lxc/rename.go:51
 msgid "Can't specify a different remote for rename"
 msgstr "リネームの場合は異なるリモートを指定できません"
 
-#: lxc/list.go:522 lxc/storage_volume.go:1319 lxc/warning.go:223
+#: lxc/list.go:548 lxc/storage_volume.go:1319 lxc/warning.go:223
 msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
@@ -1016,7 +1021,7 @@ msgstr "クラスタメンバ名"
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
-#: lxc/image.go:1015 lxc/list.go:131 lxc/storage_volume.go:1213
+#: lxc/image.go:1015 lxc/list.go:133 lxc/storage_volume.go:1213
 #: lxc/warning.go:93
 msgid "Columns"
 msgstr "カラムレイアウト"
@@ -1289,7 +1294,7 @@ msgstr "現在の VF 数: %d"
 msgid "DEFAULT TARGET ADDRESS"
 msgstr "DEFAULT TARGET ADDRESS"
 
-#: lxc/cluster.go:178 lxc/image.go:1029 lxc/image_alias.go:237 lxc/list.go:490
+#: lxc/cluster.go:178 lxc/image.go:1029 lxc/image_alias.go:237 lxc/list.go:507
 #: lxc/network.go:914 lxc/network_acl.go:144 lxc/network_forward.go:145
 #: lxc/network_peer.go:141 lxc/network_zone.go:135 lxc/operation.go:163
 #: lxc/profile.go:624 lxc/project.go:473 lxc/storage.go:577
@@ -1297,7 +1302,7 @@ msgstr "DEFAULT TARGET ADDRESS"
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
 
-#: lxc/list.go:491
+#: lxc/list.go:508
 msgid "DISK USAGE"
 msgstr "DISK USAGE"
 
@@ -1408,7 +1413,7 @@ msgstr "警告を削除します"
 #: lxc/image.go:1367 lxc/image.go:1426 lxc/image.go:1478 lxc/image.go:1534
 #: lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108
 #: lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29
-#: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:49 lxc/main.go:80
+#: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:80
 #: lxc/manpage.go:22 lxc/monitor.go:32 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
@@ -1568,6 +1573,11 @@ msgstr "ディスク:"
 msgid "Disks:"
 msgstr "ディスク:"
 
+#: lxc/list.go:136
+#, fuzzy
+msgid "Display instances from all projects"
+msgstr "すべてのプロジェクトのイベントを表示します"
+
 #: lxc/cluster.go:428
 msgid "Don't require user confirmation for using --force"
 msgstr "--force を使う際にユーザーの確認を必要としない"
@@ -1581,7 +1591,7 @@ msgstr "進捗情報を表示しません"
 msgid "Driver: %v (%v)"
 msgstr "ドライバ: %v (%v)"
 
-#: lxc/list.go:772
+#: lxc/list.go:802
 msgid "EPHEMERAL"
 msgstr "EPHEMERAL"
 
@@ -1663,7 +1673,7 @@ msgstr "ストレージボリュームの設定をYAMLで編集します"
 msgid "Edit trust configurations as YAML"
 msgstr "信頼済みクライアント設定をYAMLで編集します"
 
-#: lxc/image.go:1041 lxc/list.go:534 lxc/storage_volume.go:1330
+#: lxc/image.go:1041 lxc/list.go:560 lxc/storage_volume.go:1330
 #: lxc/warning.go:234
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
@@ -1854,7 +1864,7 @@ msgstr "エイリアス %s の削除に失敗しました"
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
 
-#: lxc/list.go:133
+#: lxc/list.go:135
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Fast モード (--columns=nsacPt と同じ)"
 
@@ -1933,7 +1943,7 @@ msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:116 lxc/cluster.go:805
 #: lxc/config_template.go:241 lxc/config_trust.go:290 lxc/image.go:1016
-#: lxc/image_alias.go:158 lxc/list.go:132 lxc/network.go:845 lxc/network.go:938
+#: lxc/image_alias.go:158 lxc/list.go:134 lxc/network.go:845 lxc/network.go:938
 #: lxc/network_acl.go:94 lxc/network_forward.go:90 lxc/network_peer.go:86
 #: lxc/network_zone.go:85 lxc/operation.go:107 lxc/profile.go:584
 #: lxc/project.go:394 lxc/project.go:749 lxc/remote.go:531 lxc/storage.go:518
@@ -2089,11 +2099,11 @@ msgstr "IP ADDRESS"
 msgid "IP addresses"
 msgstr "IP アドレス"
 
-#: lxc/list.go:485 lxc/network.go:912
+#: lxc/list.go:502 lxc/network.go:912
 msgid "IPV4"
 msgstr "IPV4"
 
-#: lxc/list.go:486 lxc/network.go:913
+#: lxc/list.go:503 lxc/network.go:913
 msgid "IPV6"
 msgstr "IPV6"
 
@@ -2246,12 +2256,12 @@ msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
 msgid "Invalid certificate"
 msgstr "不正な証明書です"
 
-#: lxc/list.go:566
+#: lxc/list.go:592
 #, c-format
 msgid "Invalid config key '%s' in '%s'"
 msgstr "'%s' は正しくない設定項目 (key) です (%s 中の)"
 
-#: lxc/list.go:560
+#: lxc/list.go:586
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
 msgstr ""
@@ -2272,19 +2282,19 @@ msgstr "不正なフォーマット %s"
 msgid "Invalid instance name: %s"
 msgstr "不正なインスタンス名: %s"
 
-#: lxc/list.go:585
+#: lxc/list.go:611
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
 msgstr ""
 "'%s' は最大幅の値として不正です (-1 もしくは 0 もしくは正の整数でなくてはなり"
 "ません) ('%s' 中の)"
 
-#: lxc/list.go:582
+#: lxc/list.go:608
 #, c-format
 msgid "Invalid max width (must be an integer) '%s' in '%s'"
 msgstr "'%s' は最大幅の値として不正です (整数でなくてはなりません) ('%s' 中の)"
 
-#: lxc/list.go:573
+#: lxc/list.go:599
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
@@ -2332,7 +2342,7 @@ msgstr "最初にコピーした後も常にイメージを最新の状態に保
 msgid "LAST SEEN"
 msgstr "LAST SEEN"
 
-#: lxc/list.go:494
+#: lxc/list.go:512
 msgid "LAST USED AT"
 msgstr "LAST USED AT"
 
@@ -2344,7 +2354,7 @@ msgstr "LIMIT"
 msgid "LISTEN ADDRESS"
 msgstr "LISTEN ADDRESS"
 
-#: lxc/list.go:518 lxc/network.go:988 lxc/network_forward.go:151
+#: lxc/list.go:544 lxc/network.go:988 lxc/network_forward.go:151
 #: lxc/operation.go:168 lxc/storage_volume.go:1315 lxc/warning.go:219
 msgid "LOCATION"
 msgstr "LOCATION"
@@ -2524,12 +2534,12 @@ msgstr "インスタンスのデバイスを一覧表示します"
 msgid "List instance file templates"
 msgstr "インスタンスのファイルテンプレートを一覧表示します"
 
-#: lxc/list.go:48
+#: lxc/list.go:49
 msgid "List instances"
 msgstr "インスタンスを一覧表示します"
 
-#: lxc/list.go:49
-#, c-format
+#: lxc/list.go:50
+#, fuzzy, c-format
 msgid ""
 "List instances\n"
 "\n"
@@ -2584,6 +2594,7 @@ msgid ""
 "  c - Creation date\n"
 "  d - Description\n"
 "  D - disk usage\n"
+"  e - Project name\n"
 "  l - Last used date\n"
 "  m - Memory usage\n"
 "  M - Memory usage (%)\n"
@@ -2827,11 +2838,11 @@ msgstr "MAD: %s (%s)"
 msgid "MANAGED"
 msgstr "MANAGED"
 
-#: lxc/list.go:495
+#: lxc/list.go:513
 msgid "MEMORY USAGE"
 msgstr "MEMORY USAGE"
 
-#: lxc/list.go:496
+#: lxc/list.go:514
 #, c-format
 msgid "MEMORY USAGE%"
 msgstr "MEMORY USAGE%"
@@ -3211,7 +3222,7 @@ msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
 #: lxc/cluster.go:173 lxc/cluster.go:885 lxc/config_trust.go:346
-#: lxc/list.go:497 lxc/network.go:909 lxc/network_acl.go:143
+#: lxc/list.go:515 lxc/network.go:909 lxc/network_acl.go:143
 #: lxc/network_peer.go:140 lxc/network_zone.go:134 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:590 lxc/storage.go:570
 #: lxc/storage_volume.go:1307
@@ -3458,7 +3469,7 @@ msgstr "PCI アドレス: %v"
 msgid "PEER"
 msgstr ""
 
-#: lxc/list.go:499
+#: lxc/list.go:517
 msgid "PID"
 msgstr "PID"
 
@@ -3471,15 +3482,15 @@ msgstr "PID: %d"
 msgid "PORTS"
 msgstr "PORTS"
 
-#: lxc/list.go:498
+#: lxc/list.go:516
 msgid "PROCESSES"
 msgstr "PROCESSES"
 
-#: lxc/list.go:500 lxc/project.go:470
+#: lxc/list.go:518 lxc/project.go:470
 msgid "PROFILES"
 msgstr "PROFILES"
 
-#: lxc/warning.go:211
+#: lxc/list.go:509 lxc/warning.go:211
 msgid "PROJECT"
 msgstr "PROJECT"
 
@@ -3950,7 +3961,7 @@ msgstr "SEVERITY"
 msgid "SIZE"
 msgstr "SIZE"
 
-#: lxc/list.go:501
+#: lxc/list.go:519
 msgid "SNAPSHOTS"
 msgstr "SNAPSHOTS"
 
@@ -3962,7 +3973,7 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr "SR-IOV 情報:"
 
-#: lxc/cluster.go:179 lxc/list.go:502 lxc/network.go:918
+#: lxc/cluster.go:179 lxc/list.go:520 lxc/network.go:918
 #: lxc/network_peer.go:143 lxc/storage.go:580
 msgid "STATE"
 msgstr "STATE"
@@ -3975,7 +3986,7 @@ msgstr "STATIC"
 msgid "STATUS"
 msgstr "STATUS"
 
-#: lxc/list.go:488
+#: lxc/list.go:505
 msgid "STORAGE POOL"
 msgstr "STORAGE POOL"
 
@@ -4528,7 +4539,7 @@ msgid "TOKEN"
 msgstr "TOKEN"
 
 #: lxc/config_trust.go:345 lxc/image.go:1033 lxc/image_alias.go:236
-#: lxc/list.go:503 lxc/network.go:910 lxc/network.go:985 lxc/operation.go:162
+#: lxc/list.go:521 lxc/network.go:910 lxc/network.go:985 lxc/operation.go:162
 #: lxc/storage_volume.go:1306 lxc/warning.go:214
 msgid "TYPE"
 msgstr "TYPE"
@@ -4786,7 +4797,7 @@ msgstr "UUID: %v"
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/image.go:1048 lxc/list.go:548 lxc/storage_volume.go:1337
+#: lxc/image.go:1048 lxc/list.go:574 lxc/storage_volume.go:1337
 #: lxc/warning.go:241
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
@@ -5020,7 +5031,7 @@ msgstr "[<remote>:] <fingerprint>"
 msgid "[<remote>:] <name>"
 msgstr "[<remote>:] <name>"
 
-#: lxc/image.go:987 lxc/list.go:46
+#: lxc/image.go:987 lxc/list.go:47
 msgid "[<remote>:] [<filter>...]"
 msgstr "[<remote>:] [<filter>...]"
 
@@ -5682,7 +5693,7 @@ msgstr ""
 "lxc launch ubuntu:18.04 u1 < config.yaml\n"
 "    config.yaml の設定を使ってインスタンスを作成し、起動します"
 
-#: lxc/list.go:121
+#: lxc/list.go:123
 msgid ""
 "lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
 "parent:ETHP\n"

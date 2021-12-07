@@ -34,9 +34,10 @@ type columnData func(api.InstanceFull) string
 type cmdList struct {
 	global *cmdGlobal
 
-	flagColumns string
-	flagFast    bool
-	flagFormat  string
+	flagColumns     string
+	flagFast        bool
+	flagFormat      string
+	flagAllProjects bool
 
 	shorthandFilters map[string]func(*api.Instance, *api.InstanceState, string) bool
 }
@@ -95,6 +96,7 @@ Pre-defined column shorthand chars:
   c - Creation date
   d - Description
   D - disk usage
+  e - Project name
   l - Last used date
   m - Memory usage
   M - Memory usage (%)
@@ -131,6 +133,7 @@ lxc list -c ns,user.comment:comment
 	cmd.Flags().StringVarP(&c.flagColumns, "columns", "c", defaultColumns, i18n.G("Columns")+"``")
 	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
 	cmd.Flags().BoolVar(&c.flagFast, "fast", false, i18n.G("Fast mode (same as --columns=nsacPt)"))
+	cmd.Flags().BoolVar(&c.flagAllProjects, "all-projects", false, i18n.G("Display instances from all projects"))
 
 	return cmd
 }
@@ -392,6 +395,10 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if c.global.flagProject != "" && c.flagAllProjects == true {
+		return fmt.Errorf(i18n.G("Can't specify --project with --all-projects"))
+	}
+
 	// Parse the remote
 	var remote string
 	var name string
@@ -452,7 +459,12 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	if !nameFilter && needsData && d.HasExtension("container_full") {
 		// Using the GetInstancesFull shortcut
-		cts, err := d.GetInstancesFull(api.InstanceTypeAny)
+		var cts []api.InstanceFull
+		if c.flagAllProjects {
+			cts, err = d.GetInstancesFullAllProjects(api.InstanceTypeAny)
+		} else {
+			cts, err = d.GetInstancesFull(api.InstanceTypeAny)
+		}
 		if err != nil {
 			return err
 		}
@@ -462,7 +474,12 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	// Get the list of instances
 	var cts []api.Instance
-	ctslist, err := d.GetInstances(api.InstanceTypeAny)
+	var ctslist []api.Instance
+	if c.flagAllProjects {
+		ctslist, err = d.GetInstancesAllProjects(api.InstanceTypeAny)
+	} else {
+		ctslist, err = d.GetInstances(api.InstanceTypeAny)
+	}
 	if err != nil {
 		return err
 	}
@@ -489,6 +506,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'c': {i18n.G("CREATED AT"), c.CreatedColumnData, false, false},
 		'd': {i18n.G("DESCRIPTION"), c.descriptionColumnData, false, false},
 		'D': {i18n.G("DISK USAGE"), c.diskUsageColumnData, true, false},
+		'e': {i18n.G("PROJECT"), c.projectColumnData, false, false},
 		'f': {i18n.G("BASE IMAGE"), c.baseImageColumnData, false, false},
 		'F': {i18n.G("BASE IMAGE"), c.baseImageFullColumnData, false, false},
 		'l': {i18n.G("LAST USED AT"), c.LastUsedColumnData, false, false},
@@ -511,6 +529,14 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		}
 
 		c.flagColumns = "nsacPt"
+	}
+
+	// Add project column if --all-projects flag specified and
+	// no one of --fast or --c was passed
+	if c.flagAllProjects {
+		if c.flagColumns == defaultColumns {
+			c.flagColumns = "e" + c.flagColumns
+		}
 	}
 
 	if clustered {
@@ -716,6 +742,10 @@ func (c *cmdList) IP6ColumnData(cInfo api.InstanceFull) string {
 	}
 
 	return ""
+}
+
+func (c *cmdList) projectColumnData(cInfo api.InstanceFull) string {
+	return cInfo.Project
 }
 
 func (c *cmdList) memoryUsageColumnData(cInfo api.InstanceFull) string {
