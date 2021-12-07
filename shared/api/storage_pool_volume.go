@@ -1,5 +1,7 @@
 package api
 
+import "fmt"
+
 // StorageVolumesPost represents the fields of a new LXD storage pool volume
 //
 // swagger:model
@@ -118,6 +120,12 @@ type StorageVolume struct {
 	//
 	// API extension: custom_block_volumes
 	ContentType string `json:"content_type" yaml:"content_type"`
+}
+
+// URL returns the URL for the storage volume.
+func (storageVolume *StorageVolume) URL(apiVersion string, pool string, project string, target string) *URL {
+	volPath := fmt.Sprintf("%s/volumes/%s/%s", pool, storageVolume.Type, storageVolume.Name)
+	return NewURL().Path(apiVersion, "storage-pools", volPath).Project(project).Target(target)
 }
 
 // StorageVolumePut represents the modifiable fields of a LXD storage volume
