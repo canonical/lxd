@@ -772,7 +772,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				// filesystem volume as well, allowing a former quota to be removed from both
 				// volumes.
 				if vmStateSize == "" && size != "" {
-					vmStateSize = drivers.DefaultVMBlockFilesystemSize
+					vmStateSize = deviceConfig.DefaultVMBlockFilesystemSize
 				}
 
 				logger.Debug("Applying filesystem volume quota from root disk config", log.Ctx{"size.state": vmStateSize})
