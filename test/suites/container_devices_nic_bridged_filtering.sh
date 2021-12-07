@@ -632,6 +632,15 @@ test_container_devices_nic_bridged_filtering() {
   ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1 || false
   ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1 || false
 
+  # Check IP filtering can be enabled with IP assigned as none in LXD config.
+  lxc config device set "${ctPrefix}A" eth0 ipv4.address=none security.ipv4_filtering=true
+  lxc config device set "${ctPrefix}A" eth0 ipv6.address=none security.ipv6_filtering=true
+  lxc exec "${ctPrefix}A" -- ip a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 192.0.2.2/24 dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 2001:db8::2/64 dev eth0
+  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1 || false
+  ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 2001:db8::1 || false
+
   lxc delete -f "${ctPrefix}A"
   ip link delete "${brName}2"
 
