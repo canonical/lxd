@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 // GetNetworksLocalConfig returns a map associating each network name to its
@@ -472,22 +471,6 @@ func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error)
 	}
 
 	return netNodes, nil
-}
-
-// GetNetworkURIs returns the URIs for the networks with the given project.
-func (c *ClusterTx) GetNetworkURIs(projectID int, project string) ([]string, error) {
-	sql := `SELECT networks.name from networks WHERE networks.project_id = ?`
-
-	names, err := query.SelectStrings(c.tx, sql, projectID)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to get URIs for network: %w", err)
-	}
-	uris := make([]string, len(names))
-	for i := range names {
-		uris[i] = api.NewURL().Path(version.APIVersion, "networks", names[i]).Project(project).String()
-	}
-
-	return uris, nil
 }
 
 // GetNetworks returns the names of existing networks.

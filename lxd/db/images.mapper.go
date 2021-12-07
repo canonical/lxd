@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 var _ = api.ServerEnvironment{}
@@ -160,93 +159,4 @@ func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error)
 	default:
 		return nil, fmt.Errorf("More than one \"images\" entry matches")
 	}
-}
-
-// GetImageURIs returns all available image URIs.
-// generator: image URIs
-func (c *ClusterTx) GetImageURIs(filter ImageFilter) ([]string, error) {
-	var err error
-
-	// Result slice.
-	objects := make([]Image, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Project != nil && filter.Public != nil && filter.Fingerprint == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		stmt = c.stmt(imageObjectsByProjectAndPublic)
-		args = []interface{}{
-			filter.Project,
-			filter.Public,
-		}
-	} else if filter.Project != nil && filter.Cached != nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		stmt = c.stmt(imageObjectsByProjectAndCached)
-		args = []interface{}{
-			filter.Project,
-			filter.Cached,
-		}
-	} else if filter.Project != nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		stmt = c.stmt(imageObjectsByProject)
-		args = []interface{}{
-			filter.Project,
-		}
-	} else if filter.Fingerprint != nil && filter.Project == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		stmt = c.stmt(imageObjectsByFingerprint)
-		args = []interface{}{
-			filter.Fingerprint,
-		}
-	} else if filter.Cached != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.AutoUpdate == nil {
-		stmt = c.stmt(imageObjectsByCached)
-		args = []interface{}{
-			filter.Cached,
-		}
-	} else if filter.AutoUpdate != nil && filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil {
-		stmt = c.stmt(imageObjectsByAutoUpdate)
-		args = []interface{}{
-			filter.AutoUpdate,
-		}
-	} else if filter.Project == nil && filter.Fingerprint == nil && filter.Public == nil && filter.Cached == nil && filter.AutoUpdate == nil {
-		stmt = c.stmt(imageObjects)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, Image{})
-		return []interface{}{
-			&objects[i].ID,
-			&objects[i].Project,
-			&objects[i].Fingerprint,
-			&objects[i].Type,
-			&objects[i].Filename,
-			&objects[i].Size,
-			&objects[i].Public,
-			&objects[i].Architecture,
-			&objects[i].CreationDate,
-			&objects[i].ExpiryDate,
-			&objects[i].UploadDate,
-			&objects[i].Cached,
-			&objects[i].LastUseDate,
-			&objects[i].AutoUpdate,
-		}
-	}
-
-	// Select.
-	err = query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"images\" table: %w", err)
-	}
-
-	uris := make([]string, len(objects))
-	for i := range objects {
-		uri := api.NewURL().Path(version.APIVersion, "images", objects[i].Fingerprint)
-		uri.Project(objects[i].Project)
-
-		uris[i] = uri.String()
-	}
-
-	return uris, nil
 }

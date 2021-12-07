@@ -5,10 +5,6 @@ package db
 
 // ProjectGenerated is an interface of generated methods for Project
 type ProjectGenerated interface {
-	// GetProjectURIs returns all available project URIs.
-	// generator: project URIs
-	GetProjectURIs(filter ProjectFilter) ([]string, error)
-
 	// GetProjectConfig returns all available Project Config
 	// generator: project GetMany
 	GetProjectConfig(projectID int) (map[string]string, error)

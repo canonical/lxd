@@ -5,10 +5,6 @@ package db
 
 // ProfileGenerated is an interface of generated methods for Profile
 type ProfileGenerated interface {
-	// GetProfileURIs returns all available profile URIs.
-	// generator: profile URIs
-	GetProfileURIs(filter ProfileFilter) ([]string, error)
-
 	// GetProfileDevices returns all available Profile Devices
 	// generator: profile GetMany
 	GetProfileDevices(profileID int) (map[string]Device, error)

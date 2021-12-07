@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 var _ = api.ServerEnvironment{}
@@ -58,61 +57,6 @@ UPDATE projects
 var projectDeleteByName = cluster.RegisterStmt(`
 DELETE FROM projects WHERE name = ?
 `)
-
-// GetProjectURIs returns all available project URIs.
-// generator: project URIs
-func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
-	var err error
-
-	// Result slice.
-	objects := make([]Project, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []interface{}
-
-	if filter.Name != nil && filter.ID == nil {
-		stmt = c.stmt(projectObjectsByName)
-		args = []interface{}{
-			filter.Name,
-		}
-	} else if filter.ID != nil && filter.Name == nil {
-		stmt = c.stmt(projectObjectsByID)
-		args = []interface{}{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.Name == nil {
-		stmt = c.stmt(projectObjects)
-		args = []interface{}{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, Project{})
-		return []interface{}{
-			&objects[i].ID,
-			&objects[i].Description,
-			&objects[i].Name,
-		}
-	}
-
-	// Select.
-	err = query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
-	}
-
-	uris := make([]string, len(objects))
-	for i := range objects {
-		uri := api.NewURL().Path(version.APIVersion, "projects", objects[i].Name)
-
-		uris[i] = uri.String()
-	}
-
-	return uris, nil
-}
 
 // GetProjects returns all available projects.
 // generator: project GetMany

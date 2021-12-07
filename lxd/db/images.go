@@ -32,7 +32,6 @@ import (
 //
 //go:generate mapper method -p db -e image GetMany
 //go:generate mapper method -p db -e image GetOne
-//go:generate mapper method -p db -e image URIs
 
 // Image is a value object holding db-related details about an image.
 type Image struct {
