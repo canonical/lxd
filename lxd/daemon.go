@@ -1781,9 +1781,13 @@ func (d *Daemon) hasNodeListChanged(heartbeatData *cluster.APIHeartbeat) bool {
 		return true
 	}
 
-	// Check for node address changes.
+	// Check for member address or state changes.
 	for lastMemberID, lastMember := range d.lastNodeList.Members {
 		if heartbeatData.Members[lastMemberID].Address != lastMember.Address {
+			return true
+		}
+
+		if heartbeatData.Members[lastMemberID].Online != lastMember.Online {
 			return true
 		}
 	}
