@@ -60,7 +60,7 @@ func (d *lvm) openLoopFile(source string) (*os.File, error) {
 		defer unlock()
 
 		// Try to prepare new loop device.
-		loopF, err := PrepareLoopDev(source, 0)
+		loopF, err := PrepareLoopDev(source, LoFlagsDirectIO)
 		if err != nil {
 			return nil, err
 		}
