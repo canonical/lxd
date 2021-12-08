@@ -1817,29 +1817,6 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		}
 	}
 
-	isDegraded := false
-	hasNodesNotPartOfRaft := false
-	voters := 0
-	standbys := 0
-
-	for _, node := range heartbeatData.Members {
-		role := db.RaftRole(node.RaftRole)
-		if !node.Online {
-			if role != db.RaftSpare {
-				isDegraded = true
-			}
-		}
-		switch role {
-		case db.RaftVoter:
-			voters++
-		case db.RaftStandBy:
-			standbys++
-		}
-		if node.RaftID == 0 {
-			hasNodesNotPartOfRaft = true
-		}
-	}
-
 	nodeListChanged := d.hasNodeListChanged(heartbeatData)
 	if nodeListChanged {
 		logger.Debug("Member list has changed")
@@ -1861,6 +1838,29 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	// don't have enough voters or standbys, let's see if we can upgrade
 	// some member.
 	if isLeader && len(heartbeatData.Members) > 1 {
+		isDegraded := false
+		hasNodesNotPartOfRaft := false
+		voters := 0
+		standbys := 0
+
+		for _, node := range heartbeatData.Members {
+			role := db.RaftRole(node.RaftRole)
+			if !node.Online && role != db.RaftSpare {
+				isDegraded = true
+			}
+
+			switch role {
+			case db.RaftVoter:
+				voters++
+			case db.RaftStandBy:
+				standbys++
+			}
+
+			if node.RaftID == 0 {
+				hasNodesNotPartOfRaft = true
+			}
+		}
+
 		address, _ := node.ClusterAddress(d.State().Node)
 
 		var maxVoters int64
