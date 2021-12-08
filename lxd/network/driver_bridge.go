@@ -1922,6 +1922,11 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 			continue
 		}
 
+		if !node.Online {
+			n.logger.Warn("Excluding offline member from DNS peers refresh", log.Ctx{"address": node.Address, "ID": node.ID, "raftID": node.RaftID, "lastHeartbeat": node.LastHeartbeat})
+			continue
+		}
+
 		client, err := cluster.Connect(node.Address, networkCert, n.state.ServerCert(), nil, true)
 		if err != nil {
 			return err
