@@ -1799,6 +1799,11 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		return
 	}
 
+	if !heartbeatData.FullStateList || len(heartbeatData.Members) <= 0 {
+		logger.Error("Heartbeat member refresh task called with partial state list")
+		return
+	}
+
 	// If the max version of the cluster has changed, check whether we need to upgrade.
 	if d.lastNodeList == nil || d.lastNodeList.Version.APIExtensions != heartbeatData.Version.APIExtensions || d.lastNodeList.Version.Schema != heartbeatData.Version.Schema {
 		err := cluster.MaybeUpdate(d.State())
@@ -1813,40 +1818,37 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	voters := 0
 	standbys := 0
 
-	// Only refresh forkdns peers if the full state list has been generated.
-	if heartbeatData.FullStateList && len(heartbeatData.Members) > 0 {
-		for i, node := range heartbeatData.Members {
-			role := db.RaftRole(node.RaftRole)
-			// Exclude nodes that the leader considers offline.
-			// This is to avoid forkdns delaying results by querying an offline node.
-			if !node.Online {
-				if role != db.RaftSpare {
-					isDegraded = true
-				}
-				logger.Warn("Excluding offline member from refresh", log.Ctx{"address": node.Address, "ID": node.ID, "raftID": node.RaftID, "lastHeartbeat": node.LastHeartbeat})
-				delete(heartbeatData.Members, i)
+	for i, node := range heartbeatData.Members {
+		role := db.RaftRole(node.RaftRole)
+		// Exclude nodes that the leader considers offline.
+		// This is to avoid forkdns delaying results by querying an offline node.
+		if !node.Online {
+			if role != db.RaftSpare {
+				isDegraded = true
 			}
-			switch role {
-			case db.RaftVoter:
-				voters++
-			case db.RaftStandBy:
-				standbys++
-			}
-			if node.RaftID == 0 {
-				hasNodesNotPartOfRaft = true
-			}
+			logger.Warn("Excluding offline member from refresh", log.Ctx{"address": node.Address, "ID": node.ID, "raftID": node.RaftID, "lastHeartbeat": node.LastHeartbeat})
+			delete(heartbeatData.Members, i)
 		}
+		switch role {
+		case db.RaftVoter:
+			voters++
+		case db.RaftStandBy:
+			standbys++
+		}
+		if node.RaftID == 0 {
+			hasNodesNotPartOfRaft = true
+		}
+	}
 
-		nodeListChanged := d.hasNodeListChanged(heartbeatData)
-		if nodeListChanged {
-			logger.Debug("Member list has changed")
-			updateCertificateCache(d)
+	nodeListChanged := d.hasNodeListChanged(heartbeatData)
+	if nodeListChanged {
+		logger.Debug("Member list has changed")
+		updateCertificateCache(d)
 
-			err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
-			if err != nil {
-				logger.Error("Error refreshing forkdns", log.Ctx{"err": err})
-				return
-			}
+		err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
+		if err != nil {
+			logger.Error("Error refreshing forkdns", log.Ctx{"err": err})
+			return
 		}
 	}
 
