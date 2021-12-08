@@ -68,6 +68,8 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		"limits.max",
 		"ipv4.gateway",
 		"ipv6.gateway",
+		"ipv4.routes",
+		"ipv6.routes",
 		"ipv4.host_address",
 		"ipv6.host_address",
 		"ipv4.host_table",
@@ -98,6 +100,13 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 
 				ips[addr] = struct{}{}
 			}
+		}
+	}
+
+	// Ensure that address is set if routes is set
+	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
+		if d.config[fmt.Sprintf("%s.routes", keyPrefix)] != "" && d.config[fmt.Sprintf("%s.address", keyPrefix)] == "" {
+			return fmt.Errorf("%s.routes requires %s.address to be set", keyPrefix, keyPrefix)
 		}
 	}
 
@@ -354,6 +363,30 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 				revert.Add(func() { np.Delete() })
 			}
+		}
+
+		if d.config[fmt.Sprintf("%s.routes", keyPrefix)] != "" {
+			routes := util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.routes", keyPrefix)], ",", -1, true)
+
+			if len(addresses) == 0 {
+				return nil, fmt.Errorf("%s.routes requires %s.address to be set", keyPrefix, keyPrefix)
+			}
+			// Add routes
+			for _, routeStr := range routes {
+				// Apply host-side static routes to main routing table.
+				r := ip.Route{
+					DevName: saveData["host_name"],
+					Route:   routeStr,
+					Table:   "main",
+					Family:  ipFamilyArg,
+					Via:     addresses[0],
+				}
+				err = r.Add()
+				if err != nil {
+					return nil, fmt.Errorf("Failed adding route %q: %w", r.Route, err)
+				}
+			}
+
 		}
 	}
 
