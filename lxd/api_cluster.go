@@ -51,7 +51,7 @@ var clusterNodesCmd = APIEndpoint{
 	Path: "cluster/members",
 
 	Get:  APIEndpointAction{Handler: clusterNodesGet, AccessHandler: allowAuthenticated},
-	Post: APIEndpointAction{Handler: clusterNodesPost, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: clusterNodesPost},
 }
 
 var clusterNodeCmd = APIEndpoint{
