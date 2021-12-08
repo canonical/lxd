@@ -322,7 +322,7 @@ func (d *btrfs) Mount() (bool, error) {
 	mntFilesystem := "btrfs"
 	if d.config["source"] == loopPath {
 		// Bring up the loop device.
-		loopF, err := PrepareLoopDev(d.config["source"], LoFlagsAutoclear)
+		loopF, err := PrepareLoopDev(d.config["source"], LoFlagsAutoclear|LoFlagsDirectIO)
 		if err != nil {
 			return false, err
 		}
