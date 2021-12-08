@@ -1822,16 +1822,12 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	voters := 0
 	standbys := 0
 
-	for i, node := range heartbeatData.Members {
+	for _, node := range heartbeatData.Members {
 		role := db.RaftRole(node.RaftRole)
-		// Exclude nodes that the leader considers offline.
-		// This is to avoid forkdns delaying results by querying an offline node.
 		if !node.Online {
 			if role != db.RaftSpare {
 				isDegraded = true
 			}
-			logger.Warn("Excluding offline member from refresh", log.Ctx{"address": node.Address, "ID": node.ID, "raftID": node.RaftID, "lastHeartbeat": node.LastHeartbeat})
-			delete(heartbeatData.Members, i)
 		}
 		switch role {
 		case db.RaftVoter:
@@ -1864,7 +1860,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	// roles, let's see if we can replace them with spare ones. Also, if we
 	// don't have enough voters or standbys, let's see if we can upgrade
 	// some member.
-	if isLeader && len(heartbeatData.Members) > 2 {
+	if isLeader && len(heartbeatData.Members) > 1 {
 		address, _ := node.ClusterAddress(d.State().Node)
 
 		var maxVoters int64
