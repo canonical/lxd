@@ -433,11 +433,11 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	nodeRoles := map[int64][]string{}
 	rows, err := c.tx.Query(sql)
 	if err != nil {
+		// Don't fail on a missing table, we need to handle updates
 		if err.Error() != "no such table: nodes_roles" {
 			return nil, err
 		}
 	} else {
-		// Don't fail on a missing table, we need to handle updates
 		defer rows.Close()
 
 		for i := 0; rows.Next(); i++ {
@@ -456,11 +456,13 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 
 			nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
 		}
-	}
 
-	err = rows.Err()
-	if err != nil {
-		return nil, err
+		err = rows.Err()
+		if err != nil {
+			return nil, err
+		}
+
+		rows.Close()
 	}
 
 	// Process node entries
