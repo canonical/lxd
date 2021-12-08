@@ -481,41 +481,36 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	var dnatRules []map[string]interface{}
 	var snatRules []map[string]interface{}
 
-	for i := range forward.ListenPorts {
-		// Use the target port that corresponds to the listen port (unless only 1 is specified, in which
-		// case use the same target port for all listen ports).
-		targetIndex := 0
-		if targetPortsLen > 1 {
-			targetIndex = i
-		}
+	targetPortRanges := portRangesFromSlice(forward.TargetPorts)
+	for _, targetPortRange := range targetPortRanges {
+		targetPortRangeStr := portRangeStr(targetPortRange, "-")
+		snatRules = append(snatRules, map[string]interface{}{
+			"ipFamily":    ipFamily,
+			"protocol":    forward.Protocol,
+			"targetHost":  targetAddressStr,
+			"targetPorts": targetPortRangeStr,
+		})
+	}
 
-		targetPort := forward.TargetPorts[targetIndex]
-
-		// Format the destination host/port as appropriate.
-		targetDest := fmt.Sprintf("%s:%d", targetAddressStr, targetPort)
-		if ipFamily == "ip6" {
-			targetDest = fmt.Sprintf("[%s]:%d", targetAddressStr, targetPort)
+	dnatRanges := getOptimisedDNATRanges(forward)
+	for listenPortRange, targetPortRange := range dnatRanges {
+		// Format the destination host/port as appropriate
+		targetDest := targetAddressStr
+		if targetPortRange[1] == 1 {
+			targetPortStr := portRangeStr(targetPortRange, ":")
+			targetDest = fmt.Sprintf("%s:%s", targetAddressStr, targetPortStr)
+			if ipFamily == "ip6" {
+				targetDest = fmt.Sprintf("[%s]:%s", targetAddressStr, targetPortStr)
+			}
 		}
 
 		dnatRules = append(dnatRules, map[string]interface{}{
 			"ipFamily":      ipFamily,
 			"protocol":      forward.Protocol,
 			"listenAddress": listenAddressStr,
-			"listenPort":    forward.ListenPorts[i],
+			"listenPorts":   portRangeStr(listenPortRange, "-"),
 			"targetDest":    targetDest,
-			"targetHost":    targetAddressStr,
-			"targetPort":    targetPort,
 		})
-
-		// Only add >1 hairpin NAT rules if target range used.
-		if targetIndex == i {
-			snatRules = append(snatRules, map[string]interface{}{
-				"ipFamily":   ipFamily,
-				"protocol":   forward.Protocol,
-				"targetHost": targetAddressStr,
-				"targetPort": targetPort,
-			})
-		}
 	}
 
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
@@ -973,19 +968,19 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 						"ipFamily":      ipFamily,
 						"protocol":      rule.Protocol,
 						"listenAddress": listenAddressStr,
-						"listenPort":    rule.ListenPorts[i],
+						"listenPorts":   rule.ListenPorts[i],
 						"targetDest":    targetDest,
 						"targetHost":    targetAddressStr,
-						"targetPort":    targetPort,
+						"targetPorts":   targetPort,
 					})
 
 					// Only add >1 hairpin NAT rules if multiple target ports being used.
 					if i == 0 || targetPortsLen != 1 {
 						snatRules = append(snatRules, map[string]interface{}{
-							"ipFamily":   ipFamily,
-							"protocol":   rule.Protocol,
-							"targetHost": targetAddressStr,
-							"targetPort": targetPort,
+							"ipFamily":    ipFamily,
+							"protocol":    rule.Protocol,
+							"targetHost":  targetAddressStr,
+							"targetPorts": targetPort,
 						})
 
 					}
