@@ -1932,7 +1932,8 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	return dump, nil
 }
 
-func (d *Daemon) hasNodeListChanged(heartbeatData *cluster.APIHeartbeat) bool {
+// hasMemberStateChanged returns true if the number of members, their addresses or state has changed.
+func (d *Daemon) hasMemberStateChanged(heartbeatData *cluster.APIHeartbeat) bool {
 	// No previous heartbeat data.
 	if d.lastNodeList == nil {
 		return true
@@ -1979,11 +1980,13 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		}
 	}
 
-	nodeListChanged := d.hasNodeListChanged(heartbeatData)
-	if nodeListChanged {
-		logger.Debug("Member list has changed")
+	if d.hasMemberStateChanged(heartbeatData) {
+		logger.Debug("Cluster member state has changed")
+
+		// Refresh cluster certificates cached.
 		updateCertificateCache(d)
 
+		// Refresh forkdns peers.
 		err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
 		if err != nil {
 			logger.Error("Error refreshing forkdns", log.Ctx{"err": err})
