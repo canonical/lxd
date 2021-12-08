@@ -1839,31 +1839,29 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		d.lastNodeList = heartbeatData
 	}
 
-	// If there are offline members that have voter or stand-by database
-	// roles, let's see if we can replace them with spare ones. Also, if we
-	// don't have enough voters or standbys, let's see if we can upgrade
-	// some member.
+	// If we are the leader and there are other members in the cluster, then check if we need to update roles.
 	if isLeader && len(heartbeatData.Members) > 1 {
 		isDegraded := false
 		hasNodesNotPartOfRaft := false
-		voters := 0
-		standbys := 0
+		onlineVoters := 0
+		onlineStandbys := 0
 
 		for _, node := range heartbeatData.Members {
 			role := db.RaftRole(node.RaftRole)
-			if !node.Online && role != db.RaftSpare {
-				isDegraded = true
-			}
+			if node.Online {
+				// Count online members that have voter or stand-by raft role.
+				switch role {
+				case db.RaftVoter:
+					onlineVoters++
+				case db.RaftStandBy:
+					onlineStandbys++
+				}
 
-			switch role {
-			case db.RaftVoter:
-				voters++
-			case db.RaftStandBy:
-				standbys++
-			}
-
-			if node.RaftID == 0 {
-				hasNodesNotPartOfRaft = true
+				if node.RaftID == 0 {
+					hasNodesNotPartOfRaft = true
+				}
+			} else if role != db.RaftSpare {
+				isDegraded = true // Offline member that has voter or stand-by raft role.
 			}
 		}
 
@@ -1885,9 +1883,12 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			return
 		}
 
-		if isDegraded || voters < int(maxVoters) || standbys < int(maxStandBy) {
+		// If there are offline members that have voter or stand-by database roles, let's see if we can
+		// replace them with spare ones. Also, if we don't have enough voters or standbys, let's see if we
+		// can upgrade some member.
+		if isDegraded || onlineVoters < int(maxVoters) || onlineStandbys < int(maxStandBy) {
 			d.clusterMembershipMutex.Lock()
-			logger.Info("Rebalancing member roles in heartbeat", log.Ctx{"address": address})
+			logger.Debug("Rebalancing member roles in heartbeat", log.Ctx{"address": address})
 			err := rebalanceMemberRoles(d, nil, unavailableMembers)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 				logger.Warnf("Could not rebalance cluster member roles: %v", err)
@@ -1897,7 +1898,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 		if hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
-			logger.Info("Upgrading members without raft role in heartbeat", log.Ctx{"address": address})
+			logger.Debug("Upgrading members without raft role in heartbeat", log.Ctx{"address": address})
 			err := upgradeNodesWithoutRaftRole(d)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
 				logger.Warnf("Failed upgrade raft roles: %v", err)
