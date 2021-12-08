@@ -1818,6 +1818,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		}
 	}
 
+	stateChangeTaskFailure := false // Records whether any of the state change tasks failed.
 	if d.hasMemberStateChanged(heartbeatData) {
 		logger.Debug("Cluster member state has changed")
 
@@ -1827,14 +1828,16 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		// Refresh forkdns peers.
 		err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
 		if err != nil {
+			stateChangeTaskFailure = true
 			logger.Error("Error refreshing forkdns", log.Ctx{"err": err})
-			return
 		}
 	}
 
-	// Only update the node list if the task succeeded.
-	// If it fails then it will get to run again next heartbeat.
-	d.lastNodeList = heartbeatData
+	// Only update the node list if there are no state change task failures.
+	// If there are failures, then we leave the old state so that we can re-try the tasks again next heartbeat.
+	if !stateChangeTaskFailure {
+		d.lastNodeList = heartbeatData
+	}
 
 	// If there are offline members that have voter or stand-by database
 	// roles, let's see if we can replace them with spare ones. Also, if we
