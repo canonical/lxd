@@ -1344,7 +1344,7 @@ Adds new `security.acls.default.{in,e}gress.action` and `security.acls.default.{
 OVN networks and NICs. This replaces the removed ACL `default.action` and `default.logged` keys.
 
 ## gpu\_mig
-This adds support for NVIDIA MIG. It introduces the `mig` gputype and associaetd config keys.
+This adds support for NVIDIA MIG. It introduces the `mig` gputype and associated config keys.
 
 ## project\_usage
 Adds an API endpoint to get current resource allocations in a project.
