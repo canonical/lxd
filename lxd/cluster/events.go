@@ -92,6 +92,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 				Address:       dbMember.Address,
 				LastHeartbeat: dbMember.Heartbeat,
 				Online:        !dbMember.IsOffline(offlineThreshold),
+				Roles:         dbMember.Roles,
 			}
 		}
 	}
