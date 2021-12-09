@@ -205,6 +205,7 @@ type InstanceServer interface {
 
 	// Event handling functions
 	GetEvents() (listener *EventListener, err error)
+	GetEventsAllProjects() (listener *EventListener, err error)
 
 	// Image functions
 	CreateImage(image api.ImagesPost, args *ImageCreateArgs) (op Operation, err error)
