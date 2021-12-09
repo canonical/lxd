@@ -1796,8 +1796,12 @@ func (d *Daemon) hasMemberStateChanged(heartbeatData *cluster.APIHeartbeat) bool
 	return false
 }
 
-// NodeRefreshTask is run each time a fresh node is generated.
-// This can be used to trigger actions when the node list changes.
+// NodeRefreshTask is run when a full state heartbeat is sent (on the leader) or received (by a non-leader member).
+// Is is used to check for member state changes and trigger refreshes of the certificate cache and forkdns peers.
+// It also triggers member role promotion when run on the isLeader is true.
+// When run on the leader, it accepts a list of unavailableMembers that have not responded to the current heartbeat
+// round (but may not be considered actually offline at this stage). These unavailable members will not be used for
+// role rebalancing.
 func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {
 	// Don't process the heartbeat until we're fully online
 	if d.cluster == nil || d.cluster.GetNodeID() == 0 {
