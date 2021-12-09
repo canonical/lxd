@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
@@ -31,8 +32,9 @@ import (
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLxdServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler:   devLxdAPI(d),
-		ConnState: pidMapper.ConnStateHandler,
+		Handler:     devLxdAPI(d),
+		ConnState:   pidMapper.ConnStateHandler,
+		ConnContext: request.SaveConnectionInContext,
 	}
 }
 
