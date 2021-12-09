@@ -82,48 +82,21 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		}
 	}
 
-	// Get the current cluster nodes.
-	var nodes []db.NodeInfo
-	var offlineThreshold time.Duration
-
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-
-		nodes, err = tx.GetNodes()
-		if err != nil {
-			return err
-		}
-
-		offlineThreshold, err = tx.GetNodeOfflineThreshold()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
-		return
-	}
-	if len(nodes) == 1 {
-		return // Either we're not clustered or this is a single-node cluster
-	}
-
 	address := endpoints.NetworkAddress()
 
-	addresses := make([]string, len(nodes))
-	for i, node := range nodes {
-		addresses[i] = node.Address
+	addresses := make([]string, len(members))
+	for i, member := range members {
+		addresses[i] = member.Address
 
-		if node.Address == address {
+		if member.Address == address {
 			continue
 		}
 
 		listenersLock.Lock()
-		listener, ok := listeners[node.Address]
+		listener, ok := listeners[member.Address]
 
 		// Don't bother trying to connect to offline nodes, or to ourselves.
-		if node.IsOffline(offlineThreshold) {
+		if !member.Online {
 			if ok {
 				listener.Disconnect()
 			}
@@ -137,25 +110,25 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			// Double check that the listener is still
 			// connected. If it is, just move on, other
 			// we'll try to connect again.
-			if listeners[node.Address].IsActive() {
+			if listeners[member.Address].IsActive() {
 				listenersLock.Unlock()
 				continue
 			}
 
-			delete(listeners, node.Address)
+			delete(listeners, member.Address)
 		}
 		listenersLock.Unlock()
 
-		listener, err := eventsConnect(node.Address, endpoints.NetworkCert(), serverCert())
+		listener, err := eventsConnect(member.Address, endpoints.NetworkCert(), serverCert())
 		if err != nil {
-			logger.Warn("Failed to get events from member", log.Ctx{"address": node.Address, "err": err})
+			logger.Warn("Failed to get events from member", log.Ctx{"address": member.Address, "err": err})
 			continue
 		}
-		logger.Debug("Listening for events on member", log.Ctx{"address": node.Address})
-		listener.AddHandler(nil, func(event api.Event) { f(node.ID, event) })
+		logger.Debug("Listening for events on member", log.Ctx{"address": member.Address})
+		listener.AddHandler(nil, func(event api.Event) { f(member.ID, event) })
 
 		listenersLock.Lock()
-		listeners[node.Address] = listener
+		listeners[member.Address] = listener
 		listenersLock.Unlock()
 	}
 
