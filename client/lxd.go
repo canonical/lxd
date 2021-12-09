@@ -260,7 +260,7 @@ func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
 	}
 
 	if r.project != "" {
-		if values.Get("project") == "" {
+		if values.Get("project") == "" && values.Get("all-projects") == "" {
 			values.Set("project", r.project)
 		}
 	}

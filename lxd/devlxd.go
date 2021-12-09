@@ -118,7 +118,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 	}
 	defer conn.Close() // This ensures the go routine below is ended when this function ends.
 
-	listener, err := d.devlxdEvents.AddListener(strconv.Itoa(c.ID()), conn, strings.Split(typeStr, ","), "", false)
+	listener, err := d.devlxdEvents.AddListener(strconv.Itoa(c.ID()), false, conn, strings.Split(typeStr, ","), "", false)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
