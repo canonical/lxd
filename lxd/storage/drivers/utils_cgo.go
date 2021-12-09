@@ -266,6 +266,10 @@ import "C"
 // close.
 const LoFlagsAutoclear int = C.LO_FLAGS_AUTOCLEAR
 
+// LoFlagsDirectIO determines whether the loop device will use Direct IO with the
+// backing file.
+const LoFlagsDirectIO int = C.LO_FLAGS_DIRECT_IO
+
 // PrepareLoopDev detects and sets up a loop device for source. It returns an
 // open file descriptor to the free loop device and the path of the free loop
 // device. It's the callers responsibility to close the open file descriptor.
