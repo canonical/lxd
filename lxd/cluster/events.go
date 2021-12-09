@@ -30,7 +30,7 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func
 	update := func(ctx context.Context) {
 		ch := make(chan struct{})
 		go func() {
-			eventsUpdateListeners(endpoints, cluster, serverCert, f)
+			eventsUpdateListeners(endpoints, cluster, serverCert, nil, f)
 			ch <- struct{}{}
 		}()
 		select {
@@ -44,7 +44,7 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func
 	return update, schedule
 }
 
-func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, f func(int64, api.Event)) {
+func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
 	// Get the current cluster nodes.
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
