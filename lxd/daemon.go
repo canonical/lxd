@@ -1440,6 +1440,10 @@ func (d *Daemon) init() error {
 }
 
 func (d *Daemon) startClusterTasks() {
+	// Add initial event listeners from global database members.
+	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
+	go cluster.EventsUpdateListeners(d.endpoints, d.cluster, d.serverCert, nil, d.events.Forward)
+
 	// Heartbeats
 	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
 
