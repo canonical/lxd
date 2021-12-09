@@ -47,6 +47,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 		name        string
 		projectName string
 	}{}
+
 	dest := func(i int) []interface{} {
 		networks = append(networks, struct {
 			id          int64
@@ -56,15 +57,18 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 		return []interface{}{&networks[i].id, &networks[i].name, &networks[i].projectName}
 
 	}
+
 	stmt, err := c.tx.Prepare("SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
+
 	err = query.SelectObjects(stmt, dest, networkPending)
 	if err != nil {
 		return nil, err
 	}
+
 	ids := map[string]map[string]int64{}
 	for _, network := range networks {
 		if ids[network.projectName] == nil {
@@ -73,6 +77,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 
 		ids[network.projectName][network.name] = network.id
 	}
+
 	return ids, nil
 }
 
