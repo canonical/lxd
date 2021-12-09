@@ -40,6 +40,8 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+var targetGroupPrefix = "@"
+
 var clusterCmd = APIEndpoint{
 	Path: "cluster",
 
@@ -74,6 +76,23 @@ var clusterCertificateCmd = APIEndpoint{
 	Path: "cluster/certificate",
 
 	Put: APIEndpointAction{Handler: clusterCertificatePut},
+}
+
+var clusterGroupsCmd = APIEndpoint{
+	Path: "cluster/groups",
+
+	Get:  APIEndpointAction{Handler: clusterGroupsGet, AccessHandler: allowAuthenticated},
+	Post: APIEndpointAction{Handler: clusterGroupsPost, AccessHandler: allowAuthenticated},
+}
+
+var clusterGroupCmd = APIEndpoint{
+	Path: "cluster/groups/{name}",
+
+	Get:    APIEndpointAction{Handler: clusterGroupGet, AccessHandler: allowAuthenticated},
+	Post:   APIEndpointAction{Handler: clusterGroupPost},
+	Put:    APIEndpointAction{Handler: clusterGroupPut},
+	Patch:  APIEndpointAction{Handler: clusterGroupPatch},
+	Delete: APIEndpointAction{Handler: clusterGroupDelete},
 }
 
 var internalClusterAcceptCmd = APIEndpoint{
@@ -286,6 +305,10 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 	}
 	if req.ServerName != "" && !req.Enabled {
 		return response.BadRequest(fmt.Errorf("ServerName must be empty when disabling clustering"))
+	}
+
+	if req.ServerName != "" && strings.HasPrefix(req.ServerName, targetGroupPrefix) {
+		return response.BadRequest(fmt.Errorf("ServerName may not start with %q", targetGroupPrefix))
 	}
 
 	// Disable clustering.
@@ -627,14 +650,27 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Handle optional service integration on cluster join
 		var clusterConfig *cluster.Config
+
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
+
 			clusterConfig, err = cluster.ConfigLoad(tx)
-			return err
+			if err != nil {
+				return err
+			}
+
+			// Add the new node to the default cluster group.
+			err = tx.AddNodeToClusterGroup("default", req.ServerName)
+			if err != nil {
+				return fmt.Errorf("Failed to add new member to the default cluster group: %w", err)
+			}
+
+			return nil
 		})
 		if err != nil {
 			return err
 		}
+
 		var nodeConfig *node.Config
 		err = d.db.Transaction(func(tx *db.NodeTx) error {
 			var err error
@@ -1448,6 +1484,11 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		return response.BadRequest(fmt.Errorf("The '%s' role cannot be added at this time", db.ClusterRoleDatabase))
 	}
 
+	// Nodes must belong to at least one group.
+	if len(req.Groups) == 0 {
+		return response.BadRequest(fmt.Errorf("Cluster members need to belong to at least one group"))
+	}
+
 	// Update the database
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodeInfo, err := tx.GetNodeByName(name)
@@ -1503,6 +1544,11 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 			return errors.Wrap(err, "Update failure domain")
 		}
 
+		// Update the cluster groups.
+		err = tx.UpdateNodeClusterGroups(nodeInfo.ID, req.Groups)
+		if err != nil {
+			return fmt.Errorf("Update cluster groups: %w", err)
+		}
 		return nil
 	})
 	if err != nil {
@@ -1518,7 +1564,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 // clusterValidateConfig validates the configuration keys/values for cluster members.
 func clusterValidateConfig(config map[string]string) error {
 	clusterConfigKeys := map[string]func(value string) error{
-		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "manual")),
+		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "group", "manual")),
 	}
 
 	for k, v := range config {
@@ -2626,7 +2672,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			// Find the least loaded cluster member which supports the architecture.
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				targetNodeName, err = tx.GetNodeWithLeastInstances([]int{node.Architecture}, -1)
+				targetNodeName, err = tx.GetNodeWithLeastInstances([]int{node.Architecture}, -1, "")
 				if err != nil {
 					return err
 				}
@@ -2932,4 +2978,707 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.OperationResponse(op)
+}
+
+// swagger:operation POST /1.0/cluster/groups cluster cluster_groups_post
+//
+// Create a cluster group.
+//
+// Creates a new cluster group.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster
+//     description: Cluster group to create
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterGroupsPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !clustered {
+		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	req := api.ClusterGroupsPost{}
+
+	// Parse the request.
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Quick checks.
+	err = clusterGroupValidateName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		obj := db.ClusterGroup{
+			Name:        req.Name,
+			Description: req.Description,
+			Nodes:       req.Members,
+		}
+
+		_, err := tx.CreateClusterGroup(obj)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupCreated.Event(req.Name, requestor, nil))
+
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/cluster/groups/%s", version.APIVersion, req.Name))
+}
+
+// swagger:operation GET /1.0/cluster/groups cluster-groups cluster_groups_get
+//
+// Get the cluster groups
+//
+// Returns a list of cluster groups (URLs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of endpoints
+//           items:
+//             type: string
+//           example: |-
+//             [
+//               "/1.0/cluster/groups/lxd01",
+//               "/1.0/cluster/groups/lxd02"
+//             ]
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/cluster/groups?recursion=1 cluster-groups cluster_groups_get_recursion1
+//
+// Get the cluster groups
+//
+// Returns a list of cluster groups (structs).
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: API endpoints
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           type: array
+//           description: List of cluster groups
+//           items:
+//             $ref: "#/definitions/ClusterGroup"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !clustered {
+		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	recursion := util.IsRecursionRequest(r)
+
+	var result interface{}
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		if recursion {
+			clusterGroups, err := tx.GetClusterGroups(db.ClusterGroupFilter{})
+			if err != nil {
+				return err
+			}
+
+			apiClusterGroups := make([]*api.ClusterGroup, len(clusterGroups))
+			for i, clusterGroup := range clusterGroups {
+				members, err := tx.GetClusterGroupNodes(clusterGroup.Name)
+				if err != nil {
+					return err
+				}
+
+				apiClusterGroups[i] = db.ClusterGroupToAPI(&clusterGroup, members)
+			}
+
+			result = apiClusterGroups
+		} else {
+			result, err = tx.GetClusterGroupURIs(db.ClusterGroupFilter{})
+		}
+		return err
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	return response.SyncResponse(true, result)
+}
+
+// swagger:operation GET /1.0/cluster/groups/{name} cluster-groups cluster_group_get
+//
+// Get the cluster group
+//
+// Gets a specific cluster group.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     description: Cluster group
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/ClusterGroup"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !clustered {
+		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	var group *db.ClusterGroup
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the cluster group.
+		group, err = tx.GetClusterGroup(name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, db.ErrNoSuchObject) {
+			return response.NotFound(fmt.Errorf("Cluster group %q not found", name))
+		}
+
+		return response.SmartError(err)
+	}
+
+	apiGroup, err := group.ToAPI()
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return response.SyncResponseETag(true, apiGroup, apiGroup.ClusterGroupPut)
+}
+
+// swagger:operation POST /1.0/cluster/groups/{name} cluster-groups cluster_group_post
+//
+// Rename the cluster group
+//
+// Renames an existing cluster group.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: name
+//     description: Cluster group rename request
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterGroupPost"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+	if name == "default" {
+		return response.Forbidden(errors.New(`The "default" group cannot be renamed`))
+	}
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !clustered {
+		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	req := api.ClusterGroupPost{}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return response.BadRequest(err)
+	}
+
+	// Quick checks.
+	err = clusterGroupValidateName(name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Check that the name isn't already in use.
+		_, err = tx.GetClusterGroup(req.Name)
+		if err == nil {
+			return fmt.Errorf("Name %q already in use", req.Name)
+		}
+
+		// Rename the cluster group.
+		err = tx.RenameClusterGroup(name, req.Name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, db.ErrNoSuchObject) {
+			return response.NotFound(fmt.Errorf("Cluster group %q not found", name))
+		}
+
+		return response.SmartError(err)
+	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupRenamed.Event(req.Name, requestor, log.Ctx{"old_name": name}))
+
+	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/cluster/groups/%s", version.APIVersion, req.Name))
+}
+
+// swagger:operation PUT /1.0/cluster/groups/{name} cluster-groups cluster_group_put
+//
+// Update the cluster group
+//
+// Updates the entire cluster group configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster group
+//     description: cluster group configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterGroupPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !clustered {
+		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	req := api.ClusterGroupPut{}
+
+	// Parse the request.
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		group, err := tx.GetClusterGroup(name)
+		if err != nil {
+			return err
+		}
+
+		obj := db.ClusterGroup{
+			Name:        group.Name,
+			Description: req.Description,
+		}
+
+		err = tx.UpdateClusterGroup(name, obj)
+		if err != nil {
+			return err
+		}
+
+		members, err := tx.GetClusterGroupNodes(name)
+		if err != nil {
+			return err
+		}
+
+		// skipMembers is a list of members which already belong to the group.
+		skipMembers := []string{}
+
+		for _, oldMember := range members {
+			if !shared.StringInSlice(oldMember, req.Members) {
+				// Get all cluster groups this member belongs to.
+				groups, err := tx.GetClusterGroupsWithNode(oldMember)
+				if err != nil {
+					return err
+				}
+
+				// Note that members who only belong to this group will not be removed from it.
+				// That is because each member needs to belong to at least one group.
+				if len(groups) > 1 {
+					// Remove member from this group as it belongs to at least one other group.
+					err = tx.RemoveNodeFromClusterGroup(name, oldMember)
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				skipMembers = append(skipMembers, oldMember)
+			}
+		}
+
+		for _, member := range req.Members {
+			// Skip these members as they already belong to this group.
+			if shared.StringInSlice(member, skipMembers) {
+				continue
+			}
+
+			// Add new members to the group.
+			err = tx.AddNodeToClusterGroup(name, member)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, log.Ctx{"description": req.Description, "members": req.Members}))
+
+	return response.EmptySyncResponse
+}
+
+// swagger:operation PATCH /1.0/cluster/groups/{name} cluster-groups cluster_group_patch
+//
+// Update the cluster group
+//
+// Updates the cluster group configuration.
+//
+// ---
+// consumes:
+//   - application/json
+// produces:
+//   - application/json
+// parameters:
+//   - in: body
+//     name: cluster group
+//     description: cluster group configuration
+//     required: true
+//     schema:
+//       $ref: "#/definitions/ClusterGroupPut"
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "412":
+//     $ref: "#/responses/PreconditionFailed"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if !clustered {
+		return response.BadRequest(fmt.Errorf("This server is not clustered"))
+	}
+
+	var clusterGroup *api.ClusterGroup
+	var dbClusterGroup *db.ClusterGroup
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		dbClusterGroup, err = tx.GetClusterGroup(name)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clusterGroup, err = dbClusterGroup.ToAPI()
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	req := clusterGroup.Writable()
+
+	// Validate the ETag.
+	etag := []interface{}{clusterGroup.Description, clusterGroup.Members}
+	err = util.EtagCheck(r, etag)
+	if err != nil {
+		return response.PreconditionFailed(err)
+	}
+
+	// Parse the request.
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
+	if req.Members == nil {
+		req.Members = clusterGroup.Members
+	}
+
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		obj := db.ClusterGroup{
+			Name:        dbClusterGroup.Name,
+			Description: req.Description,
+		}
+
+		err = tx.UpdateClusterGroup(name, obj)
+		if err != nil {
+			return err
+		}
+
+		members, err := tx.GetClusterGroupNodes(name)
+		if err != nil {
+			return err
+		}
+
+		// skipMembers is a list of members which already belong to the group.
+		skipMembers := []string{}
+
+		for _, oldMember := range members {
+			if !shared.StringInSlice(oldMember, req.Members) {
+				// Get all cluster groups this member belongs to.
+				groups, err := tx.GetClusterGroupsWithNode(oldMember)
+				if err != nil {
+					return err
+				}
+
+				// Cluster member cannot be removed from the group as it doesn't belong to any other.
+				if len(groups) == 1 {
+					return fmt.Errorf("Cannot remove %s from group as member needs to belong to at least one group", oldMember)
+				}
+
+				// Remove member from this group as it belongs to at least one other group.
+				err = tx.RemoveNodeFromClusterGroup(name, oldMember)
+				if err != nil {
+					return err
+				}
+			} else {
+				skipMembers = append(skipMembers, oldMember)
+			}
+		}
+
+		for _, member := range req.Members {
+			// Skip these members as they already belong to this group.
+			if shared.StringInSlice(member, skipMembers) {
+				continue
+			}
+
+			// Add new members to the group.
+			err = tx.AddNodeToClusterGroup(name, member)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, log.Ctx{"description": req.Description, "members": req.Members}))
+
+	return response.EmptySyncResponse
+}
+
+// swagger:operation DELETE /1.0/cluster/groups/{name} cluster-groups cluster_group_delete
+//
+// Delete the cluster group.
+//
+// Removes the cluster group.
+//
+// ---
+// produces:
+//   - application/json
+// responses:
+//   "200":
+//     $ref: "#/responses/EmptySyncResponse"
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
+	name := mux.Vars(r)["name"]
+
+	// Quick checks.
+	if name == "default" {
+		return response.Forbidden(fmt.Errorf("The 'default' cluster group cannot be deleted"))
+	}
+
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		members, err := tx.GetClusterGroupNodes(name)
+		if err != nil {
+			return err
+		}
+
+		if len(members) > 0 {
+			return fmt.Errorf("Only empty cluster groups can be removed")
+
+		}
+
+		return tx.DeleteClusterGroup(name)
+	})
+
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	requestor := request.CreateRequestor(r)
+	d.State().Events.SendLifecycle(name, lifecycle.ClusterGroupDeleted.Event(name, requestor, nil))
+
+	return response.EmptySyncResponse
+}
+
+func clusterGroupValidateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("No name provided")
+	}
+
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("Cluster group names may not contain slashes")
+	}
+
+	if strings.Contains(name, " ") {
+		return fmt.Errorf("Cluster group names may not contain spaces")
+	}
+
+	if strings.Contains(name, "_") {
+		return fmt.Errorf("Cluster group names may not contain underscores")
+	}
+
+	if strings.Contains(name, "'") || strings.Contains(name, `"`) {
+		return fmt.Errorf("Cluster group names may not contain quotes")
+	}
+
+	if name == "*" {
+		return fmt.Errorf("Reserved cluster group name")
+	}
+
+	if shared.StringInSlice(name, []string{".", ".."}) {
+		return fmt.Errorf("Invalid cluster group name %q", name)
+	}
+
+	return nil
 }

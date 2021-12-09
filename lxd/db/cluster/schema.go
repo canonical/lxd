@@ -29,6 +29,12 @@ CREATE VIEW certificates_projects_ref (fingerprint,
 		JOIN certificates ON certificates.id=certificates_projects.certificate_id
 		JOIN projects ON projects.id=certificates_projects.project_id
 		ORDER BY projects.name;
+CREATE TABLE "cluster_groups" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    UNIQUE (name)
+);
 CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key TEXT NOT NULL,
@@ -409,6 +415,13 @@ CREATE TABLE nodes (
     UNIQUE (name),
     UNIQUE (address)
 );
+CREATE TABLE "nodes_cluster_groups" (
+    node_id INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES cluster_groups (id) ON DELETE CASCADE,
+    UNIQUE (node_id, group_id)
+);
 CREATE TABLE "nodes_config" (
 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 node_id INTEGER NOT NULL,
@@ -721,5 +734,5 @@ CREATE TABLE warnings (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (53, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (54, strftime("%s"))
 `

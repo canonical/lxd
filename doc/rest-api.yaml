@@ -153,6 +153,69 @@ definitions:
         x-go-name: ClusterCertificateKey
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  ClusterGroup:
+    properties:
+      description:
+        description: The description of the cluster group
+        example: amd64 servers
+        type: string
+        x-go-name: Description
+      members:
+        description: List of members in this group
+        example:
+        - node1
+        - node3
+        items:
+          type: string
+        type: array
+        x-go-name: Members
+      name:
+        description: The new name of the cluster group
+        example: group1
+        type: string
+        x-go-name: Name
+    title: ClusterGroup represents a cluster group.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterGroupPost:
+    properties:
+      name:
+        description: The new name of the cluster group
+        example: group1
+        type: string
+        x-go-name: Name
+    title: ClusterGroupPost represents the fields required to rename a cluster group.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterGroupPut:
+    properties:
+      description:
+        description: The description of the cluster group
+        example: amd64 servers
+        type: string
+        x-go-name: Description
+      members:
+        description: List of members in this group
+        example:
+        - node1
+        - node3
+        items:
+          type: string
+        type: array
+        x-go-name: Members
+    title: ClusterGroupPut represents the modifiable fields of a cluster group.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ClusterGroupsPost:
+    properties:
+      name:
+        description: The new name of the cluster group
+        example: group1
+        type: string
+        x-go-name: Name
+    title: ClusterGroupsPost represents the fields available for a new cluster group.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   ClusterMember:
     properties:
       architecture:
@@ -183,6 +246,15 @@ definitions:
         example: rack1
         type: string
         x-go-name: FailureDomain
+      groups:
+        description: List of cluster groups this member belongs to
+        example:
+        - group1
+        - group2
+        items:
+          type: string
+        type: array
+        x-go-name: Groups
       message:
         description: Additional status information
         example: fully operational
@@ -311,6 +383,15 @@ definitions:
         example: rack1
         type: string
         x-go-name: FailureDomain
+      groups:
+        description: List of cluster groups this member belongs to
+        example:
+        - group1
+        - group2
+        items:
+          type: string
+        type: array
+        x-go-name: Groups
       roles:
         description: List of roles held by this cluster member
         example:
@@ -5811,6 +5892,244 @@ paths:
       summary: Update the certificate for the cluster
       tags:
       - cluster
+  /1.0/cluster/groups:
+    get:
+      description: Returns a list of cluster groups (URLs).
+      operationId: cluster_groups_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of endpoints
+                example: |-
+                  [
+                    "/1.0/cluster/groups/lxd01",
+                    "/1.0/cluster/groups/lxd02"
+                  ]
+                items:
+                  type: string
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the cluster groups
+      tags:
+      - cluster-groups
+    post:
+      consumes:
+      - application/json
+      description: Creates a new cluster group.
+      operationId: cluster_groups_post
+      parameters:
+      - description: Cluster group to create
+        in: body
+        name: cluster
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterGroupsPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Create a cluster group.
+      tags:
+      - cluster
+  /1.0/cluster/groups/{name}:
+    delete:
+      description: Removes the cluster group.
+      operationId: cluster_group_delete
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Delete the cluster group.
+      tags:
+      - cluster-groups
+    get:
+      description: Gets a specific cluster group.
+      operationId: cluster_group_get
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Cluster group
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                $ref: '#/definitions/ClusterGroup'
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the cluster group
+      tags:
+      - cluster-groups
+    patch:
+      consumes:
+      - application/json
+      description: Updates the cluster group configuration.
+      operationId: cluster_group_patch
+      parameters:
+      - description: cluster group configuration
+        in: body
+        name: cluster group
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterGroupPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the cluster group
+      tags:
+      - cluster-groups
+    post:
+      consumes:
+      - application/json
+      description: Renames an existing cluster group.
+      operationId: cluster_group_post
+      parameters:
+      - description: Cluster group rename request
+        in: body
+        name: name
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterGroupPost'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Rename the cluster group
+      tags:
+      - cluster-groups
+    put:
+      consumes:
+      - application/json
+      description: Updates the entire cluster group configuration.
+      operationId: cluster_group_put
+      parameters:
+      - description: cluster group configuration
+        in: body
+        name: cluster group
+        required: true
+        schema:
+          $ref: '#/definitions/ClusterGroupPut'
+      produces:
+      - application/json
+      responses:
+        "200":
+          $ref: '#/responses/EmptySyncResponse'
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "412":
+          $ref: '#/responses/PreconditionFailed'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Update the cluster group
+      tags:
+      - cluster-groups
+  /1.0/cluster/groups?recursion=1:
+    get:
+      description: Returns a list of cluster groups (structs).
+      operationId: cluster_groups_get_recursion1
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API endpoints
+          schema:
+            description: Sync response
+            properties:
+              metadata:
+                description: List of cluster groups
+                items:
+                  $ref: '#/definitions/ClusterGroup'
+                type: array
+              status:
+                description: Status description
+                example: Success
+                type: string
+              status_code:
+                description: Status code
+                example: 200
+                type: integer
+              type:
+                description: Response type
+                example: sync
+                type: string
+            type: object
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the cluster groups
+      tags:
+      - cluster-groups
   /1.0/cluster/members:
     get:
       description: Returns a list of cluster members (URLs).

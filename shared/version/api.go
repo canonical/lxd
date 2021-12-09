@@ -298,6 +298,7 @@ var APIExtensions = []string{
 	"network_dns_nat",
 	"database_leader",
 	"instance_all_projects",
+	"clustering_groups",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
