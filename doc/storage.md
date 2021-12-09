@@ -186,8 +186,8 @@ This also means that access to cached data will not be affected by the limit.
 #### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
-rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools.
+rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities
+rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
 
 #### Storage volume configuration
@@ -246,15 +246,15 @@ lxc storage create pool2 dir source=/data/lxd
 #### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools.
-ceph.osd.data\_pool\_name     | string                        | -                                       | Name of the osd data pool.
-ceph.osd.force\_reuse         | bool                          | false                                   | Force using an osd storage pool that is already in use by another LXD instance.
-ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the osd storage pool.
-ceph.osd.pool\_name           | string                        | name of the pool                        | Name of the osd storage pool.
-ceph.rbd.clone\_copy          | string                        | true                                    | Whether to use RBD lightweight clones rather than full dataset copies.
-ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes.
-ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes.
-volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time.
+ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
+ceph.osd.data\_pool\_name     | string                        | -                                       | Name of the osd data pool
+ceph.osd.force\_reuse         | bool                          | false                                   | Force using an osd storage pool that is already in use by another LXD instance
+ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the osd storage pool
+ceph.osd.pool\_name           | string                        | name of the pool                        | Name of the osd storage pool
+ceph.rbd.clone\_copy          | string                        | true                                    | Whether to use RBD lightweight clones rather than full dataset copies
+ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes
+ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
 #### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
@@ -307,12 +307,12 @@ lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
 #### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools.
-ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes.
-cephfs.cluster\_name          | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools.
+ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
+ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+cephfs.cluster\_name          | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
 cephfs.path                   | string                        | /                                       | The base path for the CEPHFS mount
-cephfs.user.name              | string                        | admin                                   | The ceph user to use when creating storage pools and volumes.
-volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time.
+cephfs.user.name              | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
 
 #### Storage volume configuration
 Key                     | Type      | Condition                 | Default                               | Description
@@ -419,12 +419,12 @@ losetup -l
 #### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
-lvm.thinpool\_name            | string                        | LXDThinPool                             | Thin pool where volumes are created.
-lvm.use\_thinpool             | bool                          | true                                    | Whether the storage pool uses a thinpool for logical volumes.
-lvm.vg.force\_reuse           | bool                          | false                                   | Force using an existing non-empty volume group.
-lvm.vg\_name                  | string                        | name of the pool                        | Name of the volume group to create.
-rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
-rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools.
+lvm.thinpool\_name            | string                        | LXDThinPool                             | Thin pool where volumes are created
+lvm.use\_thinpool             | bool                          | true                                    | Whether the storage pool uses a thinpool for logical volumes
+lvm.vg.force\_reuse           | bool                          | false                                   | Force using an existing non-empty volume group
+lvm.vg\_name                  | string                        | name of the pool                        | Name of the volume group to create
+rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities
+rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
 
 #### Storage volume configuration
@@ -432,8 +432,8 @@ Key                     | Type      | Condition                 | Default       
 :--                     | :---      | :--------                 | :------                               | :----------
 block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume
 block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | Mount options for block devices
-lvm.stripes             | string    | lvm driver                | -                                     | Number of stripes to use for new volumes (or thin pool volume).
-lvm.stripes.size        | string    | lvm driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
+lvm.stripes             | string    | lvm driver                | -                                     | Number of stripes to use for new volumes (or thin pool volume)
+lvm.stripes.size        | string    | lvm driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512bytes)
 security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
 security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
 size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
@@ -519,7 +519,7 @@ Key                           | Type                          | Default         
 :--                           | :---                          | :------                                 | :----------
 size                          | string                        | 0                                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
-zfs.clone\_copy               | bool                          | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies.
+zfs.clone\_copy               | bool                          | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies
 zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
 
 #### Storage volume configuration
