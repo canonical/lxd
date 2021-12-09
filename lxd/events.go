@@ -109,7 +109,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// If this request is an internal one initiated by another node wanting
 	// to watch the events on this node, set the listener to broadcast only
 	// local events.
-	listener, err := d.events.AddListener(projectName, c, types, serverName, isClusterNotification(r))
+	listener, err := d.events.AddListener(projectName, allProjects, c, types, serverName, isClusterNotification(r))
 	if err != nil {
 		return err
 	}
