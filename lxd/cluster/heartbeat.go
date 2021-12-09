@@ -32,14 +32,15 @@ const (
 
 // APIHeartbeatMember contains specific cluster node info.
 type APIHeartbeatMember struct {
-	ID            int64     // ID field value in nodes table.
-	Address       string    // Host and Port of node.
-	Name          string    // Name of cluster member.
-	RaftID        uint64    // ID field value in raft_nodes table, zero if non-raft node.
-	RaftRole      int       // Node role in the raft cluster, from the raft_nodes table
-	LastHeartbeat time.Time // Last time we received a successful response from node.
-	Online        bool      // Calculated from offline threshold and LastHeatbeat time.
-	updated       bool      // Has node been updated during this heartbeat run. Not sent to nodes.
+	ID            int64            // ID field value in nodes table.
+	Address       string           // Host and Port of node.
+	Name          string           // Name of cluster member.
+	RaftID        uint64           // ID field value in raft_nodes table, zero if non-raft node.
+	RaftRole      int              // Node role in the raft cluster, from the raft_nodes table
+	LastHeartbeat time.Time        // Last time we received a successful response from node.
+	Online        bool             // Calculated from offline threshold and LastHeatbeat time.
+	Roles         []db.ClusterRole // Supplementary non-database roles the member has.
+	updated       bool             // Has node been updated during this heartbeat run. Not sent to nodes.
 }
 
 // APIHeartbeatVersion contains max versions for all nodes in cluster.
@@ -95,6 +96,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 			Name:          node.Name,
 			LastHeartbeat: node.Heartbeat,
 			Online:        !node.IsOffline(offlineThreshold),
+			Roles:         node.Roles,
 		}
 
 		if raftNode, exists := raftNodeMap[member.Address]; exists {
