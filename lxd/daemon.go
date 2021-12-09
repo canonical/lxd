@@ -1440,11 +1440,12 @@ func (d *Daemon) init() error {
 }
 
 func (d *Daemon) startClusterTasks() {
+	// Add initial event listeners from global database members.
+	// Run asynchronously so that connecting to remote members doesn't delay starting up other cluster tasks.
+	go cluster.EventsUpdateListeners(d.endpoints, d.cluster, d.serverCert, nil, d.events.Forward)
+
 	// Heartbeats
 	d.taskClusterHeartbeat = d.clusterTasks.Add(cluster.HeartbeatTask(d.gateway))
-
-	// Events
-	d.clusterTasks.Add(cluster.Events(d.endpoints, d.cluster, d.serverCert, d.events.Forward))
 
 	// Auto-sync images across the cluster (hourly)
 	d.clusterTasks.Add(autoSyncImagesTask(d))
@@ -1998,6 +1999,10 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			logger.Error("Error refreshing forkdns", log.Ctx{"err": err})
 		}
 	}
+
+	// Refresh event listeners from heartbeat members (after certificates refreshed if needed).
+	// Run asynchronously so that connecting to remote members doesn't delay other heartbeat tasks.
+	go cluster.EventsUpdateListeners(d.endpoints, d.cluster, d.serverCert, heartbeatData.Members, d.events.Forward)
 
 	// Only update the node list if there are no state change task failures.
 	// If there are failures, then we leave the old state so that we can re-try the tasks again next heartbeat.
