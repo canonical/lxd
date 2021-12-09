@@ -61,7 +61,7 @@ func (s *Server) AddListener(group string, allGroups bool, connection *websocket
 	defer s.lock.Unlock()
 
 	if s.listeners[listener.id] != nil {
-		return nil, fmt.Errorf("A listener with id '%s' already exists", listener.id)
+		return nil, fmt.Errorf("A listener with ID %q already exists", listener.id)
 	}
 
 	s.listeners[listener.id] = listener
