@@ -16,7 +16,8 @@ import (
 var listeners = map[string]*lxd.EventListener{}
 var listenersLock sync.Mutex
 
-func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
+// EventsUpdateListeners refreshes the cluster event listener connections.
+func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
 	// If no heartbeat members provided, populate from global database.
 	if members == nil {
 		var dbMembers []db.NodeInfo
