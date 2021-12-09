@@ -1824,7 +1824,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 	stateChangeTaskFailure := false // Records whether any of the state change tasks failed.
 	if d.hasMemberStateChanged(heartbeatData) {
-		logger.Debug("Cluster member state has changed")
+		logger.Info("Cluster member state has changed")
 
 		// Refresh cluster certificates cached.
 		updateCertificateCache(d)
