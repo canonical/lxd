@@ -45,6 +45,43 @@ func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func
 }
 
 func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
+	// If no heartbeat members provided, populate from global database.
+	if members == nil {
+		var dbMembers []db.NodeInfo
+		var offlineThreshold time.Duration
+
+		err := cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+
+			dbMembers, err = tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			offlineThreshold, err = tx.GetNodeOfflineThreshold()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
+			return
+		}
+
+		members = make(map[int64]APIHeartbeatMember, len(dbMembers))
+		for _, dbMember := range dbMembers {
+			members[dbMember.ID] = APIHeartbeatMember{
+				ID:            dbMember.ID,
+				Name:          dbMember.Name,
+				Address:       dbMember.Address,
+				LastHeartbeat: dbMember.Heartbeat,
+				Online:        !dbMember.IsOffline(offlineThreshold),
+			}
+		}
+	}
+
 	// Get the current cluster nodes.
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
