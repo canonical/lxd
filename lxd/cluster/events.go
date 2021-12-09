@@ -139,9 +139,5 @@ func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *sha
 		return nil, err
 	}
 
-	// Set the project to the special wildcard in order to get notified
-	// about all events across all projects.
-	client = client.UseProject("*")
-
-	return client.GetEvents()
+	return client.GetEventsAllProjects()
 }
