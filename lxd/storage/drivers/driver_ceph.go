@@ -263,6 +263,7 @@ func (d *ceph) Validate(config map[string]string) error {
 		"ceph.osd.pool_name":         validate.IsAny,
 		"ceph.osd.data_pool_name":    validate.IsAny,
 		"ceph.rbd.clone_copy":        validate.Optional(validate.IsBool),
+		"ceph.rbd.du":                validate.Optional(validate.IsBool),
 		"ceph.rbd.features":          validate.IsAny,
 		"ceph.user.name":             validate.IsAny,
 		"volatile.pool.pristine":     validate.IsAny,

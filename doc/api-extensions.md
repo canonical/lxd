@@ -1536,3 +1536,7 @@ This introduces the following new endpoints:
  The following project restriction is added:
 
   - `restricted.cluster.groups`
+
+## ceph\_rbd\_du
+Adds a new `ceph.rbd.du` boolean on Ceph storage pools which allows
+disabling the use of the potentially slow `rbd du` calls.

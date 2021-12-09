@@ -299,6 +299,7 @@ var APIExtensions = []string{
 	"database_leader",
 	"instance_all_projects",
 	"clustering_groups",
+	"ceph_rbd_du",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
