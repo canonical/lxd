@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-12-08 11:52+0100\n"
+"POT-Creation-Date: 2021-12-09 16:27-0500\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -287,7 +287,6 @@ msgstr ""
 "### Note that the listen_address and location cannot be changed."
 
 #: lxc/network_peer.go:488
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the network peer.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -303,22 +302,21 @@ msgid ""
 "### Note that the name, target_project, target_network and status fields "
 "cannot be changed."
 msgstr ""
-"### This is a YAML representation of the project.\n"
+"### This is a YAML representation of the network peer.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
-"### A project consists of a set of features and a description.\n"
-"###\n"
 "### An example would look like:\n"
-"### name: my-project\n"
-"### features:\n"
-"###   images: True\n"
-"###   profiles: True\n"
-"### description: My own project\n"
+"### description: A peering to mynet\n"
+"### config: {}\n"
+"### name: mypeer\n"
+"### target_project: default\n"
+"### target_network: mynet\n"
+"### status: Pending\n"
 "###\n"
-"### Note that the name is shown but cannot be changed"
+"### Note that the name, target_project, target_network and status fields "
+"cannot be changed."
 
 #: lxc/network_zone.go:430
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the network zone.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -331,16 +329,16 @@ msgid ""
 "### config:\n"
 "###  user.foo: bah\n"
 msgstr ""
-"### This is a YAML representation of a storage volume.\n"
+"### This is a YAML representation of the network zone.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
-"### A storage volume consists of a set of configuration items.\n"
+"### A network zone consists of a set of rules and configuration items.\n"
 "###\n"
-"### name: vol1\n"
-"### type: custom\n"
-"### used_by: []\n"
+"### An example would look like:\n"
+"### name: example.net\n"
+"### description: Internal domain\n"
 "### config:\n"
-"###   size: \"61203283968\""
+"###  user.foo: bah\n"
 
 #: lxc/network.go:589
 msgid ""
@@ -1291,14 +1289,12 @@ msgid "Create new network forwards"
 msgstr "新たにネットワークフォワードを作成します"
 
 #: lxc/network_peer.go:215 lxc/network_peer.go:216
-#, fuzzy
 msgid "Create new network peering"
-msgstr "新たにネットワークを作成します"
+msgstr "新たにネットワークピアリングを作成します"
 
 #: lxc/network_zone.go:253 lxc/network_zone.go:254
-#, fuzzy
 msgid "Create new network zones"
-msgstr "新たにネットワークを作成します"
+msgstr "新たにネットワークゾーンを作成します"
 
 #: lxc/network.go:285 lxc/network.go:286
 msgid "Create new networks"
@@ -1414,14 +1410,12 @@ msgid "Delete network forwards"
 msgstr "ネットワークフォワードを削除します"
 
 #: lxc/network_peer.go:605 lxc/network_peer.go:606
-#, fuzzy
 msgid "Delete network peerings"
-msgstr "ネットワークを削除します"
+msgstr "ネットワークピアリングを削除します"
 
 #: lxc/network_zone.go:540 lxc/network_zone.go:541
-#, fuzzy
 msgid "Delete network zones"
-msgstr "ネットワークを削除します"
+msgstr "ネットワークゾーンを削除します"
 
 #: lxc/network.go:359 lxc/network.go:360
 msgid "Delete networks"
@@ -1480,7 +1474,7 @@ msgstr ""
 #: lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108
 #: lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29
 #: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:80
-#: lxc/manpage.go:22 lxc/monitor.go:32 lxc/move.go:37 lxc/network.go:33
+#: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
 #: lxc/network.go:761 lxc/network.go:841 lxc/network.go:936 lxc/network.go:1005
@@ -1530,9 +1524,8 @@ msgid "Description"
 msgstr "説明"
 
 #: lxc/storage_volume.go:337 lxc/storage_volume.go:1403
-#, fuzzy
 msgid "Destination cluster member name"
-msgstr "クラスターメンバー名がありません"
+msgstr "コピー先のクラスターメンバー名"
 
 #: lxc/network.go:409 lxc/network.go:410
 msgid "Detach network interfaces from instances"
@@ -1714,14 +1707,12 @@ msgid "Edit network forward configurations as YAML"
 msgstr "ネットワークフォワード設定をYAMLで編集します"
 
 #: lxc/network_peer.go:480 lxc/network_peer.go:481
-#, fuzzy
 msgid "Edit network peer configurations as YAML"
-msgstr "ネットワーク設定をYAMLで編集します"
+msgstr "ネットワークピア設定をYAMLで編集します"
 
 #: lxc/network_zone.go:421 lxc/network_zone.go:422
-#, fuzzy
 msgid "Edit network zone configurations as YAML"
-msgstr "ネットワーク設定をYAMLで編集します"
+msgstr "ネットワークゾーン設定をYAMLで編集します"
 
 #: lxc/profile.go:406 lxc/profile.go:407
 msgid "Edit profile configurations as YAML"
@@ -1805,7 +1796,7 @@ msgstr "クラスターのメンバーを待避させます"
 msgid "Evacuating cluster member: %s"
 msgstr "クラスターメンバーを待避させています: %s"
 
-#: lxc/monitor.go:50
+#: lxc/monitor.go:51
 msgid "Event type to listen for"
 msgstr "Listenするイベントタイプ"
 
@@ -1913,7 +1904,7 @@ msgstr "FIRST SEEN"
 #: lxc/network_peer.go:305
 #, c-format
 msgid "Failed getting peer's status: %w"
-msgstr ""
+msgstr "ピアのステータスの取得に失敗しました: %w"
 
 #: lxc/move.go:275 lxc/move.go:349 lxc/move.go:401
 msgid "Failed to connect to cluster member"
@@ -2025,7 +2016,7 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
 
-#: lxc/monitor.go:52
+#: lxc/monitor.go:53
 msgid "Format (json|pretty|yaml)"
 msgstr "フォーマット (json|pretty|yaml)"
 
@@ -2081,9 +2072,8 @@ msgid "Get runtime information on networks"
 msgstr "ネットワークのランタイム情報を取得します"
 
 #: lxc/cluster.go:247
-#, fuzzy
 msgid "Get values for cluster member configuration keys"
-msgstr "インスタンスもしくはサーバの設定値を取得します"
+msgstr "クラスターメンバーの設定値を取得します"
 
 #: lxc/config_device.go:195 lxc/config_device.go:196
 msgid "Get values for device configuration keys"
@@ -2106,14 +2096,12 @@ msgid "Get values for network forward configuration keys"
 msgstr "ネットワークフォワードの設定値を取得します"
 
 #: lxc/network_peer.go:329 lxc/network_peer.go:330
-#, fuzzy
 msgid "Get values for network peer configuration keys"
-msgstr "ネットワークの設定値を取得します"
+msgstr "ネットワークピアの設定値を取得します"
 
 #: lxc/network_zone.go:204 lxc/network_zone.go:205
-#, fuzzy
 msgid "Get values for network zone configuration keys"
-msgstr "ネットワークの設定値を取得します"
+msgstr "ネットワークゾーンの設定値を取得します"
 
 #: lxc/profile.go:530 lxc/profile.go:531
 msgid "Get values for profile configuration keys"
@@ -2346,7 +2334,7 @@ msgstr ""
 msgid "Invalid format %q"
 msgstr "不正なフォーマット %q"
 
-#: lxc/monitor.go:70
+#: lxc/monitor.go:71
 #, c-format
 msgid "Invalid format: %s"
 msgstr "不正なフォーマット %s"
@@ -2510,19 +2498,16 @@ msgid "List available network forwards"
 msgstr "利用可能なネットワークフォワードを一覧表示します"
 
 #: lxc/network_peer.go:82 lxc/network_peer.go:83
-#, fuzzy
 msgid "List available network peers"
-msgstr "利用可能なネットワークを一覧表示します"
+msgstr "利用可能なネットワークピアを一覧表示します"
 
 #: lxc/network_zone.go:82
-#, fuzzy
 msgid "List available network zone"
-msgstr "利用可能なネットワークを一覧表示します"
+msgstr "利用可能なネットワークゾーンを一覧表示します"
 
 #: lxc/network_zone.go:81
-#, fuzzy
 msgid "List available network zoneS"
-msgstr "利用可能なネットワーク ACL を一覧表示します"
+msgstr "利用可能なネットワークゾーンを一覧表示します"
 
 #: lxc/network.go:840 lxc/network.go:841
 msgid "List available networks"
@@ -3046,14 +3031,12 @@ msgid "Manage network forwards"
 msgstr "ネットワークフォワードを管理します"
 
 #: lxc/network_peer.go:29 lxc/network_peer.go:30
-#, fuzzy
 msgid "Manage network peerings"
-msgstr "ネットワーク ACL を管理します"
+msgstr "ネットワークピアリングを管理します"
 
 #: lxc/network_zone.go:28 lxc/network_zone.go:29
-#, fuzzy
 msgid "Manage network zones"
-msgstr "ネットワーク ACL を管理します"
+msgstr "ネットワークゾーンを管理します"
 
 #: lxc/profile.go:28 lxc/profile.go:29
 msgid "Manage profiles"
@@ -3143,7 +3126,7 @@ msgstr "マイグレーション API が失敗しました"
 msgid "Migration operation failure"
 msgstr "マイグレーションが失敗しました"
 
-#: lxc/monitor.go:51
+#: lxc/monitor.go:52
 msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
 
@@ -3204,15 +3187,13 @@ msgstr "ネットワーク名を指定する必要があります"
 
 #: lxc/network_zone.go:174 lxc/network_zone.go:227 lxc/network_zone.go:277
 #: lxc/network_zone.go:362 lxc/network_zone.go:460 lxc/network_zone.go:563
-#, fuzzy
 msgid "Missing network zone name"
-msgstr "ネットワーク名を指定する必要があります"
+msgstr "ネットワークゾーン名を指定する必要があります"
 
 #: lxc/network_peer.go:185 lxc/network_peer.go:242 lxc/network_peer.go:357
 #: lxc/network_peer.go:415 lxc/network_peer.go:523 lxc/network_peer.go:632
-#, fuzzy
 msgid "Missing peer name"
-msgstr "名前を指定する必要があります"
+msgstr "ピア名を指定する必要があります"
 
 #: lxc/storage.go:190 lxc/storage.go:260 lxc/storage.go:361 lxc/storage.go:422
 #: lxc/storage.go:625 lxc/storage.go:702 lxc/storage_volume.go:190
@@ -3249,9 +3230,8 @@ msgid "Missing target directory"
 msgstr "コピー先のディレクトリを指定する必要があります"
 
 #: lxc/network_peer.go:246
-#, fuzzy
 msgid "Missing target network"
-msgstr "コピー先のディレクトリを指定する必要があります"
+msgstr "作成するネットワーク名を指定する必要があります"
 
 #: lxc/info.go:265
 #, c-format
@@ -3263,11 +3243,11 @@ msgstr "モデル: %s"
 msgid "Model: %v"
 msgstr "モデル: %v"
 
-#: lxc/monitor.go:31
+#: lxc/monitor.go:32
 msgid "Monitor a local or remote LXD server"
 msgstr "ローカルもしくはリモートの LXD サーバをモニタリングします"
 
-#: lxc/monitor.go:32
+#: lxc/monitor.go:33
 msgid ""
 "Monitor a local or remote LXD server\n"
 "\n"
@@ -3415,14 +3395,14 @@ msgid "Network ACL %s renamed to %s"
 msgstr "ネットワーク ACL 名 %s を %s に変更しました"
 
 #: lxc/network_zone.go:319
-#, fuzzy, c-format
+#, c-format
 msgid "Network Zone %s created"
-msgstr "ネットワーク %s を作成しました"
+msgstr "ネットワークゾーン %s を作成しました"
 
 #: lxc/network_zone.go:573
-#, fuzzy, c-format
+#, c-format
 msgid "Network Zone %s deleted"
-msgstr "ネットワーク %s を削除しました"
+msgstr "ネットワークゾーン %s を削除しました"
 
 #: lxc/network_forward.go:311
 #, c-format
@@ -3439,25 +3419,27 @@ msgid "Network name"
 msgstr "ネットワーク名:"
 
 #: lxc/network_peer.go:309
-#, fuzzy, c-format
+#, c-format
 msgid "Network peer %s created"
-msgstr "ネットワーク %s を作成しました"
+msgstr "ネットワークピア %s を作成しました"
 
 #: lxc/network_peer.go:644
-#, fuzzy, c-format
+#, c-format
 msgid "Network peer %s deleted"
-msgstr "ネットワーク %s を削除しました"
+msgstr "ネットワークピア %s を削除しました"
 
 #: lxc/network_peer.go:313
 #, c-format
 msgid "Network peer %s is in unexpected state %q"
-msgstr ""
+msgstr "ネットワークピア %s は想定外のステータスです %q"
 
 #: lxc/network_peer.go:311
 #, c-format
 msgid ""
 "Network peer %s pending (please complete mutual peering on peer network)"
 msgstr ""
+"ネットワークピア %s はピアリング状態です (ピアネットワーク上で相互ピアリング"
+"を完了させてください)"
 
 #: lxc/network.go:289
 msgid "Network type"
@@ -3563,7 +3545,7 @@ msgstr "PCI アドレス: %v"
 
 #: lxc/network_peer.go:142
 msgid "PEER"
-msgstr ""
+msgstr "PEER"
 
 #: lxc/list.go:517
 msgid "PID"
@@ -3647,7 +3629,7 @@ msgstr ""
 "再度エディタを開くためには Enter キーを、変更を取り消すには ctrl+c を入力しま"
 "す"
 
-#: lxc/monitor.go:48
+#: lxc/monitor.go:49
 msgid "Pretty rendering (short for --format=pretty)"
 msgstr "Pretty レンダリング（--format=pretty の短縮系）"
 
@@ -4136,9 +4118,8 @@ msgid "Server version: %s\n"
 msgstr "サーバのバージョン: %s\n"
 
 #: lxc/cluster.go:294
-#, fuzzy
 msgid "Set a cluster member's configuration keys"
-msgstr "クラスターメンバーの設定をYAMLファイルで編集します"
+msgstr "クラスターメンバーの設定を行います"
 
 #: lxc/config_device.go:532
 msgid "Set device configuration keys"
@@ -4243,12 +4224,10 @@ msgstr ""
 "    lxc network set [<remote>:]<network> <listen_address> <key> <value>"
 
 #: lxc/network_peer.go:384
-#, fuzzy
 msgid "Set network peer keys"
-msgstr "ネットワークを削除します"
+msgstr "ネットワークピアの設定を行います"
 
 #: lxc/network_peer.go:385
-#, fuzzy
 msgid ""
 "Set network peer keys\n"
 "\n"
@@ -4256,18 +4235,16 @@ msgid ""
 "with:\n"
 "    lxc network set [<remote>:]<network> <peer_name> <key> <value>"
 msgstr ""
-"ネットワークの設定を行います\n"
+"ネットワークピアの設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc network set [<remote>:]<network> <key> <value>"
+"    lxc network set [<remote>:]<network> <peer_name> <key> <value>"
 
 #: lxc/network_zone.go:334
-#, fuzzy
 msgid "Set network zone configuration keys"
-msgstr "ネットワークの設定項目を設定します"
+msgstr "ネットワークゾーンの設定を行います"
 
 #: lxc/network_zone.go:335
-#, fuzzy
 msgid ""
 "Set network zone configuration keys\n"
 "\n"
@@ -4275,10 +4252,10 @@ msgid ""
 "with:\n"
 "    lxc network set [<remote>:]<Zone> <key> <value>"
 msgstr ""
-"ネットワークの設定を行います\n"
+"ネットワークゾーンの設定を行います\n"
 "\n"
 "後方互換性のため、単一の設定を行う場合は次の形式でも設定できます:\n"
-"    lxc network set [<remote>:]<network> <key> <value>"
+"    lxc network set [<remote>:]<Zone> <key> <value>"
 
 #: lxc/profile.go:765
 msgid "Set profile configuration keys"
@@ -4389,7 +4366,7 @@ msgstr "クラスタメンバの詳細を表示します"
 msgid "Show details on a background operation"
 msgstr "バックグラウンド操作の詳細を表示します"
 
-#: lxc/monitor.go:49
+#: lxc/monitor.go:50
 msgid "Show events from all projects"
 msgstr "すべてのプロジェクトのイベントを表示します"
 
@@ -4434,14 +4411,12 @@ msgid "Show network forward configurations"
 msgstr "ネットワークフォワードの設定を表示します"
 
 #: lxc/network_peer.go:158 lxc/network_peer.go:159
-#, fuzzy
 msgid "Show network peer configurations"
-msgstr "ネットワークの設定を表示します"
+msgstr "ネットワークピアの設定を表示します"
 
 #: lxc/network_zone.go:151 lxc/network_zone.go:152
-#, fuzzy
 msgid "Show network zone configurations"
-msgstr "ネットワークの設定を表示します"
+msgstr "ネットワークゾーンの設定を表示します"
 
 #: lxc/profile.go:824 lxc/profile.go:825
 msgid "Show profile configurations"
@@ -4682,18 +4657,16 @@ msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
 
 #: lxc/move.go:212
-#, fuzzy
 msgid "The --mode flag can't be used with --target-project"
-msgstr "--mode と --target は同時に指定できません"
+msgstr "--mode と --target-project は同時に指定できません"
 
 #: lxc/move.go:163
 msgid "The --storage flag can't be used with --target"
 msgstr "--storage と --target は同時に指定できません"
 
 #: lxc/move.go:167
-#, fuzzy
 msgid "The --target-project flag can't be used with --target"
-msgstr "--storage と --target は同時に指定できません"
+msgstr "--target-project と --target は同時に指定できません"
 
 #: lxc/move.go:183
 msgid "The destination LXD server is not clustered"
@@ -4804,13 +4777,13 @@ msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
 #: lxc/main.go:380
-#, fuzzy
 msgid ""
 "To start your first container, try: lxc launch ubuntu:20.04\n"
 "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
 msgstr ""
-"初めてインスタンスを起動するには、\"lxc launch ubuntu:18.04\" と実行してみて"
-"ください"
+"初めてコンテナを起動するには、\"lxc launch ubuntu:20.04\" と実行してみてくだ"
+"さい\n"
+"仮想マシンの場合は \"lxc launch ubuntu:20.04 --vm\" と実行してみてください"
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
 #: lxc/copy.go:119 lxc/info.go:332 lxc/network.go:793 lxc/storage.go:428
@@ -4930,9 +4903,8 @@ msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
 
 #: lxc/cluster.go:346
-#, fuzzy
 msgid "Unset a cluster member's configuration keys"
-msgstr "インスタンスもしくはサーバの設定を削除します"
+msgstr "クラスターメンバーの設定を削除します"
 
 #: lxc/move.go:53
 msgid "Unset all profiles on the target instance"
@@ -4967,19 +4939,16 @@ msgid "Unset network forward keys"
 msgstr "ネットワークフォワードの設定を削除します"
 
 #: lxc/network_peer.go:453
-#, fuzzy
 msgid "Unset network peer configuration keys"
-msgstr "ネットワークの設定を削除します"
+msgstr "ネットワークピアの設定を削除します"
 
 #: lxc/network_peer.go:454
-#, fuzzy
 msgid "Unset network peer keys"
-msgstr "ネットワークを削除します"
+msgstr "ネットワークピアの設定を削除します"
 
 #: lxc/network_zone.go:394 lxc/network_zone.go:395
-#, fuzzy
 msgid "Unset network zone configuration keys"
-msgstr "ネットワークの設定を削除します"
+msgstr "ネットワークゾーンの設定を削除します"
 
 #: lxc/profile.go:878 lxc/profile.go:879
 msgid "Unset profile configuration keys"
@@ -5126,7 +5095,7 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 
 #: lxc/cluster.go:114 lxc/cluster.go:805 lxc/cluster_group.go:371
-#: lxc/config_trust.go:285 lxc/monitor.go:30 lxc/network.go:838
+#: lxc/config_trust.go:285 lxc/monitor.go:31 lxc/network.go:838
 #: lxc/network_acl.go:88 lxc/network_zone.go:79 lxc/operation.go:102
 #: lxc/profile.go:577 lxc/project.go:389 lxc/storage.go:513 lxc/version.go:20
 #: lxc/warning.go:69
@@ -5190,24 +5159,20 @@ msgid "[<remote>:]<API path>"
 msgstr "[<remote>:]<API path>"
 
 #: lxc/network_zone.go:150 lxc/network_zone.go:420 lxc/network_zone.go:538
-#, fuzzy
 msgid "[<remote>:]<Zone>"
-msgstr "[<remote>:]<token>"
+msgstr "[<remote>:]<Zone>"
 
 #: lxc/network_zone.go:203 lxc/network_zone.go:393
-#, fuzzy
 msgid "[<remote>:]<Zone> <key>"
-msgstr "[<remote>:]<pool> <key>"
+msgstr "[<remote>:]<Zone> <key>"
 
 #: lxc/network_zone.go:333
-#, fuzzy
 msgid "[<remote>:]<Zone> <key>=<value>..."
-msgstr "[<remote>:]<network> <key>=<value>..."
+msgstr "[<remote>:]<Zone> <key>=<value>..."
 
 #: lxc/network_zone.go:252
-#, fuzzy
 msgid "[<remote>:]<Zone> [key=value...]"
-msgstr "[<remote>:]<network> [key=value...]"
+msgstr "[<remote>:]<Zone> [key=value...]"
 
 #: lxc/image_alias.go:105
 msgid "[<remote>:]<alias>"
@@ -5370,14 +5335,12 @@ msgid "[<remote>:]<member> <group>"
 msgstr "[<remote>:]<member>"
 
 #: lxc/cluster.go:246 lxc/cluster.go:345
-#, fuzzy
 msgid "[<remote>:]<member> <key>"
-msgstr "[<remote>:]<member>"
+msgstr "[<remote>:]<member> <key>"
 
 #: lxc/cluster.go:293
-#, fuzzy
 msgid "[<remote>:]<member> <key>=<value>..."
-msgstr "[<remote>:]<network> <key>=<value>..."
+msgstr "[<remote>:]<member> <key>=<value>..."
 
 #: lxc/cluster.go:373
 msgid "[<remote>:]<member> <new-name>"
@@ -5438,31 +5401,28 @@ msgid "[<remote>:]<network> <new-name>"
 msgstr "[<remote>:]<network> <new-name>"
 
 #: lxc/network_peer.go:157
-#, fuzzy
 msgid "[<remote>:]<network> <peer name>"
-msgstr "[<remote>:]<network> <new-name>"
+msgstr "[<remote>:]<network> <peer name>"
 
 #: lxc/network_peer.go:479 lxc/network_peer.go:603
-#, fuzzy
 msgid "[<remote>:]<network> <peer_name>"
-msgstr "[<remote>:]<network> <new-name>"
+msgstr "[<remote>:]<network> <peer_name>"
 
 #: lxc/network_peer.go:214
-#, fuzzy
 msgid ""
 "[<remote>:]<network> <peer_name> <[target project/]target_network> "
 "[key=value...]"
-msgstr "[<remote>:]<network> <new-name>"
+msgstr ""
+"[<remote>:]<network> <peer_name> <[target project/]target_network> "
+"[key=value...]"
 
 #: lxc/network_peer.go:328 lxc/network_peer.go:452
-#, fuzzy
 msgid "[<remote>:]<network> <peer_name> <key>"
-msgstr "[<remote>:]<network> <new-name>"
+msgstr "[<remote>:]<network> <peer_name> <key>"
 
 #: lxc/network_peer.go:383
-#, fuzzy
 msgid "[<remote>:]<network> <peer_name> <key>=<value>..."
-msgstr "[<remote>:]<network> <key>=<value>..."
+msgstr "[<remote>:]<network> <peer_name> <key>=<value>..."
 
 #: lxc/network.go:493
 msgid "[<remote>:]<network> <profile> [<device name>]"
@@ -5835,7 +5795,6 @@ msgstr ""
 "    config.yaml の設定を使ってインスタンスを作成します"
 
 #: lxc/launch.go:27
-#, fuzzy
 msgid ""
 "lxc launch ubuntu:20.04 u1\n"
 "\n"
@@ -5845,10 +5804,13 @@ msgid ""
 "lxc launch ubuntu:20.04 v1 --vm\n"
 "    Create and start a virtual machine"
 msgstr ""
-"lxc launch ubuntu:18.04 u1\n"
+"lxc launch ubuntu:20.04 u1\n"
 "\n"
-"lxc launch ubuntu:18.04 u1 < config.yaml\n"
-"    config.yaml の設定を使ってインスタンスを作成し、起動します"
+"lxc launch ubuntu:20.04 u1 < config.yaml\n"
+"    config.yaml の設定を使ってインスタンスを作成し、起動します\n"
+"\n"
+"lxc launch ubuntu:20.04 v1 --vm\n"
+"    仮想マシンを作成し、起動します"
 
 #: lxc/list.go:123
 msgid ""
@@ -5874,7 +5836,7 @@ msgstr ""
 "lxc list -c ns,user.comment:comment\n"
 "  実行状態とユーザコメントとともにインスタンスを一覧表示します。"
 
-#: lxc/monitor.go:36
+#: lxc/monitor.go:37
 msgid ""
 "lxc monitor --type=logging\n"
 "    Only show log messages.\n"
@@ -8034,3 +7996,175 @@ msgstr "yes"
 #~ "\n"
 #~ "lxc launch ubuntu:18.04 u1 < config.yaml\n"
 #~ "    config.yaml の設定を使ってインスタンスを作成し、起動します"
+
+#, c-format
+#~ msgid ""
+#~ "List instances\n"
+#~ "\n"
+#~ "Default column layout: ns46tS\n"
+#~ "Fast column layout: nsacPt\n"
+#~ "\n"
+#~ "A single keyword like \"web\" which will list any instance with a name "
+#~ "starting by \"web\".\n"
+#~ "A regular expression on the instance name. (e.g. .*web.*01$).\n"
+#~ "A key/value pair referring to a configuration item. For those, the\n"
+#~ "namespace can be abbreviated to the smallest unambiguous identifier.\n"
+#~ "A key/value pair where the key is a shorthand. Multiple values must be "
+#~ "delimited by ','. Available shorthands:\n"
+#~ "  - type={instance type}\n"
+#~ "  - status={instance current lifecycle status}\n"
+#~ "  - architecture={instance architecture}\n"
+#~ "  - location={location name}\n"
+#~ "  - ipv4={ip or CIDR}\n"
+#~ "  - ipv6={ip or CIDR}\n"
+#~ "\n"
+#~ "Examples:\n"
+#~ "  - \"user.blah=abc\" will list all instances with the \"blah\" user "
+#~ "property set to \"abc\".\n"
+#~ "  - \"u.blah=abc\" will do the same\n"
+#~ "  - \"security.privileged=true\" will list all privileged instances\n"
+#~ "  - \"s.privileged=true\" will do the same\n"
+#~ "  - \"type=container\" will list all container instances\n"
+#~ "  - \"type=container status=running\" will list all running container "
+#~ "instances\n"
+#~ "\n"
+#~ "A regular expression matching a configuration item or its value. (e.g. "
+#~ "volatile.eth0.hwaddr=00:16:3e:.*).\n"
+#~ "\n"
+#~ "When multiple filters are passed, they are added one on top of the "
+#~ "other,\n"
+#~ "selecting instances which satisfy them all.\n"
+#~ "\n"
+#~ "== Columns ==\n"
+#~ "The -c option takes a comma separated list of arguments that control\n"
+#~ "which instance attributes to output when displaying in table or csv\n"
+#~ "format.\n"
+#~ "\n"
+#~ "Column arguments are either pre-defined shorthand chars (see below),\n"
+#~ "or (extended) config keys.\n"
+#~ "\n"
+#~ "Commas between consecutive shorthand chars are optional.\n"
+#~ "\n"
+#~ "Pre-defined column shorthand chars:\n"
+#~ "  4 - IPv4 address\n"
+#~ "  6 - IPv6 address\n"
+#~ "  a - Architecture\n"
+#~ "  b - Storage pool\n"
+#~ "  c - Creation date\n"
+#~ "  d - Description\n"
+#~ "  D - disk usage\n"
+#~ "  l - Last used date\n"
+#~ "  m - Memory usage\n"
+#~ "  M - Memory usage (%)\n"
+#~ "  n - Name\n"
+#~ "  N - Number of Processes\n"
+#~ "  p - PID of the instance's init process\n"
+#~ "  P - Profiles\n"
+#~ "  s - State\n"
+#~ "  S - Number of snapshots\n"
+#~ "  t - Type (persistent or ephemeral)\n"
+#~ "  u - CPU usage (in seconds)\n"
+#~ "  L - Location of the instance (e.g. its cluster member)\n"
+#~ "  f - Base Image Fingerprint (short)\n"
+#~ "  F - Base Image Fingerprint (long)\n"
+#~ "\n"
+#~ "Custom columns are defined with \"[config:|devices:]key[:name][:"
+#~ "maxWidth]\":\n"
+#~ "  KEY: The (extended) config or devices key to display. If [config:|"
+#~ "devices:] is omitted then it defaults to config key.\n"
+#~ "  NAME: Name to display in the column header.\n"
+#~ "  Defaults to the key if not specified or empty.\n"
+#~ "\n"
+#~ "  MAXWIDTH: Max width of the column (longer results are truncated).\n"
+#~ "  Defaults to -1 (unlimited). Use 0 to limit to the column header size."
+#~ msgstr ""
+#~ "インスタンスを一覧表示します。\n"
+#~ "\n"
+#~ "デフォルトのカラムレイアウト: ns46tS\n"
+#~ "Fast モードのカラムレイアウト: nsacPt\n"
+#~ "\n"
+#~ "== フィルタ ==\n"
+#~ "単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるイ"
+#~ "ンスタンスが一覧表示されます。\n"
+#~ "インスタンス名の正規表現 (例: .*web.*01$)。\n"
+#~ "設定項目を参照するキーと値のペア。これらの場合、名前空間は最短の一意な識別"
+#~ "子に短縮できます。\n"
+#~ "短縮形のキーを使ったキーと値のペア。複数の値は ',' で区切らなければなりま"
+#~ "せん。使用できる表現は:\n"
+#~ "  - type={instance type}\n"
+#~ "  - status={instance current lifecycle status}\n"
+#~ "  - architecture={instance architecture}\n"
+#~ "  - location={location name}\n"
+#~ "  - ipv4={ip or CIDR}\n"
+#~ "  - ipv6={ip or CIDR}\n"
+#~ "\n"
+#~ "例:\n"
+#~ "  - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定"
+#~ "されているインスタンスをすべて一覧表示します\n"
+#~ "  - \"u.blah=abc\" は上記と同じ意味になります\n"
+#~ "  - \"security.privileged=true\" は特権インスタンスをすべて一覧表示しま"
+#~ "す\n"
+#~ "  - \"s.privileged=true\" は上記と同じ意味になります\n"
+#~ "  - \"type=container\" コンテナインスタンスをすべて表示します\n"
+#~ "  - \"type=container status=running\" 実行中のコンテナインスタンスをすべて"
+#~ "表示します\n"
+#~ "\n"
+#~ "設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:."
+#~ "*)。\n"
+#~ "\n"
+#~ "複数のフィルタを指定した場合は、指定したフィルタが順に追加され、\n"
+#~ "すべてのフィルタを満たすインスタンスが選択されます。\n"
+#~ "\n"
+#~ "== カラム ==\n"
+#~ "-c オプションには、表形式もしくは csv 形式で表示する際にどのインスタンス"
+#~ "の\n"
+#~ "属性を表示するかを指定するコンマ区切りの引数のリストを指定します。\n"
+#~ "\n"
+#~ "カラムの指定は、定義済みの短縮形 (以下を参照) もしくは (拡張された)\n"
+#~ "設定キーのどちらかを指定します。\n"
+#~ "\n"
+#~ "連続する短縮形の間のコンマは省略できます。\n"
+#~ "\n"
+#~ "短縮形で指定できる文字:\n"
+#~ "  4 - IPv4 アドレス\n"
+#~ "  6 - IPv6 アドレス\n"
+#~ "  a - アーキテクチャ\n"
+#~ "  b - ストレージプール\n"
+#~ "  c - 作成日\n"
+#~ "  d - 説明\n"
+#~ "  D - ディスク使用量\n"
+#~ "  l - 最終使用日\n"
+#~ "  m - メモリ使用量\n"
+#~ "  M - メモリ使用量 (%)\n"
+#~ "  n - 名前\n"
+#~ "  N - プロセス数\n"
+#~ "  p - インスタンスの init プロセスの pid\n"
+#~ "  P - プロファイル\n"
+#~ "  s - 状態\n"
+#~ "  S - スナップショットの数\n"
+#~ "  t - タイプ (persistent か ephemeral)\n"
+#~ "  u - CPU 消費量 (秒)\n"
+#~ "  L - インスタンスのロケーション (クラスタメンバー名)\n"
+#~ "  f - ベースとなるイメージのフィンガープリント (短い形式)\n"
+#~ "  F - ベースとなるイメージのフィンガープリント (長い形式)\n"
+#~ "\n"
+#~ "\"[config:|devices:]key[:name][:maxWidth]\" のように指定するカスタムカラ"
+#~ "ム:\n"
+#~ "  KEY: 表示する (拡張された) 設定キー。[config:|devices:] が省略された場合"
+#~ "は config が指定されたものとします\n"
+#~ "  NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデ"
+#~ "フォルトはキー。\n"
+#~ "\n"
+#~ "  MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
+#~ "  デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
+
+#~ msgid ""
+#~ "lxc init ubuntu:18.04 u1\n"
+#~ "\n"
+#~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
+#~ "    Create the instance with configuration from config.yaml"
+#~ msgstr ""
+#~ "lxc init ubuntu:18.04 u1\n"
+#~ "\n"
+#~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
+#~ "    config.yaml の設定を使ってインスタンスを作成します"

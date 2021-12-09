@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-12-08 11:52+0100\n"
+"POT-Creation-Date: 2021-12-09 16:27-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1467,7 +1467,7 @@ msgstr ""
 #: lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108
 #: lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29
 #: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:80
-#: lxc/manpage.go:22 lxc/monitor.go:32 lxc/move.go:37 lxc/network.go:33
+#: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
 #: lxc/network.go:761 lxc/network.go:841 lxc/network.go:936 lxc/network.go:1005
@@ -1777,7 +1777,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "Evacuating cluster member: %s"
 msgstr "Nombre del Miembro del Cluster"
 
-#: lxc/monitor.go:50
+#: lxc/monitor.go:51
 msgid "Event type to listen for"
 msgstr ""
 
@@ -1971,7 +1971,7 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
-#: lxc/monitor.go:52
+#: lxc/monitor.go:53
 msgid "Format (json|pretty|yaml)"
 msgstr ""
 
@@ -2288,7 +2288,7 @@ msgstr ""
 msgid "Invalid format %q"
 msgstr ""
 
-#: lxc/monitor.go:70
+#: lxc/monitor.go:71
 #, fuzzy, c-format
 msgid "Invalid format: %s"
 msgstr "Nombre del contenedor es: %s"
@@ -2927,7 +2927,7 @@ msgstr ""
 msgid "Migration operation failure"
 msgstr ""
 
-#: lxc/monitor.go:51
+#: lxc/monitor.go:52
 msgid "Minimum level for log messages"
 msgstr ""
 
@@ -3054,11 +3054,11 @@ msgstr ""
 msgid "Model: %v"
 msgstr ""
 
-#: lxc/monitor.go:31
+#: lxc/monitor.go:32
 msgid "Monitor a local or remote LXD server"
 msgstr ""
 
-#: lxc/monitor.go:32
+#: lxc/monitor.go:33
 msgid ""
 "Monitor a local or remote LXD server\n"
 "\n"
@@ -3430,7 +3430,7 @@ msgstr ""
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr ""
 
-#: lxc/monitor.go:48
+#: lxc/monitor.go:49
 msgid "Pretty rendering (short for --format=pretty)"
 msgstr ""
 
@@ -4121,7 +4121,7 @@ msgstr ""
 msgid "Show details on a background operation"
 msgstr ""
 
-#: lxc/monitor.go:49
+#: lxc/monitor.go:50
 msgid "Show events from all projects"
 msgstr ""
 
@@ -4832,7 +4832,7 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
 #: lxc/cluster.go:114 lxc/cluster.go:805 lxc/cluster_group.go:371
-#: lxc/config_trust.go:285 lxc/monitor.go:30 lxc/network.go:838
+#: lxc/config_trust.go:285 lxc/monitor.go:31 lxc/network.go:838
 #: lxc/network_acl.go:88 lxc/network_zone.go:79 lxc/operation.go:102
 #: lxc/profile.go:577 lxc/project.go:389 lxc/storage.go:513 lxc/version.go:20
 #: lxc/warning.go:69
@@ -5603,7 +5603,7 @@ msgid ""
 "  List instances with their running state and user comment."
 msgstr ""
 
-#: lxc/monitor.go:36
+#: lxc/monitor.go:37
 msgid ""
 "lxc monitor --type=logging\n"
 "    Only show log messages.\n"
