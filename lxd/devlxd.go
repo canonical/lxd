@@ -161,7 +161,7 @@ var handlers = []devLxdHandler{
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		conn := ucred.GetConnFromWriter(w)
+		conn := ucred.GetConnFromContext(r.Context())
 		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
 		if !ok {
 			http.Error(w, pidNotInContainerErr.Error(), 500)

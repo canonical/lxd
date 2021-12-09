@@ -1,13 +1,13 @@
 package ucred
 
 import (
+	"context"
 	"fmt"
 	"net"
-	"net/http"
-	"reflect"
-	"unsafe"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/lxc/lxd/lxd/request"
 )
 
 // ErrNotUnixSocket is returned when the underlying connection isn't a unix socket.
@@ -36,20 +36,14 @@ func GetCred(conn *net.UnixConn) (*unix.Ucred, error) {
 	return ucred, nil
 }
 
-// GetConnFromWriter extracts the connection from the client on a HTTP listener.
-func GetConnFromWriter(w http.ResponseWriter) net.Conn {
-	v := reflect.Indirect(reflect.ValueOf(w))
-	connPtr := v.FieldByName("conn")
-	conn := reflect.Indirect(connPtr)
-	rwc := conn.FieldByName("rwc")
-
-	netConnPtr := (*net.Conn)(unsafe.Pointer(rwc.UnsafeAddr()))
-	return *netConnPtr
+// GetConnFromContext extracts the connection from the request context on a HTTP listener.
+func GetConnFromContext(ctx context.Context) net.Conn {
+	return ctx.Value(request.CtxConn).(net.Conn)
 }
 
-// GetCredFromWriter extracts the unix credentials from the client on a HTTP listener.
-func GetCredFromWriter(w http.ResponseWriter) (*unix.Ucred, error) {
-	conn := GetConnFromWriter(w)
+// GetCredFromContext extracts the unix credentials from the request context on a HTTP listener.
+func GetCredFromContext(ctx context.Context) (*unix.Ucred, error) {
+	conn := GetConnFromContext(ctx)
 	unixConnPtr, ok := conn.(*net.UnixConn)
 	if !ok {
 		return nil, ErrNotUnixSocket
