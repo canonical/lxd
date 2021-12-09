@@ -112,7 +112,7 @@ func (s *Server) Forward(id int64, event api.Event) {
 
 	err := s.broadcast("", event, true)
 	if err != nil {
-		logger.Warnf("Failed to forward event from node %d: %v", id, err)
+		logger.Warnf("Failed to forward event from member %d: %v", id, err)
 	}
 }
 
