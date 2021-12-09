@@ -172,13 +172,22 @@ static int get_unused_loop_dev(char *name_loop)
 	if (ret < 0 || ret >= LO_NAME_SIZE)
 		return -1;
 
-	return open(name_loop, O_RDWR | O_CLOEXEC);
+	// try to open loop file with O_DIRECT flag, try again without if it fails
+	ret = open(name_loop, O_RDWR | O_CLOEXEC | O_DIRECT);
+	if (ret < 0)
+		ret = open(name_loop, O_RDWR | O_CLOEXEC);
+	return ret;
+}
+
+int set_direct_io_loop_device(int fd_loop) {
+	unsigned long direct_io_flag = 1;
+	return ioctl(fd_loop, LOOP_SET_DIRECT_IO, direct_io_flag);
 }
 
 static int prepare_loop_dev(const char *source, char *loop_dev, int flags)
 {
 	__do_close int fd_img = -EBADF, fd_loop = -EBADF;
-	int ret;
+	int ret, f_flags;
 	struct loop_info64 lo64;
 
 	fd_loop = get_unused_loop_dev(loop_dev);
@@ -196,6 +205,20 @@ static int prepare_loop_dev(const char *source, char *loop_dev, int flags)
 	ret = ioctl(fd_loop, LOOP_SET_FD, fd_img);
 	if (ret < 0)
 		return -1;
+
+	f_flags = fcntl(fd_loop, F_GETFL);
+	if (f_flags < 0)
+		return -1;
+
+	if (flags & LO_FLAGS_DIRECT_IO) {
+		if (f_flags & O_DIRECT) {
+			ret = set_direct_io_loop_device(fd_loop);
+			if (ret < 0)
+				flags &= ~LO_FLAGS_DIRECT_IO;
+		} else {
+			flags &= ~LO_FLAGS_DIRECT_IO;
+		}
+	}
 
 	memset(&lo64, 0, sizeof(lo64));
 	lo64.lo_flags = flags;
@@ -265,6 +288,10 @@ import "C"
 // LoFlagsAutoclear determines whether the loop device will autodestruct on last
 // close.
 const LoFlagsAutoclear int = C.LO_FLAGS_AUTOCLEAR
+
+// LoFlagsDirectIO determines whether the loop device will use Direct IO with the
+// backing file.
+const LoFlagsDirectIO int = C.LO_FLAGS_DIRECT_IO
 
 // PrepareLoopDev detects and sets up a loop device for source. It returns an
 // open file descriptor to the free loop device and the path of the free loop
