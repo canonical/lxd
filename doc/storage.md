@@ -307,6 +307,8 @@ lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
 #### Storage pool configuration
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
+ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools.
+ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes.
 cephfs.cluster\_name          | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools.
 cephfs.path                   | string                        | /                                       | The base path for the CEPHFS mount
 cephfs.user.name              | string                        | admin                                   | The ceph user to use when creating storage pools and volumes.
