@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
+	lxdRequest "github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -92,7 +93,10 @@ func restServer(d *Daemon) *http.Server {
 		response.NotFound(nil).Render(w)
 	})
 
-	return &http.Server{Handler: &lxdHttpServer{r: mux, d: d}}
+	return &http.Server{
+		Handler:     &lxdHttpServer{r: mux, d: d},
+		ConnContext: lxdRequest.SaveConnectionInContext,
+	}
 }
 
 type lxdHttpServer struct {
