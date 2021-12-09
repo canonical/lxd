@@ -2,42 +2,14 @@
 LXD supports creating and managing storage pools and storage volumes.
 General keys are top-level. Driver specific keys are namespaced by driver name.
 Volume keys apply to any volume created in the pool unless the value is
-overridden on a per-volume basis.
+overridden on a per-volume basis. The following types are supported:
 
-## Storage pool configuration
-Key                             | Type      | Condition                         | Default                    | Description
-:--                             | :---      | :--------                         | :------                    | :----------
-size                            | string    | appropriate driver and source     | 0                          | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
-source                          | string    | -                                 | -                          | Path to block device or loop file or filesystem entry
-btrfs.mount\_options            | string    | btrfs driver                      | user\_subvol\_rm\_allowed  | Mount options for block devices
-ceph.cluster\_name              | string    | ceph driver                       | ceph                       | Name of the ceph cluster in which to create new storage pools.
-ceph.osd.force\_reuse           | bool      | ceph driver                       | false                      | Force using an osd storage pool that is already in use by another LXD instance.
-ceph.osd.pg\_num                | string    | ceph driver                       | 32                         | Number of placement groups for the osd storage pool.
-ceph.osd.pool\_name             | string    | ceph driver                       | name of the pool           | Name of the osd storage pool.
-ceph.osd.data\_pool\_name       | string    | ceph driver                       | -                          | Name of the osd data pool.
-ceph.rbd.clone\_copy            | string    | ceph driver                       | true                       | Whether to use RBD lightweight clones rather than full dataset copies.
-ceph.rbd.features               | string    | ceph driver                       | layering                   | Comma separate list of RBD features to enable on the volumes.
-ceph.user.name                  | string    | ceph driver                       | admin                      | The ceph user to use when creating storage pools and volumes.
-cephfs.cluster\_name            | string    | cephfs driver                     | ceph                       | Name of the ceph cluster in which to create new storage pools.
-cephfs.path                     | string    | cephfs driver                     | /                          | The base path for the CEPHFS mount
-cephfs.user.name                | string    | cephfs driver                     | admin                      | The ceph user to use when creating storage pools and volumes.
-lvm.thinpool\_name              | string    | lvm driver                        | LXDThinPool                | Thin pool where volumes are created.
-lvm.use\_thinpool               | bool      | lvm driver                        | true                       | Whether the storage pool uses a thinpool for logical volumes.
-lvm.vg\_name                    | string    | lvm driver                        | name of the pool           | Name of the volume group to create.
-lvm.vg.force\_reuse             | bool      | lvm driver                        | false                      | Force using an existing non-empty volume group.
-volume.lvm.stripes              | string    | lvm driver                        | -                          | Number of stripes to use for new volumes (or thin pool volume).
-volume.lvm.stripes.size         | string    | lvm driver                        | -                          | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
-rsync.bwlimit                   | string    | -                                 | 0 (no limit)               | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities.
-rsync.compression               | bool      | appropriate driver                | true                       | Whether to use compression while migrating storage pools.
-volatile.initial\_source        | string    | -                                 | -                          | Records the actual source passed during creating (e.g. /dev/sdb).
-volatile.pool.pristine          | string    | -                                 | true                       | Whether the pool has been empty on creation time.
-volume.block.filesystem         | string    | block based driver (lvm)          | ext4                       | Filesystem to use for new volumes
-volume.block.mount\_options     | string    | block based driver (lvm)          | discard                    | Mount options for block devices
-volume.size                     | string    | appropriate driver                | unlimited (10GiB for block)| Default volume size
-volume.zfs.remove\_snapshots    | bool      | zfs driver                        | false                      | Remove snapshots as needed
-volume.zfs.use\_refquota        | bool      | zfs driver                        | false                      | Use refquota instead of quota for space.
-zfs.clone\_copy                 | string    | zfs driver                        | true                       | Whether to use ZFS lightweight clones rather than full dataset copies (boolean) or "rebase" to copy based on the initial image.
-zfs.pool\_name                  | string    | zfs driver                        | name of the pool           | Name of the zpool
+- [dir](#dir)
+- [ceph](#ceph)
+- [cephfs](#cephfs)
+- [btrfs](#btrfs)
+- [lvm](#lvm)
+- [zfs](#zfs)
 
 Storage pool configuration keys can be set using the lxc tool with:
 
@@ -45,26 +17,16 @@ Storage pool configuration keys can be set using the lxc tool with:
 lxc storage set [<remote>:]<pool> <key> <value>
 ```
 
-## Storage volume configuration
-Key                     | Type      | Condition                 | Default                               | Description
-:--                     | :---      | :--------                 | :------                               | :----------
-size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
-block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume
-block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | Mount options for block devices
-security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
-security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
-lvm.stripes             | string    | lvm driver                | -                                     | Number of stripes to use for new volumes (or thin pool volume).
-lvm.stripes.size        | string    | lvm driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512bytes).
-snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
-snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
-zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
-zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | Use refquota instead of quota for space
-
 Storage volume configuration keys can be set using the lxc tool with:
 
 ```bash
 lxc storage volume set [<remote>:]<pool> <volume> <key> <value>
+```
+
+To set default volume configurations for a storage pool, set a storage pool configuration with a volume prefix i.e. `volume.<VOLUME_CONFIGURATION>=<VALUE>`.
+For an example, to set the default volume size of a pool with the lxc tool, use:
+```bash
+lxc storage set [<remote>:]<pool> volume.size <value>
 ```
 
 ## Storage volume content types
@@ -213,13 +175,30 @@ so you will need to consider the filesystem's own overhead when setting limits.
 This also means that access to cached data will not be affected by the limit.
 
 ## Notes and examples
-### Directory
+### dir
 
  - While this backend is fully functional, it's also much slower than
    all the others due to it having to unpack images or do instant copies of
    instances, snapshots and images.
  - Quotas are supported with the directory backend when running on
    either ext4 or XFS with project quotas enabled at the filesystem level.
+
+#### Storage pool configuration
+Key                           | Type                          | Default                                 | Description
+:--                           | :---                          | :------                                 | :----------
+rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities
+rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
+source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
+
+#### Storage volume configuration
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :---      | :--------                 | :------                               | :----------
+security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
 
 #### The following commands can be used to create directory storage pools
 
@@ -264,6 +243,31 @@ lxc storage create pool2 dir source=/data/lxd
   `ceph.osd.data_pool_name=<erasure-coded-pool-name>` and
   `source=<replicated-pool-name>` for the replicated pool.
 
+#### Storage pool configuration
+Key                           | Type                          | Default                                 | Description
+:--                           | :---                          | :------                                 | :----------
+ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
+ceph.osd.data\_pool\_name     | string                        | -                                       | Name of the osd data pool
+ceph.osd.force\_reuse         | bool                          | false                                   | Force using an osd storage pool that is already in use by another LXD instance
+ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the osd storage pool
+ceph.osd.pool\_name           | string                        | name of the pool                        | Name of the osd storage pool
+ceph.rbd.clone\_copy          | string                        | true                                    | Whether to use RBD lightweight clones rather than full dataset copies
+ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes
+ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
+
+#### Storage volume configuration
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :---      | :--------                 | :------                               | :----------
+block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume
+block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | Mount options for block devices
+security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
+
 #### The following commands can be used to create Ceph storage pools
 
 - Create a osd storage pool named "pool1" in the CEPH cluster "ceph".
@@ -300,6 +304,26 @@ lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
  - Can only be used for custom storage volumes
  - Supports snapshots if enabled on the server side
 
+#### Storage pool configuration
+Key                           | Type                          | Default                                 | Description
+:--                           | :---                          | :------                                 | :----------
+ceph.cluster\_name            | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
+ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+cephfs.cluster\_name          | string                        | ceph                                    | Name of the ceph cluster in which to create new storage pools
+cephfs.path                   | string                        | /                                       | The base path for the CEPHFS mount
+cephfs.user.name              | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
+volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
+
+#### Storage volume configuration
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :---      | :--------                 | :------                               | :----------
+security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
+
 ### Btrfs
 
  - Uses a subvolume per instance, image and snapshot, creating btrfs snapshots when creating a new object.
@@ -321,6 +345,21 @@ lxc storage create pool1 ceph source=rpl-pool ceph.osd.data_pool_name=ecpool
    option avoids this scenario as a side effect of enabling compression is to reduce the maximum extent size such
    that block rewrites don't cause as much storage to be double tracked. However as this is a storage pool option
    it will affect all volumes on the pool.
+
+#### Storage pool configuration
+Key                             | Type      | Condition                         | Default                    | Description
+:--                             | :---      | :--------                         | :------                    | :----------
+btrfs.mount\_options            | string    | btrfs driver                      | user\_subvol\_rm\_allowed  | Mount options for block devices
+
+#### Storage volume configuration
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :---      | :--------                 | :------                               | :----------
+security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
 
 #### The following commands can be used to create BTRFS storage pools
 
@@ -376,6 +415,31 @@ losetup -l
    it may be important to tweak the archival `retain_min` and `retain_days`
    settings in `/etc/lvm/lvm.conf` to avoid slowdowns when interacting with
    LXD.
+
+#### Storage pool configuration
+Key                           | Type                          | Default                                 | Description
+:--                           | :---                          | :------                                 | :----------
+lvm.thinpool\_name            | string                        | LXDThinPool                             | Thin pool where volumes are created
+lvm.use\_thinpool             | bool                          | true                                    | Whether the storage pool uses a thinpool for logical volumes
+lvm.vg.force\_reuse           | bool                          | false                                   | Force using an existing non-empty volume group
+lvm.vg\_name                  | string                        | name of the pool                        | Name of the volume group to create
+rsync.bwlimit                 | string                        | 0 (no limit)                            | Specifies the upper limit to be placed on the socket I/O whenever rsync has to be used to transfer storage entities
+rsync.compression             | bool                          | true                                    | Whether to use compression while migrating storage pools
+source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
+
+#### Storage volume configuration
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :---      | :--------                 | :------                               | :----------
+block.filesystem        | string    | block based driver        | same as volume.block.filesystem       | Filesystem of the storage volume
+block.mount\_options    | string    | block based driver        | same as volume.block.mount\_options   | Mount options for block devices
+lvm.stripes             | string    | lvm driver                | -                                     | Number of stripes to use for new volumes (or thin pool volume)
+lvm.stripes.size        | string    | lvm driver                | -                                     | Size of stripes to use (at least 4096 bytes and multiple of 512bytes)
+security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
 
 #### The following commands can be used to create LVM storage pools
 
@@ -449,6 +513,26 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
    much. That's because of ZFS being a port of a Solaris module (using SPL)
    and not a native Linux filesystem using the Linux VFS API which is where
    I/O limits are applied.
+
+#### Storage pool configuration
+Key                           | Type                          | Default                                 | Description
+:--                           | :---                          | :------                                 | :----------
+size                          | string                        | 0                                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
+source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
+zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (boolean) or "rebase" to copy based on the initial image
+zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
+
+#### Storage volume configuration
+Key                     | Type      | Condition                 | Default                               | Description
+:--                     | :---      | :--------                 | :------                               | :----------
+security.shifted        | bool      | custom volume             | false                                 | Enable id shifting overlay (allows attach by multiple isolated instances)
+security.unmapped       | bool      | custom volume             | false                                 | Disable id mapping for the volume
+size                    | string    | appropriate driver        | same as volume.size                   | Size of the storage volume
+snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
+zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
+zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_requota       | Use refquota instead of quota for space
 
 #### The following commands can be used to create ZFS storage pools
 
