@@ -42,32 +42,43 @@ func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, erro
 // GetNonPendingNetworkIDs returns a map associating each network name to its ID.
 //
 // Pending networks are skipped.
-func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]int64, error) {
+func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, error) {
 	networks := []struct {
-		id   int64
-		name string
+		id          int64
+		name        string
+		projectName string
 	}{}
+
 	dest := func(i int) []interface{} {
 		networks = append(networks, struct {
-			id   int64
-			name string
+			id          int64
+			name        string
+			projectName string
 		}{})
-		return []interface{}{&networks[i].id, &networks[i].name}
+		return []interface{}{&networks[i].id, &networks[i].name, &networks[i].projectName}
 
 	}
-	stmt, err := c.tx.Prepare("SELECT id, name FROM networks WHERE NOT state=?")
+
+	stmt, err := c.tx.Prepare("SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?")
 	if err != nil {
 		return nil, err
 	}
 	defer stmt.Close()
+
 	err = query.SelectObjects(stmt, dest, networkPending)
 	if err != nil {
 		return nil, err
 	}
-	ids := map[string]int64{}
+
+	ids := map[string]map[string]int64{}
 	for _, network := range networks {
-		ids[network.name] = network.id
+		if ids[network.projectName] == nil {
+			ids[network.projectName] = map[string]int64{}
+		}
+
+		ids[network.projectName][network.name] = network.id
 	}
+
 	return ids, nil
 }
 

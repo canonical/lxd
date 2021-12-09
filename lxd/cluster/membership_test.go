@@ -35,31 +35,31 @@ func TestBootstrap_UnmetPreconditions(t *testing.T) {
 				filename := filepath.Join(f.state.OS.VarDir, "cluster.crt")
 				ioutil.WriteFile(filename, []byte{}, 0644)
 			},
-			"inconsistent state: found leftover cluster certificate",
+			"Inconsistent state: found leftover cluster certificate",
 		},
 		{
 			func(*membershipFixtures) {},
-			"no cluster.https_address config is set on this node",
+			"No cluster.https_address config is set on this member",
 		},
 		{
 			func(f *membershipFixtures) {
 				f.ClusterAddress("1.2.3.4:666")
 				f.RaftNode("5.6.7.8:666")
 			},
-			"the node is already part of a cluster",
+			"The member is already part of a cluster",
 		},
 		{
 			func(f *membershipFixtures) {
 				f.RaftNode("5.6.7.8:666")
 			},
-			"inconsistent state: found leftover entries in raft_nodes",
+			"Inconsistent state: found leftover entries in raft_nodes",
 		},
 		{
 			func(f *membershipFixtures) {
 				f.ClusterAddress("1.2.3.4:666")
 				f.ClusterNode("5.6.7.8:666")
 			},
-			"inconsistent state: found leftover entries in nodes",
+			"Inconsistent state: found leftover entries in nodes",
 		},
 	}
 
