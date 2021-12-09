@@ -69,6 +69,28 @@ If you do not have a join token, but have a trust password instead then, then an
 if you have a join token. Then pick an address of an existing node in the cluster and check the fingerprint that
 gets printed matches the cluster certificate of the existing members.
 
+### Per-server configuration
+As mentioned previously, LXD cluster members are generally assumed to be identical systems.
+
+However to accomodate things like slightly different disk ordering or
+network interface naming, LXD records some settings as being
+server-specific. When such settings are present in a cluster, any new
+server being added will have to provide a value for it.
+
+This is most often done through the interactive `lxd init` which will
+ask the user for the value for a number of configuration keys related to
+storage or networks.
+
+Those typically cover:
+
+ - Source device for a storage pool (leaving empty would create a loop)
+ - Name for a ZFS zpool (defaults to the name of the LXD pool)
+ - External interfaces for a bridged network (empty would add none)
+ - Name of the parent network device for managed physical or macvlan networks (must be set)
+
+It's possible to lookup the questions ahead of time (useful for scripting) by querying the `/1.0/cluster` API endpoint.
+This can be done through `lxc query /1.0/cluster` or through other API clients.
+
 ### Preseed
 
 Create a preseed file for the bootstrap node with the configuration
