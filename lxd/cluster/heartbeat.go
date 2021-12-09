@@ -87,7 +87,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 			Address:       node.Address,
 			Name:          node.Name,
 			LastHeartbeat: node.Heartbeat,
-			Online:        !node.Heartbeat.Before(time.Now().Add(-offlineThreshold)),
+			Online:        !node.IsOffline(offlineThreshold),
 		}
 
 		if raftNode, exists := raftNodeMap[member.Address]; exists {
