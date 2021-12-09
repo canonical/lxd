@@ -19,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/ucred"
 	"github.com/lxc/lxd/lxd/util"
@@ -31,8 +32,9 @@ import (
 // /dev/lxd Unix socket endpoint created inside containers.
 func devLxdServer(d *Daemon) *http.Server {
 	return &http.Server{
-		Handler:   devLxdAPI(d),
-		ConnState: pidMapper.ConnStateHandler,
+		Handler:     devLxdAPI(d),
+		ConnState:   pidMapper.ConnStateHandler,
+		ConnContext: request.SaveConnectionInContext,
 	}
 }
 
@@ -159,7 +161,7 @@ var handlers = []devLxdHandler{
 
 func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Request) *devLxdResponse, d *Daemon) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		conn := ucred.GetConnFromWriter(w)
+		conn := ucred.GetConnFromContext(r.Context())
 		cred, ok := pidMapper.m[conn.(*net.UnixConn)]
 		if !ok {
 			http.Error(w, pidNotInContainerErr.Error(), 500)

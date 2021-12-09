@@ -1,8 +1,13 @@
 package request
 
+type requestCtxKey string
+
 const (
 	// CtxAccess is the access field in request context.
 	CtxAccess = "access"
+
+	// CtxConn is the access field in the request context
+	CtxConn requestCtxKey = "conn"
 
 	// CtxAddress is the address field in request context.
 	CtxAddress = "address"
