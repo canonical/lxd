@@ -589,14 +589,14 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			nodes[i].Role = db.RaftRole(node.Role)
 		}
 
-		// Start clustering tasks
-		d.startClusterTasks()
-		revert.Add(func() { d.stopClusterTasks() })
-
 		err = cluster.Join(d.State(), d.gateway, networkCert, serverCert, req.ServerName, nodes)
 		if err != nil {
 			return err
 		}
+
+		// Start clustering tasks.
+		d.startClusterTasks()
+		revert.Add(func() { d.stopClusterTasks() })
 
 		// Handle optional service integration on cluster join
 		var clusterConfig *cluster.Config
