@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-12-08 11:52+0100\n"
+"POT-Creation-Date: 2021-12-09 16:27-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -459,6 +459,8 @@ msgid ""
 "### This is a yaml representation of the cluster member.\n"
 "### Any line starting with a '# will be ignored."
 msgstr ""
+"### Ceci est une représentation yaml d'un membre du cluster.\n"
+"### Toute ligne commençant par un '#' sera ignorée."
 
 #: lxc/info.go:315
 #, c-format
@@ -1546,7 +1548,7 @@ msgstr ""
 #: lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108
 #: lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29
 #: lxc/info.go:35 lxc/init.go:41 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:80
-#: lxc/manpage.go:22 lxc/monitor.go:32 lxc/move.go:37 lxc/network.go:33
+#: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
 #: lxc/network.go:761 lxc/network.go:841 lxc/network.go:936 lxc/network.go:1005
@@ -1877,7 +1879,7 @@ msgstr ""
 msgid "Evacuating cluster member: %s"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/monitor.go:50
+#: lxc/monitor.go:51
 msgid "Event type to listen for"
 msgstr "Type d'évènements à surveiller"
 
@@ -2089,7 +2091,7 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
-#: lxc/monitor.go:52
+#: lxc/monitor.go:53
 msgid "Format (json|pretty|yaml)"
 msgstr ""
 
@@ -2423,7 +2425,7 @@ msgstr ""
 msgid "Invalid format %q"
 msgstr "Cible invalide %s"
 
-#: lxc/monitor.go:70
+#: lxc/monitor.go:71
 #, fuzzy, c-format
 msgid "Invalid format: %s"
 msgstr "Cible invalide %s"
@@ -3146,7 +3148,7 @@ msgstr "Échec lors de la migration vers l'hôte source: %s"
 msgid "Migration operation failure"
 msgstr ""
 
-#: lxc/monitor.go:51
+#: lxc/monitor.go:52
 msgid "Minimum level for log messages"
 msgstr ""
 
@@ -3277,11 +3279,11 @@ msgstr "Publié : %s"
 msgid "Model: %v"
 msgstr ""
 
-#: lxc/monitor.go:31
+#: lxc/monitor.go:32
 msgid "Monitor a local or remote LXD server"
 msgstr ""
 
-#: lxc/monitor.go:32
+#: lxc/monitor.go:33
 msgid ""
 "Monitor a local or remote LXD server\n"
 "\n"
@@ -3679,7 +3681,7 @@ msgstr ""
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr "Appuyer sur Entrée pour ouvrir à nouveau l'éditeur"
 
-#: lxc/monitor.go:48
+#: lxc/monitor.go:49
 msgid "Pretty rendering (short for --format=pretty)"
 msgstr ""
 
@@ -4420,7 +4422,7 @@ msgstr ""
 msgid "Show details on a background operation"
 msgstr ""
 
-#: lxc/monitor.go:49
+#: lxc/monitor.go:50
 msgid "Show events from all projects"
 msgstr ""
 
@@ -5194,7 +5196,7 @@ msgstr ""
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/cluster.go:114 lxc/cluster.go:805 lxc/cluster_group.go:371
-#: lxc/config_trust.go:285 lxc/monitor.go:30 lxc/network.go:838
+#: lxc/config_trust.go:285 lxc/monitor.go:31 lxc/network.go:838
 #: lxc/network_acl.go:88 lxc/network_zone.go:79 lxc/operation.go:102
 #: lxc/profile.go:577 lxc/project.go:389 lxc/storage.go:513 lxc/version.go:20
 #: lxc/warning.go:69
@@ -6464,7 +6466,7 @@ msgid ""
 "  List instances with their running state and user comment."
 msgstr ""
 
-#: lxc/monitor.go:36
+#: lxc/monitor.go:37
 msgid ""
 "lxc monitor --type=logging\n"
 "    Only show log messages.\n"
@@ -7957,3 +7959,144 @@ msgstr "oui"
 #~ msgid "To start your first instance, try: lxc launch ubuntu:18.04"
 #~ msgstr ""
 #~ "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
+
+#, fuzzy, c-format
+#~ msgid ""
+#~ "List instances\n"
+#~ "\n"
+#~ "Default column layout: ns46tS\n"
+#~ "Fast column layout: nsacPt\n"
+#~ "\n"
+#~ "A single keyword like \"web\" which will list any instance with a name "
+#~ "starting by \"web\".\n"
+#~ "A regular expression on the instance name. (e.g. .*web.*01$).\n"
+#~ "A key/value pair referring to a configuration item. For those, the\n"
+#~ "namespace can be abbreviated to the smallest unambiguous identifier.\n"
+#~ "A key/value pair where the key is a shorthand. Multiple values must be "
+#~ "delimited by ','. Available shorthands:\n"
+#~ "  - type={instance type}\n"
+#~ "  - status={instance current lifecycle status}\n"
+#~ "  - architecture={instance architecture}\n"
+#~ "  - location={location name}\n"
+#~ "  - ipv4={ip or CIDR}\n"
+#~ "  - ipv6={ip or CIDR}\n"
+#~ "\n"
+#~ "Examples:\n"
+#~ "  - \"user.blah=abc\" will list all instances with the \"blah\" user "
+#~ "property set to \"abc\".\n"
+#~ "  - \"u.blah=abc\" will do the same\n"
+#~ "  - \"security.privileged=true\" will list all privileged instances\n"
+#~ "  - \"s.privileged=true\" will do the same\n"
+#~ "  - \"type=container\" will list all container instances\n"
+#~ "  - \"type=container status=running\" will list all running container "
+#~ "instances\n"
+#~ "\n"
+#~ "A regular expression matching a configuration item or its value. (e.g. "
+#~ "volatile.eth0.hwaddr=00:16:3e:.*).\n"
+#~ "\n"
+#~ "When multiple filters are passed, they are added one on top of the "
+#~ "other,\n"
+#~ "selecting instances which satisfy them all.\n"
+#~ "\n"
+#~ "== Columns ==\n"
+#~ "The -c option takes a comma separated list of arguments that control\n"
+#~ "which instance attributes to output when displaying in table or csv\n"
+#~ "format.\n"
+#~ "\n"
+#~ "Column arguments are either pre-defined shorthand chars (see below),\n"
+#~ "or (extended) config keys.\n"
+#~ "\n"
+#~ "Commas between consecutive shorthand chars are optional.\n"
+#~ "\n"
+#~ "Pre-defined column shorthand chars:\n"
+#~ "  4 - IPv4 address\n"
+#~ "  6 - IPv6 address\n"
+#~ "  a - Architecture\n"
+#~ "  b - Storage pool\n"
+#~ "  c - Creation date\n"
+#~ "  d - Description\n"
+#~ "  D - disk usage\n"
+#~ "  l - Last used date\n"
+#~ "  m - Memory usage\n"
+#~ "  M - Memory usage (%)\n"
+#~ "  n - Name\n"
+#~ "  N - Number of Processes\n"
+#~ "  p - PID of the instance's init process\n"
+#~ "  P - Profiles\n"
+#~ "  s - State\n"
+#~ "  S - Number of snapshots\n"
+#~ "  t - Type (persistent or ephemeral)\n"
+#~ "  u - CPU usage (in seconds)\n"
+#~ "  L - Location of the instance (e.g. its cluster member)\n"
+#~ "  f - Base Image Fingerprint (short)\n"
+#~ "  F - Base Image Fingerprint (long)\n"
+#~ "\n"
+#~ "Custom columns are defined with \"[config:|devices:]key[:name][:"
+#~ "maxWidth]\":\n"
+#~ "  KEY: The (extended) config or devices key to display. If [config:|"
+#~ "devices:] is omitted then it defaults to config key.\n"
+#~ "  NAME: Name to display in the column header.\n"
+#~ "  Defaults to the key if not specified or empty.\n"
+#~ "\n"
+#~ "  MAXWIDTH: Max width of the column (longer results are truncated).\n"
+#~ "  Defaults to -1 (unlimited). Use 0 to limit to the column header size."
+#~ msgstr ""
+#~ "Lister les conteneurs.\n"
+#~ "\n"
+#~ "lxc list [<remote>:] [filters] [--format table|json] [-c <columns>] [--"
+#~ "fast]\n"
+#~ "\n"
+#~ "Les filtres sont :\n"
+#~ "* Un mot-clé unique comme \\web\\ qui listera tous les conteneurs dont le "
+#~ "nom commence par \\web\\.\n"
+#~ "* Une expression rationnelle sur le nom du conteneur (ex : *web.*01$)\n"
+#~ "* Une paire de clé/valeur faisant référence à un élément de "
+#~ "configuration.  Pour ceux-ci, l'espace de nom peut être abrégé au plus "
+#~ "petit identifiant non ambigu :\n"
+#~ " * \\user.blah=abc\\ listera tous les conteneurs dont la propriété "
+#~ "utilisateur \\blah\\ est positionnée à \\abc\\.\n"
+#~ " * \\u.blah=abc\\ fera la même chose\n"
+#~ " * \\security.privileged=1\\ listera tous les conteneurs privilégiés\n"
+#~ " * \\s.privileged=1\\ fera la même chose\n"
+#~ "* Une expression rationelle correspondant à un élément de configuration "
+#~ "ou à sa valeur (ex : volatile.eth0.hwaddr=00:16:3e:.*)\n"
+#~ "\n"
+#~ "L'option -c prend une liste d'arguments séparés par des virgules\n"
+#~ "contrôlant les attributs des conteneurs à afficher au format tableau.\n"
+#~ "Les arguments pour les colonnes sont soient des raccourcis par\n"
+#~ "caractère prédéfinis (voir ci-dessous) ou des clés (étendues) de\n"
+#~ "configuration.  Les virgules entre les caractères courts sont\n"
+#~ "optionnelles.\n"
+#~ "\n"
+#~ "Raccourcis par caractère prédéfinis :\n"
+#~ "* 4 - adresse IPv4\n"
+#~ "* 6 - adresse IPv6\n"
+#~ "* a - architecture\n"
+#~ "* c - date de création\n"
+#~ "* l - date de dernière utilisation\n"
+#~ "* n - nom\n"
+#~ "* p - pid du processus init du conteneur\n"
+#~ "* P - profils\n"
+#~ "* s - état\n"
+#~ "* S - nombre d'instantanés\n"
+#~ "* t - type (persistant ou éphémère)\n"
+#~ "\n"
+#~ "Syntaxe des clés de configuration : clé[:nom][:largeurMax]\n"
+#~ "* clé        - La clé (étendue) de configuration à afficher\n"
+#~ "* nom        - Nom à afficher dans l'entête de colonne, c'est la clé\n"
+#~ "               par défaut si rien n'est spécifié ou vide (pour\n"
+#~ "               permettre la définition de largeurMax sans nom\n"
+#~ "               personnalisé, ex : user.key::0)\n"
+#~ "* largeurMax - Largeur max de la colonne (les résultats plus longs\n"
+#~ "               seront tronqués).\n"
+#~ "               -1 == pas de limite\n"
+#~ "                0 == largeur de l'entête de colonne\n"
+#~ "               >0 == largeur maximale en caractères\n"
+#~ "               La valeur par défaut est -1 (pas de limite)\n"
+#~ "\n"
+#~ "Colonnes par défaut : ns46tS\n"
+#~ "Colonnes en mode rapide : nsacPt\n"
+#~ "\n"
+#~ "Exemple :\n"
+#~ "    lxc list -c n,volatile.base_image:\\BASE IMAGE\\:0,s46,volatile.eth0."
+#~ "hwaddr:MAC"
