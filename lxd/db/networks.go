@@ -67,6 +67,10 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 	}
 	ids := map[string]map[string]int64{}
 	for _, network := range networks {
+		if ids[network.projectName] == nil {
+			ids[network.projectName] = map[string]int64{}
+		}
+
 		ids[network.projectName][network.name] = network.id
 	}
 	return ids, nil
