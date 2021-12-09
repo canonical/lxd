@@ -92,6 +92,36 @@ var updates = map[int]schema.Update{
 	51: updateFromV50,
 	52: updateFromV51,
 	53: updateFromV52,
+	54: updateFromV53,
+}
+
+// updateFromV53 creates the cluster_groups and nodes_cluster_groups tables.
+func updateFromV53(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE "cluster_groups" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    UNIQUE (name)
+);
+
+CREATE TABLE "nodes_cluster_groups" (
+    node_id INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES cluster_groups (id) ON DELETE CASCADE,
+    UNIQUE (node_id, group_id)
+);
+
+INSERT INTO cluster_groups (id, name, description) VALUES (1, 'default', 'Default cluster group');
+
+INSERT INTO nodes_cluster_groups (node_id, group_id) SELECT id, 1 FROM nodes;
+`)
+	if err != nil {
+		return fmt.Errorf("Failed creating cluster group tables: %w", err)
+	}
+
+	return nil
 }
 
 // updateFromV52 creates the networks_zones and networks_zones_config tables.

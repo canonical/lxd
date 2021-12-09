@@ -26,6 +26,7 @@ const (
 	TypeStorageVolumeBackup   = 14
 	TypeStorageVolumeSnapshot = 15
 	TypeWarning               = 16
+	TypeClusterGroup          = 17
 )
 
 // EntityNames associates an entity code to its name.
@@ -47,6 +48,7 @@ var EntityNames = map[int]string{
 	TypeStorageVolumeBackup:   "storage volume backup",
 	TypeStorageVolumeSnapshot: "storage volume snapshot",
 	TypeWarning:               "warning",
+	TypeClusterGroup:          "cluster group",
 }
 
 // EntityTypes associates an entity name to its type code.
@@ -71,6 +73,7 @@ var EntityURIs = map[int]string{
 	TypeStorageVolumeBackup:   "/" + version.APIVersion + "/storage-pools/%s/volumes/%s/%s/backups/%s?project=%s",
 	TypeStorageVolumeSnapshot: "/" + version.APIVersion + "/storage-pools/%s/volumes/%s/%s/snapshots/%s?project=%s",
 	TypeWarning:               "/" + version.APIVersion + "/warnings/%s",
+	TypeClusterGroup:          "/" + version.APIVersion + "/cluster/groups/%s",
 }
 
 // EntityFormatURIs associates an entity code to a formatter function that can be
@@ -127,6 +130,9 @@ var EntityFormatURIs = map[int]func(a ...interface{}) string{
 		}
 
 		return uri
+	},
+	TypeClusterGroup: func(a ...interface{}) string {
+		return fmt.Sprintf(EntityURIs[TypeClusterGroup], a[0])
 	},
 }
 

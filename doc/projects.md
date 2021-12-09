@@ -37,6 +37,7 @@ limits.processes                     | integer   | -                     | -    
 limits.virtual-machines              | integer   | -                     | -                         | Maximum number of VMs that can be created in the project
 restricted                           | boolean   | -                     | false                     | Block access to security-sensitive features (this must be enabled to allow the `restricted.*` keys to take effect, this is so it can be tempoarily disabled if needed without having to clear the related keys)
 restricted.backups                   | string    | -                     | block                     | Prevents the creation of any instance or volume backups.
+restricted.cluster.groups            | string    | -                     | -                         | Prevents targeting cluster groups other than the provided ones.
 restricted.cluster.target            | string    | -                     | block                     | Prevents direct targeting of cluster members when creating or moving instances.
 restricted.containers.lowlevel       | string    | -                     | block                     | Prevents use of low-level container options like raw.lxc, raw.idmap, volatile, etc.
 restricted.containers.nesting        | string    | -                     | block                     | Prevents setting security.nesting=true.

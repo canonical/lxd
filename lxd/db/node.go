@@ -60,6 +60,7 @@ type NodeInfo struct {
 	Architecture  int               // Node architecture
 	State         int               // Node state
 	Config        map[string]string // Configuration for the node
+	Groups        []string          // Cluster groups
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -141,6 +142,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	result.Database = false
 	result.Config = n.Config
 	result.Roles = n.Roles
+	result.Groups = n.Groups
 
 	// Check if node is the leader node
 	if leader == n.Address {
@@ -433,11 +435,11 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	nodeRoles := map[int64][]string{}
 	rows, err := c.tx.Query(sql)
 	if err != nil {
+		// Don't fail on a missing table, we need to handle updates
 		if err.Error() != "no such table: nodes_roles" {
 			return nil, err
 		}
 	} else {
-		// Don't fail on a missing table, we need to handle updates
 		defer rows.Close()
 
 		for i := 0; rows.Next(); i++ {
@@ -456,11 +458,49 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 
 			nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
 		}
+
+		err = rows.Err()
+		if err != nil {
+			return nil, err
+		}
+
+		rows.Close()
 	}
 
-	err = rows.Err()
+	// Get node groups
+	sql = `SELECT node_id, cluster_groups.name FROM nodes_cluster_groups
+JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
+	nodeGroups := map[int64][]string{}
+
+	rows, err = c.tx.Query(sql)
 	if err != nil {
-		return nil, err
+		// Don't fail on a missing table, we need to handle updates
+		if err.Error() != "no such table: nodes_cluster_groups" {
+			return nil, err
+		}
+	} else {
+		defer rows.Close()
+
+		for i := 0; rows.Next(); i++ {
+			var nodeID int64
+			var group string
+
+			err := rows.Scan(&nodeID, &group)
+			if err != nil {
+				return nil, err
+			}
+
+			if nodeGroups[nodeID] == nil {
+				nodeGroups[nodeID] = []string{}
+			}
+
+			nodeGroups[nodeID] = append(nodeGroups[nodeID], group)
+		}
+
+		err = rows.Err()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Process node entries
@@ -514,6 +554,14 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 		roles, ok := nodeRoles[node.ID]
 		if ok {
 			nodes[i].Roles = roles
+		}
+	}
+
+	// Add the groups
+	for i, node := range nodes {
+		groups, ok := nodeGroups[node.ID]
+		if ok {
+			nodes[i].Groups = groups
 		}
 	}
 
@@ -686,6 +734,50 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 		_, err := c.tx.Exec("INSERT INTO nodes_roles (node_id, role) VALUES (?, ?)", id, roleID)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// UpdateNodeClusterGroups changes the list of cluster groups the member belongs to.
+func (c *ClusterTx) UpdateNodeClusterGroups(id int64, groups []string) error {
+	nodeInfo, err := c.GetNodeWithID(int(id))
+	if err != nil {
+		return err
+	}
+
+	oldGroups, err := c.GetClusterGroupsWithNode(nodeInfo.Name)
+	if err != nil {
+		return err
+	}
+
+	skipGroups := []string{}
+
+	// Check if node already belongs to the given groups.
+	for _, newGroup := range groups {
+		if shared.StringInSlice(newGroup, oldGroups) {
+			// Node already belongs to this group.
+			skipGroups = append(skipGroups, newGroup)
+			continue
+		}
+
+		// Add node to new group.
+		err = c.AddNodeToClusterGroup(newGroup, nodeInfo.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to add member to cluster group: %w", err)
+		}
+	}
+
+	for _, oldGroup := range oldGroups {
+		if shared.StringInSlice(oldGroup, skipGroups) {
+			continue
+		}
+
+		// Remove node from group.
+		err = c.RemoveNodeFromClusterGroup(oldGroup, nodeInfo.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to remove member from cluster group: %w", err)
 		}
 	}
 
@@ -1015,7 +1107,7 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (string, error) {
+func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get offline threshold")
@@ -1032,6 +1124,19 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int) (str
 	for _, node := range nodes {
 		if node.Config["scheduler.instance"] == "manual" {
 			continue
+		}
+
+		// If scheduler.instance is "all", skip the node if group is set and the node doesn't belong to it.
+		if node.Config["scheduler.instance"] == "all" && group != "" && !shared.StringInSlice(group, node.Groups) {
+			continue
+		}
+
+		// If scheduler.instance is "group", skip the node if it doesn't belong to the group.
+		// The node will also be skipped if the group is empty.
+		if node.Config["scheduler.instance"] == "group" {
+			if !shared.StringInSlice(group, node.Groups) {
+				continue
+			}
 		}
 
 		if node.State == ClusterMemberStateEvacuated || node.IsOffline(threshold) {

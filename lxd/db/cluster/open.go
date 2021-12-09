@@ -199,6 +199,15 @@ INSERT INTO profiles (name, description, project_id) VALUES ('default', 'Default
 				return err
 			}
 
+			// Default cluster group
+			stmt = `
+INSERT INTO cluster_groups (name, description) VALUES ('default', 'Default cluster group');
+INSERT INTO nodes_cluster_groups (node_id, group_id) VALUES(1, 1);
+`
+			_, err = tx.Exec(stmt)
+			if err != nil {
+				return err
+			}
 			return nil
 		})
 		if err != nil {

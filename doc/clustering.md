@@ -171,7 +171,7 @@ The currently supported keys are:
 
 | Key                | Type   | Condition | Default | Description                                                                                                                                                                                  |
 | :----------------- | :----- | :-------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| scheduler.instance | string | -         | all     | If `all` then the member will be auto-targeted for instance creation if it has the least number of instances. If `manual` then instances will only target the member if `--target` is given. |
+| scheduler.instance | string | -         | all     | If `all` then the member will be auto-targeted for instance creation if it has the least number of instances. If `manual` then instances will only target the member if `--target` is given. If `group` then instances will only target members in the group provided using `--target=@<group>` |
 | user.\*            | string | -         | -       | Free form user key/value storage (can be used in search)                                                                                                                                     |
 
 ### Voting and stand-by members
@@ -575,3 +575,24 @@ is usually a standard self-signed certificate with an expiry set to 10 years.
 If you wish to replace it with something else, for example a valid certificate
 obtained through Let's Encrypt, `lxc cluster update-certificate` can be used
 to replace the certificate on all servers in your cluster.
+
+## Cluster groups
+
+In a LXD cluster, members can be added to cluster groups. By default, all members belong to the `default` group.
+
+Cluster members can be assigned to groups using the `lxc cluster group assign` command:
+
+```bash
+lxc cluster group create gpu
+lxc cluster group assign cluster:node1 gpu
+```
+
+With cluster groups, it's possible to target specific groups instead of individual members.
+This is done by using the `@` prefix when using `--target`.
+
+An example:
+```bash
+lxc launch images:ubuntu/20.04 cluster:ubuntu --target=@gpu
+```
+
+This will cause the instance to be created on a cluster member belonging to `gpu` group if `scheduler.instance` is set to either `all` (default) or `group`.

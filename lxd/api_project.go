@@ -870,6 +870,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"limits.networks":                      validate.Optional(validate.IsUint32),
 		"restricted":                           validate.Optional(validate.IsBool),
 		"restricted.backups":                   isEitherAllowOrBlock,
+		"restricted.cluster.groups":            validate.Optional(validate.IsListOf(validate.IsAny)),
 		"restricted.cluster.target":            isEitherAllowOrBlock,
 		"restricted.containers.nesting":        isEitherAllowOrBlock,
 		"restricted.containers.lowlevel":       isEitherAllowOrBlock,
