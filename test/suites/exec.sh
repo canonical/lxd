@@ -31,6 +31,7 @@ test_exec() {
 
   echo "hello" | lxc exec x1 -- tee /root/foo1
   opID=$(lxc query -X POST -d '{\"command\":[\"cat\",\"/root/foo1\"],\"record-output\":true}' /1.0/instances/x1/exec | jq -r .id)
+  sleep 1
   stdOutURL=$(lxc query  /1.0/operations/"${opID}" | jq '.metadata.output["1"]')
   lxc query "${stdOutURL}" | grep -F "hello"
 
