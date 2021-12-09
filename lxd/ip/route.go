@@ -14,6 +14,7 @@ type Route struct {
 	Src     string
 	Proto   string
 	Family  string
+	Via     string
 }
 
 // Add adds new route
@@ -21,6 +22,9 @@ func (r *Route) Add() error {
 	cmd := []string{r.Family, "route", "add"}
 	if r.Table != "" {
 		cmd = append(cmd, "table", r.Table)
+	}
+	if r.Via != "" {
+		cmd = append(cmd, "via", r.Via)
 	}
 	cmd = append(cmd, r.Route, "dev", r.DevName)
 	if r.Src != "" {
@@ -54,6 +58,9 @@ func (r *Route) Flush() error {
 	cmd = append(cmd, "route", "flush")
 	if r.Route != "" {
 		cmd = append(cmd, r.Route)
+	}
+	if r.Via != "" {
+		cmd = append(cmd, "via", r.Via)
 	}
 	cmd = append(cmd, "dev", r.DevName)
 	if r.Proto != "" {
