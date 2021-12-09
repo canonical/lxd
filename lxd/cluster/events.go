@@ -1,14 +1,12 @@
 package cluster
 
 import (
-	"context"
 	"sync"
 	"time"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
-	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -17,32 +15,6 @@ import (
 
 var listeners = map[string]*lxd.EventListener{}
 var listenersLock sync.Mutex
-
-// Events starts a task that continuously monitors the list of cluster nodes and
-// maintains a pool of websocket connections against all of them, in order to
-// get notified about events.
-//
-// Whenever an event is received the given callback is invoked.
-func Events(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, f func(int64, api.Event)) (task.Func, task.Schedule) {
-	// Update our pool of event listeners. Since database queries are
-	// blocking, we spawn the actual logic in a goroutine, to abort
-	// immediately when we receive the stop signal.
-	update := func(ctx context.Context) {
-		ch := make(chan struct{})
-		go func() {
-			eventsUpdateListeners(endpoints, cluster, serverCert, nil, f)
-			ch <- struct{}{}
-		}()
-		select {
-		case <-ch:
-		case <-ctx.Done():
-		}
-	}
-
-	schedule := task.Every(time.Second)
-
-	return update, schedule
-}
 
 func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
 	// If no heartbeat members provided, populate from global database.
