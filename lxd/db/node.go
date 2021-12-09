@@ -872,7 +872,9 @@ func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 }
 
 func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
-	return heartbeat.Before(time.Now().Add(-threshold))
+	offlineTime := time.Now().Add(-threshold)
+
+	return heartbeat.Before(offlineTime) || heartbeat.Equal(offlineTime)
 }
 
 // DefaultOfflineThreshold is the default value for the
