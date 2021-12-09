@@ -303,7 +303,7 @@ func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, str
 	// Local unix socket queries.
 	if r.RemoteAddr == "@" {
 		if w != nil {
-			cred, err := ucred.GetCredFromWriter(w)
+			cred, err := ucred.GetCredFromContext(r.Context())
 			if err != nil {
 				return false, "", "", err
 			}
