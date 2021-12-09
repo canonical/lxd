@@ -48,7 +48,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// If this request is an internal one initiated by another node wanting
 	// to watch the events on this node, set the listener to broadcast only
 	// local events.
-	listener, err := d.events.AddListener("default", c, strings.Split(typeStr, ","), "lxd-agent", false)
+	listener, err := d.events.AddListener("default", false, c, strings.Split(typeStr, ","), "lxd-agent", false)
 	if err != nil {
 		return err
 	}
