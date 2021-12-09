@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -14,7 +15,37 @@ import (
 )
 
 var listeners = map[string]*lxd.EventListener{}
+var listenersNotify = map[string]chan struct{}{}
 var listenersLock sync.Mutex
+
+// EventListenerWait waits for there to be listener connected to the specified address.
+func EventListenerWait(ctx context.Context, address string) (*lxd.EventListener, error) {
+	// Check if there is already a listener.
+	listenersLock.Lock()
+	listener, found := listeners[address]
+	if found && listener.IsActive() {
+		listenersLock.Unlock()
+		return listener, nil
+	}
+
+	// If not then create a notify channel if doesn't exist already.
+	listenerNotify, found := listenersNotify[address]
+	if !found {
+		listenerNotify = make(chan struct{})
+		listenersNotify[address] = listenerNotify
+	}
+	listenersLock.Unlock()
+
+	// Wait for the notify channel to be closed (indicating a new listener has been connected), and return it.
+	select {
+	case <-listenerNotify:
+		listenersLock.Lock()
+		defer listenersLock.Unlock()
+		return listeners[address], nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
 
 // EventsUpdateListeners refreshes the cluster event listener connections.
 func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
@@ -77,6 +108,8 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 				continue
 			}
 
+			// Disconnect and delete listener, but don't delete any listenersNotify entry as there
+			// might be something waiting for a future connection.
 			listener.Disconnect()
 			delete(listeners, member.Address)
 			logger.Info("Removed inactive member event listener", log.Ctx{"local": networkAddress, "remote": member.Address})
@@ -99,6 +132,14 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 			listenersLock.Lock()
 			listeners[m.Address] = listener
+
+			// If there is something waiting to be notify, then notify them and delete the notifier.
+			listenerNotify, found := listenersNotify[m.Address]
+			if found {
+				close(listenerNotify)
+				delete(listenersNotify, m.Address)
+			}
+
 			logger.Info("Added member event listener", log.Ctx{"local": networkAddress, "remote": m.Address})
 			listenersLock.Unlock()
 		}(member)
@@ -106,12 +147,13 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 	wg.Wait()
 
-	// Disconnect and delete any out of date listeners.
+	// Disconnect and delete any out of date listeners and their notifiers.
 	listenersLock.Lock()
 	for address, listener := range listeners {
 		if _, found := keepListeners[address]; !found {
 			listener.Disconnect()
 			delete(listeners, address)
+			delete(listenersNotify, address)
 			logger.Info("Removed old member event listener", log.Ctx{"local": networkAddress, "remote": address})
 		}
 	}
