@@ -82,61 +82,64 @@ func eventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		}
 	}
 
-	address := endpoints.NetworkAddress()
+	networkAddress := endpoints.NetworkAddress()
 
-	addresses := make([]string, len(members))
-	for i, member := range members {
-		addresses[i] = member.Address
-
-		if member.Address == address {
+	keepListeners := make(map[string]struct{})
+	wg := sync.WaitGroup{}
+	for _, member := range members {
+		// Don't bother trying to connect to ourselves or offline members.
+		if member.Address == networkAddress || !member.Online {
 			continue
 		}
 
 		listenersLock.Lock()
 		listener, ok := listeners[member.Address]
 
-		// Don't bother trying to connect to offline nodes, or to ourselves.
-		if !member.Online {
-			if ok {
-				listener.Disconnect()
-			}
-
-			listenersLock.Unlock()
-			continue
-		}
-
-		// The node has already a listener associated to it.
+		// If the member already has a listener associated to it, check that the listener is still active.
+		// If it is, just move on to next member, but if not then we'll try to connect again.
 		if ok {
-			// Double check that the listener is still
-			// connected. If it is, just move on, other
-			// we'll try to connect again.
 			if listeners[member.Address].IsActive() {
+				keepListeners[member.Address] = struct{}{} // Add to current listeners list.
 				listenersLock.Unlock()
 				continue
 			}
 
+			listener.Disconnect()
 			delete(listeners, member.Address)
+			logger.Info("Removed inactive member event listener", log.Ctx{"local": networkAddress, "remote": member.Address})
 		}
 		listenersLock.Unlock()
 
-		listener, err := eventsConnect(member.Address, endpoints.NetworkCert(), serverCert())
-		if err != nil {
-			logger.Warn("Failed to get events from member", log.Ctx{"address": member.Address, "err": err})
-			continue
-		}
-		logger.Debug("Listening for events on member", log.Ctx{"address": member.Address})
-		listener.AddHandler(nil, func(event api.Event) { f(member.ID, event) })
+		keepListeners[member.Address] = struct{}{} // Add to current listeners list.
 
-		listenersLock.Lock()
-		listeners[member.Address] = listener
-		listenersLock.Unlock()
+		// Connect to remote concurrently and add to active listeners if successful.
+		wg.Add(1)
+		go func(m APIHeartbeatMember) {
+			defer wg.Done()
+			listener, err := eventsConnect(m.Address, endpoints.NetworkCert(), serverCert())
+			if err != nil {
+				logger.Warn("Failed adding member event listener", log.Ctx{"local": networkAddress, "remote": m.Address, "err": err})
+				return
+			}
+
+			listener.AddHandler(nil, func(event api.Event) { f(m.ID, event) })
+
+			listenersLock.Lock()
+			listeners[m.Address] = listener
+			logger.Info("Added member event listener", log.Ctx{"local": networkAddress, "remote": m.Address})
+			listenersLock.Unlock()
+		}(member)
 	}
 
+	wg.Wait()
+
+	// Disconnect and delete any out of date listeners.
 	listenersLock.Lock()
 	for address, listener := range listeners {
-		if !shared.StringInSlice(address, addresses) {
+		if _, found := keepListeners[address]; !found {
 			listener.Disconnect()
 			delete(listeners, address)
+			logger.Info("Removed old member event listener", log.Ctx{"local": networkAddress, "remote": address})
 		}
 	}
 	listenersLock.Unlock()
