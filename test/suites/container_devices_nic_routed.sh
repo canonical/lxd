@@ -61,8 +61,21 @@ test_container_devices_nic_routed() {
     parent=${ctName} \
     ipv4.address="192.0.2.1${ipRand}" \
     ipv6.address="2001:db8::1${ipRand}" \
+    ipv4.routes="192.0.3.0/24" \
+    ipv6.routes="2001:db7::/64" \
     mtu=1600
   lxc start "${ctName}"
+
+  ctHost=$(lxc config get "${ctName}" volatile.eth0.host_name)
+  # Check profile routes are applied
+  if ! ip -4 r list dev "${ctHost}"| grep "192.0.3.0/24" ; then
+    echo "ipv4.routes invalid"
+    false
+  fi
+  if ! ip -6 r list dev "${ctHost}" | grep "2001:db7::/64" ; then
+    echo "ipv6.routes invalid"
+    false
+  fi
 
   # Check IP is assigned and doesn't have a broadcast address set.
   lxc exec "${ctName}" -- ip a | grep "inet 192.0.2.1${ipRand}/32 scope global eth0"

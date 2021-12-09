@@ -632,10 +632,12 @@ limits.ingress          | string  | -                 | no       | I/O limit in 
 limits.egress           | string  | -                 | no       | I/O limit in bit/s for outgoing traffic (various suffixes supported, see below)
 limits.max              | string  | -                 | no       | Same as modifying both limits.ingress and limits.egress
 ipv4.address            | string  | -                 | no       | Comma delimited list of IPv4 static addresses to add to the instance
+ipv4.routes             | string  | -                 | no       | Comma delimited list of IPv4 static routes to add on host to NIC (without L2 ARP/NDP proxy)
 ipv4.gateway            | string  | auto              | no       | Whether to add an automatic default IPv4 gateway, can be "auto" or "none"
 ipv4.host\_address      | string  | 169.254.0.1       | no       | The IPv4 address to add to the host-side veth interface
 ipv4.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv4 static routes to (in addition to main routing table)
 ipv6.address            | string  | -                 | no       | Comma delimited list of IPv6 static addresses to add to the instance
+ipv6.routes             | string  | -                 | no       | Comma delimited list of IPv6 static routes to add on host to NIC (without L2 ARP/NDP proxy)
 ipv6.gateway            | string  | auto              | no       | Whether to add an automatic default IPv6 gateway, can be "auto" or "none"
 ipv6.host\_address      | string  | fe80::1           | no       | The IPv6 address to add to the host-side veth interface
 ipv6.host\_table        | integer | -                 | no       | The custom policy routing table ID to add IPv6 static routes to (in addition to main routing table)
