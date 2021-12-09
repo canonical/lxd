@@ -2297,8 +2297,8 @@ test_clustering_remove_raft_node() {
       return 1
   fi
 
-  # Check node4 is still standby first, as it could be promoted at any time.
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
+  # Let the heartbeats catch up.
+  sleep 12
 
   # The node does not appear anymore in the cluster list.
   ! LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -q "node2" || false
@@ -2307,6 +2307,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node4 | grep -q "\- database$"
 
   # The second node is still in the raft_nodes table.
   LXD_DIR="${LXD_ONE_DIR}" lxd sql local "SELECT * FROM raft_nodes" | grep -q "10.1.1.102"
@@ -2315,7 +2316,7 @@ test_clustering_remove_raft_node() {
   LXD_DIR="${LXD_ONE_DIR}" lxd cluster remove-raft-node -q "10.1.1.102"
 
   # Wait for a heartbeat to propagate and a rebalance to be performed.
-  sleep 15
+  sleep 12
 
   # We're back to 3 database nodes.
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
