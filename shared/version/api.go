@@ -235,6 +235,7 @@ var APIExtensions = []string{
 	"image_source_project",
 	"database_leader",
 	"instance_all_projects",
+	"ceph_rbd_du",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

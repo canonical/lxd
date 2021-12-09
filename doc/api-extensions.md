@@ -1151,3 +1151,7 @@ Adds new "database-leader" role which is assigned to cluster leader.
 
 ## instance\_all\_projects
 This adds support for displaying instances from all projects.
+
+## ceph\_rbd\_du
+Adds a new `ceph.rbd.du` boolean on Ceph storage pools which allows
+disabling the use of the potentially slow `rbd du` calls.
