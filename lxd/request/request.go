@@ -1,6 +1,8 @@
 package request
 
 import (
+	"context"
+	"net"
 	"net/http"
 
 	"github.com/lxc/lxd/shared/api"
@@ -40,4 +42,10 @@ func CreateRequestor(r *http.Request) *api.EventLifecycleRequestor {
 		requestor.Address = val
 	}
 	return requestor
+}
+
+// SaveConnectionInContext can be set as the ConnContext field of a http.Server to set the connection
+// in the request context for later use.
+func SaveConnectionInContext(ctx context.Context, connection net.Conn) context.Context {
+	return context.WithValue(ctx, CtxConn, connection)
 }
