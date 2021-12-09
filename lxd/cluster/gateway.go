@@ -1044,12 +1044,12 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to connect to HTTP endpoint")
+		return nil, fmt.Errorf("Failed connecting to HTTP endpoint %q: %w", addr, err)
 	}
 
 	err = request.Write(conn)
 	if err != nil {
-		return nil, errors.Wrap(err, "Sending HTTP request failed")
+		return nil, fmt.Errorf("Failed sending HTTP requrest to %q: %w", request.URL, err)
 	}
 
 	response, err := http.ReadResponse(bufio.NewReader(conn), request)
