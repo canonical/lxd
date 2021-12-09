@@ -252,6 +252,7 @@ ceph.osd.force\_reuse         | bool                          | false           
 ceph.osd.pg\_num              | string                        | 32                                      | Number of placement groups for the osd storage pool
 ceph.osd.pool\_name           | string                        | name of the pool                        | Name of the osd storage pool
 ceph.rbd.clone\_copy          | string                        | true                                    | Whether to use RBD lightweight clones rather than full dataset copies
+ceph.rbd.du                   | bool                          | true                                    | Whether to use rbd du to obtain disk usage data for stopped instances.
 ceph.rbd.features             | string                        | layering                                | Comma separate list of RBD features to enable on the volumes
 ceph.user.name                | string                        | admin                                   | The ceph user to use when creating storage pools and volumes
 volatile.pool.pristine        | string                        | true                                    | Whether the pool has been empty on creation time
