@@ -72,7 +72,7 @@ gets printed matches the cluster certificate of the existing members.
 ### Per-server configuration
 As mentioned previously, LXD cluster members are generally assumed to be identical systems.
 
-However to accomodate things like slightly different disk ordering or
+However to accommodate things like slightly different disk ordering or
 network interface naming, LXD records some settings as being
 server-specific. When such settings are present in a cluster, any new
 server being added will have to provide a value for it.
