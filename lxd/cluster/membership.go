@@ -485,22 +485,24 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		}
 
 		// Networks.
-		ids, err = tx.GetNonPendingNetworkIDs()
+		netids, err := tx.GetNonPendingNetworkIDs()
 		if err != nil {
 			return errors.Wrap(err, "failed to get cluster network IDs")
 		}
-		for name, id := range ids {
-			config, ok := networks[name]
-			if !ok {
-				return fmt.Errorf("joining node has no config for network %s", name)
-			}
-			err := tx.NetworkNodeJoin(id, node.ID)
-			if err != nil {
-				return errors.Wrap(err, "failed to add joining node's to the network")
-			}
-			err = tx.CreateNetworkConfig(id, node.ID, config)
-			if err != nil {
-				return errors.Wrap(err, "failed to add joining node's network config")
+		for _, network := range netids {
+			for name, id := range network {
+				config, ok := networks[name]
+				if !ok {
+					return fmt.Errorf("joining node has no config for network %s", name)
+				}
+				err := tx.NetworkNodeJoin(id, node.ID)
+				if err != nil {
+					return errors.Wrap(err, "failed to add joining node's to the network")
+				}
+				err = tx.CreateNetworkConfig(id, node.ID, config)
+				if err != nil {
+					return errors.Wrap(err, "failed to add joining node's network config")
+				}
 			}
 		}
 
