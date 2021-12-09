@@ -792,6 +792,12 @@ func (d *ceph) GetVolumeUsage(vol Volume) (int64, error) {
 		return int64(stat.Blocks-stat.Bfree) * int64(stat.Bsize), nil
 	}
 
+	// Running rbd du can be resource intensive, so users may want to miss disk usage
+	// data for stopped instances instead of dealing with the performance hit
+	if d.config["ceph.rbd.du"] != "" && !shared.IsTrue(d.config["ceph.rbd.du"]) {
+		return -1, fmt.Errorf("Cannot get disk usage of unmounted volume when ceph.rbd.du is false")
+	}
+
 	// If not mounted (or not mountable), query the usage from ceph directly.
 	// This is rather inaccurate as there is no way to get the size of a
 	// volume without its snapshots. Instead we need to merge the size
