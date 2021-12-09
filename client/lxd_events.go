@@ -10,8 +10,8 @@ import (
 
 // Event handling functions
 
-// GetEvents connects to the LXD monitoring interface
-func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
+// getEvents connects to the LXD monitoring interface
+func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Prevent anything else from interacting with the listeners
 	r.eventListenersLock.Lock()
 	defer r.eventListenersLock.Unlock()
@@ -29,7 +29,13 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 	}
 
 	// Setup a new connection with LXD
-	url, err := r.setQueryAttributes("/events")
+	var url string
+	var err error
+	if allProjects {
+		url, err = r.setQueryAttributes("/events?all-projects=true")
+	} else {
+		url, err = r.setQueryAttributes("/events")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -121,4 +127,14 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 	}()
 
 	return &listener, nil
+}
+
+// GetEvents gets the events for the project defined on the client.
+func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
+	return r.getEvents(false)
+}
+
+// GetEventsAllProjects gets events for all projects.
+func (r *ProtocolLXD) GetEventsAllProjects() (*EventListener, error) {
+	return r.getEvents(true)
 }

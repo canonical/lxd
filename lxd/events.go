@@ -1,11 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
@@ -35,7 +37,31 @@ func (r *eventsServe) String() string {
 }
 
 func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
-	projectName := projectParam(r)
+	allProjects := shared.IsTrue(queryParam(r, "all-projects"))
+	projectQueryParam := queryParam(r, "project")
+	if allProjects && projectQueryParam != "" {
+		response.BadRequest(fmt.Errorf("Cannot specify a project when requesting events for all projects"))
+		return nil
+	}
+
+	var projectName string
+	if !allProjects {
+		if projectQueryParam == "" {
+			projectName = project.Default
+		} else {
+			projectName = projectQueryParam
+
+			_, err := d.cluster.GetProject(projectName)
+			if err != nil {
+				if errors.Is(err, db.ErrNoSuchObject) {
+					response.BadRequest(fmt.Errorf("Project %q not found", projectName)).Render(w)
+				}
+
+				return err
+			}
+		}
+	}
+
 	types := strings.Split(r.FormValue("type"), ",")
 	if len(types) == 1 && types[0] == "" {
 		types = []string{}
@@ -83,7 +109,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// If this request is an internal one initiated by another node wanting
 	// to watch the events on this node, set the listener to broadcast only
 	// local events.
-	listener, err := d.events.AddListener(projectName, c, types, serverName, isClusterNotification(r))
+	listener, err := d.events.AddListener(projectName, allProjects, c, types, serverName, isClusterNotification(r))
 	if err != nil {
 		return err
 	}

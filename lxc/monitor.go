@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
@@ -93,11 +94,12 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	var listener *lxd.EventListener
 	if c.flagAllProjects {
-		d = d.UseProject("*")
+		listener, err = d.GetEventsAllProjects()
+	} else {
+		listener, err = d.GetEvents()
 	}
-
-	listener, err := d.GetEvents()
 	if err != nil {
 		return err
 	}

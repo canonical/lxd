@@ -37,12 +37,17 @@ func NewServer(debug bool, verbose bool) *Server {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(group string, connection *websocket.Conn, messageTypes []string, location string, noForward bool) (*Listener, error) {
+func (s *Server) AddListener(group string, allGroups bool, connection *websocket.Conn, messageTypes []string, location string, noForward bool) (*Listener, error) {
+	if allGroups && group != "" {
+		return nil, fmt.Errorf("Cannot specify both group when listening for events on all groups")
+	}
+
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
 	listener := &Listener{
 		Conn: connection,
 
+		allGroups:    allGroups,
 		group:        group,
 		messageTypes: messageTypes,
 		location:     location,
@@ -115,7 +120,7 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 	s.lock.Lock()
 	listeners := s.listeners
 	for _, listener := range listeners {
-		if group != "" && listener.group != "*" && group != listener.group {
+		if group != "" && !listener.allGroups && group != listener.group {
 			continue
 		}
 
@@ -171,6 +176,7 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 type Listener struct {
 	*websocket.Conn
 
+	allGroups    bool
 	group        string
 	messageTypes []string
 	ctx          context.Context
