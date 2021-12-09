@@ -124,6 +124,10 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 				return errors.Wrapf(err, "Invalid network ipv4.address")
 			}
 
+			if d.config["ipv4.address"] == "none" && !shared.IsTrue(d.config["security.ipv4_filtering"]) {
+				return fmt.Errorf("Cannot have ipv4.address as none unless using security.ipv4_filtering")
+			}
+
 			// IP should not be the same as the parent managed network address.
 			if ip.Equal(net.ParseIP(d.config["ipv4.address"])) {
 				return fmt.Errorf("IP address %q is assigned to parent managed network device %q", d.config["ipv4.address"], d.config["parent"])
@@ -153,6 +157,10 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			ip, _, err := net.ParseCIDR(parentAddress)
 			if err != nil {
 				return errors.Wrapf(err, "Invalid network ipv6.address")
+			}
+
+			if d.config["ipv6.address"] == "none" && !shared.IsTrue(d.config["security.ipv6_filtering"]) {
+				return fmt.Errorf("Cannot have ipv6.address as none unless using security.ipv6_filtering")
 			}
 
 			// IP should not be the same as the parent managed network address.
@@ -400,6 +408,23 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		return nil
+	}
+
+	// Add bridge specific ipv4/ipv6 validation rules
+	rules["ipv4.address"] = func(value string) error {
+		if value == "" || value == "none" {
+			return nil
+		}
+
+		return validate.IsNetworkAddressV4(value)
+	}
+
+	rules["ipv6.address"] = func(value string) error {
+		if value == "" || value == "none" {
+			return nil
+		}
+
+		return validate.IsNetworkAddressV6(value)
 	}
 
 	// Now run normal validation.
@@ -821,6 +846,15 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	netConfig := dbInfo.Config
 	ipv4Address := d.config["ipv4.address"]
 	ipv6Address := d.config["ipv6.address"]
+
+	// If address is set to none treat it the same as not being specified
+	if ipv4Address == "none" {
+		ipv4Address = ""
+	}
+
+	if ipv6Address == "none" {
+		ipv6Address = ""
+	}
 
 	// If IP filtering is enabled, and no static IP in config, check if there is already a
 	// dynamically assigned static IP in dnsmasq config and write that back out in new config.
