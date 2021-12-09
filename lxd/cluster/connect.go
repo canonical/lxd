@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/pem"
@@ -36,21 +37,10 @@ var ErrCertificateExists error = fmt.Errorf("Certificate already in trust store"
 func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, notify bool) (lxd.InstanceServer, error) {
 	// Wait for a connection to the events API first for non-notify connections.
 	if !notify {
-		connected := false
-		for i := 0; i < 20; i++ {
-			listenersLock.Lock()
-			_, ok := listeners[address]
-			listenersLock.Unlock()
-
-			if ok {
-				connected = true
-				break
-			}
-
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		if !connected {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
+		defer cancel()
+		_, err := EventListenerWait(ctx, address)
+		if err != nil {
 			return nil, fmt.Errorf("Missing event connection with target cluster member")
 		}
 	}
