@@ -58,7 +58,7 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 
 	}
 
-	stmt, err := c.tx.Prepare("SELECT networks.id, networks.name, projects.name FROM networks JOIN projects on projects.id = networks.project_id WHERE NOT networks.state=?")
+	stmt, err := c.tx.Prepare("SELECT networks.id, networks.name, 'default' FROM networks WHERE NOT networks.state=?")
 	if err != nil {
 		return nil, err
 	}
