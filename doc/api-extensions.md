@@ -1540,3 +1540,7 @@ This introduces the following new endpoints:
 ## ceph\_rbd\_du
 Adds a new `ceph.rbd.du` boolean on Ceph storage pools which allows
 disabling the use of the potentially slow `rbd du` calls.
+
+##instance\_get\_full
+This introduces a new recursion=1 mode for `GET /1.0/instances/{name}` which allows for the retrieval of
+all instance structs, including the state, snapshots and backup structs.
