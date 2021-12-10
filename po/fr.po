@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-12-10 14:20-0500\n"
+"POT-Creation-Date: 2021-12-10 14:57-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1199,7 +1199,7 @@ msgstr "Copie de l'image : %s"
 #: lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153
 #: lxc/image_alias.go:255 lxc/import.go:28 lxc/info.go:34 lxc/init.go:41
 #: lxc/launch.go:25 lxc/list.go:46 lxc/main.go:80 lxc/manpage.go:22
-#: lxc/monitor.go:32 lxc/move.go:36 lxc/network.go:32 lxc/network.go:111
+#: lxc/monitor.go:33 lxc/move.go:36 lxc/network.go:32 lxc/network.go:111
 #: lxc/network.go:196 lxc/network.go:269 lxc/network.go:341 lxc/network.go:391
 #: lxc/network.go:476 lxc/network.go:561 lxc/network.go:684 lxc/network.go:742
 #: lxc/network.go:822 lxc/network.go:907 lxc/network.go:976 lxc/network.go:1026
@@ -1455,7 +1455,7 @@ msgstr "Conteneur éphémère"
 msgid "Error updating template file: %s"
 msgstr "Erreur de mise à jour du modèle de fichier : %s"
 
-#: lxc/monitor.go:50
+#: lxc/monitor.go:51
 msgid "Event type to listen for"
 msgstr "Type d'évènements à surveiller"
 
@@ -1631,7 +1631,7 @@ msgstr ""
 msgid "Format (csv|json|table|yaml)"
 msgstr ""
 
-#: lxc/monitor.go:52
+#: lxc/monitor.go:53
 msgid "Format (json|pretty|yaml)"
 msgstr ""
 
@@ -1895,7 +1895,7 @@ msgstr ""
 msgid "Invalid format %q"
 msgstr "Cible invalide %s"
 
-#: lxc/monitor.go:70
+#: lxc/monitor.go:71
 #, fuzzy, c-format
 msgid "Invalid format: %s"
 msgstr "Cible invalide %s"
@@ -2467,7 +2467,7 @@ msgstr "Échec lors de la migration vers l'hôte source: %s"
 msgid "Migration operation failure"
 msgstr ""
 
-#: lxc/monitor.go:51
+#: lxc/monitor.go:52
 msgid "Minimum level for log messages"
 msgstr ""
 
@@ -2548,11 +2548,11 @@ msgstr "Publié : %s"
 msgid "Model: %v"
 msgstr ""
 
-#: lxc/monitor.go:31
+#: lxc/monitor.go:32
 msgid "Monitor a local or remote LXD server"
 msgstr ""
 
-#: lxc/monitor.go:32
+#: lxc/monitor.go:33
 msgid ""
 "Monitor a local or remote LXD server\n"
 "\n"
@@ -2843,7 +2843,7 @@ msgstr ""
 msgid "Press enter to open the editor again or ctrl+c to abort change"
 msgstr "Appuyer sur Entrée pour ouvrir à nouveau l'éditeur"
 
-#: lxc/monitor.go:48
+#: lxc/monitor.go:49
 msgid "Pretty rendering (short for --format=pretty)"
 msgstr ""
 
@@ -3442,7 +3442,7 @@ msgstr ""
 msgid "Show details on a background operation"
 msgstr ""
 
-#: lxc/monitor.go:49
+#: lxc/monitor.go:50
 msgid "Show events from all projects"
 msgstr ""
 
@@ -4090,7 +4090,7 @@ msgstr ""
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/cluster.go:90 lxc/cluster.go:651 lxc/config_trust.go:131
-#: lxc/monitor.go:30 lxc/network.go:819 lxc/operation.go:102 lxc/profile.go:577
+#: lxc/monitor.go:31 lxc/network.go:819 lxc/operation.go:102 lxc/profile.go:577
 #: lxc/project.go:384 lxc/storage.go:513 lxc/version.go:20
 #, fuzzy
 msgid "[<remote>:]"
@@ -5066,7 +5066,7 @@ msgid ""
 "  List instances with their running state and user comment."
 msgstr ""
 
-#: lxc/monitor.go:36
+#: lxc/monitor.go:37
 msgid ""
 "lxc monitor --type=logging\n"
 "    Only show log messages.\n"
