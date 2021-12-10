@@ -891,7 +891,7 @@ mdev        | string    | -                 | yes       | The mdev profile to us
 
 ##### gpu: mig
 
-Supported instance types: container
+Supported instance types: container, VM
 
 Creates and passes through a MIG compute instance. This currently requires NVIDIA MIG instances to be pre-created.
 
