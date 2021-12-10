@@ -208,6 +208,20 @@ definitions:
     x-go-package: github.com/lxc/lxd/shared/api
   ClusterGroupsPost:
     properties:
+      description:
+        description: The description of the cluster group
+        example: amd64 servers
+        type: string
+        x-go-name: Description
+      members:
+        description: List of members in this group
+        example:
+        - node1
+        - node3
+        items:
+          type: string
+        type: array
+        x-go-name: Members
       name:
         description: The new name of the cluster group
         example: group1
