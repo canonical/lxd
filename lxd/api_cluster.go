@@ -1495,6 +1495,12 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		return response.BadRequest(fmt.Errorf("Cluster members need to belong to at least one group"))
 	}
 
+	// Convert the roles.
+	newRoles := make([]db.ClusterRole, 0, len(req.Roles))
+	for _, role := range req.Roles {
+		newRoles = append(newRoles, db.ClusterRole(role))
+	}
+
 	// Update the database
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodeInfo, err := tx.GetNodeByName(name)
@@ -1535,12 +1541,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		}
 
 		// Update the roles.
-		dbRoles := []db.ClusterRole{}
-		for _, role := range req.Roles {
-			dbRoles = append(dbRoles, db.ClusterRole(role))
-		}
-
-		err = tx.UpdateNodeRoles(nodeInfo.ID, dbRoles)
+		err = tx.UpdateNodeRoles(nodeInfo.ID, newRoles)
 		if err != nil {
 			return errors.Wrap(err, "Update roles")
 		}
@@ -1561,10 +1562,44 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		return response.SmartError(err)
 	}
 
+	// If cluster roles changed, then distribute the info to all members.
+	if state.Endpoints != nil && clusterRolesChanged(node.Roles, newRoles) {
+		cluster.NotifyHeartbeat(state, d.gateway)
+	}
+
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberUpdated.Event(name, requestor, nil))
 
 	return response.EmptySyncResponse
+}
+
+// clusterRolesChanged checks whether the non-internal roles have changed between oldRoles and newRoles.
+func clusterRolesChanged(oldRoles []db.ClusterRole, newRoles []db.ClusterRole) bool {
+	// Build list of external-only roles from the newRoles list (excludes internal roles added by raft).
+	newExternalRoles := make([]db.ClusterRole, 0, len(newRoles))
+	for _, r := range newRoles {
+		// Check list of known external roles.
+		for _, externalRole := range db.ClusterRoles {
+			if r == externalRole {
+				newExternalRoles = append(newExternalRoles, r) // Found external role.
+				break
+			}
+		}
+	}
+
+	for _, r := range oldRoles {
+		if !cluster.RoleInSlice(r, newExternalRoles) {
+			return true
+		}
+	}
+
+	for _, r := range newExternalRoles {
+		if !cluster.RoleInSlice(r, oldRoles) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // clusterValidateConfig validates the configuration keys/values for cluster members.
