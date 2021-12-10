@@ -1,73 +1,81 @@
+/** Fix the font weight (300 for normal, 400 for slightly bold) **/
 
-/** Fix for issue #28 **/
-footer {
-    color: #666
+div.page, h1, h2, h3, h4, h5, h6, .sidebar-tree .current-page>.reference, button, input, optgroup, select, textarea, th.head {
+    font-weight: 300
 }
 
-footer::before {
-    border-top: 1px #ebebeb solid;
-    content: "";
-    display: inherit;
-    padding-bottom: 10px;
+.toc-tree li.scroll-current>.reference, dl.glossary dt, dl.simple dt, dl:not([class]) dt {
+    font-weight: 400;
 }
 
-/** Fix for issue #26 **/
+/** Table styling **/
 
-td p:first-child, th p:first-child {
-    padding-top: 0
+th.head {
+    text-transform: uppercase;
+    font-size: var(--font-size--small);
 }
 
-td p:last-child, th p:last-child {
-    margin-bottom: 0
+table.docutils {
+    border: 0;
+    box-shadow: none;
+    width:100%;
 }
 
-/** Fix for issue #24 **/
-.caption[role="heading"] {
-    font-size: 2rem;
-    line-height: 2.5rem;
-    font-weight: 100;
+table.docutils td, table.docutils th, table.docutils td:last-child, table.docutils th:last-child, table.docutils td:first-child, table.docutils th:first-child {
+    border-right: none;
+    border-left: none;
+}
+
+/** No rounded corners **/
+
+.admonition, code.literal, .sphinx-tabs-tab, .sphinx-tabs-panel, .highlight {
+    border-radius: 0;
+}
+
+/** Admonition styling **/
+
+.admonition {
+    border-top: 1px solid #d9d9d9;
+    border-right: 1px solid #d9d9d9;
+    border-bottom: 1px solid #d9d9d9;
+}
+
+/** Color for the "copy link" symbol next to headings **/
+
+a.headerlink {
+    color: var(--color-brand-primary);
+}
+
+/** Line to the left of the current navigation entry **/
+
+.sidebar-tree li.current-page {
+    border-left: 2px solid var(--color-brand-primary);
 }
 
 /** Some tweaks for issue #16 **/
 
 [role="tablist"] {
-    border-bottom: 1px solid #d9d9d9;
+    border-bottom: 1px solid var(--color-sidebar-item-background--hover);
 }
 
 .sphinx-tabs-tab[aria-selected="true"] {
     border: 0;
-    border-bottom: 2px solid #111;
-    background-color: #ebebeb;
+    border-bottom: 2px solid var(--color-brand-primary);
+    background-color: var(--color-sidebar-item-background--current);
     font-weight:300;
 }
 
 .sphinx-tabs-tab{
-    color: #111;
+    color: var(--color-brand-primary);
     font-weight:300;
-    border-radius: 0;
 }
 
 .sphinx-tabs-panel {
     border: 0;
-    border-bottom: 1px solid #d9d9d9;
-    border-radius: 0;
+    border-bottom: 1px solid var(--color-sidebar-item-background--hover);
+    background: var(--color-background-primary);
 }
 
 button.sphinx-tabs-tab:hover {
-    background-color: #f7f7f7;
-}
-
-/** Fix for issue #14 **/
-
-ol.lowerroman li {
-    list-style: lower-roman;
-}
-ol.upperroman li {
-    list-style: upper-roman;
-}
-ol.loweralpha li {
-    list-style: lower-alpha;
-}
-ol.upperalpha li {
-    list-style: upper-alpha;
+    background-color: var(--color-sidebar-item-background--hover);
 }

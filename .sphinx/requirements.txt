@@ -30,3 +30,4 @@ myst-parser
 sphinx-tabs
 sphinx-reredirects
 linkify-it-py
+furo
