@@ -5737,6 +5737,14 @@ func (d *qemu) Info() instance.Info {
 }
 
 func (d *qemu) Metrics() (*metrics.MetricSet, error) {
+	if d.agentMetricsEnabled() {
+		return d.getAgentMetrics()
+	}
+
+	return d.getQemuMetrics()
+}
+
+func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 	client, err := d.getAgentClient()
 	if err != nil {
 		return nil, err
