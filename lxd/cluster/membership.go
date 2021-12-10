@@ -540,14 +540,14 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return errors.Wrapf(err, "Failed to unmark the node as pending")
 		}
 
-		// Generate partial heartbeat request containing just a raft node list.
-		notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
-
 		return nil
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cluster database initialization failed")
 	}
+
+	// Generate partial heartbeat request containing just a raft node list.
+	notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
 
 	return nil
 }
