@@ -34,7 +34,7 @@ MacOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | brew i
 
 More instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
 
-To install LXD from source, see [Installing LXD](installing.md) in the documentation.
+To [install LXD from source](doc/installing.md#installing-lxd-from-source), see [Installing LXD](doc/installing.md#installing-lxd-from-source) in the documentation.
 
 ## Security
 LXD, similar to other container and VM managers provides a UNIX socket for local communication.
