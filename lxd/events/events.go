@@ -61,7 +61,7 @@ func (s *Server) AddListener(group string, allGroups bool, connection *websocket
 	defer s.lock.Unlock()
 
 	if s.listeners[listener.id] != nil {
-		return nil, fmt.Errorf("A listener with id '%s' already exists", listener.id)
+		return nil, fmt.Errorf("A listener with ID %q already exists", listener.id)
 	}
 
 	s.listeners[listener.id] = listener
@@ -112,7 +112,7 @@ func (s *Server) Forward(id int64, event api.Event) {
 
 	err := s.broadcast("", event, true)
 	if err != nil {
-		logger.Warnf("Failed to forward event from node %d: %v", id, err)
+		logger.Warnf("Failed to forward event from member %d: %v", id, err)
 	}
 }
 
