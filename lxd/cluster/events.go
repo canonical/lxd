@@ -35,6 +35,8 @@ const EventModeHubServer EventMode = "hub-server"
 // client, meaning that it is expected to connect to the event-hub members.
 const EventModeHubClient EventMode = "hub-client"
 
+var eventMode EventMode = EventModeFullMesh
+var eventHubAddresses []string
 var listeners = map[string]*lxd.EventListener{}
 var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
@@ -92,6 +94,36 @@ func EventListenerWait(ctx context.Context, address string) error {
 	}
 }
 
+// hubAddresses returns the addresses of members with event-hub role, and the event mode of the server.
+// The event mode will only be hub-server or hub-client if at least eventHubMinHosts have an event-hub role.
+// Otherwise the mode will be full-mesh.
+func hubAddresses(localAddress string, members map[int64]APIHeartbeatMember) ([]string, EventMode) {
+	var hubAddresses []string
+	var localHasHubRole bool
+
+	// Do a first pass of members to count the members with event-hub role, and whether we are a hub server.
+	for _, member := range members {
+		if RoleInSlice(db.ClusterRoleEventHub, member.Roles) {
+			hubAddresses = append(hubAddresses, member.Address)
+
+			if member.Address == localAddress {
+				localHasHubRole = true
+			}
+		}
+	}
+
+	eventMode := EventModeFullMesh
+	if len(hubAddresses) >= eventHubMinHosts {
+		if localHasHubRole {
+			eventMode = EventModeHubServer
+		} else {
+			eventMode = EventModeHubClient
+		}
+	}
+
+	return hubAddresses, eventMode
+}
+
 // EventsUpdateListeners refreshes the cluster event listener connections.
 func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
 	listenersUpdateLock.Lock()
@@ -136,6 +168,13 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 	}
 
 	networkAddress := endpoints.NetworkAddress()
+	hubAddresses, localEventMode := hubAddresses(networkAddress, members)
+
+	// Store event hub addresses in global slice.
+	listenersLock.Lock()
+	eventHubAddresses = hubAddresses
+	eventMode = localEventMode
+	listenersLock.Unlock()
 
 	keepListeners := make(map[string]struct{})
 	wg := sync.WaitGroup{}
@@ -143,6 +182,10 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		// Don't bother trying to connect to ourselves or offline members.
 		if member.Address == networkAddress || !member.Online {
 			continue
+		}
+
+		if localEventMode != EventModeFullMesh && !RoleInSlice(db.ClusterRoleEventHub, member.Roles) {
+			continue // Skip non-event-hub members if we are operating in event-hub mode.
 		}
 
 		listenersLock.Lock()
