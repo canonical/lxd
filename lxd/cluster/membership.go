@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/canonical/go-dqlite/app"
@@ -540,9 +539,6 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return errors.Wrapf(err, "Failed to unmark the node as pending")
 		}
 
-		// Generate partial heartbeat request containing just a raft node list.
-		notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
-
 		return nil
 	})
 	if err != nil {
@@ -550,39 +546,6 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	}
 
 	return nil
-}
-
-// Attempt to send a heartbeat to all other nodes to notify them of a new or changed member.
-func notifyNodesUpdate(raftNodes []db.RaftNode, info *db.RaftNode, networkCert *shared.CertInfo, serverCert *shared.CertInfo) {
-	// Generate partial heartbeat request containing just a raft node list.
-	hbState := &APIHeartbeat{}
-	hbState.Time = time.Now().UTC()
-
-	nodes := make([]db.NodeInfo, len(raftNodes))
-	for i, raftNode := range raftNodes {
-		nodes[i].ID = int64(raftNode.ID)
-		nodes[i].Address = raftNode.Address
-	}
-
-	hbState.Update(false, raftNodes, nodes, 0)
-
-	// Notify all other members of the change in membership.
-	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"address": info.Address})
-	var wg sync.WaitGroup
-	for _, node := range raftNodes {
-		if node.ID == info.ID {
-			continue
-		}
-
-		wg.Add(1)
-		go func(address string) {
-			HeartbeatNode(context.Background(), address, networkCert, serverCert, hbState)
-			wg.Done()
-		}(node.Address)
-	}
-
-	// Wait until all members have been notified (or at least have had a change to be notified).
-	wg.Wait()
 }
 
 // Rebalance the raft cluster, trying to see if we have a spare online node
@@ -807,9 +770,6 @@ assign:
 	if err != nil {
 		return errors.Wrap(err, "Cluster database initialization failed")
 	}
-
-	// Generate partial heartbeat request containing just a raft node list.
-	notifyNodesUpdate(nodes, info, gateway.networkCert, gateway.serverCert())
 
 	return nil
 }

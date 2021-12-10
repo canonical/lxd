@@ -240,10 +240,10 @@ func (g *Gateway) heartbeatInterval() time.Duration {
 	return threshold / 2
 }
 
-// heartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
+// HeartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
 // If there is no ongoing heartbeat then this is a no-op.
 // Returns true if new heartbeat round was started.
-func (g *Gateway) heartbeatRestart() bool {
+func (g *Gateway) HeartbeatRestart(forceStart bool) bool {
 	g.heartbeatCancelLock.Lock() // Make sure we're the only ones inspecting the g.heartbeatCancel var.
 
 	// There is a cancellable heartbeat round ongoing.
@@ -253,6 +253,13 @@ func (g *Gateway) heartbeatRestart() bool {
 		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
 
 		// Start a new heartbeat round async that will run as soon as ongoing heartbeat round exits.
+		go g.heartbeat(g.ctx, hearbeatImmediate)
+
+		return true
+	} else if forceStart {
+		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
+
+		// Start a new heartbeat round async.
 		go g.heartbeat(g.ctx, hearbeatImmediate)
 
 		return true

@@ -722,8 +722,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Add the cluster flag from the agent
 		version.UserAgentFeatures([]string{"cluster"})
 
-		// Notify the leader of successful join, possibly triggering
-		// role changes.
+		// Notify the leader of successful join, possibly triggering role changes.
 		_, _, err = client.RawQuery("POST", "/internal/cluster/rebalance", nil, "")
 		if err != nil {
 			logger.Warnf("Failed to trigger cluster rebalance: %v", err)
@@ -2123,9 +2122,8 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		return response.SmartError(err)
 	}
 
-	// Refresh event listeners from global database members.
-	// Run asynchronously so that connecting to remote members doesn't delay rebalance notification.
-	go cluster.EventsUpdateListeners(d.endpoints, d.cluster, d.serverCert, nil, d.events.Forward)
+	// Run immediate heartbeat asynchronously so that connecting to remote members doesn't delay request.
+	d.gateway.HeartbeatRestart(true)
 
 	return response.SyncResponse(true, nil)
 }
