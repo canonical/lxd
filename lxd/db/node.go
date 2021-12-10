@@ -653,54 +653,6 @@ func (c *ClusterTx) UpdateNodeConfig(id int64, config map[string]string) error {
 	return nil
 }
 
-// CreateNodeRole adds a role to the node.
-func (c *ClusterTx) CreateNodeRole(id int64, role ClusterRole) error {
-	// Translate role names to ids
-	roleID := -1
-	for k, v := range ClusterRoles {
-		if v == role {
-			roleID = k
-			break
-		}
-	}
-
-	if roleID < 0 {
-		return fmt.Errorf("Invalid role: %v", role)
-	}
-
-	// Update the database record
-	_, err := c.tx.Exec("INSERT INTO nodes_roles (node_id, role) VALUES (?, ?)", id, roleID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// RemoveNodeRole removes a role from the node.
-func (c *ClusterTx) RemoveNodeRole(id int64, role ClusterRole) error {
-	// Translate role names to ids
-	roleID := -1
-	for k, v := range ClusterRoles {
-		if v == role {
-			roleID = k
-			break
-		}
-	}
-
-	if roleID < 0 {
-		return fmt.Errorf("Invalid role: %v", role)
-	}
-
-	// Update the database record
-	_, err := c.tx.Exec("DELETE FROM nodes_roles WHERE node_id=? AND role=?", id, roleID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // UpdateNodeRoles changes the list of roles on a member.
 func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	getRoleID := func(role ClusterRole) (int, error) {
