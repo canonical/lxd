@@ -146,7 +146,7 @@ type Instance interface {
 	StoragePool() (string, error)
 
 	// Migration.
-	CanMigrate() bool
+	CanMigrate() (bool, bool)
 	Migrate(args *CriuMigrationArgs) error
 
 	// Progress reporting.

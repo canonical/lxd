@@ -2642,9 +2642,12 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 		metadata := make(map[string]interface{})
 
 		for _, inst := range instances {
+			// Check if migratable.
+			migrate, live := inst.CanMigrate()
+
 			// Stop the instance if needed.
 			isRunning := inst.IsRunning()
-			if isRunning {
+			if isRunning && !(migrate && live) {
 				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
 				op.UpdateMetadata(metadata)
 
@@ -2670,7 +2673,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// If not migratable, the instance is just stopped.
-			if !inst.CanMigrate() {
+			if !migrate {
 				continue
 			}
 
@@ -2711,6 +2714,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Migrate the instance.
 			req := api.InstancePost{
 				Name: inst.Name(),
+				Live: live,
 			}
 
 			err = migrateInstance(d, r, inst, targetNodeName, false, req, op)
