@@ -263,7 +263,8 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	// Caller is responsible for full validation of any raw.* value.
 	"raw.qemu": validate.IsAny,
 
-	"security.secureboot": validate.Optional(validate.IsBool),
+	"security.agent.metrics": validate.Optional(validate.IsBool),
+	"security.secureboot":    validate.Optional(validate.IsBool),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
