@@ -1110,12 +1110,12 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get offline threshold")
+		return "", errors.Wrap(err, "Failed to get offline threshold")
 	}
 
 	nodes, err := c.GetNodes()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get current nodes")
+		return "", errors.Wrap(err, "Failed to get current cluster members")
 	}
 
 	name := ""
@@ -1191,6 +1191,7 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 			}
 		}
 	}
+
 	return name, nil
 }
 
