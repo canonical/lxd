@@ -317,6 +317,12 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Failed adding host gateway IP %q: %w", addr.Address, err)
 			}
+
+			// Enable IP forwarding on host_name.
+			err = util.SysctlSet(fmt.Sprintf("net/%s/conf/%s/forwarding", keyPrefix, saveData["host_name"]), "1")
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Perform per-address host-side configuration (static routes and neighbour proxy entries).
