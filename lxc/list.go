@@ -139,6 +139,7 @@ lxc list -c ns,user.comment:comment
 }
 
 const defaultColumns = "ns46tSL"
+const defaultColumnsAllProjects = "ens46tSL"
 const configColumnType = "config"
 const deviceColumnType = "devices"
 
@@ -522,20 +523,24 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		'u': {i18n.G("CPU USAGE"), c.cpuUsageSecondsColumnData, true, false},
 	}
 
-	if c.flagFast {
-		if c.flagColumns != defaultColumns {
-			// --columns was specified too
-			return nil, false, fmt.Errorf(i18n.G("Can't specify --fast with --columns"))
-		}
-
-		c.flagColumns = "nsacPt"
-	}
-
 	// Add project column if --all-projects flag specified and
 	// no one of --fast or --c was passed
 	if c.flagAllProjects {
 		if c.flagColumns == defaultColumns {
-			c.flagColumns = "e" + c.flagColumns
+			c.flagColumns = defaultColumnsAllProjects
+		}
+	}
+
+	if c.flagFast {
+		if c.flagColumns != defaultColumns && c.flagColumns != defaultColumnsAllProjects {
+			// --columns was specified too
+			return nil, false, fmt.Errorf(i18n.G("Can't specify --fast with --columns"))
+		}
+
+		if c.flagColumns == defaultColumnsAllProjects {
+			c.flagColumns = "ensacPt"
+		} else {
+			c.flagColumns = "nsacPt"
 		}
 	}
 
@@ -543,7 +548,7 @@ func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
 		columnsShorthandMap['L'] = column{
 			i18n.G("LOCATION"), c.locationColumnData, false, false}
 	} else {
-		if c.flagColumns != defaultColumns {
+		if c.flagColumns != defaultColumns && c.flagColumns != defaultColumnsAllProjects {
 			if strings.ContainsAny(c.flagColumns, "L") {
 				return nil, false, fmt.Errorf(i18n.G("Can't specify column L when not clustered"))
 			}
