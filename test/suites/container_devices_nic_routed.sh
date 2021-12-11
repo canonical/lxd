@@ -11,7 +11,7 @@ test_container_devices_nic_routed() {
   ipRand=$(shuf -i 0-9 -n 1)
 
   # These special values are needed to be enabled in kernel.
-  sysctl net.ipv4.conf.all.forwarding=1
+  # No need to enable IPv4 forwarding, as LXD will do this on the veth host_name interface automatically.
   sysctl net.ipv6.conf.all.forwarding=1
   sysctl net.ipv6.conf.all.proxy_ndp=1
 
