@@ -2681,6 +2681,11 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 					return err
 				}
 
+				if targetNodeName == "" {
+					// No migration target found.
+					return nil
+				}
+
 				targetNode, err = tx.GetNodeByName(targetNodeName)
 				if err != nil {
 					return err
@@ -2690,6 +2695,12 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			})
 			if err != nil {
 				return err
+			}
+
+			// Skip migration if no target available.
+			if targetNodeName == "" {
+				logger.Warn("No migration target available for instance", log.Ctx{"name": inst.Name(), "project": inst.Project()})
+				continue
 			}
 
 			// Start migrating the instance.
