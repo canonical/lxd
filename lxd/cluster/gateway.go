@@ -654,7 +654,7 @@ func (g *Gateway) Reset(networkCert *shared.CertInfo) error {
 }
 
 // ErrNodeIsNotClustered indicates the node is not clustered.
-var ErrNodeIsNotClustered error = fmt.Errorf("Node is not clustered")
+var ErrNodeIsNotClustered error = fmt.Errorf("Server is not clustered")
 
 // LeaderAddress returns the address of the current raft leader.
 func (g *Gateway) LeaderAddress() (string, error) {
