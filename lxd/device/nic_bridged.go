@@ -820,11 +820,9 @@ func (d *nicBridged) Remove() error {
 		}
 
 		// Reload dnsmasq to apply new settings if dnsmasq is running.
-		if shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
-			err = dnsmasq.Kill(d.config["parent"], true)
-			if err != nil {
-				return err
-			}
+		err = dnsmasq.Kill(d.config["parent"], true)
+		if err != nil {
+			return err
 		}
 	}
 
