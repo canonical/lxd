@@ -5128,15 +5128,24 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	pid, _ := d.pid()
 
 	if d.isRunningStatusCode(statusCode) {
-		// Try and get state info from agent.
-		status, err = d.agentGetState()
-		if err != nil {
-			if err != errQemuAgentOffline {
-				d.logger.Warn("Could not get VM state from agent", log.Ctx{"err": err})
-			}
+		if d.agentMetricsEnabled() {
+			// Try and get state info from agent.
+			status, err = d.agentGetState()
+			if err != nil {
+				if err != errQemuAgentOffline {
+					d.logger.Warn("Could not get VM state from agent", log.Ctx{"err": err})
+				}
 
-			// Fallback data if agent is not reachable.
-			status = &api.InstanceState{}
+				// Fallback data if agent is not reachable.
+				status = &api.InstanceState{}
+				status.Processes = -1
+
+				status.Network, err = d.getNetworkState()
+				if err != nil {
+					return nil, err
+				}
+			}
+		} else {
 			status.Processes = -1
 
 			status.Network, err = d.getNetworkState()
