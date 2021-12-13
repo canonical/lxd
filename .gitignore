@@ -3,10 +3,18 @@ po/*.mo
 po/*.po~
 lxd-*.tar.gz
 .vagrant
-test/deps/devlxd-client
-test/macaroon-identity/macaroon-identity
 *~
 tags
+
+# Potential binaries
+fuidshift/fuidshift
+lxc/lxc
+lxc-to-lxd/lxc-to-lxd
+lxd-agent/lxd-agent
+lxd-benchmark/lxd-benchmark
+lxd-p2c/lxd-p2c
+test/deps/devlxd-client
+test/macaroon-identity/macaroon-identity
 
 # Sphinx
 doc/html/
