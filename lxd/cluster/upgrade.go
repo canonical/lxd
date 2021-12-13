@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -123,32 +124,30 @@ func triggerUpdate() error {
 	return nil
 }
 
-// UpgradeMembersWithoutRole assigns the Spare raft role to all cluster members
-// that are not currently part of the raft configuration. It's used for
-// upgrading a cluster from a version without roles support.
+// UpgradeMembersWithoutRole assigns the Spare raft role to all cluster members that are not currently part of the
+// raft configuration. It's used for upgrading a cluster from a version without roles support.
 func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	nodes, err := gateway.currentRaftNodes()
 	if err == ErrNotLeader {
 		return nil
 	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to get current raft nodes")
+		return fmt.Errorf("Failed to get current raft members: %w", err)
 	}
 
-	// Used raft IDs.
-	ids := map[uint64]bool{}
+	// Convert raft node list to map keyed on ID.
+	raftNodeIDs := map[uint64]bool{}
 	for _, node := range nodes {
-		ids[node.ID] = true
+		raftNodeIDs[node.ID] = true
 	}
 
 	dqliteClient, err := gateway.getClient()
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to local dqlite node")
+		return fmt.Errorf("Failed to connect to local dqlite member: %w", err)
 	}
 	defer dqliteClient.Close()
 
-	// Check that each member is present in the raft configuration, and add
-	// it if not.
+	// Check that each member is present in the raft configuration, and add it if not.
 	for _, member := range members {
 		found := false
 		for _, node := range nodes {
@@ -161,24 +160,24 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 			continue
 		}
 
-		// Try to use the same ID as the node, but it might not be
-		// possible if it's use.
+		// Try to use the same ID as the node, but it might not be possible if it's use.
 		id := uint64(member.ID)
-		if _, ok := ids[id]; ok {
+		if _, ok := raftNodeIDs[id]; ok {
 			for _, other := range members {
-				if _, ok := ids[uint64(other.ID)]; !ok {
-					id = uint64(other.ID)
+				if _, ok := raftNodeIDs[uint64(other.ID)]; !ok {
+					id = uint64(other.ID) // Found unused raft ID for member.
 					break
 				}
 			}
 
-			// This can't really happen since there are always at least as many members as there are
-			// nodes, and all of them have different IDs.
+			// This can't really happen (but has in the past) since there are always at least as many
+			// members as there are nodes, and all of them have different IDs.
 			if id == uint64(member.ID) {
-				panic("no available ID")
+				logger.Error("No available raft ID for cluster member", log.Ctx{"memberID": member.ID, "members": members, "raftMembers": nodes})
+				return fmt.Errorf("No available raft ID for cluster member ID %d", member.ID)
 			}
 		}
-		ids[id] = true
+		raftNodeIDs[id] = true
 
 		info := db.RaftNode{
 			NodeInfo: client.NodeInfo{
@@ -195,9 +194,8 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		defer cancel()
 		err = dqliteClient.Add(ctx, info.NodeInfo)
 		if err != nil {
-			return errors.Wrap(err, "Failed to add dqlite node")
+			return fmt.Errorf("Failed to add dqlite member: %w", err)
 		}
-
 	}
 
 	return nil
