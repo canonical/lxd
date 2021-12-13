@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/log15"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )
@@ -172,6 +173,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 			// This can't really happen (but has in the past) since there are always at least as many
 			// members as there are nodes, and all of them have different IDs.
 			if id == uint64(member.ID) {
+				logger.Error("No available raft ID for cluster member", log.Ctx{"memberID": member.ID, "members": members, "raftMembers": nodes})
 				return fmt.Errorf("No available raft ID for cluster member ID %d", member.ID)
 			}
 		}
