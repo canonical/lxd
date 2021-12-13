@@ -131,7 +131,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		return nil
 	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to get current raft nodes")
+		return fmt.Errorf("Failed to get current raft members: %w", err)
 	}
 
 	// Convert raft node list to map keyed on ID.
@@ -142,7 +142,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 
 	dqliteClient, err := gateway.getClient()
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to local dqlite node")
+		return fmt.Errorf("Failed to connect to local dqlite member: %w", err)
 	}
 	defer dqliteClient.Close()
 
@@ -192,7 +192,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		defer cancel()
 		err = dqliteClient.Add(ctx, info.NodeInfo)
 		if err != nil {
-			return errors.Wrap(err, "Failed to add dqlite node")
+			return fmt.Errorf("Failed to add dqlite member: %w", err)
 		}
 	}
 
