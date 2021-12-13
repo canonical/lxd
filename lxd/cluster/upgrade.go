@@ -134,10 +134,10 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		return errors.Wrap(err, "Failed to get current raft nodes")
 	}
 
-	// Used raft IDs.
-	ids := map[uint64]bool{}
+	// Convert raft node list to map keyed on ID.
+	raftNodeIDs := map[uint64]bool{}
 	for _, node := range nodes {
-		ids[node.ID] = true
+		raftNodeIDs[node.ID] = true
 	}
 
 	dqliteClient, err := gateway.getClient()
@@ -161,10 +161,10 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 
 		// Try to use the same ID as the node, but it might not be possible if it's use.
 		id := uint64(member.ID)
-		if _, ok := ids[id]; ok {
+		if _, ok := raftNodeIDs[id]; ok {
 			for _, other := range members {
-				if _, ok := ids[uint64(other.ID)]; !ok {
-					id = uint64(other.ID)
+				if _, ok := raftNodeIDs[uint64(other.ID)]; !ok {
+					id = uint64(other.ID) // Found unused raft ID for member.
 					break
 				}
 			}
@@ -175,7 +175,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 				return fmt.Errorf("No available raft ID for cluster member ID %d", member.ID)
 			}
 		}
-		ids[id] = true
+		raftNodeIDs[id] = true
 
 		info := db.RaftNode{
 			NodeInfo: client.NodeInfo{
