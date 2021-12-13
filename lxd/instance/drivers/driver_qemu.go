@@ -5229,35 +5229,11 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 			// Fallback data if agent is not reachable.
 			status = &api.InstanceState{}
 			status.Processes = -1
-			networks := map[string]api.InstanceStateNetwork{}
-			for k, m := range d.ExpandedDevices() {
-				if m["type"] != "nic" {
-					continue
-				}
 
-				dev, _, err := d.deviceLoad(k, m)
-				if err != nil {
-					d.logger.Warn("Could not load device", log.Ctx{"device": k, "err": err})
-					continue
-				}
-
-				// Only some NIC types support fallback state mechanisms when there is no agent.
-				nic, ok := dev.(device.NICState)
-				if !ok {
-					continue
-				}
-
-				network, err := nic.State()
-				if err != nil {
-					return nil, errors.Wrapf(err, "Failed getting NIC state for %q", k)
-				}
-
-				if network != nil {
-					networks[k] = *network
-				}
+			status.Network, err = d.getNetworkState()
+			if err != nil {
+				return nil, err
 			}
-
-			status.Network = networks
 		}
 
 		// Populate host_name for network devices.
@@ -5791,4 +5767,36 @@ func (d *qemu) Metrics() (*metrics.MetricSet, error) {
 	}
 
 	return metricSet, nil
+}
+
+func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
+	networks := map[string]api.InstanceStateNetwork{}
+	for k, m := range d.ExpandedDevices() {
+		if m["type"] != "nic" {
+			continue
+		}
+
+		dev, _, err := d.deviceLoad(k, m)
+		if err != nil {
+			d.logger.Warn("Could not load device", log.Ctx{"device": k, "err": err})
+			continue
+		}
+
+		// Only some NIC types support fallback state mechanisms when there is no agent.
+		nic, ok := dev.(device.NICState)
+		if !ok {
+			continue
+		}
+
+		network, err := nic.State()
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed getting NIC state for %q", k)
+		}
+
+		if network != nil {
+			networks[k] = *network
+		}
+	}
+
+	return networks, nil
 }
