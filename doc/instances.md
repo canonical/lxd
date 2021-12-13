@@ -83,6 +83,7 @@ security.nesting                            | boolean   | false             | ye
 security.privileged                         | boolean   | false             | no            | container                 | Runs the instance in privileged mode
 security.protection.delete                  | boolean   | false             | yes           | -                         | Prevents the instance from being deleted
 security.protection.shift                   | boolean   | false             | yes           | container                 | Prevents the instance's filesystem from being uid/gid shifted on startup
+security.agent.metrics                      | boolean   | true              | no            | virtual-machine           | Controls whether the lxd-agent is queried for state information and metrics
 security.secureboot                         | boolean   | true              | no            | virtual-machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
 security.syscalls.allow                     | string    | -                 | no            | container                 | A '\n' separated list of syscalls to allow (mutually exclusive with security.syscalls.deny\*)
 security.syscalls.deny                      | string    | -                 | no            | container                 | A '\n' separated list of syscalls to deny
