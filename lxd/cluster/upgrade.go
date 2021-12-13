@@ -123,9 +123,8 @@ func triggerUpdate() error {
 	return nil
 }
 
-// UpgradeMembersWithoutRole assigns the Spare raft role to all cluster members
-// that are not currently part of the raft configuration. It's used for
-// upgrading a cluster from a version without roles support.
+// UpgradeMembersWithoutRole assigns the Spare raft role to all cluster members that are not currently part of the
+// raft configuration. It's used for upgrading a cluster from a version without roles support.
 func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	nodes, err := gateway.currentRaftNodes()
 	if err == ErrNotLeader {
@@ -147,8 +146,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 	}
 	defer dqliteClient.Close()
 
-	// Check that each member is present in the raft configuration, and add
-	// it if not.
+	// Check that each member is present in the raft configuration, and add it if not.
 	for _, member := range members {
 		found := false
 		for _, node := range nodes {
@@ -161,8 +159,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 			continue
 		}
 
-		// Try to use the same ID as the node, but it might not be
-		// possible if it's use.
+		// Try to use the same ID as the node, but it might not be possible if it's use.
 		id := uint64(member.ID)
 		if _, ok := ids[id]; ok {
 			for _, other := range members {
@@ -172,8 +169,8 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 				}
 			}
 
-			// This can't really happen since there are always at least as many members as there are
-			// nodes, and all of them have different IDs.
+			// This can't really happen (but has in the past) since there are always at least as many
+			// members as there are nodes, and all of them have different IDs.
 			if id == uint64(member.ID) {
 				return fmt.Errorf("No available raft ID for cluster member ID %d", member.ID)
 			}
