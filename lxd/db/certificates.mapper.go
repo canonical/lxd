@@ -8,7 +8,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -110,13 +109,12 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 					return nil, err
 				}
 
-				for i, uri := range projectURIs {
-					if strings.HasPrefix(uri, "/1.0/") {
-						uri = strings.Split(uri, "/1.0/projects/")[1]
-						uri = strings.Split(uri, "?")[0]
-						projectURIs[i] = uri
-					}
+				uris, err := urlsToResourceNames("/projects", projectURIs...)
+				if err != nil {
+					return nil, err
 				}
+
+				projectURIs = uris
 				objects[i].Projects = append(objects[i].Projects, projectURIs...)
 			}
 		}

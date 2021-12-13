@@ -99,15 +99,27 @@ func (m *Method) uris(buf *file.Buffer) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	filters, ignoredFilters := FiltersFromStmt(m.packages["db"], "names", m.entity, mapping.Filters)
+	// Go type name the objects to return (e.g. api.Foo).
+	typ := entityType(m.pkg, m.entity)
 
 	if err := m.signature(buf, false); err != nil {
 		return err
 	}
 
 	defer m.end(buf)
-	buf.L("var args []interface{}")
+
+	buf.L("var err error")
+	buf.N()
+	buf.L("// Result slice.")
+	buf.L("objects := make(%s, 0)", lex.Slice(typ))
+	buf.N()
+	filters, ignoredFilters := FiltersFromStmt(m.packages["db"], "objects", m.entity, mapping.Filters)
+	buf.N()
+	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
 	buf.L("var stmt *sql.Stmt")
+	buf.L("var args []interface{}")
+	buf.N()
+
 	for i, filter := range filters {
 		branch := "if"
 		if i > 0 {
@@ -115,11 +127,16 @@ func (m *Method) uris(buf *file.Buffer) error {
 		}
 		buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 
-		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "names", filter...))
+		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects", filter...))
 		buf.L("args = []interface{}{")
 
 		for _, name := range filter {
-			buf.L("filter.%s,", name)
+			if name == "Parent" {
+				buf.L("len(filter.Parent)+1,")
+				buf.L("filter.%s+\"/\",", name)
+			} else {
+				buf.L("filter.%s,", name)
+			}
 		}
 
 		buf.L("}")
@@ -131,17 +148,32 @@ func (m *Method) uris(buf *file.Buffer) error {
 	}
 
 	buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
-	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "names"))
+	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
 	buf.L("args = []interface{}{}")
 	buf.L("} else {")
 	buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
 	buf.L("}")
 	buf.N()
-
-	buf.L("code := %s.EntityTypes[%q]", m.db, m.entity)
-	buf.L("formatter := %s.EntityFormatURIs[code]", m.db)
+	buf.L("// Dest function for scanning a row.")
+	buf.L("dest := %s", destFunc("objects", typ, mapping.ColumnFields()))
 	buf.N()
-	buf.L("return query.SelectURIs(stmt, formatter, args...)")
+	buf.L("// Select.")
+	buf.L("err = query.SelectObjects(stmt, dest, args...)")
+	m.ifErrNotNil(buf, "nil", fmt.Sprintf("fmt.Errorf(\"Failed to fetch from \\\"%s\\\" table: %%w\", err)", entityTable(m.entity)))
+	buf.L("uris := make([]string, len(objects))")
+	buf.L("for i := range objects {")
+	name := mapping.Identifier().Name
+	buf.L("uri := api.NewURL().Path(version.APIVersion, \"%s\", objects[i].%s)", lex.Plural(m.entity), name)
+	for _, field := range mapping.NaturalKey() {
+		if field.Name != name {
+			buf.L("uri.%s(objects[i].%s)", field.Name, field.Name)
+		}
+	}
+	buf.N()
+	buf.L("uris[i] = uri.String()")
+	buf.L("}")
+	buf.N()
+	buf.L("return uris, nil")
 
 	return nil
 }
@@ -264,13 +296,10 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("%sURIs, err := c.Get%sURIs(%sFilter{ID: &refID})", refVar, refStruct, refStruct)
 			m.ifErrNotNil(buf, "nil", "err")
 			if field.Config.Get("uri") == "" {
-				buf.L("for i, uri := range %sURIs {", refVar)
-				buf.L("if strings.HasPrefix(uri, \"/1.0/\") {")
-				buf.L("uri = strings.Split(uri, \"/1.0/%s/\")[1]", refSlice)
-				buf.L("uri = strings.Split(uri, \"?\")[0]")
-				buf.L("%sURIs[i] = uri", refVar)
-				buf.L("}")
-				buf.L("}")
+				uriName := strings.ReplaceAll(lex.Snake(refSlice), "_", "-")
+				buf.L("uris, err := urlsToResourceNames(\"/%s\", %sURIs...)", uriName, refVar)
+				m.ifErrNotNil(buf, "nil", "err")
+				buf.L("%sURIs = uris", refVar)
 			}
 			buf.L("objects[i].%s = append(objects[i].%s, %sURIs...)", field.Name, field.Name, refVar)
 			buf.L("}")
