@@ -19,10 +19,9 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t projects.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e project names
-//go:generate mapper stmt -p db -e project names-by-ID
 //go:generate mapper stmt -p db -e project objects
 //go:generate mapper stmt -p db -e project objects-by-Name
+//go:generate mapper stmt -p db -e project objects-by-ID
 //go:generate mapper stmt -p db -e project create struct=Project
 //go:generate mapper stmt -p db -e project id
 //go:generate mapper stmt -p db -e project rename
@@ -221,12 +220,12 @@ func (c *ClusterTx) GetProjectUsedBy(project Project) ([]string, error) {
 		return nil, err
 	}
 
-	networks, err := c.GetNetworkURIs(project.ID)
+	networks, err := c.GetNetworkURIs(project.ID, project.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	networkACLs, err := c.GetNetworkACLURIs(project.ID)
+	networkACLs, err := c.GetNetworkACLURIs(project.ID, project.Name)
 	if err != nil {
 		return nil, err
 	}
