@@ -1107,7 +1107,7 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string) (string, error) {
+func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get offline threshold")
@@ -1140,6 +1140,21 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 		// Skip if a group is requested and member isn't part of it.
 		if group != "" && !shared.StringInSlice(group, node.Groups) {
 			continue
+		}
+
+		// Skip if working with a restricted set of groups and member isn't part of any.
+		if allowedGroups != nil {
+			found := false
+			for _, allowedGroup := range allowedGroups {
+				if shared.StringInSlice(allowedGroup, node.Groups) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				continue
+			}
 		}
 
 		// Get member personalities too.
