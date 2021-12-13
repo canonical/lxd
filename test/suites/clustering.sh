@@ -3221,24 +3221,33 @@ test_clustering_groups() {
   # Cluster group "foobar" doesn't exist and should therefore fail
   ! lxc init testimage cluster:c1 --target=@foobar || false
 
+  # At this stage we have:
+  # - node1 in group default accepting all instances
+  # - node2 in group blah accepting group-only targeting
+  # - node3 in group default accepting direct targeting only
+
   # c1 should go to node1
-  lxc init testimage cluster:c1 --target=@blah
+  lxc init testimage cluster:c1
   lxc info cluster:c1 | grep -q "Location: node1"
 
   # c2 should go to node2
   lxc init testimage cluster:c2 --target=@blah
   lxc info cluster:c2 | grep -q "Location: node2"
 
-  # c3 should go to node1 again, as node3 will be skipped due to it not being targeted directly
+  # c3 should go to node2 again
   lxc init testimage cluster:c3 --target=@blah
-  lxc info cluster:c3 | grep -q "Location: node1"
+  lxc info cluster:c3 | grep -q "Location: node2"
 
-  # Not providing any target should make node1 get the instance
-  lxc init testimage cluster:c4
-  lxc info cluster:c4 | grep -q "Location: node1"
+  # Direct targeting of node2 should work
+  lxc init testimage cluster:c4 --target=node2
+  lxc info cluster:c4 | grep -q "Location: node2"
+
+  # Direct targeting of node3 should work
+  lxc init testimage cluster:c5 --target=node3
+  lxc info cluster:c5 | grep -q "Location: node3"
 
   # Clean up
-  lxc rm c1 c2 c3 c4
+  lxc rm c1 c2 c3 c4 c5
 
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
