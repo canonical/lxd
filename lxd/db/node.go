@@ -1107,7 +1107,7 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 // the least number of containers (either already created or being created with
 // an operation). If archs is not empty, then return only nodes with an
 // architecture in that list.
-func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string) (string, error) {
+func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get offline threshold")
@@ -1122,28 +1122,42 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 	containers := -1
 	isDefaultArchChosen := false
 	for _, node := range nodes {
-		if node.Config["scheduler.instance"] == "manual" {
-			continue
-		}
-
-		// If scheduler.instance is "all", skip the node if group is set and the node doesn't belong to it.
-		if node.Config["scheduler.instance"] == "all" && group != "" && !shared.StringInSlice(group, node.Groups) {
-			continue
-		}
-
-		// If scheduler.instance is "group", skip the node if it doesn't belong to the group.
-		// The node will also be skipped if the group is empty.
-		if node.Config["scheduler.instance"] == "group" {
-			if !shared.StringInSlice(group, node.Groups) {
-				continue
-			}
-		}
-
+		// Skip evacuated members.
 		if node.State == ClusterMemberStateEvacuated || node.IsOffline(threshold) {
 			continue
 		}
 
-		// Get personalities too.
+		// Skip manually targeted members.
+		if node.Config["scheduler.instance"] == "manual" {
+			continue
+		}
+
+		// Skip group-only members if targeted group doesn't match.
+		if node.Config["scheduler.instance"] == "group" && !shared.StringInSlice(group, node.Groups) {
+			continue
+		}
+
+		// Skip if a group is requested and member isn't part of it.
+		if group != "" && !shared.StringInSlice(group, node.Groups) {
+			continue
+		}
+
+		// Skip if working with a restricted set of groups and member isn't part of any.
+		if allowedGroups != nil {
+			found := false
+			for _, allowedGroup := range allowedGroups {
+				if shared.StringInSlice(allowedGroup, node.Groups) {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				continue
+			}
+		}
+
+		// Get member personalities too.
 		personalities, err := osarch.ArchitecturePersonalities(node.Architecture)
 		if err != nil {
 			return "", err
@@ -1169,13 +1183,13 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 			continue
 		}
 
-		// Fetch the number of containers already created on this node.
+		// Fetch the number of instances already created on this node.
 		created, err := query.Count(c.tx, "instances", "node_id=?", node.ID)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to get instances count")
 		}
 
-		// Fetch the number of containers currently being created on this node.
+		// Fetch the number of instances currently being created on this node.
 		pending, err := query.Count(
 			c.tx, "operations", "node_id=? AND type=?", node.ID, OperationInstanceCreate)
 		if err != nil {
