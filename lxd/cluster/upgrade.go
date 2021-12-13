@@ -194,7 +194,6 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "Failed to add dqlite node")
 		}
-
 	}
 
 	return nil
