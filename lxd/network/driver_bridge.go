@@ -1496,7 +1496,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Configure dnsmasq.
-	if n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"}) {
+	if n.UsesDNSMasq() {
 		// Setup the dnsmasq domain.
 		dnsDomain := n.config["dns.domain"]
 		if dnsDomain == "" {
@@ -1635,7 +1635,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 		}
 
-		// And same for our PID file.
+		// Clean up old dnsmasq PID file.
 		pidPath := shared.VarPath("networks", n.name, "dnsmasq.pid")
 		if shared.PathExists(pidPath) {
 			err := os.Remove(pidPath)
@@ -3069,4 +3069,9 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 	}
 
 	return leases, nil
+}
+
+// UsesDNSMasq indicates if network's config indicates if it needs to use dnsmasq.
+func (n *bridge) UsesDNSMasq() bool {
+	return n.config["bridge.mode"] == "fan" || !shared.StringInSlice(n.config["ipv4.address"], []string{"", "none"}) || !shared.StringInSlice(n.config["ipv6.address"], []string{"", "none"})
 }
