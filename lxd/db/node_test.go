@@ -315,7 +315,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 `)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, -1, "")
+	name, err := tx.GetNodeWithLeastInstances(nil, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -339,7 +339,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	err = tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, -1, "")
+	name, err := tx.GetNodeWithLeastInstances(nil, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -359,7 +359,7 @@ INSERT INTO operations (id, uuid, node_id, type, project_id) VALUES (1, 'abc', 1
 `, db.OperationInstanceCreate)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, -1, "")
+	name, err := tx.GetNodeWithLeastInstances(nil, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 }
@@ -388,7 +388,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 	require.NoError(t, err)
 
 	// The local node is returned despite it has more containers.
-	name, err := tx.GetNodeWithLeastInstances([]int{localArch}, -1, "")
+	name, err := tx.GetNodeWithLeastInstances([]int{localArch}, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "none", name)
 }
@@ -442,7 +442,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES
 `, id)
 	require.NoError(t, err)
 
-	name, err := tx.GetNodeWithLeastInstances(nil, testArch, "")
+	name, err := tx.GetNodeWithLeastInstances(nil, testArch, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "buzz", name)
 
