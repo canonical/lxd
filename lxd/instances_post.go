@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -840,14 +841,20 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	if targetNode == "" || strings.HasPrefix(targetNode, "@") {
+
+	// Check if clustered.
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.InternalError(errors.Wrap(err, "Failed to check for cluster state"))
+	}
+
+	if clustered && (targetNode == "" || strings.HasPrefix(targetNode, "@")) {
 		// If no target node was specified, pick the node with the
 		// least number of containers. If there's just one node, or if
 		// the selected node is the local one, this is effectively a
 		// no-op, since GetNodeWithLeastInstances() will return an empty
 		// string.
 		// If the target is a cluster group, find a suitable node.
-
 		group := ""
 
 		if strings.HasPrefix(targetNode, "@") {
@@ -857,6 +864,14 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		p, err := d.cluster.GetProject(targetProject)
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		// Load restricted groups from project.
+		var allowedGroups []string
+		if !isClusterNotification(r) && shared.IsTrue(p.Config["restricted"]) {
+			allowedGroups = util.SplitNTrimSpace(p.Config["restricted.cluster.groups"], ",", -1, true)
+		} else {
+			allowedGroups = nil
 		}
 
 		if group != "" {
@@ -880,11 +895,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Validate restrictions.
-			if shared.IsTrue(p.Config["restricted"]) {
+			if !isClusterNotification(r) && shared.IsTrue(p.Config["restricted"]) {
 				found := false
-				for _, entry := range strings.Split(p.Config["restricted.cluster.groups"], ",") {
-					entry = strings.TrimSpace(entry)
 
+				for _, entry := range allowedGroups {
 					if group == entry {
 						found = true
 						break
@@ -922,11 +936,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
-			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchId, group)
+			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchId, group, allowedGroups)
 			return err
 		})
 		if err != nil {
 			return response.SmartError(err)
+		}
+
+		if targetNode == "" {
+			return response.BadRequest(fmt.Errorf("No suitable cluster member could be found"))
 		}
 	}
 
