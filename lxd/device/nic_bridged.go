@@ -38,6 +38,10 @@ import (
 	"github.com/lxc/lxd/shared/validate"
 )
 
+type bridgeNetwork interface {
+	UsesDNSMasq() bool
+}
+
 type nicBridged struct {
 	deviceCommon
 
@@ -816,11 +820,9 @@ func (d *nicBridged) Remove() error {
 		}
 
 		// Reload dnsmasq to apply new settings if dnsmasq is running.
-		if shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
-			err = dnsmasq.Kill(d.config["parent"], true)
-			if err != nil {
-				return err
-			}
+		err = dnsmasq.Kill(d.config["parent"], true)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -829,8 +831,9 @@ func (d *nicBridged) Remove() error {
 
 // rebuildDnsmasqEntry rebuilds the dnsmasq host entry if connected to a LXD managed network and reloads dnsmasq.
 func (d *nicBridged) rebuildDnsmasqEntry() error {
-	// Rebuild dnsmasq config if a bridged device has changed and parent is a managed network.
-	if !shared.PathExists(shared.VarPath("networks", d.config["parent"], "dnsmasq.pid")) {
+	// Rebuild dnsmasq config if a bridged device has changed and parent is a managed network using dnsmasq.
+	bridgeNet, ok := d.network.(bridgeNetwork)
+	if !ok || !d.network.IsManaged() || !bridgeNet.UsesDNSMasq() {
 		return nil
 	}
 
