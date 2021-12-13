@@ -1635,7 +1635,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			}
 		}
 
-		// And same for our PID file.
+		// Clean up old dnsmasq PID file.
 		pidPath := shared.VarPath("networks", n.name, "dnsmasq.pid")
 		if shared.PathExists(pidPath) {
 			err := os.Remove(pidPath)
