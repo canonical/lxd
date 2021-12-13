@@ -57,15 +57,23 @@ func (a byName) Swap(i, j int) {
 }
 
 func (a byName) Less(i, j int) bool {
-	if a[i][0] == "" {
-		return false
+	for k := range a[i] {
+		if a[i][k] == a[j][k] {
+			continue
+		}
+
+		if a[i][k] == "" {
+			return false
+		}
+
+		if a[j][k] == "" {
+			return true
+		}
+
+		return sortorder.NaturalLess(a[i][k], a[j][k])
 	}
 
-	if a[j][0] == "" {
-		return true
-	}
-
-	return sortorder.NaturalLess(a[i][0], a[j][0])
+	return false
 }
 
 // Storage volume sorting
