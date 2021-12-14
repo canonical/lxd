@@ -233,26 +233,29 @@ func (g *Gateway) heartbeatInterval() time.Duration {
 	return threshold / 2
 }
 
+// HearbeatCancelFunc returns the function that can be used to cancel an ongoing heartbeat.
+// Returns nil if no ongoing heartbeat.
+func (g *Gateway) HearbeatCancelFunc() func() {
+	g.heartbeatCancelLock.Lock()
+	defer g.heartbeatCancelLock.Unlock()
+	return g.heartbeatCancel
+}
+
 // heartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
 // If there is no ongoing heartbeat then this is a no-op.
 // Returns true if new heartbeat round was started.
 func (g *Gateway) heartbeatRestart() bool {
-	g.heartbeatCancelLock.Lock() // Make sure we're the only ones inspecting the g.heartbeatCancel var.
+	heartbeatCancel := g.HearbeatCancelFunc()
 
 	// There is a cancellable heartbeat round ongoing.
-	if g.heartbeatCancel != nil {
-		g.heartbeatCancel()            // Request ongoing hearbeat round cancel itself.
-		g.heartbeatCancel = nil        // Indicate there is no further cancellable heartbeat round.
-		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
+	if heartbeatCancel != nil {
+		g.heartbeatCancel() // Request ongoing hearbeat round cancel itself.
 
 		// Start a new heartbeat round async that will run as soon as ongoing heartbeat round exits.
 		go g.heartbeat(g.ctx, hearbeatImmediate)
 
 		return true
 	}
-
-	// No cancellable heartbeat round, release lock.
-	g.heartbeatCancelLock.Unlock()
 
 	return false
 }
@@ -270,12 +273,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	g.heartbeatCancelLock.Lock()
 	ctx, g.heartbeatCancel = context.WithCancel(ctx)
 	defer func() {
-		g.heartbeatCancelLock.Lock()
-		if g.heartbeatCancel != nil {
+		heartbeatCancel := g.HearbeatCancelFunc()
+		if heartbeatCancel != nil {
 			g.heartbeatCancel()
 			g.heartbeatCancel = nil
 		}
-		g.heartbeatCancelLock.Unlock()
 	}()
 	g.heartbeatCancelLock.Unlock()
 
