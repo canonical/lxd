@@ -205,14 +205,16 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	// Since the database APIs are blocking we need to wrap the core logic
 	// and run it in a goroutine, so we can abort as soon as the context expires.
 	heartbeatWrapper := func(ctx context.Context) {
-		ch := make(chan struct{})
-		go func() {
-			gateway.heartbeat(ctx, hearbeatNormal)
-			ch <- struct{}{}
-		}()
-		select {
-		case <-ch:
-		case <-ctx.Done():
+		if gateway.HearbeatCancelFunc() == nil {
+			ch := make(chan struct{})
+			go func() {
+				gateway.heartbeat(ctx, hearbeatNormal)
+				close(ch)
+			}()
+			select {
+			case <-ch:
+			case <-ctx.Done():
+			}
 		}
 	}
 
