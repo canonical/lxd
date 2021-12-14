@@ -192,6 +192,80 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
+// projectUsedBy returns a list of URLs for all instances, images, profiles,
+// storage volumes, networks, and acls that use this project.
+func projectUsedBy(tx *db.ClusterTx, project *db.Project) ([]string, error) {
+	usedBy := []string{}
+	instances, err := tx.GetInstances(db.InstanceFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+	images, err := tx.GetImages(db.ImageFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+	profiles, err := tx.GetProfiles(db.ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+	volumes, err := tx.GetCustomVolumesInProject(project.Name)
+	if err != nil {
+		return nil, err
+	}
+	networks, err := tx.GetCreatedNetworksByProject(project.Name)
+	if err != nil {
+		return nil, err
+	}
+	acls, err := tx.GetNetworkACLs(project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, instance := range instances {
+		apiInstance := api.Instance{Name: instance.Name}
+		usedBy = append(usedBy, apiInstance.URL(version.APIVersion, project.Name).String())
+	}
+
+	for _, image := range images {
+		apiImage := api.Image{Fingerprint: image.Fingerprint}
+		usedBy = append(usedBy, apiImage.URL(version.APIVersion, project.Name).String())
+	}
+
+	for _, profile := range profiles {
+		apiProfile := api.Profile{Name: profile.Name}
+		usedBy = append(usedBy, apiProfile.URL(version.APIVersion, project.Name).String())
+	}
+
+	for _, volume := range volumes {
+		apiVolume := api.StorageVolume{Name: volume.Name}
+		nodeInfo, err := tx.GetNodes()
+		if err != nil {
+			return nil, err
+		}
+
+		targetNode := "none"
+		for _, node := range nodeInfo {
+			if node.ID == volume.NodeID {
+				targetNode = node.Name
+			}
+		}
+
+		usedBy = append(usedBy, apiVolume.URL(version.APIVersion, volume.PoolName, project.Name, targetNode).String())
+	}
+
+	for _, network := range networks {
+		apiNetwork := api.Network{Name: network.Name}
+		usedBy = append(usedBy, apiNetwork.URL(version.APIVersion, project.Name).String())
+	}
+
+	for _, acl := range acls {
+		apiACL := api.NetworkACL{NetworkACLPost: api.NetworkACLPost{Name: acl}}
+		usedBy = append(usedBy, apiACL.URL(version.APIVersion, project.Name).String())
+	}
+
+	return usedBy, nil
+}
+
 // swagger:operation POST /1.0/projects projects projects_post
 //
 // Add a project
