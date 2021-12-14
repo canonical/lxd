@@ -1966,7 +1966,7 @@ again:
 			break
 		}
 
-		logger.Info("Demoting offline member", log.Ctx{"candidateAddress": node.Address})
+		logger.Info("Demoting offline member during rebalance", log.Ctx{"candidateAddress": node.Address})
 		err := d.gateway.DemoteOfflineNode(node.ID)
 		if err != nil {
 			return errors.Wrapf(err, "Demote offline node %s", node.Address)
@@ -1976,7 +1976,7 @@ again:
 	}
 
 	// Tell the node to promote itself.
-	logger.Info("Promoting member", log.Ctx{"candidateAddress": address})
+	logger.Info("Promoting member during rebalance", log.Ctx{"candidateAddress": address})
 	err = changeMemberRole(d, r, address, nodes)
 	if err != nil {
 		return err
@@ -2181,7 +2181,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		goto out
 	}
 
-	logger.Info("Promoting member", log.Ctx{"address": address, "losingAddress": req.Address, "candidateAddress": target})
+	logger.Info("Promoting member during handover", log.Ctx{"address": address, "losingAddress": req.Address, "candidateAddress": target})
 	err = changeMemberRole(d, r, target, nodes)
 	if err != nil {
 		return response.SmartError(err)
@@ -2194,7 +2194,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	logger.Info("Demoting member", log.Ctx{"address": address, "losingAddress": req.Address})
+	logger.Info("Demoting member during handover", log.Ctx{"address": address, "losingAddress": req.Address})
 	err = changeMemberRole(d, r, req.Address, nodes)
 	if err != nil {
 		return response.SmartError(err)
