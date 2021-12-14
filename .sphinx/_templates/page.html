@@ -3,3 +3,8 @@
 {% block footer %}
    {% include "footer.html" %}
 {% endblock footer %}
+
+{% block body -%}
+   {% include "header.html" %}
+   {{ super() }}
+{%- endblock body %}
