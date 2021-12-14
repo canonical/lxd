@@ -1232,7 +1232,7 @@ func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 }
 
 func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
-	offlineTime := time.Now().Add(-threshold)
+	offlineTime := time.Now().UTC().Add(-threshold)
 
 	return heartbeat.Before(offlineTime) || heartbeat.Equal(offlineTime)
 }
