@@ -40,8 +40,7 @@ import (
 type Project struct {
 	ID          int
 	Description string
-	Name        string   `db:"omit=update"`
-	UsedBy      []string `db:"omit=create"`
+	Name        string `db:"omit=update"`
 }
 
 // ProjectFilter specifies potential query parameter fields.
@@ -199,49 +198,6 @@ func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	SELECT images.id, ? FROM images WHERE project_id=1`
 	_, err = c.tx.Exec(stmt, defaultProfileID)
 	return err
-}
-
-// GetProjectUsedBy returns all the instances, images, profiles, storage
-// volumes, networks, and acls that use the given project.
-func (c *ClusterTx) GetProjectUsedBy(project Project) ([]string, error) {
-	instances, err := c.GetInstanceURIs(InstanceFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	images, err := c.GetImageURIs(ImageFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	profiles, err := c.GetProfileURIs(ProfileFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	volumes, err := c.GetStorageVolumeURIs(project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	networks, err := c.GetNetworkURIs(project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	networkACLs, err := c.GetNetworkACLURIs(project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	usedBy := instances
-	usedBy = append(usedBy, images...)
-	usedBy = append(usedBy, profiles...)
-	usedBy = append(usedBy, volumes...)
-	usedBy = append(usedBy, networks...)
-	usedBy = append(usedBy, networkACLs...)
-
-	return usedBy, nil
 }
 
 // GetProject returns the project with the given key.

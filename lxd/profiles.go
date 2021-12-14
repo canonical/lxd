@@ -174,6 +174,22 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
+// profileUsedBy returns all the instance URLs that are using the given project.
+func profileUsedBy(tx *db.ClusterTx, profile db.Profile) ([]string, error) {
+	dbInsts, err := tx.GetProfileInstances(profile)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBy := make([]string, len(dbInsts))
+	for i, inst := range dbInsts {
+		apiInst := &api.Instance{Name: inst.Name}
+		usedBy[i] = apiInst.URL(version.APIVersion, inst.Project).String()
+	}
+
+	return usedBy, nil
+}
+
 // swagger:operation POST /1.0/profiles profiles profiles_post
 //
 // Add a profile
