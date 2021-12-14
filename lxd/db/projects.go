@@ -144,7 +144,12 @@ func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 		return false, errors.Wrap(err, "fetch project")
 	}
 
-	enabled := shared.IsTrue(project.Config["features.images"])
+	config, err := c.GetProjectConfig(project.ID)
+	if err != nil {
+		return false, err
+	}
+
+	enabled := shared.IsTrue(config["features.images"])
 
 	return enabled, nil
 }

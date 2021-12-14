@@ -170,12 +170,32 @@ ORDER BY certificates.fingerprint
 
 // CreateCertificate stores a CertInfo object in the db, it will ignore the ID
 // field from the CertInfo.
-func (c *Cluster) CreateCertificate(cert Certificate) (int64, error) {
+func (c *Cluster) CreateCertificate(cert Certificate, projects []string) (int64, error) {
 	var id int64
 	var err error
 	err = c.Transaction(func(tx *ClusterTx) error {
 		id, err = tx.CreateCertificate(cert)
-		return err
+		if err != nil {
+			return err
+		}
+
+		cert.ID = int(id)
+
+		if len(projects) > 0 {
+			dbProjects := make([]Project, len(projects))
+			for i, p := range projects {
+				project, err := tx.GetProject(p)
+				if err != nil {
+					return err
+				}
+
+				dbProjects[i] = *project
+			}
+
+			return tx.UpdateCertificateProjects(cert, dbProjects)
+		}
+
+		return nil
 	})
 	return id, err
 }
@@ -189,9 +209,28 @@ func (c *Cluster) DeleteCertificate(fingerprint string) error {
 }
 
 // UpdateCertificate updates a certificate in the db.
-func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate) error {
+func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate, projects []string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.UpdateCertificate(fingerprint, cert)
+		err := tx.UpdateCertificate(fingerprint, cert)
+		if err != nil {
+			return err
+		}
+
+		if len(projects) > 0 {
+			dbProjects := make([]Project, len(projects))
+			for i, p := range projects {
+				project, err := tx.GetProject(p)
+				if err != nil {
+					return err
+				}
+
+				dbProjects[i] = *project
+			}
+
+			return tx.UpdateCertificateProjects(cert, dbProjects)
+		}
+
+		return nil
 	})
 	return err
 }
