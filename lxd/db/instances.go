@@ -382,17 +382,16 @@ var ErrInstanceListStop = fmt.Errorf("search stopped")
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project Project, profiles []api.Profile) error) error {
-	var instances []Instance
-	projectMap := map[string]Project{}
-	projectHasProfiles := map[string]bool{}
-	profilesByProjectAndName := map[string]map[string]Profile{}
-
+func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst InstanceArgs, project api.Project, profiles []api.Profile) error) error {
 	if filter == nil {
 		filter = &InstanceFilter{}
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
+	var instances []Instance
+	var instanceArgs []*InstanceArgs
+	var instanceProjects []*api.Project
+	var instanceProfiles map[string][]api.Profile
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
 		instances, err = tx.GetInstances(*filter)
@@ -400,30 +399,32 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 			return errors.Wrap(err, "Failed loading instances")
 		}
 
-		projects, err := tx.GetProjects(ProjectFilter{})
-		if err != nil {
-			return errors.Wrap(err, "Failed loading projects")
-		}
-
-		// Index of all projects by name and record which projects have the profiles feature.
-		for i, project := range projects {
-			projectMap[project.Name] = projects[i]
-			projectHasProfiles[project.Name] = shared.IsTrue(project.Config["features.profiles"])
-		}
-
-		profiles, err := tx.GetProfiles(ProfileFilter{})
-		if err != nil {
-			return errors.Wrap(err, "Failed loading profiles")
-		}
-
-		// Index of all profiles by project and name.
-		for _, profile := range profiles {
-			profilesByName, ok := profilesByProjectAndName[profile.Project]
-			if !ok {
-				profilesByName = map[string]Profile{}
-				profilesByProjectAndName[profile.Project] = profilesByName
+		instanceArgs = make([]*InstanceArgs, len(instances))
+		instanceProjects = make([]*api.Project, len(instances))
+		instanceProfiles = make(map[string][]api.Profile, len(instances))
+		// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
+		// the instanceFunc will be slow or may need to make additional DB queries.
+		for i, instance := range instances {
+			var apiInstance *api.Instance
+			apiInstance, instanceProfiles[instance.Name], err = instance.ToAPI(tx)
+			if err != nil {
+				return err
 			}
-			profilesByName[profile.Name] = profile
+
+			instanceArgs[i], err = InstanceToArgs(instance, *apiInstance)
+			if err != nil {
+				return err
+			}
+
+			project, err := tx.GetProject(instance.Project)
+			if err != nil {
+				return err
+			}
+
+			instanceProjects[i], err = project.ToAPI(tx)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -432,24 +433,8 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 		return err
 	}
 
-	// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
-	// the instanceFunc will be slow or may need to make additional DB queries.
-	for _, instance := range instances {
-		profiles := make([]api.Profile, len(instance.Profiles))
-
-		// If the instance's project does not have the profiles feature enabled,
-		// we fall back to the default project.
-		profilesProject := instance.Project
-		if !projectHasProfiles[profilesProject] {
-			profilesProject = "default" // Equivalent to project.Default constant.
-		}
-
-		for j, name := range instance.Profiles {
-			profile := profilesByProjectAndName[profilesProject][name]
-			profiles[j] = *ProfileToAPI(&profile)
-		}
-
-		err = instanceFunc(instance, projectMap[instance.Project], profiles)
+	for i, instance := range instances {
+		err = instanceFunc(*instanceArgs[i], *instanceProjects[i], instanceProfiles[instance.Name])
 		if err != nil {
 			return err
 		}
