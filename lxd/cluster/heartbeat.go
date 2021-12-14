@@ -49,6 +49,13 @@ type APIHeartbeatVersion struct {
 	APIExtensions int
 }
 
+// NewAPIHearbeat returns initialised APIHeartbeat.
+func NewAPIHearbeat(cluster *db.Cluster) *APIHeartbeat {
+	return &APIHeartbeat{
+		cluster: cluster,
+	}
+}
+
 // APIHeartbeat contains data sent to nodes in heartbeat.
 type APIHeartbeat struct {
 	sync.Mutex // Used to control access to Members maps.
@@ -359,7 +366,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	heartbeatInterval := g.heartbeatInterval()
 
 	// Cumulative set of node states (will be written back to database once done).
-	hbState := &APIHeartbeat{cluster: g.Cluster}
+	hbState := NewAPIHearbeat(g.Cluster)
 
 	// If we are doing a normal heartbeat round then spread the requests over the heartbeatInterval in order
 	// to reduce load on the cluster.
