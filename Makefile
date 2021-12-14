@@ -31,7 +31,7 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
+	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
@@ -45,10 +45,10 @@ lxd-agent:
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD agent built successfully"
 
-.PHONY: lxd-p2c
-lxd-p2c:
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
-	@echo "LXD-P2C built successfully"
+.PHONY: lxd-migrate
+lxd-migrate:
+	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
+	@echo "LXD-MIGRATE built successfully"
 
 .PHONY: deps
 deps:
@@ -141,7 +141,7 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -v -tags "$(TAG_SQLITE3) logdebug" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags "netgo,logdebug" ./lxd-p2c
+	CGO_ENABLED=0 go install -v -tags "netgo,logdebug" ./lxd-migrate
 	CGO_ENABLED=0 go install -v -tags "agent,netgo,logdebug" ./lxd-agent
 	@echo "LXD built successfully"
 
@@ -153,7 +153,7 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -a -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -a -v -tags netgo ./lxd-p2c
+	CGO_ENABLED=0 go install -a -v -tags netgo ./lxd-migrate
 	CGO_ENABLED=0 go install -a -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
@@ -164,7 +164,7 @@ ifeq "$(TAG_SQLITE3)" ""
 endif
 
 	CC="$(CC)" CGO_LDFLAGS_ALLOW="$(CGO_LDFLAGS_ALLOW)" go install -race -v -tags "$(TAG_SQLITE3)" $(DEBUG) ./...
-	CGO_ENABLED=0 go install -v -tags netgo ./lxd-p2c
+	CGO_ENABLED=0 go install -v -tags netgo ./lxd-migrate
 	CGO_ENABLED=0 go install -v -tags agent,netgo ./lxd-agent
 	@echo "LXD built successfully"
 
