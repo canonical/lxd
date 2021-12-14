@@ -28,6 +28,8 @@ if os.path.exists("doc/substitutions.yaml"):
         myst_substitutions = yaml.load(fd.read())
 
 # Setup theme.
+templates_path = ["_templates"]
+
 html_theme = "furo"
 html_show_sphinx = False
 html_last_updated_fmt = ""
@@ -90,6 +92,13 @@ html_theme_options = {
         "color-link-underline": "var(--color-background-primary)",
         "color-link-underline--hover": "var(--color-background-primary)",
     },
+}
+
+html_context = {
+    "github_url": "https://github.com/lxc/lxd",
+    "github_version": "master",
+    "github_folder": "/doc/",
+    "github_filetype": "md"
 }
 
 source_suffix = ".md"
