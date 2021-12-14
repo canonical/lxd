@@ -540,6 +540,13 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 			return errors.Wrapf(err, "Failed to unmark the node as pending")
 		}
 
+		// Set last heartbeat time to now, as member is clearly online as it just successfully joined,
+		// that way when we send the notification to all members below it will consider this member online.
+		err = tx.SetNodeHeartbeat(node.Address, time.Now().UTC())
+		if err != nil {
+			return errors.Wrapf(err, "Failed setting last heartbeat time for member")
+		}
+
 		return nil
 	})
 	if err != nil {
