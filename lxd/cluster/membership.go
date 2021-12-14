@@ -554,36 +554,69 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	}
 
 	// Generate partial heartbeat request containing just a raft node list.
-	notifyNodesUpdate(raftNodes, info, networkCert, serverCert)
+	if state.Endpoints != nil {
+		NotifyHeartbeat(state, gateway.HeartbeatOfflineThreshold)
+	}
 
 	return nil
 }
 
-// Attempt to send a heartbeat to all other nodes to notify them of a new or changed member.
-func notifyNodesUpdate(raftNodes []db.RaftNode, info *db.RaftNode, networkCert *shared.CertInfo, serverCert *shared.CertInfo) {
-	// Generate partial heartbeat request containing just a raft node list.
-	hbState := &APIHeartbeat{}
+// NotifyHeartbeat attempts to send a heartbeat to all other members to notify them of a new or changed member.
+func NotifyHeartbeat(state *state.State, offlineThreshold time.Duration) {
+	hbState := NewAPIHearbeat(state.Cluster)
 	hbState.Time = time.Now().UTC()
 
-	nodes := make([]db.NodeInfo, len(raftNodes))
-	for i, raftNode := range raftNodes {
-		nodes[i].ID = int64(raftNode.ID)
-		nodes[i].Address = raftNode.Address
+	var err error
+	var raftNodes []db.RaftNode
+	var localAddress string
+	err = state.Node.Transaction(func(tx *db.NodeTx) error {
+		raftNodes, err = tx.GetRaftNodes()
+		if err != nil {
+			return err
+		}
+
+		config, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+
+		localAddress = config.ClusterAddress()
+
+		return nil
+	})
+	if err != nil {
+		logger.Warn("Failed to get current raft members", log.Ctx{"err": err, "local": localAddress})
+		return
 	}
 
-	hbState.Update(false, raftNodes, nodes, 0)
+	var allNodes []db.NodeInfo
+	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		allNodes, err = tx.GetNodes()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "local": localAddress})
+		return
+	}
+
+	// Setup a full-state notification heartbeat.
+	hbState.Update(true, raftNodes, allNodes, offlineThreshold)
 
 	// Notify all other members of the change in membership.
-	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"address": info.Address})
+	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"local": localAddress})
 	var wg sync.WaitGroup
-	for _, node := range raftNodes {
-		if node.ID == info.ID {
+	for _, node := range allNodes {
+		if node.Address == localAddress {
 			continue
 		}
 
 		wg.Add(1)
 		go func(address string) {
-			HeartbeatNode(context.Background(), address, networkCert, serverCert, hbState)
+			HeartbeatNode(context.Background(), address, state.Endpoints.NetworkCert(), state.ServerCert(), hbState)
 			wg.Done()
 		}(node.Address)
 	}
@@ -816,7 +849,9 @@ assign:
 	}
 
 	// Generate partial heartbeat request containing just a raft node list.
-	notifyNodesUpdate(nodes, info, gateway.networkCert, gateway.serverCert())
+	if state.Endpoints != nil {
+		NotifyHeartbeat(state, gateway.HeartbeatOfflineThreshold)
+	}
 
 	return nil
 }
