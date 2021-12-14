@@ -93,6 +93,27 @@ var updates = map[int]schema.Update{
 	52: updateFromV51,
 	53: updateFromV52,
 	54: updateFromV53,
+	55: updateFromV54,
+}
+
+func updateFromV54(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+DROP VIEW certificates_projects_ref;
+DROP VIEW instances_config_ref;
+DROP VIEW instances_devices_ref;
+DROP VIEW instances_profiles_ref;
+DROP VIEW instances_snapshots_config_ref;
+DROP VIEW instances_snapshots_devices_ref;
+DROP VIEW profiles_config_ref;
+DROP VIEW profiles_devices_ref;
+DROP VIEW profiles_used_by_ref;
+DROP VIEW projects_config_ref;
+DROP VIEW projects_used_by_ref;
+`)
+	if err != nil {
+		return errors.Wrap(err, "Failed to drop database views")
+	}
+	return nil
 }
 
 // updateFromV53 creates the cluster_groups and nodes_cluster_groups tables.
