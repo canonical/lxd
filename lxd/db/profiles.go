@@ -44,17 +44,28 @@ type Profile struct {
 	UsedBy      []string
 }
 
-// ProfileToAPI is a convenience to convert a Profile db struct into
-// an API profile struct.
-func ProfileToAPI(profile *Profile) *api.Profile {
-	p := &api.Profile{
-		Name:   profile.Name,
-		UsedBy: profile.UsedBy,
+// ToAPI converts a Profile db struct into an API profile struct.
+func (p Profile) ToAPI(tx *ClusterTx) (*api.Profile, error) {
+	config, err := tx.GetProfileConfig(p.ID)
+	if err != nil {
+		return nil, err
 	}
-	p.Description = profile.Description
-	// TODO: fetch profile device/config and handle errors.
 
-	return p
+	devices, err := tx.GetProfileDevices(p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	profile := &api.Profile{
+		Name: p.Name,
+		ProfilePut: api.ProfilePut{
+			Description: p.Description,
+			Config:      config,
+			Devices:     DevicesToAPI(devices),
+		},
+	}
+
+	return profile, nil
 }
 
 // ProfileFilter specifies potential query parameter fields.
@@ -197,7 +208,11 @@ func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error
 		return -1, nil, err
 	}
 
-	result = ProfileToAPI(profile)
+	result, err = profile.ToAPI(c)
+	if err != nil {
+		return -1, nil, err
+	}
+
 	id = int64(profile.ID)
 
 	return id, result, nil
@@ -223,7 +238,12 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 				return errors.Wrapf(err, "Failed loading profile %q", profileName)
 			}
 
-			profiles[i] = *ProfileToAPI(profile)
+			apiProfile, err := profile.ToAPI(tx)
+			if err != nil {
+				return err
+			}
+
+			profiles[i] = *apiProfile
 		}
 
 		return nil

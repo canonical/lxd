@@ -6,8 +6,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"time"
 
+	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -51,28 +53,70 @@ type InstanceSnapshotFilter struct {
 	Name     *string
 }
 
-// InstanceSnapshotToInstance is a temporary convenience function to merge
+// ToInstance is a convenience function to merge
 // together an Instance struct and a SnapshotInstance struct into into a the
 // legacy Instance struct for a snapshot.
-func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) Instance {
+func (s *InstanceSnapshot) ToInstance(instance *Instance) Instance {
 	return Instance{
-		ID:           snapshot.ID,
-		Project:      snapshot.Project,
-		Name:         instance.Name + shared.SnapshotDelimiter + snapshot.Name,
+		ID:           s.ID,
+		Project:      s.Project,
+		Name:         instance.Name + shared.SnapshotDelimiter + s.Name,
 		Node:         instance.Node,
 		Type:         instance.Type,
 		Snapshot:     true,
 		Architecture: instance.Architecture,
 		Ephemeral:    false,
-		CreationDate: snapshot.CreationDate,
-		Stateful:     snapshot.Stateful,
+		CreationDate: s.CreationDate,
+		Stateful:     s.Stateful,
 		LastUseDate:  sql.NullTime{},
-		Description:  snapshot.Description,
-		Profiles:     instance.Profiles,
-		ExpiryDate:   snapshot.ExpiryDate,
+		Description:  s.Description,
+		ExpiryDate:   s.ExpiryDate,
+	}
+}
+
+// ToInstanceArgs returns an InstanceArgs with the instance information for the snapshot.
+func (s *InstanceSnapshot) ToInstanceArgs(tx *ClusterTx, instance *Instance) (*InstanceArgs, error) {
+	config, err := tx.GetInstanceSnapshotConfig(s.ID)
+	if err != nil {
+		return nil, err
 	}
 
-	// TODO: fetch instance devices and config, and handle errors if necessary.
+	devices, err := tx.GetInstanceSnapshotDevices(s.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	profiles, err := tx.GetInstanceProfiles(*instance)
+	if err != nil {
+		return nil, err
+	}
+
+	profileNames := make([]string, len(profiles))
+
+	for i, p := range profiles {
+		profileNames[i] = p.Name
+	}
+
+	return &InstanceArgs{
+		ID:       s.ID,
+		Node:     instance.Node,
+		Type:     instance.Type,
+		Snapshot: true,
+
+		Project:      s.Project,
+		CreationDate: s.CreationDate,
+
+		Architecture: instance.Architecture,
+		Config:       config,
+		Description:  s.Description,
+		Devices:      deviceConfig.NewDevices(DevicesToAPI(devices)),
+		Ephemeral:    false,
+		LastUsedDate: sql.NullTime{}.Time,
+		Name:         instance.Name + shared.SnapshotDelimiter + s.Name,
+		Profiles:     profileNames,
+		Stateful:     s.Stateful,
+		ExpiryDate:   s.ExpiryDate.Time,
+	}, nil
 }
 
 // UpdateInstanceSnapshotConfig inserts/updates/deletes the provided config keys.

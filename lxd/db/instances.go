@@ -6,7 +6,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/osarch"
 	"github.com/pkg/errors"
 )
 
@@ -81,26 +81,99 @@ type InstanceFilter struct {
 	Type    *instancetype.Type
 }
 
-// InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
-func InstanceToArgs(inst *Instance) InstanceArgs {
-	args := InstanceArgs{
-		ID:           inst.ID,
-		Project:      inst.Project,
-		Name:         inst.Name,
-		Node:         inst.Node,
-		Type:         inst.Type,
-		Snapshot:     inst.Snapshot,
-		Architecture: inst.Architecture,
-		Ephemeral:    inst.Ephemeral,
-		CreationDate: inst.CreationDate,
-		Stateful:     inst.Stateful,
-		LastUsedDate: inst.LastUseDate.Time,
-		Description:  inst.Description,
-		ExpiryDate:   inst.ExpiryDate.Time,
+// ToAPI converts a db package Instance to an api.Instance, filling any fields
+// if necessary with the given ClusterTx. Additionally, the full profiles for
+// the instance are returned.
+func (inst Instance) ToAPI(tx *ClusterTx) (*api.Instance, []api.Profile, error) {
+	profiles, err := tx.GetInstanceProfiles(inst)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	// TODO: fetch instance devices, config, and profiles, and handle errors if necessary.
-	return args
+	apiProfiles := make([]api.Profile, len(profiles))
+	profileNames := make([]string, len(profiles))
+	for i, p := range profiles {
+		apiProfile, err := p.ToAPI(tx)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		apiProfiles[i] = *apiProfile
+		profileNames[i] = p.Name
+	}
+
+	config, err := tx.GetInstanceConfig(inst.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	devices, err := tx.GetInstanceDevices(inst.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	apiDevices := DevicesToAPI(devices)
+	expandedConfig := ExpandInstanceConfig(config, apiProfiles)
+	expandedDevices := ExpandInstanceDevices(apiDevices, apiProfiles)
+
+	archName, err := osarch.ArchitectureName(inst.Architecture)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &api.Instance{
+		InstancePut: api.InstancePut{
+			Architecture: archName,
+			Config:       config,
+			Devices:      apiDevices,
+			Ephemeral:    inst.Ephemeral,
+			Profiles:     profileNames,
+			Stateful:     inst.Stateful,
+			Description:  inst.Description,
+		},
+		CreatedAt:       inst.CreationDate,
+		ExpandedConfig:  expandedConfig,
+		ExpandedDevices: expandedDevices,
+		Name:            inst.Name,
+		LastUsedAt:      inst.LastUseDate.Time,
+		Location:        inst.Node,
+		Type:            inst.Type.String(),
+		Project:         inst.Project,
+	}, apiProfiles, nil
+}
+
+// InstanceToArgs is a convenience to convert an Instance db struct into the legacy InstanceArgs.
+func InstanceToArgs(dbInst Instance, inst api.Instance) (*InstanceArgs, error) {
+	instType, err := instancetype.New(inst.Type)
+	if err != nil {
+		return nil, err
+	}
+
+	arch, err := osarch.ArchitectureId(inst.Architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	args := InstanceArgs{
+		ID:           dbInst.ID,
+		Project:      inst.Project,
+		Name:         inst.Name,
+		Node:         inst.Location,
+		Type:         instType,
+		Snapshot:     strings.Contains(inst.Name, shared.SnapshotDelimiter),
+		Architecture: arch,
+		Ephemeral:    inst.Ephemeral,
+		CreationDate: inst.CreatedAt,
+		Stateful:     inst.Stateful,
+		LastUsedDate: inst.LastUsedAt,
+		Description:  inst.Description,
+		Devices:      deviceConfig.NewDevices(inst.Devices),
+		Config:       inst.Config,
+		Profiles:     inst.Profiles,
+		ExpiryDate:   dbInst.ExpiryDate.Time,
+	}
+
+	return &args, nil
 }
 
 // InstanceArgs is a value object holding all db-related details about an instance.
