@@ -124,12 +124,12 @@ type Gateway struct {
 	HeartbeatOfflineThreshold time.Duration
 	heartbeatCancel           context.CancelFunc
 	heartbeatCancelLock       sync.Mutex
+	heartbeatLock             sync.Mutex
 
 	// NodeStore wrapper.
 	store *dqliteNodeStore
 
-	lock          sync.RWMutex
-	heartbeatLock sync.Mutex
+	lock sync.RWMutex
 
 	// Abstract unix socket that the local dqlite task is listening to.
 	bindAddress string
