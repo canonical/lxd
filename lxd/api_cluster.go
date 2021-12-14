@@ -1481,9 +1481,6 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
-	d.clusterMembershipMutex.Lock()
-	defer d.clusterMembershipMutex.Unlock()
-
 	force, err := strconv.Atoi(r.FormValue("force"))
 	if err != nil {
 		force = 0
@@ -1587,6 +1584,10 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return nil
 		})
 	}
+
+	// Get lock now we are on leader.
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
 
 	// If we are removing the leader of a 2 node cluster, ensure the other node can be a leader.
 	if name == leaderInfo.Name && len(nodes) == 2 {
@@ -1804,9 +1805,6 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 }
 
 func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
-	d.clusterMembershipMutex.Lock()
-	defer d.clusterMembershipMutex.Unlock()
-
 	req := internalClusterPostAcceptRequest{}
 
 	// Parse the request
@@ -1844,6 +1842,10 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 		}
 		return response.SyncResponseRedirect(url.String())
 	}
+
+	// Get lock now we are on leader.
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
 
 	// Check that the pools and networks provided by the joining node have
 	// configs that match the cluster ones.
@@ -1900,9 +1902,6 @@ type internalRaftNode struct {
 // Used to update the cluster after a database node has been removed, and
 // possibly promote another one as database node.
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
-	d.clusterMembershipMutex.Lock()
-	defer d.clusterMembershipMutex.Unlock()
-
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
@@ -1922,6 +1921,10 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		}
 		return response.SyncResponseRedirect(url.String())
 	}
+
+	// Get lock now we are on leader.
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
 
 	err = rebalanceMemberRoles(d, r, nil)
 	if err != nil {
@@ -2125,9 +2128,6 @@ type internalClusterPostAssignRequest struct {
 
 // Used to to transfer the responsibilities of a member to another one
 func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
-	d.clusterMembershipMutex.Lock()
-	defer d.clusterMembershipMutex.Unlock()
-
 	req := internalClusterPostHandoverRequest{}
 
 	// Parse the request
@@ -2165,6 +2165,10 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		}
 		return response.SyncResponseRedirect(url.String())
 	}
+
+	// Get lock now we are on leader.
+	d.clusterMembershipMutex.Lock()
+	defer d.clusterMembershipMutex.Unlock()
 
 	target, nodes, err := cluster.Handover(d.State(), d.gateway, req.Address)
 	if err != nil {
