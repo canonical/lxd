@@ -1,0 +1,115 @@
+<header id="header">
+
+  <style>
+    ul.p-navigation__links {
+        display: flex;
+        list-style: none;
+        margin-left: 0;
+        margin-top: auto;
+        margin-bottom: auto;
+        width: 60%;
+    }
+    ul.p-navigation__links li {
+        padding: 0 5px;
+        margin: 0 auto;
+        padding-top: 0.8rem;
+        border-left: 1px solid #cdcdcd;
+        text-align: center;
+        width: 100%;
+    }
+    ul.p-navigation__links li:first-child {
+        padding-top: 5px;
+        padding-bottom: 2px;
+        border-left: none;
+    }
+    ul.p-navigation__links li a {
+        color: var(--color-brand-primary);
+        font-weight: 300;
+    }
+    .p-navigation__logo img {
+        width: 40px;
+    }
+    .p-navigation__nav {
+        border-bottom: 1px solid #cdcdcd;
+    }
+    ul.more-links-dropdown {
+        display: none;
+        overflow-x: visible;
+        height: 0px;
+        z-index: 55;
+        position: relative;
+        list-style: none;
+        margin-bottom: 0;
+        margin-top: 0.8rem;
+    }
+    ul.p-navigation__links ul.more-links-dropdown li {
+        background-color: var(--color-background-primary);
+        border-left: 1px solid #cdcdcd;
+        border-right: 1px solid #cdcdcd;
+    }
+    ul.p-navigation__links ul.more-links-dropdown li:first-child {
+        border-top: 1px solid #cdcdcd;
+        padding-top: 10px;
+    }
+    ul.p-navigation__links ul.more-links-dropdown li:last-child {
+        border-bottom: 1px solid #cdcdcd;
+        padding-bottom: 10px;
+    }
+  </style>
+
+  <div class="p-navigation__nav" role="menubar">
+
+    <ul class="p-navigation__links" role="menu">
+
+      <li>
+        <a class="p-navigation__logo" href="/">
+          <img src="https://linuxcontainers.org/static/img/containers.small.png" alt="Linux containers logo" border="0" />
+        </a>
+      </li>
+
+      <li>
+        <a href="/">Home</a>
+      </li>
+
+      <li>
+        <a href="/lxd/try-it/">Demo</a>
+      </li>
+
+
+      <li>
+        <a href="#" class="nav-more-links">More resources</a>
+        <ul class="more-links-dropdown">
+          <li>
+            <a href="/lxd/introduction/"  class="p-navigation__sub-link p-dropdown__link">Introduction</a>
+          </li>
+
+          <li>
+            <a href="/lxd/news/"  class="p-navigation__sub-link p-dropdown__link">News</a>
+          </li>
+
+          <li>
+            <a href="/lxd/getting-started-cli/"  class="p-navigation__sub-link is-selected p-dropdown__link">Getting started</a>
+          </li>
+
+          <li>
+            <a href="/lxd/third-party-integrations/"  class="p-navigation__sub-link p-dropdown__link">Third-party integrations</a>
+          </li>
+
+          <li>
+            <a href="/lxd/advanced-guide/"  class="p-navigation__sub-link p-dropdown__link">Advanced guide</a>
+          </li>
+
+          <li>
+            <a href="https://discuss.linuxcontainers.org"  class="p-navigation__sub-link p-dropdown__link">Forum</a>
+          </li>
+
+          <li>
+            <a href="https://github.com/lxc/lxd"  class="p-navigation__sub-link p-dropdown__link">GitHub</a>
+          </li>
+
+        </ul>
+      </li>
+
+    </ul>
+  </div>
+</header>
