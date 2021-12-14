@@ -103,16 +103,6 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
 
-	// Use non-generated custom method for UsedBy fields.
-	for i := range objects {
-		usedBy, err := c.GetProjectUsedBy(objects[i])
-		if err != nil {
-			return nil, err
-		}
-
-		objects[i].UsedBy = usedBy
-	}
-
 	return objects, nil
 }
 
