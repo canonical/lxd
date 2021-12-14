@@ -2527,12 +2527,22 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 					return err
 				}
 
-				return tx.UpdateProfile("default", pName, db.Profile{
-					Project: "default",
-					Name:    pName,
-					Config:  p.Config,
-					Devices: devices,
-				})
+				err = tx.UpdateProfile("default", pName, db.Profile{Project: "default", Name: pName})
+				if err != nil {
+					return err
+				}
+
+				id, err := tx.GetProfileID("default", pName)
+				if err != nil {
+					return err
+				}
+
+				err = tx.UpdateProfileConfig(id, p.Config)
+				if err != nil {
+					return err
+				}
+
+				return tx.UpdateProfileDevices(id, devices)
 			})
 			if err != nil {
 				logger.Errorf("Failed to update old configuration for profile %s: %s", pName, err)

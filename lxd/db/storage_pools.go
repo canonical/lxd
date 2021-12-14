@@ -160,7 +160,11 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 	}
 
 	for _, profile := range profiles {
-		for _, device := range profile.Devices {
+		devices, err := c.GetProfileDevices(profile.ID)
+		if err != nil {
+			return nil, err
+		}
+		for _, device := range devices {
 			if device.Type != TypeDisk {
 				continue
 			}
