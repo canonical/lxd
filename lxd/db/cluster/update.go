@@ -94,6 +94,814 @@ var updates = map[int]schema.Update{
 	53: updateFromV52,
 	54: updateFromV53,
 	55: updateFromV54,
+	56: updateFromV55,
+}
+
+func updateFromV55(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+DROP VIEW storage_volumes_all;
+
+CREATE TABLE projects_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    UNIQUE (name)
+);
+
+INSERT INTO projects_new (id, name, description) SELECT id, name, IFNULL(description, '') FROM projects;
+
+CREATE TABLE certificates_projects_new (
+	certificate_id INTEGER NOT NULL,
+	project_id INTEGER NOT NULL,
+	FOREIGN KEY (certificate_id) REFERENCES certificates (id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE,
+	UNIQUE (certificate_id, project_id)
+);
+
+INSERT INTO certificates_projects_new (certificate_id, project_id) SELECT certificate_id, project_id FROM certificates_projects; 
+
+CREATE TABLE images_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    public INTEGER NOT NULL DEFAULT 0,
+    architecture INTEGER NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    upload_date DATETIME NOT NULL,
+    cached INTEGER NOT NULL DEFAULT 0,
+    last_use_date DATETIME,
+    auto_update INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (project_id, fingerprint),
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO images_new (id, fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date, cached, last_use_date, auto_update, project_id, type) 
+	SELECT id, fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date, cached, last_use_date, auto_update, project_id, type FROM images;
+
+CREATE TABLE images_aliases_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    image_id INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (image_id) REFERENCES images_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO images_aliases_new (id, name, image_id, description, project_id) 
+	SELECT id, name, image_id, IFNULL(description, ''), project_id FROM images_aliases;
+
+CREATE TABLE nodes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    address TEXT NOT NULL,
+    schema INTEGER NOT NULL,
+    api_extensions INTEGER NOT NULL,
+    heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
+    state INTEGER NOT NULL DEFAULT 0,
+    arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0),
+    failure_domain_id INTEGER DEFAULT NULL REFERENCES nodes_failure_domains (id) ON DELETE SET NULL,
+    UNIQUE (name),
+    UNIQUE (address)
+);
+
+INSERT INTO nodes_new (id, name, description, address, schema, api_extensions, heartbeat, state, arch, failure_domain_id)
+    SELECT id, name, IFNULL(description, ''), address, schema, api_extensions, heartbeat, state, arch, failure_domain_id FROM nodes;
+
+CREATE TABLE images_nodes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    UNIQUE (image_id, node_id),
+    FOREIGN KEY (image_id) REFERENCES images_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO images_nodes_new (id, image_id, node_id)
+    SELECT id, image_id, node_id FROM images_nodes;
+
+CREATE TABLE profiles_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO profiles_new (id, name, description, project_id)
+    SELECT id, name, IFNULL(description, ''), project_id FROM profiles;
+
+CREATE TABLE images_profiles_new (
+	image_id INTEGER NOT NULL,
+	profile_id INTEGER NOT NULL,
+	FOREIGN KEY (image_id) REFERENCES images_new (id) ON DELETE CASCADE,
+	FOREIGN KEY (profile_id) REFERENCES profiles_new (id) ON DELETE CASCADE,
+	UNIQUE (image_id, profile_id)
+);
+
+INSERT INTO images_profiles_new (image_id, profile_id)
+    SELECT image_id, profile_id FROM images_profiles;
+
+CREATE TABLE images_properties_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (image_id) REFERENCES images_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO images_properties_new (id, image_id, type, key, value)
+    SELECT id, image_id, type, key, value FROM images_properties;
+
+CREATE TABLE images_source_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    image_id INTEGER NOT NULL,
+    server TEXT NOT NULL,
+    protocol INTEGER NOT NULL,
+    certificate TEXT NOT NULL,
+    alias TEXT NOT NULL,
+    FOREIGN KEY (image_id) REFERENCES images_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO images_source_new (id, image_id, server, protocol, certificate, alias)
+    SELECT id, image_id, server, protocol, certificate, alias FROM images_source;
+
+CREATE TABLE instances_new (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    node_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    architecture INTEGER NOT NULL,
+    type INTEGER NOT NULL,
+    ephemeral INTEGER NOT NULL DEFAULT 0,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    last_use_date DATETIME,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    expiry_date DATETIME,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO instances_new (id, node_id, name, architecture, type, ephemeral, creation_date, stateful, last_use_date, description, project_id, expiry_date)
+    SELECT id, node_id, name, architecture, type, ephemeral, creation_date, stateful, last_use_date, IFNULL(description, ''), project_id, expiry_date FROM instances;
+
+CREATE TABLE instances_backups_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    container_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (instance_id) REFERENCES instances_new (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, name)
+);
+
+INSERT INTO instances_backups_new (id, instance_id, name, creation_date, expiry_date, container_only, optimized_storage)
+    SELECT id, instance_id, name, creation_date, expiry_date, container_only, optimized_storage FROM instances_backups;
+
+CREATE TABLE instances_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_id) REFERENCES instances_new (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, key)
+);
+
+INSERT INTO instances_config_new (id, instance_id, key, value)
+    SELECT id, instance_id, key, value FROM instances_config;
+
+CREATE TABLE instances_devices_new (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (instance_id) REFERENCES instances_new (id) ON DELETE CASCADE,
+    UNIQUE (instance_id, name)
+);
+
+INSERT INTO instances_devices_new (id, instance_id, name, type)
+    SELECT id, instance_id, name, type FROM instances_devices;
+
+CREATE TABLE instances_devices_config_new (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_device_id) REFERENCES instances_devices_new (id) ON DELETE CASCADE,
+    UNIQUE (instance_device_id, key)
+);
+
+INSERT INTO instances_devices_config_new (id, instance_device_id, key, value)
+    SELECT id, instance_device_id, key, value FROM instances_devices_config;
+
+CREATE TABLE instances_profiles_new (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    profile_id INTEGER NOT NULL,
+    apply_order INTEGER NOT NULL default 0,
+    UNIQUE (instance_id, profile_id),
+    FOREIGN KEY (instance_id) REFERENCES instances_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (profile_id) REFERENCES profiles_new(id) ON DELETE CASCADE
+);
+
+INSERT INTO instances_profiles_new (id, instance_id, profile_id, apply_order)
+    SELECT id, instance_id, profile_id, apply_order FROM instances_profiles;
+
+CREATE TABLE instances_snapshots_new (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    creation_date DATETIME NOT NULL DEFAULT 0,
+    stateful INTEGER NOT NULL DEFAULT 0,
+    description TEXT NOT NULL,
+    expiry_date DATETIME,
+    UNIQUE (instance_id, name),
+    FOREIGN KEY (instance_id) REFERENCES instances_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO instances_snapshots_new (id, instance_id, name, creation_date, stateful, description, expiry_date)
+    SELECT id, instance_id, name, creation_date, stateful, IFNULL(description, ''), expiry_date FROM instances_snapshots;
+
+CREATE TABLE instances_snapshots_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots_new (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, key)
+);
+
+INSERT INTO instances_snapshots_config_new (id, instance_snapshot_id, key, value)
+    SELECT id, instance_snapshot_id, key, value FROM instances_snapshots_config;
+
+CREATE TABLE instances_snapshots_devices_new (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_snapshot_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots_new (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_id, name)
+);
+
+INSERT INTO instances_snapshots_devices_new (id, instance_snapshot_id, name, type)
+    SELECT id, instance_snapshot_id, name, type FROM instances_snapshots_devices;
+
+CREATE TABLE instances_snapshots_devices_config_new (
+    id INTEGER primary key AUTOINCREMENT NOT NULL,
+    instance_snapshot_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (instance_snapshot_device_id) REFERENCES instances_snapshots_devices_new (id) ON DELETE CASCADE,
+    UNIQUE (instance_snapshot_device_id, key)
+);
+
+INSERT INTO instances_snapshots_devices_config_new (id, instance_snapshot_device_id, key, value)
+    SELECT id, instance_snapshot_device_id, key, value FROM instances_snapshots_devices_config;
+
+CREATE TABLE networks_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    state INTEGER NOT NULL DEFAULT 0,
+    type INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_new (id, project_id, name, description, state, type)
+    SELECT id, project_id, name, IFNULL(description, ''), state, type FROM networks;
+
+CREATE TABLE networks_acls_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    ingress TEXT NOT NULL,
+    egress TEXT NOT NULL,
+    UNIQUE (project_id, name),
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_acls_new (id, project_id, name, description, ingress, egress)
+    SELECT id, project_id, name, IFNULL(description, ''), ingress, egress FROM networks_acls;
+
+CREATE TABLE networks_acls_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_acl_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (network_acl_id, key),
+    FOREIGN KEY (network_acl_id) REFERENCES networks_acls_new (id) ON DELETE CASCADE
+);
+
+CREATE TABLE networks_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (network_id, node_id, key),
+    FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_config_new (id, network_id, node_id, key, value)
+    SELECT id, network_id, node_id, key, value FROM networks_config;
+
+CREATE TABLE networks_forwards_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+	node_id INTEGER,
+	listen_address TEXT NOT NULL,
+	description TEXT NOT NULL,
+	ports TEXT NOT NULL,
+	UNIQUE (network_id, node_id, listen_address),
+	FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE,
+	FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_forwards_new (id, network_id, node_id, listen_address, description, ports)
+    SELECT id, network_id, node_id, listen_address, IFNULL(description, ''), ports FROM networks_forwards;
+
+CREATE TABLE networks_forwards_config_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_forward_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_forward_id, key),
+	FOREIGN KEY (network_forward_id) REFERENCES networks_forwards_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_forwards_config_new (id, network_forward_id, key, value)
+    SELECT id, network_forward_id, key, value FROM networks_forwards_config;
+
+CREATE TABLE networks_nodes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    network_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    state INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (network_id, node_id),
+    FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_nodes_new (id, network_id, node_id, state)
+    SELECT id, network_id, node_id, state FROM networks_nodes;
+
+CREATE TABLE networks_peers_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	target_network_project TEXT NULL,
+	target_network_name TEXT NULL,
+	target_network_id INTEGER NULL,
+	UNIQUE (network_id, name),
+	UNIQUE (network_id, target_network_project, target_network_name),
+	UNIQUE (network_id, target_network_id),
+	FOREIGN KEY (network_id) REFERENCES networks_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_peers_new (id, network_id, name, description, target_network_project, target_network_name, target_network_id)
+    SELECT id, network_id, name, IFNULL(description, ''), target_network_project, target_network_name, target_network_id FROM networks_peers;
+
+CREATE TABLE networks_peers_config_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_peer_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_peer_id, key),
+	FOREIGN KEY (network_peer_id) REFERENCES networks_peers_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_peers_config_new (id, network_peer_id, key, value)
+    SELECT id, network_peer_id, key, value FROM networks_peers_config;
+
+CREATE TABLE networks_zones_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	project_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	UNIQUE (name),
+	FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_zones_new (id, project_id, name, description)
+    SELECT id, project_id, name, IFNULL(description, '') FROM networks_zones;
+
+CREATE TABLE networks_zones_config_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_zone_id, key),
+	FOREIGN KEY (network_zone_id) REFERENCES networks_zones_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO networks_zones_config_new (id, network_zone_id, key, value)
+    SELECT id, network_zone_id, key, value FROM networks_zones_config;
+
+CREATE TABLE nodes_cluster_groups_new (
+    node_id INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES cluster_groups (id) ON DELETE CASCADE,
+    UNIQUE (node_id, group_id)
+);
+
+INSERT INTO nodes_cluster_groups_new (node_id, group_id)
+    SELECT node_id, group_id FROM nodes_cluster_groups;
+
+CREATE TABLE nodes_config_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	node_id INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT,
+	FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE,
+	UNIQUE (node_id, key)
+);
+
+INSERT INTO nodes_config_new (id, node_id, key, value)
+    SELECT id, node_id, key, value FROM nodes_config;
+
+CREATE TABLE nodes_roles_new (
+    node_id INTEGER NOT NULL,
+    role INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE,
+    UNIQUE (node_id, role)
+);
+
+INSERT INTO nodes_roles_new (node_id, role)
+    SELECT node_id, role FROM nodes_roles;
+
+CREATE TABLE operations_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    uuid TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    type INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER,
+    UNIQUE (uuid),
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO operations_new (id, uuid, node_id, type, project_id)
+    SELECT id, uuid, node_id, type, project_id FROM operations;
+
+CREATE TABLE profiles_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (profile_id, key),
+    FOREIGN KEY (profile_id) REFERENCES profiles_new(id) ON DELETE CASCADE
+);
+
+INSERT INTO profiles_config_new (id, profile_id, key, value)
+    SELECT id, profile_id, key, value FROM profiles_config;
+
+CREATE TABLE profiles_devices_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type INTEGER NOT NULL default 0,
+    UNIQUE (profile_id, name),
+    FOREIGN KEY (profile_id) REFERENCES profiles_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO profiles_devices_new (id, profile_id, name, type)
+    SELECT id, profile_id, name, type FROM profiles_devices;
+
+CREATE TABLE profiles_devices_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    profile_device_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (profile_device_id, key),
+    FOREIGN KEY (profile_device_id) REFERENCES profiles_devices_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO profiles_devices_config_new (id, profile_device_id, key, value)
+    SELECT id, profile_device_id, key, value FROM profiles_devices_config;
+
+CREATE TABLE projects_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    project_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE,
+    UNIQUE (project_id, key)
+);
+
+INSERT INTO projects_config_new (id, project_id, key, value)
+    SELECT id, project_id, key, value FROM projects_config;
+
+CREATE TABLE storage_pools_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    driver TEXT NOT NULL,
+    description TEXT NOT NULL,
+    state INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (name)
+);
+
+INSERT INTO storage_pools_new (id, name, driver, description, state)
+    SELECT id, name, driver, IFNULL(description, ''), state FROM storage_pools;
+
+CREATE TABLE storage_pools_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (storage_pool_id, node_id, key),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO storage_pools_config_new (id, storage_pool_id, node_id, key, value)
+    SELECT id, storage_pool_id, node_id, key, value FROM storage_pools_config;
+
+CREATE TABLE storage_pools_nodes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    state INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (storage_pool_id, node_id),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO storage_pools_nodes_new (id, storage_pool_id, node_id, state)
+    SELECT id, storage_pool_id, node_id, state FROM storage_pools_nodes;
+
+CREATE TABLE storage_volumes_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    name TEXT NOT NULL,
+    storage_pool_id INTEGER NOT NULL,
+    node_id INTEGER,
+    type INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    project_id INTEGER NOT NULL,
+    content_type INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (storage_pool_id, node_id, project_id, name, type),
+    FOREIGN KEY (storage_pool_id) REFERENCES storage_pools_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id) REFERENCES nodes_new (id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO storage_volumes_new (id, name, storage_pool_id, node_id, type, description, project_id, content_type)
+    SELECT id, name, storage_pool_id, node_id, type, IFNULL(description, ''), project_id, content_type FROM storage_volumes;
+
+CREATE TABLE storage_volumes_backups_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    creation_date DATETIME,
+    expiry_date DATETIME,
+    volume_only INTEGER NOT NULL default 0,
+    optimized_storage INTEGER NOT NULL default 0,
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes_new (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_id, name)
+);
+
+INSERT INTO storage_volumes_backups_new (id, storage_volume_id, name, creation_date, expiry_date, volume_only, optimized_storage)
+    SELECT id, storage_volume_id, name, creation_date, expiry_date, volume_only, optimized_storage FROM storage_volumes_backups;
+
+CREATE TABLE storage_volumes_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    UNIQUE (storage_volume_id, key),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO storage_volumes_config_new (id, storage_volume_id, key, value)
+    SELECT id, storage_volume_id, key, value FROM storage_volumes_config;
+
+CREATE TABLE storage_volumes_snapshots_new (
+    id INTEGER NOT NULL,
+    storage_volume_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    expiry_date DATETIME,
+    UNIQUE (id),
+    UNIQUE (storage_volume_id, name),
+    FOREIGN KEY (storage_volume_id) REFERENCES storage_volumes_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO storage_volumes_snapshots_new (id, storage_volume_id, name, description, expiry_date)
+    SELECT id, storage_volume_id, name, IFNULL(description, ''), expiry_date FROM storage_volumes_snapshots;
+
+CREATE TABLE storage_volumes_snapshots_config_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    storage_volume_snapshot_id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT,
+    FOREIGN KEY (storage_volume_snapshot_id) REFERENCES storage_volumes_snapshots_new (id) ON DELETE CASCADE,
+    UNIQUE (storage_volume_snapshot_id, key)
+);
+
+INSERT INTO storage_volumes_snapshots_config_new (id, storage_volume_snapshot_id, key, value)
+    SELECT id, storage_volume_snapshot_id, key, value FROM storage_volumes_snapshots_config;
+
+CREATE TABLE warnings_new (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	node_id INTEGER,
+	project_id INTEGER,
+	entity_type_code INTEGER,
+	entity_id INTEGER,
+	uuid TEXT NOT NULL,
+	type_code INTEGER NOT NULL,
+	status INTEGER NOT NULL,
+	first_seen_date DATETIME NOT NULL,
+	last_seen_date DATETIME NOT NULL,
+	updated_date DATETIME,
+	last_message TEXT NOT NULL,
+	count INTEGER NOT NULL,
+	UNIQUE (uuid),
+	FOREIGN KEY (node_id) REFERENCES nodes_new(id) ON DELETE CASCADE,
+	FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
+);
+
+INSERT INTO warnings_new (id, node_id, project_id, entity_type_code, entity_id, uuid, type_code, status, first_seen_date, last_seen_date, updated_date, last_message, count)
+    SELECT id, node_id, project_id, entity_type_code, entity_id, uuid, type_code, status, first_seen_date, last_seen_date, updated_date, last_message, count FROM warnings;
+
+DROP TABLE warnings;
+DROP TABLE storage_volumes_snapshots_config;
+DROP TABLE storage_volumes_snapshots;
+DROP TABLE storage_volumes_config;
+DROP TABLE storage_volumes_backups;
+DROP TABLE storage_volumes;
+DROP TABLE storage_pools_nodes;
+DROP TABLE storage_pools_config;
+DROP TABLE storage_pools;
+DROP TABLE projects_config;
+DROP TABLE profiles_devices_config;
+DROP TABLE profiles_devices;
+DROP TABLE profiles_config;
+DROP TABLE operations;
+DROP TABLE nodes_roles;
+DROP TABLE nodes_config;
+DROP TABLE nodes_cluster_groups;
+DROP TABLE networks_zones_config;
+DROP TABLE networks_zones;
+DROP TABLE networks_peers_config;
+DROP TABLE networks_peers;
+DROP TABLE networks_nodes;
+DROP TABLE networks_forwards_config;
+DROP TABLE networks_forwards;
+DROP TABLE networks_config;
+DROP TABLE networks_acls_config;
+DROP TABLE networks_acls;
+DROP TABLE networks;
+DROP TABLE instances_snapshots_devices_config;
+DROP TABLE instances_snapshots_devices;
+DROP TABLE instances_snapshots_config;
+DROP TABLE instances_snapshots;
+DROP TABLE instances_profiles;
+DROP TABLE instances_devices_config;
+DROP TABLE instances_devices;
+DROP TABLE instances_config;
+DROP TABLE instances_backups;
+DROP TABLE instances;
+DROP TABLE images_source;
+DROP TABLE images_properties;
+DROP TABLE images_profiles;
+DROP TABLE profiles;
+DROP TABLE images_nodes;
+DROP TABLE images_aliases;
+DROP TABLE nodes;
+DROP TABLE certificates_projects;
+DROP TABLE images;
+DROP TABLE projects;
+
+ALTER TABLE projects_new RENAME TO projects;
+ALTER TABLE certificates_projects_new RENAME TO certificates_projects;
+ALTER TABLE images_new RENAME TO images;
+ALTER TABLE images_aliases_new RENAME TO images_aliases;
+ALTER TABLE nodes_new RENAME TO nodes;
+ALTER TABLE images_nodes_new RENAME TO images_nodes;
+ALTER TABLE profiles_new RENAME TO profiles;
+ALTER TABLE images_profiles_new RENAME TO images_profiles;
+ALTER TABLE images_properties_new RENAME TO images_properties;
+ALTER TABLE images_source_new RENAME TO images_source;
+ALTER TABLE instances_new RENAME TO instances;
+ALTER TABLE instances_backups_new RENAME TO instances_backups;
+ALTER TABLE instances_config_new RENAME TO instances_config;
+ALTER TABLE instances_devices_new RENAME TO instances_devices;
+ALTER TABLE instances_devices_config_new RENAME TO instances_devices_config;
+ALTER TABLE instances_profiles_new RENAME TO instances_profiles;
+ALTER TABLE instances_snapshots_new RENAME TO instances_snapshots;
+ALTER TABLE instances_snapshots_config_new RENAME TO instances_snapshots_config;
+ALTER TABLE instances_snapshots_devices_new RENAME TO instances_snapshots_devices;
+ALTER TABLE instances_snapshots_devices_config_new RENAME TO instances_snapshots_devices_config;
+ALTER TABLE networks_new RENAME TO networks;
+ALTER TABLE networks_acls_new RENAME TO networks_acls;
+ALTER TABLE networks_acls_config_new RENAME TO networks_acls_config;
+ALTER TABLE networks_config_new RENAME TO networks_config;
+ALTER TABLE networks_forwards_new RENAME TO networks_forwards;
+ALTER TABLE networks_forwards_config_new RENAME TO networks_forwards_config;
+ALTER TABLE networks_nodes_new RENAME TO networks_nodes;
+ALTER TABLE networks_peers_new RENAME TO networks_peers;
+ALTER TABLE networks_peers_config_new RENAME TO networks_peers_config;
+ALTER TABLE networks_zones_new RENAME TO networks_zones;
+ALTER TABLE networks_zones_config_new RENAME TO networks_zones_config;
+ALTER TABLE nodes_cluster_groups_new RENAME TO nodes_cluster_groups;
+ALTER TABLE nodes_config_new RENAME TO nodes_config;
+ALTER TABLE nodes_roles_new RENAME TO nodes_roles;
+ALTER TABLE operations_new RENAME TO operations;
+ALTER TABLE profiles_config_new RENAME TO profiles_config;
+ALTER TABLE profiles_devices_new RENAME TO profiles_devices;
+ALTER TABLE profiles_devices_config_new RENAME TO profiles_devices_config;
+ALTER TABLE projects_config_new RENAME TO projects_config;
+ALTER TABLE storage_pools_new RENAME TO storage_pools;
+ALTER TABLE storage_pools_config_new RENAME TO storage_pools_config;
+ALTER TABLE storage_pools_nodes_new RENAME TO storage_pools_nodes;
+ALTER TABLE storage_volumes_new RENAME TO storage_volumes;
+ALTER TABLE storage_volumes_backups_new RENAME TO storage_volumes_backups;
+ALTER TABLE storage_volumes_config_new RENAME TO storage_volumes_config;
+ALTER TABLE storage_volumes_snapshots_new RENAME TO storage_volumes_snapshots;
+ALTER TABLE storage_volumes_snapshots_config_new RENAME TO storage_volumes_snapshots_config;
+ALTER TABLE warnings_new RENAME TO warnings;
+
+CREATE INDEX images_aliases_project_id_idx ON images_aliases (project_id);
+CREATE INDEX images_project_id_idx ON images (project_id);
+CREATE INDEX instances_project_id_and_name_idx ON instances (project_id, name);
+CREATE INDEX instances_project_id_and_node_id_and_name_idx ON instances (project_id, node_id, name);
+CREATE INDEX instances_project_id_and_node_id_idx ON instances (project_id, node_id);
+CREATE INDEX instances_project_id_idx ON instances (project_id);
+CREATE UNIQUE INDEX storage_pools_unique_storage_pool_id_node_id_key ON storage_pools_config (storage_pool_id, IFNULL(node_id, -1), key);
+CREATE INDEX instances_node_id_idx ON instances (node_id);
+CREATE UNIQUE INDEX networks_unique_network_id_node_id_key ON "networks_config" (network_id, IFNULL(node_id, -1), key);
+CREATE INDEX profiles_project_id_idx ON profiles (project_id);
+CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
+
+CREATE TRIGGER storage_volumes_check_id
+  BEFORE INSERT ON storage_volumes
+  WHEN NEW.id IN (SELECT id FROM storage_volumes_snapshots)
+  BEGIN
+    SELECT RAISE(FAIL,
+    "invalid ID");
+  END;
+
+CREATE TRIGGER storage_volumes_snapshots_check_id
+  BEFORE INSERT ON storage_volumes_snapshots
+  WHEN NEW.id IN (SELECT id FROM storage_volumes)
+  BEGIN
+    SELECT RAISE(FAIL,
+    "invalid ID");
+  END;
+
+CREATE VIEW storage_volumes_all (
+         id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id,
+         content_type) AS
+  SELECT id,
+         name,
+         storage_pool_id,
+         node_id,
+         type,
+         description,
+         project_id,
+         content_type
+    FROM storage_volumes UNION
+  SELECT storage_volumes_snapshots.id,
+         printf('%s/%s',
+    storage_volumes.name,
+    storage_volumes_snapshots.name),
+         storage_volumes.storage_pool_id,
+         storage_volumes.node_id,
+         storage_volumes.type,
+         storage_volumes_snapshots.description,
+         storage_volumes.project_id,
+         storage_volumes.content_type
+    FROM storage_volumes
+    JOIN storage_volumes_snapshots ON storage_volumes.id = storage_volumes_snapshots.storage_volume_id;
+`)
+	if err != nil {
+		return errors.Wrap(err, "Could not add not null constraint to description field")
+	}
+	return nil
 }
 
 func updateFromV54(tx *sql.Tx) error {
