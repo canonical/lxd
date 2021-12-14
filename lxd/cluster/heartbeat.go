@@ -438,7 +438,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return
 	}
 
-	var unavailableMembers []string
+	// Initialise slice to indicate to HeartbeatNodeHook that its being called from leader.
+	unavailableMembers := make([]string, 0)
 
 	err = query.Retry(func() error {
 		return g.Cluster.Transaction(func(tx *db.ClusterTx) error {
