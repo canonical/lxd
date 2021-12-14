@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sys/unix"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
+	client "github.com/canonical/go-dqlite/client"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
 	"gopkg.in/macaroon-bakery.v2/bakery/identchecker"
@@ -120,6 +121,9 @@ type Daemon struct {
 
 	// Device monitor for watching filesystem events
 	devmonitor devmonitor.FSMonitor
+
+	// Keep track of skews.
+	timeSkew bool
 }
 
 type externalAuth struct {
@@ -954,7 +958,7 @@ func (d *Daemon) init() error {
 	if err != nil {
 		return err
 	}
-	d.gateway.HeartbeatNodeHook = d.NodeRefreshTask
+	d.gateway.HeartbeatNodeHook = d.nodeRefreshTask
 
 	/* Setup some mounts (nice to have) */
 	if !d.os.MockMode {
@@ -1797,13 +1801,92 @@ func (d *Daemon) hasMemberStateChanged(heartbeatData *cluster.APIHeartbeat) bool
 	return false
 }
 
-// NodeRefreshTask is run when a full state heartbeat is sent (on the leader) or received (by a non-leader member).
+// heartbeatHandler handles heartbeat requests from other cluster members.
+func (d *Daemon) heartbeatHandler(w http.ResponseWriter, r *http.Request, isLeader bool, hbData *cluster.APIHeartbeat) {
+	var err error
+
+	// Look for time skews.
+	now := time.Now().UTC()
+
+	if hbData.Time.Add(5*time.Second).Before(now) || hbData.Time.Add(-5*time.Second).After(now) {
+		if !d.timeSkew {
+			logger.Warn("Time skew detected between leader and local", log.Ctx{"leaderTime": hbData.Time, "localTime": now})
+		}
+		d.timeSkew = true
+	} else {
+		if d.timeSkew {
+			logger.Warn("Time skew resolved")
+			d.timeSkew = false
+		}
+	}
+
+	// Extract the raft nodes from the heartbeat info.
+	raftNodes := make([]db.RaftNode, 0)
+	for _, node := range hbData.Members {
+		if node.RaftID > 0 {
+			raftNodes = append(raftNodes, db.RaftNode{
+				NodeInfo: client.NodeInfo{
+					ID:      node.RaftID,
+					Address: node.Address,
+					Role:    db.RaftRole(node.RaftRole),
+				},
+				Name: node.Name,
+			})
+		}
+	}
+
+	// Check we have been sent at least 1 raft node before wiping our set.
+	if len(raftNodes) <= 0 {
+		logger.Error("Empty raft member set received")
+		http.Error(w, "400 Empty raft member set received", http.StatusBadRequest)
+		return
+	}
+
+	// Accept raft node list from any heartbeat type so that we get freshest data quickly.
+	logger.Debug("Replace current raft nodes", log.Ctx{"raftMembers": raftNodes})
+	err = d.db.Transaction(func(tx *db.NodeTx) error {
+		return tx.ReplaceRaftNodes(raftNodes)
+	})
+	if err != nil {
+		logger.Error("Error updating raft members", log.Ctx{"err": err})
+		http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
+		return
+	}
+
+	localAddress, _ := node.ClusterAddress(d.db)
+
+	if hbData.FullStateList {
+		// If there is an ongoing heartbeat round (and by implication this is the leader), then this could
+		// be a problem because it could be broadcasting the stale member state information which in turn
+		// could lead to incorrect decisions being made. So calling heartbeatRestart will request any
+		// ongoing heartbeat round to cancel itself prematurely and restart another one. If there is no
+		// ongoing heartbeat round or this member isn't the leader then this function call is a no-op and
+		// will return false. If the heartbeat is restarted, then the heartbeat refresh task will be called
+		// at the end of the heartbeat so no need to do it here.
+		if !isLeader || !d.gateway.HeartbeatRestart() {
+			// Run heartbeat refresh task async so heartbeat response is sent to leader straight away.
+			go d.nodeRefreshTask(hbData, isLeader, nil)
+		}
+	} else {
+		if isLeader {
+			logger.Error("Partial heartbeat should not be sent to leader")
+			http.Error(w, "400 Partial heartbeat should not be sent to leader", http.StatusBadRequest)
+			return
+		}
+
+		logger.Info("Partial heartbeat received", log.Ctx{"local": localAddress})
+	}
+
+	return
+}
+
+// nodeRefreshTask is run when a full state heartbeat is sent (on the leader) or received (by a non-leader member).
 // Is is used to check for member state changes and trigger refreshes of the certificate cache and forkdns peers.
 // It also triggers member role promotion when run on the isLeader is true.
 // When run on the leader, it accepts a list of unavailableMembers that have not responded to the current heartbeat
 // round (but may not be considered actually offline at this stage). These unavailable members will not be used for
 // role rebalancing.
-func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {
+func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {
 	// Don't process the heartbeat until we're fully online.
 	if d.cluster == nil || d.cluster.GetNodeID() == 0 {
 		return
