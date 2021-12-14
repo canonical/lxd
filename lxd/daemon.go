@@ -1933,8 +1933,10 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		d.lastNodeList = heartbeatData
 	}
 
-	// If we are the leader and there are other members in the cluster, then check if we need to update roles.
-	if isLeader && len(heartbeatData.Members) > 1 {
+	// If we are leader and called from the leader heartbeat send function (unavailbleMembers != nil) and there
+	// are other members in the cluster, then check if we need to update roles. We do not want to do this if
+	// we are called on the leader as part of a notification heartbeat being received from another member.
+	if isLeader && unavailableMembers != nil && len(heartbeatData.Members) > 1 {
 		isDegraded := false
 		hasNodesNotPartOfRaft := false
 		onlineVoters := 0
