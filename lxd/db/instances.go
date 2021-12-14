@@ -691,32 +691,6 @@ func (c *ClusterTx) UpdateInstanceLastUsedDate(id int, date time.Time) error {
 	return nil
 }
 
-// GetInstanceSnapshotsWithName returns all snapshots of a given instance in date created order, oldest first.
-func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([]Instance, error) {
-	instance, err := c.GetInstance(project, name)
-	if err != nil {
-		return nil, err
-	}
-	filter := InstanceSnapshotFilter{
-		Project:  &project,
-		Instance: &name,
-	}
-
-	snapshots, err := c.GetInstanceSnapshots(filter)
-	if err != nil {
-		return nil, err
-	}
-
-	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].CreationDate.Before(snapshots[j].CreationDate) })
-
-	instances := make([]Instance, len(snapshots))
-	for i, snapshot := range snapshots {
-		instances[i] = InstanceSnapshotToInstance(instance, &snapshot)
-	}
-
-	return instances, nil
-}
-
 // GetInstancePool returns the storage pool of a given instance (or snapshot).
 func (c *ClusterTx) GetInstancePool(projectName string, instanceName string) (string, error) {
 	// Strip snapshot name if supplied in instanceName, and lookup the storage pool of the parent instance

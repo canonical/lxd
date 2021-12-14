@@ -119,6 +119,23 @@ func (s *InstanceSnapshot) ToInstanceArgs(tx *ClusterTx, instance *Instance) (*I
 	}, nil
 }
 
+// GetInstanceSnapshotsWithName returns all snapshots of a given instance in date created order, oldest first.
+func (c *ClusterTx) GetInstanceSnapshotsWithName(project string, name string) ([]InstanceSnapshot, error) {
+	filter := InstanceSnapshotFilter{
+		Project:  &project,
+		Instance: &name,
+	}
+
+	snapshots, err := c.GetInstanceSnapshots(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(snapshots, func(i, j int) bool { return snapshots[i].CreationDate.Before(snapshots[j].CreationDate) })
+
+	return snapshots, nil
+}
+
 // UpdateInstanceSnapshotConfig inserts/updates/deletes the provided config keys.
 func (c *ClusterTx) UpdateInstanceSnapshotConfig(id int, values map[string]string) error {
 	insertSQL := "INSERT OR REPLACE INTO instances_snapshots_config (instance_snapshot_id, key, value) VALUES"
