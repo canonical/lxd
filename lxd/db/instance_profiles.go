@@ -54,19 +54,16 @@ func (c *ClusterTx) UpdateInstanceProfiles(instance Instance) error {
 	stmt := c.stmt(instanceProfileCreate)
 
 	for _, name := range instance.Profiles {
-		var instanceID int64
-		var profileID int64
-
-		profileID, err = c.GetProfileID(project, name)
-		instanceID = int64(instance.ID)
-
+		profileID, err := c.GetProfileID(project, name)
 		if err != nil {
 			return err
 		}
 
-		_, err = stmt.Exec(instanceID, profileID, applyOrder)
+		_, err = stmt.Exec(instance.ID, profileID, applyOrder)
 		if err != nil {
+			return err
 		}
+
 		applyOrder = applyOrder + 1
 	}
 
