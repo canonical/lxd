@@ -381,17 +381,13 @@ var ErrInstanceListStop = fmt.Errorf("search stopped")
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project Project, profiles []api.Profile) error) error {
-	var instances []Instance
-	projectMap := map[string]Project{}
-	projectHasProfiles := map[string]bool{}
-	profilesByProjectAndName := map[string]map[string]Profile{}
-
+func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(instanceID int, inst api.Instance, project api.Project, profiles []api.Profile) error) error {
 	if filter == nil {
 		filter = &InstanceFilter{}
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
+	var instances []Instance
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
 		instances, err = tx.GetInstances(*filter)
@@ -399,59 +395,34 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 			return errors.Wrap(err, "Failed loading instances")
 		}
 
-		projects, err := tx.GetProjects(ProjectFilter{})
-		if err != nil {
-			return errors.Wrap(err, "Failed loading projects")
-		}
-
-		// Index of all projects by name and record which projects have the profiles feature.
-		for i, project := range projects {
-			projectMap[project.Name] = projects[i]
-			projectHasProfiles[project.Name] = shared.IsTrue(project.Config["features.profiles"])
-		}
-
-		profiles, err := tx.GetProfiles(ProfileFilter{})
-		if err != nil {
-			return errors.Wrap(err, "Failed loading profiles")
-		}
-
-		// Index of all profiles by project and name.
-		for _, profile := range profiles {
-			profilesByName, ok := profilesByProjectAndName[profile.Project]
-			if !ok {
-				profilesByName = map[string]Profile{}
-				profilesByProjectAndName[profile.Project] = profilesByName
+		// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
+		// the instanceFunc will be slow or may need to make additional DB queries.
+		for _, instance := range instances {
+			apiInstance, instanceProfiles, err := instance.ToAPI(tx)
+			if err != nil {
+				return err
 			}
-			profilesByName[profile.Name] = profile
+
+			project, err := tx.GetProject(instance.Project)
+			if err != nil {
+				return err
+			}
+
+			instanceProject, err := project.ToAPI(tx)
+			if err != nil {
+				return err
+			}
+
+			err = instanceFunc(instance.ID, *apiInstance, *instanceProject, instanceProfiles)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
 	})
 	if err != nil {
 		return err
-	}
-
-	// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
-	// the instanceFunc will be slow or may need to make additional DB queries.
-	for _, instance := range instances {
-		profiles := make([]api.Profile, len(instance.Profiles))
-
-		// If the instance's project does not have the profiles feature enabled,
-		// we fall back to the default project.
-		profilesProject := instance.Project
-		if !projectHasProfiles[profilesProject] {
-			profilesProject = "default" // Equivalent to project.Default constant.
-		}
-
-		for j, name := range instance.Profiles {
-			profile := profilesByProjectAndName[profilesProject][name]
-			profiles[j] = *ProfileToAPI(&profile)
-		}
-
-		err = instanceFunc(instance, projectMap[instance.Project], profiles)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
