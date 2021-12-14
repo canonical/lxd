@@ -14,27 +14,40 @@ import (
 )
 
 // GetNetworkACLs returns the names of existing Network ACLs.
-func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
+func (c *ClusterTx) GetNetworkACLs(project string) ([]string, error) {
 	q := `SELECT name FROM networks_acls
 		WHERE project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
 		ORDER BY id
 	`
 
 	var aclNames []string
+	err := c.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		var aclName string
 
+		err := scan(&aclName)
+		if err != nil {
+			return err
+		}
+
+		aclNames = append(aclNames, aclName)
+
+		return nil
+	}, project)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return aclNames, nil
+}
+
+// GetNetworkACLs returns the names of existing Network ACLs.
+func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
+	var aclNames []string
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
-			var aclName string
-
-			err := scan(&aclName)
-			if err != nil {
-				return err
-			}
-
-			aclNames = append(aclNames, aclName)
-
-			return nil
-		}, project)
+		var err error
+		aclNames, err = tx.GetNetworkACLs(project)
+		return err
 	})
 	if err != nil {
 		return nil, err
