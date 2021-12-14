@@ -34,9 +34,9 @@ html_theme = "furo"
 html_show_sphinx = False
 html_last_updated_fmt = ""
 html_favicon = "https://linuxcontainers.org/static/img/favicon.ico"
-html_logo = "https://linuxcontainers.org/static/img/containers.small.png"
 html_static_path = ['_static']
 html_css_files = ['custom.css']
+html_js_files = ['header-nav.js']
 html_extra_path = ['_extra']
 
 html_theme_options = {
