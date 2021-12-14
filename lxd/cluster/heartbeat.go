@@ -253,10 +253,10 @@ func (g *Gateway) HearbeatCancelFunc() func() {
 	return g.heartbeatCancel
 }
 
-// heartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
+// HeartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
 // If there is no ongoing heartbeat then this is a no-op.
 // Returns true if new heartbeat round was started.
-func (g *Gateway) heartbeatRestart() bool {
+func (g *Gateway) HeartbeatRestart() bool {
 	heartbeatCancel := g.HearbeatCancelFunc()
 
 	// There is a cancellable heartbeat round ongoing.
