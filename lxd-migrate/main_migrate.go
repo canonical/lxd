@@ -35,31 +35,31 @@ type cmdMigrate struct {
 
 func (c *cmdMigrate) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = "lxd-p2c <target URL> <container name> <filesystem root> [<filesystem mounts>...]"
-	cmd.Short = "Physical to container migration tool"
+	cmd.Use = "lxd-migrate <target URL> <instance name> <filesystem root> [<filesystem mounts>...]"
+	cmd.Short = "Physical to instance migration tool"
 	cmd.Long = `Description:
-  Physical to container migration tool
+  Physical to instance migration tool
 
   This tool lets you turn any Linux filesystem (including your current one)
-  into a LXD container on a remote LXD host.
+  into a LXD instance on a remote LXD host.
 
   It will setup a clean mount tree made of the root filesystem and any
   additional mount you list, then transfer this through LXD's migration
-  API to create a new container from it.
+  API to create a new instance from it.
 
   The same set of options as ` + "`lxc launch`" + ` are also supported.
 `
 	cmd.RunE = c.Run
-	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Configuration key and value to set on the container"+"``")
-	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", "Network to use for the container"+"``")
-	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, "Profile to apply to the container"+"``")
-	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", "Storage pool to use for the container"+"``")
+	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, "Configuration key and value to set on the instance"+"``")
+	cmd.Flags().StringVarP(&c.flagNetwork, "network", "n", "", "Network to use for the instance"+"``")
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, "Profile to apply to the instance"+"``")
+	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", "Storage pool to use for the instance"+"``")
 	cmd.Flags().StringVar(&c.flagStorageSize, "storage-size", "", "Size of the storage volume (requires --storage)"+"``")
-	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", "Instance type to use for the container"+"``")
+	cmd.Flags().StringVarP(&c.flagType, "type", "t", "", "Instance type to use for the instance"+"``")
 	cmd.Flags().StringVar(&c.flagRsyncArgs, "rsync-args", "", "Extra arguments to pass to rsync"+"``")
 	cmd.Flags().StringVar(&c.flagClientCert, "client-cert", "", "Path to an existing client certificate"+"``")
 	cmd.Flags().StringVar(&c.flagClientKey, "client-key", "", "Path to an existing client key"+"``")
-	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the container with no profiles applied")
+	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, "Create the instance with no profiles applied")
 
 	return cmd
 }
@@ -115,7 +115,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create the temporary directory to be used for the mounts
-	path, err := ioutil.TempDir("", "lxd-p2c_mount_")
+	path, err := ioutil.TempDir("", "lxd-migrate_mount_")
 	if err != nil {
 		return err
 	}
@@ -150,10 +150,10 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Container creation request
-	apiArgs := api.ContainersPost{}
+	// Instance creation request
+	apiArgs := api.InstancesPost{}
 	apiArgs.Name = args[1]
-	apiArgs.Source = api.ContainerSource{
+	apiArgs.Source = api.InstanceSource{
 		Type: "migration",
 		Mode: "push",
 	}
@@ -215,26 +215,26 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Check if the container already exists
-	_, _, err = dst.GetContainer(apiArgs.Name)
+	// Check if the instance already exists
+	_, _, err = dst.GetInstance(apiArgs.Name)
 	if err == nil {
-		return fmt.Errorf("Container '%s' already exists", apiArgs.Name)
+		return fmt.Errorf("Instance '%s' already exists", apiArgs.Name)
 	}
 
-	// Create the container
+	// Create the instance
 	success := false
-	op, err := dst.CreateContainer(apiArgs)
+	op, err := dst.CreateInstance(apiArgs)
 	if err != nil {
 		return err
 	}
 
 	defer func() {
 		if !success {
-			dst.DeleteContainer(apiArgs.Name)
+			dst.DeleteInstance(apiArgs.Name)
 		}
 	}()
 
-	progress := utils.ProgressRenderer{Format: "Transferring container: %s"}
+	progress := utils.ProgressRenderer{Format: "Transferring instance: %s"}
 	_, err = op.AddHandler(progress.UpdateOp)
 	if err != nil {
 		progress.Done("")
@@ -246,7 +246,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	progress.Done(fmt.Sprintf("Container %s successfully created", apiArgs.Name))
+	progress.Done(fmt.Sprintf("Instance %s successfully created", apiArgs.Name))
 	success = true
 
 	return nil
