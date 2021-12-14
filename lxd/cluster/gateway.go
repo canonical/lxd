@@ -195,15 +195,15 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 		if r.Method == "PUT" {
 			if g.shutdownCtx.Err() != nil {
 				logger.Warn("Rejecting heartbeat request as shutting down")
-				http.Error(w, "503 shutting down", http.StatusServiceUnavailable)
+				http.Error(w, "503 Shutting down", http.StatusServiceUnavailable)
 				return
 			}
 
 			var heartbeatData APIHeartbeat
 			err := json.NewDecoder(r.Body).Decode(&heartbeatData)
 			if err != nil {
-				logger.Error("Error decoding heartbeat body", log.Ctx{"err": err})
-				http.Error(w, "400 invalid heartbeat payload", http.StatusBadRequest)
+				logger.Error("Failed decoding heartbeat", log.Ctx{"err": err})
+				http.Error(w, "400 Failed decoding heartbeat", http.StatusBadRequest)
 				return
 			}
 
