@@ -117,16 +117,6 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"profiles\" table: %w", err)
 	}
 
-	// Use non-generated custom method for UsedBy fields.
-	for i := range objects {
-		usedBy, err := c.GetProfileUsedBy(objects[i])
-		if err != nil {
-			return nil, err
-		}
-
-		objects[i].UsedBy = usedBy
-	}
-
 	return objects, nil
 }
 

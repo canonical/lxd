@@ -7,7 +7,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -619,27 +618,4 @@ func exec(c *Cluster, q string, args ...interface{}) error {
 		})
 	})
 	return err
-}
-
-// urlsToResourceNames returns a list of resource names extracted from one or more URLs of the same resource type.
-// The resource type path prefix to match is provided by the matchPathPrefix argument.
-// TODO: Duplicated method from client/util.go. Remove with decoupling of URL generation from db package.
-func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, error) {
-	resourceNames := make([]string, 0, len(urls))
-
-	for _, urlRaw := range urls {
-		u, err := url.Parse(urlRaw)
-		if err != nil {
-			return nil, fmt.Errorf("Failed parsing URL %q: %w", urlRaw, err)
-		}
-
-		fields := strings.Split(u.Path, fmt.Sprintf("%s/", matchPathPrefix))
-		if len(fields) != 2 {
-			return nil, fmt.Errorf("Unexpected URL path %q", u)
-		}
-
-		resourceNames = append(resourceNames, fields[len(fields)-1])
-	}
-
-	return resourceNames, nil
 }

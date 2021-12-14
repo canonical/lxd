@@ -283,31 +283,6 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"instances\" table: %w", err)
 	}
 
-	instanceProfiles, err := c.GetInstanceProfiles()
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		objects[i].Profiles = make([]string, 0)
-		if refIDs, ok := instanceProfiles[objects[i].ID]; ok {
-			for _, refID := range refIDs {
-				profileURIs, err := c.GetProfileURIs(ProfileFilter{ID: &refID})
-				if err != nil {
-					return nil, err
-				}
-
-				uris, err := urlsToResourceNames("/profiles", profileURIs...)
-				if err != nil {
-					return nil, err
-				}
-
-				profileURIs = uris
-				objects[i].Profiles = append(objects[i].Profiles, profileURIs...)
-			}
-		}
-	}
-
 	return objects, nil
 }
 
@@ -455,13 +430,6 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 		return -1, fmt.Errorf("Failed to fetch \"instances\" entry ID: %w", err)
 	}
 
-	// Update association table.
-	object.ID = int(id)
-	err = c.UpdateInstanceProfiles(object)
-	if err != nil {
-		return -1, fmt.Errorf("Could not update association table: %w", err)
-	}
-
 	return id, nil
 }
 
@@ -559,13 +527,6 @@ func (c *ClusterTx) UpdateInstance(project string, name string, object Instance)
 
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
-	// Update association table.
-	object.ID = int(id)
-	err = c.UpdateInstanceProfiles(object)
-	if err != nil {
-		return fmt.Errorf("Could not update association table: %w", err)
 	}
 
 	return nil
