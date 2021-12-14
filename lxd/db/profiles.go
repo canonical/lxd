@@ -6,7 +6,6 @@ package db
 import (
 	"fmt"
 
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
@@ -324,16 +323,12 @@ func ExpandInstanceConfig(config map[string]string, profiles []api.Profile) map[
 
 // ExpandInstanceDevices expands the given instance devices with the devices
 // defined in the given profiles.
-func ExpandInstanceDevices(devices deviceConfig.Devices, profiles []api.Profile) deviceConfig.Devices {
-	expandedDevices := deviceConfig.Devices{}
+func ExpandInstanceDevices(devices map[string]map[string]string, profiles []api.Profile) map[string]map[string]string {
+	expandedDevices := map[string]map[string]string{}
 
 	// Apply all the profiles
-	profileDevices := make([]deviceConfig.Devices, len(profiles))
-	for i, profile := range profiles {
-		profileDevices[i] = deviceConfig.NewDevices(profile.Devices)
-	}
-	for i := range profileDevices {
-		for k, v := range profileDevices[i] {
+	for _, profile := range profiles {
+		for k, v := range profile.Devices {
 			expandedDevices[k] = v
 		}
 	}
