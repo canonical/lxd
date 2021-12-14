@@ -1966,13 +1966,15 @@ func (d *Daemon) hasMemberStateChanged(heartbeatData *cluster.APIHeartbeat) bool
 // round (but may not be considered actually offline at this stage). These unavailable members will not be used for
 // role rebalancing.
 func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader bool, unavailableMembers []string) {
-	// Don't process the heartbeat until we're fully online
+	// Don't process the heartbeat until we're fully online.
 	if d.cluster == nil || d.cluster.GetNodeID() == 0 {
 		return
 	}
 
+	localAddress, _ := node.ClusterAddress(d.db)
+
 	if !heartbeatData.FullStateList || len(heartbeatData.Members) <= 0 {
-		logger.Error("Heartbeat member refresh task called with partial state list")
+		logger.Error("Heartbeat member refresh task called with partial state list", log.Ctx{"local": localAddress})
 		return
 	}
 
@@ -1987,7 +1989,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 	stateChangeTaskFailure := false // Records whether any of the state change tasks failed.
 	if d.hasMemberStateChanged(heartbeatData) {
-		logger.Info("Cluster member state has changed")
+		logger.Info("Cluster member state has changed", log.Ctx{"local": localAddress})
 
 		// Refresh cluster certificates cached.
 		updateCertificateCache(d)
@@ -1996,7 +1998,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		err := networkUpdateForkdnsServersTask(d.State(), heartbeatData)
 		if err != nil {
 			stateChangeTaskFailure = true
-			logger.Error("Error refreshing forkdns", log.Ctx{"err": err})
+			logger.Error("Error refreshing forkdns", log.Ctx{"err": err, "local": localAddress})
 		}
 	}
 
@@ -2036,8 +2038,6 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			}
 		}
 
-		address, _ := node.ClusterAddress(d.State().Node)
-
 		var maxVoters int64
 		var maxStandBy int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -2050,7 +2050,7 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			return nil
 		})
 		if err != nil {
-			logger.Errorf("Error loading cluster configuration: %v", err)
+			logger.Error("Error loading cluster configuration", log.Ctx{"err": err, "local": localAddress})
 			return
 		}
 
@@ -2059,20 +2059,20 @@ func (d *Daemon) NodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 		// can upgrade some member.
 		if isDegraded || onlineVoters < int(maxVoters) || onlineStandbys < int(maxStandBy) {
 			d.clusterMembershipMutex.Lock()
-			logger.Debug("Rebalancing member roles in heartbeat", log.Ctx{"address": address})
+			logger.Debug("Rebalancing member roles in heartbeat", log.Ctx{"local": localAddress})
 			err := rebalanceMemberRoles(d, nil, unavailableMembers)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-				logger.Warnf("Could not rebalance cluster member roles: %v", err)
+				logger.Warn("Could not rebalance cluster member roles", log.Ctx{"err": err, "local": localAddress})
 			}
 			d.clusterMembershipMutex.Unlock()
 		}
 
 		if hasNodesNotPartOfRaft {
 			d.clusterMembershipMutex.Lock()
-			logger.Debug("Upgrading members without raft role in heartbeat", log.Ctx{"address": address})
+			logger.Debug("Upgrading members without raft role in heartbeat", log.Ctx{"local": localAddress})
 			err := upgradeNodesWithoutRaftRole(d)
 			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
-				logger.Warnf("Failed upgrade raft roles: %v", err)
+				logger.Warn("Failed upgrading raft roles:", log.Ctx{"err": err, "local": localAddress})
 			}
 			d.clusterMembershipMutex.Unlock()
 		}
