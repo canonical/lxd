@@ -669,6 +669,34 @@ type StorageVolumeArgs struct {
 	NodeID int64
 }
 
+// ToAPI converts StorageVolumeArgs into the api entity StorageVolume.
+func (s StorageVolumeArgs) ToAPI(tx *ClusterTx) (*api.StorageVolume, error) {
+	nodeInfo, err := tx.GetNodes()
+	if err != nil {
+		return nil, err
+	}
+
+	location := "none"
+	for _, node := range nodeInfo {
+		if node.ID == s.NodeID {
+			location = node.Name
+			break
+		}
+	}
+
+	return &api.StorageVolume{
+		StorageVolumePut: api.StorageVolumePut{
+			Config:      s.Config,
+			Description: s.Description,
+		},
+
+		Name:        s.Name,
+		Type:        s.TypeName,
+		ContentType: s.ContentType,
+		Location:    location,
+	}, nil
+}
+
 // GetStorageVolumeNodes returns the node info of all nodes on which the volume with the given name is defined.
 // The volume name can be either a regular name or a volume snapshot name.
 // If the volume is defined, but without a specific node, then the ErrNoClusterMember error is returned.

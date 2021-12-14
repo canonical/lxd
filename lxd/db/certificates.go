@@ -83,8 +83,9 @@ func (cert *Certificate) ToAPIType() string {
 	return api.CertificateTypeUnknown
 }
 
-// ToAPI converts the database Certificate struct to an api.Certificate entry.
-func (cert *Certificate) ToAPI() api.Certificate {
+// ToAPI converts the database Certificate struct to an api.Certificate
+// entry filling fields from the database as necessary.
+func (cert *Certificate) ToAPI(tx *ClusterTx) (*api.Certificate, error) {
 	resp := api.Certificate{}
 	resp.Fingerprint = cert.Fingerprint
 	resp.Certificate = cert.Certificate
@@ -92,8 +93,17 @@ func (cert *Certificate) ToAPI() api.Certificate {
 	resp.Restricted = cert.Restricted
 	resp.Type = cert.ToAPIType()
 
-	// TODO: fetch certificate projects and handle errors for filling API struct.
-	return resp
+	projects, err := tx.GetCertificateProjects(*cert)
+	if err != nil {
+		return nil, err
+	}
+
+	resp.Projects = make([]string, len(projects))
+	for i, p := range projects {
+		resp.Projects[i] = p.Name
+	}
+
+	return &resp, nil
 }
 
 // CertificateFilter specifies potential query parameter fields.

@@ -51,16 +51,21 @@ type ProjectFilter struct {
 }
 
 // ToAPI converts the database Project struct to an api.Project entry.
-func (p *Project) ToAPI() api.Project {
-	return api.Project{
+func (p *Project) ToAPI(tx *ClusterTx) (*api.Project, error) {
+	apiProject := &api.Project{
 		ProjectPut: api.ProjectPut{
 			Description: p.Description,
 		},
-		Name:   p.Name,
-		UsedBy: p.UsedBy,
+		Name: p.Name,
 	}
 
-	// TODO: fetch project config, and handle errors if necessary.
+	var err error
+	apiProject.Config, err = tx.GetProjectConfig(p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return apiProject, nil
 }
 
 // ProjectHasProfiles is a helper to check if a project has the profiles

@@ -6,9 +6,12 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/osarch"
 )
 
 // Code generation directives.
@@ -51,28 +54,84 @@ type InstanceSnapshotFilter struct {
 	Name     *string
 }
 
-// InstanceSnapshotToInstance is a temporary convenience function to merge
+// ToInstance is a convenience function to merge
 // together an Instance struct and a SnapshotInstance struct into into a the
 // legacy Instance struct for a snapshot.
-func InstanceSnapshotToInstance(instance *Instance, snapshot *InstanceSnapshot) Instance {
+func (s *InstanceSnapshot) ToInstance(instance *Instance) Instance {
 	return Instance{
-		ID:           snapshot.ID,
-		Project:      snapshot.Project,
-		Name:         instance.Name + shared.SnapshotDelimiter + snapshot.Name,
+		ID:           s.ID,
+		Project:      s.Project,
+		Name:         instance.Name + shared.SnapshotDelimiter + s.Name,
 		Node:         instance.Node,
 		Type:         instance.Type,
 		Snapshot:     true,
 		Architecture: instance.Architecture,
 		Ephemeral:    false,
-		CreationDate: snapshot.CreationDate,
-		Stateful:     snapshot.Stateful,
+		CreationDate: s.CreationDate,
+		Stateful:     s.Stateful,
 		LastUseDate:  sql.NullTime{},
-		Description:  snapshot.Description,
-		Profiles:     instance.Profiles,
-		ExpiryDate:   snapshot.ExpiryDate,
+		Description:  s.Description,
+		ExpiryDate:   s.ExpiryDate,
+	}
+}
+
+// ToAPI converts a snapshot to an api.Instance.
+func (s InstanceSnapshot) ToAPI(tx *ClusterTx, instance *Instance, profiles []Profile) (*api.Instance, error) {
+	apiProfiles := make([]api.Profile, len(profiles))
+	profileNames := make([]string, len(profiles))
+	for i, p := range profiles {
+		apiProfile, err := p.ToAPI(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		apiProfiles[i] = *apiProfile
+		profileNames[i] = p.Name
 	}
 
-	// TODO: fetch instance devices and config, and handle errors if necessary.
+	config, err := tx.GetInstanceSnapshotConfig(s.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	devices, err := tx.GetInstanceSnapshotDevices(s.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	apiDevices := DevicesToAPI(devices)
+	expandedConfig := ExpandInstanceConfig(config, apiProfiles)
+	expandedDevices := ExpandInstanceDevices(apiDevices, apiProfiles)
+
+	archName, err := osarch.ArchitectureName(instance.Architecture)
+	if err != nil {
+		return nil, err
+	}
+
+	snapInst := s.ToInstance(instance)
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.Instance{
+		InstancePut: api.InstancePut{
+			Architecture: archName,
+			Config:       config,
+			Devices:      apiDevices,
+			Ephemeral:    false,
+			Profiles:     profileNames,
+			Stateful:     snapInst.Stateful,
+			Description:  snapInst.Description,
+		},
+		CreatedAt:       snapInst.CreationDate,
+		ExpandedConfig:  expandedConfig,
+		ExpandedDevices: expandedDevices,
+		Name:            snapInst.Name,
+		LastUsedAt:      sql.NullTime{}.Time,
+		Location:        instance.Node,
+		Type:            instance.Type.String(),
+		Project:         snapInst.Project,
+	}, nil
 }
 
 // UpdateInstanceSnapshotConfig inserts/updates/deletes the provided config keys.
