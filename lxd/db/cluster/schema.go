@@ -22,13 +22,6 @@ CREATE TABLE certificates_projects (
 	FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
 	UNIQUE (certificate_id, project_id)
 );
-CREATE VIEW certificates_projects_ref (fingerprint,
-    value) AS
-	SELECT certificates.fingerprint,
-    projects.name FROM certificates_projects
-		JOIN certificates ON certificates.id=certificates_projects.certificate_id
-		JOIN projects ON projects.id=certificates_projects.project_id
-		ORDER BY projects.name;
 CREATE TABLE "cluster_groups" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -139,20 +132,6 @@ CREATE TABLE "instances_config" (
     FOREIGN KEY (instance_id) REFERENCES "instances" (id) ON DELETE CASCADE,
     UNIQUE (instance_id, key)
 );
-CREATE VIEW instances_config_ref (project,
-    node,
-    name,
-    key,
-    value) AS
-   SELECT projects.name,
-    nodes.name,
-    instances.name,
-    instances_config.key,
-    instances_config.value
-     FROM instances_config
-       JOIN instances ON instances.id=instances_config.instance_id
-       JOIN projects ON projects.id=instances.project_id
-       JOIN nodes ON nodes.id=instances.node_id;
 CREATE TABLE "instances_devices" (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     instance_id INTEGER NOT NULL,
@@ -169,27 +148,6 @@ CREATE TABLE "instances_devices_config" (
     FOREIGN KEY (instance_device_id) REFERENCES "instances_devices" (id) ON DELETE CASCADE,
     UNIQUE (instance_device_id, key)
 );
-CREATE VIEW instances_devices_ref (project,
-    node,
-    name,
-    device,
-    type,
-    key,
-    value) AS
-   SELECT projects.name,
-    nodes.name,
-    instances.name,
-          instances_devices.name,
-    instances_devices.type,
-          coalesce(instances_devices_config.key,
-    ''),
-    coalesce(instances_devices_config.value,
-    '')
-   FROM instances_devices
-     LEFT OUTER JOIN instances_devices_config ON instances_devices_config.instance_device_id=instances_devices.id
-     JOIN instances ON instances.id=instances_devices.instance_id
-     JOIN projects ON projects.id=instances.project_id
-     JOIN nodes ON nodes.id=instances.node_id;
 CREATE INDEX instances_node_id_idx ON instances (node_id);
 CREATE TABLE "instances_profiles" (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
@@ -200,20 +158,6 @@ CREATE TABLE "instances_profiles" (
     FOREIGN KEY (instance_id) REFERENCES "instances"(id) ON DELETE CASCADE,
     FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
-CREATE VIEW instances_profiles_ref (project,
-    node,
-    name,
-    value) AS
-   SELECT projects.name,
-    nodes.name,
-    instances.name,
-    profiles.name
-     FROM instances_profiles
-       JOIN instances ON instances.id=instances_profiles.instance_id
-       JOIN profiles ON profiles.id=instances_profiles.profile_id
-       JOIN projects ON projects.id=instances.project_id
-       JOIN nodes ON nodes.id=instances.node_id
-     ORDER BY instances_profiles.apply_order;
 CREATE INDEX instances_project_id_and_name_idx ON instances (project_id,
     name);
 CREATE INDEX instances_project_id_and_node_id_and_name_idx ON instances (project_id,
@@ -241,22 +185,6 @@ CREATE TABLE instances_snapshots_config (
     FOREIGN KEY (instance_snapshot_id) REFERENCES instances_snapshots (id) ON DELETE CASCADE,
     UNIQUE (instance_snapshot_id, key)
 );
-CREATE VIEW instances_snapshots_config_ref (
-  project,
-  instance,
-  name,
-  key,
-  value) AS
-  SELECT
-    projects.name,
-    instances.name,
-    instances_snapshots.name,
-    instances_snapshots_config.key,
-    instances_snapshots_config.value
-  FROM instances_snapshots_config
-    JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_config.instance_snapshot_id
-    JOIN instances ON instances.id=instances_snapshots.instance_id
-    JOIN projects ON projects.id=instances.project_id;
 CREATE TABLE instances_snapshots_devices (
     id INTEGER primary key AUTOINCREMENT NOT NULL,
     instance_snapshot_id INTEGER NOT NULL,
@@ -273,30 +201,6 @@ CREATE TABLE instances_snapshots_devices_config (
     FOREIGN KEY (instance_snapshot_device_id) REFERENCES instances_snapshots_devices (id) ON DELETE CASCADE,
     UNIQUE (instance_snapshot_device_id, key)
 );
-CREATE VIEW instances_snapshots_devices_ref (
-  project,
-  instance,
-  name,
-  device,
-  type,
-  key,
-  value) AS
-  SELECT
-    projects.name,
-    instances.name,
-    instances_snapshots.name,
-    instances_snapshots_devices.name,
-    instances_snapshots_devices.type,
-    coalesce(instances_snapshots_devices_config.key,
-    ''),
-    coalesce(instances_snapshots_devices_config.value,
-    '')
-  FROM instances_snapshots_devices
-    LEFT OUTER JOIN instances_snapshots_devices_config
-      ON instances_snapshots_devices_config.instance_snapshot_device_id=instances_snapshots_devices.id
-     JOIN instances ON instances.id=instances_snapshots.instance_id
-     JOIN projects ON projects.id=instances.project_id
-     JOIN instances_snapshots ON instances_snapshots.id=instances_snapshots_devices.instance_snapshot_id;
 CREATE TABLE "networks" (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     project_id INTEGER NOT NULL,
@@ -467,17 +371,6 @@ CREATE TABLE profiles_config (
     UNIQUE (profile_id, key),
     FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
-CREATE VIEW profiles_config_ref (project,
-    name,
-    key,
-    value) AS
-   SELECT projects.name,
-    profiles.name,
-    profiles_config.key,
-    profiles_config.value
-     FROM profiles_config
-     JOIN profiles ON profiles.id=profiles_config.profile_id
-     JOIN projects ON projects.id=profiles.project_id;
 CREATE TABLE profiles_devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     profile_id INTEGER NOT NULL,
@@ -494,41 +387,7 @@ CREATE TABLE profiles_devices_config (
     UNIQUE (profile_device_id, key),
     FOREIGN KEY (profile_device_id) REFERENCES profiles_devices (id) ON DELETE CASCADE
 );
-CREATE VIEW profiles_devices_ref (project,
-    name,
-    device,
-    type,
-    key,
-    value) AS
-   SELECT projects.name,
-    profiles.name,
-          profiles_devices.name,
-    profiles_devices.type,
-          coalesce(profiles_devices_config.key,
-    ''),
-    coalesce(profiles_devices_config.value,
-    '')
-   FROM profiles_devices
-     LEFT OUTER JOIN profiles_devices_config ON profiles_devices_config.profile_device_id=profiles_devices.id
-     JOIN profiles ON profiles.id=profiles_devices.profile_id
-     JOIN projects ON projects.id=profiles.project_id;
 CREATE INDEX profiles_project_id_idx ON profiles (project_id);
-CREATE VIEW profiles_used_by_ref (project,
-    name,
-    value) AS
-  SELECT projects.name,
-    profiles.name,
-    printf('/1.0/instances/%s?project=%s',
-    "instances".name,
-    instances_projects.name)
-    FROM profiles
-    JOIN projects ON projects.id=profiles.project_id
-    JOIN "instances_profiles"
-      ON "instances_profiles".profile_id=profiles.id
-    JOIN "instances"
-      ON "instances".id="instances_profiles".instance_id
-    JOIN projects AS instances_projects
-      ON instances_projects.id="instances".project_id;
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -543,54 +402,6 @@ CREATE TABLE projects_config (
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE,
     UNIQUE (project_id, key)
 );
-CREATE VIEW projects_config_ref (name,
-    key,
-    value) AS
-   SELECT projects.name,
-    projects_config.key,
-    projects_config.value
-     FROM projects_config
-     JOIN projects ON projects.id=projects_config.project_id;
-CREATE VIEW projects_used_by_ref (name,
-    value) AS
-  SELECT projects.name,
-    printf('/1.0/instances/%s?project=%s',
-    "instances".name,
-    projects.name)
-    FROM "instances" JOIN projects ON project_id=projects.id UNION
-  SELECT projects.name,
-    printf('/1.0/images/%s?project=%s',
-    images.fingerprint,
-    projects.name)
-    FROM images JOIN projects ON project_id=projects.id UNION
-  SELECT projects.name,
-    printf('/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s',
-    storage_pools.name,
-    storage_volumes.name,
-    projects.name,
-    nodes.name)
-    FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN nodes ON node_id=nodes.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 UNION
-  SELECT projects.name,
-    printf('/1.0/storage-pools/%s/volumes/custom/%s?project=%s',
-    storage_pools.name,
-    storage_volumes.name,
-    projects.name)
-    FROM storage_volumes JOIN storage_pools ON storage_pool_id=storage_pools.id JOIN projects ON project_id=projects.id WHERE storage_volumes.type=2 AND storage_volumes.node_id IS NULL UNION
-  SELECT projects.name,
-    printf('/1.0/profiles/%s?project=%s',
-    profiles.name,
-    projects.name)
-    FROM profiles JOIN projects ON project_id=projects.id UNION
-  SELECT projects.name,
-    printf('/1.0/networks/%s?project=%s',
-    networks.name,
-    projects.name)
-    FROM networks JOIN projects ON project_id=projects.id UNION
-  SELECT projects.name,
-    printf('/1.0/network-acls/%s?project=%s',
-    networks_acls.name,
-    projects.name)
-    FROM networks_acls JOIN projects ON project_id=projects.id;
 CREATE TABLE storage_pools (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name TEXT NOT NULL,
@@ -734,5 +545,5 @@ CREATE TABLE warnings (
 );
 CREATE UNIQUE INDEX warnings_unique_node_id_project_id_entity_type_code_entity_id_type_code ON warnings(IFNULL(node_id, -1), IFNULL(project_id, -1), entity_type_code, entity_id, type_code);
 
-INSERT INTO schema (version, updated_at) VALUES (54, strftime("%s"))
+INSERT INTO schema (version, updated_at) VALUES (55, strftime("%s"))
 `
