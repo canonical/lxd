@@ -794,7 +794,7 @@ func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[s
 
 // GetStorageVolumeDescription gets the description of a storage volume.
 func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
-	description := sql.NullString{}
+	var description string
 	query := "SELECT description FROM storage_volumes_all WHERE id=?"
 	inargs := []interface{}{volumeID}
 	outargs := []interface{}{&description}
@@ -807,7 +807,7 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 		return "", err
 	}
 
-	return description.String, nil
+	return description, nil
 }
 
 // getStorageVolumeContentType gets the content type of a storage volume.
