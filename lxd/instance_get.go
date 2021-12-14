@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/instance"
@@ -12,7 +13,50 @@ import (
 //
 // Get the instance
 //
-// Gets a specific instance.
+// Gets a specific instance (basic struct).
+//
+// ---
+// produces:
+//   - application/json
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//     description: Instance
+//     schema:
+//       type: object
+//       description: Sync response
+//       properties:
+//         type:
+//           type: string
+//           description: Response type
+//           example: sync
+//         status:
+//           type: string
+//           description: Status description
+//           example: Success
+//         status_code:
+//           type: integer
+//           description: Status code
+//           example: 200
+//         metadata:
+//           $ref: "#/definitions/Instance"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+
+// swagger:operation GET /1.0/instances/{name}?recursion=1 instances instance_get_recursion1
+//
+// Get the instance
+//
+// Gets a specific instance (full struct).
+//
+// recursion=1 also includes information about state, snapshots and backups.
 //
 // ---
 // produces:
@@ -57,6 +101,14 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	name := mux.Vars(r)["name"]
 
+	// Parse the recursion field
+	recursionStr := r.FormValue("recursion")
+
+	recursion, err := strconv.Atoi(recursionStr)
+	if err != nil {
+		recursion = 0
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
@@ -71,7 +123,13 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	state, etag, err := c.Render()
+	var state interface{}
+	var etag interface{}
+	if recursion == 0 {
+		state, etag, err = c.Render()
+	} else {
+		state, etag, err = c.RenderFull()
+	}
 	if err != nil {
 		return response.SmartError(err)
 	}
