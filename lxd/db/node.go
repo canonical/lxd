@@ -480,8 +480,8 @@ func (c *ClusterTx) CreateNode(name string, address string) (int64, error) {
 // CreateNodeWithArch is the same as NodeAdd, but lets setting the node
 // architecture explicitly.
 func (c *ClusterTx) CreateNodeWithArch(name string, address string, arch int) (int64, error) {
-	columns := []string{"name", "address", "schema", "api_extensions", "arch"}
-	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch}
+	columns := []string{"name", "address", "schema", "api_extensions", "arch", "description"}
+	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch, ""}
 	return query.UpsertObject(c.tx, "nodes", columns, values)
 }
 

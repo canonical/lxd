@@ -230,7 +230,7 @@ func TestNodeIsEmpty_Containers(t *testing.T) {
 	assert.Equal(t, "", message)
 
 	_, err = tx.Tx().Exec(`
-INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES (1, ?, 'foo', 1, 1, 1)
+INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, ?, 'foo', 1, 1, 1, '')
 `, id)
 	require.NoError(t, err)
 
@@ -287,12 +287,12 @@ func TestNodeIsEmpty_CustomVolumes(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
-INSERT INTO storage_pools (id, name, driver) VALUES (1, 'local', 'zfs')`)
+INSERT INTO storage_pools (id, name, driver, description) VALUES (1, 'local', 'zfs', '')`)
 	require.NoError(t, err)
 
 	_, err = tx.Tx().Exec(`
-INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id)
-  VALUES ('data', 1, ?, ?, 1)`, id, db.StoragePoolVolumeTypeCustom)
+INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, project_id, description)
+  VALUES ('data', 1, ?, ?, 1, '')`, id, db.StoragePoolVolumeTypeCustom)
 	require.NoError(t, err)
 
 	message, err := tx.NodeIsEmpty(id)
@@ -311,7 +311,7 @@ func TestGetNodeWithLeastInstances(t *testing.T) {
 
 	// Add a container to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
-INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES (1, 1, 'foo', 1, 1, 1)
+INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, 1, 'foo', 1, 1, 1, '')
 `)
 	require.NoError(t, err)
 
@@ -331,7 +331,7 @@ func TestGetNodeWithLeastInstances_OfflineNode(t *testing.T) {
 
 	// Add a container to the newly created node.
 	_, err = tx.Tx().Exec(`
-INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES (1, ?, 'foo', 1, 1, 1)
+INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, ?, 'foo', 1, 1, 1, '')
 `, id)
 	require.NoError(t, err)
 
@@ -383,7 +383,7 @@ func TestGetNodeWithLeastInstances_Architecture(t *testing.T) {
 
 	// Add a container to the default node (ID 1)
 	_, err = tx.Tx().Exec(`
-INSERT INTO instances (id, node_id, name, architecture, type, project_id) VALUES (1, 1, 'foo', 1, 1, 1)
+INSERT INTO instances (id, node_id, name, architecture, type, project_id, description) VALUES (1, 1, 'foo', 1, 1, 1, '')
 `)
 	require.NoError(t, err)
 

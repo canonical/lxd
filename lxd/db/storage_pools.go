@@ -405,8 +405,8 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	if poolID == 0 {
 		// No existing pool with the given name was found, let's create
 		// one.
-		columns := []string{"name", "driver"}
-		values := []interface{}{name, driver}
+		columns := []string{"name", "driver", "description"}
+		values := []interface{}{name, driver, ""}
 		poolID, err = query.UpsertObject(c.tx, "storage_pools", columns, values)
 		if err != nil {
 			return err
