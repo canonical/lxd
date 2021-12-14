@@ -192,6 +192,11 @@ func (e *Endpoints) up(config *Config) error {
 		}
 	}
 
+	// Setup STARTTLS layer on local listener.
+	if e.listeners[local] != nil {
+		e.listeners[local] = networkSTARTTLSListener(e.listeners[local], e.cert)
+	}
+
 	// Start the devlxd listener
 	e.listeners[devlxd], err = createDevLxdlListener(config.Dir)
 	if err != nil {
