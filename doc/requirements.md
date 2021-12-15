@@ -22,7 +22,7 @@ The following optional features also require extra kernel options:
 As well as any other kernel feature required by the LXC version in use.
 
 ## LXC
-LXD requires LXC 3.0.0 or higher with the following build options:
+LXD requires LXC 4.0.0 or higher with the following build options:
 
  * apparmor (if using LXD's apparmor support)
  * seccomp
