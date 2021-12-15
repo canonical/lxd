@@ -37,7 +37,7 @@ func NewServer(debug bool, verbose bool) *Server {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(group string, allGroups bool, connection *websocket.Conn, messageTypes []string, location string, noForward bool) (*Listener, error) {
+func (s *Server) AddListener(group string, allGroups bool, connection *websocket.Conn, messageTypes []string, location string, localOnly bool) (*Listener, error) {
 	if allGroups && group != "" {
 		return nil, fmt.Errorf("Cannot specify both group when listening for events on all groups")
 	}
@@ -51,7 +51,7 @@ func (s *Server) AddListener(group string, allGroups bool, connection *websocket
 		group:        group,
 		messageTypes: messageTypes,
 		location:     location,
-		noForward:    noForward,
+		localOnly:    localOnly,
 		ctx:          ctx,
 		ctxCancel:    ctxCancel,
 		id:           uuid.New(),
@@ -124,7 +124,7 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 			continue
 		}
 
-		if isForward && listener.noForward {
+		if isForward && listener.localOnly {
 			continue
 		}
 
@@ -189,7 +189,7 @@ type Listener struct {
 	// If true, this listener won't get events forwarded from other
 	// nodes. It only used by listeners created internally by LXD nodes
 	// connecting to other LXD nodes to get their local events only.
-	noForward bool
+	localOnly bool
 }
 
 func (e *Listener) heartbeat() {
