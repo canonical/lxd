@@ -16,7 +16,7 @@ import (
 )
 
 // Bind to the given unix socket path.
-func socketUnixListen(path string) (net.Listener, error) {
+func socketUnixListen(path string) (*net.UnixListener, error) {
 	addr, err := net.ResolveUnixAddr("unix", path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve socket address: %v", err)
@@ -28,7 +28,6 @@ func socketUnixListen(path string) (net.Listener, error) {
 	}
 
 	return listener, err
-
 }
 
 // CheckAlreadyRunning checks if the socket at the given path is already
