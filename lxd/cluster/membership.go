@@ -606,6 +606,9 @@ func NotifyHeartbeat(state *state.State, offlineThreshold time.Duration) {
 	// Setup a full-state notification heartbeat.
 	hbState.Update(true, raftNodes, allNodes, offlineThreshold)
 
+	// Refresh local event listeners.
+	go EventsUpdateListeners(state.Endpoints, state.Cluster, state.ServerCert, hbState.Members, state.Events.Forward)
+
 	// Notify all other members of the change in membership.
 	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"local": localAddress})
 	var wg sync.WaitGroup
