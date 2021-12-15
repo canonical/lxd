@@ -243,14 +243,15 @@ SELECT nodes.id, nodes.address
 	return address, nil
 }
 
-// GetInstanceNamesByNodeAddress returns the names of all containers grouped by
-// cluster node address.
+// GetProjectAndInstanceNamesByNodeAddress returns the project and name of all instances grouped by
+// cluster node address. Each node address has a slice of instances, where each instance is represented
+// as an array of length 2 in which element 0 is the project and element 1 is the instance name.
 //
-// The node address of containers running on the local node is set to the empty
+// The node address of instances running on the local node is set to the empty
 // string, to distinguish it from remote nodes.
 //
-// Containers whose node is down are addeded to the special address "0.0.0.0".
-func (c *ClusterTx) GetInstanceNamesByNodeAddress(projects []string, filter InstanceFilter) (map[string][]string, error) {
+// Instances whose node is down are added to the special address "0.0.0.0".
+func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, filter InstanceFilter) (map[string][][2]string, error) {
 	offlineThreshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
 		return nil, err
@@ -272,7 +273,7 @@ func (c *ClusterTx) GetInstanceNamesByNodeAddress(projects []string, filter Inst
 	}
 
 	stmt := fmt.Sprintf(`
-SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
+SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat, projects.name
   FROM instances
   JOIN nodes ON nodes.id = instances.node_id
   JOIN projects ON projects.id = instances.project_id
@@ -286,14 +287,15 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 	}
 	defer rows.Close()
 
-	result := map[string][]string{}
+	result := map[string][][2]string{}
 
 	for i := 0; rows.Next(); i++ {
-		var name string
+		var instanceName string
 		var nodeAddress string
 		var nodeID int64
 		var nodeHeartbeat time.Time
-		err := rows.Scan(&name, &nodeID, &nodeAddress, &nodeHeartbeat)
+		var projectName string
+		err := rows.Scan(&instanceName, &nodeID, &nodeAddress, &nodeHeartbeat, &projectName)
 		if err != nil {
 			return nil, err
 		}
@@ -302,7 +304,7 @@ SELECT instances.name, nodes.id, nodes.address, nodes.heartbeat
 		} else if nodeIsOffline(offlineThreshold, nodeHeartbeat) {
 			nodeAddress = "0.0.0.0"
 		}
-		result[nodeAddress] = append(result[nodeAddress], name)
+		result[nodeAddress] = append(result[nodeAddress], [2]string{projectName, instanceName})
 	}
 
 	err = rows.Err()
@@ -393,9 +395,9 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 	return nil
 }
 
-// GetInstanceToNodeMap returns a map associating the name of each
+// GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
 // instance in the given projects to the name of the node hosting the instance.
-func (c *ClusterTx) GetInstanceToNodeMap(projects []string, filter InstanceFilter) (map[string]string, error) {
+func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter InstanceFilter) (map[[2]string]string, error) {
 	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
@@ -412,7 +414,7 @@ func (c *ClusterTx) GetInstanceToNodeMap(projects []string, filter InstanceFilte
 	}
 
 	stmt := fmt.Sprintf(`
-SELECT instances.name, nodes.name
+SELECT instances.name, nodes.name, projects.name
   FROM instances
   JOIN nodes ON nodes.id = instances.node_id
   JOIN projects ON projects.id = instances.project_id
@@ -425,16 +427,17 @@ SELECT instances.name, nodes.name
 	}
 	defer rows.Close()
 
-	result := map[string]string{}
+	result := map[[2]string]string{}
 
 	for i := 0; rows.Next(); i++ {
-		var name string
+		var instanceName string
 		var nodeName string
-		err := rows.Scan(&name, &nodeName)
+		var projectName string
+		err := rows.Scan(&instanceName, &nodeName, &projectName)
 		if err != nil {
 			return nil, err
 		}
-		result[name] = nodeName
+		result[[2]string{projectName, instanceName}] = nodeName
 	}
 
 	err = rows.Err()

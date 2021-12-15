@@ -5,6 +5,7 @@ package db_test
 
 import (
 	"database/sql"
+	"github.com/lxc/lxd/lxd/project"
 	"testing"
 	"time"
 
@@ -361,14 +362,14 @@ func TestGetInstanceNamesByNodeAddress(t *testing.T) {
 	addContainer(t, tx, nodeID3, "c3")
 	addContainer(t, tx, nodeID2, "c4")
 
-	result, err := tx.GetInstanceNamesByNodeAddress([]string{"default"}, db.InstanceTypeFilter(instancetype.Container))
+	result, err := tx.GetProjectAndInstanceNamesByNodeAddress([]string{"default"}, db.InstanceTypeFilter(instancetype.Container))
 	require.NoError(t, err)
 	assert.Equal(
 		t,
-		map[string][]string{
-			"":            {"c2"},
-			"1.2.3.4:666": {"c1", "c4"},
-			"0.0.0.0":     {"c3"},
+		map[string][][2]string{
+			"":            {{project.Default, "c2"}},
+			"1.2.3.4:666": {{project.Default, "c1"}, {project.Default, "c4"}},
+			"0.0.0.0":     {{project.Default, "c3"}},
 		}, result)
 }
 
@@ -385,13 +386,13 @@ func TestGetInstanceToNodeMap(t *testing.T) {
 	addContainer(t, tx, nodeID2, "c1")
 	addContainer(t, tx, nodeID1, "c2")
 
-	result, err := tx.GetInstanceToNodeMap([]string{"default"}, db.InstanceTypeFilter(instancetype.Container))
+	result, err := tx.GetProjectInstanceToNodeMap([]string{"default"}, db.InstanceTypeFilter(instancetype.Container))
 	require.NoError(t, err)
 	assert.Equal(
 		t,
-		map[string]string{
-			"c1": "node2",
-			"c2": "none",
+		map[[2]string]string{
+			{project.Default, "c1"}: "node2",
+			{project.Default, "c2"}: "none",
 		}, result)
 }
 
