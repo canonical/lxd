@@ -269,8 +269,8 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	allProjects := r.FormValue("all-projects")
 
 	// Get the list and location of all containers
-	var result map[string][]string // Containers by node address
-	var nodes map[string]string    // Node names by container
+	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by node address
+	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance
 	filteredProjects := []string{}
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
@@ -292,12 +292,12 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 			filteredProjects = []string{projectName}
 		}
 
-		result, err = tx.GetInstanceNamesByNodeAddress(filteredProjects, db.InstanceTypeFilter(instanceType))
+		nodesProjectsInstances, err = tx.GetProjectAndInstanceNamesByNodeAddress(filteredProjects, db.InstanceTypeFilter(instanceType))
 		if err != nil {
 			return err
 		}
 
-		nodes, err = tx.GetInstanceToNodeMap(filteredProjects, db.InstanceTypeFilter(instanceType))
+		projectInstanceToNodeName, err = tx.GetProjectInstanceToNodeMap(filteredProjects, db.InstanceTypeFilter(instanceType))
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	}
 
 	// Get the local instances
-	nodeInstances := map[string]instance.Instance{}
+	nodeInstances := map[[2]string]instance.Instance{}
 	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	if mustLoadObjects {
 		for _, project := range filteredProjects {
@@ -319,19 +319,20 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 			}
 
 			for _, inst := range insts {
-				nodeInstances[inst.Name()] = inst
+				nodeInstances[[2]string{inst.Project(), inst.Name()}] = inst
 			}
 		}
 	}
 
 	// Append containers to list and handle errors
-	resultListAppend := func(name string, c api.Instance, err error) {
+	resultListAppend := func(projectInstance [2]string, c api.Instance, err error) {
 		if err != nil {
 			c = api.Instance{
-				Name:       name,
+				Name:       projectInstance[1],
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
-				Location:   nodes[name],
+				Location:   projectInstanceToNodeName[projectInstance],
+				Project:    projectInstance[0],
 			}
 		}
 		resultMu.Lock()
@@ -339,13 +340,14 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 		resultMu.Unlock()
 	}
 
-	resultFullListAppend := func(name string, c api.InstanceFull, err error) {
+	resultFullListAppend := func(projectInstance [2]string, c api.InstanceFull, err error) {
 		if err != nil {
 			c = api.InstanceFull{Instance: api.Instance{
-				Name:       name,
+				Name:       projectInstance[1],
 				Status:     api.Error.String(),
 				StatusCode: api.Error,
-				Location:   nodes[name],
+				Location:   projectInstanceToNodeName[projectInstance],
+				Project:    projectInstance[0],
 			}}
 		}
 		resultMu.Lock()
@@ -356,21 +358,21 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	// Get the data
 	wg := sync.WaitGroup{}
 	networkCert := d.endpoints.NetworkCert()
-	for address, instanceNames := range result {
+	for address, projectsInstances := range nodesProjectsInstances {
 		// If this is an internal request from another cluster node,
-		// ignore containers from other nodes, and return only the ones
+		// ignore containers from other projectInstanceToNodeName, and return only the ones
 		// on this node
 		if isClusterNotification(r) && address != "" {
 			continue
 		}
 
-		// Mark containers on unavailable nodes as down
+		// Mark containers on unavailable projectInstanceToNodeName as down
 		if mustLoadObjects && address == "0.0.0.0" {
-			for _, instanceName := range instanceNames {
+			for _, projectInstance := range projectsInstances {
 				if recursion < 2 {
-					resultListAppend(instanceName, api.Instance{}, fmt.Errorf("unavailable"))
+					resultListAppend(projectInstance, api.Instance{}, fmt.Errorf("unavailable"))
 				} else {
-					resultFullListAppend(instanceName, api.InstanceFull{}, fmt.Errorf("unavailable"))
+					resultFullListAppend(projectInstance, api.InstanceFull{}, fmt.Errorf("unavailable"))
 				}
 			}
 
@@ -378,24 +380,24 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 		}
 
 		// For recursion requests we need to fetch the state of remote
-		// containers from their respective nodes.
+		// containers from their respective projectInstanceToNodeName.
 		if mustLoadObjects && address != "" && !isClusterNotification(r) {
 			wg.Add(1)
-			go func(address string, containers []string) {
+			go func(address string, projectsInstances [][2]string) {
 				defer wg.Done()
 
 				if recursion == 1 {
 					cs, err := doContainersGetFromNode(filteredProjects, address, allProjects, networkCert, d.serverCert(), r, instanceType)
 					if err != nil {
-						for _, name := range containers {
-							resultListAppend(name, api.Instance{}, err)
+						for _, projectInstance := range projectsInstances {
+							resultListAppend(projectInstance, api.Instance{}, err)
 						}
 
 						return
 					}
 
 					for _, c := range cs {
-						resultListAppend(c.Name, c, nil)
+						resultListAppend([2]string{c.Name, c.Project}, c, nil)
 					}
 
 					return
@@ -403,50 +405,50 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 				cs, err := doContainersFullGetFromNode(filteredProjects, address, allProjects, networkCert, d.serverCert(), r, instanceType)
 				if err != nil {
-					for _, name := range containers {
-						resultFullListAppend(name, api.InstanceFull{}, err)
+					for _, projectInstance := range projectsInstances {
+						resultFullListAppend(projectInstance, api.InstanceFull{}, err)
 					}
 
 					return
 				}
 
 				for _, c := range cs {
-					resultFullListAppend(c.Name, c, nil)
+					resultFullListAppend([2]string{c.Name, c.Project}, c, nil)
 				}
-			}(address, instanceNames)
+			}(address, projectsInstances)
 
 			continue
 		}
 		if !mustLoadObjects {
-			for _, instanceName := range instanceNames {
+			for _, projectInstance := range projectsInstances {
 				instancePath := "instances"
 				if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "container") {
 					instancePath = "containers"
 				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
 					instancePath = "virtual-machines"
 				}
-				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, instanceName)
+				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, projectInstance[1])
 				resultString = append(resultString, url)
 			}
 		} else {
 			threads := 4
-			if len(instanceNames) < threads {
-				threads = len(instanceNames)
+			if len(projectsInstances) < threads {
+				threads = len(projectsInstances)
 			}
 
-			queue := make(chan string, threads)
+			queue := make(chan [2]string, threads)
 
 			for i := 0; i < threads; i++ {
 				wg.Add(1)
 
 				go func() {
 					for {
-						instanceName, more := <-queue
+						projectInstance, more := <-queue
 						if !more {
 							break
 						}
 
-						inst, found := nodeInstances[instanceName]
+						inst, found := nodeInstances[projectInstance]
 						if !found {
 							continue
 						}
@@ -454,9 +456,9 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 						if recursion < 2 {
 							c, _, err := inst.Render()
 							if err != nil {
-								resultListAppend(instanceName, api.Instance{}, err)
+								resultListAppend(projectInstance, api.Instance{}, err)
 							} else {
-								resultListAppend(instanceName, *c.(*api.Instance), err)
+								resultListAppend(projectInstance, *c.(*api.Instance), err)
 							}
 
 							continue
@@ -464,9 +466,9 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 
 						c, _, err := inst.RenderFull()
 						if err != nil {
-							resultFullListAppend(instanceName, api.InstanceFull{}, err)
+							resultFullListAppend(projectInstance, api.InstanceFull{}, err)
 						} else {
-							resultFullListAppend(instanceName, *c, err)
+							resultFullListAppend(projectInstance, *c, err)
 						}
 					}
 
@@ -474,8 +476,8 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 				}()
 			}
 
-			for _, instanceName := range instanceNames {
-				queue <- instanceName
+			for _, projectInstance := range projectsInstances {
+				queue <- projectInstance
 			}
 
 			close(queue)
