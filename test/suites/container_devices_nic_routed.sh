@@ -101,15 +101,30 @@ test_container_devices_nic_routed() {
     false
   fi
 
-  #Spin up another container with multiple IPs.
+  #Spin up another container with multiple IPv4 addresses (no IPv6 to check single family operation).
   lxc init testimage "${ctName}2"
   lxc config device add "${ctName}2" eth0 nic \
     name=eth0 \
     nictype=routed \
     parent=${ctName} \
-    ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}" \
-    ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
+    ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}"
   lxc start "${ctName}2"
+  lxc exec "${ctName}2" -- ip -4 r | grep "169.254.0.1"
+  ! lxc exec "${ctName}2" -- ip -6 r | grep "fe80::1" || false
+  lxc stop -f "${ctName}2"
+
+  # Check single IPv6 family auto default gateway works.
+  lxc config device unset "${ctName}2" eth0 ipv4.address
+  lxc config device set "${ctName}2" eth0 ipv6.address="2001:db8::2${ipRand}, 2001:db8::3${ipRand}"
+  lxc start "${ctName}2"
+  ! lxc exec "${ctName}2" -- ip r | grep "169.254.0.1" || false
+  lxc exec "${ctName}2" -- ip -6 r | grep "fe80::1"
+  lxc stop -f "${ctName}2"
+
+  # Enable both IP families.
+  lxc config device set "${ctName}2" eth0 ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}"
+  lxc start "${ctName}2"
+
   lxc exec "${ctName}2" -- sysctl net.ipv6.conf.eth0.accept_dad=0
 
   # Wait for IPv6 DAD to complete.
