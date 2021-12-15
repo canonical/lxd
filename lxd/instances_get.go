@@ -427,8 +427,8 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
 					instancePath = "virtual-machines"
 				}
-				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, projectInstance[1])
-				resultString = append(resultString, url)
+				url := api.NewURL().Path(version.APIVersion, instancePath, projectInstance[1]).Project(projectInstance[0])
+				resultString = append(resultString, url.String())
 			}
 		} else {
 			threads := 4
@@ -494,8 +494,8 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 				} else if strings.HasPrefix(mux.CurrentRoute(r).GetName(), "vm") {
 					instancePath = "virtual-machines"
 				}
-				url := fmt.Sprintf("/%s/%s/%s", version.APIVersion, instancePath, container.Name)
-				resultString = append(resultString, url)
+				url := api.NewURL().Path(version.APIVersion, instancePath, container.Name).Project(container.Project)
+				resultString = append(resultString, url.String())
 			}
 		}
 		return resultString, nil
