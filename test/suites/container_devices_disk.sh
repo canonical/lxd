@@ -8,6 +8,7 @@ test_container_devices_disk() {
   test_container_devices_raw_mount_options
   test_container_devices_disk_ceph
   test_container_devices_disk_cephfs
+  test_container_devices_disk_socket
 
   lxc delete -f foo
 }
@@ -130,4 +131,11 @@ test_container_devices_disk_cephfs() {
   lxc restart ceph-fs --force
   lxc exec ceph-fs -- stat /cephfs
   lxc delete -f ceph-fs
+}
+
+test_container_devices_disk_socket() {
+  lxc config device add foo unix-socket disk source="${LXD_DIR}/unix.socket" path=/root/lxd.sock
+  lxc start foo
+  [ "$(lxc exec foo -- stat /root/lxd.sock -c '%F')" = "socket" ] || false
+  lxc stop foo -f
 }
