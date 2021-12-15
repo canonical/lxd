@@ -329,10 +329,10 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	if mode != hearbeatNormal {
 		// Log unscheduled heartbeats with a higher level than normal heartbeats.
-		logger.Info("Starting heartbeat round", log.Ctx{"mode": modeStr, "address": localAddress})
+		logger.Info("Starting heartbeat round", log.Ctx{"mode": modeStr, "local": localAddress})
 	} else {
 		// Don't spam the normal log with regular heartbeat messages.
-		logger.Debug("Starting heartbeat round", log.Ctx{"mode": modeStr, "address": localAddress})
+		logger.Debug("Starting heartbeat round", log.Ctx{"mode": modeStr, "local": localAddress})
 	}
 
 	// Replace the local raft_nodes table immediately because it
@@ -344,12 +344,12 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
-		logger.Warn("Failed to replace local raft members", log.Ctx{"err": err})
+		logger.Warn("Failed to replace local raft members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
 		return
 	}
 
 	if localAddress == "" {
-		logger.Warn("No local address set, aborting heartbeat round")
+		logger.Error("No local address set, aborting heartbeat round", log.Ctx{"mode": modeStr})
 		return
 	}
 
@@ -394,7 +394,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
+		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
 		return
 	}
 
@@ -424,7 +424,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// If the context has been cancelled, return immediately.
 	err = ctx.Err()
 	if err != nil {
-		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err})
+		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
 		return
 	}
 
@@ -468,7 +468,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	}
 
 	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration, "address": localAddress})
+	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration, "local": localAddress})
 }
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
