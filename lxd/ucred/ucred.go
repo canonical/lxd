@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/lxc/lxd/lxd/endpoints"
 	"github.com/lxc/lxd/lxd/request"
 )
 
@@ -46,7 +47,12 @@ func GetCredFromContext(ctx context.Context) (*unix.Ucred, error) {
 	conn := GetConnFromContext(ctx)
 	unixConnPtr, ok := conn.(*net.UnixConn)
 	if !ok {
-		return nil, ErrNotUnixSocket
+		bufferedUnixConnPtr, ok := conn.(endpoints.BufferedUnixConn)
+		if !ok {
+			return nil, ErrNotUnixSocket
+		}
+
+		unixConnPtr = bufferedUnixConnPtr.Unix()
 	}
 
 	return GetCred(unixConnPtr)
