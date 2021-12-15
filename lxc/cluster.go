@@ -627,6 +627,10 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing cluster member name"))
 	}
 
+	if !resource.server.IsClustered() {
+		return fmt.Errorf(i18n.G("Server is not clustered"))
+	}
+
 	// If stdin isn't a terminal, read text from it
 	if !termios.IsTerminal(getStdinFd()) {
 		contents, err := ioutil.ReadAll(os.Stdin)
