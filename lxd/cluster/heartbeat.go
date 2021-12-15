@@ -49,6 +49,13 @@ type APIHeartbeatVersion struct {
 	APIExtensions int
 }
 
+// NewAPIHearbeat returns initialised APIHeartbeat.
+func NewAPIHearbeat(cluster *db.Cluster) *APIHeartbeat {
+	return &APIHeartbeat{
+		cluster: cluster,
+	}
+}
+
 // APIHeartbeat contains data sent to nodes in heartbeat.
 type APIHeartbeat struct {
 	sync.Mutex // Used to control access to Members maps.
@@ -210,14 +217,16 @@ func HeartbeatTask(gateway *Gateway) (task.Func, task.Schedule) {
 	// Since the database APIs are blocking we need to wrap the core logic
 	// and run it in a goroutine, so we can abort as soon as the context expires.
 	heartbeatWrapper := func(ctx context.Context) {
-		ch := make(chan struct{})
-		go func() {
-			gateway.heartbeat(ctx, hearbeatNormal)
-			ch <- struct{}{}
-		}()
-		select {
-		case <-ch:
-		case <-ctx.Done():
+		if gateway.HearbeatCancelFunc() == nil {
+			ch := make(chan struct{})
+			go func() {
+				gateway.heartbeat(ctx, hearbeatNormal)
+				close(ch)
+			}()
+			select {
+			case <-ch:
+			case <-ctx.Done():
+			}
 		}
 	}
 
@@ -238,26 +247,29 @@ func (g *Gateway) heartbeatInterval() time.Duration {
 	return threshold / 2
 }
 
-// heartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
+// HearbeatCancelFunc returns the function that can be used to cancel an ongoing heartbeat.
+// Returns nil if no ongoing heartbeat.
+func (g *Gateway) HearbeatCancelFunc() func() {
+	g.heartbeatCancelLock.Lock()
+	defer g.heartbeatCancelLock.Unlock()
+	return g.heartbeatCancel
+}
+
+// HeartbeatRestart restarts cancels any ongoing heartbeat and restarts it.
 // If there is no ongoing heartbeat then this is a no-op.
 // Returns true if new heartbeat round was started.
-func (g *Gateway) heartbeatRestart() bool {
-	g.heartbeatCancelLock.Lock() // Make sure we're the only ones inspecting the g.heartbeatCancel var.
+func (g *Gateway) HeartbeatRestart() bool {
+	heartbeatCancel := g.HearbeatCancelFunc()
 
 	// There is a cancellable heartbeat round ongoing.
-	if g.heartbeatCancel != nil {
-		g.heartbeatCancel()            // Request ongoing hearbeat round cancel itself.
-		g.heartbeatCancel = nil        // Indicate there is no further cancellable heartbeat round.
-		g.heartbeatCancelLock.Unlock() // Release lock ready for g.heartbeat to acquire it.
+	if heartbeatCancel != nil {
+		g.heartbeatCancel() // Request ongoing hearbeat round cancel itself.
 
 		// Start a new heartbeat round async that will run as soon as ongoing heartbeat round exits.
 		go g.heartbeat(g.ctx, hearbeatImmediate)
 
 		return true
 	}
-
-	// No cancellable heartbeat round, release lock.
-	g.heartbeatCancelLock.Unlock()
 
 	return false
 }
@@ -275,12 +287,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	g.heartbeatCancelLock.Lock()
 	ctx, g.heartbeatCancel = context.WithCancel(ctx)
 	defer func() {
-		g.heartbeatCancelLock.Lock()
-		if g.heartbeatCancel != nil {
+		heartbeatCancel := g.HearbeatCancelFunc()
+		if heartbeatCancel != nil {
 			g.heartbeatCancel()
 			g.heartbeatCancel = nil
 		}
-		g.heartbeatCancelLock.Unlock()
 	}()
 	g.heartbeatCancelLock.Unlock()
 
@@ -359,7 +370,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	heartbeatInterval := g.heartbeatInterval()
 
 	// Cumulative set of node states (will be written back to database once done).
-	hbState := &APIHeartbeat{cluster: g.Cluster}
+	hbState := NewAPIHearbeat(g.Cluster)
 
 	// If we are doing a normal heartbeat round then spread the requests over the heartbeatInterval in order
 	// to reduce load on the cluster.
@@ -429,7 +440,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return
 	}
 
-	var unavailableMembers []string
+	// Initialise slice to indicate to HeartbeatNodeHook that its being called from leader.
+	unavailableMembers := make([]string, 0)
 
 	err = query.Retry(func() error {
 		return g.Cluster.Transaction(func(tx *db.ClusterTx) error {
