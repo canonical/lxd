@@ -25,7 +25,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
@@ -76,6 +75,9 @@ func NewGateway(shutdownCtx context.Context, db *db.Node, networkCert *shared.Ce
 // HeartbeatHook represents a function that can be called as the heartbeat hook.
 type HeartbeatHook func(heartbeatData *APIHeartbeat, isLeader bool, unavailableMembers []string)
 
+// HeartbeatHandler represents a function that can be called when a heartbeat request arrives.
+type HeartbeatHandler func(w http.ResponseWriter, r *http.Request, isLeader bool, hbData *APIHeartbeat)
+
 // Gateway mediates access to the dqlite cluster using a gRPC SQL client, and
 // possibly runs a dqlite replica on this LXD node (if we're configured to do
 // so).
@@ -124,18 +126,15 @@ type Gateway struct {
 	HeartbeatOfflineThreshold time.Duration
 	heartbeatCancel           context.CancelFunc
 	heartbeatCancelLock       sync.Mutex
+	heartbeatLock             sync.Mutex
 
 	// NodeStore wrapper.
 	store *dqliteNodeStore
 
-	lock          sync.RWMutex
-	heartbeatLock sync.Mutex
+	lock sync.RWMutex
 
 	// Abstract unix socket that the local dqlite task is listening to.
 	bindAddress string
-
-	// Keep track of skews
-	timeSkew bool
 }
 
 // Current dqlite protocol version.
@@ -155,7 +154,7 @@ func setDqliteVersionHeader(request *http.Request) {
 // These handlers might return 404, either because this LXD node is a
 // non-clustered node not available over the network or because it is not a
 // database node part of the dqlite cluster.
-func (g *Gateway) HandlerFuncs(nodeRefreshTask HeartbeatHook, trustedCerts func() map[db.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
+func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts func() map[db.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
 		defer g.lock.RUnlock()
@@ -196,102 +195,31 @@ func (g *Gateway) HandlerFuncs(nodeRefreshTask HeartbeatHook, trustedCerts func(
 		if r.Method == "PUT" {
 			if g.shutdownCtx.Err() != nil {
 				logger.Warn("Rejecting heartbeat request as shutting down")
-				http.Error(w, "503 shutting down", http.StatusServiceUnavailable)
+				http.Error(w, "503 Shutting down", http.StatusServiceUnavailable)
 				return
 			}
 
 			var heartbeatData APIHeartbeat
 			err := json.NewDecoder(r.Body).Decode(&heartbeatData)
 			if err != nil {
-				logger.Error("Error decoding heartbeat body", log.Ctx{"err": err})
-				http.Error(w, "400 invalid heartbeat payload", http.StatusBadRequest)
+				logger.Error("Failed decoding heartbeat", log.Ctx{"err": err})
+				http.Error(w, "400 Failed decoding heartbeat", http.StatusBadRequest)
 				return
 			}
 
-			// Look for time skews.
-			now := time.Now().UTC()
-
-			if heartbeatData.Time.Add(5*time.Second).Before(now) || heartbeatData.Time.Add(-5*time.Second).After(now) {
-				if !g.timeSkew {
-					logger.Warn("Time skew detected between leader and local", log.Ctx{"leaderTime": heartbeatData.Time, "localTime": now})
-
-					if g.Cluster != nil {
-						err := g.Cluster.UpsertWarningLocalNode("", -1, -1, db.WarningClusterTimeSkew, fmt.Sprintf("leaderTime: %s, localTime: %s", heartbeatData.Time, now))
-						if err != nil {
-							logger.Warn("Failed to create cluster time skew warning", log.Ctx{"err": err})
-						}
-					}
-				}
-				g.timeSkew = true
-			} else {
-				if g.timeSkew {
-					logger.Warn("Time skew resolved")
-
-					if g.Cluster != nil {
-						err := warnings.ResolveWarningsByLocalNodeAndType(g.Cluster, db.WarningClusterTimeSkew)
-						if err != nil {
-							logger.Warn("Failed to resolve cluster time skew warning", log.Ctx{"err": err})
-						}
-					}
-
-					g.timeSkew = false
-				}
+			isLeader, err := g.isLeader()
+			if err != nil {
+				logger.Error("Failed checking if leader", log.Ctx{"err": err})
+				http.Error(w, "500 Failed checking if leader", http.StatusInternalServerError)
+				return
 			}
 
-			raftNodes := make([]db.RaftNode, 0)
-			for _, node := range heartbeatData.Members {
-				if node.RaftID > 0 {
-					raftNodes = append(raftNodes, db.RaftNode{
-						NodeInfo: client.NodeInfo{
-							ID:      node.RaftID,
-							Address: node.Address,
-							Role:    db.RaftRole(node.RaftRole),
-						},
-						Name: node.Name,
-					})
-				}
+			if heartbeatHandler == nil {
+				logger.Error("No heartbeat handler", log.Ctx{"err": err})
+				return
 			}
 
-			heartbeatRestarted := false
-
-			// Check we have been sent at least 1 raft node before wiping our set.
-			if len(raftNodes) > 0 {
-				// Accept Raft node updates from any node (joining nodes just send raft nodes heartbeat data).
-				logger.Debugf("Replace current raft nodes with %+v", raftNodes)
-				err = g.db.Transaction(func(tx *db.NodeTx) error {
-					return tx.ReplaceRaftNodes(raftNodes)
-				})
-				if err != nil {
-					logger.Error("Error updating raft members", log.Ctx{"err": err})
-					http.Error(w, "500 failed to update raft nodes", http.StatusInternalServerError)
-					return
-				}
-
-				// If there is an ongoing heartbeat round (and by implication this is the leader),
-				// then this could be a problem because it could be broadcasting the stale member
-				// state information which in turn could lead to incorrect decisions being made.
-				// So calling heartbeatRestart will request any ongoing heartbeat round to cancel
-				// itself prematurely and restart another one. If there is no ongoing heartbeat
-				// round then this function call is a no-op.
-				heartbeatRestarted = g.heartbeatRestart()
-			} else {
-				logger.Error("Empty raft member set received")
-			}
-
-			// Only perform heartbeat refresh task if we have received a full state list from leader.
-			if !heartbeatData.FullStateList {
-				logger.Info("Partial member list heartbeat received, skipping full update")
-			} else if nodeRefreshTask != nil && !heartbeatRestarted {
-				// Perform heartbeat refresh task async if an ongoing heartbeat wasn't restarted.
-				// As this task will be run at the end of the heartbeat task anyway.
-				isLeader, err := g.isLeader()
-				if err != nil {
-					logger.Error("Failed checking if leader", log.Ctx{"err": err})
-					return
-				}
-
-				go nodeRefreshTask(&heartbeatData, isLeader, nil)
-			}
+			heartbeatHandler(w, r, isLeader, &heartbeatData)
 
 			return
 		}
