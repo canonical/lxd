@@ -413,12 +413,14 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		}...)
 
 		for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-			if nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
-				// Use a fixed address as the next-hop default gateway.
+			ipAddresses := util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+
+			// Use a fixed address as the auto next-hop default gateway if using this IP family.
+			if len(ipAddresses) > 0 && nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
 				nic = append(nic, deviceConfig.RunConfigItem{Key: fmt.Sprintf("%s.gateway", keyPrefix), Value: d.ipHostAddress(keyPrefix)})
 			}
 
-			for _, addrStr := range util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true) {
+			for _, addrStr := range ipAddresses {
 				// Add addresses to instance NIC.
 				if keyPrefix == "ipv6" {
 					nic = append(nic, deviceConfig.RunConfigItem{Key: "ipv6.address", Value: fmt.Sprintf("%s/128", addrStr)})
