@@ -1202,9 +1202,8 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 	var err error
 	var f *os.File
 
-	// Open file handle to local source. Has to be os.O_RDONLY for directory open
-	// support, but this won't prevent a writable mount.
-	f, err = os.OpenFile(srcPath, os.O_RDONLY, 0)
+	// Open file handle to local source. Has to use unix.O_PATH to support directories and sockets.
+	f, err = os.OpenFile(srcPath, unix.O_PATH, 0)
 	if err != nil {
 		return f, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
 	}
