@@ -236,6 +236,7 @@ var APIExtensions = []string{
 	"database_leader",
 	"instance_all_projects",
 	"ceph_rbd_du",
+	"qemu_metrics",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
