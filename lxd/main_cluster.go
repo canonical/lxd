@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxc/utils"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -136,7 +137,16 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 
 	var nodes []db.RaftNode
 	err = database.Transaction(func(tx *db.NodeTx) error {
-		var err error
+		config, err := node.ConfigLoad(tx)
+		if err != nil {
+			return err
+		}
+
+		clusterAddress := config.ClusterAddress()
+		if clusterAddress == "" {
+			return fmt.Errorf(`Can't edit cluster configuration as server isn't clustered (missing "cluster.https_address" config)`)
+		}
+
 		nodes, err = tx.GetRaftNodes()
 		return err
 	})
