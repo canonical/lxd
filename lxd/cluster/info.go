@@ -37,7 +37,7 @@ func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 		info.Address = "1"
 	}
 
-	logger.Info("Starting database node", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Starting database node", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 
 	// Rename legacy data directory if needed.
 	dir := filepath.Join(database.Dir(), "global")

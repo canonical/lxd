@@ -171,14 +171,14 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			hbNode.updated = true
 			heartbeatData.Members[nodeID] = hbNode
 			heartbeatData.Unlock()
-			logger.Debug("Successful heartbeat", log.Ctx{"address": address})
+			logger.Debug("Successful heartbeat", log.Ctx{"remote": address})
 
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(hbState.cluster, "", db.WarningOfflineClusterMember, cluster.TypeNode, int(nodeID))
 			if err != nil {
 				logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
 			}
 		} else {
-			logger.Warn("Failed heartbeat", log.Ctx{"address": address, "err": err})
+			logger.Warn("Failed heartbeat", log.Ctx{"remote": address, "err": err})
 
 			err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
 			if err != nil {
