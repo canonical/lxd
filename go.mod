@@ -2,7 +2,7 @@ module github.com/lxc/lxd
 
 go 1.17
 
-replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
+replace google.golang.org/grpc/naming => google.golang.org/grpc v1.29.1
 
 replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
 
@@ -18,7 +18,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/fvbommel/sortorder v1.0.2
 	github.com/go-httprequest/httprequest v1.1.2
-	github.com/golang/protobuf v1.5.2
 	github.com/google/gopacket v1.1.19
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
@@ -36,17 +35,17 @@ require (
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
 	github.com/miekg/dns v1.1.43
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/osrg/gobgp v0.0.0-20211018075811-c8e54e7f8a2a
+	github.com/osrg/gobgp/v3 v3.0.0-rc2
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rogpeppe/fastuuid v1.2.0
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b
-	golang.org/x/sys v0.0.0-20211209171907-798191bca915
+	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
+	golang.org/x/sys v0.0.0-20211214234402-4825e8c3871d
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/juju/environschema.v1 v1.0.0
@@ -65,6 +64,7 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -94,15 +94,16 @@ require (
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.9.0 // indirect
+	github.com/spf13/viper v1.10.1 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/vishvananda/netlink v1.1.1-0.20210330154013-f5de75959ad5 // indirect
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
-	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
+	golang.org/x/net v0.0.0-20211215060638-4ddde0e984e9 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
-	google.golang.org/grpc v1.42.0 // indirect
+	google.golang.org/grpc v1.43.0 // indirect
+	google.golang.org/grpc/naming v0.0.0-00010101000000-000000000000 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/httprequest.v1 v1.2.1 // indirect
 	gopkg.in/ini.v1 v1.66.2 // indirect

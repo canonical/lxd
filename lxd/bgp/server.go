@@ -7,12 +7,11 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
-	bgpAPI "github.com/osrg/gobgp/api"
-	bgpPacket "github.com/osrg/gobgp/pkg/packet/bgp"
-	bgpServer "github.com/osrg/gobgp/pkg/server"
+	bgpAPI "github.com/osrg/gobgp/v3/api"
+	bgpPacket "github.com/osrg/gobgp/v3/pkg/packet/bgp"
+	bgpServer "github.com/osrg/gobgp/v3/pkg/server"
 	"github.com/pborman/uuid"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/lxc/lxd/lxd/revert"
 )
@@ -112,7 +111,7 @@ func (s *Server) start(address string, asn uint32, routerID net.IP) error {
 	// Setup the listener configuration.
 	conf := &bgpAPI.Global{
 		RouterId: routerID.String(),
-		As:       asn,
+		Asn:      asn,
 
 		// Always setup for IPv4 and IPv6.
 		Families: []uint32{0, 1},
@@ -243,12 +242,12 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 	prefixLen, _ := subnet.Mask.Size()
 	prefix := subnet.IP.String()
 
-	nlri, _ := ptypes.MarshalAny(&bgpAPI.IPAddressPrefix{
+	nlri, _ := anypb.New(&bgpAPI.IPAddressPrefix{
 		Prefix:    prefix,
 		PrefixLen: uint32(prefixLen),
 	})
 
-	aOrigin, _ := ptypes.MarshalAny(&bgpAPI.OriginAttribute{
+	aOrigin, _ := anypb.New(&bgpAPI.OriginAttribute{
 		Origin: 0,
 	})
 
@@ -257,7 +256,7 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 	if s.bgp != nil {
 		if subnet.IP.To4() != nil {
 			// IPv4 prefix.
-			aNextHop, _ := ptypes.MarshalAny(&bgpAPI.NextHopAttribute{
+			aNextHop, _ := anypb.New(&bgpAPI.NextHopAttribute{
 				NextHop: nexthop.String(),
 			})
 
@@ -265,7 +264,7 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 				Path: &bgpAPI.Path{
 					Family: &bgpAPI.Family{Afi: bgpAPI.Family_AFI_IP, Safi: bgpAPI.Family_SAFI_UNICAST},
 					Nlri:   nlri,
-					Pattrs: []*any.Any{aOrigin, aNextHop},
+					Pattrs: []*anypb.Any{aOrigin, aNextHop},
 				},
 			})
 			if err != nil {
@@ -280,17 +279,17 @@ func (s *Server) addPrefix(subnet net.IPNet, nexthop net.IP, owner string) error
 				Safi: bgpAPI.Family_SAFI_UNICAST,
 			}
 
-			v6Attrs, _ := ptypes.MarshalAny(&bgpAPI.MpReachNLRIAttribute{
+			v6Attrs, _ := anypb.New(&bgpAPI.MpReachNLRIAttribute{
 				Family:   family,
 				NextHops: []string{nexthop.String()},
-				Nlris:    []*any.Any{nlri},
+				Nlris:    []*anypb.Any{nlri},
 			})
 
 			resp, err := s.bgp.AddPath(context.Background(), &bgpAPI.AddPathRequest{
 				Path: &bgpAPI.Path{
 					Family: family,
 					Nlri:   nlri,
-					Pattrs: []*any.Any{aOrigin, v6Attrs},
+					Pattrs: []*anypb.Any{aOrigin, v6Attrs},
 				},
 			})
 			if err != nil {
@@ -400,7 +399,7 @@ func (s *Server) addPeer(address net.IP, asn uint32, password string) error {
 		// Peer information.
 		Conf: &bgpAPI.PeerConf{
 			NeighborAddress: address.String(),
-			PeerAs:          uint32(asn),
+			PeerAsn:         uint32(asn),
 			AuthPassword:    password,
 		},
 
