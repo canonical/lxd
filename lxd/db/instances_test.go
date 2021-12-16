@@ -476,7 +476,7 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {
 	stmt := `
-INSERT INTO instances(node_id, name, architecture, type, project_id) VALUES (?, ?, 1, ?, 1)
+INSERT INTO instances(node_id, name, architecture, type, project_id, description) VALUES (?, ?, 1, ?, 1, '')
 `
 	_, err := tx.Tx().Exec(stmt, nodeID, name, instancetype.Container)
 	require.NoError(t, err)

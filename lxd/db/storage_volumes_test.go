@@ -49,7 +49,7 @@ func TestGetStorageVolumeNodes(t *testing.T) {
 
 func addPool(t *testing.T, tx *db.ClusterTx, name string) int64 {
 	stmt := `
-INSERT INTO storage_pools(name, driver) VALUES (?, 'dir')
+INSERT INTO storage_pools(name, driver, description) VALUES (?, 'dir', '')
 `
 	result, err := tx.Tx().Exec(stmt, name)
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ INSERT INTO storage_pools(name, driver) VALUES (?, 'dir')
 
 func addVolume(t *testing.T, tx *db.ClusterTx, poolID, nodeID int64, name string) {
 	stmt := `
-INSERT INTO storage_volumes(storage_pool_id, node_id, name, type, project_id) VALUES (?, ?, ?, 1, 1)
+INSERT INTO storage_volumes(storage_pool_id, node_id, name, type, project_id, description) VALUES (?, ?, ?, 1, 1, '')
 `
 	_, err := tx.Tx().Exec(stmt, poolID, nodeID, name)
 	require.NoError(t, err)

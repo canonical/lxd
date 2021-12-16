@@ -170,7 +170,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		}
 		err = query.Transaction(db, func(tx *sql.Tx) error {
 			stmt := `
-INSERT INTO nodes(id, name, address, schema, api_extensions, arch) VALUES(1, 'none', '0.0.0.0', ?, ?, ?)
+INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) VALUES(1, 'none', '0.0.0.0', ?, ?, ?, '')
 `
 			_, err = tx.Exec(stmt, SchemaVersion, apiExtensions, arch)
 			if err != nil {
