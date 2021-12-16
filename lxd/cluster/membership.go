@@ -419,7 +419,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		panic("Joining member not found")
 	}
 
-	logger.Info("Joining dqlite raft cluster", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Joining dqlite raft cluster", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := client.FindLeader(
@@ -432,7 +432,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	}
 	defer client.Close()
 
-	logger.Info("Adding node to cluster", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Adding node to cluster", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	err = client.Add(ctx, info.NodeInfo)
@@ -664,7 +664,7 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 
 	// Check if we have a spare node that we can promote to the missing role.
 	candidateAddress := candidates[0].Address
-	logger.Info("Found cluster member whose role needs to be changed", log.Ctx{"candidateAddress": candidateAddress, "newRole": role, "address": address})
+	logger.Info("Found cluster member whose role needs to be changed", log.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": address})
 
 	for i, node := range nodes {
 		if node.Address == candidateAddress {
@@ -764,7 +764,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 
 assign:
-	logger.Info("Changing local dqlite raft role", log15.Ctx{"id": info.ID, "address": info.Address, "role": info.Role})
+	logger.Info("Changing local dqlite raft role", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
