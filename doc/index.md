@@ -14,7 +14,9 @@ See [Security](security.md) for more information.
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
     :start-after: security.md).
+    :end-before: greatly appreciated.
 ```
+See [Contributing](contributing.md) for more information.
 
 ```{toctree}
 :hidden:

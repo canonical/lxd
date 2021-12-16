@@ -70,4 +70,4 @@ find and subscribe to those at: <https://lists.linuxcontainers.org>
 If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
 
 ## Contributing
-Fixes and new features are greatly appreciated. Make sure to read our [contributing guidelines](contributing.md) first!
+Fixes and new features are greatly appreciated. Make sure to read our [contributing guidelines](CONTRIBUTING.md) first!
