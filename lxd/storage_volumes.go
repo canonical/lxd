@@ -1039,13 +1039,13 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if a running instance is using it.
-	err = storagePools.VolumeUsedByInstanceDevices(d.State(), srcPoolName, projectName, vol, true, func(dbInst db.Instance, project db.Project, profiles []api.Profile, usedByDevices []string) error {
-		inst, err := instance.Load(d.State(), db.InstanceToArgs(&dbInst), profiles)
+	err = storagePools.VolumeUsedByInstanceDevices(d.State(), srcPoolName, projectName, vol, true, func(inst db.InstanceArgs, project api.Project, profiles []api.Profile, usedByDevices []string) error {
+		instance, err := instance.Load(d.State(), inst, profiles)
 		if err != nil {
 			return err
 		}
 
-		if inst.IsRunning() {
+		if instance.IsRunning() {
 			return fmt.Errorf("Volume is still in use by running instances")
 		}
 

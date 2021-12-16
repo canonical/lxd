@@ -152,7 +152,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 				return err
 			})
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed getting cluster member info for %q", remoteInstance.Node)
+				return nil, fmt.Errorf("Failed getting cluster member info for %q: %w", remoteInstance.Node, err)
 			}
 
 			// Replace node list with instance's cluster member node (which might be local member).
