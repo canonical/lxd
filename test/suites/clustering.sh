@@ -1970,7 +1970,7 @@ test_clustering_recover() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  # Wait a bit for the join notification to reach the first node.
+  # Wait a bit for raft roles to update.
   sleep 5
 
   # Check the current database nodes
@@ -2176,6 +2176,9 @@ test_clustering_rebalance() {
   chmod +x "${LXD_FOUR_DIR}"
   ns4="${prefix}4"
   spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
+
+  # Wait a bit for raft roles to update.
+  sleep 5
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
