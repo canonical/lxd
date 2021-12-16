@@ -38,51 +38,49 @@ func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
 }
 
 // GetStoragePoolVolumesWithType return a list of all volumes of the given type.
-func (c *Cluster) GetStoragePoolVolumesWithType(volumeType int) ([]StorageVolumeArgs, error) {
-	var id int64
-	var nodeID int64
-	var name string
-	var description string
-	var poolName string
-	var projectName string
-
-	stmt := `
+func (c *ClusterTx) GetStoragePoolVolumesWithType(volumeType int) ([]StorageVolumeArgs, error) {
+	sql := `
 SELECT storage_volumes.id, storage_volumes.name, storage_volumes.description, storage_pools.name, projects.name, IFNULL(storage_volumes.node_id, -1)
 FROM storage_volumes
 JOIN storage_pools ON storage_pools.id = storage_volumes.storage_pool_id
 JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.type = ?
 `
-
-	inargs := []interface{}{volumeType}
-	outargs := []interface{}{id, name, description, poolName, projectName, nodeID}
-
-	result, err := queryScan(c, stmt, inargs, outargs)
+	stmt, err := c.prepare(sql)
 	if err != nil {
 		return nil, err
 	}
 
-	var response []StorageVolumeArgs
+	defer stmt.Close()
 
-	for _, r := range result {
-		args := StorageVolumeArgs{
-			ID:          r[0].(int64),
-			Name:        r[1].(string),
-			Description: r[2].(string),
-			PoolName:    r[3].(string),
-			ProjectName: r[4].(string),
-			NodeID:      r[5].(int64),
+	volumes := []StorageVolumeArgs{}
+	dest := func(i int) []interface{} {
+		volumes = append(volumes, StorageVolumeArgs{})
+		return []interface{}{
+			&volumes[i].ID,
+			&volumes[i].Name,
+			&volumes[i].Description,
+			&volumes[i].PoolName,
+			&volumes[i].ProjectName,
+			&volumes[i].NodeID,
 		}
-
-		args.Config, err = c.storageVolumeConfigGet(args.ID, false)
-		if err != nil {
-			return nil, err
-		}
-
-		response = append(response, args)
 	}
 
-	return response, nil
+	err = query.SelectObjects(stmt, dest, volumeType)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to get storage volumes: %w", err)
+	}
+
+	for i, volume := range volumes {
+		config, err := query.SelectConfig(c.tx, "storage_volumes_config", "storage_volume_id=?", volume.ID)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to get config for storage volume %q: %w", volume.Name, err)
+		}
+
+		volumes[i].Config = config
+	}
+
+	return volumes, nil
 }
 
 // GetStoragePoolVolumeWithID returns the volume with the given ID.

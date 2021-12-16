@@ -117,13 +117,8 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 			return err
 		}
 
-		return err
+		return project.AllowSnapshotCreation(tx, proj)
 	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = project.AllowSnapshotCreation(proj)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1045,6 +1040,8 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Get projects.
 		var projects map[string]*db.Project
+		var volumes, remoteVolumes []db.StorageVolumeArgs
+		localNodeID := d.cluster.GetNodeID()
 		err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
 			projs, err := tx.GetProjects(db.ProjectFilter{})
@@ -1058,46 +1055,42 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				projects[p.Name] = &p
 			}
 
+			allVolumes, err := tx.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+			if err != nil {
+				logger.Error("Failed getting volumes for auto custom volume snapshot task", log.Ctx{"err": err})
+				return nil
+			}
+
+			for _, v := range allVolumes {
+				schedule, ok := v.Config["snapshots.schedule"]
+				if !ok || schedule == "" {
+					continue
+				}
+
+				// Check if snapshot is scheduled.
+				if !snapshotIsScheduledNow(schedule, v.ID) {
+					continue
+				}
+
+				err = project.AllowSnapshotCreation(tx, projects[v.ProjectName])
+				if err != nil {
+					continue
+				}
+
+				if v.NodeID == localNodeID {
+					// Always include local volumes.
+					volumes = append(volumes, v)
+					logger.Debug("Scheduling local auto custom volume snapshot", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+				} else if v.NodeID < 0 {
+					// Keep a separate list of remote volumes in order to select a member to perform
+					// the snapshot later.
+					remoteVolumes = append(remoteVolumes, v)
+				}
+			}
 			return err
 		})
 		if err != nil {
 			return
-		}
-
-		allVolumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
-		if err != nil {
-			logger.Error("Failed getting volumes for auto custom volume snapshot task", log.Ctx{"err": err})
-			return
-		}
-
-		localNodeID := d.cluster.GetNodeID()
-
-		var volumes, remoteVolumes []db.StorageVolumeArgs
-		for _, v := range allVolumes {
-			schedule, ok := v.Config["snapshots.schedule"]
-			if !ok || schedule == "" {
-				continue
-			}
-
-			// Check if snapshot is scheduled.
-			if !snapshotIsScheduledNow(schedule, v.ID) {
-				continue
-			}
-
-			err = project.AllowSnapshotCreation(projects[v.ProjectName])
-			if err != nil {
-				continue
-			}
-
-			if v.NodeID == localNodeID {
-				// Always include local volumes.
-				volumes = append(volumes, v)
-				logger.Debug("Scheduling local auto custom volume snapshot", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
-			} else if v.NodeID < 0 {
-				// Keep a separate list of remote volumes in order to select a member to perform
-				// the snapshot later.
-				remoteVolumes = append(remoteVolumes, v)
-			}
 		}
 
 		if len(remoteVolumes) > 0 {

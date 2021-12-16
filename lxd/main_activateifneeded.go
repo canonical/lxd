@@ -143,7 +143,11 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check for scheduled volume snapshots
-	volumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+	var volumes []db.StorageVolumeArgs
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		volumes, err = tx.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+		return err
+	})
 	if err != nil {
 		return err
 	}
