@@ -14,11 +14,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"sync"
 	"time"
-	"unsafe"
 
 	dqlite "github.com/canonical/go-dqlite"
 	client "github.com/canonical/go-dqlite/client"
@@ -1069,30 +1067,15 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 	logger.Info("Dqlite proxy started")
 	defer logger.Info("Dqlite proxy stopped")
 
-	// Go doesn't currently expose the underlying TCP connection of a TLS
-	// connection, but we need it in order to gracefully stop proxying with
-	// ReadClose(). We use some reflect/unsafe magic to extract the
-	// private remote.conn field, which is indeed the underlying TCP
-	// connection.
-	field := reflect.ValueOf(remote.(*tls.Conn)).Elem().FieldByName("conn")
-	field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
-	remoteTCP := field.Interface().(*net.TCPConn)
-
-	// Set TCP_USER_TIMEOUT option to limit the maximum amount of time in ms that transmitted data may remain
-	// unacknowledged before TCP will forcefully close the corresponding connection and return ETIMEDOUT to the
-	// application. This combined with the TCP keepalive options on the socket will ensure that should the
-	// remote side of the connection disappear abruptly that LXD will detect this and close the socket quickly.
-	// Decreasing the user timeouts allows applications to "fail fast" if so desired. Otherwise it may take
-	// up to 20 minutes with the current system defaults in a normal WAN environment if there are packets in
-	// the send queue that will prevent the keepalive timer from working as the retransmission timers kick in.
-	// See https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=dca43c75e7e545694a9dd6288553f55c53e2a3a3
-	err := util.SetTCPUserTimeout(remoteTCP, time.Second*30)
+	remoteTCP, err := util.ExtractTCPConn(remote)
 	if err != nil {
-		logger.Error("Failed setting TCP user timeout on remote connection", log.Ctx{"err": err})
+		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+	} else {
+		err := util.SetTCPTimeouts(remoteTCP)
+		if err != nil {
+			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+		}
 	}
-
-	remoteTCP.SetKeepAlive(true)
-	remoteTCP.SetKeepAlivePeriod(3 * time.Second)
 
 	remoteToLocal := make(chan error, 0)
 	localToRemote := make(chan error, 0)
