@@ -5660,3 +5660,13 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 
 	return networks, nil
 }
+
+func (d *qemu) agentMetricsEnabled() bool {
+	val := d.expandedConfig["security.agent.metrics"]
+
+	if val == "" || shared.IsTrue(val) {
+		return true
+	}
+
+	return false
+}
