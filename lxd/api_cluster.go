@@ -2126,10 +2126,6 @@ func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response 
 		return response.SmartError(err)
 	}
 
-	// Refresh event listeners from global database members.
-	// Run asynchronously so that connecting to remote members doesn't delay rebalance notification.
-	go cluster.EventsUpdateListeners(d.endpoints, d.cluster, d.serverCert, nil, d.events.Forward)
-
 	return response.SyncResponse(true, nil)
 }
 
