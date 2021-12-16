@@ -353,6 +353,8 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	logger.Info("Migration channels connected")
 
+	defer s.disconnect()
+
 	var poolMigrationTypes []migration.Type
 
 	pool, err := storagePools.GetPoolByInstance(state, s.instance)
