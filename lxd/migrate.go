@@ -21,8 +21,10 @@ import (
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -173,6 +175,16 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
+	}
+
+	remoteTCP, err := util.ExtractTCPConn(c.UnderlyingConn())
+	if err != nil {
+		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+	} else {
+		err := util.SetTCPTimeouts(remoteTCP)
+		if err != nil {
+			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+		}
 	}
 
 	*conn = c
