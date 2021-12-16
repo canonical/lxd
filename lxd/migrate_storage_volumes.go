@@ -180,7 +180,7 @@ func newStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	}
 
 	if sink.push {
-		sink.allConnected = make(chan bool, 1)
+		sink.allConnected = make(chan struct{})
 	}
 
 	var ok bool

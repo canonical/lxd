@@ -264,7 +264,7 @@ type migrationSink struct {
 
 	url          string
 	dialer       websocket.Dialer
-	allConnected chan bool
+	allConnected chan struct{}
 	push         bool
 	refresh      bool
 }
@@ -360,7 +360,7 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 		return nil
 	}
 
-	s.allConnected <- true
+	close(s.allConnected)
 
 	return nil
 }
