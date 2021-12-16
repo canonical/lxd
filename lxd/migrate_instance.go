@@ -35,7 +35,10 @@ import (
 )
 
 func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
-	ret := migrationSourceWs{migrationFields{instance: inst}, make(chan bool, 1)}
+	ret := migrationSourceWs{
+		migrationFields: migrationFields{instance: inst},
+		allConnected:    make(chan struct{}),
+	}
 	ret.instanceOnly = instanceOnly
 
 	var err error

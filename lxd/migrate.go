@@ -132,7 +132,7 @@ func (c *migrationFields) controlChannel() <-chan *migration.MigrationControl {
 type migrationSourceWs struct {
 	migrationFields
 
-	allConnected chan bool
+	allConnected chan struct{}
 }
 
 func (s *migrationSourceWs) Metadata() interface{} {
@@ -180,6 +180,16 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 	if s.controlConn != nil && (!s.live || s.criuConn != nil) && s.fsConn != nil {
 		s.allConnected <- true
 	}
+
+	if s.controlConn == nil {
+		return nil
+	}
+
+	if s.fsConn == nil {
+		return nil
+	}
+
+	close(s.allConnected)
 
 	return nil
 }
@@ -237,7 +247,7 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 		*conn = wsConn
 	}
 
-	s.allConnected <- true
+	close(s.allConnected)
 
 	return nil
 }

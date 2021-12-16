@@ -19,7 +19,10 @@ import (
 )
 
 func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
-	ret := migrationSourceWs{migrationFields{}, make(chan bool, 1)}
+	ret := migrationSourceWs{
+		migrationFields: migrationFields{},
+		allConnected:    make(chan struct{}),
+	}
 	ret.volumeOnly = volumeOnly
 
 	var err error
