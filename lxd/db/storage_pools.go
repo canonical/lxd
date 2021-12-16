@@ -425,8 +425,8 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	if poolID == 0 {
 		// No existing pool with the given name was found, let's create
 		// one.
-		columns := []string{"name", "driver"}
-		values := []interface{}{name, driver}
+		columns := []string{"name", "driver", "description"}
+		values := []interface{}{name, driver, ""}
 		poolID, err = query.UpsertObject(c.tx, "storage_pools", columns, values)
 		if err != nil {
 			return err
@@ -708,7 +708,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interfa
 	var poolDriver string
 	var poolName string
 	poolID := int64(-1)
-	description := sql.NullString{}
+	var description string
 	var state StoragePoolState
 
 	query := fmt.Sprintf("SELECT id, name, driver, description, state FROM storage_pools WHERE %s", where)
@@ -736,7 +736,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interfa
 		Name:   poolName,
 		Driver: poolDriver,
 	}
-	storagePool.Description = description.String
+	storagePool.Description = description
 	storagePool.Config = config
 	storagePool.Status = StoragePoolStateToAPIStatus(state)
 

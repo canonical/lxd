@@ -165,7 +165,7 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 
 func addInstanceSnapshot(t *testing.T, tx *db.ClusterTx, instanceID int64, name string) {
 	stmt := `
-INSERT INTO instances_snapshots(instance_id, name, creation_date) VALUES (?, ?, ?)
+INSERT INTO instances_snapshots(instance_id, name, creation_date, description) VALUES (?, ?, ?, '')
 `
 	_, err := tx.Tx().Exec(stmt, instanceID, name, time.Now())
 	require.NoError(t, err)
