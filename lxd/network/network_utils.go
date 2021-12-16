@@ -67,8 +67,8 @@ func RandomDevName(prefix string) string {
 }
 
 // usedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
-func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
-	return s.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(instanceID int, inst api.Instance, instProject api.Project, nicName string, nicConfig map[string]string) error) error {
+	return s.Cluster.InstanceList(nil, func(instanceID int, inst api.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -78,10 +78,10 @@ func usedByInstanceDevices(s *state.State, networkProjectName string, networkNam
 		}
 
 		// Look for NIC devices using this network.
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
+		devices := db.ExpandInstanceDevices(inst.Devices, profiles)
 		for devName, devConfig := range devices {
 			if isInUseByDevice(networkName, devConfig) {
-				err := usageFunc(inst, devName, devConfig)
+				err := usageFunc(instanceID, inst, p, devName, devConfig)
 				if err != nil {
 					return err
 				}
@@ -150,11 +150,22 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 	}
 
 	// Look for profiles. Next cheapest to do.
-	var profiles []db.Profile
+	var profiles []api.Profile
+	var dbProfiles []db.Profile
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		profiles, err = tx.GetProfiles(db.ProfileFilter{})
+		dbProfiles, err = tx.GetProfiles(db.ProfileFilter{})
 		if err != nil {
 			return err
+		}
+
+		profiles = make([]api.Profile, len(dbProfiles))
+		for i, p := range dbProfiles {
+			apiProfile, err := p.ToAPI(tx)
+			if err != nil {
+				return err
+			}
+
+			profiles[i] = *apiProfile
 		}
 
 		return nil
@@ -163,14 +174,14 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 		return nil, err
 	}
 
-	for _, profile := range profiles {
-		inUse, err := usedByProfileDevices(s, profile, networkProjectName, networkName)
+	for i, profile := range profiles {
+		inUse, err := usedByProfileDevices(s, profile, dbProfiles[i].Project, networkProjectName, networkName)
 		if err != nil {
 			return nil, err
 		}
 
 		if inUse {
-			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(profile.Project).String())
+			usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "profiles", profile.Name).Project(dbProfiles[i].Project).String())
 
 			if firstOnly {
 				return usedBy, nil
@@ -179,8 +190,8 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 	}
 
 	// Check if any instance devices use this network.
-	err = usedByInstanceDevices(s, networkProjectName, networkName, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
-		usedBy = append(usedBy, api.NewURL().Path(version.APIVersion, "instances", inst.Name).Project(inst.Project).String())
+	err = usedByInstanceDevices(s, networkProjectName, networkName, func(instanceID int, inst api.Instance, instProject api.Project, nicName string, nicConfig map[string]string) error {
+		usedBy = append(usedBy, inst.URL(version.APIVersion, instProject.Name).String())
 
 		if firstOnly {
 			// No need to consider other devices.
@@ -202,9 +213,9 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 // usedByProfileDevices indicates if network is referenced by a profile's NIC devices.
 // Checks if the device's parent or network properties match the network name.
-func usedByProfileDevices(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
+func usedByProfileDevices(s *state.State, profile api.Profile, projectName string, networkProjectName string, networkName string) (bool, error) {
 	// Get the translated network project name from the profiles's project.
-	profileNetworkProjectName, _, err := project.NetworkProject(s.Cluster, profile.Project)
+	profileNetworkProjectName, _, err := project.NetworkProject(s.Cluster, projectName)
 	if err != nil {
 		return false, err
 	}
@@ -215,7 +226,7 @@ func usedByProfileDevices(s *state.State, profile db.Profile, networkProjectName
 		return false, nil
 	}
 
-	for _, d := range deviceConfig.NewDevices(db.DevicesToAPI(profile.Devices)) {
+	for _, d := range profile.Devices {
 		if isInUseByDevice(networkName, d) {
 			return true, nil
 		}

@@ -388,6 +388,9 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(instanc
 
 	// Retrieve required info from the database in single transaction for performance.
 	var instances []Instance
+	var apiInstances []*api.Instance
+	var instanceProjects []*api.Project
+	var instanceProfiles map[string][]api.Profile
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
 		instances, err = tx.GetInstances(*filter)
@@ -395,10 +398,13 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(instanc
 			return errors.Wrap(err, "Failed loading instances")
 		}
 
+		apiInstances = make([]*api.Instance, len(instances))
+		instanceProjects = make([]*api.Project, len(instances))
+		instanceProfiles = make(map[string][]api.Profile, len(instances))
 		// Call the instanceFunc provided for each instance after the transaction has ended, as we don't know if
 		// the instanceFunc will be slow or may need to make additional DB queries.
-		for _, instance := range instances {
-			apiInstance, instanceProfiles, err := instance.ToAPI(tx)
+		for i, instance := range instances {
+			apiInstances[i], instanceProfiles[instance.Name], err = instance.ToAPI(tx)
 			if err != nil {
 				return err
 			}
@@ -408,12 +414,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(instanc
 				return err
 			}
 
-			instanceProject, err := project.ToAPI(tx)
-			if err != nil {
-				return err
-			}
-
-			err = instanceFunc(instance.ID, *apiInstance, *instanceProject, instanceProfiles)
+			instanceProjects[i], err = project.ToAPI(tx)
 			if err != nil {
 				return err
 			}
@@ -423,6 +424,13 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(instanc
 	})
 	if err != nil {
 		return err
+	}
+
+	for i, instance := range instances {
+		err = instanceFunc(instance.ID, *apiInstances[i], *instanceProjects[i], instanceProfiles[instance.Name])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

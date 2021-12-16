@@ -26,7 +26,6 @@ import (
 	"github.com/lxc/lxd/lxd/daemon"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
@@ -2400,7 +2399,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+	err := n.state.Cluster.InstanceList(nil, func(instanceID int, inst api.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -2408,7 +2407,7 @@ func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*ap
 			return nil // Managed bridge networks can only exist in default project.
 		}
 
-		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
+		devices := db.ExpandInstanceDevices(inst.Devices, profiles)
 
 		// Iterate through each of the instance's devices, looking for bridged NICs that are linked to
 		// networks specified.
@@ -2436,7 +2435,7 @@ func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*ap
 						subnet:          *ipNet,
 						networkProject:  instNetworkProject,
 						networkName:     devConfig["network"],
-						instanceProject: inst.Project,
+						instanceProject: p.Name,
 						instanceName:    inst.Name,
 						instanceDevice:  devName,
 					})
@@ -2628,14 +2627,14 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 					Node: &localNode,
 				}
 
-				err = n.state.Cluster.InstanceList(&filter, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+				err = n.state.Cluster.InstanceList(&filter, func(instanceID int, inst api.Instance, p api.Project, profiles []api.Profile) error {
 					// Get the instance's effective network project name.
 					instNetworkProject := project.NetworkProjectFromRecord(&p)
 
 					if instNetworkProject != project.Default {
 						return nil // Managed bridge networks can only exist in default project.
 					}
-					devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
+					devices := db.ExpandInstanceDevices(inst.Devices, profiles)
 
 					// Iterate through each of the instance's devices, looking for bridged NICs
 					// that are linked to this network.
@@ -2656,7 +2655,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 							if err != nil {
 								return errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", link.Name)
 							}
-							n.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"inst": inst.Name, "project": inst.Project, "device": devName, "dev": link.Name})
+							n.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"inst": inst.Name, "project": p.Name, "device": devName, "dev": link.Name})
 						}
 					}
 
