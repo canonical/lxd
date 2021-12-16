@@ -1544,3 +1544,7 @@ disabling the use of the potentially slow `rbd du` calls.
 ## instance\_get\_full
 This introduces a new recursion=1 mode for `GET /1.0/instances/{name}` which allows for the retrieval of
 all instance structs, including the state, snapshots and backup structs.
+
+## qemu\_metrics
+This adds a new `security.agent.metrics` boolean which defaults to `true`.
+When set to `false`, it doesn't connect to the lxd-agent for metrics and other state information, but relies on stats from QEMU.
