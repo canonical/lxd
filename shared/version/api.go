@@ -301,6 +301,7 @@ var APIExtensions = []string{
 	"clustering_groups",
 	"ceph_rbd_du",
 	"instance_get_full",
+	"qemu_metrics",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
