@@ -169,9 +169,9 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			hbNode.updated = true
 			heartbeatData.Members[nodeID] = hbNode
 			heartbeatData.Unlock()
-			logger.Debug("Successful heartbeat", log.Ctx{"address": address})
+			logger.Debug("Successful heartbeat", log.Ctx{"remote": address})
 		} else {
-			logger.Warn("Failed heartbeat", log.Ctx{"address": address, "err": err})
+			logger.Warn("Failed heartbeat", log.Ctx{"remote": address, "err": err})
 		}
 	}
 
