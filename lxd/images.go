@@ -1989,9 +1989,47 @@ func pruneExpiredImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 func pruneLeftoverImages(d *Daemon) {
 	opRun := func(op *operations.Operation) error {
+		// Check if dealing with shared image storage.
+		var storageImages string
+		err := d.State().Node.Transaction(func(tx *db.NodeTx) error {
+			nodeConfig, err := node.ConfigLoad(tx)
+			if err != nil {
+				return err
+			}
+
+			storageImages = nodeConfig.StorageImagesVolume()
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		if storageImages != "" {
+			// Parse the source.
+			poolName, _, err := daemonStorageSplitVolume(storageImages)
+			if err != nil {
+				return err
+			}
+
+			// Load the pool.
+			pool, err := storagePools.GetPoolByName(d.State(), poolName)
+			if err != nil {
+				return err
+			}
+
+			// Skip cleanup if image volume may be multi-node.
+			// When such a volume is used, we may have images that are
+			// tied to other servers in the shared images folder and don't want to
+			// delete those.
+			if pool.Driver().Info().VolumeMultiNode {
+				return nil
+			}
+		}
+
 		// Get all images
 		var images []string
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			var err error
 			images, err = tx.GetLocalImagesFingerprints()
 			return err

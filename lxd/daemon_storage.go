@@ -40,13 +40,10 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 
 	unmount := func(storageType string, source string) error {
 		// Parse the source.
-		fields := strings.Split(source, "/")
-		if len(fields) != 2 {
-			return fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
+		poolName, volumeName, err := daemonStorageSplitVolume(source)
+		if err != nil {
+			return err
 		}
-
-		poolName := fields[0]
-		volumeName := fields[1]
 
 		pool, err := storagePools.GetPoolByName(s, poolName)
 		if err != nil {
@@ -99,13 +96,10 @@ func daemonStorageMount(s *state.State) error {
 
 	mount := func(storageType string, source string) error {
 		// Parse the source.
-		fields := strings.Split(source, "/")
-		if len(fields) != 2 {
-			return fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
+		poolName, volumeName, err := daemonStorageSplitVolume(source)
+		if err != nil {
+			return err
 		}
-
-		poolName := fields[0]
-		volumeName := fields[1]
 
 		pool, err := storagePools.GetPoolByName(s, poolName)
 		if err != nil {
@@ -138,19 +132,28 @@ func daemonStorageMount(s *state.State) error {
 	return nil
 }
 
+func daemonStorageSplitVolume(volume string) (string, string, error) {
+	fields := strings.Split(volume, "/")
+	if len(fields) != 2 {
+		return "", "", fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
+	}
+
+	poolName := fields[0]
+	volumeName := fields[1]
+
+	return poolName, volumeName, nil
+}
+
 func daemonStorageValidate(s *state.State, target string) error {
 	// Check syntax.
 	if target == "" {
 		return nil
 	}
 
-	fields := strings.Split(target, "/")
-	if len(fields) != 2 {
-		return fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
+	poolName, volumeName, err := daemonStorageSplitVolume(target)
+	if err != nil {
+		return err
 	}
-
-	poolName := fields[0]
-	volumeName := fields[1]
 
 	// Validate pool exists.
 	poolID, _, _, err := s.Cluster.GetStoragePool(poolName)
@@ -293,13 +296,10 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	}
 
 	// Parse the target.
-	fields := strings.Split(target, "/")
-	if len(fields) != 2 {
-		return fmt.Errorf("Invalid syntax for volume, must be <pool>/<volume>")
+	poolName, volumeName, err := daemonStorageSplitVolume(target)
+	if err != nil {
+		return err
 	}
-
-	poolName := fields[0]
-	volumeName := fields[1]
 
 	pool, err := storagePools.GetPoolByName(s, poolName)
 	if err != nil {
