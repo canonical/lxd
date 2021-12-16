@@ -22,8 +22,10 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
+	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -133,7 +135,7 @@ func (c *migrationFields) controlChannel() <-chan *migration.MigrationControl {
 type migrationSourceWs struct {
 	migrationFields
 
-	allConnected chan bool
+	allConnected chan struct{}
 }
 
 func (s *migrationSourceWs) Metadata() interface{} {
@@ -176,6 +178,16 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 		return err
 	}
 
+	remoteTCP, err := util.ExtractTCPConn(c.UnderlyingConn())
+	if err != nil {
+		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+	} else {
+		err := util.SetTCPTimeouts(remoteTCP)
+		if err != nil {
+			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+		}
+	}
+
 	*conn = c
 
 	// Check criteria for considering all channels to be connected.
@@ -191,7 +203,7 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 		return nil
 	}
 
-	s.allConnected <- true
+	close(s.allConnected)
 
 	return nil
 }
@@ -249,7 +261,7 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 		*conn = wsConn
 	}
 
-	s.allConnected <- true
+	close(s.allConnected)
 
 	return nil
 }
@@ -264,7 +276,7 @@ type migrationSink struct {
 
 	url          string
 	dialer       websocket.Dialer
-	allConnected chan bool
+	allConnected chan struct{}
 	push         bool
 	refresh      bool
 }
@@ -360,7 +372,7 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 		return nil
 	}
 
-	s.allConnected <- true
+	close(s.allConnected)
 
 	return nil
 }
