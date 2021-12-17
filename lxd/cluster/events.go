@@ -15,35 +15,39 @@ import (
 )
 
 var listeners = map[string]*lxd.EventListener{}
-var listenersNotify = map[string]chan struct{}{}
+var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
 
-// EventListenerWait waits for there to be listener connected to the specified address.
-func EventListenerWait(ctx context.Context, address string) (*lxd.EventListener, error) {
+// EventListenerWait waits for there to be listener connected to the specified address, or one of the event hubs
+// if operating in event hub mode.
+func EventListenerWait(ctx context.Context, address string) error {
 	// Check if there is already a listener.
 	listenersLock.Lock()
 	listener, found := listeners[address]
 	if found && listener.IsActive() {
 		listenersLock.Unlock()
-		return listener, nil
+		return nil
 	}
 
-	// If not then create a notify channel if doesn't exist already.
-	listenerNotify, found := listenersNotify[address]
-	if !found {
-		listenerNotify = make(chan struct{})
-		listenersNotify[address] = listenerNotify
-	}
+	listenAddresses := []string{address}
+
+	// If not setup a notification for when the desired address or any of the event hubs connect.
+	connected := make(chan struct{})
+	listenersNotify[connected] = listenAddresses
 	listenersLock.Unlock()
 
-	// Wait for the notify channel to be closed (indicating a new listener has been connected), and return it.
-	select {
-	case <-listenerNotify:
+	defer func() {
 		listenersLock.Lock()
-		defer listenersLock.Unlock()
-		return listeners[address], nil
+		delete(listenersNotify, connected)
+		listenersLock.Unlock()
+	}()
+
+	// Wait for the connected channel to be closed (indicating a new listener has been connected), and return.
+	select {
+	case <-connected:
+		return nil
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return ctx.Err()
 	}
 }
 
@@ -133,11 +137,12 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			listenersLock.Lock()
 			listeners[m.Address] = listener
 
-			// If there is something waiting to be notify, then notify them and delete the notifier.
-			listenerNotify, found := listenersNotify[m.Address]
-			if found {
-				close(listenerNotify)
-				delete(listenersNotify, m.Address)
+			// Indicate to any notifiers waiting for this member's address that it is connected.
+			for connected, notifyAddresses := range listenersNotify {
+				if shared.StringInSlice(m.Address, notifyAddresses) {
+					close(connected)
+					delete(listenersNotify, connected)
+				}
 			}
 
 			logger.Info("Added member event listener", log.Ctx{"local": networkAddress, "remote": m.Address})
@@ -153,7 +158,6 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		if _, found := keepListeners[address]; !found {
 			listener.Disconnect()
 			delete(listeners, address)
-			delete(listenersNotify, address)
 			logger.Info("Removed old member event listener", log.Ctx{"local": networkAddress, "remote": address})
 		}
 	}
