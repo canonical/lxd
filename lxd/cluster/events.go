@@ -16,6 +16,11 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// eventHubMinHosts is the minimum number of members that must have the event-hub role to trigger switching into
+// event-hub mode (where cluster members will only connect to event-hub members rather than all members when
+// operating in the normal full-mesh mode).
+const eventHubMinHosts = 2
+
 var listeners = map[string]*lxd.EventListener{}
 var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
