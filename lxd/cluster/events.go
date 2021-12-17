@@ -8,6 +8,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	log "github.com/lxc/lxd/shared/log15"
@@ -171,5 +172,16 @@ func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *sha
 		return nil, err
 	}
 
-	return client.GetEventsAllProjects()
+	revert := revert.New()
+	revert.Add(func() {
+		client.Disconnect()
+	})
+
+	listener, err := client.GetEventsAllProjects()
+	if err != nil {
+		return nil, err
+	}
+
+	revert.Success()
+	return listener, nil
 }
