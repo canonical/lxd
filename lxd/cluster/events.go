@@ -107,7 +107,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		// If the member already has a listener associated to it, check that the listener is still active.
 		// If it is, just move on to next member, but if not then we'll try to connect again.
 		if ok {
-			if listeners[member.Address].IsActive() {
+			if listener.IsActive() {
 				keepListeners[member.Address] = struct{}{} // Add to current listeners list.
 				listenersLock.Unlock()
 				continue
