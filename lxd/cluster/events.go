@@ -117,7 +117,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			// might be something waiting for a future connection.
 			listener.Disconnect()
 			delete(listeners, member.Address)
-			logger.Info("Removed inactive member event listener", log.Ctx{"local": networkAddress, "remote": member.Address})
+			logger.Info("Removed inactive member event listener client", log.Ctx{"local": networkAddress, "remote": member.Address})
 		}
 		listenersLock.Unlock()
 
@@ -129,7 +129,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			defer wg.Done()
 			listener, err := eventsConnect(m.Address, endpoints.NetworkCert(), serverCert())
 			if err != nil {
-				logger.Warn("Failed adding member event listener", log.Ctx{"local": networkAddress, "remote": m.Address, "err": err})
+				logger.Warn("Failed adding member event listener client", log.Ctx{"local": networkAddress, "remote": m.Address, "err": err})
 				return
 			}
 
@@ -146,7 +146,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 				}
 			}
 
-			logger.Info("Added member event listener", log.Ctx{"local": networkAddress, "remote": m.Address})
+			logger.Info("Added member event listener client", log.Ctx{"local": networkAddress, "remote": m.Address})
 			listenersLock.Unlock()
 		}(member)
 	}
@@ -159,7 +159,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		if _, found := keepListeners[address]; !found {
 			listener.Disconnect()
 			delete(listeners, address)
-			logger.Info("Removed old member event listener", log.Ctx{"local": networkAddress, "remote": address})
+			logger.Info("Removed old member event listener client", log.Ctx{"local": networkAddress, "remote": address})
 		}
 	}
 	listenersLock.Unlock()
