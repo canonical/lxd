@@ -8,7 +8,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 var eventsCmd = APIEndpoint{
@@ -53,9 +52,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		return err
 	}
 
-	logger.Debugf("New event listener: %s (%v)", listener.ID(), typeStr)
 	listener.Wait(r.Context())
-	logger.Debugf("Event listener finished: %s", listener.ID())
 
 	return nil
 }
