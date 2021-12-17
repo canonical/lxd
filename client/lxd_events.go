@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -16,10 +17,13 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	r.eventListenersLock.Lock()
 	defer r.eventListenersLock.Unlock()
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Setup a new listener
 	listener := EventListener{
-		r:        r,
-		chActive: make(chan bool),
+		r:         r,
+		ctx:       ctx,
+		ctxCancel: cancel,
 	}
 
 	if r.eventListeners != nil {
@@ -84,8 +88,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 				// Tell all the current listeners about the failure
 				for _, listener := range r.eventListeners {
 					listener.err = err
-					listener.disconnected = true
-					close(listener.chActive)
+					listener.ctxCancel()
 				}
 
 				// And remove them all from the list

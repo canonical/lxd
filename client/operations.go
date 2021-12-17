@@ -211,7 +211,7 @@ func (op *operation) setupListener() error {
 
 		// Wait for the listener or operation to be done
 		select {
-		case <-listener.chActive:
+		case <-listener.ctx.Done():
 			op.handlerLock.Lock()
 			if op.listener != nil {
 				op.Err = fmt.Sprintf("%v", listener.err)
