@@ -39,7 +39,7 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 	if !notify {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
 		defer cancel()
-		_, err := EventListenerWait(ctx, address)
+		err := EventListenerWait(ctx, address)
 		if err != nil {
 			return nil, fmt.Errorf("Missing event connection with target cluster member")
 		}
