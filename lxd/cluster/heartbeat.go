@@ -278,6 +278,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// function is set to nil when this function ends to indicate there is no ongoing heartbeat round.
 	g.heartbeatCancelLock.Lock()
 	ctx, g.heartbeatCancel = context.WithCancel(ctx)
+	g.heartbeatCancelLock.Unlock()
+
 	defer func() {
 		heartbeatCancel := g.HearbeatCancelFunc()
 		if heartbeatCancel != nil {
@@ -285,7 +287,6 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 			g.heartbeatCancel = nil
 		}
 	}()
-	g.heartbeatCancelLock.Unlock()
 
 	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
 		// We're not a raft node or we're not clustered
