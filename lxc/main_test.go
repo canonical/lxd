@@ -3,12 +3,15 @@ package main
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/lxc/lxd/lxc/config"
 )
 
 type aliasTestcase struct {
-	input    []string
-	expected []string
+	input     []string
+	expected  []string
+	expectErr bool
 }
 
 func slicesEqual(a, b []string) bool {
@@ -35,10 +38,13 @@ func slicesEqual(a, b []string) bool {
 
 func TestExpandAliases(t *testing.T) {
 	aliases := map[string]string{
-		"tester 12": "list",
-		"foo":       "list @ARGS@ -c n",
-		"ssh":       "/usr/bin/ssh @ARGS@",
-		"bar":       "exec c1 -- @ARGS@",
+		"tester 12":                "list",
+		"foo":                      "list @ARGS@ -c n",
+		"ssh":                      "/usr/bin/ssh @ARGS@",
+		"bar":                      "exec c1 -- @ARGS@",
+		"fizz":                     "exec @ARG1@ -- echo @ARG2@",
+		"snaps":                    "query /1.0/instances/@ARG1@/snapshots",
+		"snapshots with recursion": "query /1.0/instances/@ARG1@/snapshots?recursion=@ARG2@",
 	}
 
 	testcases := []aliasTestcase{
@@ -62,12 +68,33 @@ func TestExpandAliases(t *testing.T) {
 			input:    []string{"lxc", "bar", "ls", "/"},
 			expected: []string{"lxc", "exec", "c1", "--", "ls", "/"},
 		},
+		{
+			input:    []string{"lxc", "fizz", "c1", "buzz"},
+			expected: []string{"lxc", "exec", "c1", "--", "echo", "buzz"},
+		},
+		{
+			input:     []string{"lxc", "fizz", "c1"},
+			expectErr: true,
+		},
+		{
+			input:    []string{"lxc", "snaps", "c1"},
+			expected: []string{"lxc", "query", "/1.0/instances/c1/snapshots"},
+		},
+		{
+			input:    []string{"lxc", "snapshots", "with", "recursion", "c1", "2"},
+			expected: []string{"lxc", "query", "/1.0/instances/c1/snapshots?recursion=2"},
+		},
 	}
 
 	conf := &config.Config{Aliases: aliases}
 
 	for _, tc := range testcases {
-		result, expanded := expandAlias(conf, tc.input)
+		result, expanded, err := expandAlias(conf, tc.input)
+		if tc.expectErr {
+			assert.Error(t, err)
+			continue
+		}
+
 		if !expanded {
 			if !slicesEqual(tc.input, tc.expected) {
 				t.Errorf("didn't expand when expected to: %s", tc.input)
