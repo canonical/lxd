@@ -148,7 +148,11 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			spreadRange := spreadDurationMs - 3000
 
 			if spreadRange > 0 {
-				time.Sleep(time.Duration(rand.Intn(spreadRange)) * time.Millisecond)
+				select {
+				case <-time.After(time.Duration(rand.Intn(spreadRange)) * time.Millisecond):
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 
