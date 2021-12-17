@@ -555,14 +555,21 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 
 	// Generate partial heartbeat request containing just a raft node list.
 	if state.Endpoints != nil {
-		NotifyHeartbeat(state, gateway.HeartbeatOfflineThreshold)
+		NotifyHeartbeat(state, gateway)
 	}
 
 	return nil
 }
 
 // NotifyHeartbeat attempts to send a heartbeat to all other members to notify them of a new or changed member.
-func NotifyHeartbeat(state *state.State, offlineThreshold time.Duration) {
+func NotifyHeartbeat(state *state.State, gateway *Gateway) {
+	// If a heartbeat round is already running (and implicitly this means we are the leader), then cancel it
+	// so we can distribute the fresh member state info.
+	heartbeatCancel := gateway.HearbeatCancelFunc()
+	if heartbeatCancel != nil {
+		heartbeatCancel()
+	}
+
 	hbState := NewAPIHearbeat(state.Cluster)
 	hbState.Time = time.Now().UTC()
 
@@ -604,7 +611,7 @@ func NotifyHeartbeat(state *state.State, offlineThreshold time.Duration) {
 	}
 
 	// Setup a full-state notification heartbeat.
-	hbState.Update(true, raftNodes, allNodes, offlineThreshold)
+	hbState.Update(true, raftNodes, allNodes, gateway.HeartbeatOfflineThreshold)
 
 	// Refresh local event listeners.
 	go EventsUpdateListeners(state.Endpoints, state.Cluster, state.ServerCert, hbState.Members, state.Events.Forward)
@@ -853,7 +860,7 @@ assign:
 
 	// Generate partial heartbeat request containing just a raft node list.
 	if state.Endpoints != nil {
-		NotifyHeartbeat(state, gateway.HeartbeatOfflineThreshold)
+		NotifyHeartbeat(state, gateway)
 	}
 
 	return nil
