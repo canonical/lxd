@@ -193,6 +193,8 @@ type Listener struct {
 }
 
 func (e *Listener) heartbeat() {
+	logger.Debug("Event listener server handler started", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
+
 	defer e.Close()
 
 	pingInterval := time.Second * 5
@@ -220,7 +222,7 @@ func (e *Listener) heartbeat() {
 		e.lock.Lock()
 		if e.pongsPending > 2 {
 			e.lock.Unlock()
-			logger.Warn("Hearbeat for event listener timed out", log.Ctx{"listener": e.ID()})
+			logger.Warn("Hearbeat for event listener handler timed out", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
 			return
 		}
 		err := e.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
@@ -272,7 +274,7 @@ func (e *Listener) Close() {
 		return
 	}
 
-	logger.Debug("Disconnected event listener", log.Ctx{"listener": e.id})
+	logger.Debug("Event listener server handler stopped", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
 
 	e.Conn.Close()
 	e.ctxCancel()
