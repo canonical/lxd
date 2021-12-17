@@ -150,7 +150,11 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			spreadRange := spreadDurationMs - 3000
 
 			if spreadRange > 0 {
-				time.Sleep(time.Duration(rand.Intn(spreadRange)) * time.Millisecond)
+				select {
+				case <-time.After(time.Duration(rand.Intn(spreadRange)) * time.Millisecond):
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 
@@ -275,6 +279,11 @@ func (g *Gateway) HeartbeatRestart() bool {
 }
 
 func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
+	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
+		// We're not a raft node or we're not clustered
+		return
+	}
+
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
 	// connection or notification restart both kick in at the same time.
@@ -286,6 +295,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// function is set to nil when this function ends to indicate there is no ongoing heartbeat round.
 	g.heartbeatCancelLock.Lock()
 	ctx, g.heartbeatCancel = context.WithCancel(ctx)
+	g.heartbeatCancelLock.Unlock()
+
 	defer func() {
 		heartbeatCancel := g.HearbeatCancelFunc()
 		if heartbeatCancel != nil {
@@ -293,12 +304,6 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 			g.heartbeatCancel = nil
 		}
 	}()
-	g.heartbeatCancelLock.Unlock()
-
-	if g.Cluster == nil || g.server == nil || g.memoryDial != nil {
-		// We're not a raft node or we're not clustered
-		return
-	}
 
 	raftNodes, err := g.currentRaftNodes()
 	if err != nil {
@@ -392,6 +397,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	} else {
 		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
 		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
+	}
+
+	// If the context has been cancelled, return immediately.
+	err = ctx.Err()
+	if err != nil {
+		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+		return
 	}
 
 	// Look for any new node which appeared since sending last heartbeat.
