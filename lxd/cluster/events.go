@@ -74,6 +74,20 @@ func EventListenerWait(ctx context.Context, address string) error {
 
 	listenAddresses := []string{address}
 
+	// Check if operating in event hub mode and if one of the event hub connections is available.
+	// If so then we are ready to receive events from all members.
+	if eventMode != EventModeFullMesh {
+		for _, eventHubAddress := range eventHubAddresses {
+			listener, found := listeners[eventHubAddress]
+			if found && listener.IsActive() {
+				listenersLock.Unlock()
+				return nil
+			}
+
+			listenAddresses = append(listenAddresses, eventHubAddress)
+		}
+	}
+
 	// If not setup a notification for when the desired address or any of the event hubs connect.
 	connected := make(chan struct{})
 	listenersNotify[connected] = listenAddresses
