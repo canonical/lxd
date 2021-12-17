@@ -40,7 +40,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		return nil, err
 	}
 
-	conn, err := r.websocket(url)
+	r.eventConn, err = r.websocket(url)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 			r.eventListenersLock.Lock()
 			if len(r.eventListeners) == 0 {
 				// We don't need the connection anymore, disconnect
-				conn.Close()
+				r.eventConn.Close()
 
 				r.eventListeners = nil
 				r.eventListenersLock.Unlock()
@@ -75,7 +75,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Spawn the listener
 	go func() {
 		for {
-			_, data, err := conn.ReadMessage()
+			_, data, err := r.eventConn.ReadMessage()
 			if err != nil {
 				// Prevent anything else from interacting with the listeners
 				r.eventListenersLock.Lock()
@@ -91,7 +91,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 				// And remove them all from the list
 				r.eventListeners = nil
 
-				conn.Close()
+				r.eventConn.Close()
 				close(stopCh)
 
 				return
