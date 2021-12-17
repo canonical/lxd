@@ -398,6 +398,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
 	}
 
+	// If the context has been cancelled, return immediately.
+	err = ctx.Err()
+	if err != nil {
+		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+		return
+	}
+
 	// Look for any new node which appeared since sending last heartbeat.
 	var currentNodes []db.NodeInfo
 	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
