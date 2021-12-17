@@ -25,6 +25,7 @@ type ProtocolLXD struct {
 	server      *api.Server
 	chConnected chan struct{}
 
+	eventConn          *websocket.Conn
 	eventListeners     []*EventListener
 	eventListenersLock sync.Mutex
 
