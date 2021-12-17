@@ -84,13 +84,26 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 			return err
 		}
 
-		return tx.UpdateProfile(projectName, name, db.Profile{
+		err = tx.UpdateProfile(projectName, name, db.Profile{
 			Project:     projectName,
 			Name:        name,
 			Description: req.Description,
-			Config:      req.Config,
-			Devices:     devices,
 		})
+		if err != nil {
+			return err
+		}
+
+		id, err := tx.GetProfileID(projectName, name)
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateProfileConfig(id, req.Config)
+		if err != nil {
+			return err
+		}
+
+		return tx.UpdateProfileDevices(id, devices)
 	})
 	if err != nil {
 		return err
@@ -225,7 +238,16 @@ func getProfileInstancesInfo(cluster *db.Cluster, projectName string, profileNam
 					return err
 				}
 
-				instances = append(instances, db.InstanceToArgs(inst))
+				instFull, _, err := inst.ToAPI(tx)
+				if err != nil {
+					return err
+				}
+
+				args, err := db.InstanceToArgs(inst.ID, *instFull)
+				if err != nil {
+					return err
+				}
+				instances = append(instances, *args)
 			}
 		}
 
