@@ -23,10 +23,7 @@ func GetCurrentAllocations(tx *db.ClusterTx, projectName string) (map[string]api
 		return nil, fmt.Errorf("Project %q returned empty info struct", projectName)
 	}
 
-	info.Instances, err = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
-	if err != nil {
-		return nil, err
-	}
+	info.Instances = expandInstancesConfigAndDevices(info.Instances, info.Profiles)
 
 	// Get the instance aggregated values.
 	raw, err := getAggregateLimits(info, allAggregateLimits)

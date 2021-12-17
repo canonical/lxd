@@ -234,13 +234,9 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
+		err = project.AllowSnapshotCreation(tx, proj)
 		return err
 	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = project.AllowSnapshotCreation(proj)
 	if err != nil {
 		return response.SmartError(err)
 	}
