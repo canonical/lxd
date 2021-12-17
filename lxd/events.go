@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logger"
 )
 
 var eventTypes = []string{"logging", "operation", "lifecycle"}
@@ -114,9 +113,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		return err
 	}
 
-	logger.Debugf("New event listener: %s", listener.ID())
 	listener.Wait(r.Context())
-	logger.Debugf("Event listener finished: %s", listener.ID())
 
 	return nil
 }
