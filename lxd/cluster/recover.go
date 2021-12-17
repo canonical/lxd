@@ -134,8 +134,12 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 
 		return err
 	})
-	if err != nil || info == nil {
-		return errors.Wrap(err, "Failed to determine node role")
+	if err != nil {
+		return fmt.Errorf("Failed to determine cluster member raft role: %w", err)
+	}
+
+	if info == nil {
+		return fmt.Errorf("This cluster member has no raft role")
 	}
 
 	localAddress := info.Address
