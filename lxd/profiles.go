@@ -150,20 +150,36 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 		filter := db.ProfileFilter{
 			Project: &projectName,
 		}
-		if recursion {
-			profiles, err := tx.GetProfiles(filter)
+
+		profiles, err := tx.GetProfiles(filter)
+		if err != nil {
+			return err
+		}
+
+		apiProfiles := make([]*api.Profile, len(profiles))
+		for i, profile := range profiles {
+			usedBy, err := profileUsedBy(tx, profile)
 			if err != nil {
 				return err
 			}
-			apiProfiles := make([]*api.Profile, len(profiles))
-			for i, profile := range profiles {
-				apiProfiles[i] = db.ProfileToAPI(&profile)
-				apiProfiles[i].UsedBy = project.FilterUsedBy(r, apiProfiles[i].UsedBy)
+
+			apiProfiles[i], err = profile.ToAPI(tx)
+			if err != nil {
+				return err
 			}
 
+			apiProfiles[i].UsedBy = project.FilterUsedBy(r, usedBy)
+		}
+
+		if recursion {
 			result = apiProfiles
 		} else {
-			result, err = tx.GetProfileURIs(filter)
+			urls := make([]string, len(apiProfiles))
+			for i, p := range apiProfiles {
+				urls[i] = p.URL(version.APIVersion, projectName).String()
+			}
+
+			result = urls
 		}
 		return err
 	})
@@ -273,11 +289,18 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 			Project:     projectName,
 			Name:        req.Name,
 			Description: req.Description,
-			Config:      req.Config,
-			Devices:     devices,
 		}
-		_, err = tx.CreateProfile(profile)
-		return err
+		id, err := tx.CreateProfile(profile)
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateProfileConfig(id, req.Config)
+		if err != nil {
+			return err
+		}
+
+		return tx.UpdateProfileDevices(id, devices)
 	})
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
@@ -345,8 +368,17 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrap(err, "Fetch profile")
 		}
 
-		resp = db.ProfileToAPI(profile)
-		resp.UsedBy = project.FilterUsedBy(r, resp.UsedBy)
+		usedBy, err := profileUsedBy(tx, *profile)
+		if err != nil {
+			return err
+		}
+
+		resp, err = profile.ToAPI(tx)
+		if err != nil {
+			return err
+		}
+
+		resp.UsedBy = project.FilterUsedBy(r, usedBy)
 
 		return nil
 	})
@@ -422,10 +454,9 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrapf(err, "Failed to retrieve profile %q", name)
 		}
 
-		profile = db.ProfileToAPI(current)
 		id = int64(current.ID)
-
-		return nil
+		profile, err = current.ToAPI(tx)
+		return err
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -517,10 +548,9 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 			return errors.Wrapf(err, "Failed to retrieve profile=%q", name)
 		}
 
-		profile = db.ProfileToAPI(current)
 		id = int64(current.ID)
-
-		return nil
+		profile, err = current.ToAPI(tx)
+		return err
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -707,7 +737,13 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return err
 		}
-		if len(profile.UsedBy) > 0 {
+
+		usedBy, err := profileUsedBy(tx, *profile)
+		if err != nil {
+			return err
+		}
+
+		if len(usedBy) > 0 {
 			return fmt.Errorf("Profile is currently in use")
 		}
 
