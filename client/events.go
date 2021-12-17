@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -9,10 +10,10 @@ import (
 
 // The EventListener struct is used to interact with a LXD event stream
 type EventListener struct {
-	r            *ProtocolLXD
-	chActive     chan bool
-	disconnected bool
-	err          error
+	r         *ProtocolLXD
+	ctx       context.Context
+	ctxCancel context.CancelFunc
+	err       error
 
 	targets     []*EventTarget
 	targetsLock sync.Mutex
@@ -75,7 +76,7 @@ func (e *EventListener) Disconnect() {
 	e.r.eventListenersLock.Lock()
 	defer e.r.eventListenersLock.Unlock()
 
-	if e.disconnected {
+	if e.ctx.Err() != nil {
 		return
 	}
 
@@ -91,22 +92,20 @@ func (e *EventListener) Disconnect() {
 
 	// Turn off the handler
 	e.err = nil
-	e.disconnected = true
-	close(e.chActive)
+	e.ctxCancel()
 }
 
 // Wait blocks until the server disconnects the connection or Disconnect() is called
 func (e *EventListener) Wait() error {
-	<-e.chActive
+	<-e.ctx.Done()
 	return e.err
 }
 
 // IsActive returns true if this listener is still connected, false otherwise.
 func (e *EventListener) IsActive() bool {
-	select {
-	case <-e.chActive:
-		return false // If the chActive channel is closed we got disconnected
-	default:
+	if e.ctx.Err() == nil {
 		return true
 	}
+
+	return false
 }
