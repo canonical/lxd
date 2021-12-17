@@ -71,13 +71,13 @@ func (e *EventListener) RemoveHandler(target *EventTarget) error {
 
 // Disconnect must be used once done listening for events
 func (e *EventListener) Disconnect() {
-	if e.disconnected {
-		return
-	}
-
 	// Handle locking
 	e.r.eventListenersLock.Lock()
 	defer e.r.eventListenersLock.Unlock()
+
+	if e.disconnected {
+		return
+	}
 
 	// Locate and remove it from the global list
 	for i, listener := range e.r.eventListeners {
