@@ -29,13 +29,15 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/instancewriter"
+	"github.com/lxc/lxd/shared/ioprogress"
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/units"
 )
 
 // Create a new backup.
-func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance) error {
+func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
 	logger := logging.AddContext(logger.Log, log.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
 	logger.Debug("Instance backup started")
 	defer logger.Debug("Instance backup finished")
@@ -135,18 +137,35 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	tarWriterRes := make(chan error, 0)
 	var compressErr error
 
+	backupProgressWriter := &ioprogress.ProgressWriter{
+		Tracker: &ioprogress.ProgressTracker{
+			Handler: func(value, speed int64) {
+				meta := op.Metadata()
+				if meta == nil {
+					meta = make(map[string]interface{})
+				}
+
+				progressText := fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(value, 2), units.GetByteSizeString(speed, 2))
+				meta["create_backup_progress"] = progressText
+				op.UpdateMetadata(meta)
+			},
+		},
+	}
+
 	go func(resCh chan<- error) {
 		logger.Debug("Started backup tarball writer")
 		defer logger.Debug("Finished backup tarball writer")
 		if compress != "none" {
-			compressErr = compressFile(compress, tarPipeReader, tarFileWriter)
+			backupProgressWriter.WriteCloser = tarFileWriter
+			compressErr = compressFile(compress, tarPipeReader, backupProgressWriter)
 
 			// If a compression error occurred, close the tarPipeWriter to end the export.
 			if compressErr != nil {
 				tarPipeWriter.Close()
 			}
 		} else {
-			_, err = io.Copy(tarFileWriter, tarPipeReader)
+			backupProgressWriter.WriteCloser = tarFileWriter
+			_, err = io.Copy(backupProgressWriter, tarPipeReader)
 		}
 		resCh <- err
 	}(tarWriterRes)
