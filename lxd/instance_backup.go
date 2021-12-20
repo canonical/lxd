@@ -297,7 +297,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 			CompressionAlgorithm: req.CompressionAlgorithm,
 		}
 
-		err := backupCreate(d.State(), args, inst)
+		err := backupCreate(d.State(), args, inst, op)
 		if err != nil {
 			return errors.Wrap(err, "Create backup")
 		}
