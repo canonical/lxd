@@ -1,11 +1,11 @@
 # Requirements
 ## Go
-LXD requires Go 1.13 or higher and is only tested with the golang compiler.
+LXD requires Go 1.16 or higher and is only tested with the golang compiler.
 
 We recommend having at least 2GB of RAM to allow the build to complete.
 
 ## Kernel requirements
-The minimum supported kernel version is 3.13.
+The minimum supported kernel version is 5.4.
 
 LXD requires a kernel with support for:
 
@@ -22,7 +22,7 @@ The following optional features also require extra kernel options:
 As well as any other kernel feature required by the LXC version in use.
 
 ## LXC
-LXD requires LXC 3.0.0 or higher with the following build options:
+LXD requires LXC 4.0.0 or higher with the following build options:
 
  * apparmor (if using LXD's apparmor support)
  * seccomp
