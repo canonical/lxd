@@ -812,12 +812,14 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 		}
 
 		for _, entry := range entries {
+			var maprange int64 = entry[1]
 			// Check that it's big enough to be useful
-			if int(entry[1]) < 65536 {
+			if maprange < 65536 {
+				logger.Warnf("uid mapping is too small: %d (minimum is 65536)", maprange)
 				continue
 			}
 
-			e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+			e := IdmapEntry{Isuid: true, Nsid: 0, Hostid: entry[0], Maprange: maprange}
 			idmapset.Idmap = Extend(idmapset.Idmap, e)
 
 			// NOTE: Remove once LXD can deal with multiple shadow maps
@@ -836,12 +838,14 @@ func DefaultIdmapSet(rootfs string, username string) (*IdmapSet, error) {
 		}
 
 		for _, entry := range entries {
+			var maprange int64 = entry[1]
 			// Check that it's big enough to be useful
-			if int(entry[1]) < 65536 {
+			if maprange < 65536 {
+				logger.Warnf("gid mapping is too small: %d (minimum is 65536)", maprange)
 				continue
 			}
 
-			e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: entry[0], Maprange: entry[1]}
+			e := IdmapEntry{Isgid: true, Nsid: 0, Hostid: entry[0], Maprange: maprange}
 			idmapset.Idmap = Extend(idmapset.Idmap, e)
 
 			// NOTE: Remove once LXD can deal with multiple shadow maps
@@ -907,13 +911,15 @@ func kernelDefaultMap() (*IdmapSet, error) {
 			entry.Startid = 100000
 		}
 
+		var maprange int64 = entry.Endid-entry.Startid
 		// Check if we have enough ids
-		if entry.Endid-entry.Startid < 65536 {
+		if maprange < 65536 {
+			logger.Warnf("kernel uid mapping is too small: %d (minimum is 65536)", maprange)
 			continue
 		}
 
 		// Add the map
-		e := IdmapEntry{Isuid: true, Isgid: false, Nsid: 0, Hostid: entry.Startid, Maprange: entry.Endid - entry.Startid + 1}
+		e := IdmapEntry{Isuid: true, Isgid: false, Nsid: 0, Hostid: entry.Startid, Maprange: maprange + 1}
 		idmapset.Idmap = Extend(idmapset.Idmap, e)
 
 		// NOTE: Remove once LXD can deal with multiple shadow maps
@@ -937,13 +943,15 @@ func kernelDefaultMap() (*IdmapSet, error) {
 			entry.Startid = 100000
 		}
 
+		var maprange int64 = entry.Endid-entry.Startid
 		// Check if we have enough ids
-		if entry.Endid-entry.Startid < 65536 {
+		if maprange < 65536 {
+			logger.Warnf("kernel uid mapping is too small: %d (minimum is 65536)", maprange)
 			continue
 		}
 
 		// Add the map
-		e := IdmapEntry{Isuid: false, Isgid: true, Nsid: 0, Hostid: entry.Startid, Maprange: entry.Endid - entry.Startid + 1}
+		e := IdmapEntry{Isuid: false, Isgid: true, Nsid: 0, Hostid: entry.Startid, Maprange: maprange + 1}
 		idmapset.Idmap = Extend(idmapset.Idmap, e)
 
 		// NOTE: Remove once LXD can deal with multiple shadow maps
