@@ -813,8 +813,11 @@ vendorid    | string    | -                 | no        | The vendor id of the G
 productid   | string    | -                 | no        | The product id of the GPU device
 id          | string    | -                 | no        | The card id of the GPU device
 pci         | string    | -                 | no        | The pci address of the GPU device
-mig.ci      | int       | -                 | yes       | Existing MIG compute instance ID
-mig.gi      | int       | -                 | yes       | Existing MIG GPU instance ID
+mig.ci      | int       | -                 | no        | Existing MIG compute instance ID
+mig.gi      | int       | -                 | no        | Existing MIG GPU instance ID
+mig.uuid    | string    | -                 | no        | Existing MIG device UUID ("MIG-" prefix can be omitted)
+
+Note: Either "mig.uuid" (Nvidia drivers 470+) or both "mig.ci" and "mig.gi" (old Nvidia drivers) must be set.
 
 ##### gpu: sriov
 
