@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 type gpuMIG struct {
@@ -25,16 +26,16 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 		return ErrUnsupportedDevType
 	}
 
-	requiredFields := []string{
-		"mig.gi",
-		"mig.ci",
-	}
+	requiredFields := []string{}
 
 	optionalFields := []string{
 		"vendorid",
 		"productid",
 		"id",
 		"pci",
+		"mig.gi",
+		"mig.ci",
+		"mig.uuid",
 	}
 
 	err := d.config.Validate(gpuValidationRules(requiredFields, optionalFields))
@@ -60,6 +61,16 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
+	if d.config["mig.uuid"] != "" {
+		for _, field := range []string{"mig.gi", "mig.ci"} {
+			if d.config[field] != "" {
+				return fmt.Errorf(`Cannot use %q when "mig.uuid" is set`, field)
+			}
+		}
+	} else if d.config["mig.gi"] == "" || d.config["mig.ci"] == "" {
+		return fmt.Errorf(`Either "mig.uuid" or both "mig.gi" and "mig.ci" must be set`)
+	}
+
 	return nil
 }
 
@@ -70,6 +81,17 @@ func (d *gpuMIG) validateEnvironment() error {
 	}
 
 	return validatePCIDevice(d.config["pci"])
+}
+
+// buildMIGDeviceName builds the name of the MIG device based on old/new format
+func (d *gpuMIG) buildMIGDeviceName(gpu api.ResourcesGPUCard) string {
+	if d.config["mig.uuid"] != "" {
+		if strings.HasPrefix(d.config["mig.uuid"], "MIG-") {
+			return d.config["mig.uuid"]
+		}
+		return fmt.Sprintf("MIG-%s", d.config["mig.uuid"])
+	}
+	return fmt.Sprintf("MIG-%s/%s/%s", gpu.Nvidia.UUID, d.config["mig.gi"], d.config["mig.ci"])
 }
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running,
@@ -120,12 +142,14 @@ func (d *gpuMIG) Start() (*deviceConfig.RunConfig, error) {
 		}
 		gpuID := fields[1]
 
-		if !shared.PathExists(fmt.Sprintf("/proc/driver/nvidia/capabilities/gpu%s/mig/gi%s/ci%s/access", gpuID, d.config["mig.gi"], d.config["mig.ci"])) {
-			return nil, fmt.Errorf("MIG device gi=%s ci=%s doesn't exist on GPU %s", d.config["mig.gi"], d.config["mig.ci"], gpuID)
+		if d.config["mig.uuid"] == "" {
+			if !shared.PathExists(fmt.Sprintf("/proc/driver/nvidia/capabilities/gpu%s/mig/gi%s/ci%s/access", gpuID, d.config["mig.gi"], d.config["mig.ci"])) {
+				return nil, fmt.Errorf("MIG device gi=%s ci=%s doesn't exist on GPU %s", d.config["mig.gi"], d.config["mig.ci"], gpuID)
+			}
 		}
 
 		runConf.GPUDevice = append(runConf.GPUDevice, []deviceConfig.RunConfigItem{
-			{Key: GPUNvidiaDeviceKey, Value: fmt.Sprintf("MIG-%s/%s/%s", gpu.Nvidia.UUID, d.config["mig.gi"], d.config["mig.ci"])},
+			{Key: GPUNvidiaDeviceKey, Value: d.buildMIGDeviceName(gpu)},
 		}...)
 	}
 
