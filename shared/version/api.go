@@ -237,6 +237,7 @@ var APIExtensions = []string{
 	"instance_all_projects",
 	"ceph_rbd_du",
 	"qemu_metrics",
+	"gpu_mig_uuid",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
