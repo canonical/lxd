@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"fmt"
 	"strconv"
 
 	"golang.org/x/sys/unix"
@@ -30,6 +31,13 @@ func (c *qemuCmd) Signal(sig unix.Signal) error {
 	command := api.InstanceExecControl{
 		Command: "signal",
 		Signal:  int(sig),
+	}
+
+	// Check handler hasn't finished.
+	select {
+	case <-c.dataDone:
+		return fmt.Errorf("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
+	default:
 	}
 
 	c.controlSendCh <- command
@@ -68,6 +76,13 @@ func (c *qemuCmd) WindowResize(fd, winchWidth, winchHeight int) error {
 			"width":  strconv.Itoa(winchWidth),
 			"height": strconv.Itoa(winchHeight),
 		},
+	}
+
+	// Check handler hasn't finished.
+	select {
+	case <-c.dataDone:
+		return fmt.Errorf("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
+	default:
 	}
 
 	c.controlSendCh <- command
