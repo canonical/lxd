@@ -228,6 +228,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	// Define a function to clean up TTYs and sockets when done.
 	finisher := func(cmdResult int, cmdErr error) error {
+		// Close this before closing the control connection so control handler can detect command ending.
+		close(attachedChildIsDead)
+
 		for _, tty := range ttys {
 			tty.Close()
 		}
@@ -241,8 +244,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 		} else {
 			conn.Close() // Close control connection (will cause control go routine to end).
 		}
-
-		close(attachedChildIsDead)
 
 		wgEOF.Wait()
 
