@@ -299,13 +299,19 @@ func (s *execWs) Do(op *operations.Operation) error {
 		for {
 			mt, r, err := conn.NextReader()
 			if mt == websocket.CloseMessage {
-				break
+				return
 			}
 
 			if err != nil {
-				logger.Warn("Error getting next exec control websocket reader", log.Ctx{"err": err})
+				// Check if command process has finished normally, if so, no need to kill it.
+				select {
+				case <-attachedChildIsDead:
+					return
+				default:
+				}
 
-				// If an abnormal closure occurred, kill the attached child.
+				logger.Warn("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
+
 				cmdKillOnce.Do(cmdKill)
 
 				return
@@ -313,8 +319,18 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 			buf, err := ioutil.ReadAll(r)
 			if err != nil {
-				logger.Debug("Failed to read message", log.Ctx{"err": err})
-				break
+				// Check if command process has finished normally, if so, no need to kill it.
+				select {
+				case <-attachedChildIsDead:
+					return
+				default:
+				}
+
+				logger.Warn("Failed reading control websocket message, killing command", log.Ctx{"err": err})
+
+				cmdKillOnce.Do(cmdKill)
+
+				return
 			}
 
 			command := api.InstanceExecControl{}
