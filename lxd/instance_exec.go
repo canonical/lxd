@@ -302,15 +302,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 
 			if err != nil {
-				logger.Debug("Got error getting next reader", log.Ctx{"err": err})
-				er, ok := err.(*websocket.CloseError)
-				if !ok {
-					break
-				}
-
-				if er.Code != websocket.CloseAbnormalClosure {
-					break
-				}
+				logger.Warn("Error getting next exec control websocket reader", log.Ctx{"err": err})
 
 				// If an abnormal closure occurred, kill the attached child.
 				cmdKillOnce.Do(cmdKill)
