@@ -285,6 +285,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 	var wgEOF sync.WaitGroup
 
 	finisher := func(cmdResult int, cmdErr error) error {
+		// Close this before closing the control connection so control handler can detect command ending.
+		close(attachedChildIsDead)
+
 		for _, tty := range ttys {
 			tty.Close()
 		}
@@ -296,8 +299,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 		if conn != nil {
 			conn.Close() // Close control connection (will cause control go routine to end).
 		}
-
-		close(attachedChildIsDead)
 
 		wgEOF.Wait()
 
@@ -384,30 +385,37 @@ func (s *execWs) Do(op *operations.Operation) error {
 			}
 
 			if err != nil {
-				logger.Debug("Got error getting next reader", log.Ctx{"err": err})
-				er, ok := err.(*websocket.CloseError)
-				if !ok {
-					break
+				// Check if command process has finished normally, if so, no need to kill it.
+				select {
+				case <-attachedChildIsDead:
+					return
+				default:
 				}
 
-				if er.Code != websocket.CloseAbnormalClosure {
-					break
-				}
+				logger.Debug("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
 
-				// If an abnormal closure occurred, kill the attached process.
 				err := unix.Kill(cmd.Process.Pid, unix.SIGKILL)
 				if err != nil {
 					logger.Error("Failed to send SIGKILL")
 				} else {
 					logger.Info("Sent SIGKILL")
 				}
+
 				return
 			}
 
 			buf, err := ioutil.ReadAll(r)
 			if err != nil {
-				logger.Debug("Failed to read message", log.Ctx{"err": err})
-				break
+				// Check if command process has finished normally, if so, no need to kill it.
+				select {
+				case <-attachedChildIsDead:
+					return
+				default:
+				}
+
+				logger.Warn("Failed reading control websocket message, killing command", log.Ctx{"err": err})
+
+				return
 			}
 
 			command := api.ContainerExecControl{}
