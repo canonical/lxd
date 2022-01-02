@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"fmt"
 	"strconv"
 
 	"golang.org/x/sys/unix"
@@ -32,6 +33,13 @@ func (c *qemuCmd) Signal(sig unix.Signal) error {
 		Signal:  int(sig),
 	}
 
+	// Check handler hasn't finished.
+	select {
+	case <-c.dataDone:
+		return fmt.Errorf("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
+	default:
+	}
+
 	c.controlSendCh <- command
 	err := <-c.controlResCh
 	if err != nil {
@@ -44,18 +52,18 @@ func (c *qemuCmd) Signal(sig unix.Signal) error {
 
 // Wait for the command to end and returns its exit code and any error.
 func (c *qemuCmd) Wait() (int, error) {
-	if c.cleanupFunc != nil {
-		defer c.cleanupFunc()
-	}
-
 	err := c.cmd.Wait()
 	if err != nil {
 		return -1, err
 	}
 
-	opAPI := c.cmd.Get()
 	<-c.dataDone
-	exitStatus := int(opAPI.Metadata["return"].(float64))
+
+	exitStatus := int(c.cmd.Get().Metadata["return"].(float64))
+
+	if c.cleanupFunc != nil {
+		defer c.cleanupFunc()
+	}
 
 	return exitStatus, nil
 }
@@ -68,6 +76,13 @@ func (c *qemuCmd) WindowResize(fd, winchWidth, winchHeight int) error {
 			"width":  strconv.Itoa(winchWidth),
 			"height": strconv.Itoa(winchHeight),
 		},
+	}
+
+	// Check handler hasn't finished.
+	select {
+	case <-c.dataDone:
+		return fmt.Errorf("no such process") // Aligns with error retured from unix.Kill in lxc's Signal().
+	default:
 	}
 
 	c.controlSendCh <- command

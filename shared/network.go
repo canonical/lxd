@@ -226,7 +226,7 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 			}
 
 			if err != nil {
-				logger.Debug("Got error getting next reader", log.Ctx{"err": err})
+				logger.Debug("WebsocketRecvStream got error getting next reader", log.Ctx{"err": err})
 				break
 			}
 
@@ -336,7 +336,7 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 	for {
 		mt, r, err := conn.NextReader()
 		if err != nil {
-			logger.Debug("Got error getting next reader", log.Ctx{"err": err})
+			logger.Debug("DefaultWriter got error getting next reader", log.Ctx{"err": err})
 			break
 		}
 
