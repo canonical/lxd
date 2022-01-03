@@ -42,6 +42,7 @@ type ImageDownloadArgs struct {
 	SetCached         bool
 	PreferCached      bool
 	AutoUpdate        bool
+	Public            bool
 	StoragePool       string
 	Budget            int64
 	SourceProjectName string
@@ -178,7 +179,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			}
 
 			// We need to insert the database entry for this project, including the node ID entry.
-			err = d.cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, false, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type)
+			err = d.cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type)
 			if err != nil {
 				return nil, err
 			}
@@ -457,7 +458,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Override visiblity
-	info.Public = false
+	info.Public = args.Public
 
 	// We want to enable auto-update only if we were passed an
 	// alias name, so we can figure when the associated
