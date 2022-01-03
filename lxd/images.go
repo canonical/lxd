@@ -379,6 +379,7 @@ func imgPostRemoteInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *opera
 		Alias:             hash,
 		Type:              req.Source.ImageType,
 		AutoUpdate:        req.AutoUpdate,
+		Public:            req.Public,
 		ProjectName:       project,
 		Budget:            budget,
 		SourceProjectName: req.Source.Project,
@@ -460,6 +461,7 @@ func imgPostURLInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operatio
 		Protocol:    "direct",
 		Alias:       hash,
 		AutoUpdate:  req.AutoUpdate,
+		Public:      req.Public,
 		ProjectName: project,
 		Budget:      budget,
 	})
@@ -1763,6 +1765,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 			Alias:       source.Alias,
 			Type:        info.Type,
 			AutoUpdate:  true,
+			Public:      info.Public,
 			StoragePool: poolName,
 			ProjectName: projectName,
 			Budget:      -1,

@@ -93,6 +93,7 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 				SetCached:    true,
 				Type:         imgType,
 				AutoUpdate:   autoUpdate,
+				Public:       false,
 				PreferCached: true,
 				ProjectName:  projectName,
 				Budget:       budget,
