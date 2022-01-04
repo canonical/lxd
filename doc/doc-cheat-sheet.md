@@ -481,22 +481,22 @@ By combining file inclusion and substitutions, you can even replace parts of the
 * - Input
   - Output
 * - ````
-    % Include parts of the content from file [architectures.md](architectures.md)
-    ```{include} architectures.md
-       :start-after: Introduction
-       :end-before: Please note that what LXD cares about
+    % Include parts of the content from file [../README.md](../README.md)
+    ```{include} ../README.md
+       :start-after: Installing LXD from packages
+       :end-before: <!-- Include end installing -->
     ```
     ````
-  - % Include parts of the content from file [architectures.md](architectures.md)
-    ```{include} architectures.md
-       :start-after: Introduction
-       :end-before: Please note that what LXD cares about
+  - % Include parts of the content from file [../README.md](../README.md)
+    ```{include} ../README.md
+       :start-after: Installing LXD from packages
+       :end-before: <!-- Include end installing -->
     ```
 `````
 
 Adhere to the following convention:
 - File inclusion does not work on GitHub. Therefore, always add a comment linking to the included file.
-- To select parts of the text, use `:start-after:` and `:end-before:` if possible. You can combine those with `:start-line:` and `:end-line:` if required (if the same text occurs more than once). Using only `:start-line:` and `:end-line:` is error-prone though.
+- To select parts of the text, add HTML comments for the start and end points and use `:start-after:` and `:end-before:`, if possible. You can combine `:start-after:` and `:end-before:` with `:start-line:` and `:end-line:` if required. Using only `:start-line:` and `:end-line:` is error-prone though.
 
 ## Tabs
 

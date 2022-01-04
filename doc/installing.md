@@ -2,14 +2,13 @@
 
 The easiest way to install LXD is to install one of the available packages, but you can also install LXD from the sources.
 
-## Installing LXD from packages
-
 % Include some content from [../README.md](../README.md)
 ```{include} ../README.md
-    :start-after: Installing LXD from packages
-    :end-before: To install LXD from source, see
+    :start-after: <!-- Include start installing -->
+    :end-before: <!-- Include end installing -->
 ```
 
+(installing_from_source)=
 ## Installing LXD from source
 We recommend having the latest versions of liblxc (>= 4.0.0 required)
 available for LXD development. Additionally, LXD requires Golang 1.16 or

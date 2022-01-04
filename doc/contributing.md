@@ -1,6 +1,6 @@
-% Include content from [../CONTRIBUTING.md](../contributing.md)
+% Include content from [../CONTRIBUTING.md](../CONTRIBUTING.md)
 ```{include} ../CONTRIBUTING.md
-    :end-before: <!-- more_information -->
+    :end-before: <!-- Include end contributing -->
 ```
 
 ## Getting Started Developing
@@ -9,7 +9,7 @@ Follow the steps below to set up your development environment to get started wor
 
 ### Building Dependencies
 
-To build dependencies, you can follow the instructions in [the README.md](index.md) under the "Installing LXD from Source" section.
+To build the dependencies, follow the instructions in {ref}`installing_from_source`.
 
 ### Adding Your Fork Remote
 
