@@ -1,20 +1,20 @@
 
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
-    :end-before: <!-- status -->
+    :end-before: <!-- Include end LXD intro -->
 ```
 
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
-    :start-after: in the documentation.
-    :end-before: More details are
+    :start-after: <!-- Include start security -->
+    :end-before: <!-- Include end security -->
 ```
 See [Security](security.md) for more information.
 
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
-    :start-after: security.md).
-    :end-before: greatly appreciated.
+    :start-after: <!-- Include start support -->
+    :end-before: <!-- Include end support -->
 ```
 See [Contributing](contributing.md) for more information.
 
