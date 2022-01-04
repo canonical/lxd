@@ -513,6 +513,8 @@ var qemuUSB = template.Must(template.New("qemuUSB").Parse(`
 driver = "qemu-xhci"
 bus = "{{.devBus}}"
 addr = "{{.devAddr}}"
+p2 = "{{.ports}}"
+p3 = "{{.ports}}"
 {{if .multifunction -}}
 multifunction = "on"
 {{- end }}
