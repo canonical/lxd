@@ -216,12 +216,12 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 		for {
 			mt, r, err := conn.NextReader()
 			if mt == websocket.CloseMessage {
-				logger.Debug("Got close message for reader")
+				logger.Debug("WebsocketRecvStream got close message for reader")
 				break
 			}
 
 			if mt == websocket.TextMessage {
-				logger.Debug("Got message barrier")
+				logger.Debug("WebsocketRecvStream got message barrier")
 				break
 			}
 
@@ -232,7 +232,7 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 
 			buf, err := ioutil.ReadAll(r)
 			if err != nil {
-				logger.Debug("Got error writing to writer", log.Ctx{"err": err})
+				logger.Debug("WebsocketRecvStream got error writing to writer", log.Ctx{"err": err})
 				break
 			}
 
@@ -242,11 +242,11 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 
 			i, err := w.Write(buf)
 			if i != len(buf) {
-				logger.Debug("Didn't write all of buf")
+				logger.Debug("WebsocketRecvStream didn't write all of buf")
 				break
 			}
 			if err != nil {
-				logger.Debug("Error writing buf", log.Ctx{"err": err})
+				logger.Debug("WebsocketRecvStream error writing buf", log.Ctx{"err": err})
 				break
 			}
 		}
@@ -341,27 +341,27 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 		}
 
 		if mt == websocket.CloseMessage {
-			logger.Debug("Got close message for reader")
+			logger.Debug("DefaultWriter got close message for reader")
 			break
 		}
 
 		if mt == websocket.TextMessage {
-			logger.Debug("Got message barrier, resetting stream")
+			logger.Debug("DefaultWriter got message barrier, resetting stream")
 			break
 		}
 
 		buf, err := ioutil.ReadAll(r)
 		if err != nil {
-			logger.Debug("Got error writing to writer", log.Ctx{"err": err})
+			logger.Debug("DefaultWriter got error writing to writer", log.Ctx{"err": err})
 			break
 		}
 		i, err := w.Write(buf)
 		if i != len(buf) {
-			logger.Debug("Didn't write all of buf")
+			logger.Debug("DefaultWriter didn't write all of buf")
 			break
 		}
 		if err != nil {
-			logger.Debug("Error writing buf", log.Ctx{"err": err})
+			logger.Debug("DefaultWriter error writing buf", log.Ctx{"err": err})
 			break
 		}
 	}
