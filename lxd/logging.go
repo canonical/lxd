@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -16,8 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 // This task function expires logs when executed. It's started by the Daemon

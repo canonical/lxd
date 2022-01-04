@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
@@ -21,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 // swagger:operation GET /1.0/instances/{name}/metadata instances instance_metadata_get
