@@ -1548,3 +1548,10 @@ all instance structs, including the state, snapshots and backup structs.
 ## qemu\_metrics
 This adds a new `security.agent.metrics` boolean which defaults to `true`.
 When set to `false`, it doesn't connect to the lxd-agent for metrics and other state information, but relies on stats from QEMU.
+
+## gpu\_mig\_uuid
+Adds support for the new MIG UUID format used by Nvidia `470+` drivers (eg. `MIG-74c6a31a-fde5-5c61-973b-70e12346c202`),
+the `MIG-` prefix can be omitted
+
+This extension supersedes old `mig.gi` and `mig.ci` parameters which are kept for compatibility with old drivers and
+cannot be set together.
