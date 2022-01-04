@@ -69,3 +69,8 @@ type StorageVolumeSnapshotPut struct {
 	// API extension: custom_volume_snapshot_expiry
 	ExpiresAt *time.Time `json:"expires_at" yaml:"expires_at"`
 }
+
+// Writable converts a full StorageVolumeSnapshot struct into a StorageVolumeSnapshotPut struct (filters read-only fields).
+func (storageVolumeSnapshot *StorageVolumeSnapshot) Writable() StorageVolumeSnapshotPut {
+	return storageVolumeSnapshot.StorageVolumeSnapshotPut
+}
