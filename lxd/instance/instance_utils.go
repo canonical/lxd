@@ -204,6 +204,10 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 		}
 	}
 
+	if shared.IsTrue(config["security.privileged"]) && shared.IsTrue(config["nvidia.runtime"]) {
+		return fmt.Errorf("nvidia.runtime is incompatible with privileged containers")
+	}
+
 	return nil
 }
 
