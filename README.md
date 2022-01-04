@@ -13,7 +13,7 @@ Then if you want to run it locally, take a look at our [getting started guide](h
 - Release tarballs: <https://linuxcontainers.org/lxd/downloads/>
 - Documentation: <https://linuxcontainers.org/lxd/docs/stable-4.0/>
 
-<!-- status -->
+<!-- Include end LXD intro -->
 
 ## Status
 Type                | Service               | Status
@@ -25,6 +25,8 @@ Static analysis     | GoReport              | [![Go Report Card](https://gorepor
 Translations        | Weblate               | [![Translation status](https://hosted.weblate.org/widgets/linux-containers/-/svg-badge.svg)](https://hosted.weblate.org/projects/linux-containers/lxd/)
 Project status      | CII Best Practices    | [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1086/badge)](https://bestpractices.coreinfrastructure.org/projects/1086)
 
+<!-- Include start installing -->
+
 ## Installing LXD from packages
 The LXD daemon only works on Linux but the client tool (`lxc`) is available on most platforms.
 
@@ -35,8 +37,11 @@ Windows             | [Chocolatey](https://chocolatey.org/packages/lxc) | choco 
 MacOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | brew install lxc
 
 More instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
+<!-- Include end installing -->
 
 To install LXD from source, see [Installing LXD](doc/installing.md) in the documentation.
+
+<!-- Include start security -->
 
 ## Security
 LXD, similar to other container and VM managers provides a UNIX socket for local communication.
@@ -49,8 +54,11 @@ to the host.
 When listening on the network, the same API is available on a TLS socket
 (HTTPS), specific access on the remote API can be restricted through
 Canonical RBAC.
+<!-- Include end security -->
 
 More details are [available here](doc/security.md).
+
+<!-- Include start support -->
 
 ## Support and community
 
@@ -70,4 +78,4 @@ find and subscribe to those at: <https://lists.linuxcontainers.org>
 If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
 
 ## Contributing
-Fixes and new features are greatly appreciated. Make sure to read our [contributing guidelines](CONTRIBUTING.md) first!
+Fixes and new features are greatly appreciated. <!-- Include end support --> Make sure to read our [contributing guidelines](CONTRIBUTING.md) first!
