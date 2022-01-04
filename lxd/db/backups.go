@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
-
 	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -281,62 +279,46 @@ func (c *Cluster) GetExpiredInstanceBackups() ([]InstanceBackup, error) {
 
 // GetStoragePoolVolumeBackups returns a list of volume backups.
 func (c *Cluster) GetStoragePoolVolumeBackups(projectName string, volumeName string, poolID int64) ([]StoragePoolVolumeBackup, error) {
-	var backupID int
-	var volumeID int64
-	var volName string
-	var creationDate string
-	var expiryDate string
-	var volumeOnly bool
-	var optimizedStorage bool
-	var result []StoragePoolVolumeBackup
-
 	q := `
-SELECT
-	backups.id,
-	backups.storage_volume_id,
-	backups.name,
-	backups.creation_date,
-	backups.expiry_date,
-	backups.volume_only,
-	backups.optimized_storage
-FROM storage_volumes_backups AS backups
-JOIN storage_volumes ON storage_volumes.id=backups.storage_volume_id
-JOIN projects ON projects.id=storage_volumes.project_id
-WHERE projects.name=? AND storage_volumes.name=? AND storage_volumes.storage_pool_id=?
-ORDER BY backups.id
-`
+	SELECT
+		backups.id,
+		backups.storage_volume_id,
+		backups.name,
+		backups.creation_date,
+		backups.expiry_date,
+		backups.volume_only,
+		backups.optimized_storage
+	FROM storage_volumes_backups AS backups
+	JOIN storage_volumes ON storage_volumes.id=backups.storage_volume_id
+	JOIN projects ON projects.id=storage_volumes.project_id
+	WHERE projects.name=? AND storage_volumes.name=? AND storage_volumes.storage_pool_id=?
+	ORDER BY backups.id
+	`
 
-	inargs := []interface{}{projectName, volumeName, poolID}
-	outfmt := []interface{}{backupID, volumeID, volName, creationDate, expiryDate, volumeOnly, optimizedStorage}
+	var backups []StoragePoolVolumeBackup
 
-	dbResults, err := queryScan(c, q, inargs, outfmt)
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+			var b StoragePoolVolumeBackup
+			var expiryTime sql.NullTime
+
+			err := scan(&b.ID, &b.VolumeID, &b.Name, &b.CreationDate, &expiryTime, &b.VolumeOnly, &b.OptimizedStorage)
+			if err != nil {
+				return err
+			}
+
+			b.ExpiryDate = expiryTime.Time // Convert nulls to zero.
+
+			backups = append(backups, b)
+
+			return nil
+		}, projectName, volumeName, poolID)
+	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed loading backups")
+		return nil, err
 	}
 
-	for _, r := range dbResults {
-		backup := StoragePoolVolumeBackup{
-			ID:               r[0].(int),
-			VolumeID:         r[1].(int64),
-			Name:             r[2].(string),
-			VolumeOnly:       r[5].(bool),
-			OptimizedStorage: r[6].(bool),
-		}
-
-		err = backup.CreationDate.UnmarshalText([]byte(r[3].(string)))
-		if err != nil {
-			return nil, err
-		}
-
-		err = backup.ExpiryDate.UnmarshalText([]byte(r[4].(string)))
-		if err != nil {
-			return nil, err
-		}
-
-		result = append(result, backup)
-	}
-
-	return result, nil
+	return backups, nil
 }
 
 // GetStoragePoolVolumeBackupsNames returns the names of all backups of the storage volume with the given name.
