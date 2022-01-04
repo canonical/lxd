@@ -66,9 +66,3 @@ type StoragePoolVolumeBackupPost struct {
 	// Example: backup1
 	Name string `json:"name" yaml:"name"`
 }
-
-// Writable converts a full StorageVolume struct into a StorageVolumePut struct
-// (filters read-only fields).
-func (storageVolume *StorageVolume) Writable() StorageVolumePut {
-	return storageVolume.StorageVolumePut
-}
