@@ -4,7 +4,7 @@
 package logging
 
 import (
-	log "github.com/lxc/lxd/shared/log15"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // getSystemHandler on Linux writes messages to syslog.
