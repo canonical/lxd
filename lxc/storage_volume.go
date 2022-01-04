@@ -1421,7 +1421,7 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
+	// Parse remote.
 	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
@@ -1434,27 +1434,39 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 
 	client := resource.server
 
-	// Parse the input
+	// Get the values.
+	keys, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
+	}
+
+	// Parse the input.
 	volName, volType := c.storageVolume.parseVolume("custom", args[1])
+
+	isSnapshot := false
+	fields := strings.Split(volName, "/")
+	if len(fields) > 2 {
+		return fmt.Errorf("Invalid snapshot name")
+	} else if len(fields) > 1 {
+		isSnapshot = true
+	}
+
+	if isSnapshot {
+		return fmt.Errorf(i18n.G("Snapshots are read-only and can't have their configuration changed"))
+	}
 
 	// If a target was specified, create the volume on the given member.
 	if c.storage.flagTarget != "" {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
-	// Get the storage volume entry
+	// Get the storage volume entry.
 	vol, etag, err := client.GetStoragePoolVolume(resource.name, volType, volName)
 	if err != nil {
 		return err
 	}
 
-	// Get the values
-	keys, err := getConfig(args[2:]...)
-	if err != nil {
-		return err
-	}
-
-	// Update the volume
+	// Update the volume.
 	for k, v := range keys {
 		vol.Config[k] = v
 	}
