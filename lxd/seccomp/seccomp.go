@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	// Used by cgo
@@ -29,7 +30,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"

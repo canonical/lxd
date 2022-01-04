@@ -8,6 +8,7 @@ import (
 
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
@@ -16,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 type gpuMdev struct {

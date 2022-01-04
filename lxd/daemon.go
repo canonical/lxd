@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	client "github.com/canonical/go-dqlite/client"
@@ -62,8 +63,6 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 // A Daemon can respond to requests from a shared client.

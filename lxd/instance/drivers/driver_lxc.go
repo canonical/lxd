@@ -23,6 +23,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 	yaml "gopkg.in/yaml.v2"
 
@@ -50,7 +51,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/instancewriter"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"

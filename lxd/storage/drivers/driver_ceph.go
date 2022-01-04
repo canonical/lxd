@@ -7,12 +7,13 @@ import (
 	"os/exec"
 	"strings"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )

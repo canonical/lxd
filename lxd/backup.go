@@ -10,6 +10,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -29,7 +30,6 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/units"
