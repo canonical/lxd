@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2021-12-10 14:57-0500\n"
+"POT-Creation-Date: 2022-01-05 17:23-0500\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -735,7 +735,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/utils.go:229 lxc/utils.go:249
+#: lxc/utils.go:237 lxc/utils.go:257
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
@@ -808,9 +808,9 @@ msgstr ""
 #: lxc/storage_volume.go:494 lxc/storage_volume.go:571
 #: lxc/storage_volume.go:813 lxc/storage_volume.go:1010
 #: lxc/storage_volume.go:1263 lxc/storage_volume.go:1295
-#: lxc/storage_volume.go:1411 lxc/storage_volume.go:1490
-#: lxc/storage_volume.go:1583 lxc/storage_volume.go:1620
-#: lxc/storage_volume.go:1714
+#: lxc/storage_volume.go:1411 lxc/storage_volume.go:1502
+#: lxc/storage_volume.go:1595 lxc/storage_volume.go:1632
+#: lxc/storage_volume.go:1726
 msgid "Cluster member name"
 msgstr "クラスタメンバ名"
 
@@ -1176,9 +1176,9 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/storage_volume.go:726 lxc/storage_volume.go:807
 #: lxc/storage_volume.go:1007 lxc/storage_volume.go:1104
 #: lxc/storage_volume.go:1259 lxc/storage_volume.go:1292
-#: lxc/storage_volume.go:1405 lxc/storage_volume.go:1481
-#: lxc/storage_volume.go:1580 lxc/storage_volume.go:1614
-#: lxc/storage_volume.go:1712 lxc/version.go:22
+#: lxc/storage_volume.go:1405 lxc/storage_volume.go:1493
+#: lxc/storage_volume.go:1592 lxc/storage_volume.go:1626
+#: lxc/storage_volume.go:1724 lxc/version.go:22
 msgid "Description"
 msgstr "説明"
 
@@ -1218,7 +1218,7 @@ msgstr "デバイス %s が %s で上書きされました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/utils.go:136 lxc/utils.go:160
+#: lxc/utils.go:144 lxc/utils.go:168
 #, c-format
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
@@ -1499,7 +1499,7 @@ msgstr "FINGERPRINT"
 msgid "Failed to connect to cluster member"
 msgstr "クラスタメンバへの接続に失敗しました"
 
-#: lxc/utils.go:205
+#: lxc/utils.go:213
 #, c-format
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
@@ -1508,7 +1508,7 @@ msgstr "エイリアス %s の作成に失敗しました"
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
-#: lxc/utils.go:195
+#: lxc/utils.go:203
 #, c-format
 msgid "Failed to remove alias %s"
 msgstr "エイリアス %s の削除に失敗しました"
@@ -1718,7 +1718,7 @@ msgstr "IPV6"
 msgid "ISSUE DATE"
 msgstr "ISSUE DATE"
 
-#: lxc/snapshot.go:40 lxc/storage_volume.go:1619
+#: lxc/snapshot.go:40 lxc/storage_volume.go:1631
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
@@ -1732,7 +1732,7 @@ msgstr "初めてこのマシンで LXD を使う場合、lxd init と実行す�
 msgid "Ignore any configured auto-expiry for the instance"
 msgstr "設定されている自動でのインスタンスの有効期限設定を無視します"
 
-#: lxc/storage_volume.go:1618
+#: lxc/storage_volume.go:1630
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr "設定されている自動でのストレージボリュームの有効期限設定を無視します"
 
@@ -2521,8 +2521,8 @@ msgstr "ネットワーク名を指定する必要があります"
 #: lxc/storage_volume.go:750 lxc/storage_volume.go:849
 #: lxc/storage_volume.go:1032 lxc/storage_volume.go:1143
 #: lxc/storage_volume.go:1317 lxc/storage_volume.go:1432
-#: lxc/storage_volume.go:1512 lxc/storage_volume.go:1640
-#: lxc/storage_volume.go:1736
+#: lxc/storage_volume.go:1524 lxc/storage_volume.go:1652
+#: lxc/storage_volume.go:1748
 msgid "Missing pool name"
 msgstr "ストレージプール名を指定する必要があります"
 
@@ -2739,7 +2739,7 @@ msgstr "ノード %d:\n"
 msgid "Only \"custom\" volumes can be attached to instances"
 msgstr "\"カスタム\" のボリュームのみがインスタンスにアタッチできます"
 
-#: lxc/storage_volume.go:1653
+#: lxc/storage_volume.go:1665
 msgid "Only \"custom\" volumes can be snapshotted"
 msgstr "\"カスタム\" のボリュームのみがスナップショットを取得できます"
 
@@ -2861,7 +2861,7 @@ msgstr "バージョン番号を表示します"
 msgid "Processes: %d"
 msgstr "プロセス数: %d"
 
-#: lxc/main_aliases.go:137 lxc/main_aliases.go:144
+#: lxc/main_aliases.go:202 lxc/main_aliases.go:209
 #, c-format
 msgid "Processing aliases failed: %s"
 msgstr "エイリアスの処理が失敗しました: %s"
@@ -3181,7 +3181,7 @@ msgstr ""
 "\n"
 "--stateful オプションを指定すると、インスタンスの実行状態もリストアします。"
 
-#: lxc/storage_volume.go:1711 lxc/storage_volume.go:1712
+#: lxc/storage_volume.go:1723 lxc/storage_volume.go:1724
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
@@ -3484,7 +3484,7 @@ msgstr "プロジェクトの設定を表示します"
 msgid "Show storage pool configurations and resources"
 msgstr "ストレージプールの設定とリソースを表示します"
 
-#: lxc/storage_volume.go:1480 lxc/storage_volume.go:1481
+#: lxc/storage_volume.go:1492 lxc/storage_volume.go:1493
 msgid "Show storage volume configurations"
 msgstr "ストレージボリュームの設定を表示する"
 
@@ -3530,9 +3530,13 @@ msgstr "サイズ: %.2fMB"
 msgid "Size: %s"
 msgstr "サイズ: %s"
 
-#: lxc/storage_volume.go:1613 lxc/storage_volume.go:1614
+#: lxc/storage_volume.go:1625 lxc/storage_volume.go:1626
 msgid "Snapshot storage volumes"
 msgstr "ストレージボリュームのスナップショットを取得します"
+
+#: lxc/storage_volume.go:1455
+msgid "Snapshots are read-only and can't have their configuration changed"
+msgstr ""
 
 #: lxc/info.go:589
 msgid "Snapshots:"
@@ -3925,7 +3929,7 @@ msgstr "プロジェクトの設定を削除します"
 msgid "Unset storage pool configuration keys"
 msgstr "ストレージプールの設定を削除します"
 
-#: lxc/storage_volume.go:1579 lxc/storage_volume.go:1580
+#: lxc/storage_volume.go:1591 lxc/storage_volume.go:1592
 msgid "Unset storage volume configuration keys"
 msgstr "ストレージボリュームの設定を削除します"
 
@@ -4371,7 +4375,7 @@ msgstr "detach [<remote>:]<pool> <volume> <instance> [<device name>]"
 msgid "[<remote>:]<pool> <volume> <instance> [<device name>] <path>"
 msgstr "attach [<remote>:]<pool> <volume> <instance> [<device name>] <path>"
 
-#: lxc/storage_volume.go:1578
+#: lxc/storage_volume.go:1590
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> <key>"
 msgstr "unset [<remote>:]<pool> <volume> <key>"
@@ -4381,12 +4385,12 @@ msgstr "unset [<remote>:]<pool> <volume> <key>"
 msgid "[<remote>:]<pool> <volume> <key>=<value>..."
 msgstr "set [<remote>:]<pool> <volume> <key>=<value>..."
 
-#: lxc/storage_volume.go:1710
+#: lxc/storage_volume.go:1722
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> <snapshot>"
 msgstr "restore [<remote>:]<pool> <volume> <snapshot>"
 
-#: lxc/storage_volume.go:1612
+#: lxc/storage_volume.go:1624
 #, fuzzy
 msgid "[<remote>:]<pool> <volume> [<snapshot>]"
 msgstr "edit [<remote>:]<pool> <volume>[/<snapshot>]"
@@ -4397,7 +4401,7 @@ msgid "[<remote>:]<pool> <volume> [key=value...]"
 msgstr "create [<remote>:]<pool> <volume> [key=value...]"
 
 #: lxc/storage_volume.go:565 lxc/storage_volume.go:805
-#: lxc/storage_volume.go:1479
+#: lxc/storage_volume.go:1491
 #, fuzzy
 msgid "[<remote>:]<pool> <volume>[/<snapshot>]"
 msgstr "edit [<remote>:]<pool> <volume>[/<snapshot>]"
@@ -4876,7 +4880,7 @@ msgstr ""
 "lxc storage volume edit [<remote>:]<pool> <volume> < volume.yaml\n"
 "    pool.yaml の内容でストレージボリュームを更新します。"
 
-#: lxc/storage_volume.go:1483
+#: lxc/storage_volume.go:1495
 msgid ""
 "lxc storage volume show default data\n"
 "    Will show the properties of a custom volume called \"data\" in the "
