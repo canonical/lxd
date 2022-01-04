@@ -203,3 +203,8 @@ type StorageVolumeSource struct {
 	// API extension: storage_api_project
 	Project string `json:"project,omitempty" yaml:"project,omitempty"`
 }
+
+// Writable converts a full StorageVolume struct into a StorageVolumePut struct (filters read-only fields).
+func (storageVolume *StorageVolume) Writable() StorageVolumePut {
+	return storageVolume.StorageVolumePut
+}
