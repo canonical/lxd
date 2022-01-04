@@ -14,6 +14,7 @@ func gpuValidationRules(requiredFields []string, optionalFields []string) map[st
 		"mode":      unixValidOctalFileMode,
 		"mig.gi":    validate.IsUint8,
 		"mig.ci":    validate.IsUint8,
+		"mig.uuid":  gpuValidMigUUID,
 		"mdev":      validate.IsAny,
 	}
 
