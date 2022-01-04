@@ -2,6 +2,10 @@ module github.com/lxc/lxd
 
 go 1.17
 
+replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
+
+replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
+
 require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
@@ -26,23 +30,24 @@ require (
 	github.com/juju/schema v1.0.1-0.20190814234152-1f8aaeef0989
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mattn/go-colorable v0.1.12
-	github.com/mattn/go-sqlite3 v1.14.9
+	github.com/mattn/go-sqlite3 v1.14.10
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
-	github.com/miekg/dns v1.1.43
+	github.com/miekg/dns v1.1.45
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rogpeppe/fastuuid v1.2.0
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b
-	golang.org/x/sys v0.0.0-20211210111614-af8b64212486
+	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1
+	gopkg.in/inconshreveable/log15.v2 v2.0.0-20200109203555-b30bc20e4fd1
 	gopkg.in/juju/environschema.v1 v1.0.0
 	gopkg.in/lxc/go-lxc.v2 v2.0.0-20210307013912-d9b9f727ce0f
 	gopkg.in/macaroon-bakery.v2 v2.3.0
@@ -51,15 +56,12 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v0.4.1 // indirect
-	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/digitalocean/go-libvirt v0.0.0-20210723161134-761cfeeb5968 // indirect
-	github.com/fatih/color v1.9.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
-	github.com/golang/mock v1.6.0 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
@@ -77,28 +79,19 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mitchellh/mapstructure v1.4.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.9.0 // indirect
-	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
+	golang.org/x/mod v0.5.1 // indirect
+	golang.org/x/net v0.0.0-20220105145211-5b0dc2dfae98 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/tools v0.1.5 // indirect
-	google.golang.org/genproto v0.0.0-20211118181313-81c1377c94b1 // indirect
-	google.golang.org/grpc v1.42.0 // indirect
+	golang.org/x/tools v0.1.8 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/httprequest.v1 v1.2.1 // indirect
-	gopkg.in/ini.v1 v1.64.0 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	gopkg.in/retry.v1 v1.0.3 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
-
-replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
-
-replace golang.org/x/net => golang.org/x/net v0.0.0-20211020060615-d418f374d309
