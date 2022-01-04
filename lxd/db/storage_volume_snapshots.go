@@ -181,55 +181,50 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 
 // GetExpiredStorageVolumeSnapshots returns a list of expired volume snapshots.
 func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error) {
-	var result []StorageVolumeArgs
-	var volumeName string
-	var snapshotName string
-	var expiryDate string
-	var poolName string
-	var projectName string
-
 	q := `
-SELECT storage_volumes.name, storage_volumes_snapshots.name, storage_volumes_snapshots.expiry_date, storage_pools.name, projects.name
-FROM storage_volumes_snapshots
-JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
-JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
-JOIN projects ON storage_volumes.project_id = projects.id
-WHERE storage_volumes.type = ?`
-	infmt := []interface{}{StoragePoolVolumeTypeCustom}
-	outfmt := []interface{}{volumeName, snapshotName, expiryDate, poolName, projectName}
-	dbResults, err := queryScan(c, q, infmt, outfmt)
+	SELECT storage_volumes.name, storage_volumes_snapshots.name, storage_volumes_snapshots.expiry_date, storage_pools.name, projects.name
+	FROM storage_volumes_snapshots
+	JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
+	JOIN storage_pools ON storage_volumes.storage_pool_id = storage_pools.id
+	JOIN projects ON storage_volumes.project_id = projects.id
+	WHERE storage_volumes.type = ?`
+
+	var snapshots []StorageVolumeArgs
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+			var snap StorageVolumeArgs
+			var snapName string
+			var volName string
+			var expiryTime sql.NullTime
+
+			err := scan(&volName, &snapName, &expiryTime, &snap.PoolName, &snap.ProjectName)
+			if err != nil {
+				return err
+			}
+
+			snap.Name = volName + shared.SnapshotDelimiter + snapName
+			snap.ExpiryDate = expiryTime.Time // Convert nulls to zero.
+
+			// Since zero time causes some issues due to timezones, we check the
+			// unix timestamp instead of IsZero().
+			if snap.ExpiryDate.Unix() <= 0 {
+				return nil // Backup doesn't expire.
+			}
+
+			// Check if snapshot has expired.
+			if time.Now().Unix()-snap.ExpiryDate.Unix() >= 0 {
+				snapshots = append(snapshots, snap)
+			}
+
+			return nil
+		}, StoragePoolVolumeTypeCustom)
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, r := range dbResults {
-		timestamp := r[2]
-
-		var snapshotExpiry time.Time
-		err = snapshotExpiry.UnmarshalText([]byte(timestamp.(string)))
-		if err != nil {
-			return []StorageVolumeArgs{}, err
-		}
-
-		// Since zero time causes some issues due to timezones, we check the
-		// unix timestamp instead of IsZero().
-		if snapshotExpiry.Unix() <= 0 {
-			// Backup doesn't expire
-			continue
-		}
-
-		// Snapshot has expired
-		if time.Now().Unix()-snapshotExpiry.Unix() >= 0 {
-			result = append(result, StorageVolumeArgs{
-				ProjectName: r[4].(string),
-				Name:        r[0].(string) + shared.SnapshotDelimiter + r[1].(string),
-				PoolName:    r[3].(string),
-				ExpiryDate:  snapshotExpiry,
-			})
-		}
-	}
-
-	return result, nil
+	return snapshots, nil
 }
 
 // Updates the expiry date of a storage volume snapshot.
