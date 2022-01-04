@@ -1,6 +1,6 @@
 % Include content from [../CONTRIBUTING.md](../CONTRIBUTING.md)
 ```{include} ../CONTRIBUTING.md
-    :end-before: <!-- more_information -->
+    :end-before: <!-- Include end contributing -->
 ```
 
 ## Getting Started Developing
