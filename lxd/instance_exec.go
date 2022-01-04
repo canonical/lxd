@@ -298,11 +298,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 		for {
 			mt, r, err := conn.NextReader()
-			if mt == websocket.CloseMessage {
-				return
-			}
-
-			if err != nil {
+			if err != nil || mt == websocket.CloseMessage {
 				// Check if command process has finished normally, if so, no need to kill it.
 				select {
 				case <-attachedChildIsDead:
@@ -310,7 +306,11 @@ func (s *execWs) Do(op *operations.Operation) error {
 				default:
 				}
 
-				logger.Warn("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
+				if mt == websocket.CloseMessage {
+					logger.Warn("Got exec control websocket close message, killing command")
+				} else {
+					logger.Debug("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
+				}
 
 				cmdKillOnce.Do(cmdKill)
 
