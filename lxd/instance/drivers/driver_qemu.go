@@ -81,6 +81,9 @@ const qemuDeviceIDPrefix = "dev-lxd_"
 // qemuNetDevIDPrefix used as part of the name given QEMU netdevs generated from user added devices.
 const qemuNetDevIDPrefix = "lxd_"
 
+// qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
+const qemuSparseUSBPorts = 4
+
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
 var vmConsole = map[int]bool{}
@@ -2429,12 +2432,20 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	// s390x doesn't really have USB.
 	if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
+		// Record the number of USB devices.
+		totalUSBdevs := 0
+
+		for _, runConf := range devConfs {
+			totalUSBdevs += len(runConf.USBDevice)
+		}
+
 		devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 		err = qemuUSB.Execute(sb, map[string]interface{}{
 			"bus":           bus.name,
 			"devBus":        devBus,
 			"devAddr":       devAddr,
 			"multifunction": multi,
+			"ports":         totalUSBdevs + qemuSparseUSBPorts,
 		})
 		if err != nil {
 			return "", nil, err
