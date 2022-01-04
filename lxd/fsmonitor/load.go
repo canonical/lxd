@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/lxc/lxd/lxd/fsmonitor/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 )

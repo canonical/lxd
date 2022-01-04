@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
@@ -29,7 +30,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )

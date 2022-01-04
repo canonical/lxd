@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/client"
+	"gopkg.in/inconshreveable/log15.v2"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/log15"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/pkg/errors"
 )

@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"time"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/response"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 

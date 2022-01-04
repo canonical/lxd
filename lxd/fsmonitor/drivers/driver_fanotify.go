@@ -11,8 +11,7 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
-
-	log "github.com/lxc/lxd/shared/log15"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var fanotifyLoaded bool

@@ -12,6 +12,8 @@ import (
 	"os"
 	"strings"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/backup"
@@ -27,7 +29,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/pkg/errors"
