@@ -15,6 +15,8 @@ type EventListener struct {
 	ctxCancel context.CancelFunc
 	err       error
 
+	// projectName stores which project this event listener is associated with (empty for all projects).
+	projectName string
 	targets     []*EventTarget
 	targetsLock sync.Mutex
 }
