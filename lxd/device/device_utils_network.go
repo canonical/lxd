@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -8,6 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/j-keck/arping"
+	"github.com/mdlayher/ndp"
 	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -915,5 +918,72 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 		}
 	}
 
+	return nil
+}
+
+func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) error {
+	if address.To4() != nil {
+		errs := make(chan error, 1)
+		go func() {
+			_, _, err := arping.PingOverIfaceByName(address, parentInterface)
+			if err == nil {
+				errs <- fmt.Errorf("ipv4.address %q is already in use", address.String())
+			}
+			errs <- nil
+		}()
+
+		select {
+		case err := <-errs:
+			return err
+		case <-ctx.Done():
+			return nil
+		}
+	} else {
+		networkInterface, err := net.InterfaceByName(parentInterface)
+		if err != nil {
+			return nil
+		}
+
+		conn, _, err := ndp.Listen(networkInterface, ndp.LinkLocal)
+		if err != nil {
+			return nil
+		}
+
+		defer conn.Close()
+
+		solicitedNodeMulticast, err := ndp.SolicitedNodeMulticast(address)
+		if err != nil {
+			return nil
+		}
+
+		neighbourSolicitationMessage := &ndp.NeighborSolicitation{
+			TargetAddress: address,
+		}
+
+		err = conn.WriteTo(neighbourSolicitationMessage, nil, solicitedNodeMulticast)
+		if err != nil {
+			return nil
+		}
+
+		msgs := make(chan ndp.Message)
+		go func() {
+			msg, _, _, err := conn.ReadFrom()
+			if err != nil {
+				return
+			}
+
+			msgs <- msg
+		}()
+
+		select {
+		case msg := <-msgs:
+			neighbourAdvertisement, ok := msg.(*ndp.NeighborAdvertisement)
+			if ok {
+				return fmt.Errorf("ipv6.address %q is already in use", neighbourAdvertisement.TargetAddress.String())
+			}
+		case <-ctx.Done():
+			return nil
+		}
+	}
 	return nil
 }
