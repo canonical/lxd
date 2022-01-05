@@ -37,6 +37,9 @@ currently supported:
 
 The currently supported keys are:
 
+```{rst-class} dec-font-size break-col-1 min-width-1-15
+```
+
 Key                                         | Type      | Default           | Live update   | Condition                 | Description
 :--                                         | :---      | :------           | :----------   | :----------               | :----------
 boot.autostart                              | boolean   | -                 | n/a           | -                         | Always start the instance when LXD starts (if not set, restore last state)

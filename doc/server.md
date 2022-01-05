@@ -12,6 +12,9 @@ currently supported:
  - `maas` (MAAS integration)
  - `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
 
+```{rst-class} break-col-4 min-width-4-8
+```
+
 Key                                 | Type      | Scope     | Default                           | Description
 :--                                 | :---      | :----     | :------                           | :----------
 backups.compression\_algorithm      | string    | global    | gzip                              | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
