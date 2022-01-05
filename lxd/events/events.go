@@ -37,9 +37,9 @@ func NewServer(debug bool, verbose bool) *Server {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(group string, allGroups bool, connection *websocket.Conn, messageTypes []string, location string, localOnly bool) (*Listener, error) {
-	if allGroups && group != "" {
-		return nil, fmt.Errorf("Cannot specify both group when listening for events on all groups")
+func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, location string, localOnly bool) (*Listener, error) {
+	if allProjects && projectName != "" {
+		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
 
 	ctx, ctxCancel := context.WithCancel(context.Background())
@@ -47,8 +47,8 @@ func (s *Server) AddListener(group string, allGroups bool, connection *websocket
 	listener := &Listener{
 		Conn: connection,
 
-		allGroups:    allGroups,
-		group:        group,
+		allProjects:  allProjects,
+		projectName:  projectName,
 		messageTypes: messageTypes,
 		location:     location,
 		localOnly:    localOnly,
@@ -72,12 +72,12 @@ func (s *Server) AddListener(group string, allGroups bool, connection *websocket
 }
 
 // SendLifecycle broadcasts a lifecycle event.
-func (s *Server) SendLifecycle(group string, event api.EventLifecycle) {
-	s.Send(group, "lifecycle", event)
+func (s *Server) SendLifecycle(projectName string, event api.EventLifecycle) {
+	s.Send(projectName, "lifecycle", event)
 }
 
 // Send broadcasts a custom event.
-func (s *Server) Send(group, eventType string, eventMessage interface{}) error {
+func (s *Server) Send(projectName string, eventType string, eventMessage interface{}) error {
 	encodedMessage, err := json.Marshal(eventMessage)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (s *Server) Send(group, eventType string, eventMessage interface{}) error {
 		Metadata:  encodedMessage,
 	}
 
-	return s.broadcast(group, event, false)
+	return s.broadcast(projectName, event, false)
 }
 
 // Forward to the local events dispatcher an event received from another node.
@@ -116,11 +116,12 @@ func (s *Server) Forward(id int64, event api.Event) {
 	}
 }
 
-func (s *Server) broadcast(group string, event api.Event, isForward bool) error {
+func (s *Server) broadcast(projectName string, event api.Event, isForward bool) error {
 	s.lock.Lock()
 	listeners := s.listeners
 	for _, listener := range listeners {
-		if group != "" && !listener.allGroups && group != listener.group {
+		// If the event is project specific, check if the listener is requesting events from that project.
+		if projectName != "" && !listener.allProjects && projectName != listener.projectName {
 			continue
 		}
 
@@ -176,8 +177,8 @@ func (s *Server) broadcast(group string, event api.Event, isForward bool) error 
 type Listener struct {
 	*websocket.Conn
 
-	allGroups    bool
-	group        string
+	allProjects  bool
+	projectName  string
 	messageTypes []string
 	ctx          context.Context
 	ctxCancel    func()
