@@ -25,8 +25,11 @@ type ProtocolLXD struct {
 	server      *api.Server
 	chConnected chan struct{}
 
-	eventConn          *websocket.Conn
-	eventListeners     []*EventListener
+	// eventConns contains event listener connections associated to a project name (or empty for all projects).
+	eventConns map[string]*websocket.Conn
+
+	// eventListeners is a slice of event listeners associated to a project name (or empty for all projects).
+	eventListeners     map[string][]*EventListener
 	eventListenersLock sync.Mutex
 
 	http            *http.Client

@@ -15,6 +15,8 @@ type EventListener struct {
 	ctxCancel context.CancelFunc
 	err       error
 
+	// projectName stores which project this event listener is associated with (empty for all projects).
+	projectName string
 	targets     []*EventTarget
 	targetsLock sync.Mutex
 }
@@ -81,11 +83,11 @@ func (e *EventListener) Disconnect() {
 	}
 
 	// Locate and remove it from the global list
-	for i, listener := range e.r.eventListeners {
+	for i, listener := range e.r.eventListeners[e.projectName] {
 		if listener == e {
-			copy(e.r.eventListeners[i:], e.r.eventListeners[i+1:])
-			e.r.eventListeners[len(e.r.eventListeners)-1] = nil
-			e.r.eventListeners = e.r.eventListeners[:len(e.r.eventListeners)-1]
+			copy(e.r.eventListeners[e.projectName][i:], e.r.eventListeners[e.projectName][i+1:])
+			e.r.eventListeners[e.projectName][len(e.r.eventListeners[e.projectName])-1] = nil
+			e.r.eventListeners[e.projectName] = e.r.eventListeners[e.projectName][:len(e.r.eventListeners[e.projectName])-1]
 			break
 		}
 	}
