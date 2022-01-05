@@ -2,11 +2,10 @@ package lifecycle
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/version"
 )
 
 // Internal copy of the instance interface.
@@ -44,11 +43,7 @@ const (
 // Event creates the lifecycle event for an action on an instance.
 func (a InstanceAction) Event(inst instance, ctx map[string]interface{}) api.EventLifecycle {
 	eventType := fmt.Sprintf("instance-%s", a)
-	u := fmt.Sprintf("/1.0/instances/%s", url.PathEscape(inst.Name()))
-
-	if inst.Project() != project.Default {
-		u = fmt.Sprintf("%s?project=%s", u, url.QueryEscape(inst.Project()))
-	}
+	url := api.NewURL().Path(version.APIVersion, "instances", inst.Name()).Project(inst.Project())
 
 	var requestor *api.EventLifecycleRequestor
 	if inst.Operation() != nil {
@@ -57,7 +52,7 @@ func (a InstanceAction) Event(inst instance, ctx map[string]interface{}) api.Eve
 
 	return api.EventLifecycle{
 		Action:    eventType,
-		Source:    u,
+		Source:    url.String(),
 		Context:   ctx,
 		Requestor: requestor,
 	}
