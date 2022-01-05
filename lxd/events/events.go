@@ -46,13 +46,13 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 		listenerCommon: listenerCommon{
 			Conn:         connection,
 			messageTypes: messageTypes,
-			location:     location,
 			localOnly:    localOnly,
 			ctx:          ctx,
 			ctxCancel:    ctxCancel,
 			id:           uuid.New(),
 		},
 
+		location:    location,
 		allProjects: allProjects,
 		projectName: projectName,
 	}
@@ -178,6 +178,7 @@ func (s *Server) broadcast(event api.Event, isForward bool) error {
 type Listener struct {
 	listenerCommon
 
+	location    string
 	allProjects bool
 	projectName string
 }
