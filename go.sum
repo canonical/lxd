@@ -103,6 +103,8 @@ github.com/canonical/candid v1.11.0 h1:t71M9zQBsfAsXkLJGP7RntO+XYuxUgjon+2JF23nz
 github.com/canonical/candid v1.11.0/go.mod h1:644Yfy3EGWwTo1PInNqJFu83NLTzFmBjxtNyuSQem6Q=
 github.com/canonical/go-dqlite v1.10.2 h1:hpPqfMidF5ANVAHUB/hJTbk/wpTTshw1LLiloSzUSbU=
 github.com/canonical/go-dqlite v1.10.2/go.mod h1:KDFMv4rdNwRzBZhabKjKDN2oOyPjHqQz1Epc6VOgbLs=
+github.com/canonical/go-dqlite v1.10.3-0.20220104182624-3491db06d32b h1:kCuQM7gQTlQgUw1gHGWMfvTz0h3tkg0D6XZKCMVpSiM=
+github.com/canonical/go-dqlite v1.10.3-0.20220104182624-3491db06d32b/go.mod h1:KDFMv4rdNwRzBZhabKjKDN2oOyPjHqQz1Epc6VOgbLs=
 github.com/census-instrumentation/opencensus-proto v0.2.0/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.3.0 h1:t/LhUZLVitR1Ow2YOnduCsavhwFUklBMoGVYUCqmCqk=
