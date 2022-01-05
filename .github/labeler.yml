@@ -1,3 +1,7 @@
+API:
+- doc/api-extensions.md
+- doc/rest-api.yaml
+- shared/api/**/*
 Documentation:
 - doc/**/*
 - .sphinx/**/*
