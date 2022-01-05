@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
+	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/simplestreams"
 )

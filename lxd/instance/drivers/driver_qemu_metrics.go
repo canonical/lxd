@@ -7,11 +7,12 @@ import (
 	"strconv"
 	"strings"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {

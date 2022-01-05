@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	log "github.com/lxc/lxd/shared/log15"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/cluster"
