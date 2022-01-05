@@ -79,3 +79,26 @@ a.headerlink {
 button.sphinx-tabs-tab:hover {
     background-color: var(--color-sidebar-item-background--hover);
 }
+
+/** Custom classes to fix scrolling in tables by decreasing the
+    font size or breaking certain columns.
+    Specify the classes in the Markdown file with, for example:
+    ```{rst-class} break-col-4 min-width-4-8
+    ```
+**/
+
+table.dec-font-size {
+    font-size: smaller;
+}
+table.break-col-1 td.text-left:first-child {
+    word-break: break-word;
+}
+table.break-col-4 td.text-left:nth-child(4) {
+    word-break: break-word;
+}
+table.min-width-1-15 td.text-left:first-child {
+    min-width: 15em;
+}
+table.min-width-4-8 td.text-left:nth-child(4) {
+    min-width: 8em;
+}
