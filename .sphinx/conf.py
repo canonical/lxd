@@ -23,6 +23,8 @@ myst_enable_extensions = [
     "linkify"
 ]
 
+myst_linkify_fuzzy_links=False
+
 if os.path.exists("doc/substitutions.yaml"):
     with open("doc/substitutions.yaml", "r") as fd:
         myst_substitutions = yaml.load(fd.read())
