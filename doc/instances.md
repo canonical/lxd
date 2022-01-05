@@ -37,6 +37,9 @@ currently supported:
 
 The currently supported keys are:
 
+```{rst-class} dec-font-size break-col-1 min-width-1-15
+```
+
 Key                                         | Type      | Default           | Live update   | Condition                 | Description
 :--                                         | :---      | :------           | :----------   | :----------               | :----------
 boot.autostart                              | boolean   | -                 | n/a           | -                         | Always start the instance when LXD starts (if not set, restore last state)
@@ -1159,15 +1162,15 @@ instance. Note that this inheritance is not enforced by LXD but by the kernel.
 
 ### Snapshot scheduling and configuration
 LXD supports scheduled snapshots which can be created at most once every minute.
-There are three configuration options: 
--  `snapshots.schedule` takes a shortened cron expression: 
+There are three configuration options:
+-  `snapshots.schedule` takes a shortened cron expression:
 `<minute> <hour> <day-of-month> <month> <day-of-week>`. If this is empty
-(default), no snapshots will be created. 
+(default), no snapshots will be created.
 -  `snapshots.schedule.stopped` controls whether or not stopped instance are to
-be automatically snapshotted.  It defaults to `false`. 
+be automatically snapshotted.  It defaults to `false`.
 -  `snapshots.pattern` takes a pongo2 template string to format the snapshot name.
 To name snapshots with time stamps, the pongo2 context variable `creation_date`
-can be used.  Be aware that you should format the date 
+can be used.  Be aware that you should format the date
 (e.g. use `{{ creation_date|date:"2006-01-02_15-04-05" }}`) in your template
 string to avoid forbidden characters in the snapshot name.  Another way to avoid
 name collisions is to use the placeholder `%d`. If a snapshot with the same name
@@ -1181,4 +1184,4 @@ Example of using pongo2 syntax to format snapshot names with timestamps:
 ```bash
 lxc config set INSTANCE snapshots.pattern "{{ creation_date|date:'2006-01-02_15-04-05' }}"
 ```
-This results in snapshots named `{date/time of creation}` down to the precision of a second. 
+This results in snapshots named `{date/time of creation}` down to the precision of a second.
