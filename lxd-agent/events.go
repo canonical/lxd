@@ -44,10 +44,8 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	}
 	defer c.Close() // This ensures the go routine below is ended when this function ends.
 
-	// If this request is an internal one initiated by another node wanting
-	// to watch the events on this node, set the listener to broadcast only
-	// local events.
-	listener, err := d.events.AddListener("default", false, c, strings.Split(typeStr, ","), "lxd-agent", false)
+	// As we don't know which project we are in, subscribe to events from all projects.
+	listener, err := d.events.AddListener("", true, c, strings.Split(typeStr, ","), "", true)
 	if err != nil {
 		return err
 	}
