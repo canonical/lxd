@@ -1358,7 +1358,7 @@ func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]interfac
 	event["timestamp"] = time.Now()
 	event["metadata"] = eventMessage
 
-	return d.state.DevlxdEvents.Send(strconv.Itoa(d.ID()), eventType, eventMessage)
+	return d.state.DevlxdEvents.Send(d.ID(), eventType, eventMessage)
 }
 
 // RegisterDevices calls the Register() function on all of the instance's devices.
