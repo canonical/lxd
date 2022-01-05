@@ -1,10 +1,12 @@
 package device
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -194,6 +196,43 @@ func (d *nicRouted) validateEnvironment() error {
 	return nil
 }
 
+func (d *nicRouted) checkIPAvailability(parent string) error {
+	var addresses []net.IP
+	ipv4AddrStr, ok := d.config["ipv4.address"]
+	if ok {
+		ipv4Addrs := util.SplitNTrimSpace(ipv4AddrStr, ",", -1, true)
+		for _, addr := range ipv4Addrs {
+			addresses = append(addresses, net.ParseIP(addr))
+		}
+	}
+
+	ipv6AddrStr, ok := d.config["ipv6.address"]
+	if ok {
+		ipv6Addrs := util.SplitNTrimSpace(ipv6AddrStr, ",", -1, true)
+		for _, addr := range ipv6Addrs {
+			addresses = append(addresses, net.ParseIP(addr))
+		}
+	}
+
+	errs := make(chan error, len(addresses))
+	for _, address := range addresses {
+		go func(address net.IP) {
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			errs <- isIPAvailable(ctx, address, parent)
+		}(address)
+	}
+
+	for range addresses {
+		err := <-errs
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Start is run when the instance is starting up (Routed mode doesn't support hot plugging).
 func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
@@ -225,6 +264,13 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			if err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	if parentName != "" {
+		err := d.checkIPAvailability(parentName)
+		if err != nil {
+			return nil, err
 		}
 	}
 
