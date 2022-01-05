@@ -86,9 +86,10 @@ func (s *Server) Send(projectName string, eventType string, eventMessage interfa
 		Type:      eventType,
 		Timestamp: time.Now(),
 		Metadata:  encodedMessage,
+		Project:   projectName,
 	}
 
-	return s.broadcast(projectName, event, false)
+	return s.broadcast(event, false)
 }
 
 // Forward to the local events dispatcher an event received from another node.
@@ -110,18 +111,18 @@ func (s *Server) Forward(id int64, event api.Event) {
 		}
 	}
 
-	err := s.broadcast("", event, true)
+	err := s.broadcast(event, true)
 	if err != nil {
 		logger.Warnf("Failed to forward event from member %d: %v", id, err)
 	}
 }
 
-func (s *Server) broadcast(projectName string, event api.Event, isForward bool) error {
+func (s *Server) broadcast(event api.Event, isForward bool) error {
 	s.lock.Lock()
 	listeners := s.listeners
 	for _, listener := range listeners {
 		// If the event is project specific, check if the listener is requesting events from that project.
-		if projectName != "" && !listener.allProjects && projectName != listener.projectName {
+		if event.Project != "" && !listener.allProjects && event.Project != listener.projectName {
 			continue
 		}
 
