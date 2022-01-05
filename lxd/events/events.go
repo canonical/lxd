@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/shared"
@@ -18,18 +16,18 @@ import (
 
 // Server represents an instance of an event server.
 type Server struct {
-	debug   bool
-	verbose bool
+	serverCommon
 
 	listeners map[string]*Listener
-	lock      sync.Mutex
 }
 
 // NewServer returns a new event server.
 func NewServer(debug bool, verbose bool) *Server {
 	server := &Server{
-		debug:     debug,
-		verbose:   verbose,
+		serverCommon: serverCommon{
+			debug:   debug,
+			verbose: verbose,
+		},
 		listeners: map[string]*Listener{},
 	}
 
@@ -45,16 +43,18 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 	ctx, ctxCancel := context.WithCancel(context.Background())
 
 	listener := &Listener{
-		Conn: connection,
+		listenerCommon: listenerCommon{
+			Conn:         connection,
+			messageTypes: messageTypes,
+			location:     location,
+			localOnly:    localOnly,
+			ctx:          ctx,
+			ctxCancel:    ctxCancel,
+			id:           uuid.New(),
+		},
 
-		allProjects:  allProjects,
-		projectName:  projectName,
-		messageTypes: messageTypes,
-		location:     location,
-		localOnly:    localOnly,
-		ctx:          ctx,
-		ctxCancel:    ctxCancel,
-		id:           uuid.New(),
+		allProjects: allProjects,
+		projectName: projectName,
 	}
 
 	s.lock.Lock()
@@ -176,124 +176,8 @@ func (s *Server) broadcast(event api.Event, isForward bool) error {
 
 // Listener describes an event listener.
 type Listener struct {
-	*websocket.Conn
+	listenerCommon
 
-	allProjects  bool
-	projectName  string
-	messageTypes []string
-	ctx          context.Context
-	ctxCancel    func()
-	id           string
-	lock         sync.Mutex
-	location     string
-	pongsPending uint
-
-	// If true, this listener won't get events forwarded from other
-	// nodes. It only used by listeners created internally by LXD nodes
-	// connecting to other LXD nodes to get their local events only.
-	localOnly bool
-}
-
-func (e *Listener) heartbeat() {
-	logger.Debug("Event listener server handler started", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
-
-	defer e.Close()
-
-	pingInterval := time.Second * 5
-	e.pongsPending = 0
-
-	e.SetPongHandler(func(msg string) error {
-		e.lock.Lock()
-		e.pongsPending = 0
-		e.lock.Unlock()
-		return nil
-	})
-
-	// Run a blocking reader to detect if the remote side is closed.
-	// We don't expect to get anything from the remote side, so this should remain blocked until disconnected.
-	go func() {
-		e.Conn.NextReader()
-		e.Close()
-	}()
-
-	for {
-		if e.IsClosed() {
-			return
-		}
-
-		e.lock.Lock()
-		if e.pongsPending > 2 {
-			e.lock.Unlock()
-			logger.Warn("Hearbeat for event listener handler timed out", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
-			return
-		}
-		err := e.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
-		if err != nil {
-			e.lock.Unlock()
-			return
-		}
-
-		e.pongsPending++
-		e.lock.Unlock()
-
-		select {
-		case <-time.After(pingInterval):
-		case <-e.ctx.Done():
-			return
-		}
-	}
-}
-
-// MessageTypes returns a list of message types the listener will be notified of.
-func (e *Listener) MessageTypes() []string {
-	return e.messageTypes
-}
-
-// IsClosed returns true if the listener is closed.
-func (e *Listener) IsClosed() bool {
-	return e.ctx.Err() != nil
-}
-
-// ID returns the listener ID.
-func (e *Listener) ID() string {
-	return e.id
-}
-
-// Wait waits for a message on its active channel or the context is cancelled, then returns.
-func (e *Listener) Wait(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-	case <-e.ctx.Done():
-	}
-}
-
-// Close Disconnects the listener.
-func (e *Listener) Close() {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	if e.IsClosed() {
-		return
-	}
-
-	logger.Debug("Event listener server handler stopped", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
-
-	e.Conn.Close()
-	e.ctxCancel()
-}
-
-// WriteJSON message to the connection.
-func (e *Listener) WriteJSON(v interface{}) error {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	return e.Conn.WriteJSON(v)
-}
-
-// WriteMessage to the connection.
-func (e *Listener) WriteMessage(messageType int, data []byte) error {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	return e.Conn.WriteMessage(messageType, data)
+	allProjects bool
+	projectName string
 }
