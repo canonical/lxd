@@ -49,7 +49,7 @@ type State struct {
 	Endpoints *endpoints.Endpoints
 
 	// Event server
-	DevlxdEvents *events.Server
+	DevlxdEvents *events.DevLXDServer
 	Events       *events.Server
 
 	// Firewall instance
