@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -25,7 +26,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/lxc/lxd/shared/log15"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 const (

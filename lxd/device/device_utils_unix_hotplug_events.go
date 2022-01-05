@@ -6,10 +6,11 @@ import (
 	"strings"
 	"sync"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 

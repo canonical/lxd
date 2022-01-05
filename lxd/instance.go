@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -22,7 +23,6 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	// Used by cgo
 	_ "github.com/lxc/lxd/lxd/include"
@@ -21,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 

@@ -26,6 +26,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/kballard/go-shellquote"
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
@@ -47,7 +48,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"

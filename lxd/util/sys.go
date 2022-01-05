@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/lxc/lxd/shared/log15"
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/shared/idmap"

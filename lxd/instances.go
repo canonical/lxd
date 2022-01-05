@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	log "gopkg.in/inconshreveable/log15.v2"
+
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -18,7 +20,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 )

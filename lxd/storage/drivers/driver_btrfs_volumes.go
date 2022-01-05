@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -22,7 +23,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/units"
 )
 

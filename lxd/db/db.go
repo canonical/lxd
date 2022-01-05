@@ -18,12 +18,12 @@ import (
 
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 	"github.com/lxc/lxd/shared/logger"
 )
 

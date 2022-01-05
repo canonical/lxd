@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	fsn "github.com/fsnotify/fsnotify"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
-	log "github.com/lxc/lxd/shared/log15"
 )
 
 var fsnotifyLoaded bool
