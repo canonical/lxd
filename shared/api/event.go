@@ -27,6 +27,12 @@ type Event struct {
 	//
 	// API extension: event_location
 	Location string `yaml:"location,omitempty" json:"location,omitempty"`
+
+	// Project the event belongs to.
+	// Example: default
+	//
+	// API extension: event_project
+	Project string `yaml:"project,omitempty" json:"project,omitempty"`
 }
 
 // ToLogging creates log record for the event
