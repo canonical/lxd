@@ -4123,7 +4123,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				continue
 			}
 
-			msg := map[string]string{
+			msg := map[string]interface{}{
 				"key":       key,
 				"old_value": oldExpandedConfig[key],
 				"value":     d.expandedConfig[key],
@@ -5635,7 +5635,7 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 	return nrSockets, nrCores, nrThreads, vcpus, numaNodes, nil
 }
 
-func (d *qemu) devlxdEventSend(eventType string, eventMessage interface{}) error {
+func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]interface{}) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
 	event["timestamp"] = time.Now()

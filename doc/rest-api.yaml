@@ -499,6 +499,11 @@ definitions:
           source: /1.0/instances/c1
         type: object
         x-go-name: Metadata
+      project:
+        description: Project the event belongs to.
+        example: default
+        type: string
+        x-go-name: Project
       timestamp:
         description: Time at which the event was sent
         example: "2021-02-24T19:00:45.452649098-05:00"

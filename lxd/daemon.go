@@ -81,7 +81,7 @@ type Daemon struct {
 	cluster     *db.Cluster
 
 	// Event servers
-	devlxdEvents *events.Server
+	devlxdEvents *events.DevLXDServer
 	events       *events.Server
 
 	// Tasks registry for long-running background tasks
@@ -187,7 +187,7 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 // newDaemon returns a new Daemon object with the given configuration.
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
 	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
-	devlxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
+	devlxdEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
 	d := &Daemon{

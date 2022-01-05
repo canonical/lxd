@@ -1368,13 +1368,13 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 	return mode
 }
 
-func (d *lxc) devlxdEventSend(eventType string, eventMessage interface{}) error {
+func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]interface{}) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
 	event["timestamp"] = time.Now()
 	event["metadata"] = eventMessage
 
-	return d.state.DevlxdEvents.Send(strconv.Itoa(d.ID()), eventType, eventMessage)
+	return d.state.DevlxdEvents.Send(d.ID(), eventType, eventMessage)
 }
 
 // RegisterDevices calls the Register() function on all of the instance's devices.
@@ -4571,7 +4571,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				continue
 			}
 
-			msg := map[string]string{
+			msg := map[string]interface{}{
 				"key":       key,
 				"old_value": oldExpandedConfig[key],
 				"value":     d.expandedConfig[key],
