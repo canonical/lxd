@@ -36,11 +36,6 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		listener.projectName = connInfo.Project
 	}
 
-	// Initialise the connection event listener map if needed.
-	if r.eventListeners == nil {
-		r.eventListeners = make(map[string][]*EventListener)
-	}
-
 	// There is an existing Go routine for the required project filter, so just add another target.
 	if r.eventListeners[listener.projectName] != nil {
 		r.eventListeners[listener.projectName] = append(r.eventListeners[listener.projectName], &listener)
@@ -59,10 +54,13 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		return nil, err
 	}
 
-	r.eventConn, err = r.websocket(url)
+	// Connect websocket and save.
+	wsConn, err := r.websocket(url)
 	if err != nil {
 		return nil, err
 	}
+
+	r.eventConns[listener.projectName] = wsConn // Save for others to use.
 
 	// Initialize the event listener list if we were able to connect to the events websocket.
 	r.eventListeners[listener.projectName] = []*EventListener{&listener}
@@ -79,13 +77,17 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 			}
 
 			r.eventListenersLock.Lock()
-			if len(r.eventListeners) == 0 {
-				// We don't need the connection anymore, disconnect
-				r.eventConn.Close()
+			if len(r.eventListeners[listener.projectName]) == 0 {
+				// We don't need the connection anymore, disconnect and clear.
+				if r.eventListeners[listener.projectName] != nil {
+					r.eventConns[listener.projectName].Close()
+					r.eventConns[listener.projectName] = nil
+				}
 
 				r.eventListeners[listener.projectName] = nil
 				r.eventListenersLock.Unlock()
-				break
+
+				return
 			}
 			r.eventListenersLock.Unlock()
 		}
@@ -94,7 +96,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Spawn the listener
 	go func() {
 		for {
-			_, data, err := r.eventConn.ReadMessage()
+			_, data, err := wsConn.ReadMessage()
 			if err != nil {
 				// Prevent anything else from interacting with the listeners
 				r.eventListenersLock.Lock()
@@ -106,11 +108,11 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 					listener.ctxCancel()
 				}
 
-				// And remove them all from the list
+				// And remove them all from the list so that when watcher routine runs it will
+				// close the websocket connection.
 				r.eventListeners[listener.projectName] = nil
 
-				r.eventConn.Close()
-				close(stopCh)
+				close(stopCh) // Instruct watcher go routine to cleanup.
 
 				return
 			}
