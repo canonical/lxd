@@ -27,7 +27,6 @@ type listenerCommon struct {
 	ctxCancel    func()
 	id           string
 	lock         sync.Mutex
-	location     string
 	pongsPending uint
 
 	// If true, this listener won't get events forwarded from other
