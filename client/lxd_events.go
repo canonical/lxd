@@ -3,6 +3,7 @@ package lxd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/lxc/lxd/shared"
@@ -26,9 +27,23 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		ctxCancel: cancel,
 	}
 
-	if r.eventListeners != nil {
-		// There is an existing Go routine setup, so just add another target
-		r.eventListeners = append(r.eventListeners, &listener)
+	connInfo, _ := r.GetConnectionInfo()
+	if connInfo.Project == "" {
+		return nil, fmt.Errorf("Unexpected empty project in connection info")
+	}
+
+	if !allProjects {
+		listener.projectName = connInfo.Project
+	}
+
+	// Initialise the connection event listener map if needed.
+	if r.eventListeners == nil {
+		r.eventListeners = make(map[string][]*EventListener)
+	}
+
+	// There is an existing Go routine for the required project filter, so just add another target.
+	if r.eventListeners[listener.projectName] != nil {
+		r.eventListeners[listener.projectName] = append(r.eventListeners[listener.projectName], &listener)
 		return &listener, nil
 	}
 
@@ -50,7 +65,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	}
 
 	// Initialize the event listener list if we were able to connect to the events websocket.
-	r.eventListeners = []*EventListener{&listener}
+	r.eventListeners[listener.projectName] = []*EventListener{&listener}
 
 	// Spawn a watcher that will close the websocket connection after all
 	// listeners are gone.
@@ -68,7 +83,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 				// We don't need the connection anymore, disconnect
 				r.eventConn.Close()
 
-				r.eventListeners = nil
+				r.eventListeners[listener.projectName] = nil
 				r.eventListenersLock.Unlock()
 				break
 			}
@@ -86,13 +101,13 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 				defer r.eventListenersLock.Unlock()
 
 				// Tell all the current listeners about the failure
-				for _, listener := range r.eventListeners {
+				for _, listener := range r.eventListeners[listener.projectName] {
 					listener.err = err
 					listener.ctxCancel()
 				}
 
 				// And remove them all from the list
-				r.eventListeners = nil
+				r.eventListeners[listener.projectName] = nil
 
 				r.eventConn.Close()
 				close(stopCh)
@@ -114,7 +129,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 
 			// Send the message to all handlers
 			r.eventListenersLock.Lock()
-			for _, listener := range r.eventListeners {
+			for _, listener := range r.eventListeners[listener.projectName] {
 				listener.targetsLock.Lock()
 				for _, target := range listener.targets {
 					if target.types != nil && !shared.StringInSlice(event.Type, target.types) {
