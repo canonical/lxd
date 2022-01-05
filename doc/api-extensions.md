@@ -1166,3 +1166,6 @@ the `MIG-` prefix can be omitted
 
 This extension supersedes old `mig.gi` and `mig.ci` parameters which are kept for compatibility with old drivers and
 cannot be set together.
+
+## event\_project
+Expose the project an API event belongs to.
