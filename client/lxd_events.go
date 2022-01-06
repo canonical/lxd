@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -60,7 +61,9 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		return nil, err
 	}
 
+	r.eventConnsLock.Lock()
 	r.eventConns[listener.projectName] = wsConn // Save for others to use.
+	r.eventConnsLock.Unlock()
 
 	// Initialize the event listener list if we were able to connect to the events websocket.
 	r.eventListeners[listener.projectName] = []*EventListener{&listener}
@@ -77,19 +80,22 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 			}
 
 			r.eventListenersLock.Lock()
+			r.eventConnsLock.Lock()
 			if len(r.eventListeners[listener.projectName]) == 0 {
 				// We don't need the connection anymore, disconnect and clear.
 				if r.eventListeners[listener.projectName] != nil {
 					r.eventConns[listener.projectName].Close()
-					r.eventConns[listener.projectName] = nil
+					delete(r.eventConns, listener.projectName)
 				}
 
 				r.eventListeners[listener.projectName] = nil
 				r.eventListenersLock.Unlock()
+				r.eventConnsLock.Unlock()
 
 				return
 			}
 			r.eventListenersLock.Unlock()
+			r.eventConnsLock.Unlock()
 		}
 	}()
 
