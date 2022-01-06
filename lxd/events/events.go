@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // EventSource indicates the source of an event.
@@ -117,8 +118,9 @@ func (s *Server) Send(projectName string, eventType string, eventMessage interfa
 	return s.broadcast(event, EventSourceLocal)
 }
 
-// Forward to the local events dispatcher an event received from another node.
-func (s *Server) Forward(id int64, event api.Event) {
+// Inject an event from another member into the local events dispatcher.
+// eventSource is used to indicate where this event was received from.
+func (s *Server) Inject(event api.Event, eventSource EventSource) {
 	if event.Type == "logging" {
 		// Parse the message
 		logEntry := api.EventLogging{}
@@ -136,9 +138,9 @@ func (s *Server) Forward(id int64, event api.Event) {
 		}
 	}
 
-	err := s.broadcast(event, EventSourcePull)
+	err := s.broadcast(event, eventSource)
 	if err != nil {
-		logger.Warnf("Failed to forward event from member %d: %v", id, err)
+		logger.Warn("Failed to forward event from member", log.Ctx{"member": event.Location, "err": err})
 	}
 }
 
