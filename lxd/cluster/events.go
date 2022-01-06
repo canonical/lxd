@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 )
 
 // eventHubMinHosts is the minimum number of members that must have the event-hub role to trigger switching into
@@ -35,9 +36,22 @@ const EventModeHubServer EventMode = "hub-server"
 // client, meaning that it is expected to connect to the event-hub members.
 const EventModeHubClient EventMode = "hub-client"
 
+// eventListenerClient stores both the event listener and its associated client.
+type eventListenerClient struct {
+	*lxd.EventListener
+
+	client lxd.InstanceServer
+}
+
+// Disconnect disconnects both the listener and the client.
+func (lc *eventListenerClient) Disconnect() {
+	lc.EventListener.Disconnect()
+	lc.client.Disconnect()
+}
+
 var eventMode EventMode = EventModeFullMesh
 var eventHubAddresses []string
-var listeners = map[string]*lxd.EventListener{}
+var listeners = map[string]*eventListenerClient{}
 var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
 var listenersUpdateLock sync.Mutex
@@ -218,6 +232,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			// might be something waiting for a future connection.
 			listener.Disconnect()
 			delete(listeners, member.Address)
+
 			logger.Info("Removed inactive member event listener client", log.Ctx{"local": networkAddress, "remote": member.Address})
 		}
 		listenersLock.Unlock()
@@ -227,10 +242,12 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		// Connect to remote concurrently and add to active listeners if successful.
 		wg.Add(1)
 		go func(m APIHeartbeatMember) {
+			logger := logging.AddContext(logger.Log, log.Ctx{"local": networkAddress, "remote": m.Address})
+
 			defer wg.Done()
 			listener, err := eventsConnect(m.Address, endpoints.NetworkCert(), serverCert())
 			if err != nil {
-				logger.Warn("Failed adding member event listener client", log.Ctx{"local": networkAddress, "remote": m.Address, "err": err})
+				logger.Warn("Failed adding member event listener client", log.Ctx{"err": err})
 				return
 			}
 
@@ -247,7 +264,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 				}
 			}
 
-			logger.Info("Added member event listener client", log.Ctx{"local": networkAddress, "remote": m.Address})
+			logger.Info("Added member event listener client")
 			listenersLock.Unlock()
 		}(member)
 	}
@@ -260,6 +277,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		if _, found := keepListeners[address]; !found {
 			listener.Disconnect()
 			delete(listeners, address)
+
 			logger.Info("Removed old member event listener client", log.Ctx{"local": networkAddress, "remote": address})
 		}
 	}
@@ -267,7 +285,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 }
 
 // Establish a client connection to get events from the given node.
-func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo) (*lxd.EventListener, error) {
+func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo) (*eventListenerClient, error) {
 	client, err := Connect(address, networkCert, serverCert, nil, true)
 	if err != nil {
 		return nil, err
@@ -284,5 +302,11 @@ func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *sha
 	}
 
 	revert.Success()
-	return listener, nil
+
+	lc := &eventListenerClient{
+		EventListener: listener,
+		client:        client,
+	}
+
+	return lc, nil
 }
