@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -60,7 +61,9 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		return nil, err
 	}
 
+	r.eventConnsLock.Lock()
 	r.eventConns[listener.projectName] = wsConn // Save for others to use.
+	r.eventConnsLock.Unlock()
 
 	// Initialize the event listener list if we were able to connect to the events websocket.
 	r.eventListeners[listener.projectName] = []*EventListener{&listener}
@@ -77,19 +80,22 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 			}
 
 			r.eventListenersLock.Lock()
+			r.eventConnsLock.Lock()
 			if len(r.eventListeners[listener.projectName]) == 0 {
 				// We don't need the connection anymore, disconnect and clear.
 				if r.eventListeners[listener.projectName] != nil {
 					r.eventConns[listener.projectName].Close()
-					r.eventConns[listener.projectName] = nil
+					delete(r.eventConns, listener.projectName)
 				}
 
 				r.eventListeners[listener.projectName] = nil
 				r.eventListenersLock.Unlock()
+				r.eventConnsLock.Unlock()
 
 				return
 			}
 			r.eventListenersLock.Unlock()
+			r.eventConnsLock.Unlock()
 		}
 	}()
 
@@ -157,4 +163,25 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 // GetEventsAllProjects gets events for all projects.
 func (r *ProtocolLXD) GetEventsAllProjects() (*EventListener, error) {
 	return r.getEvents(true)
+}
+
+// SendEvent send an event to the server via the client's event listener connection.
+func (r *ProtocolLXD) SendEvent(event api.Event) error {
+	r.eventConnsLock.Lock()
+	defer r.eventConnsLock.Unlock()
+
+	// Find an available event listener connection.
+	// It doesn't matter which project the event listener connection is using, as this only affects which
+	// events are received from the server, not which events we can send to it.
+	var eventConn *websocket.Conn
+	for _, eventConn = range r.eventConns {
+		break
+	}
+
+	if eventConn == nil {
+		return fmt.Errorf("No available event listener connection")
+	}
+
+	eventConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	return eventConn.WriteJSON(event)
 }

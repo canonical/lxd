@@ -28,6 +28,9 @@ type ProtocolLXD struct {
 	// eventConns contains event listener connections associated to a project name (or empty for all projects).
 	eventConns map[string]*websocket.Conn
 
+	// eventConnsLock controls write access to the eventConns.
+	eventConnsLock sync.Mutex
+
 	// eventListeners is a slice of event listeners associated to a project name (or empty for all projects).
 	eventListeners     map[string][]*EventListener
 	eventListenersLock sync.Mutex
