@@ -136,7 +136,7 @@ static int get_unused_loop_dev_legacy(char *loop_name)
 		if (dfd < 0)
 			continue;
 
-		fd = openat(dfd, dp->d_name, O_RDWR);
+		fd = openat(dfd, dp->d_name, O_RDWR | O_CLOEXEC);
 		if (fd < 0)
 			continue;
 
