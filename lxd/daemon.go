@@ -179,7 +179,7 @@ func (m *IdentityClientWrapper) DeclaredIdentity(ctx context.Context, declared m
 
 // newDaemon returns a new Daemon object with the given configuration.
 func newDaemon(config *DaemonConfig, os *sys.OS) *Daemon {
-	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose)
+	lxdEvents := events.NewServer(daemon.Debug, daemon.Verbose, cluster.EventHubPush)
 	devlxdEvents := events.NewDevLXDServer(daemon.Debug, daemon.Verbose)
 	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
 
