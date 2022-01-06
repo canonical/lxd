@@ -395,3 +395,29 @@ func eventsConnect(address string, networkCert *shared.CertInfo, serverCert *sha
 
 	return lc, nil
 }
+
+// EventHubPush pushes the event to the event hub members if local server is an event-hub client.
+func EventHubPush(event api.Event) {
+	listenersLock.Lock()
+	// If the local server isn't an event-hub client, then we don't need to push messages as the other
+	// members should be connected to us via a pull event listener and so will receive the event that way.
+	// Also if there are no listeners available then there's no point in pushing to the eventHubPushCh as it
+	// will have no consumers reading from it (this allows somewhat graceful handling of the situation where
+	// all event-hub members are down by dropping events rather than slowing down the local system).
+	if eventMode != EventModeHubClient || len(listeners) <= 0 {
+		listenersLock.Unlock()
+		return
+	}
+	listenersLock.Unlock()
+
+	// Run in a go routine so as not to delay caller of this function as we try and deliver it.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), eventHubPushChTimeout)
+		defer cancel()
+
+		select {
+		case eventHubPushCh <- event:
+		case <-ctx.Done(): // Don't block if all consumers are slow/down.
+		}
+	}()
+}
