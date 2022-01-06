@@ -164,3 +164,24 @@ func (r *ProtocolLXD) GetEvents() (*EventListener, error) {
 func (r *ProtocolLXD) GetEventsAllProjects() (*EventListener, error) {
 	return r.getEvents(true)
 }
+
+// SendEvent send an event to the server via the client's event listener connection.
+func (r *ProtocolLXD) SendEvent(event api.Event) error {
+	r.eventConnsLock.Lock()
+	defer r.eventConnsLock.Unlock()
+
+	// Find an available event listener connection.
+	// It doesn't matter which project the event listener connection is using, as this only affects which
+	// events are received from the server, not which events we can send to it.
+	var eventConn *websocket.Conn
+	for _, eventConn = range r.eventConns {
+		break
+	}
+
+	if eventConn == nil {
+		return fmt.Errorf("No available event listener connection")
+	}
+
+	eventConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	return eventConn.WriteJSON(event)
+}
