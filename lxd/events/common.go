@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/shared/logger"
 )
 
