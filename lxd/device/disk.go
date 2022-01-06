@@ -1203,7 +1203,7 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 	var f *os.File
 
 	// Open file handle to local source. Has to use unix.O_PATH to support directories and sockets.
-	f, err = os.OpenFile(srcPath, unix.O_PATH, 0)
+	f, err = os.OpenFile(srcPath, unix.O_PATH|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return f, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
 	}
