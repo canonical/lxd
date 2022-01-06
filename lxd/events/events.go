@@ -30,22 +30,27 @@ const EventSourcePush = 2
 // InjectFunc is used to inject an event received by a listener into the local events dispatcher.
 type InjectFunc func(event api.Event, eventSource EventSource)
 
+// NotifyFunc is called when an event is dispatched.
+type NotifyFunc func(event api.Event)
+
 // Server represents an instance of an event server.
 type Server struct {
 	serverCommon
 
 	listeners map[string]*Listener
+	notify    NotifyFunc
 	location  string
 }
 
 // NewServer returns a new event server.
-func NewServer(debug bool, verbose bool) *Server {
+func NewServer(debug bool, verbose bool, notify NotifyFunc) *Server {
 	server := &Server{
 		serverCommon: serverCommon{
 			debug:   debug,
 			verbose: verbose,
 		},
 		listeners: map[string]*Listener{},
+		notify:    notify,
 	}
 
 	return server
@@ -161,6 +166,12 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 	// than in Send as the lock to read s.location has been taken here already).
 	if eventSource == EventSourceLocal && event.Location == "" {
 		event.Location = s.location
+	}
+
+	// If a notifcation hook is present, then call it for locally produced events.
+	// This can be used to send local events to another target (such as an event-hub member).
+	if s.notify != nil && eventSource == EventSourceLocal {
+		s.notify(event)
 	}
 
 	listeners := s.listeners
