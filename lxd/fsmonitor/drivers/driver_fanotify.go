@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -51,7 +52,7 @@ func (d *fanotify) load(ctx context.Context) error {
 		return fmt.Errorf("Failed to watch directory %q: %w", d.prefixPath, err)
 	}
 
-	fd, err := unix.Open(d.prefixPath, unix.O_DIRECTORY|unix.O_RDONLY, 0)
+	fd, err := unix.Open(d.prefixPath, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		unix.Close(d.fd)
 		return fmt.Errorf("Failed to open directory %q: %w", d.prefixPath, err)
@@ -146,6 +147,7 @@ func (d *fanotify) getEvents(mountFd int) {
 			d.logger.Error("Failed to open file", log.Ctx{"err": err})
 			continue
 		}
+		syscall.CloseOnExec(fd)
 
 		// Determine the directory of the created or deleted file.
 		target, err := os.Readlink(fmt.Sprintf("/proc/self/fd/%d", fd))
