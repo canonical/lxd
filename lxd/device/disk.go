@@ -1307,7 +1307,7 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 		// For restricted source paths we use openat2 to prevent resolving to a mount path above the
 		// allowed parent source path. Requires Linux kernel >= 5.6.
 		fd, err := unix.Openat2(int(allowedParent.Fd()), relSrcPath, &unix.OpenHow{
-			Flags:   unix.O_PATH,
+			Flags:   unix.O_PATH | unix.O_CLOEXEC,
 			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS,
 		})
 		if err != nil {
@@ -1321,7 +1321,7 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 		f = os.NewFile(uintptr(fd), srcPath)
 	} else {
 		// Open file handle to local source. Has to use unix.O_PATH to support directories and sockets.
-		f, err = os.OpenFile(srcPath, unix.O_PATH, 0)
+		f, err = os.OpenFile(srcPath, unix.O_PATH|unix.O_CLOEXEC, 0)
 		if err != nil {
 			return f, fmt.Errorf("Failed opening source path %q: %w", srcPath, err)
 		}

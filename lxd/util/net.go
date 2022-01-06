@@ -324,7 +324,7 @@ func ExtractTCPConn(conn net.Conn) (*net.TCPConn, error) {
 
 	tcpConn, ok := c.(*net.TCPConn)
 	if !ok {
-		return tcpConn, fmt.Errorf("Connection is not a net.TCPConn")
+		return nil, fmt.Errorf("Connection is not a net.TCPConn")
 	}
 
 	return tcpConn, nil
