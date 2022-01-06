@@ -1145,7 +1145,7 @@ func TaskIDs(pid int) (int64, int64, int64, int64, error) {
 // FindTGID returns the task group leader ID from /proc/<pid> fd
 func FindTGID(procFd int) (int, error) {
 	var statusFile *os.File
-	fd, err := unix.Openat(procFd, "status", os.O_RDONLY, 0)
+	fd, err := unix.Openat(procFd, "status", unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return -1, err
 	}
