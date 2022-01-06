@@ -5,11 +5,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/gorilla/websocket"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
+
+// EventHandler called when the connection receives an event from the client.
+type EventHandler func(event api.Event)
 
 // serverCommon represents an instance of a comon event server.
 type serverCommon struct {
@@ -28,6 +32,7 @@ type listenerCommon struct {
 	id           string
 	lock         sync.Mutex
 	pongsPending uint
+	recvFunc     EventHandler
 
 	// If true, this listener won't get events forwarded from other
 	// nodes. It only used by listeners created internally by LXD nodes
@@ -50,11 +55,26 @@ func (e *listenerCommon) heartbeat() {
 		return nil
 	})
 
-	// Run a blocking reader to detect if the remote side is closed.
-	// We don't expect to get anything from the remote side, so this should remain blocked until disconnected.
+	// Start reader from client.
 	go func() {
-		e.Conn.NextReader()
-		e.Close()
+		defer e.Close()
+
+		if e.recvFunc != nil {
+			for {
+				var event api.Event
+				err := e.Conn.ReadJSON(&event)
+				if err != nil {
+					return // This detects if client has disconnected or sent invalid data.
+				}
+
+				// Pass received event to the handler.
+				e.recvFunc(event)
+			}
+		} else {
+			// Run a blocking reader to detect if the client has disconnected. We don't expect to get
+			// anything from the remote side, so this should remain blocked until disconnected.
+			e.Conn.NextReader()
+		}
 	}()
 
 	for {
