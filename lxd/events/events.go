@@ -35,7 +35,7 @@ func NewServer(debug bool, verbose bool) *Server {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, location string, localOnly bool) (*Listener, error) {
+func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, location string, localOnly bool, recvFunc EventHandler) (*Listener, error) {
 	if allProjects && projectName != "" {
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
@@ -50,6 +50,7 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 			ctx:          ctx,
 			ctxCancel:    ctxCancel,
 			id:           uuid.New(),
+			recvFunc:     recvFunc,
 		},
 
 		location:    location,
