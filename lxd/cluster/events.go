@@ -195,8 +195,8 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		}
 	}
 
-	networkAddress := endpoints.NetworkAddress()
-	hubAddresses, localEventMode := hubAddresses(networkAddress, members)
+	localAddress := endpoints.NetworkAddress()
+	hubAddresses, localEventMode := hubAddresses(localAddress, members)
 
 	// Store event hub addresses in global slice.
 	listenersLock.Lock()
@@ -208,7 +208,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 	wg := sync.WaitGroup{}
 	for _, member := range members {
 		// Don't bother trying to connect to ourselves or offline members.
-		if member.Address == networkAddress || !member.Online {
+		if member.Address == localAddress || !member.Online {
 			continue
 		}
 
@@ -233,7 +233,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			listener.Disconnect()
 			delete(listeners, member.Address)
 
-			logger.Info("Removed inactive member event listener client", log.Ctx{"local": networkAddress, "remote": member.Address})
+			logger.Info("Removed inactive member event listener client", log.Ctx{"local": localAddress, "remote": member.Address})
 		}
 		listenersLock.Unlock()
 
@@ -242,7 +242,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		// Connect to remote concurrently and add to active listeners if successful.
 		wg.Add(1)
 		go func(m APIHeartbeatMember) {
-			logger := logging.AddContext(logger.Log, log.Ctx{"local": networkAddress, "remote": m.Address})
+			logger := logging.AddContext(logger.Log, log.Ctx{"local": localAddress, "remote": m.Address})
 
 			defer wg.Done()
 			listener, err := eventsConnect(m.Address, endpoints.NetworkCert(), serverCert())
@@ -278,7 +278,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			listener.Disconnect()
 			delete(listeners, address)
 
-			logger.Info("Removed old member event listener client", log.Ctx{"local": networkAddress, "remote": address})
+			logger.Info("Removed old member event listener client", log.Ctx{"local": localAddress, "remote": address})
 		}
 	}
 	listenersLock.Unlock()
