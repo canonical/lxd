@@ -2421,11 +2421,18 @@ INSERT INTO images_profiles (image_id, profile_id)
 
 // Add a new "arch" column to the "nodes" table.
 func updateFromV19(tx *sql.Tx) error {
+	_, err := tx.Exec("PRAGMA ignore_check_constraints=on")
+	if err != nil {
+		return err
+	}
+
+	defer tx.Exec("PRAGMA ignore_check_constraints=off")
+
 	// The column has a not-null constraint and a default value of
 	// 0. However, leaving the 0 default won't effectively be accepted when
 	// creating a new, due to the check constraint, so we are sure to end
 	// up with a valid value.
-	_, err := tx.Exec("ALTER TABLE nodes ADD COLUMN arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0)")
+	_, err = tx.Exec("ALTER TABLE nodes ADD COLUMN arch INTEGER NOT NULL DEFAULT 0 CHECK (arch > 0)")
 	if err != nil {
 		return err
 	}
@@ -2437,6 +2444,7 @@ func updateFromV19(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
