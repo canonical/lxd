@@ -253,6 +253,7 @@ qom-type = "memory-backend-file"
 mem-path = "{{$hugepages}}"
 prealloc = "on"
 discard-data = "on"
+share = "on"
 {{- else}}
 qom-type = "memory-backend-memfd"
 {{- end }}
