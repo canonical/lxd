@@ -31,6 +31,8 @@ type cmdExec struct {
 	flagUser                uint32
 	flagGroup               uint32
 	flagCwd                 string
+
+	interactive bool
 }
 
 func (c *cmdExec) Command() *cobra.Command {
@@ -131,20 +133,19 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	stdoutTerminal := termios.IsTerminal(stdoutFd)
 
 	// Determine interaction mode
-	var interactive bool
 	if c.flagDisableStdin {
-		interactive = false
+		c.interactive = false
 	} else if c.flagMode == "interactive" || c.flagForceInteractive {
-		interactive = true
+		c.interactive = true
 	} else if c.flagMode == "non-interactive" || c.flagForceNonInteractive {
-		interactive = false
+		c.interactive = false
 	} else {
-		interactive = stdinTerminal && stdoutTerminal
+		c.interactive = stdinTerminal && stdoutTerminal
 	}
 
 	// Record terminal state
 	var oldttystate *termios.State
-	if interactive && stdinTerminal {
+	if c.interactive && stdinTerminal {
 		oldttystate, err = termios.MakeRaw(stdinFd)
 		if err != nil {
 			return err
@@ -177,7 +178,7 @@ func (c *cmdExec) Run(cmd *cobra.Command, args []string) error {
 	req := api.InstanceExecPost{
 		Command:     args[1:],
 		WaitForWS:   true,
-		Interactive: interactive,
+		Interactive: c.interactive,
 		Environment: env,
 		Width:       width,
 		Height:      height,
