@@ -671,7 +671,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 				config := map[string]string{
 					"volatile.apply_template": origVolatileApplyTemplate,
 				}
-				err = tx.CreateInstanceConfig(int(id), config)
+				err = tx.CreateInstanceConfig(id, config)
 				if err != nil {
 					return errors.Wrap(err, "Failed to set volatile.apply_template config key")
 				}
