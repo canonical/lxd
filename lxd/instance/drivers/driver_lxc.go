@@ -4539,17 +4539,33 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		object.Architecture = d.architecture
 		object.Ephemeral = d.ephemeral
 		object.ExpiryDate = sql.NullTime{Time: d.expiryDate, Valid: true}
-		object.Config = d.localConfig
-		object.Profiles = d.profiles
 
 		devices, err := db.APIToDevices(d.localDevices.CloneNative())
 		if err != nil {
 			return err
 		}
 
-		object.Devices = devices
+		err = tx.UpdateInstance(d.project, d.name, *object)
+		if err != nil {
+			return err
+		}
 
-		return tx.UpdateInstance(d.project, d.name, *object)
+		err = tx.UpdateInstanceProfiles(*object, d.profiles)
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateInstanceConfig(int64(object.ID), d.localConfig)
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateInstanceDevices(int64(object.ID), devices)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to update database")
