@@ -272,6 +272,8 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by node address
 	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance
 	filteredProjects := []string{}
+	nodeInstances := map[[2]string]instance.Instance{}
+	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
@@ -302,26 +304,23 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 			return err
 		}
 
+		// Get the local instances
+		if mustLoadObjects {
+			for _, project := range filteredProjects {
+				insts, err := instanceLoadNodeProjectAll(d.State(), tx, project, instanceType)
+				if err != nil {
+					return err
+				}
+
+				for _, inst := range insts {
+					nodeInstances[[2]string{inst.Project(), inst.Name()}] = inst
+				}
+			}
+		}
 		return nil
 	})
 	if err != nil {
 		return []string{}, err
-	}
-
-	// Get the local instances
-	nodeInstances := map[[2]string]instance.Instance{}
-	mustLoadObjects := recursion > 0 || (recursion == 0 && clauses != nil)
-	if mustLoadObjects {
-		for _, project := range filteredProjects {
-			insts, err := instanceLoadNodeProjectAll(d.State(), project, instanceType)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, inst := range insts {
-				nodeInstances[[2]string{inst.Project(), inst.Name()}] = inst
-			}
-		}
 	}
 
 	// Append containers to list and handle errors
