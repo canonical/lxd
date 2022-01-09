@@ -342,15 +342,29 @@ func (d *disk) validateEnvironmentSourcePath() error {
 	// Default project cannot be restricted, so don't bother loading the project config in that case.
 	projectName := d.inst.Project()
 	if projectName != project.Default {
-		p, err := d.state.Cluster.GetProject(projectName)
+		var p *db.Project
+		var config map[string]string
+		err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			p, err = tx.GetProject(projectName)
+			if err != nil {
+				return err
+			}
+
+			config, err = tx.GetProjectConfig(p.ID)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 		if err != nil {
 			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 		}
 
 		// If restricted disk paths are in force, then check the disk's source is allowed, and record the
 		// allowed parent path for later user during device start up sequence.
-		if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.devices.disk.paths"] != "" {
-			allowed, restrictedParentSourcePath := project.CheckRestrictedDevicesDiskPaths(p.Config, d.config["source"])
+		if shared.IsTrue(config["restricted"]) && config["restricted.devices.disk.paths"] != "" {
+			allowed, restrictedParentSourcePath := project.CheckRestrictedDevicesDiskPaths(config, d.config["source"])
 			if !allowed {
 				return fmt.Errorf("Disk source path %q not allowed by project for disk %q", d.config["source"], d.name)
 			}

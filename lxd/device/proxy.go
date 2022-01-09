@@ -128,12 +128,26 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 				// Prevent use of NAT mode on non-default projects with networks feature.
 				// This is because OVN networks don't allow the host to communicate directly with
 				// instance NICs and so DNAT rules on the host won't work.
-				p, err := d.state.Cluster.GetProject(projectName)
+				var p *db.Project
+				var config map[string]string
+				err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+					p, err = tx.GetProject(projectName)
+					if err != nil {
+						return err
+					}
+
+					config, err = tx.GetProjectConfig(p.ID)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
 				if err != nil {
 					return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 				}
 
-				if shared.IsTrue(p.Config["features.networks"]) {
+				if shared.IsTrue(config["features.networks"]) {
 					return fmt.Errorf("NAT mode cannot be used in projects that have the networks feature")
 				}
 			}
