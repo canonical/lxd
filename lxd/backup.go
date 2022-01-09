@@ -80,13 +80,23 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	if b.CompressionAlgorithm() != "" {
 		compress = b.CompressionAlgorithm()
 	} else {
-		p, err := s.Cluster.GetProject(sourceInst.Project())
+		var p *db.Project
+		var config map[string]string
+		s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			p, err = tx.GetProject(sourceInst.Project())
+			if err != nil {
+				return err
+			}
+
+			config, err = tx.GetProjectConfig(p.ID)
+			return err
+		})
 		if err != nil {
 			return err
 		}
 
-		if p.Config["backups.compression_algorithm"] != "" {
-			compress = p.Config["backups.compression_algorithm"]
+		if config["backups.compression_algorithm"] != "" {
+			compress = config["backups.compression_algorithm"]
 		} else {
 			compress, err = cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
 			if err != nil {
