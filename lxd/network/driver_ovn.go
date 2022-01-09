@@ -127,7 +127,7 @@ func (n *ovn) uplinkRoutes(uplink *api.Network) ([]*net.IPNet, error) {
 
 // projectRestrictedSubnets parses the restrict.networks.subnets project setting and returns slice of *net.IPNet.
 // Returns nil slice if no project restrictions, or empty slice if no allowed subnets.
-func (n *ovn) projectRestrictedSubnets(p *db.Project, uplinkNetworkName string) ([]*net.IPNet, error) {
+func (n *ovn) projectRestrictedSubnets(p *api.Project, uplinkNetworkName string) ([]*net.IPNet, error) {
 	// Parse project's restricted subnets.
 	var projectRestrictedSubnets []*net.IPNet // Nil value indicates not restricted.
 	if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.networks.subnets"] != "" {
@@ -322,7 +322,17 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Load the project to get uplink network restrictions.
-	p, err := n.state.Cluster.GetProject(n.project)
+	var p *api.Project
+	n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		project, err := tx.GetProject(n.project)
+		if err != nil {
+			return err
+		}
+
+		p, err = project.ToAPI(tx)
+		return err
+	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
 	}
@@ -1572,7 +1582,7 @@ func (n *ovn) Create(clientType request.ClientType) error {
 }
 
 // allowedUplinkNetworks returns a list of allowed networks to use as uplinks based on project restrictions.
-func (n *ovn) allowedUplinkNetworks(p *db.Project) ([]string, error) {
+func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 	var uplinkNetworkNames []string
 
 	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -1622,7 +1632,7 @@ func (n *ovn) allowedUplinkNetworks(p *db.Project) ([]string, error) {
 // validateUplinkNetwork checks if uplink network is allowed, and if empty string is supplied then tries to select
 // an uplink network from the allowedUplinkNetworks() list if there is only one allowed network.
 // Returns chosen uplink network name to use.
-func (n *ovn) validateUplinkNetwork(p *db.Project, uplinkNetworkName string) (string, error) {
+func (n *ovn) validateUplinkNetwork(p *api.Project, uplinkNetworkName string) (string, error) {
 	allowedUplinkNetworks, err := n.allowedUplinkNetworks(p)
 	if err != nil {
 		return "", err
@@ -1669,17 +1679,22 @@ func (n *ovn) setup(update bool) error {
 	// Record updated config so we can store back into DB and n.config variable.
 	updatedConfig := make(map[string]string)
 
-	// Load the project to get uplink network restrictions.
-	p, err := n.state.Cluster.GetProject(n.project)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
-	}
-
 	// Get project ID.
+	var p *api.Project
 	var projectID int64
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		projectID, err = tx.GetProjectID(n.project)
-		return err
+		project, err := tx.GetProject(n.project)
+		if err != nil {
+			return err
+		}
+
+		p, err = project.ToAPI(tx)
+		if err != nil {
+			return err
+		}
+
+		projectID = int64(project.ID)
+		return nil
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed getting project ID for project %q", n.project)
@@ -2932,7 +2947,17 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	}
 
 	// Load the project to get uplink network restrictions.
-	p, err = n.state.Cluster.GetProject(n.project)
+	var apiProject *api.Project
+	n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var err error
+		p, err = tx.GetProject(n.project)
+		if err != nil {
+			return err
+		}
+
+		apiProject, err = p.ToAPI(tx)
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to load network restrictions from project %q: %w", n.project, err)
 	}
@@ -2943,7 +2968,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	}
 
 	// Get project restricted routes.
-	projectRestrictedSubnets, err := n.projectRestrictedSubnets(p, n.config["network"])
+	projectRestrictedSubnets, err := n.projectRestrictedSubnets(apiProject, n.config["network"])
 	if err != nil {
 		return err
 	}
@@ -3910,7 +3935,17 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		}
 
 		// Load the project to get uplink network restrictions.
-		p, err := n.state.Cluster.GetProject(n.project)
+		var p *api.Project
+		n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			project, err := tx.GetProject(n.project)
+			if err != nil {
+				return err
+			}
+
+			p, err = project.ToAPI(tx)
+			return err
+		})
 		if err != nil {
 			return errors.Wrapf(err, "Failed to load network restrictions from project %q", n.project)
 		}
