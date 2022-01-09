@@ -268,13 +268,20 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	if req.CompressionAlgorithm != "" {
 		compress = req.CompressionAlgorithm
 	} else {
-		p, err := d.cluster.GetProject(projectName)
-		if err != nil {
-			return nil, err
-		}
+		var p *db.Project
+		var config map[string]string
+		d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			p, err = tx.GetProject(projectName)
+			if err != nil {
+				return err
+			}
 
-		if p.Config["images.compression_algorithm"] != "" {
-			compress = p.Config["images.compression_algorithm"]
+			config, err = tx.GetProjectConfig(p.ID)
+			return err
+		})
+
+		if config["images.compression_algorithm"] != "" {
+			compress = config["images.compression_algorithm"]
 		} else {
 			compress, err = cluster.ConfigGetString(d.cluster, "images.compression_algorithm")
 			if err != nil {
@@ -1774,13 +1781,24 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 	if !manual {
 		var interval int64
 
-		project, err := d.cluster.GetProject(projectName)
+		var p *db.Project
+		var config map[string]string
+		var err error
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			p, err = tx.GetProject(projectName)
+			if err != nil {
+				return err
+			}
+
+			config, err = tx.GetProjectConfig(p.ID)
+			return err
+		})
 		if err != nil {
 			return nil, err
 		}
 
-		if project.Config["images.auto_update_interval"] != "" {
-			interval, err = strconv.ParseInt(project.Config["images.auto_update_interval"], 10, 64)
+		if config["images.auto_update_interval"] != "" {
+			interval, err = strconv.ParseInt(config["images.auto_update_interval"], 10, 64)
 			if err != nil {
 				return nil, errors.Wrap(err, "Unable to fetch project configuration")
 			}
@@ -2080,11 +2098,20 @@ func pruneLeftoverImages(d *Daemon) {
 
 func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation) error {
 	var projects []db.Project
+	var projectConfigs []map[string]string
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		projects, err = tx.GetProjects(db.ProjectFilter{})
 		if err != nil {
 			return err
+		}
+
+		projectConfigs = make([]map[string]string, len(projects))
+		for i, p := range projects {
+			projectConfigs[i], err = tx.GetProjectConfig(p.ID)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -2093,8 +2120,8 @@ func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation
 		return errors.Wrap(err, "Unable to retrieve project names")
 	}
 
-	for _, project := range projects {
-		err := pruneExpiredImagesInProject(ctx, d, project, op)
+	for i, project := range projects {
+		err := pruneExpiredImagesInProject(ctx, d, project, projectConfigs[i], op)
 		if err != nil {
 			return fmt.Errorf("Unable to prune images for project %q: %w", project.Name, err)
 		}
@@ -2103,11 +2130,12 @@ func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation
 	return nil
 }
 
-func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Project, op *operations.Operation) error {
+func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Project, config map[string]string, op *operations.Operation) error {
+	// TODO: clean up unnecessary transactions (all the d.cluster) methods initiate their own transaction.
 	var expiry int64
 	var err error
-	if project.Config["images.remote_cache_expiry"] != "" {
-		expiry, err = strconv.ParseInt(project.Config["images.remote_cache_expiry"], 10, 64)
+	if config["images.remote_cache_expiry"] != "" {
+		expiry, err = strconv.ParseInt(config["images.remote_cache_expiry"], 10, 64)
 		if err != nil {
 			return errors.Wrap(err, "Unable to fetch project configuration")
 		}
