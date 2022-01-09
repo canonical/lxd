@@ -1,7 +1,6 @@
 package drivers
 
 import (
-	"database/sql"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -15,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -223,7 +221,7 @@ func (d *common) SetOperation(op *operations.Operation) {
 
 // Snapshots returns a list of snapshots.
 func (d *common) Snapshots() ([]instance.Instance, error) {
-	var snaps []db.Instance
+	var snapshots []instance.Instance
 
 	if d.snapshot {
 		return []instance.Instance{}, nil
@@ -231,20 +229,46 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 
 	// Get all the snapshots
 	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		snaps, err = tx.GetInstanceSnapshotsWithName(d.project, d.name)
+		snaps, err := tx.GetInstanceSnapshotsWithName(d.project, d.name)
 		if err != nil {
 			return err
 		}
 
+		inst, err := tx.GetInstance(d.project, d.name)
+		if err != nil {
+			return fmt.Errorf("Failed to fetch instance %q in project %q: %w", d.name, d.project, err)
+		}
+
+		profiles, err := tx.GetInstanceProfiles(*inst)
+		if err != nil {
+			return err
+		}
+
+		snapshots = make([]instance.Instance, len(snaps))
+		for i := range snaps {
+			apiInst, err := snaps[i].ToAPI(tx, inst, profiles)
+			if err != nil {
+				return err
+			}
+
+			apiProfiles := make([]api.Profile, len(profiles))
+			for i, p := range profiles {
+				apiProfile, err := p.ToAPI(tx)
+				if err != nil {
+					return err
+				}
+
+				apiProfiles[i] = *apiProfile
+			}
+
+			snapshots[i], err = instance.LoadAllInternal(d.state, tx, snaps[i].ID, *apiInst, apiProfiles)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Build the snapshot list
-	snapshots, err := instance.LoadAllInternal(d.state, snaps)
 	if err != nil {
 		return nil, err
 	}
@@ -266,15 +290,24 @@ func (d *common) VolatileSet(changes map[string]string) error {
 		}
 	}
 
+	newConfig := map[string]string{}
+	for k, v := range d.localConfig {
+		newConfig[k] = v
+	}
+
+	for k, v := range changes {
+		newConfig[k] = v
+	}
+
 	// Update the database.
 	var err error
 	if d.snapshot {
 		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.UpdateInstanceSnapshotConfig(d.id, changes)
+			return tx.UpdateInstanceSnapshotConfig(d.id, newConfig)
 		})
 	} else {
 		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			return tx.UpdateInstanceConfig(d.id, changes)
+			return tx.UpdateInstanceConfig(int64(d.id), newConfig)
 		})
 	}
 	if err != nil {
@@ -448,7 +481,7 @@ func (d *common) expandDevices(profiles []api.Profile) error {
 		}
 	}
 
-	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, profiles)
+	d.expandedDevices = deviceConfig.NewDevices(db.ExpandInstanceDevices(d.localDevices.CloneNative(), profiles))
 
 	return nil
 }
@@ -615,24 +648,17 @@ func (d *common) updateProgress(progress string) {
 // unpopulated then the insert querty is retried until it succeeds or a retry limit is reached.
 // If the insert succeeds or the key is found to have been populated then the value of the key is returned.
 func (d *common) insertConfigkey(key string, value string) (string, error) {
-	err := query.Retry(func() error {
-		err := query.Transaction(d.state.Cluster.DB(), func(tx *sql.Tx) error {
-			return db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
-		})
-		if err != nil {
-			// Check if something else filled it in behind our back.
-			existingValue, errCheckExists := d.state.Cluster.GetInstanceConfig(d.id, key)
-			if errCheckExists != nil {
-				return err
-			}
-
-			value = existingValue
-		}
-
-		return nil
+	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.CreateInstanceConfig(int64(d.id), map[string]string{key: value})
 	})
 	if err != nil {
-		return "", err
+		// Check if something else filled it in behind our back.
+		existingValue, errCheckExists := d.state.Cluster.GetInstanceConfig(d.id, key)
+		if errCheckExists != nil {
+			return "", err
+		}
+
+		value = existingValue
 	}
 
 	return value, nil
