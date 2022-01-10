@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
@@ -623,11 +623,33 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 					Name:        trustedCert.Name,
 					Certificate: trustedCert.Certificate,
 					Restricted:  trustedCert.Restricted,
-					Projects:    trustedCert.Projects,
 				}
 
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
-				_, err = d.cluster.CreateCertificate(dbCert)
+
+				err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+					_, err = tx.CreateCertificate(dbCert)
+					if err != nil {
+						return err
+					}
+
+					projects := make([]db.Project, len(trustedCert.Projects))
+
+					for i, p := range trustedCert.Projects {
+						project, err := tx.GetProject(p)
+						if err != nil {
+							return err
+						}
+
+						projects[i] = *project
+					}
+					err = tx.UpdateCertificateProjects(dbCert, projects)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
 				if err != nil && err.Error() != "This certificate already exists" {
 					return errors.Wrapf(err, "Failed adding local trusted certificate %q (%s)", trustedCert.Name, trustedCert.Fingerprint)
 				}
@@ -2780,10 +2802,19 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	// List the instances.
 	var dbInstances []db.Instance
 	var err error
+	var instanceConfig []map[string]string
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{})
 		if err != nil {
 			return errors.Wrap(err, "Failed to get instances")
+		}
+
+		instanceConfig = make([]map[string]string, len(dbInstances))
+		for i, inst := range dbInstances {
+			instanceConfig[i], err = tx.GetInstanceConfig(inst.ID)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -2795,7 +2826,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	instances := make([]instance.Instance, 0)
 	localInstances := make([]instance.Instance, 0)
 
-	for _, dbInst := range dbInstances {
+	for i, dbInst := range dbInstances {
 		if dbInst.Node == originName {
 			inst, err := instance.LoadByProjectAndName(d.State(), dbInst.Project, dbInst.Name)
 			if err != nil {
@@ -2807,7 +2838,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Only consider instances where volatile.evacuate.origin is set to the node which needs to be restored.
-		val, ok := dbInst.Config["volatile.evacuate.origin"]
+		val, ok := instanceConfig[i]["volatile.evacuate.origin"]
 		if !ok || val != originName {
 			continue
 		}
