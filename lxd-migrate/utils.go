@@ -1,24 +1,34 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
+	cookiejar "github.com/juju/persistent-cookiejar"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
+	schemaform "gopkg.in/juju/environschema.v1/form"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
+	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/version"
 )
 
-func transferRootfs(dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsyncArgs string) error {
+func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
 	opAPI := op.Get()
 
 	// Connect to the websockets
@@ -33,8 +43,17 @@ func transferRootfs(dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsy
 	}
 
 	// Setup control struct
-	fs := migration.MigrationFSType_RSYNC
-	rsyncHasFeature := true
+	var fs migration.MigrationFSType
+	var rsyncHasFeature bool
+
+	if instanceType == api.InstanceTypeVM {
+		fs = migration.MigrationFSType_BLOCK_AND_RSYNC
+		rsyncHasFeature = false
+	} else {
+		fs = migration.MigrationFSType_RSYNC
+		rsyncHasFeature = true
+	}
+
 	header := migration.MigrationHeader{
 		RsyncFeatures: &migration.RsyncFeatures{
 			Xattrs:   &rsyncHasFeature,
@@ -42,6 +61,17 @@ func transferRootfs(dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsy
 			Compress: &rsyncHasFeature,
 		},
 		Fs: &fs,
+	}
+
+	if instanceType == api.InstanceTypeVM {
+		stat, err := os.Stat(filepath.Join(rootfs, "root.img"))
+		if err != nil {
+			return err
+		}
+
+		size := stat.Size()
+		header.VolumeSize = &size
+		rootfs = shared.AddSlash(rootfs)
 	}
 
 	err = migration.ProtoSend(wsControl, &header)
@@ -62,9 +92,33 @@ func transferRootfs(dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsy
 		return err
 	}
 
-	err = rsyncSend(wsFs, rootfs, rsyncArgs)
+	err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
 	if err != nil {
 		return abort(err)
+	}
+
+	// Send block volume
+	if instanceType == api.InstanceTypeVM {
+		f, err := os.Open(filepath.Join(rootfs, "root.img"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		conn := &shared.WebsocketIO{Conn: wsFs}
+
+		go func() {
+			<-ctx.Done()
+			conn.Close()
+			f.Close()
+		}()
+
+		_, err = io.Copy(conn, f)
+		if err != nil {
+			return err
+		}
+
+		conn.Close()
 	}
 
 	// Check the result
@@ -82,38 +136,74 @@ func transferRootfs(dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsy
 	return nil
 }
 
-func connectTarget(url string, certPath string, keyPath string) (lxd.InstanceServer, error) {
-	var clientCrt []byte
-	var clientKey []byte
+func connectTarget(url string, certPath string, keyPath string, authType string) (lxd.InstanceServer, string, error) {
+	args := lxd.ConnectionArgs{
+		AuthType: authType,
+	}
+	clientFingerprint := ""
 
-	// Generate a new client certificate for this
-	if certPath == "" || keyPath == "" {
-		var err error
+	if authType == "tls" {
+		var clientCrt []byte
+		var clientKey []byte
 
-		fmt.Println("Generating a temporary client certificate. This may take a minute...")
-		clientCrt, clientKey, err = shared.GenerateMemCert(true, false)
-		if err != nil {
-			return nil, err
+		// Generate a new client certificate for this
+		if certPath == "" || keyPath == "" {
+			var err error
+
+			clientCrt, clientKey, err = shared.GenerateMemCert(true, false)
+			if err != nil {
+				return nil, "", err
+			}
+
+			clientFingerprint, err = shared.CertFingerprintStr(string(clientCrt))
+			if err != nil {
+				return nil, "", err
+			}
+
+			fmt.Printf("\nYour temporary certificate is:\n%s\n", string(clientCrt))
+		} else {
+			var err error
+
+			clientCrt, err = ioutil.ReadFile(certPath)
+			if err != nil {
+				return nil, "", fmt.Errorf("Failed to read client certificate: %w", err)
+			}
+
+			clientKey, err = ioutil.ReadFile(keyPath)
+			if err != nil {
+				return nil, "", fmt.Errorf("Failed to read client key: %w", err)
+			}
 		}
-	} else {
-		var err error
 
-		clientCrt, err = ioutil.ReadFile(certPath)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to read client certificate: %w", err)
+		args.TLSClientCert = string(clientCrt)
+		args.TLSClientKey = string(clientKey)
+	} else if authType == "candid" {
+		args.AuthInteractor = []httpbakery.Interactor{
+			form.Interactor{Filler: schemaform.IOFiller{}},
+			httpbakery.WebBrowserInteractor{
+				OpenWebBrowser: httpbakery.OpenWebBrowser,
+			},
 		}
 
-		clientKey, err = ioutil.ReadFile(keyPath)
+		f, err := ioutil.TempFile("", "lxd-migrate_")
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read client key: %w", err)
+			return nil, "", err
 		}
+		f.Close()
+
+		jar, err := cookiejar.New(
+			&cookiejar.Options{
+				Filename: f.Name(),
+			})
+		if err != nil {
+			return nil, "", err
+		}
+
+		args.CookieJar = jar
 	}
 
 	// Attempt to connect using the system CA
-	args := lxd.ConnectionArgs{}
-	args.TLSClientCert = string(clientCrt)
-	args.TLSClientKey = string(clientKey)
-	args.UserAgent = fmt.Sprintf("LXC-P2C %s", version.Version)
+	args.UserAgent = fmt.Sprintf("LXC-MIGRATE %s", version.Version)
 	c, err := lxd.ConnectLXD(url, &args)
 
 	var certificate *x509.Certificate
@@ -121,66 +211,92 @@ func connectTarget(url string, certPath string, keyPath string) (lxd.InstanceSer
 		// Failed to connect using the system CA, so retrieve the remote certificate
 		certificate, err = shared.GetRemoteCertificate(url, args.UserAgent)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 
 	// Handle certificate prompt
 	if certificate != nil {
-		digest := shared.CertFingerprint(certificate)
-
-		fmt.Printf("Certificate fingerprint: %s\n", digest)
-		fmt.Printf("ok (y/n)? ")
-		line, err := shared.ReadStdin()
-		if err != nil {
-			return nil, err
-		}
-
-		if len(line) < 1 || line[0] != 'y' && line[0] != 'Y' {
-			return nil, fmt.Errorf("Server certificate rejected by user")
-		}
-
 		serverCrt := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
 		args.TLSServerCert = string(serverCrt)
 
 		// Setup a new connection, this time with the remote certificate
 		c, err = lxd.ConnectLXD(url, &args)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
+	}
+
+	if authType == "candid" {
+		c.RequireAuthenticated(false)
 	}
 
 	// Get server information
 	srv, _, err := c.GetServer()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Check if our cert is already trusted
 	if srv.Auth == "trusted" {
-		return c, nil
+		fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
+		return c, "", nil
 	}
 
-	// Prompt for trust password
-	fmt.Printf("Admin password for %s: ", url)
-	pwd, err := term.ReadPassword(0)
+	if authType == "tls" {
+		fmt.Println("It is recommended to have this certificate be manually added to LXD through `lxc config trust add` on the target server.\nAlternatively you could use a pre-defined trust password to add it remotely (use of a trust password can be a security issue).")
+
+		fmt.Println("")
+
+		useTrustPassword, err := cli.AskBool("Would you like to use a trust password? [default=no]: ", "no")
+		if err != nil {
+			return nil, "", err
+		}
+
+		if useTrustPassword {
+			// Prompt for trust password
+			fmt.Print("Trust password: ")
+			pwd, err := term.ReadPassword(0)
+			if err != nil {
+				return nil, "", err
+			}
+			fmt.Println("")
+
+			// Add client certificate to trust store
+			req := api.CertificatesPost{
+				Password: string(pwd),
+			}
+			req.Type = api.CertificateTypeClient
+
+			err = c.CreateCertificate(req)
+			if err != nil {
+				return nil, "", err
+			}
+		} else {
+			fmt.Print("Press ENTER after the certificate was added to the remote server: ")
+			bufio.NewReader(os.Stdin).ReadString('\n')
+		}
+	} else {
+		c.RequireAuthenticated(true)
+	}
+
+	// Get full server information
+	srv, _, err = c.GetServer()
 	if err != nil {
-		return nil, err
-	}
-	fmt.Println("")
+		if clientFingerprint != "" {
+			c.DeleteCertificate(clientFingerprint)
+		}
 
-	// Add client certificate to trust store
-	req := api.CertificatesPost{
-		Password: string(pwd),
-	}
-	req.Type = api.CertificateTypeClient
-
-	err = c.CreateCertificate(req)
-	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return c, nil
+	if srv.Auth == "untrusted" {
+		return nil, "", fmt.Errorf("Server doesn't trust us after authentication")
+	}
+
+	fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
+
+	return c, clientFingerprint, nil
 }
 
 func setupSource(path string, mounts []string) error {

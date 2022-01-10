@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,11 +16,12 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Send an rsync stream of a path over a websocket
-func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
-	cmd, dataSocket, stderr, err := rsyncSendSetup(path, rsyncArgs)
+func rsyncSend(ctx context.Context, conn *websocket.Conn, path string, rsyncArgs string, instanceType api.InstanceType) error {
+	cmd, dataSocket, stderr, err := rsyncSendSetup(ctx, path, rsyncArgs, instanceType)
 	if err != nil {
 		return err
 	}
@@ -49,7 +51,7 @@ func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
 }
 
 // Spawn the rsync process
-func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
+func rsyncSendSetup(ctx context.Context, path string, rsyncArgs string, instanceType api.InstanceType) (*exec.Cmd, net.Conn, io.ReadCloser, error) {
 	auds := fmt.Sprintf("@lxd-migrate/%s", uuid.New())
 	if len(auds) > shared.ABSTRACT_UNIX_SOCK_LEN-1 {
 		auds = auds[:shared.ABSTRACT_UNIX_SOCK_LEN-1]
@@ -77,10 +79,14 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 		"--numeric-ids",
 		"--partial",
 		"--sparse",
-		"--xattrs",
-		"--delete",
-		"--compress",
-		"--compress-level=2",
+	}
+
+	if instanceType == api.InstanceTypeContainer {
+		args = append(args, "--xattrs", "--delete", "--compress", "--compress-level=2")
+	}
+
+	if instanceType == api.InstanceTypeVM {
+		args = append(args, "--exclude", "root.img")
 	}
 
 	if rsync.AtLeast("3.1.3") {
@@ -98,7 +104,7 @@ func rsyncSendSetup(path string, rsyncArgs string) (*exec.Cmd, net.Conn, io.Read
 	args = append(args, []string{path, "localhost:/tmp/foo"}...)
 	args = append(args, []string{"-e", rsyncCmd}...)
 
-	cmd := exec.Command("rsync", args...)
+	cmd := exec.CommandContext(ctx, "rsync", args...)
 	cmd.Stdout = os.Stderr
 
 	stderr, err := cmd.StderrPipe()
