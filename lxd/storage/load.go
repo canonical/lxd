@@ -224,6 +224,57 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	return &pool, nil
 }
 
+// GetPoolByNameTx retrieves the pool from the database by its name and returns a Pool interface.
+// If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
+// TODO: Replace GetPoolByName with this method.
+func GetPoolByNameTx(state *state.State, tx *db.ClusterTx, name string) (Pool, error) {
+	// Handle mock requests.
+	if state.OS.MockMode {
+		pool := mockBackend{}
+		pool.name = name
+		pool.state = state
+		pool.logger = logging.AddContext(logger.Log, log.Ctx{"driver": "mock", "pool": pool.name})
+		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		pool.driver = driver
+
+		return &pool, nil
+	}
+
+	// Load the database record.
+	poolID, dbPool, poolNodes, err := tx.GetStoragePoolInAnyState(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure a config map exists.
+	if dbPool.Config == nil {
+		dbPool.Config = map[string]string{}
+	}
+
+	logger := logging.AddContext(logger.Log, log.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
+
+	// Load the storage driver.
+	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), commonRules())
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup the pool struct.
+	pool := lxdBackend{}
+	pool.driver = driver
+	pool.id = poolID
+	pool.db = *dbPool
+	pool.name = dbPool.Name
+	pool.state = state
+	pool.logger = logger
+	pool.nodes = poolNodes
+
+	return &pool, nil
+}
+
 // GetPoolByInstance retrieves the pool from the database using the instance's pool.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
 // driver does not support the instance's type then drivers.ErrNotSupported is returned.

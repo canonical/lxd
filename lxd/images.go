@@ -2231,6 +2231,15 @@ func doDeleteImageFromPool(state *state.State, fingerprint string, storagePool s
 	return pool.DeleteImage(fingerprint, nil)
 }
 
+func doDeleteImageFromPoolTx(state *state.State, tx *db.ClusterTx, fingerprint string, storagePool string) error {
+	pool, err := storagePools.GetPoolByNameTx(state, tx, storagePool)
+	if err != nil {
+		return err
+	}
+
+	return pool.DeleteImageTx(fingerprint, tx, nil)
+}
+
 // swagger:operation DELETE /1.0/images/{fingerprint} images image_delete
 //
 // Delete the image

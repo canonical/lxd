@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -79,6 +80,7 @@ type Pool interface {
 	// Images.
 	EnsureImage(fingerprint string, op *operations.Operation) error
 	DeleteImage(fingerprint string, op *operations.Operation) error
+	DeleteImageTx(fingerprint string, tx *db.ClusterTx, op *operations.Operation) error
 	UpdateImage(fingerprint string, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	// Custom volumes.

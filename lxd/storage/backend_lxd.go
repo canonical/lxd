@@ -2769,6 +2769,55 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 	return nil
 }
 
+// DeleteImageTx removes an image from the database and underlying storage device if needed.
+// TODO: Replace DeleteImage with this method.
+func (b *lxdBackend) DeleteImageTx(fingerprint string, tx *db.ClusterTx, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint})
+	logger.Debug("DeleteImage started")
+	defer logger.Debug("DeleteImage finished")
+
+	// We need to lock this operation to ensure that the image is not being deleted multiple times.
+	unlock := locking.Lock(drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
+	defer unlock()
+
+	// Load image info from database.
+	_, image, err := tx.GetImageFromAnyProject(fingerprint)
+	if err != nil {
+		return err
+	}
+
+	contentType := drivers.ContentTypeFS
+
+	// Image types are not the same as instance types, so don't use instance type constants.
+	if image.Type == "virtual-machine" {
+		contentType = drivers.ContentTypeBlock
+	}
+
+	// Load the storage volume in order to get the volume config which is needed for some drivers.
+	_, storageVol, err := tx.GetLocalStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	if err != nil {
+		return err
+	}
+
+	vol := b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, storageVol.Config)
+
+	if b.driver.HasVolume(vol) {
+		err = b.driver.DeleteVolume(vol, op)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = tx.RemoveStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	if err != nil {
+		return err
+	}
+
+	b.state.Events.SendLifecycle(project.Default, lifecycle.StorageVolumeDeleted.Event(vol, string(vol.Type()), project.Default, op, nil))
+
+	return nil
+}
+
 // updateVolumeDescriptionOnly is a helper function used when handling update requests for volumes
 // that only allow their descriptions to be updated. If any config supplied differs from the
 // current volume's config then an error is returned.

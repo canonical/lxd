@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster/request"
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -210,6 +211,10 @@ func (b *mockBackend) EnsureImage(fingerprint string, op *operations.Operation) 
 }
 
 func (b *mockBackend) DeleteImage(fingerprint string, op *operations.Operation) error {
+	return nil
+}
+
+func (b *mockBackend) DeleteImageTx(fingerprint string, tx *db.ClusterTx, op *operations.Operation) error {
 	return nil
 }
 
