@@ -5,9 +5,10 @@ package db_test
 
 import (
 	"database/sql"
-	"github.com/lxc/lxd/lxd/project"
 	"testing"
 	"time"
+
+	"github.com/lxc/lxd/lxd/project"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,27 +44,39 @@ func TestContainerList(t *testing.T) {
 	assert.Len(t, containers, 3)
 
 	c1 := containers[0]
+	config, err := tx.GetInstanceConfig(c1.ID)
+	require.NoError(t, err)
+	devices, err := tx.GetInstanceDevices(c1.ID)
+	require.NoError(t, err)
 	assert.Equal(t, "c1", c1.Name)
 	assert.Equal(t, "node2", c1.Node)
-	assert.Equal(t, map[string]string{}, c1.Config)
-	assert.Len(t, c1.Devices, 0)
+	assert.Equal(t, map[string]string{}, config)
+	assert.Len(t, devices, 0)
 
 	c2 := containers[1]
+	config, err = tx.GetInstanceConfig(c2.ID)
+	require.NoError(t, err)
+	devices, err = tx.GetInstanceDevices(c2.ID)
+	require.NoError(t, err)
 	assert.Equal(t, "c2", c2.Name)
-	assert.Equal(t, map[string]string{"x": "y"}, c2.Config)
+	assert.Equal(t, map[string]string{"x": "y"}, config)
 	assert.Equal(t, "none", c2.Node)
-	assert.Len(t, c2.Devices, 1)
-	assert.Equal(t, "eth0", c2.Devices["eth0"].Name)
-	assert.Equal(t, "nic", c2.Devices["eth0"].Type.String())
+	assert.Len(t, devices, 1)
+	assert.Equal(t, "eth0", devices["eth0"].Name)
+	assert.Equal(t, "nic", devices["eth0"].Type.String())
 
 	c3 := containers[2]
+	config, err = tx.GetInstanceConfig(c3.ID)
+	require.NoError(t, err)
+	devices, err = tx.GetInstanceDevices(c3.ID)
+	require.NoError(t, err)
 	assert.Equal(t, "c3", c3.Name)
-	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, c3.Config)
+	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, config)
 	assert.Equal(t, "node2", c3.Node)
-	assert.Len(t, c3.Devices, 1)
-	assert.Equal(t, "root", c3.Devices["root"].Name)
-	assert.Equal(t, "disk", c3.Devices["root"].Type.String())
-	assert.Equal(t, map[string]string{"x": "y"}, c3.Devices["root"].Config)
+	assert.Len(t, devices, 1)
+	assert.Equal(t, "root", devices["root"].Name)
+	assert.Equal(t, "disk", devices["root"].Type.String())
+	assert.Equal(t, map[string]string{"x": "y"}, devices["root"].Config)
 }
 
 func TestContainerList_FilterByNode(t *testing.T) {
@@ -110,8 +123,11 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	// Create a project with the profiles feature and a custom profile.
 	project2 := db.Project{}
 	project2.Name = "test"
-	project2.Config = map[string]string{"features.profiles": "true"}
-	_, err = tx.CreateProject(project2)
+	project2Config := map[string]string{"features.profiles": "true"}
+	id, err := tx.CreateProject(project2)
+	require.NoError(t, err)
+
+	err = tx.CreateProjectConfig(id, project2Config)
 	require.NoError(t, err)
 
 	profile := db.Profile{
@@ -131,9 +147,16 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
-		Profiles:     []string{"default"},
 	}
-	_, err = tx.CreateInstance(c1p1)
+
+	id, err = tx.CreateInstance(c1p1)
+	require.NoError(t, err)
+
+	instanceProfile, err := tx.GetProfile("default", "default")
+	require.NoError(t, err)
+
+	c1p1.ID = int(id)
+	err = tx.UpdateInstanceProfiles(c1p1, []db.Profile{*instanceProfile})
 	require.NoError(t, err)
 
 	// Create a container in project2 using the custom profile from the
@@ -146,21 +169,33 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 		Architecture: 1,
 		Ephemeral:    false,
 		Stateful:     true,
-		Profiles:     []string{"intranet"},
 	}
-	_, err = tx.CreateInstance(c1p2)
+	id, err = tx.CreateInstance(c1p2)
+	require.NoError(t, err)
+
+	instanceProfile, err = tx.GetProfile("test", "intranet")
+	require.NoError(t, err)
+
+	c1p2.ID = int(id)
+	err = tx.UpdateInstanceProfiles(c1p2, []db.Profile{*instanceProfile})
 	require.NoError(t, err)
 
 	containers, err := tx.GetInstances(db.InstanceFilter{})
 	require.NoError(t, err)
-
 	assert.Len(t, containers, 2)
 
+	profiles, err := tx.GetInstanceProfiles(containers[0])
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(profiles))
 	assert.Equal(t, "blah", containers[0].Project)
-	assert.Equal(t, []string{"default"}, containers[0].Profiles)
+	assert.Equal(t, "default", profiles[0].Name)
 
+	profiles, err = tx.GetInstanceProfiles(containers[1])
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(profiles))
 	assert.Equal(t, "test", containers[1].Project)
-	assert.Equal(t, []string{"intranet"}, containers[1].Profiles)
+	assert.Equal(t, "intranet", profiles[0].Name)
+
 }
 
 func TestInstanceList(t *testing.T) {
@@ -171,20 +206,27 @@ func TestInstanceList(t *testing.T) {
 		profile := db.Profile{
 			Project: "default",
 			Name:    "profile1",
-			Config:  map[string]string{"a": "1"},
-			Devices: map[string]db.Device{
-				"root": {
-					Name:   "root",
-					Type:   db.TypeDisk,
-					Config: map[string]string{"b": "2"},
-				},
+		}
+
+		profileConfig := map[string]string{"a": "1"}
+		profileDevices := map[string]db.Device{
+			"root": {
+				Name:   "root",
+				Type:   db.TypeDisk,
+				Config: map[string]string{"b": "2"},
 			},
 		}
 
-		_, err := tx.CreateProfile(profile)
+		id, err := tx.CreateProfile(profile)
 		if err != nil {
 			return err
 		}
+
+		err = tx.CreateProfileConfig(id, profileConfig)
+		require.NoError(t, err)
+
+		err = tx.CreateProfileDevice(id, profileDevices["root"])
+		require.NoError(t, err)
 
 		container := db.Instance{
 			Project:      "default",
@@ -194,39 +236,47 @@ func TestInstanceList(t *testing.T) {
 			Architecture: 1,
 			Ephemeral:    false,
 			Stateful:     true,
-			Config:       map[string]string{"c": "3"},
-			Devices: map[string]db.Device{
-				"eth0": {
-					Name:   "eth0",
-					Type:   db.TypeNIC,
-					Config: map[string]string{"d": "4"},
-				},
-			},
-			Profiles: []string{"default", "profile1"},
 		}
 
-		_, err = tx.CreateInstance(container)
+		instanceConfig := map[string]string{"c": "3"}
+		instanceDevices := map[string]db.Device{
+			"eth0": {
+				Name:   "eth0",
+				Type:   db.TypeNIC,
+				Config: map[string]string{"d": "4"},
+			},
+		}
+
+		id, err = tx.CreateInstance(container)
 		if err != nil {
 			return err
 		}
+
+		err = tx.CreateInstanceConfig(id, instanceConfig)
+		require.NoError(t, err)
+
+		err = tx.CreateInstanceDevice(id, instanceDevices["eth0"])
+		require.NoError(t, err)
+
+		profiles, err := tx.GetProfiles(db.ProfileFilter{Project: &profile.Project})
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(profiles))
+		assert.Equal(t, "default", profiles[0].Name)
+		assert.Equal(t, "profile1", profiles[1].Name)
+
+		container.ID = int(id)
+		err = tx.UpdateInstanceProfiles(container, profiles)
+		require.NoError(t, err)
 
 		return nil
 	})
 	require.NoError(t, err)
 
-	var instances []db.Instance
-	err = cluster.InstanceList(nil, func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
-		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
-		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
-		// converting back and forth between API and db Device types.
-		for _, p := range profiles {
-			devices, err := db.APIToDevices(p.Devices)
-			require.NoError(t, err)
-			for _, d := range devices {
-				dbInst.Devices[d.Name] = d
-			}
-		}
-		instances = append(instances, dbInst)
+	var instances []api.Instance
+	err = cluster.InstanceList(nil, func(instanceID int, apiInst api.Instance, apiProject api.Project, profiles []api.Profile) error {
+		apiInst.Config = db.ExpandInstanceConfig(apiInst.Config, profiles)
+		apiInst.Devices = db.ExpandInstanceDevices(apiInst.Devices, profiles)
+		instances = append(instances, apiInst)
 		return nil
 	})
 	require.NoError(t, err)
@@ -234,7 +284,7 @@ func TestInstanceList(t *testing.T) {
 	assert.Len(t, instances, 1)
 
 	assert.Equal(t, instances[0].Config, map[string]string{"a": "1", "c": "3"})
-	assert.Equal(t, db.DevicesToAPI(instances[0].Devices), map[string]map[string]string{
+	assert.Equal(t, instances[0].Devices, map[string]map[string]string{
 		"root": {"type": "disk", "b": "2"},
 		"eth0": {"type": "nic", "d": "4"},
 	})
@@ -254,30 +304,51 @@ func TestCreateInstance(t *testing.T) {
 		Stateful:     true,
 		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
-		Config:       map[string]string{"x": "y"},
-		Devices: map[string]db.Device{
-			"root": {
-				Name:   "root",
-				Config: map[string]string{"type": "disk", "x": "y"},
-			},
+	}
+
+	instanceConfig := map[string]string{"x": "y"}
+	instanceDevices := map[string]db.Device{
+		"root": {
+			Name:   "root",
+			Config: map[string]string{"type": "disk", "x": "y"},
 		},
-		Profiles: []string{"default"},
 	}
 
 	id, err := tx.CreateInstance(object)
 	require.NoError(t, err)
-
 	assert.Equal(t, int64(1), id)
 
 	c1, err := tx.GetInstance("default", "c1")
 	require.NoError(t, err)
 
+	err = tx.CreateInstanceConfig(id, instanceConfig)
+	require.NoError(t, err)
+
+	err = tx.CreateInstanceDevice(id, instanceDevices["root"])
+	require.NoError(t, err)
+
+	profile, err := tx.GetProfile("default", "default")
+	require.NoError(t, err)
+
+	err = tx.UpdateInstanceProfiles(*c1, []db.Profile{*profile})
+	require.NoError(t, err)
+
+	config, err := tx.GetInstanceConfig(c1.ID)
+	require.NoError(t, err)
+
+	devices, err := tx.GetInstanceDevices(c1.ID)
+	require.NoError(t, err)
+
+	profiles, err := tx.GetInstanceProfiles(*c1)
+	assert.Equal(t, 1, len(profiles))
+	require.NoError(t, err)
+
 	assert.Equal(t, "c1", c1.Name)
-	assert.Equal(t, map[string]string{"x": "y"}, c1.Config)
-	assert.Len(t, c1.Devices, 1)
-	assert.Equal(t, "root", c1.Devices["root"].Name)
-	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, c1.Devices["root"].Config)
-	assert.Equal(t, []string{"default"}, c1.Profiles)
+	assert.Equal(t, map[string]string{"x": "y"}, config)
+	assert.Len(t, devices, 1)
+	assert.Equal(t, "root", devices["root"].Name)
+	assert.Equal(t, map[string]string{"type": "disk", "x": "y"}, devices["root"].Config)
+	assert.Equal(t, "default", profiles[0].Name)
 }
 
 func TestCreateInstance_Snapshot(t *testing.T) {
@@ -294,21 +365,38 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 		Stateful:     false,
 		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
-		Config: map[string]string{
-			"image.architecture":  "x86_64",
-			"image.description":   "BusyBox x86_64",
-			"image.name":          "busybox-x86_64",
-			"image.os":            "BusyBox",
-			"volatile.base_image": "1f7f054e6ccb",
-		},
-		Devices:  map[string]db.Device{},
-		Profiles: []string{"default"},
+	}
+
+	instanceConfig := map[string]string{
+		"image.architecture":  "x86_64",
+		"image.description":   "BusyBox x86_64",
+		"image.name":          "busybox-x86_64",
+		"image.os":            "BusyBox",
+		"volatile.base_image": "1f7f054e6ccb",
 	}
 
 	id, err := tx.CreateInstance(instance)
 	require.NoError(t, err)
-
 	assert.Equal(t, int64(1), id)
+
+	c1, err := tx.GetInstance("default", "foo")
+	require.NoError(t, err)
+
+	err = tx.CreateInstanceConfig(id, instanceConfig)
+	require.NoError(t, err)
+
+	err = tx.CreateInstanceDevice(id, db.Device{})
+	require.NoError(t, err)
+
+	profile, err := tx.GetProfile("default", "default")
+	require.NoError(t, err)
+
+	err = tx.UpdateInstanceProfiles(*c1, []db.Profile{*profile})
+	require.NoError(t, err)
+
+	profiles, err := tx.GetInstanceProfiles(*c1)
+	assert.Equal(t, 1, len(profiles))
+	require.NoError(t, err)
 
 	snapshot := db.Instance{
 		Project:      "default",
@@ -320,18 +408,17 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 		Stateful:     false,
 		LastUseDate:  sql.NullTime{Time: time.Now(), Valid: true},
 		Description:  "container 1",
-		Config: map[string]string{
-			"image.architecture":      "x86_64",
-			"image.description":       "BusyBox x86_64",
-			"image.name":              "busybox-x86_64",
-			"image.os":                "BusyBox",
-			"volatile.apply_template": "create",
-			"volatile.base_image":     "1f7f054e6ccb",
-			"volatile.eth0.hwaddr":    "00:16:3e:2a:3f:e2",
-			"volatile.idmap.base":     "0",
-		},
-		Devices:  map[string]db.Device{},
-		Profiles: []string{"default"},
+	}
+
+	snapshotConfig := map[string]string{
+		"image.architecture":      "x86_64",
+		"image.description":       "BusyBox x86_64",
+		"image.name":              "busybox-x86_64",
+		"image.os":                "BusyBox",
+		"volatile.apply_template": "create",
+		"volatile.base_image":     "1f7f054e6ccb",
+		"volatile.eth0.hwaddr":    "00:16:3e:2a:3f:e2",
+		"volatile.idmap.base":     "0",
 	}
 
 	id, err = tx.CreateInstance(snapshot)
@@ -339,7 +426,16 @@ func TestCreateInstance_Snapshot(t *testing.T) {
 
 	assert.Equal(t, int64(2), id)
 
-	_, err = tx.GetInstance("default", "foo/snap0")
+	err = tx.CreateInstanceConfig(id, snapshotConfig)
+	require.NoError(t, err)
+
+	snap, err := tx.GetInstance("default", "foo/snap0")
+	require.NoError(t, err)
+
+	profile, err = tx.GetProfile("default", "default")
+	require.NoError(t, err)
+
+	err = tx.UpdateInstanceProfiles(*snap, []db.Profile{*profile})
 	require.NoError(t, err)
 }
 
@@ -410,18 +506,22 @@ func TestGetInstancePool(t *testing.T) {
 			Project: "default",
 			Name:    "c1",
 			Node:    "none",
-			Devices: map[string]db.Device{
-				"root": {
-					Name: "root",
-					Config: map[string]string{
-						"path": "/",
-						"pool": "default",
-						"type": "disk",
-					},
+		}
+		id, err := tx.CreateInstance(container)
+		require.NoError(t, err)
+
+		instanceDevices := map[string]db.Device{
+			"root": {
+				Name: "root",
+				Config: map[string]string{
+					"path": "/",
+					"pool": "default",
+					"type": "disk",
 				},
 			},
 		}
-		_, err := tx.CreateInstance(container)
+
+		err = tx.CreateInstanceDevice(id, instanceDevices["root"])
 		return err
 	})
 	require.NoError(t, err)
@@ -465,13 +565,26 @@ func TestGetLocalInstancesInProject(t *testing.T) {
 	assert.Equal(t, "none", containers[1].Node)
 	assert.Equal(t, "none", containers[2].Node)
 
-	assert.Equal(t, map[string]string{"x": "y"}, containers[0].Config)
-	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, containers[1].Config)
-	assert.Len(t, containers[2].Config, 0)
+	config, err := tx.GetInstanceConfig(containers[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"x": "y"}, config)
+	devices, err := tx.GetInstanceDevices(containers[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]map[string]string{"eth0": {"type": "nic"}}, db.DevicesToAPI(devices))
+	config, err = tx.GetInstanceConfig(containers[1].ID)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"z": "w", "a": "b"}, config)
 
-	assert.Equal(t, map[string]map[string]string{"eth0": {"type": "nic"}}, db.DevicesToAPI(containers[0].Devices))
-	assert.Len(t, containers[1].Devices, 0)
-	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, db.DevicesToAPI(containers[2].Devices))
+	devices, err = tx.GetInstanceDevices(containers[1].ID)
+	require.NoError(t, err)
+	assert.Len(t, devices, 0)
+
+	config, err = tx.GetInstanceConfig(containers[2].ID)
+	require.NoError(t, err)
+	assert.Len(t, config, 0)
+	devices, err = tx.GetInstanceDevices(containers[2].ID)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]map[string]string{"root": {"type": "disk", "x": "y"}}, db.DevicesToAPI(devices))
 }
 
 func addContainer(t *testing.T, tx *db.ClusterTx, nodeID int64, name string) {

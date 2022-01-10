@@ -53,10 +53,14 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 		profile := db.Profile{
 			Name:        "unprivileged",
 			Description: "unprivileged",
-			Config:      map[string]string{"security.privileged": "true"},
 			Project:     "default",
 		}
-		_, err := tx.CreateProfile(profile)
+		id, err := tx.CreateProfile(profile)
+		if err != nil {
+			return err
+		}
+
+		err = tx.CreateProfileConfig(id, map[string]string{"security.privileged": "true"})
 		return err
 	})
 
