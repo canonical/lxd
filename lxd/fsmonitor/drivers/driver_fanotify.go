@@ -154,6 +154,7 @@ func (d *fanotify) getEvents(mountFd int) {
 			d.logger.Error("Failed to read symlink", log.Ctx{"err": err})
 			continue
 		}
+		unix.Close(fd)
 
 		// If the target file has been deleted, the returned value might contain a " (deleted)" suffix.
 		// This needs to be removed.
