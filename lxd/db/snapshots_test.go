@@ -38,28 +38,46 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	assert.Len(t, snapshots, 3)
 
 	s1 := snapshots[0]
+	config, err := tx.GetInstanceSnapshotConfig(s1.ID)
+	require.NoError(t, err)
+
+	devices, err := tx.GetInstanceSnapshotDevices(s1.ID)
+	require.NoError(t, err)
+
 	assert.Equal(t, "snap1", s1.Name)
 	assert.Equal(t, "c1", s1.Instance)
-	assert.Equal(t, map[string]string{}, s1.Config)
-	assert.Len(t, s1.Devices, 0)
+	assert.Equal(t, map[string]string{}, config)
+	assert.Len(t, devices, 0)
 
 	s2 := snapshots[1]
+	config, err = tx.GetInstanceSnapshotConfig(s2.ID)
+	require.NoError(t, err)
+
+	devices, err = tx.GetInstanceSnapshotDevices(s2.ID)
+	require.NoError(t, err)
+
 	assert.Equal(t, "snap2", s2.Name)
 	assert.Equal(t, "c2", s2.Instance)
-	assert.Equal(t, map[string]string{"x": "y"}, s2.Config)
-	assert.Len(t, s2.Devices, 1)
-	assert.Equal(t, "eth0", s2.Devices["eth0"].Name)
-	assert.Equal(t, "nic", s2.Devices["eth0"].Type.String())
-	assert.Equal(t, map[string]string{}, s2.Devices["eth0"].Config)
+	assert.Equal(t, map[string]string{"x": "y"}, config)
+	assert.Len(t, devices, 1)
+	assert.Equal(t, "eth0", devices["eth0"].Name)
+	assert.Equal(t, "nic", devices["eth0"].Type.String())
+	assert.Equal(t, map[string]string{}, devices["eth0"].Config)
 
 	s3 := snapshots[2]
+	config, err = tx.GetInstanceSnapshotConfig(s3.ID)
+	require.NoError(t, err)
+
+	devices, err = tx.GetInstanceSnapshotDevices(s3.ID)
+	require.NoError(t, err)
+
 	assert.Equal(t, "snap3", s3.Name)
 	assert.Equal(t, "c2", s3.Instance)
-	assert.Equal(t, map[string]string{}, s3.Config)
-	assert.Len(t, s3.Devices, 1)
-	assert.Equal(t, "root", s3.Devices["root"].Name)
-	assert.Equal(t, "disk", s3.Devices["root"].Type.String())
-	assert.Equal(t, map[string]string{"x": "y"}, s3.Devices["root"].Config)
+	assert.Equal(t, map[string]string{}, config)
+	assert.Len(t, devices, 1)
+	assert.Equal(t, "root", devices["root"].Name)
+	assert.Equal(t, "disk", devices["root"].Type.String())
+	assert.Equal(t, map[string]string{"x": "y"}, devices["root"].Config)
 }
 
 func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {

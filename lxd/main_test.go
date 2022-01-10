@@ -90,8 +90,12 @@ func (suite *lxdTestSuite) SetupTest() {
 		if err != nil {
 			return err
 		}
-		profile.Devices["root"] = device
-		return tx.UpdateProfile("default", "default", *profile)
+		err = tx.UpdateProfile("default", "default", *profile)
+		if err != nil {
+			return err
+		}
+
+		return tx.UpdateProfileDevices(int64(profile.ID), map[string]db.Device{"root": device})
 	})
 	if err != nil {
 		suite.T().Errorf("failed to update default profile: %v", err)
