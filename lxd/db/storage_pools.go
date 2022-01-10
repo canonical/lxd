@@ -710,23 +710,63 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 //
 // The pool must be in the created stated, not pending.
 func (c *Cluster) GetStoragePool(poolName string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(true, "name=?", poolName)
+	var poolID int64
+	var storagePool *api.StoragePool
+	var nodes map[int64]StoragePoolNode
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		poolID, storagePool, nodes, err = tx.getStoragePool(true, "name=?", poolName)
+		return err
+	})
+	if err != nil {
+		return -1, nil, nil, err
+	}
+	return poolID, storagePool, nodes, nil
 }
 
 // GetStoragePoolInAnyState returns the storage pool with the given name.
 //
 // The pool can be in any state.
 func (c *Cluster) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
+	var poolID int64
+	var storagePool *api.StoragePool
+	var nodes map[int64]StoragePoolNode
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		poolID, storagePool, nodes, err = tx.GetStoragePoolInAnyState(name)
+		return err
+	})
+	if err != nil {
+		return -1, nil, nil, err
+	}
+	return poolID, storagePool, nodes, nil
+}
+
+// GetStoragePoolInAnyState returns the storage pool with the given name.
+//
+// The pool can be in any state.
+func (c *ClusterTx) GetStoragePoolInAnyState(name string) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	return c.getStoragePool(false, "name=?", name)
 }
 
 // GetStoragePoolWithID returns the storage pool with the given ID.
 func (c *Cluster) GetStoragePoolWithID(poolID int) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
-	return c.getStoragePool(true, "id=?", poolID)
+	var id int64
+	var storagePool *api.StoragePool
+	var nodes map[int64]StoragePoolNode
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		id, storagePool, nodes, err = tx.getStoragePool(true, "name=?", poolID)
+		return err
+	})
+	if err != nil {
+		return -1, nil, nil, err
+	}
+	return id, storagePool, nodes, nil
 }
 
 // GetStoragePool returns a single storage pool.
-func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interface{}) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
+func (c *ClusterTx) getStoragePool(onlyCreated bool, where string, args ...interface{}) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	var poolDriver string
 	var poolName string
 	poolID := int64(-1)
@@ -741,7 +781,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interfa
 		inargs = append(inargs, storagePoolCreated)
 	}
 
-	err := dbQueryRowScan(c, query, inargs, outargs)
+	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return -1, nil, nil, ErrNoSuchObject
@@ -762,7 +802,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interfa
 	storagePool.Config = config
 	storagePool.Status = StoragePoolStateToAPIStatus(state)
 
-	nodes, err := c.StoragePoolNodes(poolID)
+	nodes, err := c.storagePoolNodes(poolID)
 	if err != nil {
 		return -1, nil, nil, err
 	}
@@ -810,12 +850,27 @@ func (c *Cluster) StoragePoolNodes(poolID int64) (map[int64]StoragePoolNode, err
 
 // Return the config of a storage pool.
 func (c *Cluster) getStoragePoolConfig(poolID int64) (map[string]string, error) {
+	var config map[string]string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		config, err = tx.getStoragePoolConfig(poolID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+// Return the config of a storage pool.
+func (c *ClusterTx) getStoragePoolConfig(poolID int64) (map[string]string, error) {
 	var key, value string
 	query := "SELECT key, value FROM storage_pools_config WHERE storage_pool_id=? AND (node_id=? OR node_id IS NULL)"
 	inargs := []interface{}{poolID, c.nodeID}
 	outargs := []interface{}{key, value}
 
-	results, err := queryScan(c, query, inargs, outargs)
+	results, err := doDbQueryScan(c.tx, query, inargs, outargs)
 	if err != nil {
 		return nil, err
 	}
@@ -999,15 +1054,21 @@ func (c *Cluster) IsRemoteStorage(poolID int64) (bool, error) {
 	isRemoteStorage := false
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		driver, err := tx.GetStoragePoolDriver(poolID)
-		if err != nil {
-			return err
-		}
-
-		isRemoteStorage = shared.StringInSlice(driver, StorageRemoteDriverNames())
-
-		return nil
+		var err error
+		isRemoteStorage, err = tx.IsRemoteStorage(poolID)
+		return err
 	})
 
+	return isRemoteStorage, err
+}
+
+// IsRemoteStorage return whether a given pool is backed by remote storage.
+func (c *ClusterTx) IsRemoteStorage(poolID int64) (bool, error) {
+	driver, err := c.GetStoragePoolDriver(poolID)
+	if err != nil {
+		return false, err
+	}
+
+	isRemoteStorage := shared.StringInSlice(driver, StorageRemoteDriverNames())
 	return isRemoteStorage, err
 }

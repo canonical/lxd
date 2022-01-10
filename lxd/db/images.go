@@ -67,6 +67,21 @@ var ImageSourceProtocol = map[int]string{
 	2: "simplestreams",
 }
 
+// ToAPI converts a databse Image struct to its api package equivalent.
+// TODO: Combine this method with ClusterTx.imageFill
+func (i Image) ToAPI() api.Image {
+	return api.Image{
+		Fingerprint: i.Fingerprint,
+		Filename:    i.Filename,
+		Size:        i.Size,
+		Cached:      i.Cached,
+		ImagePut: api.ImagePut{
+			Public:     i.Public,
+			AutoUpdate: i.AutoUpdate,
+		},
+	}
+}
+
 // GetLocalImagesFingerprints returns the fingerprints of all local images.
 func (c *ClusterTx) GetLocalImagesFingerprints() ([]string, error) {
 	q := `
@@ -267,18 +282,28 @@ SELECT fingerprint
 
 // GetExpiredImagesInProject returns the names of all images that have expired since the given time.
 func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]string, error) {
-	var images []Image
+	var images []string
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		cached := true
-		images, err = tx.GetImages(ImageFilter{Cached: &cached, Project: &project})
+		images, err = tx.GetExpiredImagesInProject(expiry, project)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	return images, nil
+}
+
+// GetExpiredImagesInProject returns the names of all images that have expired since the given time.
+func (c *ClusterTx) GetExpiredImagesInProject(expiry int64, project string) ([]string, error) {
 	results := []string{}
+	cached := true
+	images, err := c.GetImages(ImageFilter{Cached: &cached, Project: &project})
+	if err != nil {
+		return nil, err
+	}
+
 	for _, r := range images {
 		// Figure out the expiry
 		timestamp := r.UploadDate
@@ -453,8 +478,28 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 // publicOnly, when true, will return the image only if it is public;
 // a false value will return any image matching the fingerprint prefix.
 func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *api.Image, error) {
-	var image api.Image
-	var object Image
+	var image *api.Image
+	var id int
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		id, image, err = tx.GetImageByFingerprintPrefix(fingerprintPrefix, filter)
+		return err
+	})
+	if err != nil {
+		return -1, nil, err
+	}
+
+	return id, image, nil
+}
+
+// GetImageByFingerprintPrefix gets an Image object from the database.
+//
+// The fingerprint argument will be queried with a LIKE query, means you can
+// pass a shortform and will get the full fingerprint. However in case the
+// shortform matches more than one image, an error will be returned.
+// publicOnly, when true, will return the image only if it is public;
+// a false value will return any image matching the fingerprint prefix.
+func (c *ClusterTx) GetImageByFingerprintPrefix(fingerprintPrefix string, filter ImageFilter) (int, *api.Image, error) {
 	if fingerprintPrefix == "" {
 		return -1, nil, ErrNoSuchObject
 	}
@@ -463,55 +508,43 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 		return -1, nil, errors.New("no project specified for the image")
 	}
 
-	err := c.Transaction(func(tx *ClusterTx) error {
-		profileProject := *filter.Project
-		enabled, err := tx.ProjectHasImages(*filter.Project)
-		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
-		}
-		if !enabled {
-			project := "default"
-			filter.Project = &project
-		}
-
-		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
-		if err != nil {
-			return errors.Wrap(err, "Failed to fetch images")
-		}
-
-		switch len(images) {
-		case 0:
-			return ErrNoSuchObject
-		case 1:
-			object = images[0]
-		default:
-			return fmt.Errorf("More than one image matches")
-		}
-
-		image.Fingerprint = object.Fingerprint
-		image.Filename = object.Filename
-		image.Size = object.Size
-		image.Cached = object.Cached
-		image.Public = object.Public
-		image.AutoUpdate = object.AutoUpdate
-
-		err = tx.imageFill(
-			object.ID, &image,
-			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
-			&object.UploadDate, object.Architecture, object.Type)
-		if err != nil {
-			return errors.Wrapf(err, "Fill image details")
-		}
-
-		err = tx.imageFillProfiles(object.ID, &image, profileProject)
-		if err != nil {
-			return errors.Wrapf(err, "Fill image profiles")
-		}
-
-		return nil
-	})
+	profileProject := *filter.Project
+	enabled, err := c.ProjectHasImages(*filter.Project)
 	if err != nil {
-		return -1, nil, err
+		return -1, nil, fmt.Errorf("Check if project has images: %w", err)
+	}
+	if !enabled {
+		project := "default"
+		filter.Project = &project
+	}
+
+	images, err := c.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Failed to fetch images: %w", err)
+	}
+
+	var object Image
+	switch len(images) {
+	case 0:
+		return -1, nil, ErrNoSuchObject
+	case 1:
+		object = images[0]
+	default:
+		return -1, nil, fmt.Errorf("More than one image matches: %w", err)
+	}
+
+	image := object.ToAPI()
+	err = c.imageFill(
+		object.ID, &image,
+		&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
+		&object.UploadDate, object.Architecture, object.Type)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Fill image details: %w", err)
+	}
+
+	err = c.imageFillProfiles(object.ID, &image, profileProject)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Fill image profiles: %w", err)
 	}
 
 	return object.ID, &image, nil
@@ -521,40 +554,42 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 // it exists in any project.
 func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, error) {
 	// The object we'll actually return
-	var image api.Image
-	var object Image
+	var image *api.Image
+	var id int
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		images, err := tx.getImagesByFingerprintPrefix(fingerprint, ImageFilter{})
-		if err != nil {
-			return errors.Wrap(err, "Failed to fetch images")
-		}
-
-		if len(images) == 0 {
-			return ErrNoSuchObject
-		}
-
-		object = images[0]
-
-		image.Fingerprint = object.Fingerprint
-		image.Filename = object.Filename
-		image.Size = object.Size
-		image.Cached = object.Cached
-		image.Public = object.Public
-		image.AutoUpdate = object.AutoUpdate
-
-		err = tx.imageFill(
-			object.ID, &image,
-			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
-			&object.UploadDate, object.Architecture, object.Type)
-		if err != nil {
-			return errors.Wrapf(err, "Fill image details")
-		}
-
-		return nil
+		var err error
+		id, image, err = tx.GetImageFromAnyProject(fingerprint)
+		return err
 	})
 	if err != nil {
 		return -1, nil, errors.Wrapf(err, "Get image %q", fingerprint)
+	}
+
+	return id, image, nil
+}
+
+// GetImageFromAnyProject returns an image matching the given fingerprint, if
+// it exists in any project.
+func (c *ClusterTx) GetImageFromAnyProject(fingerprint string) (int, *api.Image, error) {
+	images, err := c.getImagesByFingerprintPrefix(fingerprint, ImageFilter{})
+	if err != nil {
+		return -1, nil, fmt.Errorf("Failed to fetch images: %w", err)
+	}
+
+	if len(images) == 0 {
+		return -1, nil, ErrNoSuchObject
+	}
+
+	object := images[0]
+	image := object.ToAPI()
+
+	err = c.imageFill(
+		object.ID, &image,
+		&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
+		&object.UploadDate, object.Architecture, object.Type)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Fill image details: %w", err)
 	}
 
 	return object.ID, &image, nil
@@ -694,15 +729,21 @@ func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
 // DeleteImage deletes the image with the given ID.
 func (c *Cluster) DeleteImage(id int) error {
 	return c.Transaction(func(tx *ClusterTx) error {
-		deleted, err := query.DeleteObject(tx.tx, "images", int64(id))
-		if err != nil {
-			return err
-		}
-		if !deleted {
-			return fmt.Errorf("No image with ID %d", id)
-		}
-		return nil
+		return tx.DeleteImage(id)
 	})
+}
+
+// DeleteImage deletes the image with the given ID.
+func (c *ClusterTx) DeleteImage(id int) error {
+	deleted, err := query.DeleteObject(c.tx, "images", int64(id))
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return fmt.Errorf("No image with ID %d", id)
+	}
+
+	return nil
 }
 
 // GetImageAliases returns the names of the aliases of all images.
@@ -1095,13 +1136,23 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 
 // GetPoolsWithImage get the IDs of all storage pools on which a given image exists.
 func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
-	q := "SELECT storage_pool_id FROM storage_volumes WHERE (node_id=? OR node_id IS NULL) AND name=? AND type=?"
-	var ids []int
+	var poolIDs []int64
 	err := c.Transaction(func(tx *ClusterTx) error {
 		var err error
-		ids, err = query.SelectIntegers(tx.tx, q, c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage)
+		poolIDs, err = tx.GetPoolsWithImage(imageFingerprint)
 		return err
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return poolIDs, nil
+}
+
+// GetPoolsWithImage get the IDs of all storage pools on which a given image exists.
+func (c *ClusterTx) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
+	q := "SELECT storage_pool_id FROM storage_volumes WHERE (node_id=? OR node_id IS NULL) AND name=? AND type=?"
+	ids, err := query.SelectIntegers(c.tx, q, c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage)
 	if err != nil {
 		return nil, err
 	}
@@ -1116,6 +1167,22 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 
 // GetPoolNamesFromIDs get the names of the storage pools with the given IDs.
 func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
+	var poolNames []string
+
+	err := c.Transaction(func(tx *ClusterTx) error {
+		var err error
+		poolNames, err = tx.GetPoolNamesFromIDs(poolIDs)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return poolNames, nil
+}
+
+// GetPoolNamesFromIDs get the names of the storage pools with the given IDs.
+func (c *ClusterTx) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	params := make([]string, len(poolIDs))
 	args := make([]interface{}, len(poolIDs))
 	for i, id := range poolIDs {
@@ -1126,11 +1193,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 
 	var poolNames []string
 
-	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
-		poolNames, err = query.SelectStrings(tx.tx, q, args...)
-		return err
-	})
+	poolNames, err := query.SelectStrings(c.tx, q, args...)
 	if err != nil {
 		return nil, err
 	}
