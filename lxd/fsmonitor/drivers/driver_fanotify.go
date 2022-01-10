@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -147,7 +146,7 @@ func (d *fanotify) getEvents(mountFd int) {
 			d.logger.Error("Failed to open file", log.Ctx{"err": err})
 			continue
 		}
-		syscall.CloseOnExec(fd)
+		unix.CloseOnExec(fd)
 
 		// Determine the directory of the created or deleted file.
 		target, err := os.Readlink(fmt.Sprintf("/proc/self/fd/%d", fd))
@@ -155,6 +154,7 @@ func (d *fanotify) getEvents(mountFd int) {
 			d.logger.Error("Failed to read symlink", log.Ctx{"err": err})
 			continue
 		}
+		unix.Close(fd)
 
 		// If the target file has been deleted, the returned value might contain a " (deleted)" suffix.
 		// This needs to be removed.
