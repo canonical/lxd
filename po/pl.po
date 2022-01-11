@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-01-05 17:23-0500\n"
+"POT-Creation-Date: 2022-01-26 16:18-0500\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -362,11 +362,11 @@ msgstr ""
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
-#: lxc/copy.go:156
+#: lxc/copy.go:158
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr ""
 
-#: lxc/copy.go:85
+#: lxc/copy.go:87
 msgid "--no-profiles cannot be used with --refresh"
 msgstr ""
 
@@ -374,7 +374,7 @@ msgstr ""
 msgid "--project cannot be used with the query command"
 msgstr ""
 
-#: lxc/copy.go:167
+#: lxc/copy.go:169
 msgid "--refresh can only be used with instances"
 msgstr ""
 
@@ -611,7 +611,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:126 lxc/init.go:208 lxc/project.go:124 lxc/publish.go:175
+#: lxc/copy.go:128 lxc/init.go:208 lxc/project.go:124 lxc/publish.go:175
 #: lxc/storage.go:126 lxc/storage_volume.go:533
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -622,7 +622,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr ""
 
-#: lxc/copy.go:137
+#: lxc/copy.go:139
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -696,7 +696,7 @@ msgstr ""
 msgid "Caches:"
 msgstr ""
 
-#: lxc/move.go:107
+#: lxc/move.go:109
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -772,8 +772,8 @@ msgid "Cluster join token for %s:%s deleted"
 msgstr ""
 
 #: lxc/config.go:98 lxc/config.go:367 lxc/config.go:470 lxc/config.go:617
-#: lxc/config.go:736 lxc/copy.go:52 lxc/info.go:46 lxc/init.go:55
-#: lxc/move.go:57 lxc/network.go:272 lxc/network.go:687 lxc/network.go:745
+#: lxc/config.go:736 lxc/copy.go:53 lxc/info.go:46 lxc/init.go:55
+#: lxc/move.go:58 lxc/network.go:272 lxc/network.go:687 lxc/network.go:745
 #: lxc/network.go:1032 lxc/network.go:1099 lxc/network.go:1161
 #: lxc/storage.go:95 lxc/storage.go:339 lxc/storage.go:400 lxc/storage.go:596
 #: lxc/storage.go:668 lxc/storage.go:751 lxc/storage_volume.go:310
@@ -810,7 +810,7 @@ msgstr ""
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr ""
 
-#: lxc/copy.go:44 lxc/init.go:49
+#: lxc/copy.go:45 lxc/init.go:49
 msgid "Config key/value to apply to the new instance"
 msgstr ""
 
@@ -818,7 +818,7 @@ msgstr ""
 msgid "Config key/value to apply to the new project"
 msgstr ""
 
-#: lxc/move.go:49
+#: lxc/move.go:50
 msgid "Config key/value to apply to the target instance"
 msgstr ""
 
@@ -839,7 +839,7 @@ msgstr ""
 msgid "Control: %s (%s)"
 msgstr ""
 
-#: lxc/copy.go:50 lxc/move.go:55
+#: lxc/copy.go:51 lxc/move.go:56
 msgid "Copy a stateful instance stateless"
 msgstr ""
 
@@ -859,7 +859,7 @@ msgid ""
 "It requires the source to be an alias and for it to be public."
 msgstr ""
 
-#: lxc/copy.go:39 lxc/copy.go:40
+#: lxc/copy.go:40 lxc/copy.go:41
 msgid "Copy instances within or in between LXD servers"
 msgstr ""
 
@@ -875,7 +875,7 @@ msgstr ""
 msgid "Copy storage volumes"
 msgstr ""
 
-#: lxc/copy.go:49
+#: lxc/copy.go:50
 msgid "Copy the instance without its snapshots"
 msgstr ""
 
@@ -883,7 +883,7 @@ msgstr ""
 msgid "Copy the volume without its snapshots"
 msgstr ""
 
-#: lxc/copy.go:53 lxc/move.go:58 lxc/storage_volume.go:313
+#: lxc/copy.go:54 lxc/move.go:59 lxc/storage_volume.go:313
 msgid "Copy to a project different from the source"
 msgstr ""
 
@@ -999,7 +999,7 @@ msgstr ""
 msgid "Create storage pools"
 msgstr ""
 
-#: lxc/copy.go:54 lxc/init.go:56
+#: lxc/copy.go:55 lxc/init.go:56
 msgid "Create the instance with no profiles applied"
 msgstr ""
 
@@ -1103,7 +1103,7 @@ msgstr ""
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:28 lxc/config_trust.go:62
 #: lxc/config_trust.go:134 lxc/config_trust.go:212 lxc/console.go:36
-#: lxc/copy.go:40 lxc/delete.go:31 lxc/exec.go:40 lxc/export.go:32
+#: lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42 lxc/export.go:32
 #: lxc/file.go:75 lxc/file.go:111 lxc/file.go:160 lxc/file.go:223
 #: lxc/file.go:418 lxc/image.go:38 lxc/image.go:131 lxc/image.go:281
 #: lxc/image.go:332 lxc/image.go:457 lxc/image.go:616 lxc/image.go:836
@@ -1111,7 +1111,7 @@ msgstr ""
 #: lxc/image_alias.go:61 lxc/image_alias.go:108 lxc/image_alias.go:153
 #: lxc/image_alias.go:255 lxc/import.go:28 lxc/info.go:34 lxc/init.go:41
 #: lxc/launch.go:25 lxc/list.go:46 lxc/main.go:80 lxc/manpage.go:22
-#: lxc/monitor.go:33 lxc/move.go:36 lxc/network.go:32 lxc/network.go:111
+#: lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:32 lxc/network.go:111
 #: lxc/network.go:196 lxc/network.go:269 lxc/network.go:341 lxc/network.go:391
 #: lxc/network.go:476 lxc/network.go:561 lxc/network.go:684 lxc/network.go:742
 #: lxc/network.go:822 lxc/network.go:907 lxc/network.go:976 lxc/network.go:1026
@@ -1215,15 +1215,15 @@ msgstr ""
 msgid "Directory import is not available on this platform"
 msgstr ""
 
-#: lxc/exec.go:60
+#: lxc/exec.go:62
 msgid "Directory to run the command in (default /root)"
 msgstr ""
 
-#: lxc/exec.go:56
+#: lxc/exec.go:58
 msgid "Disable pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/exec.go:57
+#: lxc/exec.go:59
 msgid "Disable stdin (reads from /dev/null)"
 msgstr ""
 
@@ -1339,11 +1339,11 @@ msgid ""
 "  for the address if not yet set."
 msgstr ""
 
-#: lxc/exec.go:53
+#: lxc/exec.go:55
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:47 lxc/init.go:51
+#: lxc/copy.go:48 lxc/init.go:51
 msgid "Ephemeral instance"
 msgstr ""
 
@@ -1356,11 +1356,11 @@ msgstr ""
 msgid "Event type to listen for"
 msgstr ""
 
-#: lxc/exec.go:39
+#: lxc/exec.go:41
 msgid "Execute commands in instances"
 msgstr ""
 
-#: lxc/exec.go:40
+#: lxc/exec.go:42
 msgid ""
 "Execute commands in instances\n"
 "\n"
@@ -1422,7 +1422,7 @@ msgstr ""
 msgid "FINGERPRINT"
 msgstr ""
 
-#: lxc/move.go:237
+#: lxc/move.go:240
 msgid "Failed to connect to cluster member"
 msgstr ""
 
@@ -1431,7 +1431,7 @@ msgstr ""
 msgid "Failed to create alias %s"
 msgstr ""
 
-#: lxc/copy.go:409
+#: lxc/copy.go:412
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -1458,7 +1458,7 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr ""
 
-#: lxc/exec.go:55
+#: lxc/exec.go:57
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
@@ -1581,7 +1581,7 @@ msgstr ""
 msgid "Get values for storage volume configuration keys"
 msgstr ""
 
-#: lxc/exec.go:59
+#: lxc/exec.go:61
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
@@ -1631,7 +1631,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:371
+#: lxc/main.go:376
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -1643,6 +1643,10 @@ msgstr ""
 
 #: lxc/storage_volume.go:1630
 msgid "Ignore any configured auto-expiry for the storage volume"
+msgstr ""
+
+#: lxc/copy.go:57 lxc/move.go:60
+msgid "Ignore copy errors for volatile files"
 msgstr ""
 
 #: lxc/action.go:117
@@ -1719,7 +1723,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:415 lxc/init.go:364
+#: lxc/copy.go:418 lxc/init.go:364
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -1783,7 +1787,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:461
+#: lxc/main.go:472
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -2241,11 +2245,11 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:250
+#: lxc/move.go:253
 msgid "Migration API failure"
 msgstr ""
 
-#: lxc/move.go:255
+#: lxc/move.go:258
 msgid "Migration operation failure"
 msgstr ""
 
@@ -2342,7 +2346,7 @@ msgstr ""
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
-#: lxc/move.go:35 lxc/move.go:36
+#: lxc/move.go:36 lxc/move.go:37
 msgid "Move instances within or in between LXD servers"
 msgstr ""
 
@@ -2350,7 +2354,7 @@ msgstr ""
 msgid "Move storage volumes between pools"
 msgstr ""
 
-#: lxc/move.go:53
+#: lxc/move.go:54
 msgid "Move the instance without its snapshots"
 msgstr ""
 
@@ -2458,7 +2462,7 @@ msgstr ""
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/copy.go:45 lxc/move.go:50
+#: lxc/copy.go:46 lxc/move.go:51
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
@@ -2522,7 +2526,7 @@ msgstr ""
 msgid "Override the source project"
 msgstr ""
 
-#: lxc/exec.go:54
+#: lxc/exec.go:56
 msgid "Override the terminal mode (auto, interactive or non-interactive)"
 msgstr ""
 
@@ -2572,7 +2576,7 @@ msgstr ""
 msgid "Pause instances"
 msgstr ""
 
-#: lxc/copy.go:55
+#: lxc/copy.go:56
 msgid "Perform an incremental copy"
 msgstr ""
 
@@ -2658,11 +2662,11 @@ msgstr ""
 msgid "Profile %s renamed to %s"
 msgstr ""
 
-#: lxc/copy.go:46 lxc/init.go:50
+#: lxc/copy.go:47 lxc/init.go:50
 msgid "Profile to apply to the new instance"
 msgstr ""
 
-#: lxc/move.go:51
+#: lxc/move.go:52
 msgid "Profile to apply to the target instance"
 msgstr ""
 
@@ -2764,7 +2768,7 @@ msgstr ""
 msgid "Refresh images"
 msgstr ""
 
-#: lxc/copy.go:376
+#: lxc/copy.go:379
 #, c-format
 msgid "Refreshing instance: %s"
 msgstr ""
@@ -3316,7 +3320,7 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:51 lxc/import.go:35 lxc/init.go:53 lxc/move.go:56
+#: lxc/copy.go:52 lxc/import.go:35 lxc/init.go:53 lxc/move.go:57
 msgid "Storage pool name"
 msgstr ""
 
@@ -3386,19 +3390,19 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/move.go:160
+#: lxc/move.go:162
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:164
+#: lxc/move.go:166
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:156
+#: lxc/move.go:158
 msgid "The --stateless flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:176
+#: lxc/move.go:178
 msgid "The destination LXD server is not clustered"
 msgstr ""
 
@@ -3434,7 +3438,7 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr ""
 
-#: lxc/move.go:242
+#: lxc/move.go:245
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -3487,14 +3491,14 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:376
+#: lxc/main.go:381
 msgid ""
 "To start your first container, try: lxc launch ubuntu:20.04\n"
 "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
 msgstr ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
-#: lxc/copy.go:119 lxc/info.go:331 lxc/network.go:774 lxc/storage.go:428
+#: lxc/copy.go:121 lxc/info.go:331 lxc/network.go:774 lxc/storage.go:428
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -3512,11 +3516,11 @@ msgstr ""
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr ""
 
-#: lxc/copy.go:48
+#: lxc/copy.go:49
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr ""
 
-#: lxc/move.go:54 lxc/storage_volume.go:309
+#: lxc/move.go:55 lxc/storage_volume.go:309
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
@@ -3525,7 +3529,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:342
+#: lxc/copy.go:345
 #, c-format
 msgid "Transferring instance: %s"
 msgstr ""
@@ -3584,7 +3588,7 @@ msgstr ""
 msgid "Unknown file type '%s'"
 msgstr ""
 
-#: lxc/move.go:52
+#: lxc/move.go:53
 msgid "Unset all profiles on the target instance"
 msgstr ""
 
@@ -3650,7 +3654,7 @@ msgstr ""
 msgid "Used: %v"
 msgstr ""
 
-#: lxc/exec.go:58
+#: lxc/exec.go:60
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
@@ -3711,19 +3715,19 @@ msgstr ""
 msgid "YES"
 msgstr ""
 
-#: lxc/exec.go:92
+#: lxc/exec.go:94
 msgid "You can't pass -t and -T at the same time"
 msgstr ""
 
-#: lxc/exec.go:96
+#: lxc/exec.go:98
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
-#: lxc/copy.go:80
+#: lxc/copy.go:82
 msgid "You must specify a destination instance name when using --target"
 msgstr ""
 
-#: lxc/copy.go:75 lxc/move.go:226
+#: lxc/copy.go:77 lxc/move.go:229
 msgid "You must specify a source instance name"
 msgstr ""
 
@@ -3859,7 +3863,7 @@ msgstr ""
 msgid "[<remote>:]<instance> [[<remote>:]<instance>...]"
 msgstr ""
 
-#: lxc/exec.go:38
+#: lxc/exec.go:40
 msgid "[<remote>:]<instance> [flags] [--] <command line>"
 msgstr ""
 
@@ -3888,7 +3892,7 @@ msgstr ""
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 msgstr ""
 
-#: lxc/move.go:33
+#: lxc/move.go:34
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 
@@ -4060,7 +4064,7 @@ msgstr ""
 msgid "[<remote>:]<project> <new-name>"
 msgstr ""
 
-#: lxc/copy.go:37
+#: lxc/copy.go:38
 msgid "[<remote>:]<source>[/<snapshot>] [[<remote>:]<destination>]"
 msgstr ""
 
@@ -4259,7 +4263,7 @@ msgid ""
 "    Only show lifecycle events."
 msgstr ""
 
-#: lxc/move.go:38
+#: lxc/move.go:39
 msgid ""
 "lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--"
 "instance-only]\n"
