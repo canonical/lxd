@@ -19,14 +19,15 @@ type Type struct {
 
 // VolumeSourceArgs represents the arguments needed to setup a volume migration source.
 type VolumeSourceArgs struct {
-	Name          string
-	Snapshots     []string
-	MigrationType Type
-	TrackProgress bool
-	MultiSync     bool
-	FinalSync     bool
-	Data          interface{} // Optional store to persist storage driver state between MultiSync phases.
-	ContentType   string
+	Name              string
+	Snapshots         []string
+	MigrationType     Type
+	TrackProgress     bool
+	MultiSync         bool
+	FinalSync         bool
+	Data              interface{} // Optional store to persist storage driver state between MultiSync phases.
+	ContentType       string
+	AllowInconsistent bool
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
