@@ -87,7 +87,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"cloud-init.user-data":      validate.Optional(validate.IsAny),
 	"cloud-init.vendor-data":    validate.Optional(validate.IsAny),
 
-	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "stop")),
+	"cluster.evacuate": validate.Optional(validate.IsOneOf("auto", "migrate", "live-migrate", "stop")),
 
 	"limits.cpu": func(value string) error {
 		if value == "" {

@@ -304,6 +304,7 @@ var APIExtensions = []string{
 	"qemu_metrics",
 	"gpu_mig_uuid",
 	"event_project",
+	"clustering_evacuation_live",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
