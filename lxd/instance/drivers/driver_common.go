@@ -904,7 +904,7 @@ func (d *common) warningsDelete() error {
 }
 
 // canMigrate returns whether the instance can be migrated.
-func (d *common) canMigrate(inst instance.Instance) bool {
+func (d *common) canMigrate(inst instance.Instance) (bool, bool) {
 	// Check policy for the instance.
 	config := d.ExpandedConfig()
 	val, ok := config["cluster.evacuate"]
@@ -913,11 +913,15 @@ func (d *common) canMigrate(inst instance.Instance) bool {
 	}
 
 	if val == "migrate" {
-		return true
+		return true, false
+	}
+
+	if val == "live-migrate" {
+		return true, true
 	}
 
 	if val == "stop" {
-		return false
+		return false, false
 	}
 
 	// Look at attached devices.
@@ -926,15 +930,22 @@ func (d *common) canMigrate(inst instance.Instance) bool {
 	for deviceName, rawConfig := range d.ExpandedDevices() {
 		dev, err := device.New(inst, d.state, deviceName, rawConfig, volatileGet, volatileSet)
 		if err != nil {
-			return false
+			return false, false
 		}
 
 		if !dev.CanMigrate() {
-			return false
+			return false, false
 		}
 	}
 
-	return true
+	// Check if set up for live migration.
+	// Limit automatic live-migration to virtual machines for now.
+	live := false
+	if inst.Type() == instancetype.VM {
+		live = shared.IsTrue(config["migration.stateful"])
+	}
+
+	return true, live
 }
 
 // recordLastState records last power and used time into local config and database config.

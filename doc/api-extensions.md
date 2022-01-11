@@ -1558,3 +1558,7 @@ cannot be set together.
 
 ## event\_project
 Expose the project an API event belongs to.
+
+## clustering\_evacuation\_live
+This adds `live-migrate` as a config option to `cluster.evacuate`, which forces live-migration
+of instances during cluster evacuation.

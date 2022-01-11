@@ -50,7 +50,7 @@ boot.stop.priority                          | integer   | 0                 | n/
 cloud-init.network-config                   | string    | DHCP on eth0      | no            | -                         | Cloud-init network-config, content is used as seed value
 cloud-init.user-data                        | string    | #cloud-config     | no            | -                         | Cloud-init user-data, content is used as seed value
 cloud-init.vendor-data                      | string    | #cloud-config     | no            | -                         | Cloud-init vendor-data, content is used as seed value
-cluster.evacuate                            | string    | auto              | n/a           | -                         | What to do when evacuating the instance (auto, migrate, or stop)
+cluster.evacuate                            | string    | auto              | n/a           | -                         | What to do when evacuating the instance (auto, migrate, live-migrate, or stop)
 environment.\*                              | string    | -                 | yes (exec)    | -                         | key/value environment variables to export to the instance and set on exec
 limits.cpu                                  | string    | -                 | yes           | -                         | Number or range of CPUs to expose to the instance (defaults to 1 CPU for VMs)
 limits.cpu.allowance                        | string    | 100%              | yes           | container                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
