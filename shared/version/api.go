@@ -239,6 +239,7 @@ var APIExtensions = []string{
 	"qemu_metrics",
 	"gpu_mig_uuid",
 	"event_project",
+	"instance_allow_inconsistent_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

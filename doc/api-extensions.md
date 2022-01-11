@@ -1169,3 +1169,7 @@ cannot be set together.
 
 ## event\_project
 Expose the project an API event belongs to.
+
+## instance\_allow\_inconsistent\_copy
+Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If true, rsync will ignore the 
+`Partial transfer due to vanished source files` (code 24) error when creating an instance from a copy. 
