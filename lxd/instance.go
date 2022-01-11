@@ -187,6 +187,7 @@ type instanceCreateAsCopyOpts struct {
 	instanceOnly         bool              // Only copy the instance and not it's snapshots.
 	refresh              bool              // Refresh an existing target instance.
 	applyTemplateTrigger bool              // Apply deferred TemplateTriggerCopy.
+	allowInconsistent    bool              // Ignore some copy errors
 }
 
 // instanceCreateAsCopy create a new instance by copying from an existing instance.
@@ -362,7 +363,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			return nil, errors.Wrap(err, "Refresh instance")
 		}
 	} else {
-		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, op)
+		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
 		if err != nil {
 			return nil, errors.Wrap(err, "Create instance from copy")
 		}

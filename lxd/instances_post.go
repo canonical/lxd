@@ -542,6 +542,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 			instanceOnly:         req.Source.InstanceOnly || req.Source.ContainerOnly,
 			refresh:              req.Source.Refresh,
 			applyTemplateTrigger: true,
+			allowInconsistent:    req.Source.AllowInconsistent,
 		}, op)
 		if err != nil {
 			return err
