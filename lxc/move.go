@@ -16,16 +16,17 @@ import (
 type cmdMove struct {
 	global *cmdGlobal
 
-	flagNoProfiles    bool
-	flagProfile       []string
-	flagConfig        []string
-	flagInstanceOnly  bool
-	flagDevice        []string
-	flagMode          string
-	flagStateless     bool
-	flagStorage       string
-	flagTarget        string
-	flagTargetProject string
+	flagNoProfiles        bool
+	flagProfile           []string
+	flagConfig            []string
+	flagInstanceOnly      bool
+	flagDevice            []string
+	flagMode              string
+	flagStateless         bool
+	flagStorage           string
+	flagTarget            string
+	flagTargetProject     string
+	flagAllowInconsistent bool
 }
 
 func (c *cmdMove) Command() *cobra.Command {
@@ -56,6 +57,7 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
+	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, i18n.G("Ignore copy errors for volatile files"))
 
 	return cmd
 }
@@ -185,6 +187,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	cpy.flagDevice = c.flagDevice
 	cpy.flagProfile = c.flagProfile
 	cpy.flagNoProfiles = c.flagNoProfiles
+	cpy.flagAllowInconsistent = c.flagAllowInconsistent
 
 	stateful := !c.flagStateless
 	instanceOnly := c.flagInstanceOnly
