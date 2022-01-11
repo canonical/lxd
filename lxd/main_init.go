@@ -10,18 +10,10 @@ import (
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
 )
-
-type poolType string
-
-const poolTypeAny poolType = ""
-const poolTypeLocal poolType = "local"
-const poolTypeRemote poolType = "remote"
 
 type cmdInitData struct {
 	Node    initDataNode     `yaml:",inline"`
@@ -249,42 +241,4 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	revert.Success()
 	return nil
-}
-
-func (c *cmdInit) availableStorageDrivers(supportedDrivers []api.ServerStorageDriverInfo, poolType poolType) []string {
-	backingFs, err := filesystem.Detect(shared.VarPath())
-	if err != nil {
-		backingFs = "dir"
-	}
-
-	drivers := make([]string, 0, len(supportedDrivers))
-
-	// Check available backends.
-	for _, driver := range supportedDrivers {
-		if poolType == poolTypeRemote && !driver.Remote {
-			continue
-		}
-
-		if poolType == poolTypeLocal && driver.Remote {
-			continue
-		}
-
-		if poolType == poolTypeAny && driver.Name == "cephfs" {
-			continue
-		}
-
-		if driver.Name == "dir" {
-			drivers = append(drivers, driver.Name)
-			continue
-		}
-
-		// btrfs can work in user namespaces too. (If source=/some/path/on/btrfs is used.)
-		if shared.RunningInUserNS() && (backingFs != "btrfs" || driver.Name != "btrfs") {
-			continue
-		}
-
-		drivers = append(drivers, driver.Name)
-	}
-
-	return drivers
 }

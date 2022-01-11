@@ -13,6 +13,7 @@ lxc-to-lxd/lxc-to-lxd
 lxd-agent/lxd-agent
 lxd-benchmark/lxd-benchmark
 lxd-p2c/lxd-p2c
+lxd-user/lxd-user
 test/deps/devlxd-client
 test/macaroon-identity/macaroon-identity
 
