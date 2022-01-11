@@ -653,7 +653,7 @@ func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer, server *
 		}
 
 		if localStoragePool {
-			err := c.askStoragePool(config, d, server, poolTypeLocal)
+			err := c.askStoragePool(config, d, server, util.PoolTypeLocal)
 			if err != nil {
 				return err
 			}
@@ -665,7 +665,7 @@ func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer, server *
 		}
 
 		if remoteStoragePool {
-			err := c.askStoragePool(config, d, server, poolTypeRemote)
+			err := c.askStoragePool(config, d, server, util.PoolTypeRemote)
 			if err != nil {
 				return err
 			}
@@ -683,15 +683,15 @@ func (c *cmdInit) askStorage(config *cmdInitData, d lxd.InstanceServer, server *
 		return nil
 	}
 
-	return c.askStoragePool(config, d, server, poolTypeAny)
+	return c.askStoragePool(config, d, server, util.PoolTypeAny)
 }
 
-func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, server *api.Server, poolType poolType) error {
+func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, server *api.Server, poolType util.PoolType) error {
 	// Figure out the preferred storage driver
-	availableBackends := c.availableStorageDrivers(server.Environment.StorageSupportedDrivers, poolType)
+	availableBackends := util.AvailableStorageDrivers(server.Environment.StorageSupportedDrivers, poolType)
 
 	if len(availableBackends) == 0 {
-		if poolType != poolTypeAny {
+		if poolType != util.PoolTypeAny {
 			return fmt.Errorf("No storage backends available")
 		}
 
@@ -717,7 +717,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 		pool := api.StoragePoolsPost{}
 		pool.Config = map[string]string{}
 
-		if poolType == poolTypeAny {
+		if poolType == util.PoolTypeAny {
 			pool.Name, err = cli.AskString("Name of the new storage pool [default=default]: ", "default", nil)
 			if err != nil {
 				return err
@@ -728,7 +728,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 
 		_, _, err := d.GetStoragePool(pool.Name)
 		if err == nil {
-			if poolType == poolTypeAny {
+			if poolType == util.PoolTypeAny {
 				fmt.Printf("The requested storage pool \"%s\" already exists. Please choose another name.\n", pool.Name)
 				continue
 			}
@@ -748,7 +748,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 		// Storage backend
 		if len(availableBackends) > 1 {
 			defaultBackend := defaultStorage
-			if poolType == poolTypeRemote {
+			if poolType == util.PoolTypeRemote {
 				if shared.StringInSlice("ceph", availableBackends) {
 					defaultBackend = "ceph"
 				} else {
