@@ -45,7 +45,7 @@ type Pool interface {
 	FillInstanceConfig(inst instance.Instance, config map[string]string) error
 	CreateInstance(inst instance.Instance, op *operations.Operation) error
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error)
-	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error
+	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error
 	CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error
 	CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error
 	RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error

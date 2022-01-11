@@ -795,7 +795,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 }
 
 // CreateInstanceFromCopy copies an instance volume and optionally its snapshots to new volume(s).
-func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error {
+func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
 	logger.Debug("CreateInstanceFromCopy started")
 	defer logger.Debug("CreateInstanceFromCopy finished")
@@ -922,10 +922,11 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		bEndErrCh := make(chan error, 1)
 		go func() {
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
-				Name:          src.Name(),
-				Snapshots:     snapshotNames,
-				MigrationType: migrationTypes[0],
-				TrackProgress: true, // Do use a progress tracker on sender.
+				Name:              src.Name(),
+				Snapshots:         snapshotNames,
+				MigrationType:     migrationTypes[0],
+				TrackProgress:     true, // Do use a progress tracker on sender.
+				AllowInconsistent: allowInconsistent,
 			}, op)
 
 			if err != nil {
