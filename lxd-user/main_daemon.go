@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -14,10 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 )
 
-var (
-	connections     int64
-	connectionsLock sync.Mutex
-)
+var connections int64
 
 type cmdDaemon struct {
 	global *cmdGlobal
@@ -84,13 +81,11 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 			for {
 				time.Sleep(30 * time.Second)
 
-				connectionsLock.Lock()
-				if connections == 0 {
+				if atomic.CompareAndSwapInt64(&connections, 0, -1) {
 					// Exit if no more connections.
 					log.Info("Shutting down for inactivity")
 					os.Exit(0)
 				}
-				connectionsLock.Unlock()
 			}
 		}()
 	} else {
