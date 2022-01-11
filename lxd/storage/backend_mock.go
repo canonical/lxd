@@ -101,7 +101,7 @@ func (b *mockBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io
 	return nil, nil, nil
 }
 
-func (b *mockBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, op *operations.Operation) error {
+func (b *mockBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error {
 	return nil
 }
 
