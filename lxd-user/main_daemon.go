@@ -33,11 +33,11 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 	})
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 	log.SetOutput(os.Stdout)
 
 	// Connect to LXD.
-	log.Info("Connecting to LXD")
+	log.Debug("Connecting to LXD")
 	client, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return fmt.Errorf("Unable to connect to LXD: %w", err)
