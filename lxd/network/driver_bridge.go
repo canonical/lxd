@@ -312,7 +312,7 @@ func (n *bridge) Validate(config map[string]string) error {
 				rules[k] = validate.Optional(validate.IsNetworkAddress)
 			case "id":
 				rules[k] = validate.Optional(validate.IsInt64)
-			case "inteface":
+			case "interface":
 				rules[k] = validate.IsInterfaceName
 			case "ttl":
 				rules[k] = validate.Optional(validate.IsUint8)
