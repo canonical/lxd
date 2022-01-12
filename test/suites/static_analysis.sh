@@ -69,7 +69,7 @@ test_static_analysis() {
 
       golint -set_exit_status lxd-benchmark/...
 
-      golint -set_exit_status lxd-p2c/...
+      golint -set_exit_status lxd-migrate/...
 
       golint -set_exit_status lxd/apparmor/...
       golint -set_exit_status lxd/backup/...
@@ -139,7 +139,7 @@ test_static_analysis() {
     ## deadcode
     if command -v deadcode >/dev/null 2>&1; then
       run_deadcode() {
-        for i in client fuidshift lxc lxc-to-lxd lxd lxd-agent lxd-benchmark lxd-p2c shared; do
+        for i in client fuidshift lxc lxc-to-lxd lxd lxd-agent lxd-benchmark lxd-migrate shared; do
           find "${i}" -type d | while read -r line; do
             deadcode "./${line}" 2>&1
           done
