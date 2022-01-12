@@ -77,8 +77,8 @@ func proxyConnection(conn *net.UnixConn) {
 		"pid": creds.Pid,
 	})
 
-	logger.Info("Connected")
-	defer logger.Info("Disconnected")
+	logger.Debug("Connected")
+	defer logger.Debug("Disconnected")
 
 	// Check if the user was setup.
 	if !shared.PathExists(filepath.Join("users", fmt.Sprintf("%d", creds.Uid))) {
