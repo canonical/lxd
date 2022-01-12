@@ -122,7 +122,7 @@ func lxdInitialConfiguration(client lxd.InstanceServer) error {
 		// Add to default profile in default project.
 		profile.Devices["eth0"] = map[string]string{
 			"type":    "nic",
-			"network": "default",
+			"network": "lxdbr0",
 			"name":    "eth0",
 		}
 	}
