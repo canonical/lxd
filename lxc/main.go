@@ -350,19 +350,24 @@ func (c *cmdGlobal) PreRun(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// And save the initial configuration
-		err = c.conf.SaveConfig(c.confPath)
-		if err != nil {
-			return err
-		}
-
 		// Attempt to connect to the local server
 		runInit := true
 		d, err := lxd.ConnectLXDUnix("", nil)
 		if err == nil {
+			// Check if server is initialized.
 			info, _, err := d.GetServer()
 			if err == nil && info.Environment.Storage != "" {
 				runInit = false
+			}
+
+			// Detect usable project.
+			names, err := d.GetProjectNames()
+			if err == nil {
+				if len(names) == 1 && names[0] != "default" {
+					remote := c.conf.Remotes["local"]
+					remote.Project = names[0]
+					c.conf.Remotes["local"] = remote
+				}
 			}
 		}
 
@@ -380,6 +385,12 @@ Or for a virtual machine: lxc launch ubuntu:20.04 --vm`)+"\n")
 
 		if flush {
 			fmt.Fprintf(os.Stderr, "\n")
+		}
+
+		// And save the initial configuration
+		err = c.conf.SaveConfig(c.confPath)
+		if err != nil {
+			return err
 		}
 	}
 
