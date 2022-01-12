@@ -34,6 +34,7 @@ import (
 #include <sys/un.h>
 
 #include "../lxd/include/process_utils.h"
+#include "../lxd/include/syscall_wrappers.h"
 
 #define ABSTRACT_UNIX_SOCK_LEN sizeof(((struct sockaddr_un *)0)->sun_path)
 
@@ -95,6 +96,20 @@ func PidfdSendSignal(Pidfd int, Signal int, Flags uint32) error {
 	ret, errno := C.pidfd_send_signal(C.int(Pidfd), C.int(Signal), nil, C.uint32_t(Flags))
 	if ret != 0 {
 		return errno
+	}
+
+	return nil
+}
+
+const CLOSE_RANGE_UNSHARE uint32 = C.CLOSE_RANGE_UNSHARE
+const CLOSE_RANGE_CLOEXEC uint32 = C.CLOSE_RANGE_CLOEXEC
+
+func CloseRange(FirstFd uint32, LastFd uint32, Flags uint32) error {
+	ret, errno := C.lxd_close_range(C.uint32_t(FirstFd), C.uint32_t(LastFd), C.uint32_t(Flags))
+	if ret != 0 {
+		if errno != unix.ENOSYS && errno != unix.EINVAL {
+			return errno
+		}
 	}
 
 	return nil
