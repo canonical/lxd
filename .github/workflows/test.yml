@@ -50,12 +50,12 @@ jobs:
         run: |
           go build -o bin ./lxc
 
-      - name: Build static lxd-p2c
+      - name: Build static lxd-migrate
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: 0
         run: |
-          go build -o bin ./lxd-p2c
+          go build -o bin ./lxd-migrate
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
