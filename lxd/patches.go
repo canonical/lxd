@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -124,6 +125,7 @@ var patches = []patch{
 	{name: "network_acl_remove_defaults", stage: patchPostDaemonStorage, run: patchNetworkACLRemoveDefaults},
 	{name: "clustering_server_cert_trust", stage: patchPreDaemonStorage, run: patchClusteringServerCertTrust},
 	{name: "warnings_remove_empty_node", stage: patchPostDaemonStorage, run: patchRemoveWarningsWithEmptyNode},
+	{name: "dnsmasq_entries_include_device_name", stage: patchPostDaemonStorage, run: patchDnsmasqEntriesIncludeDeviceName},
 }
 
 type patch struct {
@@ -187,6 +189,30 @@ func patchesApply(d *Daemon, stage patchStage) error {
 }
 
 // Patches begin here
+
+func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
+	nodeId := strconv.Itoa(int(d.cluster.GetNodeID()))
+	return d.cluster.InstanceList(&db.InstanceFilter{Node: &nodeId}, func(inst db.Instance, proj db.Project, profiles []api.Profile) error {
+		for _, device := range inst.Devices {
+			if device.Type == db.TypeNIC && device.Config["nictype"] == "bridged" && device.Config["network"] != "" {
+				network := device.Config["network"]
+				hostsDir := shared.VarPath("networks", network, "dnsmasq.hosts")
+				currentEntryFilePath := path.Join(hostsDir, project.Instance(proj.Name, inst.Name))
+				_, err := os.Stat(currentEntryFilePath)
+				if os.IsNotExist(err) {
+					continue
+				}
+
+				newEntryFilePath := path.Join(hostsDir, project.Instance(proj.Name, strings.Join([]string{inst.Name, device.Name}, ".")))
+				err = os.Rename(currentEntryFilePath, newEntryFilePath)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
 
 func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
