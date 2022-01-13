@@ -317,4 +317,10 @@ type InstanceSource struct {
 	// Source project name (for copy and local image)
 	// Example: blah
 	Project string `json:"project,omitempty" yaml:"project,omitempty"`
+
+	// Whether to ignore errors when copying (e.g. for volatile files)
+	// Example: false
+	//
+	// API extension: instance_allow_inconsistent_copy
+	AllowInconsistent bool `json:"allow_inconsistent" yaml:"allow_inconsistent"`
 }

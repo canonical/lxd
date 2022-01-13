@@ -18,18 +18,19 @@ import (
 type cmdCopy struct {
 	global *cmdGlobal
 
-	flagNoProfiles    bool
-	flagProfile       []string
-	flagConfig        []string
-	flagDevice        []string
-	flagEphemeral     bool
-	flagInstanceOnly  bool
-	flagMode          string
-	flagStateless     bool
-	flagStorage       string
-	flagTarget        string
-	flagTargetProject string
-	flagRefresh       bool
+	flagNoProfiles        bool
+	flagProfile           []string
+	flagConfig            []string
+	flagDevice            []string
+	flagEphemeral         bool
+	flagInstanceOnly      bool
+	flagMode              string
+	flagStateless         bool
+	flagStorage           string
+	flagTarget            string
+	flagTargetProject     string
+	flagRefresh           bool
+	flagAllowInconsistent bool
 }
 
 func (c *cmdCopy) Command() *cobra.Command {
@@ -53,6 +54,7 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Create the instance with no profiles applied"))
 	cmd.Flags().BoolVar(&c.flagRefresh, "refresh", false, i18n.G("Perform an incremental copy"))
+	cmd.Flags().BoolVar(&c.flagAllowInconsistent, "allow-inconsistent", false, i18n.G("Ignore copy errors for volatile files"))
 
 	return cmd
 }
@@ -245,11 +247,12 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	} else {
 		// Prepare the instance creation request
 		args := lxd.InstanceCopyArgs{
-			Name:         destName,
-			Live:         stateful,
-			InstanceOnly: instanceOnly,
-			Mode:         mode,
-			Refresh:      c.flagRefresh,
+			Name:              destName,
+			Live:              stateful,
+			InstanceOnly:      instanceOnly,
+			Mode:              mode,
+			Refresh:           c.flagRefresh,
+			AllowInconsistent: c.flagAllowInconsistent,
 		}
 
 		// Copy of an instance into a new instance

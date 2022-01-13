@@ -170,7 +170,14 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 		path := shared.AddSlash(mountPath)
 
 		d.Logger().Debug("Sending filesystem volume", log.Ctx{"volName": vol.name, "path": path, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
-		return rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, s.OS.ExecPath, rsyncArgs...)
+		err := rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, s.OS.ExecPath, rsyncArgs...)
+
+		status, _ := shared.ExitStatus(err)
+		if volSrcArgs.AllowInconsistent && status == 24 {
+			return nil
+		}
+
+		return err
 	}
 
 	// Define function to send a block volume.
