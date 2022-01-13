@@ -214,17 +214,17 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Remove static IP and check IP filter works with previous DHCP lease.
-  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
+  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
   lxc config device unset "${ctPrefix}A" eth0 ipv4.address
   lxc start "${ctPrefix}A"
-  if ! grep "192.0.2.2" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
+  if ! grep "192.0.2.2" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain previous lease as static IPv4 config"
     false
   fi
 
   lxc stop -f "${ctPrefix}A"
   lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering false
-  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
+  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
 
   # Simulate 192.0.2.2 being used by another container, next free IP is 192.0.2.3
   kill "$(grep ^pid "${LXD_DIR}"/networks/"${brName}"/dnsmasq.pid | cut -d' ' -f2)"
@@ -234,7 +234,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering true
   lxc start "${ctPrefix}A"
 
-  if ! grep "192.0.2.3" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
+  if ! grep "192.0.2.3" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv4 config"
     false
   fi
@@ -244,7 +244,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv4.dhcp.ranges "192.0.2.100-192.0.2.110"
   lxc start "${ctPrefix}A"
 
-  if ! grep "192.0.2.100" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
+  if ! grep "192.0.2.100" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially range allocated static IPv4 config"
     false
   fi
@@ -402,17 +402,17 @@ test_container_devices_nic_bridged_filtering() {
   lxc config device unset "${ctPrefix}A" eth0 ipv6.address
   lxc config device set "${ctPrefix}A" eth0 hwaddr 00:16:3e:92:f3:c1
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering false
-  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
+  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8::216:3eff:fe92:f3c1\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
+  if ! grep "\\[2001:db8::216:3eff:fe92:f3c1\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain dynamically allocated static IPv6 config"
     false
   fi
 
   lxc stop -f "${ctPrefix}A"
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering false
-  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A"
+  rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
 
   # Simulate SLAAC 2001:db8::216:3eff:fe92:f3c1 being used by another container, next free IP is 2001:db8::2
   kill "$(grep ^pid "${LXD_DIR}"/networks/"${brName}"/dnsmasq.pid | cut -d' ' -f2)"
@@ -421,7 +421,7 @@ test_container_devices_nic_bridged_filtering() {
   respawn_lxd "${LXD_DIR}" true
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A" ; then
+  if ! grep "\\[2001:db8::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv6 config"
     false
   fi
