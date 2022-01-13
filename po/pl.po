@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-01-11 18:45+0000\n"
+"POT-Creation-Date: 2022-01-13 15:21-0500\n"
 "PO-Revision-Date: 2018-09-08 19:22+0000\n"
 "Last-Translator: m4sk1n <me@m4sk.in>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/linux-containers/"
@@ -2113,7 +2113,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:375
+#: lxc/main.go:380
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2290,7 +2290,7 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/main.go:465
+#: lxc/main.go:476
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -4458,7 +4458,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:380
+#: lxc/main.go:385
 msgid ""
 "To start your first container, try: lxc launch ubuntu:20.04\n"
 "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
