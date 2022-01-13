@@ -1714,6 +1714,11 @@ definitions:
         example: ubuntu/20.04
         type: string
         x-go-name: Alias
+      allow_inconsistent:
+        description: Whether to ignore errors when copying (e.g. for volatile files)
+        example: false
+        type: boolean
+        x-go-name: AllowInconsistent
       base-image:
         description: Base image fingerprint (for faster migration)
         example: ed56997f7c5b48e8d78986d2467a26109be6fb9f2d92e8c7b08eb8b6cec7629a
