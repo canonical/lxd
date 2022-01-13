@@ -119,7 +119,8 @@ doc:
 	. $(SPHINXENV) ; pip install --upgrade -r .sphinx/requirements.txt
 	mkdir -p .sphinx/deps/ .sphinx/themes/
 	git -C .sphinx/deps/swagger-ui pull || git clone --depth 1 https://github.com/swagger-api/swagger-ui.git .sphinx/deps/swagger-ui
-	ln -sf ../deps/swagger-ui/dist .sphinx/_static/swagger-ui
+	mkdir -p .sphinx/_static/swagger-ui
+	ln -sf ../../deps/swagger-ui/dist/swagger-ui-bundle.js ../../deps/swagger-ui/dist/swagger-ui-standalone-preset.js ../../deps/swagger-ui/dist/swagger-ui.css .sphinx/_static/swagger-ui/
 	rm -Rf doc/html
 	make doc-incremental
 
