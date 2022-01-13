@@ -279,7 +279,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 	entries := map[string][][]string{}
 	for _, inst := range insts {
 		// Go through all its devices (including profiles).
-		for k, d := range inst.ExpandedDevices() {
+		for deviceName, d := range inst.ExpandedDevices() {
 			// Skip uninteresting entries.
 			if d["type"] != "nic" {
 				continue
@@ -301,7 +301,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			// Fill in the hwaddr from volatile.
-			d, err = inst.FillNetworkDevice(k, d)
+			d, err = inst.FillNetworkDevice(deviceName, d)
 			if err != nil {
 				continue
 			}
@@ -313,7 +313,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			if (shared.IsTrue(d["security.ipv4_filtering"]) && d["ipv4.address"] == "") || (shared.IsTrue(d["security.ipv6_filtering"]) && d["ipv6.address"] == "") {
-				_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d["parent"], inst.Project(), inst.Name())
+				_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d["parent"], inst.Project(), inst.Name(), deviceName, "")
 				if err != nil && !os.IsNotExist(err) {
 					return err
 				}
@@ -327,7 +327,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 				}
 			}
 
-			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], inst.Project(), inst.Name(), d["ipv4.address"], d["ipv6.address"]})
+			entries[d["parent"]] = append(entries[d["parent"]], []string{d["hwaddr"], inst.Project(), inst.Name(), d["ipv4.address"], d["ipv6.address"], deviceName})
 		}
 	}
 
@@ -367,6 +367,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			cName := entry[2]
 			ipv4Address := entry[3]
 			ipv6Address := entry[4]
+			deviceName := entry[5]
 			line := hwaddr
 
 			// Look for duplicates.
@@ -403,7 +404,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 			}
 
 			// Generate the dhcp-host line.
-			err := dnsmasq.UpdateStaticEntry(network, projectName, cName, config, hwaddr, ipv4Address, ipv6Address)
+			err := dnsmasq.UpdateStaticEntry(network, projectName, cName, deviceName, config, hwaddr, ipv4Address, ipv6Address)
 			if err != nil {
 				return err
 			}
