@@ -6,4 +6,5 @@
 Backups <backup>
 clustering
 production-setup
+authentication
 ```
