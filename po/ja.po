@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-01-11 18:45+0000\n"
+"POT-Creation-Date: 2022-01-13 15:21-0500\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2179,7 +2179,7 @@ msgstr ""
 "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
 "いスナップショットを作成します"
 
-#: lxc/main.go:375
+#: lxc/main.go:380
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2367,7 +2367,7 @@ msgid ""
 msgstr ""
 "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
-#: lxc/main.go:465
+#: lxc/main.go:476
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
@@ -4784,7 +4784,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
-#: lxc/main.go:380
+#: lxc/main.go:385
 msgid ""
 "To start your first container, try: lxc launch ubuntu:20.04\n"
 "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
