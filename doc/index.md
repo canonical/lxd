@@ -4,12 +4,22 @@
     :end-before: <!-- Include end LXD intro -->
 ```
 
+## Security
+
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
     :start-after: <!-- Include start security -->
     :end-before: <!-- Include end security -->
 ```
-See [Security](security.md) for more information.
+See [Security](security.md) for detailed information.
+
+````{important}
+% Include content from [../README.md](../README.md)
+```{include} ../README.md
+    :start-after: <!-- Include start security note -->
+    :end-before: <!-- Include end security note -->
+```
+````
 
 % Include content from [../README.md](../README.md)
 ```{include} ../README.md
