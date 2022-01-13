@@ -58,7 +58,8 @@ func (d *ceph) osdPoolExists() bool {
 //   that this call actually deleted an OSD pool it needs to check for the
 //   existence of the pool first.
 func (d *ceph) osdDeletePool() error {
-	_, err := shared.RunCommand("ceph",
+	_, err := shared.RunCommand(
+		"ceph",
 		"--name", fmt.Sprintf("client.%s", d.config["ceph.user.name"]),
 		"--cluster", d.config["ceph.cluster_name"],
 		"osd",
@@ -524,9 +525,9 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	msg, err := shared.RunCommand(
 		"rbd",
 		"--id", d.config["ceph.user.name"],
-		"--format", "json",
 		"--cluster", d.config["ceph.cluster_name"],
 		"--pool", d.config["ceph.osd.pool_name"],
+		"--format", "json",
 		"snap",
 		"ls",
 		d.getRBDVolumeName(vol, "", false, false))
@@ -584,8 +585,8 @@ func (d *ceph) copyWithSnapshots(sourceVolumeName string, targetVolumeName strin
 	rbdSendCmd := exec.Command("rbd", args...)
 	rbdRecvCmd := exec.Command(
 		"rbd",
-		"--id", d.config["ceph.user.name"],
 		"import-diff",
+		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"-",
 		targetVolumeName)
