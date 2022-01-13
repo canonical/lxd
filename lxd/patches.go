@@ -3554,7 +3554,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 				// Create the tarball
 				backupPath := shared.VarPath("backups", ct.Name(), backup.Name())
 				path := filepath.Join(poolBackupPath, ct.Name(), backup.Name())
-				args := []string{"-cf", backupPath, "--xattrs", "-C", path, "--transform", "s,^./,backup/,", "."}
+				args := []string{"-cf", backupPath, "--restrict", "--force-local", "--xattrs", "-C", path, "--transform", "s,^./,backup/,", "."}
 				_, err = shared.RunCommand("tar", args...)
 				if err != nil {
 					return err
