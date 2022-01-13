@@ -1562,3 +1562,7 @@ Expose the project an API event belongs to.
 ## clustering\_evacuation\_live
 This adds `live-migrate` as a config option to `cluster.evacuate`, which forces live-migration
 of instances during cluster evacuation.
+
+## instance\_allow\_inconsistent\_copy
+Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If true, rsync will ignore the 
+`Partial transfer due to vanished source files` (code 24) error when creating an instance from a copy. 

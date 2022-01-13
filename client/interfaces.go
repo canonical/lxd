@@ -534,6 +534,9 @@ type InstanceCopyArgs struct {
 	// API extension: container_incremental_copy
 	// Perform an incremental copy
 	Refresh bool
+
+	// API extension: instance_allow_inconsistent_copy
+	AllowInconsistent bool
 }
 
 // The InstanceSnapshotCopyArgs struct is used to pass additional options during instance copy.

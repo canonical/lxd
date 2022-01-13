@@ -305,6 +305,7 @@ var APIExtensions = []string{
 	"gpu_mig_uuid",
 	"event_project",
 	"clustering_evacuation_live",
+	"instance_allow_inconsistent_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

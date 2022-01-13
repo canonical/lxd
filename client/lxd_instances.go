@@ -500,6 +500,12 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 			}
 		}
 
+		if args.AllowInconsistent {
+			if !r.HasExtension("instance_allow_inconsistent_copy") {
+				return nil, fmt.Errorf("The source server is missing the required \"instance_allow_inconsistent_copy\" API extension")
+			}
+		}
+
 		// Allow overriding the target name
 		if args.Name != "" {
 			req.Name = args.Name
@@ -509,6 +515,7 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 		req.Source.InstanceOnly = args.InstanceOnly
 		req.Source.ContainerOnly = args.InstanceOnly // For legacy servers.
 		req.Source.Refresh = args.Refresh
+		req.Source.AllowInconsistent = args.AllowInconsistent
 	}
 
 	if req.Source.Live {
