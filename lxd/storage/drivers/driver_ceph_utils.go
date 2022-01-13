@@ -1125,6 +1125,7 @@ func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPo
 func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumeParentName string, tracker *ioprogress.ProgressTracker) error {
 	args := []string{
 		"export-diff",
+		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		volumeName,
 	}
@@ -1195,6 +1196,7 @@ func (d *ceph) sendVolume(conn io.ReadWriteCloser, volumeName string, volumePare
 func (d *ceph) receiveVolume(volumeName string, conn io.ReadWriteCloser, writeWrapper func(io.WriteCloser) io.WriteCloser) error {
 	args := []string{
 		"import-diff",
+		"--id", d.config["ceph.user.name"],
 		"--cluster", d.config["ceph.cluster_name"],
 		"-",
 		volumeName,
