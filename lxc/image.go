@@ -659,7 +659,7 @@ func (c *cmdImageImport) packImageDir(path string) (string, error) {
 	defer outFile.Close()
 
 	outFileName := outFile.Name()
-	shared.RunCommand("tar", "-C", path, "--numeric-owner", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
+	shared.RunCommand("tar", "-C", path, "--numeric-owner", "--restrict", "--force-local", "--xattrs", "-cJf", outFileName, "rootfs", "templates", "metadata.yaml")
 
 	return outFileName, nil
 }
