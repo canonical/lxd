@@ -92,6 +92,7 @@ type Network interface {
 type Options struct {
 	ProjectName string
 	HostName    string
+	DeviceName  string
 	HostMAC     net.HardwareAddr
 	Network     Network
 }
@@ -343,7 +344,7 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 	t := &Transaction{opts: opts}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(opts.Network.Name(), opts.ProjectName, opts.HostName)
+	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(opts.Network.Name(), opts.ProjectName, opts.HostName, opts.DeviceName, "")
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -392,7 +393,7 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 		}
 
 		// Write out new dnsmasq static host allocation config file.
-		err = dnsmasq.UpdateStaticEntry(opts.Network.Name(), opts.ProjectName, opts.HostName, opts.Network.Config(), opts.HostMAC.String(), IPv4Str, IPv6Str)
+		err = dnsmasq.UpdateStaticEntry(opts.Network.Name(), opts.ProjectName, opts.HostName, opts.DeviceName, opts.Network.Config(), opts.HostMAC.String(), IPv4Str, IPv6Str)
 		if err != nil {
 			return err
 		}
