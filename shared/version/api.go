@@ -242,6 +242,7 @@ var APIExtensions = []string{
 	"instance_allow_inconsistent_copy",
 	"image_restrictions",
 	"instance_snapshot_never",
+	"certificate_token",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
