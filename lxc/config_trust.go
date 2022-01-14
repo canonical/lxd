@@ -45,6 +45,10 @@ func (c *cmdConfigTrust) Command() *cobra.Command {
 	configTrustRemoveCmd := cmdConfigTrustRemove{global: c.global, config: c.config, configTrust: c}
 	cmd.AddCommand(configTrustRemoveCmd.Command())
 
+	// Revoke token
+	configTrustRevokeTokenCmd := cmdConfigTrustRevokeToken{global: c.global, config: c.config, configTrust: c}
+	cmd.AddCommand(configTrustRevokeTokenCmd.Command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
@@ -374,4 +378,75 @@ func (c *cmdConfigTrustRemove) Run(cmd *cobra.Command, args []string) error {
 
 	// Remove trust relationship
 	return resource.server.DeleteCertificate(args[len(args)-1])
+}
+
+// List tokens
+type cmdConfigTrustRevokeToken struct {
+	global      *cmdGlobal
+	config      *cmdConfig
+	configTrust *cmdConfigTrust
+}
+
+func (c *cmdConfigTrustRevokeToken) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("revoke-token", i18n.G("[<remote>:] <token>"))
+	cmd.Short = i18n.G("Revoke certificate add token")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Revoke certificate add token`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdConfigTrustRevokeToken) Run(cmd *cobra.Command, args []string) error {
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the certificate add tokens. Use default project as certificate add tokens are created in default project.
+	ops, err := resource.server.UseProject("default").GetOperations()
+	if err != nil {
+		return err
+	}
+
+	for _, op := range ops {
+		if op.Class != api.OperationClassToken {
+			continue
+		}
+
+		if op.StatusCode != api.Running {
+			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
+		}
+
+		joinToken, err := op.ToCertificateAddToken()
+		if err != nil {
+			continue // Operation is not a valid certificate add token operation.
+		}
+
+		if joinToken.ClientName == resource.name {
+			// Delete the operation
+			err = resource.server.DeleteOperation(op.ID)
+			if err != nil {
+				return err
+			}
+
+			if !c.global.flagQuiet {
+				fmt.Printf(i18n.G("Certificate add token for %s deleted")+"\n", resource.name)
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf(i18n.G("No certificate add token for member %s on remote: %s"), resource.name, resource.remote)
 }
