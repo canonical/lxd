@@ -26,6 +26,12 @@ type CertificatesPost struct {
 	// Server trust password (used to add an untrusted client)
 	// Example: blah
 	Password string `json:"password" yaml:"password"`
+
+	// Whether to create a certificate add token
+	// Example: true
+	//
+	// API extension: certificate_token
+	Token bool `json:"token" yaml:"token"`
 }
 
 // CertificatePut represents the modifiable fields of a LXD certificate
