@@ -48,8 +48,12 @@ func LoadConfig(path string) (*Config, error) {
 		c.Remotes[k] = v
 	}
 
-	// Set default remote if not defined.
-	if c.DefaultRemote == "" {
+	// If the environment specifies a remote this takes priority over what
+	// is defined in the configuration
+	envDefaultRemote := os.Getenv("LXC_REMOTE")
+	if len(envDefaultRemote) > 0 {
+		c.DefaultRemote = envDefaultRemote
+	} else if c.DefaultRemote == "" {
 		c.DefaultRemote = DefaultConfig.DefaultRemote
 	}
 
