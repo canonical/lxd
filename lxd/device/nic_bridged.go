@@ -814,7 +814,7 @@ func (d *nicBridged) Remove() error {
 		}
 
 		// Remove dnsmasq config if it exists (doesn't return error if file is missing).
-		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name())
+		err := dnsmasq.RemoveStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name())
 		if err != nil {
 			return err
 		}
@@ -862,7 +862,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// If IP filtering is enabled, and no static IP in config, check if there is already a
 	// dynamically assigned static IP in dnsmasq config and write that back out in new config.
 	if (shared.IsTrue(d.config["security.ipv4_filtering"]) && ipv4Address == "") || (shared.IsTrue(d.config["security.ipv6_filtering"]) && ipv6Address == "") {
-		_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d.config["parent"], d.inst.Project(), d.inst.Name())
+		_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name(), "")
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -876,7 +876,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 		}
 	}
 
-	err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), netConfig, d.config["hwaddr"], ipv4Address, ipv6Address)
+	err = dnsmasq.UpdateStaticEntry(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name(), netConfig, d.config["hwaddr"], ipv4Address, ipv6Address)
 	if err != nil {
 		return err
 	}
@@ -959,7 +959,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
 	// This covers the case when IPs are not defined in config, but have been assigned in managed DHCP.
-	_, IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticAllocation(m["parent"], d.inst.Project(), d.inst.Name())
+	_, IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticAllocation(m["parent"], d.inst.Project(), d.inst.Name(), d.Name(), "")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return
@@ -1017,6 +1017,7 @@ func (d *nicBridged) setFilters() (err error) {
 		opts := &dhcpalloc.Options{
 			ProjectName: d.inst.Project(),
 			HostName:    d.inst.Name(),
+			DeviceName:  d.Name(),
 			HostMAC:     mac,
 			Network:     d.network,
 		}

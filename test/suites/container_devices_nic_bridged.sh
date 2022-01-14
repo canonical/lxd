@@ -368,7 +368,7 @@ test_container_devices_nic_bridged() {
   fi
 
   # Check dnsmasq host config file is removed.
-  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ] ; then
     echo "dnsmasq host config file not removed"
     false
   fi
@@ -379,24 +379,24 @@ test_container_devices_nic_bridged() {
 
   ls -lR "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/"
 
-  if ! grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+  if ! grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config not updated with IPv4 address"
     false
   fi
 
-  if ! grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+  if ! grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config not updated with IPv6 address"
     false
   fi
 
   lxc config device remove "${ctName}" eth0
 
-  if grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+  if grep "192.0.2.200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config still has old IPv4 address"
     false
   fi
 
-  if grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ; then
+  if grep "2001:db8::200" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ; then
     echo "dnsmasq host config still has old IPv6 address"
     false
   fi
@@ -420,7 +420,7 @@ test_container_devices_nic_bridged() {
 
   lxc config device remove "${ctName}" eth0
   lxc stop -f "${ctName}"
-  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ] ; then
     echo "dnsmasq host config file not removed from network"
     false
   fi
@@ -431,7 +431,7 @@ test_container_devices_nic_bridged() {
 
   # Check dnsmasq host file is created on add.
   lxc config device add "${ctName}" eth0 nic nictype=bridged parent="${brName}" name=eth0
-  if [ ! -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+  if [ ! -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ] ; then
     echo "dnsmasq host config file not created"
     false
   fi
@@ -439,7 +439,7 @@ test_container_devices_nic_bridged() {
   # Check connecting device to non-managed bridged.
   ip link add "${ctName}" type dummy
   lxc config device set "${ctName}" eth0 parent "${ctName}"
-  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}" ] ; then
+  if [ -f "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctName}.eth0" ] ; then
     echo "dnsmasq host config file not removed from old network"
     false
   fi
