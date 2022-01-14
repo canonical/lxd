@@ -58,6 +58,7 @@ const (
 	OperationCustomVolumeSnapshotsExpire
 	OperationClusterJoinToken
 	OperationVolumeSnapshotRename
+	OperationCertificateAddToken
 )
 
 // Description return a human-readable description of the operation type.
