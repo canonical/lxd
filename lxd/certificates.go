@@ -19,6 +19,8 @@ import (
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/lifecycle"
+	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
@@ -465,6 +467,15 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
+	// Quick check.
+	if req.Token && req.Certificate != "" {
+		return response.BadRequest(fmt.Errorf("Can't use certificate if token is requested"))
+	}
+
+	if req.Token && req.Type != "client" {
+		return response.BadRequest(fmt.Errorf("Tokens can only be issued for client certificates"))
+	}
+
 	// Access check.
 	secret, err := cluster.ConfigGetString(d.cluster, "core.trust_password")
 	if err != nil {
@@ -491,10 +502,39 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 					return response.Forbidden(fmt.Errorf("No matching cluster join operation found"))
 				}
 			} else {
-				// Otherwise check if password matches trust password.
-				if util.PasswordCheck(secret, req.Password) != nil {
-					logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
-					return response.Forbidden(nil)
+				// Check if certificate add token supplied as password.
+				joinToken, err := shared.CertificateTokenDecode(req.Password)
+				if err == nil {
+					// If so then check there is a matching join operation.
+					joinOp, err := certificateTokenValid(d, r, joinToken)
+					if err != nil {
+						return response.InternalError(errors.Wrapf(err, "Failed during search for certificate add token operation"))
+					}
+
+					if joinOp == nil {
+						return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
+					}
+
+					tokenReq, ok := joinOp.Metadata["request"].(api.CertificatesPost)
+					if !ok {
+						return response.InternalError(fmt.Errorf("Bad certificate add operation data"))
+					}
+
+					// Create a new request from the token data as the user isn't allowed to override anything.
+					req = api.CertificatesPost{
+						CertificatePut: api.CertificatePut{
+							Name:       tokenReq.Name,
+							Type:       tokenReq.Type,
+							Restricted: tokenReq.Restricted,
+							Projects:   tokenReq.Projects,
+						},
+					}
+				} else {
+					// Otherwise check if password matches trust password.
+					if util.PasswordCheck(secret, req.Password) != nil {
+						logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+						return response.Forbidden(nil)
+					}
 				}
 			}
 		} else {
@@ -529,6 +569,52 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
+	} else if req.Token {
+		// Get all addresses the server is listening on. This is encoded in the certificate token,
+		// so that the client will not have to specify a server address. The client will iterate
+		// through all these addresses until it can connect to one of them.
+		address, err := node.HTTPSAddress(d.db)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		addresses, err := util.ListenAddresses(address)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		// Generate join secret for new client. This will be stored inside the join token operation and will be
+		// supplied by the joining client (encoded inside the join token) which will allow us to lookup the correct
+		// operation in order to validate the requested joining client name is correct and authorised.
+		joinSecret, err := shared.RandomCryptoString()
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		// Generate fingerprint of network certificate so joining member can automatically trust the correct
+		// certificate when it is presented during the join process.
+		fingerprint, err := shared.CertFingerprintStr(string(d.endpoints.NetworkPublicKey()))
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		if req.Projects == nil {
+			req.Projects = []string{}
+		}
+
+		meta := map[string]interface{}{
+			"secret":      joinSecret,
+			"fingerprint": fingerprint,
+			"addresses":   addresses,
+			"request":     req,
+		}
+
+		op, err := operations.OperationCreate(d.State(), project.Default, operations.OperationClassToken, db.OperationCertificateAddToken, nil, meta, nil, nil, nil, r)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		return operations.OperationResponse(op)
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
