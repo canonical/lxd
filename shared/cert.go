@@ -14,6 +14,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -24,6 +26,8 @@ import (
 	"os/user"
 	"path/filepath"
 	"time"
+
+	"github.com/lxc/lxd/shared/api"
 )
 
 // KeyPairAndCA returns a CertInfo object with a reference to the key pair and
@@ -423,6 +427,38 @@ func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, 
 	}
 
 	return resp.TLS.PeerCertificates[0], nil
+}
+
+// CertificateTokenDecode decodes a base64 and JSON encoded certificate add token.
+func CertificateTokenDecode(input string) (*api.CertificateAddToken, error) {
+	joinTokenJSON, err := base64.StdEncoding.DecodeString(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var j api.CertificateAddToken
+	err = json.Unmarshal(joinTokenJSON, &j)
+	if err != nil {
+		return nil, err
+	}
+
+	if j.ClientName == "" {
+		return nil, fmt.Errorf("No client name in certificate add token")
+	}
+
+	if len(j.Addresses) < 1 {
+		return nil, fmt.Errorf("No server addresses in certificate add token")
+	}
+
+	if j.Secret == "" {
+		return nil, fmt.Errorf("No secret in certificate add token")
+	}
+
+	if j.Fingerprint == "" {
+		return nil, fmt.Errorf("No certificate fingerprint in certificate add token")
+	}
+
+	return &j, nil
 }
 
 var testCertPEMBlock = []byte(`-----BEGIN CERTIFICATE-----
