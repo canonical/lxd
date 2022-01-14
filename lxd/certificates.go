@@ -354,6 +354,45 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 	return nil, nil
 }
 
+// certificateTokenValid searches for certificate token that matches the add token provided.
+// Returns matching operation if found and cancels the operation, otherwise returns nil.
+func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.CertificateAddToken) (*api.Operation, error) {
+	ops, err := operationsGetByType(d, r, project.Default, db.OperationCertificateAddToken)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed getting certificate token operations")
+	}
+
+	var foundOp *api.Operation
+	for _, op := range ops {
+		if op.StatusCode != api.Running {
+			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
+		}
+
+		opSecret, ok := op.Metadata["secret"]
+		if !ok {
+			continue
+		}
+
+		if opSecret == addToken.Secret {
+			foundOp = op
+			break
+		}
+	}
+
+	if foundOp != nil {
+		// Token is single-use, so cancel it now.
+		err = operationCancel(d, r, project.Default, foundOp)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to cancel operation %q", foundOp.ID)
+		}
+
+		return foundOp, nil
+	}
+
+	// No operation found.
+	return nil, nil
+}
+
 // swagger:operation POST /1.0/certificates?public certificates certificates_post_untrusted
 //
 // Add a trusted certificate
