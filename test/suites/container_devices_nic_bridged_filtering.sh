@@ -9,6 +9,13 @@ test_container_devices_nic_bridged_filtering() {
     false
   fi
 
+  if [ "$firewallDriver" = "xtables" ]; then
+    if readlink -f "$(command -v ebtables)" | grep -q nft; then
+      echo "==> SKIP: ebtables must be legacy version (try update-alternatives --set ebtables /usr/sbin/ebtables-legacy)"
+      return
+    fi
+  fi
+
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
 
