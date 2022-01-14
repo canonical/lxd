@@ -94,17 +94,17 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 		architecture = 0
 	}
 
-	// Check project limits.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return projecthelpers.AllowInstanceUpdate(tx, projectName, name, configRaw, inst.LocalConfig())
-	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
 	var do func(*operations.Operation) error
 	var opType db.OperationType
 	if configRaw.Restore == "" {
+		// Check project limits.
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			return projecthelpers.AllowInstanceUpdate(tx, projectName, name, configRaw, inst.LocalConfig())
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
+
 		// Update container configuration
 		do = func(op *operations.Operation) error {
 			args := db.InstanceArgs{
