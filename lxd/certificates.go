@@ -287,6 +287,10 @@ func clusterMemberJoinTokenDecode(input string) (*api.ClusterMemberJoinToken, er
 		return nil, err
 	}
 
+	if j.ServerName == "" {
+		return nil, fmt.Errorf("No server name in join token")
+	}
+
 	if len(j.Addresses) < 1 {
 		return nil, fmt.Errorf("No cluster member addresses in join token")
 	}
