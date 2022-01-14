@@ -197,7 +197,7 @@ container_devices_proxy_tcp() {
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234-1235" connect="tcp:${v4_addr}:1234" bind=host nat=true
   if [ "$firewallDriver" = "xtables" ]; then
-    [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 5 ]
+    [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 3 ]
   else
     [ "$(nft -nn list chain inet lxd prert.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234-1235 dnat ip to ${v4_addr}:1234")" -eq 1 ]
     [ "$(nft -nn list chain inet lxd out.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234-1235 dnat ip to ${v4_addr}:1234")" -eq 1 ]
@@ -213,7 +213,7 @@ container_devices_proxy_tcp() {
 
   lxc config device add nattest validNAT proxy listen="tcp:127.0.0.1:1234-1235" connect="tcp:${v4_addr}:1234-1235" bind=host nat=true
   if [ "$firewallDriver" = "xtables" ]; then
-    [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 6 ]
+    [ "$(iptables -w -t nat -S | grep -c "generated for LXD container nattest (validNAT)")" -eq 3 ]
   else
     [ "$(nft -nn list chain inet lxd prert.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234-1235 dnat ip to ${v4_addr}")" -eq 1 ]
     [ "$(nft -nn list chain inet lxd out.nattest.validNAT | grep -c "ip daddr 127.0.0.1 tcp dport 1234-1235 dnat ip to ${v4_addr}")" -eq 1 ]
