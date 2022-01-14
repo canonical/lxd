@@ -659,6 +659,8 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 			args := append(tarArgs, []string{
 				"-",
 				"--xattrs-include=*",
+				"--restrict",
+				"--force-local",
 				"-C", mountPath,
 			}...)
 
