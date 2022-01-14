@@ -37,6 +37,10 @@ func (c *cmdConfigTrust) Command() *cobra.Command {
 	configTrustListCmd := cmdConfigTrustList{global: c.global, config: c.config, configTrust: c}
 	cmd.AddCommand(configTrustListCmd.Command())
 
+	// List tokens
+	configTrustListTokensCmd := cmdConfigTrustListTokens{global: c.global, config: c.config, configTrust: c}
+	cmd.AddCommand(configTrustListTokensCmd.Command())
+
 	// Remove
 	configTrustRemoveCmd := cmdConfigTrustRemove{global: c.global, config: c.config, configTrust: c}
 	cmd.AddCommand(configTrustRemoveCmd.Command())
@@ -234,6 +238,98 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, trust)
+}
+
+// List tokens
+type cmdConfigTrustListTokens struct {
+	global      *cmdGlobal
+	config      *cmdConfig
+	configTrust *cmdConfigTrust
+
+	flagFormat string
+}
+
+func (c *cmdConfigTrustListTokens) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list-tokens", i18n.G("[<remote>:]"))
+	cmd.Short = i18n.G("List all active certificate add tokens")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`List all active certificate add tokens`))
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 0, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	remote := ""
+	if len(args) == 1 {
+		remote = args[0]
+	}
+
+	resources, err := c.global.ParseServers(remote)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	// Get the certificate add tokens. Use default project as join tokens are created in default project.
+	ops, err := resource.server.UseProject("default").GetOperations()
+	if err != nil {
+		return err
+	}
+
+	// Convert the join token operation into encoded form for display.
+	type displayToken struct {
+		ClientName string
+		Token      string
+	}
+
+	displayTokens := make([]displayToken, 0)
+
+	for _, op := range ops {
+		if op.Class != api.OperationClassToken {
+			continue
+		}
+
+		if op.StatusCode != api.Running {
+			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
+		}
+
+		joinToken, err := op.ToCertificateAddToken()
+		if err != nil {
+			continue // Operation is not a valid certificate add token operation.
+		}
+
+		displayTokens = append(displayTokens, displayToken{
+			ClientName: joinToken.ClientName,
+			Token:      joinToken.String(),
+		})
+	}
+
+	// Render the table.
+	data := [][]string{}
+	for _, token := range displayTokens {
+		line := []string{token.ClientName, token.Token}
+		data = append(data, line)
+	}
+	sort.Sort(byName(data))
+
+	header := []string{
+		i18n.G("NAME"),
+		i18n.G("TOKEN"),
+	}
+
+	return utils.RenderTable(c.flagFormat, header, data, displayTokens)
 }
 
 // Remove
