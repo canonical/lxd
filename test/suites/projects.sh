@@ -551,6 +551,10 @@ test_projects_limits() {
   # Configure a valid project memory limit.
   lxc project set p1 limits.memory 3GB
 
+  # Validate that snapshots don't fail with limits.
+  lxc snapshot c2
+  lxc restore c2 snap0
+
   lxc delete c2
 
   # Create a new profile which does not define "limits.memory".
