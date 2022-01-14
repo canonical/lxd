@@ -21,6 +21,7 @@ Name                            | Description
 `VISUAL`                        | What text editor to use (if `EDITOR` isn't set)
 `LXD_CONF`                      | Path to the LXC configuration directory
 `LXD_GLOBAL_CONF`               | Path to the global LXC configuration directory
+`LXC_REMOTE`                    | Name of the remote to use (overrides configured default remote)
 
 ## Server environment variable
 Name                            | Description
