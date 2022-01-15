@@ -261,6 +261,57 @@ func (c *cmdList) listInstances(conf *config.Config, d lxd.InstanceServer, cinfo
 		threads = len(cinfos)
 	}
 
+	// Shortcut when needing state and snapshot info.
+	hasSnapshots := false
+	hasState := false
+	for _, column := range columns {
+		if column.NeedsSnapshots {
+			hasSnapshots = true
+		}
+
+		if column.NeedsState {
+			hasState = true
+		}
+	}
+
+	if hasSnapshots && hasState {
+		cInfo := []api.InstanceFull{}
+		cInfoLock := sync.Mutex{}
+		cInfoQueue := make(chan string, threads)
+		cInfoWg := sync.WaitGroup{}
+
+		for i := 0; i < threads; i++ {
+			cInfoWg.Add(1)
+			go func() {
+				for {
+					cName, more := <-cInfoQueue
+					if !more {
+						break
+					}
+
+					state, _, err := d.GetInstanceFull(cName)
+					if err != nil {
+						continue
+					}
+
+					cInfoLock.Lock()
+					cInfo = append(cInfo, *state)
+					cInfoLock.Unlock()
+				}
+				cInfoWg.Done()
+			}()
+		}
+
+		for _, info := range cinfos {
+			cInfoQueue <- info.Name
+		}
+
+		close(cInfoQueue)
+		cInfoWg.Wait()
+
+		return c.showInstances(cInfo, filters, columns)
+	}
+
 	cStates := map[string]*api.InstanceState{}
 	cStatesLock := sync.Mutex{}
 	cStatesQueue := make(chan string, threads)
