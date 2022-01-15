@@ -149,6 +149,7 @@ type InstanceServer interface {
 	GetInstancesAllProjects(instanceType api.InstanceType) (instances []api.Instance, err error)
 	GetInstancesFullAllProjects(instanceType api.InstanceType) (instances []api.InstanceFull, err error)
 	GetInstance(name string) (instance *api.Instance, ETag string, err error)
+	GetInstanceFull(name string) (instance *api.InstanceFull, ETag string, err error)
 	CreateInstance(instance api.InstancesPost) (op Operation, err error)
 	CreateInstanceFromImage(source ImageServer, image api.Image, req api.InstancesPost) (op RemoteOperation, err error)
 	CopyInstance(source InstanceServer, instance api.Instance, args *InstanceCopyArgs) (op RemoteOperation, err error)
