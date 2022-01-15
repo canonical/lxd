@@ -446,58 +446,55 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 		return fmt.Errorf(i18n.G("--target cannot be used with instances"))
 	}
 
-	ct, _, err := d.GetInstance(name)
-	if err != nil {
-		return err
-	}
-	cs, _, err := d.GetInstanceState(name)
+	// Get the full instance data.
+	inst, _, err := d.GetInstanceFull(name)
 	if err != nil {
 		return err
 	}
 
 	const layout = "2006/01/02 15:04 MST"
 
-	fmt.Printf(i18n.G("Name: %s")+"\n", ct.Name)
+	fmt.Printf(i18n.G("Name: %s")+"\n", inst.Name)
 
-	fmt.Printf(i18n.G("Status: %s")+"\n", strings.ToUpper(ct.Status))
+	fmt.Printf(i18n.G("Status: %s")+"\n", strings.ToUpper(inst.Status))
 
-	if ct.Type == "" {
-		ct.Type = "container"
+	if inst.Type == "" {
+		inst.Type = "container"
 	}
 
-	if ct.Ephemeral {
-		fmt.Printf(i18n.G("Type: %s (ephemeral)")+"\n", ct.Type)
+	if inst.Ephemeral {
+		fmt.Printf(i18n.G("Type: %s (ephemeral)")+"\n", inst.Type)
 	} else {
-		fmt.Printf(i18n.G("Type: %s")+"\n", ct.Type)
+		fmt.Printf(i18n.G("Type: %s")+"\n", inst.Type)
 	}
 
-	fmt.Printf(i18n.G("Architecture: %s")+"\n", ct.Architecture)
+	fmt.Printf(i18n.G("Architecture: %s")+"\n", inst.Architecture)
 
-	if ct.Location != "" && d.IsClustered() {
-		fmt.Printf(i18n.G("Location: %s")+"\n", ct.Location)
+	if inst.Location != "" && d.IsClustered() {
+		fmt.Printf(i18n.G("Location: %s")+"\n", inst.Location)
 	}
 
-	if cs.Pid != 0 {
-		fmt.Printf(i18n.G("PID: %d")+"\n", cs.Pid)
+	if inst.State.Pid != 0 {
+		fmt.Printf(i18n.G("PID: %d")+"\n", inst.State.Pid)
 	}
 
-	if shared.TimeIsSet(ct.CreatedAt) {
-		fmt.Printf(i18n.G("Created: %s")+"\n", ct.CreatedAt.Local().Format(layout))
+	if shared.TimeIsSet(inst.CreatedAt) {
+		fmt.Printf(i18n.G("Created: %s")+"\n", inst.CreatedAt.Local().Format(layout))
 	}
 
-	if shared.TimeIsSet(ct.LastUsedAt) {
-		fmt.Printf(i18n.G("Last Used: %s")+"\n", ct.LastUsedAt.Local().Format(layout))
+	if shared.TimeIsSet(inst.LastUsedAt) {
+		fmt.Printf(i18n.G("Last Used: %s")+"\n", inst.LastUsedAt.Local().Format(layout))
 	}
 
-	if cs.Pid != 0 {
+	if inst.State.Pid != 0 {
 		fmt.Println("\n" + i18n.G("Resources:"))
 		// Processes
-		fmt.Printf("  "+i18n.G("Processes: %d")+"\n", cs.Processes)
+		fmt.Printf("  "+i18n.G("Processes: %d")+"\n", inst.State.Processes)
 
 		// Disk usage
 		diskInfo := ""
-		if cs.Disk != nil {
-			for entry, disk := range cs.Disk {
+		if inst.State.Disk != nil {
+			for entry, disk := range inst.State.Disk {
 				if disk.Usage != 0 {
 					diskInfo += fmt.Sprintf("    %s: %s\n", entry, units.GetByteSizeStringIEC(disk.Usage, 2))
 				}
@@ -511,8 +508,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 
 		// CPU usage
 		cpuInfo := ""
-		if cs.CPU.Usage != 0 {
-			cpuInfo += fmt.Sprintf("    %s: %v\n", i18n.G("CPU usage (in seconds)"), cs.CPU.Usage/1000000000)
+		if inst.State.CPU.Usage != 0 {
+			cpuInfo += fmt.Sprintf("    %s: %v\n", i18n.G("CPU usage (in seconds)"), inst.State.CPU.Usage/1000000000)
 		}
 
 		if cpuInfo != "" {
@@ -522,20 +519,20 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 
 		// Memory usage
 		memoryInfo := ""
-		if cs.Memory.Usage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeStringIEC(cs.Memory.Usage, 2))
+		if inst.State.Memory.Usage != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (current)"), units.GetByteSizeStringIEC(inst.State.Memory.Usage, 2))
 		}
 
-		if cs.Memory.UsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeStringIEC(cs.Memory.UsagePeak, 2))
+		if inst.State.Memory.UsagePeak != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Memory (peak)"), units.GetByteSizeStringIEC(inst.State.Memory.UsagePeak, 2))
 		}
 
-		if cs.Memory.SwapUsage != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeStringIEC(cs.Memory.SwapUsage, 2))
+		if inst.State.Memory.SwapUsage != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (current)"), units.GetByteSizeStringIEC(inst.State.Memory.SwapUsage, 2))
 		}
 
-		if cs.Memory.SwapUsagePeak != 0 {
-			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeStringIEC(cs.Memory.SwapUsagePeak, 2))
+		if inst.State.Memory.SwapUsagePeak != 0 {
+			memoryInfo += fmt.Sprintf("    %s: %s\n", i18n.G("Swap (peak)"), units.GetByteSizeStringIEC(inst.State.Memory.SwapUsagePeak, 2))
 		}
 
 		if memoryInfo != "" {
@@ -545,8 +542,8 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 
 		// Network usage and IP info
 		networkInfo := ""
-		if cs.Network != nil {
-			for netName, net := range cs.Network {
+		if inst.State.Network != nil {
+			for netName, net := range inst.State.Network {
 				networkInfo += fmt.Sprintf("    %s:\n", netName)
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("Type"), net.Type)
 				networkInfo += fmt.Sprintf("      %s: %s\n", i18n.G("State"), strings.ToUpper(net.State))
@@ -584,15 +581,10 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 
 	// List snapshots
 	firstSnapshot := true
-	snaps, err := d.GetInstanceSnapshots(name)
-	if err != nil {
-		return nil
-	}
-
-	if len(snaps) > 0 {
+	if len(inst.Snapshots) > 0 {
 		snapData := [][]string{}
 
-		for _, snap := range snaps {
+		for _, snap := range inst.Snapshots {
 			if firstSnapshot {
 				fmt.Println("\n" + i18n.G("Snapshots:"))
 			}
@@ -632,20 +624,15 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			i18n.G("Stateful"),
 		}
 
-		_ = utils.RenderTable(utils.TableFormatTable, snapHeader, snapData, snaps)
+		_ = utils.RenderTable(utils.TableFormatTable, snapHeader, snapData, inst.Snapshots)
 	}
 
 	// List backups
 	firstBackup := true
-	backups, err := d.GetInstanceBackups(name)
-	if err != nil {
-		return nil
-	}
-
-	if len(backups) > 0 {
+	if len(inst.Backups) > 0 {
 		backupData := [][]string{}
 
-		for _, backup := range backups {
+		for _, backup := range inst.Backups {
 			if firstBackup {
 				fmt.Println("\n" + i18n.G("Backups:"))
 			}
@@ -689,23 +676,23 @@ func (c *cmdInfo) instanceInfo(d lxd.InstanceServer, remote config.Remote, name 
 			i18n.G("Optimized Storage"),
 		}
 
-		_ = utils.RenderTable(utils.TableFormatTable, backupHeader, backupData, backups)
+		_ = utils.RenderTable(utils.TableFormatTable, backupHeader, backupData, inst.Backups)
 	}
 
 	if showLog {
 		var log io.Reader
-		if ct.Type == "container" {
+		if inst.Type == "container" {
 			log, err = d.GetInstanceLogfile(name, "lxc.log")
 			if err != nil {
 				return err
 			}
-		} else if ct.Type == "virtual-machine" {
+		} else if inst.Type == "virtual-machine" {
 			log, err = d.GetInstanceLogfile(name, "qemu.log")
 			if err != nil {
 				return err
 			}
 		} else {
-			return fmt.Errorf(i18n.G("Unsupported instance type: %s"), ct.Type)
+			return fmt.Errorf(i18n.G("Unsupported instance type: %s"), inst.Type)
 		}
 
 		stuff, err := ioutil.ReadAll(log)
