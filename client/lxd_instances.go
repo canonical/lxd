@@ -224,6 +224,54 @@ func (r *ProtocolLXD) GetInstance(name string) (*api.Instance, string, error) {
 	return &instance, etag, nil
 }
 
+// GetInstanceFull returns the instance entry for the provided name along with snapshot information.
+func (r *ProtocolLXD) GetInstanceFull(name string) (*api.InstanceFull, string, error) {
+	instance := api.InstanceFull{}
+
+	if !r.HasExtension("instance_get_full") {
+		// Backware compatibility.
+		ct, _, err := r.GetInstance(name)
+		if err != nil {
+			return nil, "", err
+		}
+
+		cs, _, err := r.GetInstanceState(name)
+		if err != nil {
+			return nil, "", err
+		}
+
+		snaps, err := r.GetInstanceSnapshots(name)
+		if err != nil {
+			return nil, "", err
+		}
+
+		backups, err := r.GetInstanceBackups(name)
+		if err != nil {
+			return nil, "", err
+		}
+
+		instance.Instance = *ct
+		instance.State = cs
+		instance.Snapshots = snaps
+		instance.Backups = backups
+
+		return &instance, "", nil
+	}
+
+	path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Fetch the raw value
+	etag, err := r.queryStruct("GET", fmt.Sprintf("%s/%s?recursion=1", path, url.PathEscape(name)), nil, "", &instance)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &instance, etag, nil
+}
+
 // CreateInstanceFromBackup is a convenience function to make it easier to
 // create a instance from a backup
 func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operation, error) {
