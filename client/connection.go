@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"net/http"
@@ -70,16 +71,32 @@ type ConnectionArgs struct {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
+	return ConnectLXDWithContext(context.Background(), url, args)
+}
+
+// ConnectLXDWithContext lets you connect to a remote LXD daemon over HTTPs with context.Context.
+//
+// A client certificate (TLSClientCert) and key (TLSClientKey) must be provided.
+//
+// If connecting to a LXD daemon running in PKI mode, the PKI CA (TLSCA) must also be provided.
+//
+// Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
+func ConnectLXDWithContext(ctx context.Context, url string, args *ConnectionArgs) (InstanceServer, error) {
 	logger.Debugf("Connecting to a remote LXD over HTTPS")
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")
 
-	return httpsLXD(url, args)
+	return httpsLXD(ctx, url, args)
 }
 
 // ConnectLXDHTTP lets you connect to a VM agent over a VM socket.
 func ConnectLXDHTTP(args *ConnectionArgs, client *http.Client) (InstanceServer, error) {
+	return ConnectLXDHTTPWithContext(context.Background(), args, client)
+}
+
+// ConnectLXDHTTPWithContext lets you connect to a VM agent over a VM socket with context.Context.
+func ConnectLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, client *http.Client) (InstanceServer, error) {
 	logger.Debugf("Connecting to a VM agent over a VM socket")
 
 	// Use empty args if not specified
@@ -89,6 +106,7 @@ func ConnectLXDHTTP(args *ConnectionArgs, client *http.Client) (InstanceServer, 
 
 	// Initialize the client struct
 	server := ProtocolLXD{
+		ctx:            ctx,
 		httpHost:       "https://custom.socket",
 		httpProtocol:   "custom",
 		httpUserAgent:  args.UserAgent,
@@ -120,6 +138,15 @@ func ConnectLXDHTTP(args *ConnectionArgs, client *http.Client) (InstanceServer, 
 // unset $LXD_DIR/unix.socket will be used and if that one isn't set
 // either, then the path will default to /var/lib/lxd/unix.socket.
 func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
+	return ConnectLXDUnixWithContext(context.Background(), path, args)
+}
+
+// ConnectLXDUnixWithContext lets you connect to a remote LXD daemon over a local unix socket with context.Context.
+//
+// If the path argument is empty, then $LXD_SOCKET will be used, if
+// unset $LXD_DIR/unix.socket will be used and if that one isn't set
+// either, then the path will default to /var/lib/lxd/unix.socket.
+func ConnectLXDUnixWithContext(ctx context.Context, path string, args *ConnectionArgs) (InstanceServer, error) {
 	logger.Debugf("Connecting to a local LXD over a Unix socket")
 
 	// Use empty args if not specified
@@ -129,6 +156,7 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 
 	// Initialize the client struct
 	server := ProtocolLXD{
+		ctx:            ctx,
 		httpHost:       "http://unix.socket",
 		httpUnixPath:   path,
 		httpProtocol:   "unix",
@@ -178,12 +206,19 @@ func ConnectLXDUnix(path string, args *ConnectionArgs) (InstanceServer, error) {
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectPublicLXD(url string, args *ConnectionArgs) (ImageServer, error) {
+	return ConnectPublicLXDWithContext(context.Background(), url, args)
+}
+
+// ConnectPublicLXDWithContext lets you connect to a remote public LXD daemon over HTTPs with context.Context.
+//
+// Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
+func ConnectPublicLXDWithContext(ctx context.Context, url string, args *ConnectionArgs) (ImageServer, error) {
 	logger.Debugf("Connecting to a remote public LXD over HTTPS")
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")
 
-	return httpsLXD(url, args)
+	return httpsLXD(ctx, url, args)
 }
 
 // ConnectSimpleStreams lets you connect to a remote SimpleStreams image server over HTTPs.
@@ -246,7 +281,7 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 }
 
 // Internal function called by ConnectLXD and ConnectPublicLXD
-func httpsLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
+func httpsLXD(ctx context.Context, url string, args *ConnectionArgs) (InstanceServer, error) {
 	// Use empty args if not specified
 	if args == nil {
 		args = &ConnectionArgs{}
@@ -254,6 +289,7 @@ func httpsLXD(url string, args *ConnectionArgs) (InstanceServer, error) {
 
 	// Initialize the client struct
 	server := ProtocolLXD{
+		ctx:              ctx,
 		httpCertificate:  args.TLSServerCert,
 		httpHost:         url,
 		httpProtocol:     "https",
