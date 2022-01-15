@@ -94,6 +94,7 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 // UseProject returns a client that will use a specific project.
 func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 	return &ProtocolLXD{
+		ctx:                  r.ctx,
 		server:               r.server,
 		http:                 r.http,
 		httpCertificate:      r.httpCertificate,
@@ -115,6 +116,7 @@ func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 // placement, preparing a new storage pool or network, ...
 func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 	return &ProtocolLXD{
+		ctx:                  r.ctx,
 		server:               r.server,
 		http:                 r.http,
 		httpCertificate:      r.httpCertificate,
