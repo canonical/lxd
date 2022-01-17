@@ -993,3 +993,26 @@ func (d *common) setCoreSched(pids []int) error {
 	_, err := shared.RunCommand(d.state.OS.ExecPath, args...)
 	return err
 }
+
+// getRootDiskDevice gets the name and configuration of the root disk device of an instance.
+func (d *common) getRootDiskDevice() (string, map[string]string, error) {
+	devices := d.ExpandedDevices()
+	if d.IsSnapshot() {
+		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
+
+		// Load the parent.
+		storageInstance, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
+		if err != nil {
+			return "", nil, err
+		}
+		devices = storageInstance.ExpandedDevices()
+	}
+
+	// Retrieve the instance's storage pool.
+	name, configuration, err := shared.GetRootDiskDevice(devices.CloneNative())
+	if err != nil {
+		return "", nil, err
+	}
+
+	return name, configuration, nil
+}
