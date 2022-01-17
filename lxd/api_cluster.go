@@ -2859,6 +2859,9 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		// Migrate back the remote instances.
 		for _, inst := range instances {
+			// Check if live-migratable.
+			_, live := inst.CanMigrate()
+
 			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project(), inst.Location())
 			op.UpdateMetadata(metadata)
 
@@ -2887,8 +2890,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			isRunning := apiInst.StatusCode == api.Running
-
-			if isRunning {
+			if isRunning && !live {
 				metadata["evacuation_progress"] = fmt.Sprintf("Stopping %q in project %q", inst.Name(), inst.Project())
 				op.UpdateMetadata(metadata)
 
@@ -2925,6 +2927,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			req := api.InstancePost{
 				Name:      inst.Name(),
 				Migration: true,
+				Live:      live,
 			}
 
 			source = source.UseTarget(originName)
@@ -2964,7 +2967,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrapf(err, "Failed to update instance %q", inst.Name())
 			}
 
-			if !isRunning {
+			if !isRunning || live {
 				continue
 			}
 
