@@ -2602,21 +2602,9 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 	nodeName := mux.Vars(r)["name"]
 
-	// Set node status to EVACUATED
-	err := evacuateClusterSetState(d, nodeName, db.ClusterMemberStateEvacuated)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	reverter := revert.New()
-	defer reverter.Fail()
-
-	// Ensure node is put into its previous state if anything fails.
-	reverter.Add(func() { evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated) })
-
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
 	var dbInstances []db.Instance
-
+	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{Node: &nodeName})
@@ -2645,6 +2633,21 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 	var targetNode db.NodeInfo
 
 	run := func(op *operations.Operation) error {
+		// Setup a reverter.
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		// Set node status to EVACUATED.
+		err := evacuateClusterSetState(d, nodeName, db.ClusterMemberStateEvacuated)
+		if err != nil {
+			return err
+		}
+
+		// Ensure node is put into its previous state if anything fails.
+		reverter.Add(func() {
+			evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated)
+		})
+
 		metadata := make(map[string]interface{})
 
 		for _, inst := range instances {
@@ -2753,6 +2756,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		reverter.Success()
 		return nil
 	}
 
@@ -2761,27 +2765,15 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	reverter.Success()
 	return operations.OperationResponse(op)
 }
 
 func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	originName := mux.Vars(r)["name"]
 
-	// Set node status to CREATED
-	err := evacuateClusterSetState(d, originName, db.ClusterMemberStateCreated)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	reverter := revert.New()
-	defer reverter.Fail()
-
-	// Ensure node is put into its previous state if anything fails.
-	reverter.Add(func() { evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated) })
-
+	// List the instances.
 	var dbInstances []db.Instance
-
+	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{})
 		if err != nil {
@@ -2823,6 +2815,21 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	}
 
 	run := func(op *operations.Operation) error {
+		// Setup a reverter.
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		// Set node status to CREATED.
+		err := evacuateClusterSetState(d, originName, db.ClusterMemberStateCreated)
+		if err != nil {
+			return err
+		}
+
+		// Ensure node is put into its previous state if anything fails.
+		reverter.Add(func() {
+			evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated)
+		})
+
 		var source lxd.InstanceServer
 		var sourceNode db.NodeInfo
 
@@ -2970,6 +2977,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
+		reverter.Success()
 		return nil
 	}
 
