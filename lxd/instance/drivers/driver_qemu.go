@@ -956,11 +956,8 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 	return nil
 }
 
-// Start starts the instance.
-func (d *qemu) Start(stateful bool) error {
-	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
-	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
-
+// validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
+func (d *qemu) validateStartup(stateful bool) error {
 	// Check that we are startable before creating an operation lock, so if the instance is in the
 	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
 	err := d.isStartableStatusCode(d.statusCode())
@@ -968,9 +965,56 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	// Check for stateful.
+	// Cannot perform stateful start unless config is appropriately set.
 	if stateful && !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
+	}
+
+	// The "size.state" of the instance root disk device must be larger than the instance memory.
+	// Otherwise, there will not be enough disk space to write the instance state to disk during any subsequent stops.
+	// (Only check when migration.stateful is true, otherwise the memory won't be dumped when this instance stops).
+	if shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		_, rootDiskDevice, err := d.getRootDiskDevice()
+		if err != nil {
+			return err
+		}
+
+		stateDiskSizeStr := deviceConfig.DefaultVMBlockFilesystemSize
+		if rootDiskDevice["size.state"] != "" {
+			stateDiskSizeStr = rootDiskDevice["size.state"]
+		}
+
+		stateDiskSize, err := units.ParseByteSizeString(stateDiskSizeStr)
+		if err != nil {
+			return err
+		}
+
+		memoryLimitStr := qemuDefaultMemSize
+		if d.expandedConfig["limits.memory"] != "" {
+			memoryLimitStr = d.expandedConfig["limits.memory"]
+		}
+
+		memoryLimit, err := units.ParseByteSizeString(memoryLimitStr)
+		if err != nil {
+			return err
+		}
+
+		if stateDiskSize < memoryLimit {
+			return fmt.Errorf("Stateful start requires that the instance limits.memory is less than size.state on the root disk device")
+		}
+	}
+
+	return nil
+}
+
+// Start starts the instance.
+func (d *qemu) Start(stateful bool) error {
+	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
+
+	err := d.validateStartup(stateful)
+	if err != nil {
+		return err
 	}
 
 	// Setup a new operation.
