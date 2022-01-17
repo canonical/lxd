@@ -233,21 +233,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 	}
 
 	// Retrieve the container's storage pool.
-	var storageInstance instance.Instance
-	if d.IsSnapshot() {
-		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		storageInstance, err = instance.LoadByProjectAndName(d.state, d.project, parentName)
-		if err != nil {
-			return nil, errors.Wrap(err, "Invalid parent")
-		}
-	} else {
-		storageInstance = d
-	}
-
-	// Retrieve the instance's storage pool.
-	_, rootDiskDevice, err := shared.GetRootDiskDevice(storageInstance.ExpandedDevices().CloneNative())
+	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
 		return nil, err
 	}
@@ -5254,7 +5240,7 @@ func (d *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 	}
 
 	// Get the root disk device config.
-	rootDiskName, _, err := shared.GetRootDiskDevice(d.ExpandedDevices().CloneNative())
+	rootDiskName, _, err := d.getRootDiskDevice()
 	if err != nil {
 		return nil, err
 	}
