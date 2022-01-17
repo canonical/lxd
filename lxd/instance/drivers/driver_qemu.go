@@ -3942,11 +3942,50 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 
 	if isRunning {
 		// Only certain keys can be changed on a running VM.
-		liveUpdateKeys := []string{"limits.memory"}
+		liveUpdateKeys := []string{
+			"limits.memory",
+			"security.agent.metrics",
+		}
+
+		isLiveUpdatable := func(key string) bool {
+			if strings.HasPrefix(key, "boot.") {
+				return true
+			}
+
+			if strings.HasPrefix(key, "cloud-init.") {
+				return true
+			}
+
+			if strings.HasPrefix(key, "environment.") {
+				return true
+			}
+
+			if strings.HasPrefix(key, "image.") {
+				return true
+			}
+
+			if strings.HasPrefix(key, "snapshots.") {
+				return true
+			}
+
+			if strings.HasPrefix(key, "user.") {
+				return true
+			}
+
+			if strings.HasPrefix(key, "volatile.") {
+				return true
+			}
+
+			if !shared.StringInSlice(key, liveUpdateKeys) {
+				return true
+			}
+
+			return false
+		}
 
 		// Check only keys that support live update have changed.
 		for _, key := range changedConfig {
-			if !strings.HasPrefix(key, "user.") && !shared.StringInSlice(key, liveUpdateKeys) {
+			if !isLiveUpdatable(key) {
 				return fmt.Errorf("Key %q cannot be updated when VM is running", key)
 			}
 		}
