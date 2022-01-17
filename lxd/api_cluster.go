@@ -2722,7 +2722,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrap(err, "Failed to migrate instance")
 			}
 
-			if !isRunning {
+			if !isRunning || live {
 				continue
 			}
 
