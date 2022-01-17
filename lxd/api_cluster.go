@@ -2600,51 +2600,19 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 }
 
 func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
-	var err error
-	var node db.NodeInfo
-
 	nodeName := mux.Vars(r)["name"]
 
 	// Set node status to EVACUATED
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Get the node.
-		node, err = tx.GetNodeByName(nodeName)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get cluster member by name")
-		}
-
-		if node.State == db.ClusterMemberStatePending {
-			return fmt.Errorf("Cannot evacuate or restore a pending cluster member")
-		}
-
-		// Set node status to EVACUATED to prevent instances from being created.
-		err = tx.UpdateNodeStatus(node.ID, db.ClusterMemberStateEvacuated)
-		if err != nil {
-			return errors.Wrap(err, "Failed to update cluster member status")
-		}
-
-		return nil
-	})
+	err := evacuateClusterSetState(d, nodeName, db.ClusterMemberStateEvacuated)
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Do nothing if the node is already evacuated.
-	if node.State == db.ClusterMemberStateEvacuated {
-		return response.SmartError(fmt.Errorf("Cluster member is already evacuated"))
 	}
 
 	reverter := revert.New()
 	defer reverter.Fail()
 
 	// Ensure node is put into its previous state if anything fails.
-	reverter.Add(func() {
-		d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			tx.UpdateNodeStatus(node.ID, db.ClusterMemberStateCreated)
-
-			return nil
-		})
-	})
+	reverter.Add(func() { evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated) })
 
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
 	var dbInstances []db.Instance
@@ -2800,29 +2768,17 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	originName := mux.Vars(r)["name"]
 
-	var node db.NodeInfo
-	var err error
-
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Get the node.
-		node, err = tx.GetNodeByName(originName)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get cluster member by name")
-		}
-
-		return nil
-	})
+	// Set node status to CREATED
+	err := evacuateClusterSetState(d, originName, db.ClusterMemberStateCreated)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if node.State == db.ClusterMemberStatePending {
-		return response.SmartError(fmt.Errorf("Cannot restore or restore a pending cluster member"))
-	}
+	reverter := revert.New()
+	defer reverter.Fail()
 
-	if node.State == db.ClusterMemberStateCreated {
-		return response.SmartError(fmt.Errorf("Cluster member not evacuated"))
-	}
+	// Ensure node is put into its previous state if anything fails.
+	reverter.Add(func() { evacuateClusterSetState(d, originName, db.ClusterMemberStateEvacuated) })
 
 	var dbInstances []db.Instance
 
@@ -2842,7 +2798,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	localInstances := make([]instance.Instance, 0)
 
 	for _, dbInst := range dbInstances {
-		if dbInst.Node == node.Name {
+		if dbInst.Node == originName {
 			inst, err := instance.LoadByProjectAndName(d.State(), dbInst.Project, dbInst.Name)
 			if err != nil {
 				return response.SmartError(errors.Wrap(err, "Failed to load instance"))
@@ -2854,7 +2810,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		// Only consider instances where volatile.evacuate.origin is set to the node which needs to be restored.
 		val, ok := dbInst.Config["volatile.evacuate.origin"]
-		if !ok || val != node.Name {
+		if !ok || val != originName {
 			continue
 		}
 
@@ -3012,18 +2968,6 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			if err != nil {
 				return errors.Wrapf(err, "Failed to start instance %q", inst.Name())
 			}
-		}
-
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			err = tx.UpdateNodeStatus(node.ID, db.ClusterMemberStateCreated)
-			if err != nil {
-				return errors.Wrap(err, "Failed to update cluster member status")
-			}
-
-			return nil
-		})
-		if err != nil {
-			return err
 		}
 
 		return nil
