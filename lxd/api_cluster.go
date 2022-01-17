@@ -2561,6 +2561,44 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	return response.BadRequest(fmt.Errorf("Unknown action %q", req.Action))
 }
 
+func evacuateClusterSetState(d *Daemon, name string, state int) error {
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the node.
+		node, err := tx.GetNodeByName(name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get cluster member by name")
+		}
+
+		if node.State == db.ClusterMemberStatePending {
+			return fmt.Errorf("Cannot evacuate or restore a pending cluster member")
+		}
+
+		// Do nothing if the node is already in expected state.
+		if node.State == state {
+			if state == db.ClusterMemberStateEvacuated {
+				return fmt.Errorf("Cluster member is already evacuated")
+			} else if state == db.ClusterMemberStateCreated {
+				return fmt.Errorf("Cluster member is already restored")
+			}
+
+			return fmt.Errorf("Cluster member is already in requested state")
+		}
+
+		// Set node status to requested value.
+		err = tx.UpdateNodeStatus(node.ID, state)
+		if err != nil {
+			return errors.Wrap(err, "Failed to update cluster member status")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 	var err error
 	var node db.NodeInfo
