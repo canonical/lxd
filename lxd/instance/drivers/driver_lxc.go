@@ -202,21 +202,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]str
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
 
-	// Retrieve the container's storage pool.
-	var storageInstance instance.Instance
-	if d.IsSnapshot() {
-		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(d.name)
-
-		// Load the parent.
-		storageInstance, err = instance.LoadByProjectAndName(d.state, d.project, parentName)
-		if err != nil {
-			return nil, errors.Wrap(err, "Invalid parent")
-		}
-	} else {
-		storageInstance = d
-	}
-
-	_, rootDiskDevice, err := shared.GetRootDiskDevice(storageInstance.ExpandedDevices().CloneNative())
+	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
 		return nil, err
 	}
