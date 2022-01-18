@@ -5,9 +5,10 @@ package db_test
 
 import (
 	"database/sql"
-	"github.com/lxc/lxd/lxd/project"
 	"testing"
 	"time"
+
+	"github.com/lxc/lxd/lxd/project"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
