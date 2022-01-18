@@ -10,7 +10,7 @@
 window.onload = function() {
   // Begin Swagger UI call region
   const ui = SwaggerUIBundle({
-    url: "../rest-api.yaml",
+    url: window.location.pathname +"../rest-api.yaml",
     dom_id: '#swagger-ui',
     deepLinking: true,
     presets: [
