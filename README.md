@@ -41,23 +41,28 @@ More instructions on installing LXD for a wide variety of Linux distributions an
 
 To install LXD from source, see [Installing LXD](doc/installing.md) in the documentation.
 
+## Security
+
 <!-- Include start security -->
 
-## Security
-LXD, similar to other container and VM managers provides a UNIX socket for local communication.
+Consider the following aspects to ensure that your LXD installation is secure:
 
-**WARNING**: Anyone with access to that socket can fully control LXD, which includes
-the ability to attach host devices and filesystems, this should
-therefore only be given to users who would be trusted with root access
-to the host.
-
-When listening on the network, the same API is available on a TLS socket
-(HTTPS), specific access on the remote API can be restricted through
-Canonical RBAC.
+- Keep your operating system up-to-date and install all available security patches.
+- Use only supported LXD versions (LTS releases or monthly feature releases).
+- Restrict access to the LXD daemon and the remote API.
+- Do not use privileged containers unless required. If you use privileged containers, put appropriate security measures in place. See the [LXC security page](https://linuxcontainers.org/lxc/security/) for more information.
+- Configure your network interfaces to be secure.
 <!-- Include end security -->
 
-More details are [available here](doc/security.md).
+See [Security](doc/security.md) for detailed information.
 
+**IMPORTANT:**
+<!-- Include start security note -->
+Local access to LXD through the UNIX socket always grants full access to LXD.
+This includes the ability to attach file system paths or devices to any instance as well as tweak the security features on any instance.
+
+Therefore, you should only give such access to users who you'd trust with root access to your system.
+<!-- Include end security note -->
 <!-- Include start support -->
 
 ## Support and community
