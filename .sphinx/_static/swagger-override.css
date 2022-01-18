@@ -9,3 +9,7 @@
 .swagger-ui .response-col_description, .swagger-ui .parameters-col_description {
     width: 85%
 }
+
+.swagger-ui .information-container .url {
+    display: none;
+}
