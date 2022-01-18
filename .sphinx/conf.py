@@ -25,9 +25,9 @@ myst_enable_extensions = [
 
 myst_linkify_fuzzy_links=False
 
-if os.path.exists("doc/substitutions.yaml"):
-    with open("doc/substitutions.yaml", "r") as fd:
-        myst_substitutions = yaml.load(fd.read())
+if os.path.exists("../doc/substitutions.yaml"):
+    with open("../doc/substitutions.yaml", "r") as fd:
+        myst_substitutions = yaml.safe_load(fd.read())
 
 # Setup theme.
 templates_path = ["_templates"]
