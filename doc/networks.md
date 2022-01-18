@@ -159,6 +159,10 @@ actual domain name is, you should prefix it with `~`.  Also,
 since the shell may expand the `~` character, you may need to
 include it in quotes.
 
+Note that the `/etc/resolv.conf` file must have `nameserver 127.0.0.53` on top
+in order for this to work. This can either be done by editing the file manually
+or using a tool like [resolvconf](https://wiki.debian.org/resolv.conf).
+
 In newer releases of systemd, the `systemd-resolve` command has been
 deprecated, however it is still provided for backwards compatibility
 (as of this writing).  The newer method to notify resolved is using
