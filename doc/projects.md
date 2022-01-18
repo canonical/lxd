@@ -91,6 +91,7 @@ exceed `50GB`, will result in an error.
 Similarly, setting the project's `limits.cpu` config key to `100`, means that
 the **sum** of individual `limits.cpu` values will be kept below `100`.
 
+(projects-restrictions)=
 ## Project restrictions
 
 If the `restricted` config key is set to `true`, then the instances of the
