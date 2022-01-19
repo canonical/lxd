@@ -9,9 +9,9 @@ and is built around a very powerful, yet pretty simple, REST API.
 To get a better idea of what LXD is and what it does, you can [try it online](https://linuxcontainers.org/lxd/try-it/)!
 Then if you want to run it locally, take a look at our [getting started guide](https://linuxcontainers.org/lxd/getting-started-cli/).
 
-- Release announcements: <https://linuxcontainers.org/lxd/news/>
-- Release tarballs: <https://linuxcontainers.org/lxd/downloads/>
-- Documentation: <https://linuxcontainers.org/lxd/docs/stable-4.0/>
+- Release announcements: https://linuxcontainers.org/lxd/news/
+- Release tarballs: https://linuxcontainers.org/lxd/downloads/
+- Documentation: https://linuxcontainers.org/lxd/docs/stable-4.0/
 
 <!-- Include end LXD intro -->
 
@@ -70,14 +70,14 @@ Therefore, you should only give such access to users who you'd trust with root a
 The following channels are available for you to interact with the LXD community.
 
 ### Bug reports
-You can file bug reports and feature requests at: <https://github.com/lxc/lxd/issues/new>
+You can file bug reports and feature requests at: https://github.com/lxc/lxd/issues/new
 
 ### Forum
-A discussion forum is available at: <https://discuss.linuxcontainers.org>
+A discussion forum is available at: https://discuss.linuxcontainers.org
 
-### Mailing-lists
+### Mailing lists
 We use the LXC mailing lists for developer and user discussions. You can
-find and subscribe to those at: <https://lists.linuxcontainers.org>
+find and subscribe to those at: https://lists.linuxcontainers.org
 
 ### IRC
 If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
