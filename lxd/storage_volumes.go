@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -18,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -78,6 +80,11 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //     description: Cluster member name
 //     type: string
 //     example: lxd01
+//   - in: query
+//     name: filter
+//     description: Collection filter
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: API endpoints
@@ -134,6 +141,11 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 //     description: Cluster member name
 //     type: string
 //     example: lxd01
+//   - in: query
+//     name: filter
+//     description: Collection filter
+//     type: string
+//     example: default
 // responses:
 //   "200":
 //     description: API endpoints
@@ -168,6 +180,16 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 
 	recursion := util.IsRecursionRequest(r)
+
+	filterStr := r.FormValue("filter")
+	var clauses []filter.Clause
+	if filterStr != "" {
+		var err error
+		clauses, err = filter.Parse(filterStr)
+		if err != nil {
+			return response.SmartError(errors.Wrap(err, "Invalid filter"))
+		}
+	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
 	poolID, err := d.cluster.GetStoragePoolID(poolName)
@@ -217,6 +239,8 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
+	volumes = filterVolumes(volumes, clauses)
+
 	resultString := []string{}
 	for _, volume := range volumes {
 		if !recursion {
@@ -256,6 +280,29 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, volumes)
+}
+
+// filterVolumes returns a filtered list of volumes that match the given clauses.
+func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api.StorageVolume {
+	// FilterStorageVolume is for filtering purpose only.
+	// It allows to filter snapshots by using default filter mechanism.
+	type FilterStorageVolume struct {
+		api.StorageVolume `yaml:",inline"`
+		Snapshot          string `yaml:"snapshot"`
+	}
+
+	filtered := []*api.StorageVolume{}
+	for _, volume := range volumes {
+		tmpVolume := FilterStorageVolume{
+			StorageVolume: *volume,
+			Snapshot:      strconv.FormatBool(strings.Contains(volume.Name, shared.SnapshotDelimiter)),
+		}
+		if !filter.Match(tmpVolume, clauses) {
+			continue
+		}
+		filtered = append(filtered, volume)
+	}
+	return filtered
 }
 
 // swagger:operation GET /1.0/storage-pools/{name}/volumes/{type} storage storage_pool_volumes_type_get
