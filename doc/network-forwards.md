@@ -41,13 +41,14 @@ The following network types support forwards. See each network type section for 
  - [bridge](#network-bridge)
  - [ovn](#network-ovn)
 
-
+(network-forwards-bridge)=
 ### network: bridge
 
 Any non-conflicting listen address is allowed.
 
 The listen address used cannot overlap with a subnet that is in use with another network.
 
+(network-forwards-ovn)=
 ### network: ovn
 
 The allowed listen addresses are those that are defined in the uplink network's `ipv{n}.routes` settings, and the
