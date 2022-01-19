@@ -46,7 +46,7 @@ devices:
 
 Network forwards:
 
-Bridge networks support [network forwards](network-forwards.md#network-bridge).
+Bridge networks support {ref}`network forwards <network-forwards-bridge>`.
 
 Network configuration properties:
 
@@ -122,7 +122,7 @@ tunnel.NAME.port                     | integer   | vxlan                 | 0    
 tunnel.NAME.protocol                 | string    | standard mode         | -                         | Tunneling protocol ("vxlan" or "gre")
 tunnel.NAME.remote                   | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
 tunnel.NAME.ttl                      | integer   | vxlan                 | 1                         | Specific TTL to use for multicast routing topologies
-security.acls                        | string    | -                     | -                         | Comma separated list of Network ACLs to apply to NICs connected to this network (see [Limitations](network-acls.md#bridge-limitations))
+security.acls                        | string    | -                     | -                         | Comma separated list of Network ACLs to apply to NICs connected to this network (see {ref}`network-acls-bridge-limitations`)
 security.acls.default.ingress.action | string    | security.acls         | reject                    | Action to use for ingress traffic that doesn't match any ACL rule
 security.acls.default.egress.action  | string    | security.acls         | reject                    | Action to use for egress traffic that doesn't match any ACL rule
 security.acls.default.ingress.logged | boolean   | security.acls         | false                     | Whether to log ingress traffic that doesn't match any ACL rule
@@ -369,7 +369,7 @@ lxc ls
 
 Network forwards:
 
-OVN networks support [network forwards](network-forwards.md#network-ovn).
+OVN networks support {ref}`network forwards <network-forwards-ovn>`.
 
 Network peers:
 
