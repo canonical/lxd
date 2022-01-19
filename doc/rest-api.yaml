@@ -11594,6 +11594,11 @@ paths:
         in: query
         name: target
         type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
+        type: string
       produces:
       - application/json
       responses:
@@ -12656,6 +12661,11 @@ paths:
         example: lxd01
         in: query
         name: target
+        type: string
+      - description: Collection filter
+        example: default
+        in: query
+        name: filter
         type: string
       produces:
       - application/json
