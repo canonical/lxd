@@ -10,4 +10,5 @@ installing
 Frequently asked <faq>
 security
 contributing
+support
 ```
