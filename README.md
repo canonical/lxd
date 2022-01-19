@@ -82,5 +82,16 @@ find and subscribe to those at: https://lists.linuxcontainers.org
 ### IRC
 If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/client/irc.libera.chat/#lxc) on irc.libera.chat. See [Getting started with IRC](https://discuss.linuxcontainers.org/t/getting-started-with-irc/11920) if needed.
 
+### Commercial support
+
+Commercial support for LXD can be obtained through [Canonical Ltd](https://www.canonical.com).
+
+## Documentation
+The official documentation is available at: https://linuxcontainers.org/lxd/docs/master/
+
+You can find additional resources on the [website](https://linuxcontainers.org/lxd/articles), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discuss.linuxcontainers.org/c/tutorials/) in the forum.
+
+<!-- Include end support -->
+
 ## Contributing
-Fixes and new features are greatly appreciated. <!-- Include end support --> Make sure to read our [contributing guidelines](CONTRIBUTING.md) first!
+Fixes and new features are greatly appreciated. Make sure to read our [contributing guidelines](CONTRIBUTING.md) first!
