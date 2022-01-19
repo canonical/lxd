@@ -96,6 +96,10 @@ Sorry, no pseudonyms or anonymous contributions are allowed.
 We also require each commit be individually signed-off by their author,
 even when part of a larger set. You may find `git commit -s` useful.
 
+## Code of Conduct
+
+When contributing, you must adhere to the Code of Conduct, which is available at: https://github.com/lxc/lxd/blob/master/CODE_OF_CONDUCT.md
+
 <!-- Include end contributing -->
 
 ## More information
