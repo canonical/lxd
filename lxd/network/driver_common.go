@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -425,4 +426,8 @@ func (n *common) handleDependencyChange(netName string, netConfig map[string]str
 // Leases returns ErrNotImplemented for drivers that don't support address leases.
 func (n *common) Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error) {
 	return nil, ErrNotImplemented
+}
+
+func (n *common) State() (*api.NetworkState, error) {
+	return resources.GetNetworkState(n.name)
 }
