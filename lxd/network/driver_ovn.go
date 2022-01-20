@@ -107,6 +107,64 @@ func (n *ovn) Info() Info {
 	return info
 }
 
+func (n *ovn) State() (*api.NetworkState, error) {
+	var addresses []api.NetworkStateAddress
+	IPv4Net, err := ParseIPCIDRToNet(n.config["ipv4.address"])
+	if err == nil {
+		ones, _ := IPv4Net.Mask.Size()
+		addresses = append(addresses, api.NetworkStateAddress{
+			Family:  "inet",
+			Address: IPv4Net.IP.String(),
+			Netmask: strconv.Itoa(ones),
+			Scope:   "link",
+		})
+	}
+
+	IPv6Net, err := ParseIPCIDRToNet(n.config["ipv6.address"])
+	if err == nil {
+		ones, _ := IPv6Net.Mask.Size()
+		addresses = append(addresses, api.NetworkStateAddress{
+			Family:  "inet6",
+			Address: IPv6Net.IP.String(),
+			Netmask: strconv.Itoa(ones),
+			Scope:   "link",
+		})
+	}
+
+	client, err := openvswitch.NewOVN(n.state)
+	if err != nil {
+		return nil, err
+	}
+
+	hwaddr, ok := n.config["bridge.hwaddr"]
+	if !ok {
+		hwaddr, err = client.GetHardwareAddress(n.getRouterExtPortName())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	chassis, err := client.GetLogicalRouterPortActiveChassisHostname(n.getRouterExtPortName())
+	if err != nil {
+		return nil, err
+	}
+
+	mtu := int(n.getBridgeMTU())
+	if mtu == 0 {
+		mtu = 1500
+	}
+
+	return &api.NetworkState{
+		Addresses: addresses,
+		Counters:  api.NetworkStateCounters{},
+		Hwaddr:    hwaddr,
+		Mtu:       mtu,
+		State:     "up",
+		Type:      "broadcast",
+		OVN:       &api.NetworkStateOVN{Chassis: chassis},
+	}, nil
+}
+
 // uplinkRoutes parses ipv4.routes and ipv6.routes settings for an uplink network into a slice of *net.IPNet.
 func (n *ovn) uplinkRoutes(uplink *api.Network) ([]*net.IPNet, error) {
 	var err error
