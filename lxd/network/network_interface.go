@@ -54,6 +54,7 @@ type Network interface {
 	handleDependencyChange(netName string, netConfig map[string]string, changedKeys []string) error
 
 	// Status.
+	State() (*api.NetworkState, error)
 	Leases(projectName string, clientType request.ClientType) ([]api.NetworkLease, error)
 
 	// Address Forwards.
