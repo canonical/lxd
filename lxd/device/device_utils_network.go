@@ -509,19 +509,6 @@ func networkValidGateway(value string) error {
 	return fmt.Errorf("Invalid gateway: %s", value)
 }
 
-// networkValidVLANList validates a comma delimited list of VLAN IDs.
-func networkValidVLANList(value string) error {
-	for _, vlanID := range strings.Split(value, ",") {
-		vlanID = strings.TrimSpace(vlanID)
-		err := validate.IsNetworkVLAN(vlanID)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // bgpAddPrefix adds external routes to the BGP server.
 func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) error {
 	// BGP is only valid when tied to a managed network.
