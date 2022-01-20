@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -1055,4 +1056,8 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 	}
 
 	return usedBy, nil
+}
+
+func (n *common) State() (*api.NetworkState, error) {
+	return resources.GetNetworkState(n.name)
 }
