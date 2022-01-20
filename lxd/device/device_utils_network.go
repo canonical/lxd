@@ -981,11 +981,12 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 func networkVLANListExpand(rawVLANValues []string) ([]int, error) {
 	var networkVLANList []int
 	for _, vlan := range rawVLANValues {
-		start, end, err := validate.ParseNetworkVLANRange(vlan)
+		start, count, err := validate.ParseNetworkVLANRange(vlan)
 		if err != nil {
 			return nil, err
 		}
-		for i := start; i <= end; i++ {
+
+		for i := start; i < start+count; i++ {
 			networkVLANList = append(networkVLANList, i)
 		}
 	}
