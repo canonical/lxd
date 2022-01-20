@@ -1367,11 +1367,21 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	name := mux.Vars(r)["name"]
+	networkName := mux.Vars(r)["name"]
 
-	state, err := resources.GetNetworkState(name)
-	if err != nil {
-		return response.SmartError(err)
+	var state *api.NetworkState
+	var err error
+	n, networkLoadError := network.LoadByName(d.State(), networkName)
+	if networkLoadError == nil {
+		state, err = n.State()
+		if err != nil {
+			return response.SmartError(err)
+		}
+	} else {
+		state, err = resources.GetNetworkState(networkName)
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	return response.SyncResponse(true, state)
