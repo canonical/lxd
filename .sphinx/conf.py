@@ -24,6 +24,7 @@ myst_enable_extensions = [
 ]
 
 myst_linkify_fuzzy_links=False
+myst_heading_anchors = 7
 
 if os.path.exists("../doc/substitutions.yaml"):
     with open("../doc/substitutions.yaml", "r") as fd:
