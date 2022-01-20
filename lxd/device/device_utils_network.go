@@ -987,3 +987,21 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 	}
 	return nil
 }
+
+// networkVLANListExpand takes in a list of raw VLAN values (string) that includes
+// different VLAN formats ("number" and "start-end") and convert them into a list of
+// expanded VLAN values in integer.
+func networkVLANListExpand(rawVLANValues []string) ([]int, error) {
+	var networkVLANList []int
+	for _, vlan := range rawVLANValues {
+		start, end, err := validate.ParseNetworkVLANRange(vlan)
+		if err != nil {
+			return nil, err
+		}
+		for i := start; i <= end; i++ {
+			networkVLANList = append(networkVLANList, i)
+		}
+	}
+
+	return networkVLANList, nil
+}
