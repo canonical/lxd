@@ -763,3 +763,42 @@ func IsAbsFilePath(value string) error {
 
 	return nil
 }
+
+// ParseNetworkVLANRange parses a VLAN range in the form "number" or "start-end".
+// Returns the start number and the end number of the range.
+func ParseNetworkVLANRange(vlan string) (int, int, error) {
+	err := IsNetworkVLAN(vlan)
+	if err == nil {
+		vlanRangeStart, err := strconv.Atoi(vlan)
+		if err != nil {
+			return -1, -1, err
+		}
+
+		return vlanRangeStart, vlanRangeStart, nil
+	}
+
+	vlanRange := strings.Split(vlan, "-")
+	if len(vlanRange) != 2 {
+		return -1, -1, fmt.Errorf("Invalid VLAN range input: %s", vlan)
+	}
+
+	if IsNetworkVLAN(vlanRange[0]) != nil || IsNetworkVLAN(vlanRange[1]) != nil {
+		return -1, -1, fmt.Errorf("Invalid VLAN range boundary. start:%s, end:%s", vlanRange[0], vlanRange[1])
+	}
+
+	vlanRangeStart, err := strconv.Atoi(vlanRange[0])
+	if err != nil {
+		return -1, -1, err
+	}
+
+	vlanRangeEnd, err := strconv.Atoi(vlanRange[1])
+	if err != nil {
+		return -1, -1, err
+	}
+
+	if vlanRangeStart > vlanRangeEnd {
+		return -1, -1, fmt.Errorf("Invalid VLAN range boundary. start:%d is higher than end:%d", vlanRangeStart, vlanRangeEnd)
+	}
+
+	return vlanRangeStart, vlanRangeEnd, nil
+}
