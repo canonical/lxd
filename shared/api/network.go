@@ -174,6 +174,11 @@ type NetworkState struct {
 	//
 	// API extension: network_state_vlan
 	VLAN *NetworkStateVLAN `json:"vlan" yaml:"vlan"`
+
+	// Additional OVN network information
+	//
+	// API extension: network_state_ovn
+	OVN *NetworkStateOVN `json:"ovn" yaml:"ovn"`
 }
 
 // NetworkStateAddress represents a network address
@@ -297,4 +302,14 @@ type NetworkStateVLAN struct {
 	// VLAN ID
 	// Example: 100
 	VID uint64 `json:"vid" yaml:"vid"`
+}
+
+// NetworkStateOVN represents OVN specific state
+//
+// swagger:model
+//
+// API extension: network_state_ovn
+type NetworkStateOVN struct {
+	// OVN network chassis name
+	Chassis string `json:"chassis" yaml:"chassis"`
 }
