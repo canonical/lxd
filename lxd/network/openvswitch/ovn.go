@@ -178,34 +178,71 @@ func NewOVN(s *state.State) (*OVN, error) {
 		return nil, errors.Wrapf(err, "Failed to get OVN northbound connection string")
 	}
 
-	client := &OVN{}
-	client.SetDatabaseAddress(nbConnection)
+	sbConnection, err := NewOVS().OVNSouthboundDBRemoteAddress()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get OVN southbound connection string")
+	}
 
-	return client, err
+	client := &OVN{}
+	client.SetNorthboundDBAddress(nbConnection)
+	client.SetSouthboundDBAddress(sbConnection)
+
+	return client, nil
 }
 
 // OVN command wrapper.
 type OVN struct {
-	dbAddr string
+	nbDBAddr string
+	sbDBAddr string
 }
 
-// SetDatabaseAddress sets the address that runs the OVN northbound and southbound databases.
-func (o *OVN) SetDatabaseAddress(addr string) {
-	o.dbAddr = addr
+// SetNorthboundDBAddress sets the address that runs the OVN northbound databases.
+func (o *OVN) SetNorthboundDBAddress(addr string) {
+	o.nbDBAddr = addr
 }
 
 // getNorthboundDB returns connection string to use for northbound database.
 func (o *OVN) getNorthboundDB() string {
-	if o.dbAddr == "" {
+	if o.nbDBAddr == "" {
 		return "unix:/var/run/ovn/ovnnb_db.sock"
 	}
 
-	return o.dbAddr
+	return o.nbDBAddr
+}
+
+// SetSouthboundDBAddress sets the address that runs the OVN northbound databases.
+func (o *OVN) SetSouthboundDBAddress(addr string) {
+	o.sbDBAddr = addr
+}
+
+// getSouthboundDB returns connection string to use for northbound database.
+func (o *OVN) getSouthboundDB() string {
+	if o.sbDBAddr == "" {
+		return "unix:/var/run/ovn/ovnsb_db.sock"
+	}
+
+	return o.sbDBAddr
+}
+
+// sbctl executes ovn-sbctl with arguments to connect to wrapper's southbound database.
+func (o *OVN) sbctl(args ...string) (string, error) {
+	return o.xbctl(true, args...)
 }
 
 // nbctl executes ovn-nbctl with arguments to connect to wrapper's northbound database.
 func (o *OVN) nbctl(args ...string) (string, error) {
+	return o.xbctl(false, args...)
+}
+
+// xbctl optionally executes either ovn-nbctl or ovn-sbctl with arguments to connect to wrapper's northbound or southbound database.
+func (o *OVN) xbctl(southbound bool, args ...string) (string, error) {
 	dbAddr := o.getNorthboundDB()
+	cmd := "ovn-nbctl"
+	if southbound {
+		dbAddr = o.getSouthboundDB()
+		cmd = "ovn-sbctl"
+	}
+
 	if strings.HasPrefix(dbAddr, "unix:") {
 		dbAddr = fmt.Sprintf("unix:%s", shared.HostPathFollow(strings.TrimPrefix(dbAddr, "unix:")))
 	}
@@ -220,7 +257,7 @@ func (o *OVN) nbctl(args ...string) (string, error) {
 		args = append(sslArgs, args...)
 	}
 
-	return shared.RunCommand("ovn-nbctl", append([]string{"--db", dbAddr}, args...)...)
+	return shared.RunCommand(cmd, append([]string{"--db", dbAddr}, args...)...)
 }
 
 // LogicalRouterAdd adds a named logical router.
@@ -2046,4 +2083,32 @@ func (o *OVN) LogicalRouterPeeringDelete(opts OVNRouterPeering) error {
 	}
 
 	return nil
+}
+
+// GetHardwareAddress gets the hardware address of the logical router port.
+func (o *OVN) GetHardwareAddress(ovnRouterPort OVNRouterPort) (string, error) {
+	nameFilter := fmt.Sprintf("name=%s", ovnRouterPort)
+	hwaddr, err := o.nbctl("--no-headings", "--data=bare", "--format=csv", "--columns=mac", "find", "Logical_Router_Port", nameFilter)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(hwaddr), nil
+}
+
+// GetLogicalRouterPortActiveChassisHostname gets the hostname of the chassis managing the logical router port.
+func (o *OVN) GetLogicalRouterPortActiveChassisHostname(ovnRouterPort OVNRouterPort) (string, error) {
+	// Get the chassis ID from port bindings where the logical port is a chassis redirect (prepended "cr-") of the logical router port name.
+	filter := fmt.Sprintf("logical_port=cr-%s", ovnRouterPort)
+	chassisID, err := o.sbctl("--no-headings", "--columns=chassis", "--data=bare", "--format=csv", "find", "Port_Binding", filter)
+	if err != nil {
+		return "", err
+	}
+
+	hostname, err := o.sbctl("get", "Chassis", strings.TrimSpace(chassisID), "hostname")
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(hostname), err
 }

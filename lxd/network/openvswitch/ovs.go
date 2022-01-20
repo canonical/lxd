@@ -352,3 +352,18 @@ func (o *OVS) HardwareOffloadingEnabled() bool {
 
 	return offload == "true"
 }
+
+// OVNSouthboundDBRemoteAddress gets the address of the southbound ovn database.
+func (o *OVS) OVNSouthboundDBRemoteAddress() (string, error) {
+	result, err := shared.RunCommand("ovs-vsctl", "get", "open_vswitch", ".", "external_ids:ovn-remote")
+	if err != nil {
+		return "", err
+	}
+
+	addr, err := unquote(strings.TrimSuffix(result, "\n"))
+	if err != nil {
+		return "", err
+	}
+
+	return addr, nil
+}
