@@ -404,15 +404,15 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			return nil
 		}
 
-		err := networkValidVLANList(value)
-		if err != nil {
-			return err
-		}
-
 		// Check that none of the supplied VLAN IDs are the same as the untagged VLAN ID.
 		for _, vlanID := range util.SplitNTrimSpace(value, ",", -1, true) {
 			if vlanID == d.config["vlan"] {
 				return fmt.Errorf("Tagged VLAN ID %q cannot be the same as untagged VLAN ID", vlanID)
+			}
+
+			_, _, err := validate.ParseNetworkVLANRange(vlanID)
+			if err != nil {
+				return err
 			}
 		}
 
