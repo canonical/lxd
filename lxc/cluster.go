@@ -582,13 +582,16 @@ func clusterJoinTokenOperationToAPI(op *api.Operation) (*api.ClusterMemberJoinTo
 type cmdClusterAdd struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
+
+	flagName string
 }
 
 func (c *cmdClusterAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<member>"))
+	cmd.Use = usage("add", i18n.G("[[<remote>:]<member>]"))
 	cmd.Short = i18n.G("Request a join token for adding a cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Request a join token for adding a cluster member`))
+	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Cluster member name")+"``")
 
 	cmd.RunE = c.Run
 
@@ -611,7 +614,14 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		if c.flagName == "" {
+			resource.name, err = cli.AskString(i18n.G("Please provide cluster member name: "), "", nil)
+			if err != nil {
+				return err
+			}
+		} else {
+			resource.name = c.flagName
+		}
 	}
 
 	// Request the join token.
