@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -86,7 +85,7 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 		return err
 	})
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to load all networks")
+		return false, fmt.Errorf("Failed to load all networks: %w", err)
 	}
 
 	for projectName, networks := range projectNetworks {
@@ -195,7 +194,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 		phyLink := &ip.Link{Name: hostName}
 		err = phyLink.SetMTU(n.config["mtu"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed setting MTU %q on %q", n.config["mtu"], phyLink.Name)
+			return fmt.Errorf("Failed setting MTU %q on %q: %w", n.config["mtu"], phyLink.Name, err)
 		}
 	}
 
@@ -207,7 +206,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 			return tx.UpdateNetwork(n.id, n.description, n.config)
 		})
 		if err != nil {
-			return errors.Wrapf(err, "Failed saving volatile config")
+			return fmt.Errorf("Failed saving volatile config: %w", err)
 		}
 	}
 
@@ -247,7 +246,7 @@ func (n *physical) Stop() error {
 		link := &ip.Link{Name: hostName}
 		err := link.SetMTU(resetMTU)
 		if err != nil {
-			return errors.Wrapf(err, "Failed setting MTU %q on %q", link, link.Name)
+			return fmt.Errorf("Failed setting MTU %q on %q: %w", link, link.Name, err)
 		}
 	}
 
@@ -257,7 +256,7 @@ func (n *physical) Stop() error {
 		return tx.UpdateNetwork(n.id, n.description, n.config)
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed removing volatile config")
+		return fmt.Errorf("Failed removing volatile config: %w", err)
 	}
 
 	return nil

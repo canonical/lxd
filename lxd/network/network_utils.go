@@ -15,8 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
@@ -127,7 +125,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 			return err
 		})
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to load all networks")
+			return nil, fmt.Errorf("Failed to load all networks: %w", err)
 		}
 
 		for projectName, networks := range projectNetworks {
@@ -416,7 +414,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
 		n, err := LoadByName(s, project.Default, network)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load network %q in project %q for dnsmasq update", project.Default, network)
+			return fmt.Errorf("Failed to load network %q in project %q for dnsmasq update: %w", project.Default, network, err)
 		}
 
 		config := n.Config()
@@ -765,7 +763,7 @@ func GetNeighbourIPs(interfaceName string, hwaddr net.HardwareAddr) ([]ip.Neigh,
 	neigh := &ip.Neigh{DevName: interfaceName, MAC: hwaddr}
 	neighbours, err := neigh.Show()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get IP neighbours for interface %q", interfaceName)
+		return nil, fmt.Errorf("Failed to get IP neighbours for interface %q: %w", interfaceName, err)
 	}
 
 	return neighbours, nil
@@ -1010,7 +1008,7 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string, gvrp b
 	link := &ip.Link{Name: parent}
 	err := link.SetUp()
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to bring up parent %q", parent)
+		return false, fmt.Errorf("Failed to bring up parent %q: %w", parent, err)
 	}
 
 	vlan := &ip.Vlan{
@@ -1024,12 +1022,12 @@ func VLANInterfaceCreate(parent string, vlanDevice string, vlanID string, gvrp b
 
 	err = vlan.Add()
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to create VLAN interface %q on %q", vlanDevice, parent)
+		return false, fmt.Errorf("Failed to create VLAN interface %q on %q: %w", vlanDevice, parent, err)
 	}
 
 	err = vlan.SetUp()
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to bring up interface %q", vlanDevice)
+		return false, fmt.Errorf("Failed to bring up interface %q: %w", vlanDevice, err)
 	}
 
 	// Attempt to disable IPv6 router advertisement acceptance.
@@ -1142,7 +1140,7 @@ func SubnetParseAppend(subnets []*net.IPNet, parseSubnet ...string) ([]*net.IPNe
 	for _, subnetStr := range parseSubnet {
 		_, subnet, err := net.ParseCIDR(subnetStr)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Invalid subnet %q", subnetStr)
+			return nil, fmt.Errorf("Invalid subnet %q: %w", subnetStr, err)
 		}
 
 		subnets = append(subnets, subnet)
@@ -1181,14 +1179,14 @@ func IPRangesOverlap(r1, r2 *shared.IPRange) bool {
 func InterfaceStatus(nicName string) ([]net.IP, bool, error) {
 	iface, err := net.InterfaceByName(nicName)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "Failed loading interface %q", nicName)
+		return nil, false, fmt.Errorf("Failed loading interface %q: %w", nicName, err)
 	}
 
 	isUp := iface.Flags&net.FlagUp != 0
 
 	addresses, err := iface.Addrs()
 	if err != nil {
-		return nil, isUp, errors.Wrapf(err, "Failed getting interface addresses for %q", nicName)
+		return nil, isUp, fmt.Errorf("Failed getting interface addresses for %q: %w", nicName, err)
 	}
 
 	var globalUnicastIPs []net.IP
