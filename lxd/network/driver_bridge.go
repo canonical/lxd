@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -16,7 +17,6 @@ import (
 	"time"
 
 	"github.com/mdlayher/netx/eui64"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -137,7 +137,7 @@ func (n *bridge) FillConfig(config map[string]string) error {
 	// Now replace any "auto" keys with generated values.
 	err := n.populateAutoConfig(config)
 	if err != nil {
-		return errors.Wrapf(err, "Failed generating auto config")
+		return fmt.Errorf("Failed generating auto config")
 	}
 
 	return nil
@@ -209,7 +209,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
 				if err := validate.IsInterfaceName(entry); err != nil {
-					return errors.Wrapf(err, "Invalid interface name %q", entry)
+					return fmt.Errorf("Invalid interface name %q: %w", entry, err)
 				}
 			}
 
@@ -413,12 +413,12 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		ovnRanges, err := parseIPRanges(config["ipv4.ovn.ranges"], allowedNets...)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv4.ovn.ranges")
+			return fmt.Errorf("Failed parsing ipv4.ovn.ranges: %w", err)
 		}
 
 		dhcpRanges, err := parseIPRanges(config["ipv4.dhcp.ranges"], allowedNets...)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv4.dhcp.ranges")
+			return fmt.Errorf("Failed parsing ipv4.dhcp.ranges: %w", err)
 		}
 
 		for _, ovnRange := range ovnRanges {
@@ -446,7 +446,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 		ovnRanges, err := parseIPRanges(config["ipv6.ovn.ranges"], allowedNets...)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv6.ovn.ranges")
+			return fmt.Errorf("Failed parsing ipv6.ovn.ranges: %w", err)
 		}
 
 		// If stateful DHCPv6 is enabled, check OVN ranges don't overlap with DHCPv6 stateful ranges.
@@ -454,7 +454,7 @@ func (n *bridge) Validate(config map[string]string) error {
 		if dhcpSubnet != nil && shared.IsTrue(config["ipv6.dhcp.stateful"]) {
 			dhcpRanges, err := parseIPRanges(config["ipv6.dhcp.ranges"], allowedNets...)
 			if err != nil {
-				return errors.Wrapf(err, "Failed parsing ipv6.dhcp.ranges")
+				return fmt.Errorf("Failed parsing ipv6.dhcp.ranges: %w", err)
 			}
 
 			for _, ovnRange := range ovnRanges {
@@ -735,7 +735,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), seedNodeID, n.ID())
 		r, err := util.GetStableRandomGenerator(seed)
 		if err != nil {
-			return errors.Wrapf(err, "Failed generating stable random bridge MAC")
+			return fmt.Errorf("Failed generating stable random bridge MAC: %w", err)
 		}
 
 		hwAddr = randomHwaddr(r)
@@ -818,7 +818,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		n.logger.Debug("Clearing firewall")
 		err = n.state.Firewall.NetworkClear(n.name, false, fwClearIPVersions)
 		if err != nil {
-			return errors.Wrapf(err, "Failed clearing firewall")
+			return fmt.Errorf("Failed clearing firewall: %w", err)
 		}
 	}
 
@@ -917,7 +917,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the subnet.
 		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv4.address")
+			return fmt.Errorf("Failed parsing ipv4.address: %w", err)
 		}
 
 		// Update the dnsmasq config.
@@ -1044,7 +1044,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the subnet.
 		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv6.address")
+			return fmt.Errorf("Failed parsing ipv6.address: %w", err)
 		}
 		subnetSize, _ := subnet.Mask.Size()
 
@@ -1190,7 +1190,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		underlay := n.config["fan.underlay_subnet"]
 		_, underlaySubnet, err := net.ParseCIDR(underlay)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing fan.underlay_subnet")
+			return fmt.Errorf("Failed parsing fan.underlay_subnet: %w", err)
 		}
 
 		// Parse the overlay.
@@ -1201,7 +1201,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		_, overlaySubnet, err = net.ParseCIDR(overlay)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing fan.overlay_subnet")
+			return fmt.Errorf("Failed parsing fan.overlay_subnet: %w", err)
 		}
 
 		// Get the address.
@@ -1247,7 +1247,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the host subnet.
 		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", addr[0]))
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing fan address")
+			return fmt.Errorf("Failed parsing fan address: %w", err)
 		}
 
 		// Add the address.
@@ -1583,7 +1583,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Check dnsmasq started OK.
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*time.Duration(500)))
 		_, err = p.Wait(ctx)
-		if errors.Cause(err) != context.DeadlineExceeded {
+		if !errors.Is(err, context.DeadlineExceeded) {
 			stderr, _ := ioutil.ReadFile(dnsmasqLogPath)
 
 			// Just log an error if dnsmasq has exited, and still proceed with normal setup so we
@@ -1631,7 +1631,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(leasesPath) {
 			err := os.Remove(leasesPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove old dnsmasq leases file %q", leasesPath)
+				return fmt.Errorf("Failed to remove old dnsmasq leases file %q: %w", leasesPath, err)
 			}
 		}
 
@@ -1640,7 +1640,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(pidPath) {
 			err := os.Remove(pidPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove old dnsmasq pid file %q", pidPath)
+				return fmt.Errorf("Failed to remove old dnsmasq pid file %q: %w", pidPath, err)
 			}
 		}
 	}
@@ -1649,7 +1649,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	n.logger.Debug("Setting up firewall")
 	err = n.state.Firewall.NetworkSetup(n.name, fwOpts)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to setup firewall")
+		return fmt.Errorf("Failed to setup firewall: %w", err)
 	}
 
 	if fwOpts.ACL {
@@ -1727,7 +1727,7 @@ func (n *bridge) Stop() error {
 		n.logger.Debug("Deleting firewall")
 		err := n.state.Firewall.NetworkClear(n.name, true, fwClearIPVersions)
 		if err != nil {
-			return errors.Wrapf(err, "Failed deleting firewall")
+			return fmt.Errorf("Failed deleting firewall: %w", err)
 		}
 	}
 
@@ -1775,7 +1775,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 
 	err := n.populateAutoConfig(newNetwork.Config)
 	if err != nil {
-		return errors.Wrapf(err, "Failed generating auto config")
+		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
 
 	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
@@ -2364,7 +2364,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 
 					_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", netInfo.Config[key], subnetSize))
 					if err != nil {
-						return nil, errors.Wrapf(err, "Failed parsing %q of %q in project %q", key, netInfo.Name, netProject)
+						return nil, fmt.Errorf("Failed parsing %q of %q in project %q: %w", key, netInfo.Name, netProject, err)
 					}
 
 					externalSubnets = append(externalSubnets, externalSubnetUsage{
@@ -2464,13 +2464,13 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load all networks")
+			return fmt.Errorf("Failed to load all networks: %w", err)
 		}
 
 		// Get all network forward listen addresses for forwards assigned to this specific cluster member.
 		projectNetworksForwardsOnUplink, err = tx.GetProjectNetworkForwardListenAddressesOnMember()
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading network forward listen addresses")
+			return fmt.Errorf("Failed loading network forward listen addresses: %w", err)
 		}
 
 		return nil
@@ -2536,7 +2536,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	// Convert listen address to subnet so we can check its valid and can be used.
 	listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 	if err != nil {
-		return errors.Wrapf(err, "Failed parsing address forward listen address %q", forward.ListenAddress)
+		return fmt.Errorf("Failed parsing address forward listen address %q: %w", forward.ListenAddress, err)
 	}
 
 	_, err = n.forwardValidate(listenAddressNet.IP, &forward.NetworkForwardPut)
@@ -2615,7 +2615,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 				err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 					localNode, err = tx.GetLocalNodeName()
 					if err != nil {
-						return errors.Wrapf(err, "Failed to get local member name")
+						return fmt.Errorf("Failed to get local member name: %w", err)
 					}
 
 					return err
@@ -2654,7 +2654,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 							link := &ip.Link{Name: hostName}
 							err = link.BridgeLinkSetHairpin(true)
 							if err != nil {
-								return errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", link.Name)
+								return fmt.Errorf("Error enabling hairpin mode on bridge port %q: %w", link.Name, err)
 							}
 							n.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"inst": inst.Name, "project": inst.Project, "device": devName, "dev": link.Name})
 						}
@@ -2796,7 +2796,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		// Convert listen address to subnet so we can check its valid and can be used.
 		listenAddressNet, err := ParseIPToNet(forward.ListenAddress)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing address forward listen address %q", forward.ListenAddress)
+			return fmt.Errorf("Failed parsing address forward listen address %q: %w", forward.ListenAddress, err)
 		}
 
 		// Track which IP versions we are using.

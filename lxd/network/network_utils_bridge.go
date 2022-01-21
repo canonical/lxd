@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/shared"
@@ -16,7 +14,7 @@ import (
 func BridgeVLANFilteringStatus(interfaceName string) (string, error) {
 	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/bridge/vlan_filtering", interfaceName))
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed getting bridge VLAN status for %q", interfaceName)
+		return "", fmt.Errorf("Failed getting bridge VLAN status for %q: %w", interfaceName, err)
 	}
 
 	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
@@ -26,7 +24,7 @@ func BridgeVLANFilteringStatus(interfaceName string) (string, error) {
 func BridgeVLANFilterSetStatus(interfaceName string, status string) error {
 	err := ioutil.WriteFile(fmt.Sprintf("/sys/class/net/%s/bridge/vlan_filtering", interfaceName), []byte(status), 0)
 	if err != nil {
-		return errors.Wrapf(err, "Failed enabling VLAN filtering on bridge %q", interfaceName)
+		return fmt.Errorf("Failed enabling VLAN filtering on bridge %q: %w", interfaceName, err)
 	}
 
 	return nil
@@ -36,7 +34,7 @@ func BridgeVLANFilterSetStatus(interfaceName string, status string) error {
 func BridgeVLANDefaultPVID(interfaceName string) (string, error) {
 	content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/bridge/default_pvid", interfaceName))
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed getting bridge VLAN default PVID for %q", interfaceName)
+		return "", fmt.Errorf("Failed getting bridge VLAN default PVID for %q: %w", interfaceName, err)
 	}
 
 	return strings.TrimSpace(fmt.Sprintf("%s", content)), nil
@@ -46,7 +44,7 @@ func BridgeVLANDefaultPVID(interfaceName string) (string, error) {
 func BridgeVLANSetDefaultPVID(interfaceName string, vlanID string) error {
 	err := ioutil.WriteFile(fmt.Sprintf("/sys/class/net/%s/bridge/default_pvid", interfaceName), []byte(vlanID), 0)
 	if err != nil {
-		return errors.Wrapf(err, "Failed setting bridge VLAN default PVID for %q", interfaceName)
+		return fmt.Errorf("Failed setting bridge VLAN default PVID for %q: %w", interfaceName, err)
 	}
 
 	return nil
