@@ -13,7 +13,7 @@ type NetworkZonesPost struct {
 	Name string `json:"name" yaml:"name"`
 }
 
-// NetworkZonePut represents the modifiable fields of a LXD network zoned
+// NetworkZonePut represents the modifiable fields of a LXD network zone
 //
 // swagger:model
 //
