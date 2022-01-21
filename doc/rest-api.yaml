@@ -2697,6 +2697,8 @@ definitions:
         format: int64
         type: integer
         x-go-name: Mtu
+      ovn:
+        $ref: '#/definitions/NetworkStateOVN'
       state:
         description: Link state
         example: up
@@ -2853,6 +2855,15 @@ definitions:
         x-go-name: PacketsSent
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  NetworkStateOVN:
+    description: NetworkStateOVN represents OVN specific state
+    properties:
+      chassis:
+        description: OVN network chassis name
+        type: string
+        x-go-name: Chassis
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   NetworkStateVLAN:
     description: NetworkStateVLAN represents VLAN specific state
     properties:
@@ -2919,6 +2930,111 @@ definitions:
         example: Internal domain
         type: string
         x-go-name: Description
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZoneRecord:
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Advanced configuration for the record
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the record
+        example: SPF record
+        type: string
+        x-go-name: Description
+      entries:
+        description: Entries in the record
+        items:
+          $ref: '#/definitions/NetworkZoneRecordEntry'
+        type: array
+        x-go-name: Entries
+      name:
+        description: The name of the record
+        example: '@'
+        type: string
+        x-go-name: Name
+    title: NetworkZoneRecord represents a network zone (DNS) record.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZoneRecordEntry:
+    description: NetworkZoneRecordEntry represents the fields in a record entry
+    properties:
+      ttl:
+        description: TTL for the entry
+        example: 3600
+        format: uint64
+        type: integer
+        x-go-name: TTL
+      type:
+        description: Type of DNS entry
+        example: TXT
+        type: string
+        x-go-name: Type
+      value:
+        description: Value for the record
+        example: v=spf1 mx ~all
+        type: string
+        x-go-name: Value
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZoneRecordPut:
+    description: NetworkZoneRecordPut represents the modifiable fields of a LXD network
+      zone record
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Advanced configuration for the record
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the record
+        example: SPF record
+        type: string
+        x-go-name: Description
+      entries:
+        description: Entries in the record
+        items:
+          $ref: '#/definitions/NetworkZoneRecordEntry'
+        type: array
+        x-go-name: Entries
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkZoneRecordsPost:
+    description: NetworkZoneRecordsPost represents the fields of a new LXD network
+      zone record
+    properties:
+      config:
+        additionalProperties:
+          type: string
+        description: Advanced configuration for the record
+        example:
+          user.mykey: foo
+        type: object
+        x-go-name: Config
+      description:
+        description: Description of the record
+        example: SPF record
+        type: string
+        x-go-name: Description
+      entries:
+        description: Entries in the record
+        items:
+          $ref: '#/definitions/NetworkZoneRecordEntry'
+        type: array
+        x-go-name: Entries
+      name:
+        description: The record name in the zone
+        example: '@'
+        type: string
+        x-go-name: Name
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   NetworkZonesPost:
