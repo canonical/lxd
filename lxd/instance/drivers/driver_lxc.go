@@ -2114,11 +2114,17 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 				}
 			}
 
+			// Get an absolute path for the rootfs (avoid constantly traversing the symlink).
+			absoluteRootfs, err := filepath.EvalSymlinks(runConf.RootFS.Path)
+			if err != nil {
+				return "", nil, fmt.Errorf("Unable to resolve container rootfs: %w", err)
+			}
+
 			if util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
-				rootfsPath := fmt.Sprintf("dir:%s", runConf.RootFS.Path)
+				rootfsPath := fmt.Sprintf("dir:%s", absoluteRootfs)
 				err = lxcSetConfigItem(d.c, "lxc.rootfs.path", rootfsPath)
 			} else {
-				err = lxcSetConfigItem(d.c, "lxc.rootfs", runConf.RootFS.Path)
+				err = lxcSetConfigItem(d.c, "lxc.rootfs", absoluteRootfs)
 			}
 
 			if err != nil {
