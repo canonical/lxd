@@ -2904,7 +2904,7 @@ definitions:
     x-go-package: github.com/lxc/lxd/shared/api
   NetworkZonePut:
     description: NetworkZonePut represents the modifiable fields of a LXD network
-      zoned
+      zone
     properties:
       config:
         additionalProperties:
