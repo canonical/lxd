@@ -1566,3 +1566,8 @@ of instances during cluster evacuation.
 ## instance\_allow\_inconsistent\_copy
 Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If true, rsync will ignore the 
 `Partial transfer due to vanished source files` (code 24) error when creating an instance from a copy. 
+
+## network\_state\_ovn
+This adds an "ovn" section to the /1.0/networks/NAME/state API which contains additional state information relevant to 
+OVN networks:
+- chassis

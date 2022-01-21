@@ -2697,6 +2697,8 @@ definitions:
         format: int64
         type: integer
         x-go-name: Mtu
+      ovn:
+        $ref: '#/definitions/NetworkStateOVN'
       state:
         description: Link state
         example: up
@@ -2851,6 +2853,15 @@ definitions:
         format: int64
         type: integer
         x-go-name: PacketsSent
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  NetworkStateOVN:
+    description: NetworkStateOVN represents OVN specific state
+    properties:
+      chassis:
+        description: OVN network chassis name
+        type: string
+        x-go-name: Chassis
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   NetworkStateVLAN:
