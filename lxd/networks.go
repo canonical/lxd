@@ -1490,10 +1490,7 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 
 	networkName := mux.Vars(r)["name"]
 
-	projectName := queryParam(r, "project")
-	if projectName == "" {
-		projectName = project.Default
-	}
+	projectName := projectParam(r)
 
 	var state *api.NetworkState
 	var err error
