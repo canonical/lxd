@@ -97,8 +97,19 @@ var updates = map[int]schema.Update{
 	55: updateFromV54,
 	56: updateFromV55,
 	57: updateFromV56,
+	58: updateFromV57,
 }
 
+func updateFromV57(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+UPDATE sqlite_sequence SET seq = (
+    SELECT coalesce(max(max(coalesce(storage_volumes.id, 0)), max(coalesce(storage_volumes_snapshots.id, 0))), 0)
+    FROM storage_volumes, storage_volumes_snapshots)
+WHERE name='storage_volumes';
+`)
+
+	return err
+}
 func updateFromV56(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 UPDATE sqlite_sequence SET seq = (
