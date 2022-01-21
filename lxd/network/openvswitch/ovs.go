@@ -7,8 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/shared"
 )
@@ -186,7 +184,7 @@ func (o *OVS) ChassisID() (string, error) {
 	chassisID = strings.TrimSpace(chassisID)
 	chassisID, err = unquote(chassisID)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed unquoting")
+		return "", fmt.Errorf("Failed unquoting: %w", err)
 	}
 
 	return chassisID, nil
@@ -206,7 +204,7 @@ func (o *OVS) OVNEncapIP() (net.IP, error) {
 	encapIPStr = strings.TrimSpace(encapIPStr)
 	encapIPStr, err = unquote(encapIPStr)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed unquoting")
+		return nil, fmt.Errorf("Failed unquoting: %w", err)
 	}
 
 	encapIP := net.ParseIP(encapIPStr)
@@ -235,7 +233,7 @@ func (o *OVS) OVNBridgeMappings(bridgeName string) ([]string, error) {
 
 	mappings, err = unquote(mappings)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed unquoting")
+		return nil, fmt.Errorf("Failed unquoting: %w", err)
 	}
 
 	return strings.SplitN(mappings, ",", -1), nil

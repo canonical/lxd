@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -175,12 +173,12 @@ type OVNRouterPeering struct {
 func NewOVN(s *state.State) (*OVN, error) {
 	nbConnection, err := cluster.ConfigGetString(s.Cluster, "network.ovn.northbound_connection")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get OVN northbound connection string")
+		return nil, fmt.Errorf("Failed to get OVN northbound connection string: %w", err)
 	}
 
 	sbConnection, err := NewOVS().OVNSouthboundDBRemoteAddress()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get OVN southbound connection string")
+		return nil, fmt.Errorf("Failed to get OVN southbound connection string: %w", err)
 	}
 
 	client := &OVN{}
@@ -1055,7 +1053,7 @@ func (o *OVN) LogicalSwitchPortDynamicIPs(portName OVNSwitchPort) ([]net.IP, err
 
 	dynamicAddressesRaw, err = unquote(dynamicAddressesRaw)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed unquoting")
+		return nil, fmt.Errorf("Failed unquoting: %w", err)
 	}
 
 	dynamicAddresses := strings.Split(strings.TrimSpace(dynamicAddressesRaw), " ")

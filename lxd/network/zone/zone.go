@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -82,13 +81,13 @@ func (d *zone) usedBy(firstOnly bool) ([]string, error) {
 	// Find networks using the zone.
 	networkNames, err := d.state.Cluster.GetCreatedNetworks(d.projectName)
 	if err != nil && err != db.ErrNoSuchObject {
-		return nil, errors.Wrapf(err, "Failed loading networks for project %q", d.projectName)
+		return nil, fmt.Errorf("Failed loading networks for project %q: %w", d.projectName, err)
 	}
 
 	for _, networkName := range networkNames {
 		_, network, _, err := d.state.Cluster.GetNetworkInAnyState(d.projectName, networkName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get network config for %q", networkName)
+			return nil, fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
 		}
 
 		uri := fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName)
@@ -186,7 +185,7 @@ func (d *zone) validateConfigMap(config map[string]string, rules map[string]func
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid value for config option %q", k)
+			return fmt.Errorf("Invalid value for config option %q: %w", k, err)
 		}
 	}
 

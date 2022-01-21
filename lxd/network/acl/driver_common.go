@@ -5,7 +5,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -166,7 +165,7 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 			return usedBy, nil
 		}
 
-		return nil, errors.Wrapf(err, "Failed getting ACL usage")
+		return nil, fmt.Errorf("Failed getting ACL usage: %w", err)
 	}
 
 	return usedBy, nil
@@ -217,7 +216,7 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 	for i, ingressRule := range info.Ingress {
 		err := d.validateRule(ruleDirectionIngress, ingressRule)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid ingress rule %d", i)
+			return fmt.Errorf("Invalid ingress rule %d: %w", i, err)
 		}
 
 		// Check for duplicates.
@@ -236,7 +235,7 @@ func (d *common) validateConfig(info *api.NetworkACLPut) error {
 	for i, egressRule := range info.Egress {
 		err := d.validateRule(ruleDirectionEgress, egressRule)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid egress rule %d", i)
+			return fmt.Errorf("Invalid egress rule %d: %w", i, err)
 		}
 
 		// Check for duplicates.
@@ -263,7 +262,7 @@ func (d *common) validateConfigMap(config map[string]string, rules map[string]fu
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid value for config option %q", k)
+			return fmt.Errorf("Invalid value for config option %q: %w", k, err)
 		}
 	}
 
@@ -301,7 +300,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	// Get map of ACL names to DB IDs (used for generating OVN port group names).
 	acls, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting network ACLs for security ACL subject validation")
+		return fmt.Errorf("Failed getting network ACLs for security ACL subject validation: %w", err)
 	}
 
 	validSubjectNames := make([]string, 0, len(acls)+len(ruleSubjectInternalAliases)+len(ruleSubjectExternalAliases))
@@ -319,7 +318,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	if rule.Source != "" {
 		srcHasName, srcHasIPv4, srcHasIPv6, err = d.validateRuleSubjects("Source", direction, util.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjectNames)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid Source")
+			return fmt.Errorf("Invalid Source: %w", err)
 		}
 	}
 
@@ -327,7 +326,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	if rule.Destination != "" {
 		dstHasName, dstHasIPv4, dstHasIPv6, err = d.validateRuleSubjects("Destination", direction, util.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjectNames)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid Destination")
+			return fmt.Errorf("Invalid Destination: %w", err)
 		}
 	}
 
@@ -363,7 +362,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		if rule.SourcePort != "" {
 			err := d.validatePorts(util.SplitNTrimSpace(rule.SourcePort, ",", -1, false))
 			if err != nil {
-				return errors.Wrapf(err, "Invalid Source port")
+				return fmt.Errorf("Invalid Source port: %w", err)
 			}
 		}
 
@@ -371,7 +370,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		if rule.DestinationPort != "" {
 			err := d.validatePorts(util.SplitNTrimSpace(rule.DestinationPort, ",", -1, false))
 			if err != nil {
-				return errors.Wrapf(err, "Invalid Destination port")
+				return fmt.Errorf("Invalid Destination port: %w", err)
 			}
 		}
 	} else if shared.StringInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
@@ -405,7 +404,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		if rule.ICMPType != "" {
 			err := validate.IsUint8(rule.ICMPType)
 			if err != nil {
-				return errors.Wrapf(err, "Invalid ICMP type")
+				return fmt.Errorf("Invalid ICMP type: %w", err)
 			}
 		}
 
@@ -413,7 +412,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 		if rule.ICMPCode != "" {
 			err := validate.IsUint8(rule.ICMPCode)
 			if err != nil {
-				return errors.Wrapf(err, "Invalid ICMP code")
+				return fmt.Errorf("Invalid ICMP code: %w", err)
 			}
 		}
 	} else {
@@ -605,7 +604,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 	aclNets := map[string]NetworkACLUsage{}
 	err = NetworkUsage(d.state, d.projectName, []string{d.info.Name}, aclNets)
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting ACL network usage")
+		return fmt.Errorf("Failed getting ACL network usage: %w", err)
 	}
 
 	// Separate out OVN networks from non-OVN networks. This is because OVN networks share ACL config, and
@@ -633,13 +632,13 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 	if len(aclOVNNets) > 0 && clientType == request.ClientTypeNormal {
 		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to get OVN client")
+			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
 		aclNameIDs, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting network ACL IDs for security ACL update")
+			return fmt.Errorf("Failed getting network ACL IDs for security ACL update: %w", err)
 		}
 
 		// Request that the ACL and any referenced ACLs in the ruleset are created in OVN.
@@ -650,7 +649,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		// an OVN NIC in an instance or profile).
 		r, err := OVNEnsureACLs(d.state, d.logger, client, d.projectName, aclNameIDs, aclOVNNets, []string{d.info.Name}, true)
 		if err != nil {
-			return errors.Wrapf(err, "Failed ensuring ACL is configured in OVN")
+			return fmt.Errorf("Failed ensuring ACL is configured in OVN: %w", err)
 		}
 		revert.Add(r.Fail)
 
@@ -658,7 +657,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		// an ACL port group is now considered unused.
 		err = OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.projectName, nil, "", d.info.Name)
 		if err != nil {
-			return errors.Wrapf(err, "Failed removing unused OVN port groups")
+			return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 		}
 	}
 
