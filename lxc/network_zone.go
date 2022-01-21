@@ -60,6 +60,10 @@ func (c *cmdNetworkZone) Command() *cobra.Command {
 	networkZoneDeleteCmd := cmdNetworkZoneDelete{global: c.global, networkZone: c}
 	cmd.AddCommand(networkZoneDeleteCmd.Command())
 
+	// Record.
+	networkZoneRecordCmd := cmdNetworkZoneRecord{global: c.global, networkZone: c}
+	cmd.AddCommand(networkZoneRecordCmd.Command())
+
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
 	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
@@ -574,4 +578,676 @@ func (c *cmdNetworkZoneDelete) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// Add/Remove Rule.
+type cmdNetworkZoneRecord struct {
+	global      *cmdGlobal
+	networkZone *cmdNetworkZone
+}
+
+func (c *cmdNetworkZoneRecord) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("record")
+	cmd.Short = i18n.G("Manage network zone records")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network zone records"))
+
+	// List.
+	networkZoneRecordListCmd := cmdNetworkZoneRecordList{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordListCmd.Command())
+
+	// Show.
+	networkZoneRecordShowCmd := cmdNetworkZoneRecordShow{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordShowCmd.Command())
+
+	// Get.
+	networkZoneRecordGetCmd := cmdNetworkZoneRecordGet{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordGetCmd.Command())
+
+	// Create.
+	networkZoneRecordCreateCmd := cmdNetworkZoneRecordCreate{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordCreateCmd.Command())
+
+	// Set.
+	networkZoneRecordSetCmd := cmdNetworkZoneRecordSet{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordSetCmd.Command())
+
+	// Unset.
+	networkZoneRecordUnsetCmd := cmdNetworkZoneRecordUnset{global: c.global, networkZoneRecord: c, networkZoneRecordSet: &networkZoneRecordSetCmd}
+	cmd.AddCommand(networkZoneRecordUnsetCmd.Command())
+
+	// Edit.
+	networkZoneRecordEditCmd := cmdNetworkZoneRecordEdit{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordEditCmd.Command())
+
+	// Delete.
+	networkZoneRecordDeleteCmd := cmdNetworkZoneRecordDelete{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordDeleteCmd.Command())
+
+	// Entry.
+	networkZoneRecordEntryCmd := cmdNetworkZoneRecordEntry{global: c.global, networkZoneRecord: c}
+	cmd.AddCommand(networkZoneRecordEntryCmd.Command())
+
+	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
+	cmd.Args = cobra.NoArgs
+	cmd.Run = func(cmd *cobra.Command, args []string) { cmd.Usage() }
+	return cmd
+}
+
+// List.
+type cmdNetworkZoneRecordList struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+
+	flagFormat string
+}
+
+func (c *cmdNetworkZoneRecordList) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("list", i18n.G("[<remote>:]<zone>"))
+	cmd.Aliases = []string{"ls"}
+	cmd.Short = i18n.G("List available network zone records")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("List available network zone records"))
+
+	cmd.RunE = c.Run
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordList) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone name"))
+	}
+
+	// List the records.
+	records, err := resource.server.GetNetworkZoneRecords(resource.name)
+	if err != nil {
+		return err
+	}
+
+	data := [][]string{}
+	for _, record := range records {
+		entries := []string{}
+
+		for _, entry := range record.Entries {
+			entries = append(entries, fmt.Sprintf("%s %s", entry.Type, entry.Value))
+		}
+
+		details := []string{
+			record.Name,
+			record.Description,
+			strings.Join(entries, "\n"),
+		}
+
+		data = append(data, details)
+	}
+	sort.Sort(byName(data))
+
+	header := []string{
+		i18n.G("NAME"),
+		i18n.G("DESCRIPTION"),
+		i18n.G("ENTRIES"),
+	}
+
+	return utils.RenderTable(c.flagFormat, header, data, records)
+}
+
+// Show.
+type cmdNetworkZoneRecordShow struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+}
+
+func (c *cmdNetworkZoneRecordShow) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show", i18n.G("[<remote>:]<zone> <record>"))
+	cmd.Short = i18n.G("Show network zone record configuration")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network zone record configurations"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordShow) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone name"))
+	}
+
+	// Show the network zone config.
+	netRecord, _, err := resource.server.GetNetworkZoneRecord(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(&netRecord)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Get.
+type cmdNetworkZoneRecordGet struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+}
+
+func (c *cmdNetworkZoneRecordGet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("get", i18n.G("[<remote>:]<zone> <record> <key>"))
+	cmd.Short = i18n.G("Get values for network zone record configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Get values for network zone record configuration keys"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordGet) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone record name"))
+	}
+
+	resp, _, err := resource.server.GetNetworkZoneRecord(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	for k, v := range resp.Config {
+		if k == args[2] {
+			fmt.Printf("%s\n", v)
+		}
+	}
+
+	return nil
+}
+
+// Create.
+type cmdNetworkZoneRecordCreate struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+}
+
+func (c *cmdNetworkZoneRecordCreate) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("create", i18n.G("[<remote>:]<zone> <record> [key=value...]"))
+	cmd.Short = i18n.G("Create new network zone record")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Create new network zone record"))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordCreate) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone name"))
+	}
+
+	// If stdin isn't a terminal, read yaml from it.
+	var recordPut api.NetworkZoneRecordPut
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		err = yaml.UnmarshalStrict(contents, &recordPut)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create the network zone.
+	record := api.NetworkZoneRecordsPost{
+		Name:                 args[1],
+		NetworkZoneRecordPut: recordPut,
+	}
+
+	if record.Config == nil {
+		record.Config = map[string]string{}
+	}
+
+	for i := 2; i < len(args); i++ {
+		entry := strings.SplitN(args[i], "=", 2)
+		if len(entry) < 2 {
+			return fmt.Errorf(i18n.G("Bad key/value pair: %s"), args[i])
+		}
+
+		record.Config[entry[0]] = entry[1]
+	}
+
+	err = resource.server.CreateNetworkZoneRecord(resource.name, record)
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Network zone record %s created")+"\n", args[1])
+	}
+
+	return nil
+}
+
+// Set.
+type cmdNetworkZoneRecordSet struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+}
+
+func (c *cmdNetworkZoneRecordSet) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("set", i18n.G("[<remote>:]<zone> <record> <key>=<value>..."))
+	cmd.Short = i18n.G("Set network zone record configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Set network zone record configuration keys`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordSet) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, -1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone name"))
+	}
+
+	// Get the network zone.
+	netRecord, etag, err := resource.server.GetNetworkZoneRecord(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	// Set the keys.
+	keys, err := getConfig(args[2:]...)
+	if err != nil {
+		return err
+	}
+
+	for k, v := range keys {
+		netRecord.Config[k] = v
+	}
+
+	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
+}
+
+// Unset.
+type cmdNetworkZoneRecordUnset struct {
+	global               *cmdGlobal
+	networkZoneRecord    *cmdNetworkZoneRecord
+	networkZoneRecordSet *cmdNetworkZoneRecordSet
+}
+
+func (c *cmdNetworkZoneRecordUnset) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("unset", i18n.G("[<remote>:]<zone> <record> <key>"))
+	cmd.Short = i18n.G("Unset network zone record configuration keys")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Unset network zone record configuration keys"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordUnset) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 3, 3)
+	if exit {
+		return err
+	}
+
+	args = append(args, "")
+	return c.networkZoneRecordSet.Run(cmd, args)
+}
+
+// Edit.
+type cmdNetworkZoneRecordEdit struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+}
+
+func (c *cmdNetworkZoneRecordEdit) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("edit", i18n.G("[<remote>:]<zone> <record>"))
+	cmd.Short = i18n.G("Edit network zone record configurations as YAML")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Edit network zone record configurations as YAML"))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordEdit) helpTemplate() string {
+	return i18n.G(
+		`### This is a YAML representation of the network zone record.
+### Any line starting with a '# will be ignored.
+###
+### A network zone consists of a set of rules and configuration items.
+###
+### An example would look like:
+### name: foo
+### description: SPF record
+### config:
+###  user.foo: bah
+`)
+}
+
+func (c *cmdNetworkZoneRecordEdit) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone record name"))
+	}
+
+	// If stdin isn't a terminal, read text from it
+	if !termios.IsTerminal(getStdinFd()) {
+		contents, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return err
+		}
+
+		// Allow output of `lxc network zone show` command to passed in here, but only take the contents
+		// of the NetworkZonePut fields when updating the Zone. The other fields are silently discarded.
+		newdata := api.NetworkZoneRecord{}
+		err = yaml.UnmarshalStrict(contents, &newdata)
+		if err != nil {
+			return err
+		}
+
+		return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.NetworkZoneRecordPut, "")
+	}
+
+	// Get the current config.
+	netRecord, etag, err := resource.server.GetNetworkZoneRecord(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	data, err := yaml.Marshal(netRecord.Writable())
+	if err != nil {
+		return err
+	}
+
+	// Spawn the editor.
+	content, err := shared.TextEditor("", []byte(c.helpTemplate()+"\n\n"+string(data)))
+	if err != nil {
+		return err
+	}
+
+	for {
+		// Parse the text received from the editor.
+		newdata := api.NetworkZoneRecord{} // We show the full Zone info, but only send the writable fields.
+		err = yaml.UnmarshalStrict(content, &newdata)
+		if err == nil {
+			err = resource.server.UpdateNetworkZoneRecord(resource.name, args[1], newdata.Writable(), etag)
+		}
+
+		// Respawn the editor.
+		if err != nil {
+			fmt.Fprintf(os.Stderr, i18n.G("Config parsing error: %s")+"\n", err)
+			fmt.Println(i18n.G("Press enter to open the editor again or ctrl+c to abort change"))
+
+			_, err := os.Stdin.Read(make([]byte, 1))
+			if err != nil {
+				return err
+			}
+
+			content, err = shared.TextEditor("", content)
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	return nil
+}
+
+// Delete.
+type cmdNetworkZoneRecordDelete struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+}
+
+func (c *cmdNetworkZoneRecordDelete) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("delete", i18n.G("[<remote>:]<zone> <record>"))
+	cmd.Aliases = []string{"rm"}
+	cmd.Short = i18n.G("Delete network zone record")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Delete network zone record"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordDelete) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, 2)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone name"))
+	}
+
+	// Delete the network zone.
+	err = resource.server.DeleteNetworkZoneRecord(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Network zone record %s deleted")+"\n", args[1])
+	}
+
+	return nil
+}
+
+// Add/Remove Rule.
+type cmdNetworkZoneRecordEntry struct {
+	global            *cmdGlobal
+	networkZoneRecord *cmdNetworkZoneRecord
+
+	flagTTL uint64
+}
+
+func (c *cmdNetworkZoneRecordEntry) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("entry")
+	cmd.Short = i18n.G("Manage network zone record entriess")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network zone record entries"))
+
+	// Rule Add.
+	cmd.AddCommand(c.CommandAdd())
+
+	// Rule Remove.
+	cmd.AddCommand(c.CommandRemove())
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordEntry) CommandAdd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("add", i18n.G("[<remote>:]<zone> <record> <type> <value>"))
+	cmd.Short = i18n.G("Add a network zone record entry")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Add entries to a network zone record"))
+	cmd.RunE = c.RunAdd
+	cmd.Flags().Uint64Var(&c.flagTTL, "ttl", 0, i18n.G("Entry TTL")+"``")
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordEntry) RunAdd(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 4, 4)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone name"))
+	}
+
+	// Get the network record.
+	netRecord, etag, err := resource.server.GetNetworkZoneRecord(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	// Add the entry.
+	entry := api.NetworkZoneRecordEntry{
+		Type:  args[2],
+		TTL:   c.flagTTL,
+		Value: args[3],
+	}
+
+	netRecord.Entries = append(netRecord.Entries, entry)
+	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
+}
+
+func (c *cmdNetworkZoneRecordEntry) CommandRemove() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("remove", i18n.G("[<remote>:]<zone> <record> <type> <value>"))
+	cmd.Short = i18n.G("Remove a network zone record entry")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Remove entries from a network zone record"))
+	cmd.RunE = c.RunRemove
+
+	return cmd
+}
+
+func (c *cmdNetworkZoneRecordEntry) RunRemove(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 4, 4)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network zone name"))
+	}
+
+	// Get the network zone record.
+	netRecord, etag, err := resource.server.GetNetworkZoneRecord(resource.name, args[1])
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for i, entry := range netRecord.Entries {
+		if entry.Type != args[2] || entry.Value != args[3] {
+			continue
+		}
+
+		found = true
+		netRecord.Entries = append(netRecord.Entries[:i], netRecord.Entries[i+1:]...)
+	}
+
+	if !found {
+		return fmt.Errorf(i18n.G("Couldn't find a matching entry"))
+	}
+
+	return resource.server.UpdateNetworkZoneRecord(resource.name, args[1], netRecord.Writable(), etag)
 }
