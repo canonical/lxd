@@ -1017,6 +1017,11 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
+	// Ensure secureboot is turned off for images that are not secureboot enabled
+	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && !shared.IsFalse(d.expandedConfig["security.secureboot"]) {
+		return errors.Errorf("The image used by this instance is incompatible with secureboot")
+	}
+
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionStart, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
