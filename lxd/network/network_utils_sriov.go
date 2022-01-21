@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/ip"
@@ -39,13 +37,13 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to get local node name")
+			return fmt.Errorf("Failed to get local node name: %w", err)
 		}
 
 		// Get all managed networks across all projects.
 		networks, err = tx.GetCreatedNetworks()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load all networks")
+			return fmt.Errorf("Failed to load all networks: %w", err)
 		}
 
 		return err
@@ -113,7 +111,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int, error) {
 	reservedDevices, err := SRIOVGetHostDevicesInUse(s)
 	if err != nil {
-		return "", -1, errors.Wrapf(err, "Failed getting in use device list")
+		return "", -1, fmt.Errorf("Failed getting in use device list: %w", err)
 	}
 
 	sriovNumVFsFile := fmt.Sprintf("/sys/class/net/%s/device/sriov_numvfs", parentDev)
@@ -179,7 +177,7 @@ func SRIOVFindFreeVirtualFunction(s *state.State, parentDev string) (string, int
 		// Bump the number of VFs to the maximum if not there yet.
 		err = ioutil.WriteFile(sriovNumVFsFile, []byte(fmt.Sprintf("%d", sriovTotalVFs)), 0644)
 		if err != nil {
-			return "", -1, errors.Wrapf(err, "Failed growing available VFs from %d to %d on device %q", sriovNumVFs, sriovTotalVFs, parentDev)
+			return "", -1, fmt.Errorf("Failed growing available VFs from %d to %d on device %q: %w", sriovNumVFs, sriovTotalVFs, parentDev, err)
 		}
 
 		time.Sleep(time.Second) // Allow time for new VFs to appear.
@@ -213,7 +211,7 @@ func sriovGetFreeVFInterface(reservedDevices map[string]struct{}, parentDev stri
 
 		ents, err := ioutil.ReadDir(vfListPath)
 		if err != nil {
-			return -1, "", errors.Wrapf(err, "Failed reading VF interface directory %q", vfListPath)
+			return -1, "", fmt.Errorf("Failed reading VF interface directory %q: %w", vfListPath, err)
 		}
 
 		for _, ent := range ents {

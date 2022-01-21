@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -82,7 +81,7 @@ func (n *common) validate(config map[string]string, driverRules map[string]func(
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid value for network %q option %q", n.name, k)
+			return fmt.Errorf("Invalid value for network %q option %q: %w", n.name, k, err)
 		}
 	}
 

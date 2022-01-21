@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/mdlayher/netx/eui64"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -123,7 +123,7 @@ func (n *bridge) FillConfig(config map[string]string) error {
 	// Now replace any "auto" keys with generated values.
 	err := n.populateAutoConfig(config)
 	if err != nil {
-		return errors.Wrapf(err, "Failed generating auto config")
+		return fmt.Errorf("Failed generating auto config")
 	}
 
 	return nil
@@ -192,7 +192,7 @@ func (n *bridge) Validate(config map[string]string) error {
 			for _, entry := range strings.Split(value, ",") {
 				entry = strings.TrimSpace(entry)
 				if err := validate.IsInterfaceName(entry); err != nil {
-					return errors.Wrapf(err, "Invalid interface name %q", entry)
+					return fmt.Errorf("Invalid interface name %q: %w", entry, err)
 				}
 			}
 
@@ -600,7 +600,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		seed := fmt.Sprintf("%s.%d.%d", cert.Fingerprint(), seedNodeID, n.ID())
 		r, err := util.GetStableRandomGenerator(seed)
 		if err != nil {
-			return errors.Wrapf(err, "Failed generating stable random bridge MAC")
+			return fmt.Errorf("Failed generating stable random bridge MAC: %w", err)
 		}
 
 		hwAddr = randomHwaddr(r)
@@ -669,7 +669,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		n.logger.Debug("Clearing firewall")
 		err = n.state.Firewall.NetworkClear(n.name, false, fwClearIPVersions)
 		if err != nil {
-			return errors.Wrapf(err, "Failed clearing firewall")
+			return fmt.Errorf("Failed clearing firewall: %w", err)
 		}
 	}
 
@@ -764,7 +764,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the subnet.
 		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv4.address"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv4.address")
+			return fmt.Errorf("Failed parsing ipv4.address: %w", err)
 		}
 
 		// Update the dnsmasq config.
@@ -886,7 +886,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the subnet.
 		ipAddress, subnet, err := net.ParseCIDR(n.config["ipv6.address"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing ipv6.address")
+			return fmt.Errorf("Failed parsing ipv6.address: %w", err)
 		}
 		subnetSize, _ := subnet.Mask.Size()
 
@@ -1022,7 +1022,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		underlay := n.config["fan.underlay_subnet"]
 		_, underlaySubnet, err := net.ParseCIDR(underlay)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing fan.underlay_subnet")
+			return fmt.Errorf("Failed parsing fan.underlay_subnet: %w", err)
 		}
 
 		// Parse the overlay.
@@ -1033,7 +1033,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 		_, overlaySubnet, err = net.ParseCIDR(overlay)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing fan.overlay_subnet")
+			return fmt.Errorf("Failed parsing fan.overlay_subnet: %w", err)
 		}
 
 		// Get the address.
@@ -1079,7 +1079,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Parse the host subnet.
 		_, hostSubnet, err := net.ParseCIDR(fmt.Sprintf("%s/24", addr[0]))
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing fan address")
+			return fmt.Errorf("Failed parsing fan address: %w", err)
 		}
 
 		// Add the address.
@@ -1405,7 +1405,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Check dnsmasq started OK.
 		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*time.Duration(500)))
 		_, err = p.Wait(ctx)
-		if errors.Cause(err) != context.DeadlineExceeded {
+		if !errors.Is(err, context.DeadlineExceeded) {
 			stderr, _ := ioutil.ReadFile(dnsmasqLogPath)
 
 			// Just log an error if dnsmasq has exited, and still proceed with normal setup so we
@@ -1453,7 +1453,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(leasesPath) {
 			err := os.Remove(leasesPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove old dnsmasq leases file %q", leasesPath)
+				return fmt.Errorf("Failed to remove old dnsmasq leases file %q: %w", leasesPath, err)
 			}
 		}
 
@@ -1462,7 +1462,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if shared.PathExists(pidPath) {
 			err := os.Remove(pidPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove old dnsmasq pid file %q", pidPath)
+				return fmt.Errorf("Failed to remove old dnsmasq pid file %q: %w", pidPath, err)
 			}
 		}
 	}
@@ -1471,7 +1471,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	n.logger.Debug("Setting up firewall")
 	err = n.state.Firewall.NetworkSetup(n.name, fwOpts)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to setup firewall")
+		return fmt.Errorf("Failed to setup firewall: %w", err)
 	}
 
 	revert.Success()
@@ -1516,7 +1516,7 @@ func (n *bridge) Stop() error {
 		n.logger.Debug("Deleting firewall")
 		err := n.state.Firewall.NetworkClear(n.name, true, fwClearIPVersions)
 		if err != nil {
-			return errors.Wrapf(err, "Failed deleting firewall")
+			return fmt.Errorf("Failed deleting firewall: %w", err)
 		}
 	}
 
@@ -1564,7 +1564,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 
 	err := n.populateAutoConfig(newNetwork.Config)
 	if err != nil {
-		return errors.Wrapf(err, "Failed generating auto config")
+		return fmt.Errorf("Failed generating auto config: %w", err)
 	}
 
 	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
