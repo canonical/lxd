@@ -1581,3 +1581,15 @@ help determine the compatbility between an instance and the host system.
 
 ## storage\_zfs\_export
 Introduces the ability to disable zpool export when unmounting pool by setting `zfs.export`.
+
+## network\_dns\_records
+This extends the network zones (DNS) API to add the ability to create and manage custom records.
+
+This adds:
+
+ - `GET /1.0/network-zones/ZONE/records`
+ - `POST /1.0/network-zones/ZONE/records`
+ - `GET /1.0/network-zones/ZONE/records/RECORD`
+ - `PUT /1.0/network-zones/ZONE/records/RECORD`
+ - `PATCH /1.0/network-zones/ZONE/records/RECORD`
+ - `DELETE /1.0/network-zones/ZONE/records/RECORD`
