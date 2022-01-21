@@ -31,15 +31,15 @@ func (r *ProtocolLXD) GetNetworkZones() ([]api.NetworkZone, error) {
 		return nil, fmt.Errorf(`The server is missing the required "network_dns" API extension`)
 	}
 
-	acls := []api.NetworkZone{}
+	zones := []api.NetworkZone{}
 
 	// Fetch the raw value.
-	_, err := r.queryStruct("GET", "/network-zones?recursion=1", nil, "", &acls)
+	_, err := r.queryStruct("GET", "/network-zones?recursion=1", nil, "", &zones)
 	if err != nil {
 		return nil, err
 	}
 
-	return acls, nil
+	return zones, nil
 }
 
 // GetNetworkZone returns a Network zone entry for the provided name.
@@ -48,25 +48,25 @@ func (r *ProtocolLXD) GetNetworkZone(name string) (*api.NetworkZone, string, err
 		return nil, "", fmt.Errorf(`The server is missing the required "network_dns" API extension`)
 	}
 
-	acl := api.NetworkZone{}
+	zone := api.NetworkZone{}
 
 	// Fetch the raw value.
-	etag, err := r.queryStruct("GET", fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "", &acl)
+	etag, err := r.queryStruct("GET", fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), nil, "", &zone)
 	if err != nil {
 		return nil, "", err
 	}
 
-	return &acl, etag, nil
+	return &zone, etag, nil
 }
 
 // CreateNetworkZone defines a new Network zone using the provided struct.
-func (r *ProtocolLXD) CreateNetworkZone(acl api.NetworkZonesPost) error {
+func (r *ProtocolLXD) CreateNetworkZone(zone api.NetworkZonesPost) error {
 	if !r.HasExtension("network_dns") {
 		return fmt.Errorf(`The server is missing the required "network_dns" API extension`)
 	}
 
 	// Send the request.
-	_, _, err := r.query("POST", "/network-zones", acl, "")
+	_, _, err := r.query("POST", "/network-zones", zone, "")
 	if err != nil {
 		return err
 	}
@@ -75,13 +75,13 @@ func (r *ProtocolLXD) CreateNetworkZone(acl api.NetworkZonesPost) error {
 }
 
 // UpdateNetworkZone updates the network zone to match the provided struct.
-func (r *ProtocolLXD) UpdateNetworkZone(name string, acl api.NetworkZonePut, ETag string) error {
+func (r *ProtocolLXD) UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) error {
 	if !r.HasExtension("network_dns") {
 		return fmt.Errorf(`The server is missing the required "network_dns" API extension`)
 	}
 
 	// Send the request.
-	_, _, err := r.query("PUT", fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), acl, ETag)
+	_, _, err := r.query("PUT", fmt.Sprintf("/network-zones/%s", url.PathEscape(name)), zone, ETag)
 	if err != nil {
 		return err
 	}

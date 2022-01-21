@@ -259,10 +259,10 @@ type InstanceServer interface {
 
 	// Network zone functions ("network_dns" API extension)
 	GetNetworkZoneNames() (names []string, err error)
-	GetNetworkZones() (acls []api.NetworkZone, err error)
-	GetNetworkZone(name string) (acl *api.NetworkZone, ETag string, err error)
-	CreateNetworkZone(acl api.NetworkZonesPost) (err error)
-	UpdateNetworkZone(name string, acl api.NetworkZonePut, ETag string) (err error)
+	GetNetworkZones() (zones []api.NetworkZone, err error)
+	GetNetworkZone(name string) (zone *api.NetworkZone, ETag string, err error)
+	CreateNetworkZone(zone api.NetworkZonesPost) (err error)
+	UpdateNetworkZone(name string, zone api.NetworkZonePut, ETag string) (err error)
 	DeleteNetworkZone(name string) (err error)
 
 	// Operation functions
