@@ -3,8 +3,6 @@ package acl
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -65,17 +63,17 @@ func FirewallApplyACLRules(s *state.State, logger logger.Logger, aclProjectName 
 	for _, aclName := range util.SplitNTrimSpace(aclNet.Config["security.acls"], ",", -1, true) {
 		_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading ACL %q for network %q", aclName, aclNet.Name)
+			return fmt.Errorf("Failed loading ACL %q for network %q: %w", aclName, aclNet.Name, err)
 		}
 
 		err = convertACLRules("ingress", logPrefix, aclInfo.Ingress...)
 		if err != nil {
-			return errors.Wrapf(err, "Failed converting ACL %q ingress rules for network %q", aclInfo.Name, aclNet.Name)
+			return fmt.Errorf("Failed converting ACL %q ingress rules for network %q: %w", aclInfo.Name, aclNet.Name, err)
 		}
 
 		err = convertACLRules("egress", logPrefix, aclInfo.Egress...)
 		if err != nil {
-			return errors.Wrapf(err, "Failed converting ACL %q egress rules for network %q", aclInfo.Name, aclNet.Name)
+			return fmt.Errorf("Failed converting ACL %q egress rules for network %q: %w", aclInfo.Name, aclNet.Name, err)
 		}
 	}
 

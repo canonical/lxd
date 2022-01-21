@@ -3,8 +3,6 @@ package acl
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
@@ -87,13 +85,13 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	// Find networks using the ACLs. Cheapest to do.
 	networkNames, err := s.Cluster.GetCreatedNetworks(aclProjectName)
 	if err != nil && err != db.ErrNoSuchObject {
-		return errors.Wrapf(err, "Failed loading networks for project %q", aclProjectName)
+		return fmt.Errorf("Failed loading networks for project %q: %w", aclProjectName, err)
 	}
 
 	for _, networkName := range networkNames {
 		_, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, networkName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to get network config for %q", networkName)
+			return fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
 		}
 
 		netACLNames := util.SplitNTrimSpace(network.Config["security.acls"], ",", -1, true)
@@ -266,7 +264,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 		case db.Instance, db.Profile:
 			networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
 			if err != nil {
-				return errors.Wrapf(err, "Failed to load network %q", nicConfig["network"])
+				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 			}
 
 			if shared.StringInSlice(network.Type, supportedNetTypes) {
@@ -284,7 +282,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 				if _, found := aclNets[u.Name]; !found {
 					networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
 					if err != nil {
-						return errors.Wrapf(err, "Failed to load network %q", u.Name)
+						return fmt.Errorf("Failed to load network %q: %w", u.Name, err)
 					}
 
 					aclNets[u.Name] = NetworkACLUsage{
