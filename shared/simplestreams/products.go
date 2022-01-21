@@ -25,6 +25,7 @@ type Product struct {
 	Aliases         string                    `json:"aliases"`
 	Architecture    string                    `json:"arch"`
 	OperatingSystem string                    `json:"os"`
+	LXDRequirements map[string]string         `json:"lxd_requirements,omitempty"`
 	Release         string                    `json:"release"`
 	ReleaseCodename string                    `json:"release_codename,omitempty"`
 	ReleaseTitle    string                    `json:"release_title"`
@@ -166,6 +167,10 @@ func (s *Products) ToLXD() ([]api.Image, map[string][][]string) {
 					"label":        version.Label,
 					"serial":       name,
 					"description":  description,
+				}
+
+				for lxdReq, lxdReqVal := range product.LXDRequirements {
+					image.Properties["requirements."+lxdReq] = lxdReqVal
 				}
 
 				if product.Variant != "" {
