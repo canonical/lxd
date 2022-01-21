@@ -156,6 +156,12 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 		return errors.Wrapf(err, "Failed setting subvolume writable %q", rootPath)
 	}
 
+	// Attempt to delete the root subvol itself (short path).
+	err = destroy(rootPath)
+	if err == nil {
+		return nil
+	}
+
 	// Delete subsubvols.
 	if recursion {
 		// Get the subvolumes list.
