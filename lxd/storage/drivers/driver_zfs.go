@@ -349,6 +349,7 @@ func (d *zfs) Validate(config map[string]string) error {
 
 			return validate.IsBool(value)
 		}),
+		"zfs.export":                  validate.Optional(validate.IsBool),
 		"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
 	}
@@ -407,6 +408,11 @@ func (d *zfs) Mount() (bool, error) {
 
 // Unmount unmounts the storage pool.
 func (d *zfs) Unmount() (bool, error) {
+	// Skip if zfs.export config is set to false
+	if d.config["zfs.export"] != "" && !shared.IsTrue(d.config["zfs.export"]) {
+		return false, nil
+	}
+
 	// Skip if using a dataset and not a full pool.
 	if strings.Contains(d.config["zfs.pool_name"], "/") {
 		return false, nil
