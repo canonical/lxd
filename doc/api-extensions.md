@@ -1173,3 +1173,7 @@ Expose the project an API event belongs to.
 ## instance\_allow\_inconsistent\_copy
 Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If true, rsync will ignore the 
 `Partial transfer due to vanished source files` (code 24) error when creating an instance from a copy. 
+
+## image\_restrictions
+This extension adds on to the image properties to include image restrictions/host requirements. These requirements
+help determine the compatbility between an instance and the host system.
