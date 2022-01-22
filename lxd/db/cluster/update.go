@@ -99,6 +99,35 @@ var updates = map[int]schema.Update{
 	57: updateFromV56,
 	58: updateFromV57,
 	59: updateFromV58,
+	60: updateFromV59,
+}
+
+func updateFromV59(tx *sql.Tx) error {
+	_, err := tx.Exec(`
+CREATE TABLE networks_zones_records (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_id INTEGER NOT NULL,
+	name TEXT NOT NULL,
+	description TEXT NOT NULL,
+	entries TEXT NOT NULL,
+	UNIQUE (name),
+	FOREIGN KEY (network_zone_id) REFERENCES networks_zones (id) ON DELETE CASCADE
+);
+
+CREATE TABLE networks_zones_records_config (
+	id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+	network_zone_record_id INTEGER NOT NULL,
+	key VARCHAR(255) NOT NULL,
+	value TEXT,
+	UNIQUE (network_zone_record_id, key),
+	FOREIGN KEY (network_zone_record_id) REFERENCES networks_zones_records (id) ON DELETE CASCADE
+);
+`)
+	if err != nil {
+		return errors.Wrap(err, `Failed creating network zone records tables`)
+	}
+
+	return nil
 }
 
 func updateFromV58(tx *sql.Tx) error {
