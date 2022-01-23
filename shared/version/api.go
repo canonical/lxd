@@ -307,6 +307,7 @@ var APIExtensions = []string{
 	"clustering_evacuation_live",
 	"instance_allow_inconsistent_copy",
 	"network_state_ovn",
+	"storage_volume_api_filtering",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

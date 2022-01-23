@@ -1571,3 +1571,6 @@ Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If 
 This adds an "ovn" section to the /1.0/networks/NAME/state API which contains additional state information relevant to 
 OVN networks:
 - chassis
+
+## storage\_volume\_api\_filtering
+Adds support for filtering the result of a GET request for storage volumes.
