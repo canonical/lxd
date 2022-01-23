@@ -521,6 +521,7 @@ Key                           | Type                          | Default         
 size                          | string                        | 0                                       | Size of the storage pool in bytes (suffixes supported). (Currently valid for loop based pools and zfs.)
 source                        | string                        | -                                       | Path to block device or loop file or filesystem entry
 zfs.clone\_copy               | string                        | true                                    | Whether to use ZFS lightweight clones rather than full dataset copies (boolean) or "rebase" to copy based on the initial image
+zfs.export                    | bool                          | true                                    | Disable zpool export while unmount performed
 zfs.pool\_name                | string                        | name of the pool                        | Name of the zpool
 
 #### Storage volume configuration

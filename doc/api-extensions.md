@@ -1578,3 +1578,6 @@ Adds support for filtering the result of a GET request for storage volumes.
 ## image\_restrictions
 This extension adds on to the image properties to include image restrictions/host requirements. These requirements
 help determine the compatbility between an instance and the host system.
+
+## storage\_zfs\_export
+Introduces the ability to disable zpool export when unmounting pool by setting `zfs.export`.

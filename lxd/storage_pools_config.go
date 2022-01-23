@@ -85,6 +85,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 
 		return validate.IsBool(value)
 	}),
+	"zfs.export":    validate.Optional(validate.IsBool),
 	"zfs.pool_name": validate.IsAny,
 	"rsync.bwlimit": validate.IsAny,
 
