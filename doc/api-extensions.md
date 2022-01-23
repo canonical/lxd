@@ -1574,3 +1574,7 @@ OVN networks:
 
 ## storage\_volume\_api\_filtering
 Adds support for filtering the result of a GET request for storage volumes.
+
+## image\_restrictions
+This extension adds on to the image properties to include image restrictions/host requirements. These requirements
+help determine the compatbility between an instance and the host system.

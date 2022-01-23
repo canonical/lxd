@@ -143,6 +143,19 @@ with the image, not even the `default` profile. An image's associated
 profiles can be overridden when launching an instance by using the
 `--profile` and the `--no-profiles` flags to `lxc launch`.
 
+## Special image properties
+Image properties beginning with the prefix ***requirements*** (e.g. requirements.XYZ)
+are used by LXD to determine the compatibility of the host system and the
+instance to be created by said image. In the event that these are incompatible,
+LXD will not start the instance.
+
+At the moment, the following requirements are supported:
+
+Key                                         | Type      | Default      | Description
+:--                                         | :---      | :------      | :----------
+requirements.secureboot                     | string    | -            | If set to "false", indicates the image will not boot under secureboot
+requirements.cgroup                         | string    | -            | If set to "v1", indicates the image requires the host to run CGroupV1
+
 ## Image format
 LXD currently supports two LXD-specific image formats.
 
