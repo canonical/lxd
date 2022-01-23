@@ -1979,6 +1979,11 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		return "", nil, errors.Wrap(err, "Load go-lxc struct")
 	}
 
+	// Ensure cgroup v1 configuration is set appropriately with the image using systemd
+	if d.localConfig["image.requirements.cgroup"] == "v1" && !shared.PathExists("/sys/fs/cgroup/systemd") {
+		return "", nil, fmt.Errorf("The image used by this instance requires a CGroupV1 host system")
+	}
+
 	// Load any required kernel modules
 	kernelModules := d.expandedConfig["linux.kernel_modules"]
 	if kernelModules != "" {
