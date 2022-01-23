@@ -654,6 +654,10 @@ func IsTrue(value string) bool {
 	return StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
 }
 
+func IsFalse(value string) bool {
+	return StringInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
+}
+
 func IsUserConfig(key string) bool {
 	return strings.HasPrefix(key, "user.")
 }
