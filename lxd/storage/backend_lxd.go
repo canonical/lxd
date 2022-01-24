@@ -851,7 +851,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	}
 
 	// Some driver backing stores require that running instances be frozen during copy.
-	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
+	if !src.IsSnapshot() && b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() && !allowInconsistent {
 		err = src.Freeze()
 		if err != nil {
 			return err
@@ -1961,6 +1961,18 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 	volStorageName := project.Instance(inst.Project(), args.Name)
 
 	vol := b.newVolume(volType, contentType, volStorageName, rootDiskConf)
+
+	// Freeze the instance only when the underlying driver doesn't support it, and allowInconsistent is not set (and it's
+	// not already frozen/stopped)
+	if !inst.IsSnapshot() && b.driver.Info().RunningCopyFreeze && inst.IsRunning() && !inst.IsFrozen() && !args.AllowInconsistent {
+		err = inst.Freeze()
+		if err != nil {
+			return err
+		}
+
+		defer inst.Unfreeze()
+	}
+
 	err = b.driver.MigrateVolume(vol, conn, args, op)
 	if err != nil {
 		return err
