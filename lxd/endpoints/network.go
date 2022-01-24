@@ -113,14 +113,14 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 			// Attempt to revert to the previous address
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
-				e.listeners[network] = networkTLSListener(*listener, e.cert)
+				e.listeners[network] = listeners.NewFancyTLSListener(*listener, e.cert)
 				e.serve(network)
 			}
 
 			return err
 		}
 
-		e.listeners[network] = networkTLSListener(*listener, e.cert)
+		e.listeners[network] = listeners.NewFancyTLSListener(*listener, e.cert)
 		e.serve(network)
 	}
 
@@ -138,13 +138,13 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 	e.cert = cert
 	listener, ok := e.listeners[network]
 	if ok {
-		listener.(*networkListener).Config(cert)
+		listener.(*listeners.FancyTLSListener).Config(cert)
 	}
 
 	// Update the cluster listener too, if enabled.
 	listener, ok = e.listeners[cluster]
 	if ok {
-		listener.(*networkListener).Config(cert)
+		listener.(*listeners.FancyTLSListener).Config(cert)
 	}
 }
 
@@ -164,13 +164,13 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 	defer e.mu.Unlock()
 	listener, ok := e.listeners[network]
 	if ok && listener != nil {
-		listener.(*networkListener).TrustedProxy(proxies)
+		listener.(*listeners.FancyTLSListener).TrustedProxy(proxies)
 	}
 
 	// Update the cluster listener too, if enabled.
 	listener, ok = e.listeners[cluster]
 	if ok && listener != nil {
-		listener.(*networkListener).TrustedProxy(proxies)
+		listener.(*listeners.FancyTLSListener).TrustedProxy(proxies)
 	}
 }
 
@@ -190,5 +190,5 @@ func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener,
 	if err != nil {
 		return nil, errors.Wrap(err, "Bind network address")
 	}
-	return networkTLSListener(listener, cert), nil
+	return listeners.NewFancyTLSListener(listener, cert), nil
 }

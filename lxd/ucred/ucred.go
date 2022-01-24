@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/lxc/lxd/lxd/endpoints"
+	"github.com/lxc/lxd/lxd/endpoints/listeners"
 	"github.com/lxc/lxd/lxd/request"
 )
 
@@ -47,7 +47,7 @@ func GetCredFromContext(ctx context.Context) (*unix.Ucred, error) {
 	conn := GetConnFromContext(ctx)
 	unixConnPtr, ok := conn.(*net.UnixConn)
 	if !ok {
-		bufferedUnixConnPtr, ok := conn.(endpoints.BufferedUnixConn)
+		bufferedUnixConnPtr, ok := conn.(listeners.BufferedUnixConn)
 		if !ok {
 			return nil, ErrNotUnixSocket
 		}
