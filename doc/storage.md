@@ -509,7 +509,10 @@ lxc storage create pool1 lvm source=/dev/sdX lvm.vg_name=my-pool
    "zfs.use\_refquota" to "true" for the given dataset or set
    "volume.zfs.use\_refquota" to true on the storage pool. The former option
    will make LXD use refquota only for the given storage volume the latter will
-   make LXD use refquota for all storage volumes in the storage pool.
+   make LXD use refquota for all storage volumes in the storage pool. Also you can
+   set "zfs.reserve\_space" on the volume or "volume.zfs.reserve\_space" on the
+   storage pool to use ZFS "reservation"/"refreservation" along with
+   "quota"/"refquota".
  - I/O quotas (IOps/MBs) are unlikely to affect ZFS filesystems very
    much. That's because of ZFS being a port of a Solaris module (using SPL)
    and not a native Linux filesystem using the Linux VFS API which is where
@@ -535,6 +538,7 @@ snapshots.pattern       | string    | custom volume             | snap%d        
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
 zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
 zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_refquota      | Use refquota instead of quota for space
+zfs.reserve\_space      | string    | zfs driver                | false                                 | Use reservation/refreservation along with qouta/refquota
 
 #### The following commands can be used to create ZFS storage pools
 
