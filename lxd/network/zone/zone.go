@@ -340,6 +340,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 			}
 
 			record := map[string]string{}
+			record["ttl"] = "300"
 			if !isReverse {
 				if isV4 {
 					record["type"] = "A"
