@@ -95,7 +95,7 @@ func (d *lvm) Info() Info {
 		Remote:            d.isRemote(),
 		VolumeTypes:       []VolumeType{VolumeTypeCustom, VolumeTypeImage, VolumeTypeContainer, VolumeTypeVM},
 		BlockBacking:      true,
-		RunningCopyFreeze: false,
+		RunningCopyFreeze: true,
 		DirectIO:          true,
 		MountedRoot:       false,
 	}
