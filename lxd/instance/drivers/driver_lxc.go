@@ -1752,7 +1752,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 			}
 
 			var idmapType idmap.IdmapStorageType = idmap.IdmapStorageNone
-			if mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
+			if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
 				idmapType = d.IdmappedStorage(mount.DevPath)
 				if idmapType == idmap.IdmapStorageNone {
 					return fmt.Errorf("Required idmapping abilities not available")
@@ -2197,7 +2197,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 				mntOptions := strings.Join(mount.Opts, ",")
 
-				if mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic && !d.IsPrivileged() {
+				if !d.IsPrivileged() && mount.OwnerShift == deviceConfig.MountOwnerShiftDynamic {
 					switch d.IdmappedStorage(mount.DevPath) {
 					case idmap.IdmapStorageIdmapped:
 						mntOptions = strings.Join([]string{mntOptions, "idmap=container"}, ",")
