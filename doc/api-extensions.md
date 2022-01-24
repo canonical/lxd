@@ -1593,3 +1593,6 @@ This adds:
  - `PUT /1.0/network-zones/ZONE/records/RECORD`
  - `PATCH /1.0/network-zones/ZONE/records/RECORD`
  - `DELETE /1.0/network-zones/ZONE/records/RECORD`
+
+## storage\_zfs\_reserve\_space
+Adds ability to set the reservation/refreservation ZFS property along with quota/refquota.
