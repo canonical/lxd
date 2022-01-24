@@ -1232,15 +1232,23 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	// Enable extended topology information if needed.
-	cpuType := "host"
+	// Determine additional CPU flags.
+	cpuExtensions := []string{}
 
-	// Only x86_64 requires the use of topoext when SMT is used.
 	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
+		// x86_64 can use hv_time to improve Windows guest performance.
+		cpuExtensions = append(cpuExtensions, "hv_passthrough")
+
 		_, _, nrThreads, _, _, err := d.cpuTopology(d.expandedConfig["limits.cpu"])
 		if err != nil && nrThreads > 1 {
-			cpuType = "host,topoext"
+			// x86_64 requires the use of topoext when SMT is used.
+			cpuExtensions = append(cpuExtensions, "topoext")
 		}
+	}
+
+	cpuType := "host"
+	if len(cpuExtensions) > 0 {
+		cpuType += "," + strings.Join(cpuExtensions, ",")
 	}
 
 	// Start QEMU.
