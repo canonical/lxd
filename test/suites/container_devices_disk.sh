@@ -2,7 +2,7 @@ test_container_devices_disk() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
-  lxc launch testimage foo
+  lxc init testimage foo
 
   test_container_devices_disk_shift
   test_container_devices_raw_mount_options
@@ -23,6 +23,7 @@ test_container_devices_disk_shift() {
   touch "${TEST_DIR}/shift-source/a"
   chown 123:456 "${TEST_DIR}/shift-source/a"
 
+  lxc start foo
   lxc config device add foo shiftfs disk source="${TEST_DIR}/shift-source" path=/mnt
   [ "$(lxc exec foo -- stat /mnt/a -c '%u:%g')" = "65534:65534" ] || false
   lxc config device remove foo shiftfs
