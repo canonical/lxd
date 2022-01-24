@@ -87,7 +87,7 @@ Block based                                 | no        | no    | yes   | no   |
 Instant cloning                             | no        | yes   | yes   | yes  | yes
 Storage driver usable inside a container    | yes       | yes   | no    | no   | no
 Restore from older snapshots (not latest)   | yes       | yes   | yes   | no   | yes
-Storage quotas                              | yes(\*)   | yes   | yes   | yes  | no
+Storage quotas                              | yes(\*)   | yes   | yes   | yes  | yes
 
 ### Recommended setup
 The two best options for use with LXD are ZFS and btrfs.
