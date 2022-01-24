@@ -409,6 +409,29 @@ func (d *zone) Content() (*strings.Builder, error) {
 		}
 	}
 
+	// Add the extra records.
+	extraRecords, err := d.GetRecords()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, extraRecord := range extraRecords {
+		for _, entry := range extraRecord.Entries {
+			record := map[string]string{}
+			if entry.TTL > 0 {
+				record["ttl"] = fmt.Sprintf("%d", entry.TTL)
+			} else {
+				record["ttl"] = "300"
+			}
+
+			record["type"] = entry.Type
+			record["name"] = extraRecord.Name
+			record["value"] = entry.Value
+
+			records = append(records, record)
+		}
+	}
+
 	// Get the nameservers.
 	nameservers := []string{}
 	for _, entry := range strings.Split(d.info.Config["dns.nameservers"], ",") {
