@@ -21,6 +21,13 @@ type NetworkZone interface {
 	UsedBy() ([]string, error)
 	Content() (*strings.Builder, error)
 
+	// Records.
+	AddRecord(req api.NetworkZoneRecordsPost) error
+	GetRecords() ([]api.NetworkZoneRecord, error)
+	GetRecord(name string) (*api.NetworkZoneRecord, error)
+	UpdateRecord(name string, req api.NetworkZoneRecordPut, clientType request.ClientType) error
+	DeleteRecord(name string) error
+
 	// Internal validation.
 	validateName(name string) error
 	validateConfig(config *api.NetworkZonePut) error
