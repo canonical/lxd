@@ -901,6 +901,20 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	// Handle simple rsync and block_and_rsync through generic.
 	if volSrcArgs.MigrationType.FSType == migration.MigrationFSType_RSYNC || volSrcArgs.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
+		// If volume is filesystem type and is not already a snapshot, create a fast snapshot to ensure migration is consistent.
+		if vol.contentType == ContentTypeFS && !vol.IsSnapshot() {
+			snapshotPath, reverter, err := d.readonlySnapshot(vol)
+			if err != nil {
+				return err
+			}
+
+			// Clean up the snapshot.
+			defer reverter.Fail()
+
+			// Set the path of the volume to the path of the fast snapshot so the migration reads from there instead.
+			vol.mountCustomPath = snapshotPath
+		}
+
 		return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 	} else if volSrcArgs.MigrationType.FSType != migration.MigrationFSType_BTRFS {
 		return ErrNotSupported
