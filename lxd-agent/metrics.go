@@ -366,7 +366,7 @@ func getNetworkMetrics(d *Daemon) (map[string]metrics.NetworkMetrics, error) {
 		stats.ReceiveDrop = uint64(state.Counters.PacketsDroppedInbound)
 		stats.ReceiveErrors = uint64(state.Counters.ErrorsReceived)
 		stats.ReceivePackets = uint64(state.Counters.PacketsReceived)
-		stats.TransmitBytes = uint64(state.Counters.BytesReceived)
+		stats.TransmitBytes = uint64(state.Counters.BytesSent)
 		stats.TransmitDrop = uint64(state.Counters.PacketsDroppedOutbound)
 		stats.TransmitErrors = uint64(state.Counters.ErrorsSent)
 		stats.TransmitPackets = uint64(state.Counters.PacketsSent)
