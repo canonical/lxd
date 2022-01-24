@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/lxc/lxd/lxd/endpoints/listeners"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -83,14 +84,14 @@ func (e *Endpoints) ClusterUpdateAddress(address string) error {
 			// Attempt to revert to the previous address
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
-				e.listeners[cluster] = networkTLSListener(*listener, e.cert)
+				e.listeners[cluster] = listeners.NewFancyTLSListener(*listener, e.cert)
 				e.serve(cluster)
 			}
 
 			return err
 		}
 
-		e.listeners[cluster] = networkTLSListener(*listener, e.cert)
+		e.listeners[cluster] = listeners.NewFancyTLSListener(*listener, e.cert)
 		e.serve(cluster)
 	}
 

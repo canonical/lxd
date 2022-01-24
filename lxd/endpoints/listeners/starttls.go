@@ -1,4 +1,4 @@
-package endpoints
+package listeners
 
 import (
 	"bufio"
@@ -11,17 +11,18 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-// A variation of the standard tls.Listener that supports atomically swapping
-// the underlying TLS configuration. Requests served before the swap will
-// continue using the old configuration.
-type starttlsListener struct {
+// StarttlsListener is a variation of the standard tls.Listener that supports
+// atomically swapping the underlying TLS configuration. Requests served
+// before the swap will continue using the old configuration.
+type StarttlsListener struct {
 	net.Listener
 	mu     sync.RWMutex
 	config *tls.Config
 }
 
-func networkSTARTTLSListener(inner net.Listener, cert *shared.CertInfo) *starttlsListener {
-	listener := &starttlsListener{
+// NewSTARTTLSListener creates a new STARTTLS listener.
+func NewSTARTTLSListener(inner net.Listener, cert *shared.CertInfo) *StarttlsListener {
+	listener := &StarttlsListener{
 		Listener: inner,
 	}
 
@@ -31,7 +32,7 @@ func networkSTARTTLSListener(inner net.Listener, cert *shared.CertInfo) *starttl
 
 // Accept waits for and returns the next incoming TLS connection then use the
 // current TLS configuration to handle it.
-func (l *starttlsListener) Accept() (net.Conn, error) {
+func (l *StarttlsListener) Accept() (net.Conn, error) {
 	c, err := l.Listener.Accept()
 	if err != nil {
 		return nil, err
@@ -63,7 +64,7 @@ func (l *starttlsListener) Accept() (net.Conn, error) {
 }
 
 // Config safely swaps the underlying TLS configuration.
-func (l *starttlsListener) Config(cert *shared.CertInfo) {
+func (l *StarttlsListener) Config(cert *shared.CertInfo) {
 	config := util.ServerTLSConfig(cert)
 
 	l.mu.Lock()
@@ -72,7 +73,7 @@ func (l *starttlsListener) Config(cert *shared.CertInfo) {
 	l.config = config
 }
 
-// BufferedUnixConn is a UnixConn wrapped in a Bufio Reader
+// BufferedUnixConn is a UnixConn wrapped in a Bufio Reader.
 type BufferedUnixConn struct {
 	r *bufio.Reader
 	*net.UnixConn

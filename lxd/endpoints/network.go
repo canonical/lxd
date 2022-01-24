@@ -1,15 +1,12 @@
 package endpoints
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/armon/go-proxyproto"
-
+	"github.com/lxc/lxd/lxd/endpoints/listeners"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -116,14 +113,14 @@ func (e *Endpoints) NetworkUpdateAddress(address string) error {
 			// Attempt to revert to the previous address
 			listener, err1 := getListener(oldAddress)
 			if err1 == nil {
-				e.listeners[network] = networkTLSListener(*listener, e.cert)
+				e.listeners[network] = listeners.NewFancyTLSListener(*listener, e.cert)
 				e.serve(network)
 			}
 
 			return err
 		}
 
-		e.listeners[network] = networkTLSListener(*listener, e.cert)
+		e.listeners[network] = listeners.NewFancyTLSListener(*listener, e.cert)
 		e.serve(network)
 	}
 
@@ -141,13 +138,13 @@ func (e *Endpoints) NetworkUpdateCert(cert *shared.CertInfo) {
 	e.cert = cert
 	listener, ok := e.listeners[network]
 	if ok {
-		listener.(*networkListener).Config(cert)
+		listener.(*listeners.FancyTLSListener).Config(cert)
 	}
 
 	// Update the cluster listener too, if enabled.
 	listener, ok = e.listeners[cluster]
 	if ok {
-		listener.(*networkListener).Config(cert)
+		listener.(*listeners.FancyTLSListener).Config(cert)
 	}
 }
 
@@ -167,13 +164,13 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 	defer e.mu.Unlock()
 	listener, ok := e.listeners[network]
 	if ok && listener != nil {
-		listener.(*networkListener).TrustedProxy(proxies)
+		listener.(*listeners.FancyTLSListener).TrustedProxy(proxies)
 	}
 
 	// Update the cluster listener too, if enabled.
 	listener, ok = e.listeners[cluster]
 	if ok && listener != nil {
-		listener.(*networkListener).TrustedProxy(proxies)
+		listener.(*listeners.FancyTLSListener).TrustedProxy(proxies)
 	}
 }
 
@@ -193,72 +190,5 @@ func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener,
 	if err != nil {
 		return nil, errors.Wrap(err, "Bind network address")
 	}
-	return networkTLSListener(listener, cert), nil
-}
-
-// A variation of the standard tls.Listener that supports atomically swapping
-// the underlying TLS configuration. Requests served before the swap will
-// continue using the old configuration.
-type networkListener struct {
-	net.Listener
-	mu           sync.RWMutex
-	config       *tls.Config
-	trustedProxy []net.IP
-}
-
-func networkTLSListener(inner net.Listener, cert *shared.CertInfo) *networkListener {
-	listener := &networkListener{
-		Listener: inner,
-	}
-	listener.Config(cert)
-	return listener
-}
-
-// Accept waits for and returns the next incoming TLS connection then use the
-// current TLS configuration to handle it.
-func (l *networkListener) Accept() (net.Conn, error) {
-	c, err := l.Listener.Accept()
-	if err != nil {
-		return nil, err
-	}
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	config := l.config
-	if isProxy(c.RemoteAddr().String(), l.trustedProxy) {
-		c = proxyproto.NewConn(c, 0)
-	}
-	return tls.Server(c, config), nil
-}
-
-// Config safely swaps the underlying TLS configuration.
-func (l *networkListener) Config(cert *shared.CertInfo) {
-	config := util.ServerTLSConfig(cert)
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.config = config
-}
-
-// TrustedProxy sets new the https trusted proxy configuration
-func (l *networkListener) TrustedProxy(trustedProxy []net.IP) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.trustedProxy = trustedProxy
-}
-
-func isProxy(addr string, proxies []net.IP) bool {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return false
-	}
-	hostIP := net.ParseIP(host)
-
-	for _, p := range proxies {
-		if hostIP.Equal(p) {
-			return true
-		}
-	}
-	return false
+	return listeners.NewFancyTLSListener(listener, cert), nil
 }
