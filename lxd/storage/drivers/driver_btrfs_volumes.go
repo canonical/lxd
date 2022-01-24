@@ -854,6 +854,49 @@ func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Opera
 	return genericVFSRenameVolume(d, vol, newVolName, op)
 }
 
+func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
+	reverter := revert.New()
+
+	sourcePath := vol.MountPath()
+	poolPath := GetPoolMountPath(d.name)
+	tmpDir, err := ioutil.TempDir(poolPath, "backup.")
+	if err != nil {
+		return "", nil, err
+	}
+
+	reverter.Add(func() {
+		os.RemoveAll(tmpDir)
+	})
+
+	err = os.Chmod(tmpDir, 0100)
+	if err != nil {
+		reverter.Fail()
+		return "", nil, err
+	}
+
+	mountPath := filepath.Join(tmpDir, vol.name)
+
+	err = d.snapshotSubvolume(sourcePath, mountPath, true)
+	if err != nil {
+		reverter.Fail()
+		return "", nil, err
+	}
+
+	reverter.Add(func() {
+		d.deleteSubvolume(mountPath, true)
+	})
+
+	err = d.setSubvolumeReadonlyProperty(mountPath, true)
+	if err != nil {
+		reverter.Fail()
+		return "", nil, err
+	}
+
+	d.logger.Debug("Created read-only backup snapshot", log.Ctx{"sourcePath": sourcePath, "path": mountPath})
+
+	return mountPath, reverter, nil
+}
+
 // MigrateVolume sends a volume for migration.
 func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
 	// Handle simple rsync and block_and_rsync through generic.
@@ -1022,37 +1065,16 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		// as they are copied to the tarball, as BTRFS allows us to take a quick snapshot without impacting
 		// the parent volume we do so here to ensure the backup taken is consistent.
 		if vol.contentType == ContentTypeFS {
-			sourcePath := vol.MountPath()
-			poolPath := GetPoolMountPath(d.name)
-			tmpDir, err := ioutil.TempDir(poolPath, "backup.")
-			if err != nil {
-				return errors.Wrapf(err, "Failed to create temporary directory under %q", poolPath)
-			}
-			defer os.RemoveAll(tmpDir)
-
-			err = os.Chmod(tmpDir, 0100)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to chmod %q", tmpDir)
-			}
-
-			// Override volume's mount path with location of snapshot so genericVFSBackupVolume reads
-			// from there instead of main volume.
-			vol.mountCustomPath = filepath.Join(tmpDir, vol.name)
-
-			// Create the read-only snapshot.
-			mountPath := vol.MountPath()
-			err = d.snapshotSubvolume(sourcePath, mountPath, true)
+			snapshotPath, reverter, err := d.readonlySnapshot(vol)
 			if err != nil {
 				return err
 			}
 
-			err = d.setSubvolumeReadonlyProperty(mountPath, true)
-			if err != nil {
-				return err
-			}
+			// Clean up the snapshot.
+			defer reverter.Fail()
 
-			d.logger.Debug("Created read-only backup snapshot", log.Ctx{"sourcePath": sourcePath, "path": mountPath})
-			defer d.deleteSubvolume(mountPath, true)
+			// Set the path of the volume to the path of the fast snapshot so the migration reads from there instead.
+			vol.mountCustomPath = snapshotPath
 		}
 
 		return genericVFSBackupVolume(d, vol, tarWriter, snapshots, op)
