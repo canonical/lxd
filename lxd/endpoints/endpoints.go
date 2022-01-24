@@ -9,6 +9,7 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/endpoints/listeners"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -186,7 +187,7 @@ func (e *Endpoints) up(config *Config) error {
 
 	// Setup STARTTLS layer on local listener.
 	if e.listeners[local] != nil {
-		e.listeners[local] = networkSTARTTLSListener(e.listeners[local], e.cert)
+		e.listeners[local] = listeners.NewSTARTTLSListener(e.listeners[local], e.cert)
 	}
 
 	// Start the devlxd listener
@@ -387,7 +388,7 @@ func (e *Endpoints) closeListener(kind kind) error {
 // Use the listeners associated with the file descriptors passed via
 // socket-based activation.
 func activatedListeners(systemdListeners []net.Listener, cert *shared.CertInfo) map[kind]net.Listener {
-	listeners := map[kind]net.Listener{}
+	activatedListeners := map[kind]net.Listener{}
 	for _, listener := range systemdListeners {
 		var kind kind
 		switch listener.(type) {
@@ -395,13 +396,13 @@ func activatedListeners(systemdListeners []net.Listener, cert *shared.CertInfo) 
 			kind = local
 		case *net.TCPListener:
 			kind = network
-			listener = networkTLSListener(listener, cert)
+			listener = listeners.NewFancyTLSListener(listener, cert)
 		default:
 			continue
 		}
-		listeners[kind] = listener
+		activatedListeners[kind] = listener
 	}
-	return listeners
+	return activatedListeners
 }
 
 // Numeric code identifying a specific API endpoint type.
