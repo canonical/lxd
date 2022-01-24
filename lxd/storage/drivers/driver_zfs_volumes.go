@@ -819,6 +819,7 @@ func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	rules := map[string]func(value string) error{
 		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		"zfs.use_refquota":     validate.Optional(validate.IsBool),
+		"zfs.reserve_space":    validate.Optional(validate.IsBool),
 	}
 
 	return d.validateVolume(vol, rules, removeUnknownKeys)
@@ -826,44 +827,26 @@ func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 
 // UpdateVolume applies config changes to the volume.
 func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
+	// Mangle the current volume to its old values.
+	old := make(map[string]string)
 	for k, v := range changedConfig {
-		if k == "size" {
-			return d.SetVolumeQuota(vol, v, false, nil)
+		if k == "size" || k == "zfs.use_refquota" || k == "zfs.reserve_space" {
+			old[k] = vol.config[k]
+			vol.config[k] = v
 		}
+	}
 
-		if k == "zfs.use_refquota" {
-			// Get current value.
-			cur := vol.ExpandedConfig("zfs.use_refquota")
+	defer func() {
+		for k, v := range old {
+			vol.config[k] = v
+		}
+	}()
 
-			// Get current size.
-			size := changedConfig["size"]
-			if size == "" {
-				size = vol.ExpandedConfig("size")
-			}
-
-			// Skip if no current quota.
-			if size == "" {
-				continue
-			}
-
-			// Skip if no change in effective value.
-			if shared.IsTrue(v) == shared.IsTrue(cur) {
-				continue
-			}
-
-			// Set new quota by temporarily modifying the volume config.
-			vol.config["zfs.use_refquota"] = v
-			err := d.SetVolumeQuota(vol, size, false, nil)
-			vol.config["zfs.use_refquota"] = cur
-			if err != nil {
-				return err
-			}
-
-			// Unset old quota.
-			err = d.SetVolumeQuota(vol, "", false, nil)
-			if err != nil {
-				return err
-			}
+	// If any of the relevant keys changed, re-apply the quota.
+	if len(old) != 0 {
+		err := d.SetVolumeQuota(vol, vol.ExpandedConfig("size"), false, nil)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -910,8 +893,8 @@ func (d *zfs) GetVolumeUsage(vol Volume) (int64, error) {
 	return valueInt, nil
 }
 
-// SetVolumeQuota sets the quota on the volume.
-// Does nothing if supplied with an empty/zero size for block volumes, and for filesystem volumes removes quota.
+// SetVolumeQuota sets the quota/reservation on the volume.
+// Does nothing if supplied with an empty/zero size for block volumes
 func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op *operations.Operation) error {
 	// Convert to bytes.
 	sizeBytes, err := units.ParseByteSizeString(size)
@@ -986,20 +969,37 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		return nil
 	}
 
-	// Handle filesystem datasets.
-	key := "quota"
-	if shared.IsTrue(vol.ExpandedConfig("zfs.use_refquota")) {
-		key = "refquota"
+	// Clear the existing quota.
+	for _, property := range []string{"quota", "refquota", "reservation", "refreservation"} {
+		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("%s=none", property))
+		if err != nil {
+			return err
+		}
 	}
 
 	value := fmt.Sprintf("%d", sizeBytes)
 	if sizeBytes == 0 {
-		value = "none"
+		return nil
 	}
 
-	err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("%s=%s", key, value))
+	// Apply the new quota.
+	quotaKey := "quota"
+	reservationKey := "reservation"
+	if shared.IsTrue(vol.ExpandedConfig("zfs.use_refquota")) {
+		quotaKey = "refquota"
+		reservationKey = "refreservation"
+	}
+
+	err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("%s=%s", quotaKey, value))
 	if err != nil {
 		return err
+	}
+
+	if shared.IsTrue(vol.ExpandedConfig("zfs.reserve_space")) {
+		err = d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("%s=%s", reservationKey, value))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
