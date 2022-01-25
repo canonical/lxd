@@ -9,6 +9,7 @@ import (
 	"github.com/miekg/dns"
 
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type dnsHandler struct {
@@ -78,6 +79,16 @@ func (d dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	for {
 		rr, ok := zoneRR.Next()
 		if !ok {
+			err := zoneRR.Err()
+			if err != nil {
+				logger.Errorf("Bad DNS record in zone %q: %v", name, err)
+
+				m := new(dns.Msg)
+				m.SetRcode(r, dns.RcodeFormatError)
+				w.WriteMsg(m)
+				return
+			}
+
 			break
 		}
 

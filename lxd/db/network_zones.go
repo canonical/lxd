@@ -5,6 +5,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -311,6 +312,212 @@ func (c *Cluster) UpdateNetworkZone(id int64, config *api.NetworkZonePut) error 
 func (c *Cluster) DeleteNetworkZone(id int64) error {
 	return c.Transaction(func(tx *ClusterTx) error {
 		_, err := tx.tx.Exec("DELETE FROM networks_zones WHERE id=?", id)
+		return err
+	})
+}
+
+// GetNetworkZoneRecordNames returns the names of existing Network zone records.
+func (c *Cluster) GetNetworkZoneRecordNames(zone int64) ([]string, error) {
+	q := `SELECT name FROM networks_zones_records
+		WHERE network_zone_id=?
+		ORDER BY name
+	`
+
+	var recordNames []string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+			var recordName string
+
+			err := scan(&recordName)
+			if err != nil {
+				return err
+			}
+
+			recordNames = append(recordNames, recordName)
+
+			return nil
+		}, zone)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return recordNames, nil
+}
+
+// GetNetworkZoneRecord returns the network zone record for the given zone and name.
+func (c *Cluster) GetNetworkZoneRecord(zone int64, name string) (int64, *api.NetworkZoneRecord, error) {
+	var id int64 = int64(-1)
+
+	record := api.NetworkZoneRecord{
+		Name: name,
+	}
+
+	q := `
+		SELECT networks_zones_records.id, networks_zones_records.description, networks_zones_records.entries
+		FROM networks_zones_records
+		WHERE networks_zones_records.network_zone_id=? AND networks_zones_records.name=?
+		LIMIT 1
+	`
+
+	var entries string
+	err := c.Transaction(func(tx *ClusterTx) error {
+		err := tx.tx.QueryRow(q, zone, name).Scan(&id, &record.Description, &entries)
+		if err != nil {
+			return err
+		}
+
+		err = networkZoneRecordConfig(tx, id, &record)
+		if err != nil {
+			return errors.Wrapf(err, "Failed loading config")
+		}
+
+		return nil
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return -1, nil, ErrNoSuchObject
+		}
+
+		return -1, nil, err
+	}
+
+	// Decode the JSON record.
+	err = json.Unmarshal([]byte(entries), &record.Entries)
+	if err != nil {
+		return -1, nil, err
+	}
+
+	return id, &record, nil
+}
+
+// networkZoneRecordConfig populates the config map of the network zone record with the given ID.
+func networkZoneRecordConfig(tx *ClusterTx, id int64, record *api.NetworkZoneRecord) error {
+	q := `
+		SELECT key, value
+		FROM networks_zones_records_config
+		WHERE network_zone_record_id=?
+	`
+
+	record.Config = make(map[string]string)
+	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		var key, value string
+
+		err := scan(&key, &value)
+		if err != nil {
+			return err
+		}
+
+		_, found := record.Config[key]
+		if found {
+			return fmt.Errorf("Duplicate config row found for key %q for network zone ID %d", key, id)
+		}
+
+		record.Config[key] = value
+
+		return nil
+	}, id)
+}
+
+// CreateNetworkZoneRecord creates a new network zone record.
+func (c *Cluster) CreateNetworkZoneRecord(zone int64, info api.NetworkZoneRecordsPost) (int64, error) {
+	var id int64
+	var err error
+
+	// Turn the entries into JSON.
+	entries, err := json.Marshal(info.Entries)
+	if err != nil {
+		return -1, err
+	}
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		// Insert a new network zone record.
+		result, err := tx.tx.Exec(`
+			INSERT INTO networks_zones_records (network_zone_id, name, description, entries)
+			VALUES (?, ?, ?, ?)
+		`, zone, info.Name, info.Description, string(entries))
+		if err != nil {
+			return err
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		err = networkZoneRecordConfigAdd(tx.tx, id, info.Config)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		id = -1
+	}
+
+	return id, err
+}
+
+// networkzoneConfigAdd inserts Network zone config keys.
+func networkZoneRecordConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
+	sql := "INSERT INTO networks_zones_records_config (network_zone_record_id, key, value) VALUES(?, ?, ?)"
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for k, v := range config {
+		if v == "" {
+			continue
+		}
+
+		_, err = stmt.Exec(id, k, v)
+		if err != nil {
+			return errors.Wrapf(err, "Failed inserting config")
+		}
+	}
+
+	return nil
+}
+
+// UpdateNetworkZoneRecord updates the network zone record with the given ID.
+func (c *Cluster) UpdateNetworkZoneRecord(id int64, config api.NetworkZoneRecordPut) error {
+	// Turn the entries into JSON.
+	entries, err := json.Marshal(config.Entries)
+	if err != nil {
+		return err
+	}
+
+	return c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec(`
+			UPDATE networks_zones_records
+			SET description=?, entries=?
+			WHERE id=?
+		`, config.Description, string(entries), id)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.tx.Exec("DELETE FROM networks_zones_records_config WHERE network_zone_record_id=?", id)
+		if err != nil {
+			return err
+		}
+
+		err = networkZoneRecordConfigAdd(tx.tx, id, config.Config)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// DeleteNetworkZoneRecord deletes the network zone record.
+func (c *Cluster) DeleteNetworkZoneRecord(id int64) error {
+	return c.Transaction(func(tx *ClusterTx) error {
+		_, err := tx.tx.Exec("DELETE FROM networks_zones_records WHERE id=?", id)
 		return err
 	})
 }
