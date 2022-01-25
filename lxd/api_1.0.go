@@ -81,6 +81,8 @@ var api10 = []APIEndpoint{
 	networkPeersCmd,
 	networkZoneCmd,
 	networkZonesCmd,
+	networkZoneRecordCmd,
+	networkZoneRecordsCmd,
 	operationCmd,
 	operationsCmd,
 	operationWait,

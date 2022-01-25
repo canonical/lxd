@@ -310,6 +310,7 @@ var APIExtensions = []string{
 	"storage_volume_api_filtering",
 	"image_restrictions",
 	"storage_zfs_export",
+	"network_dns_records",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

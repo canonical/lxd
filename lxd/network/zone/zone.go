@@ -340,6 +340,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 			}
 
 			record := map[string]string{}
+			record["ttl"] = "300"
 			if !isReverse {
 				if isV4 {
 					record["type"] = "A"
@@ -403,6 +404,29 @@ func (d *zone) Content() (*strings.Builder, error) {
 			if record == nil {
 				continue
 			}
+
+			records = append(records, record)
+		}
+	}
+
+	// Add the extra records.
+	extraRecords, err := d.GetRecords()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, extraRecord := range extraRecords {
+		for _, entry := range extraRecord.Entries {
+			record := map[string]string{}
+			if entry.TTL > 0 {
+				record["ttl"] = fmt.Sprintf("%d", entry.TTL)
+			} else {
+				record["ttl"] = "300"
+			}
+
+			record["type"] = entry.Type
+			record["name"] = extraRecord.Name
+			record["value"] = entry.Value
 
 			records = append(records, record)
 		}
