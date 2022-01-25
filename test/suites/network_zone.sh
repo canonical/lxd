@@ -48,6 +48,17 @@ test_network_zone() {
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 2.0.192.in-addr.arpa | grep "PTR"
   dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa | grep "PTR"
 
+  # Test extra records
+  lxc network zone record create lxd.example.net demo user.foo=bar
+  lxc network zone record entry add lxd.example.net demo A 1.1.1.1 --ttl 900
+  lxc network zone record entry add lxd.example.net demo A 2.2.2.2
+  lxc network zone record entry add lxd.example.net demo AAAA 1111::1111 --ttl 1800
+  lxc network zone record entry add lxd.example.net demo AAAA 2222::2222
+  lxc network zone record entry add lxd.example.net demo MX "1 mx1.example.net." --ttl 900
+  lxc network zone record entry add lxd.example.net demo MX "10 mx2.example.net." --ttl 900
+  lxc network zone record list lxd.example.net
+  dig "@${DNS_ADDR}" -p "${DNS_PORT}" axfr lxd.example.net | grep demo
+
   # Cleanup
   lxc delete -f c1
   lxc network delete "${netName}"
