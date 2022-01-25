@@ -1250,12 +1250,27 @@ func (d *qemu) Start(stateful bool) error {
 	cpuExtensions := []string{}
 
 	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		// x86_64 can use hv_time to improve Windows guest performance.
-		cpuExtensions = append(cpuExtensions, "hv_passthrough")
+		// Get the kernel version.
+		uname, err := shared.Uname()
+		if err != nil {
+			return err
+		}
 
+		// If using Linux 5.10 or later, use HyperV optimizations.
+		currentVer, err := version.Parse(strings.Split(uname.Release, "-")[0])
+		if err != nil {
+			return err
+		}
+
+		minVer, _ := version.NewDottedVersion("5.10.0")
+		if currentVer.Compare(minVer) >= 0 {
+			// x86_64 can use hv_time to improve Windows guest performance.
+			cpuExtensions = append(cpuExtensions, "hv_passthrough")
+		}
+
+		// x86_64 requires the use of topoext when SMT is used.
 		_, _, nrThreads, _, _, err := d.cpuTopology(d.expandedConfig["limits.cpu"])
 		if err != nil && nrThreads > 1 {
-			// x86_64 requires the use of topoext when SMT is used.
 			cpuExtensions = append(cpuExtensions, "topoext")
 		}
 	}
