@@ -40,6 +40,7 @@ Trusted clients can be added in either of the following ways:
 
 - {ref}`authentication-add-certs`
 - {ref}`authentication-trust-pw`
+- {ref}`authentication-token`
 
 The workflow to authenticate with the server is similar to that of SSH, where an initial connection to an unknown server triggers a prompt:
 
@@ -47,10 +48,9 @@ The workflow to authenticate with the server is similar to that of SSH, where an
 1. The user is asked to confirm that this is indeed the server's fingerprint, which they can manually check by connecting to the server or by asking someone with access to the server to run the info command and compare the fingerprints.
 1. The server attempts to authenticate the client:
    - If the client certificate is in the server's trust store, the connection is granted.
-   - If the client certificate is not in the server's trust store and a trust password is set, the server prompts the user for the trust password.
-     If the provided trust password matches, the client certificate is added to the server's trust store and the connection is granted.
+   - If the client certificate is not in the server's trust store, the server prompts the user for a token or the trust password.
+     If the provided token or trust password matches, the client certificate is added to the server's trust store and the connection is granted.
      Otherwise, the connection is rejected.
-   - If the client certificate is not in the server's trust store and no trust password is set, the connection is rejected.
 
 To revoke trust to a client, remove its certificate from the server with `lxc config trust remove FINGERPRINT`.
 
@@ -74,6 +74,15 @@ To allow establishing a new trust relationship from the client side, you must se
 
 In a production setup, unset `core.trust_password` after all clients have been added.
 This prevents brute-force attacks trying to guess the password.
+
+(authentication-token)=
+#### Adding client certificates using tokens
+
+You can also add new clients by using tokens. This is a safer way than using the trust password, because tokens expire once they've been used.
+
+To use this method, generate a token for each client by calling `lxc config trust add`, which will prompt for the client name.
+The clients can then add their certificates to the server's trust store by providing the generated token when prompted for the trust password.
+Alternatively, the clients can provide the token directly when adding the remote: `lxc remote add <name> <token>`.
 
 ### Using a PKI system
 
