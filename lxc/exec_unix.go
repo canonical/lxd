@@ -40,11 +40,12 @@ func (c *cmdExec) controlSocketHandler(control *websocket.Conn) {
 
 	for {
 		sig := <-ch
+
 		switch sig {
 		case unix.SIGWINCH:
 			if !c.interactive {
 				// Don't send SIGWINCH to non-interactive, this can lead to console corruption/crashes.
-				return
+				continue
 			}
 
 			logger.Debugf("Received '%s signal', updating window geometry.", sig)
