@@ -1599,3 +1599,6 @@ Adds ability to set the reservation/refreservation ZFS property along with quota
 
 ## network\_acl\_log
 Adds a new `GET /1.0/networks-acls/NAME/log` API to retrieve ACL firewall logs.
+
+## storage\_zfs\_blocksize
+Introduces a new `zfs.blocksize` property for ZFS storage volumes which allows to set volume block size.
