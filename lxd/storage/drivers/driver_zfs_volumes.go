@@ -143,6 +143,12 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		if err != nil {
 			return err
 		}
+
+		// Apply the blocksize.
+		err = d.setBlocksizeFromConfig(vol)
+		if err != nil {
+			return err
+		}
 	} else {
 		sizeBytes, err := units.ParseByteSizeString(vol.ConfigSize())
 		if err != nil {
@@ -156,6 +162,23 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		if d.config["source"] == loopPath {
 			// Create the volume dataset with sync disabled (to avoid kernel lockups when using a disk based pool).
 			opts = append(opts, "sync=disabled")
+		}
+
+		blockSize := vol.ExpandedConfig("zfs.blocksize")
+		if blockSize != "" {
+			// Convert to bytes.
+			sizeBytes, err := units.ParseByteSizeString(blockSize)
+			if err != nil {
+				return err
+			}
+
+			// zfs.blocksize can have value in range from 512 to 16MiB because it's used for volblocksize and recordsize
+			// volblocksize maximum value is 128KiB so if the value of zfs.blocksize is bigger set it to 128KiB.
+			if sizeBytes > zfsMaxVolBlocksize {
+				sizeBytes = zfsMaxVolBlocksize
+			}
+
+			opts = append(opts, fmt.Sprintf("volblocksize=%d", sizeBytes))
 		}
 
 		// Create the volume dataset.
@@ -408,6 +431,12 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 			if err != nil {
 				return nil, nil, err
 			}
+
+			// Apply the blocksize.
+			err = d.setBlocksizeFromConfig(v)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		// Only mount instance filesystem volumes for backup.yaml access.
@@ -626,6 +655,12 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 			return err
 		}
 
+		// Apply the blocksize.
+		err = d.setBlocksizeFromConfig(vol)
+		if err != nil {
+			return err
+		}
+
 		// Mount the volume and ensure the permissions are set correctly inside the mounted volume.
 		err = vol.MountTask(func(_ string, _ *operations.Operation) error {
 			return vol.EnsureMountPath()
@@ -747,6 +782,12 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		if err != nil {
 			return err
 		}
+
+		// Apply the blocksize.
+		err = d.setBlocksizeFromConfig(vol)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -817,6 +858,7 @@ func (d *zfs) HasVolume(vol Volume) bool {
 // ValidateVolume validates the supplied volume config.
 func (d *zfs) ValidateVolume(vol Volume, removeUnknownKeys bool) error {
 	rules := map[string]func(value string) error{
+		"zfs.blocksize":        validate.Optional(ValidateZfsVolBlocksize(vol)),
 		"zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		"zfs.use_refquota":     validate.Optional(validate.IsBool),
 		"zfs.reserve_space":    validate.Optional(validate.IsBool),
@@ -833,6 +875,18 @@ func (d *zfs) UpdateVolume(vol Volume, changedConfig map[string]string) error {
 		if k == "size" || k == "zfs.use_refquota" || k == "zfs.reserve_space" {
 			old[k] = vol.config[k]
 			vol.config[k] = v
+		}
+		if k == "zfs.blocksize" {
+			// Convert to bytes.
+			sizeBytes, err := units.ParseByteSizeString(v)
+			if err != nil {
+				return err
+			}
+
+			err = d.setBlocksize(vol, sizeBytes)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

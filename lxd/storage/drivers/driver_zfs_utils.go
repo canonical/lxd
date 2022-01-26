@@ -13,10 +13,22 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/units"
 )
 
-// zfsBlockVolSuffix suffix used for block content type volumes.
-const zfsBlockVolSuffix = ".block"
+const (
+	// zfsBlockVolSuffix suffix used for block content type volumes.
+	zfsBlockVolSuffix = ".block"
+
+	// zfsMinBlockSize is a minimum value for recordsize and volblocksize properties.
+	zfsMinBlocksize = 512
+
+	// zfsMinBlockSize is a maximum value for recordsize and volblocksize properties.
+	zfsMaxBlocksize = 16 * 1024 * 1024
+
+	// zfsMaxVolBlocksize is a maximum value for volblocksize property.
+	zfsMaxVolBlocksize = 128 * 1024
+)
 
 func (d *zfs) dataset(vol Volume, deleted bool) string {
 	name, snapName, _ := shared.InstanceGetParentAndSnapshotName(vol.name)
@@ -195,6 +207,34 @@ func (d *zfs) setDatasetProperties(dataset string, options ...string) error {
 	return nil
 }
 
+func (d *zfs) setBlocksizeFromConfig(vol Volume) error {
+	size := vol.ExpandedConfig("zfs.blocksize")
+	if size == "" {
+		return nil
+	}
+
+	// Convert to bytes.
+	sizeBytes, err := units.ParseByteSizeString(size)
+	if err != nil {
+		return err
+	}
+
+	return d.setBlocksize(vol, sizeBytes)
+}
+
+func (d *zfs) setBlocksize(vol Volume, size int64) error {
+	if vol.contentType != ContentTypeFS {
+		return nil
+	}
+
+	err := d.setDatasetProperties(d.dataset(vol, false), fmt.Sprintf("recordsize=%d", size))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *zfs) getDatasetProperty(dataset string, key string) (string, error) {
 	output, err := shared.RunCommand("zfs", "get", "-H", "-p", "-o", "value", key, dataset)
 	if err != nil {
@@ -366,4 +406,30 @@ func (d *zfs) receiveDataset(vol Volume, conn io.ReadWriteCloser, writeWrapper f
 	}
 
 	return nil
+}
+
+// ValidateZfsBlocksize validates blocksize property value on the pool.
+func ValidateZfsBlocksize(value string) error {
+	// Convert to bytes.
+	sizeBytes, err := units.ParseByteSizeString(value)
+	if err != nil {
+		return err
+	}
+
+	if sizeBytes < zfsMinBlocksize || sizeBytes > zfsMaxBlocksize || (sizeBytes&(sizeBytes-1)) != 0 {
+		return fmt.Errorf("Value should be between 512 and 16MiB, and be power of 2")
+	}
+
+	return nil
+}
+
+// ValidateZfsVolBlocksize validates blocksize property value on the volume.
+func ValidateZfsVolBlocksize(vol Volume) func(value string) error {
+	return func(value string) error {
+		if vol.contentType != ContentTypeFS {
+			return fmt.Errorf("Blocksize can be change only for filesystem type")
+		}
+
+		return ValidateZfsBlocksize(value)
+	}
 }
