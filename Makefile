@@ -129,6 +129,10 @@ doc-incremental:
 	@echo "Build the documentation"
 	. $(SPHINXENV) ; sphinx-build -c .sphinx/ -b dirhtml doc/ doc/html/ -w .sphinx/warnings.txt
 
+.PHONY: doc-serve
+doc-serve:
+	cd doc/html; python3 -m http.server 8001
+
 .PHONY: debug
 debug:
 ifeq "$(TAG_SQLITE3)" ""
