@@ -352,6 +352,7 @@ func (d *zfs) Validate(config map[string]string) error {
 		"zfs.export":                  validate.Optional(validate.IsBool),
 		"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),
 		"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
+		"volume.zfs.reserve_space":    validate.Optional(validate.IsBool),
 	}
 
 	return d.validatePool(config, rules)
