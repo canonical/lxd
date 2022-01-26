@@ -191,21 +191,9 @@ func patchesApply(d *Daemon, stage patchStage) error {
 // Patches begin here
 
 func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
-	f, err := os.Open(shared.VarPath("networks"))
+	err := network.UpdateDNSMasqStatic(d.State(), "")
 	if err != nil {
 		return err
-	}
-
-	entries, err := f.ReadDir(-1)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		err := network.UpdateDNSMasqStatic(d.State(), entry.Name())
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
