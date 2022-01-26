@@ -220,16 +220,10 @@ func (c *ClusterTx) GetProjectUsedBy(project Project) ([]string, error) {
 		return nil, err
 	}
 
-	networks, err := c.GetNetworkURIs(project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
 	usedBy := instances
 	usedBy = append(usedBy, images...)
 	usedBy = append(usedBy, profiles...)
 	usedBy = append(usedBy, volumes...)
-	usedBy = append(usedBy, networks...)
 
 	return usedBy, nil
 }
