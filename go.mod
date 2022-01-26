@@ -23,6 +23,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
 	github.com/hashicorp/go-msgpack v1.1.5
+	github.com/j-keck/arping v1.0.2
 	github.com/jaypipes/pcidb v0.6.0
 	github.com/jochenvg/go-udev v0.0.0-20171110120927-d6b62d56d37b
 	github.com/juju/gomaasapi v0.0.0-20200602032615-aa561369c767
@@ -31,6 +32,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mattn/go-colorable v0.1.12
 	github.com/mattn/go-sqlite3 v1.14.10
+	github.com/mdlayher/ndp v0.0.0-20210831201139-f982b8766fb5
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
 	github.com/mdlayher/vsock v0.0.0-20210303205602-10d591861736
 	github.com/miekg/dns v1.1.45
@@ -43,8 +45,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+	golang.org/x/crypto v0.0.0-20220126173729-e04a8579fee6
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20200109203555-b30bc20e4fd1
@@ -71,7 +73,7 @@ require (
 	github.com/juju/errors v0.0.0-20210818161939-5560c4c073ff // indirect
 	github.com/juju/go4 v0.0.0-20160222163258-40d72ab9641a // indirect
 	github.com/juju/loggo v0.0.0-20210728185423-eebad3a902c4 // indirect
-	github.com/juju/mgo/v2 v2.0.0-20210414025616-e854c672032f // indirect
+	github.com/juju/mgo/v2 v2.0.0-20220111072304-f200228f1090 // indirect
 	github.com/juju/utils v0.0.0-20200604140309-9d78121a29e0 // indirect
 	github.com/juju/version v0.0.0-20210303051006-2015802527a8 // indirect
 	github.com/juju/webbrowser v1.0.0 // indirect
@@ -83,10 +85,11 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	gitlab.com/golang-commonmark/puny v0.0.0-20191124015043-9f83538fa04f // indirect
 	golang.org/x/mod v0.5.1 // indirect
-	golang.org/x/net v0.0.0-20220105145211-5b0dc2dfae98 // indirect
+	golang.org/x/net v0.0.0-20220121210141-e204ce36a2ba // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/tools v0.1.8 // indirect
+	golang.org/x/tools v0.1.9 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/httprequest.v1 v1.2.1 // indirect
