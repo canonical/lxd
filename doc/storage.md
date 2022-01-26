@@ -536,6 +536,7 @@ size                    | string    | appropriate driver        | same as volume
 snapshots.expiry        | string    | custom volume             | -                                     | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
 snapshots.pattern       | string    | custom volume             | snap%d                                | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
 snapshots.schedule      | string    | custom volume             | -                                     | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly>`
+zfs.blocksize           | string    | zfs driver                | same as volume.zfs.blocksize          | Size of the ZFS block in range from 512 to 16MiB (must be power of 2). For block volume maximum value of 128KiB will be used even though higher value is set
 zfs.remove\_snapshots   | string    | zfs driver                | same as volume.zfs.remove\_snapshots  | Remove snapshots as needed
 zfs.use\_refquota       | string    | zfs driver                | same as volume.zfs.zfs\_refquota      | Use refquota instead of quota for space
 zfs.reserve\_space      | string    | zfs driver                | false                                 | Use reservation/refreservation along with qouta/refquota
