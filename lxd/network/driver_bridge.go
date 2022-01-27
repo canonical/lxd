@@ -1696,6 +1696,11 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 // HandleHeartbeat refreshes forkdns servers. Retrieves the IPv4 address of each cluster node (excluding ourselves)
 // for this network. It then updates the forkdns server list file if there are changes.
 func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
+	// Make sure forkdns has been setup.
+	if !shared.PathExists(shared.VarPath("networks", n.name, "forkdns.pid")) {
+		return nil
+	}
+
 	addresses := []string{}
 	localAddress, err := node.HTTPSAddress(n.state.Node)
 	if err != nil {
