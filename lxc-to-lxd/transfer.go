@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 // Send an rsync stream of a path over a websocket
@@ -28,7 +30,7 @@ func rsyncSend(conn *websocket.Conn, path string, rsyncArgs string) error {
 		defer dataSocket.Close()
 	}
 
-	readDone, writeDone := shared.WebsocketMirror(conn, dataSocket, io.ReadCloser(dataSocket), nil, nil)
+	readDone, writeDone := ws.Mirror(context.Background(), conn, dataSocket)
 
 	output, err := ioutil.ReadAll(stderr)
 	if err != nil {
