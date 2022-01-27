@@ -45,7 +45,7 @@ func (e *listenerCommon) heartbeat() {
 
 	defer e.Close()
 
-	pingInterval := time.Second * 5
+	pingInterval := time.Second * 10
 	e.pongsPending = 0
 
 	e.SetPongHandler(func(msg string) error {
