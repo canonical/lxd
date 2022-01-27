@@ -227,14 +227,14 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 
 			_, r, err := conn.NextReader()
 			if err != nil {
-				logger.Debugf("Got error getting next reader %s", err)
+				logger.Debugf("Got error getting next reader: %v", err)
 				close(consoleDoneCh)
 				return
 			}
 
 			buf, err := ioutil.ReadAll(r)
 			if err != nil {
-				logger.Debugf("Failed to read message %s", err)
+				logger.Debugf("Failed to read message: %v", err)
 				break
 			}
 
@@ -339,7 +339,7 @@ func (s *consoleWs) doVGA(op *operations.Operation) error {
 
 			_, _, err := conn.NextReader()
 			if err != nil {
-				logger.Debugf("Got error getting next reader %s", err)
+				logger.Debugf("Got error getting next reader: %v", err)
 				close(consoleDoneCh)
 				return
 			}
