@@ -1483,6 +1483,7 @@ func (d *zfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mig
 
 func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	reverter := revert.New()
+	defer reverter.Fail()
 
 	poolPath := GetPoolMountPath(d.name)
 	tmpDir, err := ioutil.TempDir(poolPath, "backup.")
@@ -1495,7 +1496,6 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 
 	err = os.Chmod(tmpDir, 0100)
 	if err != nil {
-		reverter.Fail()
 		return "", nil, err
 	}
 
@@ -1503,7 +1503,6 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	srcSnapshot := fmt.Sprintf("%s@backup-%s", d.dataset(vol, false), uuid.New())
 	_, err = shared.RunCommand("zfs", "snapshot", srcSnapshot)
 	if err != nil {
-		reverter.Fail()
 		return "", nil, err
 	}
 	reverter.Add(func() {
@@ -1517,7 +1516,6 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	// the normal mount and unmount logic will fail.
 	err = TryMount(srcSnapshot, tmpDir, "zfs", 0, "")
 	if err != nil {
-		reverter.Fail()
 		return "", nil, err
 	}
 	d.logger.Debug("Mounted ZFS snapshot dataset", log.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
@@ -1531,7 +1529,8 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		d.logger.Debug("Unmounted ZFS snapshot dataset", log.Ctx{"dev": srcSnapshot, "path": tmpDir})
 	})
 
-	return tmpDir, reverter, nil
+	defer reverter.Success()
+	return tmpDir, reverter.Clone(), nil
 }
 
 // BackupVolume creates an exported version of a volume.
