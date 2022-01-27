@@ -339,6 +339,12 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		cmd.Stderr = os.Stderr
 		cmd.Start()
 
+		// Handle the command exitting.
+		go func() {
+			cmd.Wait()
+			sendDisconnect <- true
+		}()
+
 		defer func() {
 			if cmd.Process == nil {
 				return
