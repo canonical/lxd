@@ -856,6 +856,7 @@ func (d *btrfs) RenameVolume(vol Volume, newVolName string, op *operations.Opera
 
 func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	reverter := revert.New()
+	defer reverter.Fail()
 
 	sourcePath := vol.MountPath()
 	poolPath := GetPoolMountPath(d.name)
@@ -870,7 +871,6 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 
 	err = os.Chmod(tmpDir, 0100)
 	if err != nil {
-		reverter.Fail()
 		return "", nil, err
 	}
 
@@ -878,7 +878,6 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 
 	err = d.snapshotSubvolume(sourcePath, mountPath, true)
 	if err != nil {
-		reverter.Fail()
 		return "", nil, err
 	}
 
@@ -888,13 +887,13 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 
 	err = d.setSubvolumeReadonlyProperty(mountPath, true)
 	if err != nil {
-		reverter.Fail()
 		return "", nil, err
 	}
 
 	d.logger.Debug("Created read-only backup snapshot", log.Ctx{"sourcePath": sourcePath, "path": mountPath})
 
-	return mountPath, reverter, nil
+	defer reverter.Success()
+	return mountPath, reverter.Clone(), nil
 }
 
 // MigrateVolume sends a volume for migration.
