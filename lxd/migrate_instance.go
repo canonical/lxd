@@ -29,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool) (*migrationSourceWs, error) {
@@ -276,7 +277,7 @@ func (s *migrationSourceWs) preDumpLoop(state *state.State, args *preDumpLoopArg
 
 	// Send the pre-dump.
 	ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
-	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
+	err = rsync.Send(ctName, shared.AddSlash(args.checkpointDir), ws.NewWrapper(s.criuConn), nil, args.rsyncFeatures, args.bwlimit, state.OS.ExecPath)
 	if err != nil {
 		return final, err
 	}
@@ -518,7 +519,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	volSourceArgs.TrackProgress = true
 	volSourceArgs.Refresh = respHeader.GetRefresh()
 
-	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+	err = pool.MigrateInstance(s.instance, ws.NewWrapper(s.fsConn), volSourceArgs, migrateOp)
 	if err != nil {
 		return abort(err)
 	}
@@ -581,7 +582,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 						return os.ErrPermission
 					}
 
-					c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+					c, err := ws.Upgrader.Upgrade(w, r, nil)
 					if err != nil {
 						return err
 					}
@@ -696,7 +697,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		// parallel. In the future when we're using p.haul's protocol, it will make sense
 		// to do these in parallel.
 		ctName, _, _ := shared.InstanceGetParentAndSnapshotName(s.instance.Name())
-		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), &shared.WebsocketIO{Conn: s.criuConn}, nil, rsyncFeatures, rsyncBwlimit, state.OS.ExecPath)
+		err = rsync.Send(ctName, shared.AddSlash(checkpointDir), ws.NewWrapper(s.criuConn), nil, rsyncFeatures, rsyncBwlimit, state.OS.ExecPath)
 		if err != nil {
 			return abort(err)
 		}
@@ -709,7 +710,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 		volSourceArgs.FinalSync = true
 		volSourceArgs.Snapshots = nil
 
-		err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+		err = pool.MigrateInstance(s.instance, ws.NewWrapper(s.fsConn), volSourceArgs, migrateOp)
 		if err != nil {
 			return abort(err)
 		}
@@ -953,7 +954,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			}
 		}
 
-		err = pool.CreateInstanceFromMigration(args.Instance, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		err = pool.CreateInstanceFromMigration(args.Instance, ws.NewWrapper(conn), volTargetArgs, op)
 		if err != nil {
 			return err
 		}
@@ -1135,7 +1136,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				for !sync.GetFinalPreDump() {
 					logger.Debugf("About to receive rsync")
 					// Transfer a CRIU pre-dump.
-					err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
+					err = rsync.Recv(shared.AddSlash(imagesDir), ws.NewWrapper(criuConn), nil, rsyncFeatures)
 					if err != nil {
 						restore <- err
 						return
@@ -1163,7 +1164,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			}
 
 			// Final CRIU dump.
-			err = rsync.Recv(shared.AddSlash(imagesDir), &shared.WebsocketIO{Conn: criuConn}, nil, rsyncFeatures)
+			err = rsync.Recv(shared.AddSlash(imagesDir), ws.NewWrapper(criuConn), nil, rsyncFeatures)
 			if err != nil {
 				restore <- err
 				return

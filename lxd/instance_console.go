@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -26,6 +27,8 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/termios"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 type consoleWs struct {
@@ -92,7 +95,7 @@ func (s *consoleWs) connectConsole(op *operations.Operation, r *http.Request, w 
 
 	for fd, fdSecret := range s.fds {
 		if secret == fdSecret {
-			conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+			conn, err := ws.Upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err
 			}
@@ -136,7 +139,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 			continue
 		}
 
-		conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+		conn, err := ws.Upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return err
 		}
@@ -162,7 +165,7 @@ func (s *consoleWs) connectVGA(op *operations.Operation, r *http.Request, w http
 
 		// Mirror the console and websocket.
 		go func() {
-			shared.WebsocketConsoleMirror(conn, console, console)
+			ws.Mirror(context.Background(), conn, console)
 		}()
 
 		s.connsLock.Lock()
@@ -273,7 +276,10 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 		s.connsLock.Unlock()
 
 		logger.Debugf("Started mirroring websocket")
-		readDone, writeDone := shared.WebsocketConsoleMirror(conn, console, console)
+		readDone, writeDone := ws.MirrorWithHooks(context.Background(), conn, console, nil, func(conn *websocket.Conn) {
+			// Properly terminate the text console connection.
+			conn.WriteMessage(websocket.BinaryMessage, []byte("\r"))
+		})
 
 		<-readDone
 		logger.Debugf("Finished mirroring console to websocket")

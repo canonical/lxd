@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 // DevLxdServer creates an http.Server capable of handling requests against the
@@ -118,7 +119,7 @@ var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.In
 		typeStr = "config,device"
 	}
 
-	conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	conn, err := ws.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}

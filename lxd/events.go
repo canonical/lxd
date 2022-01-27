@@ -15,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 var eventTypes = []string{"logging", "operation", "lifecycle"}
@@ -91,7 +92,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	}
 
 	// Upgrade the connection to websocket
-	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	c, err := ws.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
 	}

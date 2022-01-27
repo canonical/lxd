@@ -27,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/tcp"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 // migrationControlResponse encapsulates migration.MigrationControl with a receive error.
@@ -181,7 +182,7 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 		return os.ErrPermission
 	}
 
-	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	c, err := ws.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
 	}
@@ -364,7 +365,7 @@ func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w htt
 		return os.ErrPermission
 	}
 
-	c, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+	c, err := ws.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return err
 	}

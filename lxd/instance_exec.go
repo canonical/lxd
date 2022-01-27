@@ -28,8 +28,10 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 const execWSControl = -1
@@ -77,7 +79,7 @@ func (s *execWs) Connect(op *operations.Operation, r *http.Request, w http.Respo
 
 	for fd, fdSecret := range s.fds {
 		if secret == fdSecret {
-			conn, err := shared.WebsocketUpgrader.Upgrade(w, r, nil)
+			conn, err := ws.Upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return err
 			}
@@ -222,13 +224,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 		stderr = ttys[execWSStderr]
 	}
 
-	attachedChildIsDead := make(chan struct{})
+	ctxChild, ctxChildCancel := context.WithCancel(context.Background())
 	var wgEOF sync.WaitGroup
 
 	// Define a function to clean up TTYs and sockets when done.
 	finisher := func(cmdResult int, cmdErr error) error {
 		// Close this before closing the control connection so control handler can detect command ending.
-		close(attachedChildIsDead)
+		ctxChildCancel()
 
 		for _, tty := range ttys {
 			tty.Close()
@@ -300,7 +302,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			if err != nil || mt == websocket.CloseMessage {
 				// Check if command process has finished normally, if so, no need to kill it.
 				select {
-				case <-attachedChildIsDead:
+				case <-ctxChild.Done():
 					return
 				default:
 				}
@@ -320,7 +322,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			if err != nil {
 				// Check if command process has finished normally, if so, no need to kill it.
 				select {
-				case <-attachedChildIsDead:
+				case <-ctxChild.Done():
 					return
 				default:
 				}
@@ -381,18 +383,13 @@ func (s *execWs) Do(op *operations.Operation) error {
 			conn := s.conns[0]
 			s.connsLock.Unlock()
 
-			var readDone, writeDone chan bool
-
+			var readDone, writeDone chan struct{}
 			if s.instance.Type() == instancetype.Container {
 				// For containers, we are running the command via the local LXD managed PTY and so
 				// need special signal handling provided by netutils.WebsocketExecMirror.
-				readDone, writeDone = netutils.WebsocketExecMirror(conn, ptys[0], ptys[0], attachedChildIsDead, int(ptys[0].Fd()))
-
+				readDone, writeDone = ws.Mirror(ctxChild, conn, ptys[0])
 			} else {
-				// For VMs we are just relaying the websockets between client and lxd-agent, so no
-				// need for the special signal handling provided by netutils.WebsocketExecMirror.
-				readDone = shared.WebsocketSendStream(conn, ptys[execWSStdout], -1)
-				writeDone = shared.WebsocketRecvStream(ttys[execWSStdin], conn)
+				return
 			}
 
 			<-readDone
@@ -434,10 +431,10 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if i == execWSStdin {
-					<-shared.WebsocketRecvStream(ttys[i], conn)
+					<-ws.MirrorWrite(context.Background(), conn, ttys[i])
 					ttys[i].Close()
 				} else {
-					<-shared.WebsocketSendStream(conn, ptys[i], -1)
+					<-ws.MirrorRead(context.Background(), conn, ptys[i])
 					ptys[i].Close()
 					wgEOF.Done()
 				}

@@ -16,6 +16,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 func newStorageMigrationSource(volumeOnly bool) (*migrationSourceWs, error) {
@@ -143,7 +144,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		volSourceArgs.Snapshots = respHeader.GetSnapshotNames()
 	}
 
-	err = pool.MigrateCustomVolume(projectName, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
+	err = pool.MigrateCustomVolume(projectName, ws.NewWrapper(s.fsConn), volSourceArgs, migrateOp)
 	if err != nil {
 		go s.sendControl(err)
 		return err
@@ -324,7 +325,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			}
 		}
 
-		return pool.CreateCustomVolumeFromMigration(projectName, &shared.WebsocketIO{Conn: conn}, volTargetArgs, op)
+		return pool.CreateCustomVolumeFromMigration(projectName, ws.NewWrapper(conn), volTargetArgs, op)
 	}
 
 	if c.refresh {
