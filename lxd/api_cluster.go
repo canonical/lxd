@@ -339,6 +339,12 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			return err
 		}
 
+		// Restart the networks (to pickup forkdns and the like).
+		err = networkStartup(d.State())
+		if err != nil {
+			return err
+		}
+
 		d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterEnabled.Event(req.ServerName, op.Requestor(), nil))
 
 		return nil
