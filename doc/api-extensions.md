@@ -1596,3 +1596,6 @@ This adds:
 
 ## storage\_zfs\_reserve\_space
 Adds ability to set the reservation/refreservation ZFS property along with quota/refquota.
+
+## network\_acl\_log
+Adds a new `GET /1.0/networks-acls/NAME/log` API to retrieve ACL firewall logs.
