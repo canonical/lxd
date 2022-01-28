@@ -1,9 +1,11 @@
 package acl
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -999,4 +1001,107 @@ func OVNApplyInstanceNICDefaultRules(client *openvswitch.OVN, switchPortGroup op
 	}
 
 	return nil
+}
+
+// ovnLogEntry is the type used for the JSON encoded entries on the log endpoint (when coming from OVN).
+type ovnLogEntry struct {
+	Time     string `json:"time"`
+	Proto    string `json:"proto"`
+	Src      string `json:"src"`
+	Dst      string `json:"dst"`
+	SrcPort  string `json:"src_port,omitempty"`
+	DstPort  string `json:"dst_port,omitempty"`
+	ICMPType string `json:"icmp_type,omitempty"`
+	ICMPCode string `json:"icmp_code,omitempty"`
+	Action   string `json:"action"`
+}
+
+// ovnParseLogEntry takes a log line and expected ACL prefix and returns a re-formated log entry if matching.
+func ovnParseLogEntry(input string, prefix string) string {
+	fields := strings.Split(input, "|")
+
+	// Skip unknown formatting.
+	if len(fields) != 5 {
+		return ""
+	}
+
+	// We only care about ACLs.
+	if !strings.HasPrefix(fields[2], "acl_log") {
+		return ""
+	}
+
+	// Parse the ACL log entry.
+	aclEntry := map[string]string{}
+	for _, entry := range util.SplitNTrimSpace(fields[4], ",", -1, true) {
+		pair := strings.Split(entry, "=")
+		if len(pair) != 2 {
+			continue
+		}
+
+		aclEntry[strings.Trim(pair[0], "\"")] = strings.Trim(pair[1], "\"")
+	}
+
+	// Filter for our ACL.
+	if !strings.HasPrefix(aclEntry["name"], prefix) {
+		return ""
+	}
+
+	// Parse the timestamp.
+	logTime, err := time.Parse(time.RFC3339, fields[0])
+	if err != nil {
+		return ""
+	}
+
+	// Get the protocol.
+	severityFields := strings.Split(aclEntry["severity"], " ")
+	if len(severityFields) != 2 {
+		return ""
+	}
+	protocol := severityFields[1]
+
+	// Get the source and destination addresses.
+	srcAddr, ok := aclEntry["nw_src"]
+	if !ok {
+		srcAddr, ok = aclEntry["ipv6_src"]
+		if !ok {
+			return ""
+		}
+	}
+
+	dstAddr, ok := aclEntry["nw_dst"]
+	if !ok {
+		dstAddr, ok = aclEntry["ipv6_dst"]
+		if !ok {
+			return ""
+		}
+	}
+
+	// Prepare the core log entry.
+	newEntry := ovnLogEntry{
+		Time:     logTime.UTC().Format(time.RFC3339),
+		Proto:    protocol,
+		Src:      srcAddr,
+		Dst:      dstAddr,
+		ICMPType: aclEntry["icmp_type"],
+		ICMPCode: aclEntry["icmp_code"],
+		Action:   aclEntry["verdict"],
+	}
+
+	// Add the source and destination ports.
+	srcPort, ok := aclEntry["tp_src"]
+	if ok {
+		newEntry.SrcPort = srcPort
+	}
+
+	dstPort, ok := aclEntry["tp_dst"]
+	if ok {
+		newEntry.DstPort = dstPort
+	}
+
+	out, err := json.Marshal(&newEntry)
+	if err != nil {
+		return ""
+	}
+
+	return string(out)
 }

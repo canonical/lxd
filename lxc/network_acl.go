@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -36,6 +37,10 @@ func (c *cmdNetworkACL) Command() *cobra.Command {
 	// Show.
 	networkACLShowCmd := cmdNetworkACLShow{global: c.global, networkACL: c}
 	cmd.AddCommand(networkACLShowCmd.Command())
+
+	// Show log.
+	networkACLShowLogCmd := cmdNetworkACLShowLog{global: c.global, networkACL: c}
+	cmd.AddCommand(networkACLShowLogCmd.Command())
 
 	// Get.
 	networkACLGetCmd := cmdNetworkACLGet{global: c.global, networkACL: c}
@@ -197,6 +202,52 @@ func (c *cmdNetworkACLShow) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("%s", data)
+
+	return nil
+}
+
+// Show log.
+type cmdNetworkACLShowLog struct {
+	global     *cmdGlobal
+	networkACL *cmdNetworkACL
+}
+
+func (c *cmdNetworkACLShowLog) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("show-log", i18n.G("[<remote>:]<ACL>"))
+	cmd.Short = i18n.G("Show network ACL log")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Show network ACL log"))
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdNetworkACLShowLog) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	if exit {
+		return err
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[0])
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+	if resource.name == "" {
+		return fmt.Errorf(i18n.G("Missing network ACL name"))
+	}
+
+	// Get the ACL log.
+	log, err := resource.server.GetNetworkACLLogfile(resource.name)
+	if err != nil {
+		return err
+	}
+
+	io.Copy(os.Stdout, log)
+	log.Close()
 
 	return nil
 }
