@@ -2,6 +2,8 @@ package lxd
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 
 	"github.com/lxc/lxd/shared/api"
@@ -57,6 +59,43 @@ func (r *ProtocolLXD) GetNetworkACL(name string) (*api.NetworkACL, string, error
 	}
 
 	return &acl, etag, nil
+}
+
+// GetNetworkACLLogfile returns a reader for the ACL log file.
+//
+// Note that it's the caller's responsibility to close the returned ReadCloser
+func (r *ProtocolLXD) GetNetworkACLLogfile(name string) (io.ReadCloser, error) {
+	if !r.HasExtension("network_acl_log") {
+		return nil, fmt.Errorf(`The server is missing the required "network_acl_log" API extension`)
+	}
+
+	// Prepare the HTTP request
+	url := fmt.Sprintf("%s/1.0/network-acls/%s/log", r.httpHost, url.PathEscape(name))
+	url, err := r.setQueryAttributes(url)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send the request
+	resp, err := r.do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the return value for a cleaner error
+	if resp.StatusCode != http.StatusOK {
+		_, _, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp.Body, err
 }
 
 // CreateNetworkACL defines a new network ACL using the provided struct.
