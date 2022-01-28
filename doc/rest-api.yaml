@@ -9348,6 +9348,28 @@ paths:
       summary: Update the network ACL
       tags:
       - network-acls
+  /1.0/network-acls/{name}/log:
+    get:
+      description: Gets a specific network ACL log entries.
+      operationId: network_acl_log_get
+      parameters:
+      - description: Project name
+        example: default
+        in: query
+        name: project
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Raw log file
+        "403":
+          $ref: '#/responses/Forbidden'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the network ACL log
+      tags:
+      - network-acls
   /1.0/network-acls?recursion=1:
     get:
       description: Returns a list of network ACLs (structs).
