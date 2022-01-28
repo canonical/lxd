@@ -74,6 +74,7 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"volume.size": validate.Optional(validate.IsSize),
 
 	// valid drivers: zfs
+	"volume.zfs.blocksize":        validate.Optional(storageDrivers.ValidateZfsBlocksize),
 	"volume.zfs.remove_snapshots": validate.Optional(validate.IsBool),
 	"volume.zfs.use_refquota":     validate.Optional(validate.IsBool),
 	"volume.zfs.reserve_space":    validate.Optional(validate.IsBool),
