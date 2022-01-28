@@ -18,6 +18,9 @@ type NetworkACL interface {
 	Etag() []interface{}
 	UsedBy() ([]string, error)
 
+	// GetLog.
+	GetLog(clientType request.ClientType) (string, error)
+
 	// Internal validation.
 	validateName(name string) error
 	validateConfig(config *api.NetworkACLPut) error

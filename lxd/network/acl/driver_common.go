@@ -1,9 +1,13 @@
 package acl
 
 import (
+	"bufio"
 	"fmt"
 	"net"
+	"os"
+	"sort"
 	"strings"
+	"sync"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -725,4 +729,90 @@ func (d *common) Delete() error {
 	}
 
 	return d.state.Cluster.DeleteNetworkACL(d.id)
+}
+
+// GetLog gets the ACL log.
+func (d *common) GetLog(clientType request.ClientType) (string, error) {
+	// ACLs aren't specific to a particular network type but the log only works with OVN.
+	logPath := shared.HostPath("/var/log/ovn/ovn-controller.log")
+	if !shared.PathExists(logPath) {
+		return "", fmt.Errorf("Only OVN log entries may be retrieved at this time")
+	}
+
+	// Open the log file.
+	logFile, err := os.Open(logPath)
+	if err != nil {
+		return "", fmt.Errorf("Couldn't open OVN log file: %w", err)
+	}
+	defer logFile.Close()
+
+	logEntries := []string{}
+	scanner := bufio.NewScanner(logFile)
+	for scanner.Scan() {
+		logEntry := ovnParseLogEntry(scanner.Text(), fmt.Sprintf("lxd_acl%d-", d.id))
+		if logEntry == "" {
+			continue
+		}
+
+		logEntries = append(logEntries, logEntry)
+	}
+
+	err = scanner.Err()
+	if err != nil {
+		return "", fmt.Errorf("Failed to read OVN log file: %w", err)
+	}
+
+	// Aggregates the entries from the rest of the cluster.
+	if clientType == request.ClientTypeNormal {
+		// Setup notifier to reach the rest of the cluster.
+		notifier, err := cluster.NewNotifier(d.state, d.state.Endpoints.NetworkCert(), d.state.ServerCert(), cluster.NotifyAll)
+		if err != nil {
+			return "", err
+		}
+
+		mu := sync.Mutex{}
+		err = notifier(func(client lxd.InstanceServer) error {
+			// Get the entries.
+			entries, err := client.UseProject(d.projectName).GetNetworkACLLogfile(d.info.Name)
+			if err != nil {
+				return err
+			}
+			defer entries.Close()
+
+			// Prevent concurrent writes to the log entries slice.
+			mu.Lock()
+			defer mu.Unlock()
+
+			// Parse the response and add to the slice.
+			scanner := bufio.NewScanner(entries)
+			for scanner.Scan() {
+				entry := scanner.Text()
+				if entry == "" {
+					continue
+				}
+
+				logEntries = append(logEntries, entry)
+			}
+
+			err = scanner.Err()
+			if err != nil {
+				return fmt.Errorf("Failed to read OVN log file: %w", err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// Just return empty if no log entries (no need for trailing line break).
+	if len(logEntries) == 0 {
+		return "", nil
+	}
+
+	// Sort the entries (by timestamp).
+	sort.Strings(logEntries)
+
+	return strings.Join(logEntries, "\n") + "\n", nil
 }
