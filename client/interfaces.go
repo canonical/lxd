@@ -252,6 +252,7 @@ type InstanceServer interface {
 	GetNetworkACLNames() (names []string, err error)
 	GetNetworkACLs() (acls []api.NetworkACL, err error)
 	GetNetworkACL(name string) (acl *api.NetworkACL, ETag string, err error)
+	GetNetworkACLLogfile(name string) (log io.ReadCloser, err error)
 	CreateNetworkACL(acl api.NetworkACLsPost) (err error)
 	UpdateNetworkACL(name string, acl api.NetworkACLPut, ETag string) (err error)
 	RenameNetworkACL(name string, acl api.NetworkACLPost) (err error)

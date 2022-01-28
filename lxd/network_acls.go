@@ -36,6 +36,12 @@ var networkACLCmd = APIEndpoint{
 	Post:   APIEndpointAction{Handler: networkACLPost, AccessHandler: allowProjectPermission("networks", "manage-networks")},
 }
 
+var networkACLLogCmd = APIEndpoint{
+	Path: "network-acls/{name}/log",
+
+	Get: APIEndpointAction{Handler: networkACLLogGet, AccessHandler: allowProjectPermission("networks", "view")},
+}
+
 // API endpoints.
 
 // swagger:operation GET /1.0/network-acls network-acls network_acls_get
@@ -522,4 +528,53 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 
 	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
 	return response.SyncResponseLocation(true, nil, url)
+}
+
+// swagger:operation GET /1.0/network-acls/{name}/log network-acls network_acl_log_get
+//
+// Get the network ACL log
+//
+// Gets a specific network ACL log entries.
+//
+// ---
+// produces:
+//   - application/octet-stream
+// parameters:
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//      description: Raw log file
+//      content:
+//        application/octet-stream:
+//          schema:
+//            type: string
+//            example: LOG-ENTRY
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
+	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	netACL, err := acl.LoadByName(d.State(), projectName, mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
+	log, err := netACL.GetLog(clientType)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	ent := response.FileResponseEntry{}
+	ent.Buffer = []byte(log)
+	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
 }

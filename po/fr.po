@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-01-24 19:09-0500\n"
+"POT-Creation-Date: 2022-01-28 00:53-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -202,7 +202,7 @@ msgstr ""
 "###\n"
 "### Notez que le nom est affiché mais ne peut être modifié"
 
-#: lxc/network_acl.go:441
+#: lxc/network_acl.go:492
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the network ACL.\n"
@@ -731,7 +731,7 @@ msgstr ""
 msgid "Add profiles to instances"
 msgstr "Création du conteneur"
 
-#: lxc/network_acl.go:676 lxc/network_acl.go:677
+#: lxc/network_acl.go:727 lxc/network_acl.go:728
 #, fuzzy
 msgid "Add rules to an ACL"
 msgstr "Création du conteneur"
@@ -784,7 +784,7 @@ msgstr "Architecture : %s"
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:351
+#: lxc/console.go:357
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -884,7 +884,7 @@ msgstr "Image copiée avec succès !"
 msgid "Backups:"
 msgstr ""
 
-#: lxc/network.go:321 lxc/network_acl.go:318 lxc/network_forward.go:284
+#: lxc/network.go:321 lxc/network_acl.go:369 lxc/network_forward.go:284
 #: lxc/network_peer.go:281 lxc/network_zone.go:311 lxc/network_zone.go:869
 #, c-format
 msgid "Bad key/value pair: %s"
@@ -1168,7 +1168,7 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
 #: lxc/cluster.go:675 lxc/cluster_group.go:333 lxc/config.go:258
 #: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:254
-#: lxc/image.go:444 lxc/network.go:674 lxc/network_acl.go:531
+#: lxc/image.go:444 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:501 lxc/project.go:312
 #: lxc/storage.go:306 lxc/storage_volume.go:978 lxc/storage_volume.go:1008
@@ -1370,7 +1370,7 @@ msgstr "Copie de l'image : %s"
 msgid "Create new instance file templates"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/network_acl.go:262 lxc/network_acl.go:263
+#: lxc/network_acl.go:313 lxc/network_acl.go:314
 msgid "Create new network ACLs"
 msgstr ""
 
@@ -1449,7 +1449,7 @@ msgstr ""
 
 #: lxc/cluster.go:181 lxc/cluster_group.go:428 lxc/image.go:1029
 #: lxc/image_alias.go:237 lxc/list.go:559 lxc/network.go:914
-#: lxc/network_acl.go:144 lxc/network_forward.go:145 lxc/network_peer.go:141
+#: lxc/network_acl.go:149 lxc/network_forward.go:145 lxc/network_peer.go:141
 #: lxc/network_zone.go:139 lxc/network_zone.go:702 lxc/operation.go:163
 #: lxc/profile.go:624 lxc/project.go:473 lxc/storage.go:577
 #: lxc/storage_volume.go:1308
@@ -1510,7 +1510,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Delete instances and snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/network_acl.go:612 lxc/network_acl.go:613
+#: lxc/network_acl.go:663 lxc/network_acl.go:664
 msgid "Delete network ACLs"
 msgstr ""
 
@@ -1598,51 +1598,52 @@ msgstr ""
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
 #: lxc/network.go:761 lxc/network.go:841 lxc/network.go:936 lxc/network.go:1005
 #: lxc/network.go:1055 lxc/network.go:1125 lxc/network.go:1187
-#: lxc/network_acl.go:30 lxc/network_acl.go:91 lxc/network_acl.go:161
-#: lxc/network_acl.go:214 lxc/network_acl.go:263 lxc/network_acl.go:346
-#: lxc/network_acl.go:406 lxc/network_acl.go:433 lxc/network_acl.go:564
-#: lxc/network_acl.go:613 lxc/network_acl.go:662 lxc/network_acl.go:677
-#: lxc/network_acl.go:798 lxc/network_forward.go:30 lxc/network_forward.go:87
-#: lxc/network_forward.go:167 lxc/network_forward.go:231
-#: lxc/network_forward.go:327 lxc/network_forward.go:382
-#: lxc/network_forward.go:460 lxc/network_forward.go:487
-#: lxc/network_forward.go:628 lxc/network_forward.go:690
-#: lxc/network_forward.go:705 lxc/network_forward.go:770 lxc/network_peer.go:30
-#: lxc/network_peer.go:83 lxc/network_peer.go:159 lxc/network_peer.go:216
-#: lxc/network_peer.go:330 lxc/network_peer.go:385 lxc/network_peer.go:454
-#: lxc/network_peer.go:481 lxc/network_peer.go:606 lxc/network_zone.go:29
-#: lxc/network_zone.go:86 lxc/network_zone.go:156 lxc/network_zone.go:209
-#: lxc/network_zone.go:258 lxc/network_zone.go:339 lxc/network_zone.go:399
-#: lxc/network_zone.go:426 lxc/network_zone.go:545 lxc/network_zone.go:593
-#: lxc/network_zone.go:650 lxc/network_zone.go:719 lxc/network_zone.go:769
-#: lxc/network_zone.go:817 lxc/network_zone.go:897 lxc/network_zone.go:953
-#: lxc/network_zone.go:980 lxc/network_zone.go:1098 lxc/network_zone.go:1147
-#: lxc/network_zone.go:1162 lxc/network_zone.go:1208 lxc/operation.go:24
-#: lxc/operation.go:56 lxc/operation.go:105 lxc/operation.go:184
-#: lxc/profile.go:29 lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247
-#: lxc/profile.go:303 lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531
-#: lxc/profile.go:580 lxc/profile.go:640 lxc/profile.go:716 lxc/profile.go:766
-#: lxc/profile.go:825 lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94
-#: lxc/project.go:159 lxc/project.go:222 lxc/project.go:342 lxc/project.go:392
-#: lxc/project.go:491 lxc/project.go:546 lxc/project.go:606 lxc/project.go:635
-#: lxc/project.go:688 lxc/project.go:747 lxc/publish.go:34 lxc/query.go:32
-#: lxc/remote.go:33 lxc/remote.go:88 lxc/remote.go:491 lxc/remote.go:527
-#: lxc/remote.go:613 lxc/remote.go:683 lxc/remote.go:737 lxc/remote.go:775
-#: lxc/rename.go:21 lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33
-#: lxc/storage.go:92 lxc/storage.go:166 lxc/storage.go:216 lxc/storage.go:336
-#: lxc/storage.go:396 lxc/storage.go:516 lxc/storage.go:596 lxc/storage.go:670
-#: lxc/storage.go:754 lxc/storage_volume.go:44 lxc/storage_volume.go:166
-#: lxc/storage_volume.go:241 lxc/storage_volume.go:332
-#: lxc/storage_volume.go:521 lxc/storage_volume.go:600
-#: lxc/storage_volume.go:676 lxc/storage_volume.go:758
-#: lxc/storage_volume.go:839 lxc/storage_volume.go:1039
-#: lxc/storage_volume.go:1127 lxc/storage_volume.go:1214
-#: lxc/storage_volume.go:1398 lxc/storage_volume.go:1431
-#: lxc/storage_volume.go:1544 lxc/storage_volume.go:1632
-#: lxc/storage_volume.go:1731 lxc/storage_volume.go:1765
-#: lxc/storage_volume.go:1863 lxc/storage_volume.go:1930
-#: lxc/storage_volume.go:2071 lxc/version.go:22 lxc/warning.go:30
-#: lxc/warning.go:72 lxc/warning.go:260 lxc/warning.go:301 lxc/warning.go:355
+#: lxc/network_acl.go:31 lxc/network_acl.go:96 lxc/network_acl.go:166
+#: lxc/network_acl.go:219 lxc/network_acl.go:265 lxc/network_acl.go:314
+#: lxc/network_acl.go:397 lxc/network_acl.go:457 lxc/network_acl.go:484
+#: lxc/network_acl.go:615 lxc/network_acl.go:664 lxc/network_acl.go:713
+#: lxc/network_acl.go:728 lxc/network_acl.go:849 lxc/network_forward.go:30
+#: lxc/network_forward.go:87 lxc/network_forward.go:167
+#: lxc/network_forward.go:231 lxc/network_forward.go:327
+#: lxc/network_forward.go:382 lxc/network_forward.go:460
+#: lxc/network_forward.go:487 lxc/network_forward.go:628
+#: lxc/network_forward.go:690 lxc/network_forward.go:705
+#: lxc/network_forward.go:770 lxc/network_peer.go:30 lxc/network_peer.go:83
+#: lxc/network_peer.go:159 lxc/network_peer.go:216 lxc/network_peer.go:330
+#: lxc/network_peer.go:385 lxc/network_peer.go:454 lxc/network_peer.go:481
+#: lxc/network_peer.go:606 lxc/network_zone.go:29 lxc/network_zone.go:86
+#: lxc/network_zone.go:156 lxc/network_zone.go:209 lxc/network_zone.go:258
+#: lxc/network_zone.go:339 lxc/network_zone.go:399 lxc/network_zone.go:426
+#: lxc/network_zone.go:545 lxc/network_zone.go:593 lxc/network_zone.go:650
+#: lxc/network_zone.go:719 lxc/network_zone.go:769 lxc/network_zone.go:817
+#: lxc/network_zone.go:897 lxc/network_zone.go:953 lxc/network_zone.go:980
+#: lxc/network_zone.go:1098 lxc/network_zone.go:1147 lxc/network_zone.go:1162
+#: lxc/network_zone.go:1208 lxc/operation.go:24 lxc/operation.go:56
+#: lxc/operation.go:105 lxc/operation.go:184 lxc/profile.go:29
+#: lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247 lxc/profile.go:303
+#: lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531 lxc/profile.go:580
+#: lxc/profile.go:640 lxc/profile.go:716 lxc/profile.go:766 lxc/profile.go:825
+#: lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
+#: lxc/project.go:222 lxc/project.go:342 lxc/project.go:392 lxc/project.go:491
+#: lxc/project.go:546 lxc/project.go:606 lxc/project.go:635 lxc/project.go:688
+#: lxc/project.go:747 lxc/publish.go:34 lxc/query.go:32 lxc/remote.go:33
+#: lxc/remote.go:88 lxc/remote.go:491 lxc/remote.go:527 lxc/remote.go:613
+#: lxc/remote.go:683 lxc/remote.go:737 lxc/remote.go:775 lxc/rename.go:21
+#: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:33 lxc/storage.go:92
+#: lxc/storage.go:166 lxc/storage.go:216 lxc/storage.go:336 lxc/storage.go:396
+#: lxc/storage.go:516 lxc/storage.go:596 lxc/storage.go:670 lxc/storage.go:754
+#: lxc/storage_volume.go:44 lxc/storage_volume.go:166 lxc/storage_volume.go:241
+#: lxc/storage_volume.go:332 lxc/storage_volume.go:521
+#: lxc/storage_volume.go:600 lxc/storage_volume.go:676
+#: lxc/storage_volume.go:758 lxc/storage_volume.go:839
+#: lxc/storage_volume.go:1039 lxc/storage_volume.go:1127
+#: lxc/storage_volume.go:1214 lxc/storage_volume.go:1398
+#: lxc/storage_volume.go:1431 lxc/storage_volume.go:1544
+#: lxc/storage_volume.go:1632 lxc/storage_volume.go:1731
+#: lxc/storage_volume.go:1765 lxc/storage_volume.go:1863
+#: lxc/storage_volume.go:1930 lxc/storage_volume.go:2071 lxc/version.go:22
+#: lxc/warning.go:30 lxc/warning.go:72 lxc/warning.go:260 lxc/warning.go:301
+#: lxc/warning.go:355
 msgid "Description"
 msgstr ""
 
@@ -1826,7 +1827,7 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Edit instance or server configurations as YAML"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:432 lxc/network_acl.go:433
+#: lxc/network_acl.go:483 lxc/network_acl.go:484
 #, fuzzy
 msgid "Edit network ACL configurations as YAML"
 msgstr "Clé de configuration invalide"
@@ -2082,7 +2083,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr "Mode rapide (identique à --columns=nsacPt"
 
-#: lxc/network.go:872 lxc/network_acl.go:121 lxc/network_zone.go:116
+#: lxc/network.go:872 lxc/network_acl.go:126 lxc/network_zone.go:116
 #: lxc/operation.go:134
 msgid "Filtering isn't supported yet"
 msgstr ""
@@ -2146,7 +2147,7 @@ msgstr ""
 #: lxc/alias.go:105 lxc/cluster.go:119 lxc/cluster.go:808
 #: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:290
 #: lxc/image.go:1016 lxc/image_alias.go:158 lxc/list.go:134 lxc/network.go:845
-#: lxc/network.go:938 lxc/network_acl.go:94 lxc/network_forward.go:90
+#: lxc/network.go:938 lxc/network_acl.go:99 lxc/network_forward.go:90
 #: lxc/network_peer.go:86 lxc/network_zone.go:89 lxc/network_zone.go:653
 #: lxc/operation.go:107 lxc/profile.go:584 lxc/project.go:394
 #: lxc/project.go:749 lxc/remote.go:531 lxc/storage.go:518
@@ -2224,7 +2225,7 @@ msgstr "Clé de configuration invalide"
 msgid "Get values for instance or server configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:213 lxc/network_acl.go:214
+#: lxc/network_acl.go:264 lxc/network_acl.go:265
 #, fuzzy
 msgid "Get values for network ACL configuration keys"
 msgstr "Clé de configuration invalide"
@@ -2587,7 +2588,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:350
+#: lxc/console.go:356
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2648,11 +2649,11 @@ msgstr ""
 msgid "List all warnings"
 msgstr "Alias :"
 
-#: lxc/network_acl.go:91
+#: lxc/network_acl.go:96
 msgid "List available network ACL"
 msgstr ""
 
-#: lxc/network_acl.go:90
+#: lxc/network_acl.go:95
 msgid "List available network ACLS"
 msgstr ""
 
@@ -3103,12 +3104,12 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Manage instance metadata files"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/network_acl.go:661 lxc/network_acl.go:662
+#: lxc/network_acl.go:712 lxc/network_acl.go:713
 #, fuzzy
 msgid "Manage network ACL rules"
 msgstr "Copie de l'image : %s"
 
-#: lxc/network_acl.go:29 lxc/network_acl.go:30
+#: lxc/network_acl.go:30 lxc/network_acl.go:31
 #, fuzzy
 msgid "Manage network ACLs"
 msgstr "Nom du réseau"
@@ -3285,9 +3286,10 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Missing name"
 msgstr "Résumé manquant."
 
-#: lxc/network_acl.go:183 lxc/network_acl.go:236 lxc/network_acl.go:286
-#: lxc/network_acl.go:373 lxc/network_acl.go:483 lxc/network_acl.go:586
-#: lxc/network_acl.go:635 lxc/network_acl.go:755 lxc/network_acl.go:822
+#: lxc/network_acl.go:188 lxc/network_acl.go:240 lxc/network_acl.go:287
+#: lxc/network_acl.go:337 lxc/network_acl.go:424 lxc/network_acl.go:534
+#: lxc/network_acl.go:637 lxc/network_acl.go:686 lxc/network_acl.go:806
+#: lxc/network_acl.go:873
 #, fuzzy
 msgid "Missing network ACL name"
 msgstr "Nom du réseau"
@@ -3436,7 +3438,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/cluster.go:176 lxc/cluster.go:888 lxc/cluster_group.go:427
 #: lxc/config_trust.go:346 lxc/list.go:567 lxc/network.go:909
-#: lxc/network_acl.go:143 lxc/network_peer.go:140 lxc/network_zone.go:138
+#: lxc/network_acl.go:148 lxc/network_peer.go:140 lxc/network_zone.go:138
 #: lxc/network_zone.go:701 lxc/profile.go:623 lxc/project.go:468
 #: lxc/remote.go:590 lxc/storage.go:570 lxc/storage_volume.go:1307
 msgid "NAME"
@@ -3517,17 +3519,17 @@ msgstr "Le réseau %s a été créé"
 msgid "Network %s renamed to %s"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/network_acl.go:330
+#: lxc/network_acl.go:381
 #, fuzzy, c-format
 msgid "Network ACL %s created"
 msgstr "Le réseau %s a été créé"
 
-#: lxc/network_acl.go:645
+#: lxc/network_acl.go:696
 #, fuzzy, c-format
 msgid "Network ACL %s deleted"
 msgstr "Le réseau %s a été supprimé"
 
-#: lxc/network_acl.go:596
+#: lxc/network_acl.go:647
 #, fuzzy, c-format
 msgid "Network ACL %s renamed to %s"
 msgstr "Le réseau %s a été créé"
@@ -3784,7 +3786,7 @@ msgstr ""
 #: lxc/cluster.go:676 lxc/cluster_group.go:334 lxc/config.go:259
 #: lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206
 #: lxc/config_trust.go:255 lxc/image.go:445 lxc/network.go:675
-#: lxc/network_acl.go:532 lxc/network_forward.go:596 lxc/network_peer.go:574
+#: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502
 #: lxc/project.go:313 lxc/storage.go:307 lxc/storage_volume.go:979
 #: lxc/storage_volume.go:1009
@@ -4058,7 +4060,7 @@ msgstr "Mot de passe de l'administrateur distant"
 msgid "Remove all ports that match"
 msgstr ""
 
-#: lxc/network_acl.go:799
+#: lxc/network_acl.go:850
 msgid "Remove all rules that match"
 msgstr ""
 
@@ -4090,7 +4092,7 @@ msgstr "Création du conteneur"
 msgid "Remove remotes"
 msgstr ""
 
-#: lxc/network_acl.go:797 lxc/network_acl.go:798
+#: lxc/network_acl.go:848 lxc/network_acl.go:849
 #, fuzzy
 msgid "Remove rules from an ACL"
 msgstr "Création du conteneur"
@@ -4127,7 +4129,7 @@ msgstr ""
 msgid "Rename instances and snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/network_acl.go:563 lxc/network_acl.go:564
+#: lxc/network_acl.go:614 lxc/network_acl.go:615
 msgid "Rename network ACLs"
 msgstr ""
 
@@ -4375,12 +4377,12 @@ msgid ""
 "    lxc config set [<remote>:][<instance>] <key> <value>"
 msgstr ""
 
-#: lxc/network_acl.go:345
+#: lxc/network_acl.go:396
 #, fuzzy
 msgid "Set network ACL configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:346
+#: lxc/network_acl.go:397
 msgid ""
 "Set network ACL configuration keys\n"
 "\n"
@@ -4586,9 +4588,14 @@ msgstr "Afficher les commandes moins communes"
 msgid "Show local and remote versions"
 msgstr "Afficher la version du client"
 
-#: lxc/network_acl.go:160 lxc/network_acl.go:161
+#: lxc/network_acl.go:165 lxc/network_acl.go:166
 #, fuzzy
 msgid "Show network ACL configurations"
+msgstr "Afficher la configuration étendue"
+
+#: lxc/network_acl.go:218 lxc/network_acl.go:219
+#, fuzzy
+msgid "Show network ACL log"
 msgstr "Afficher la configuration étendue"
 
 #: lxc/network.go:1124 lxc/network.go:1125
@@ -5087,7 +5094,7 @@ msgstr "URL"
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:915 lxc/network_acl.go:145 lxc/network_zone.go:140
+#: lxc/network.go:915 lxc/network_acl.go:150 lxc/network_zone.go:140
 #: lxc/profile.go:625 lxc/project.go:474 lxc/storage.go:578
 #: lxc/storage_volume.go:1310
 msgid "USED BY"
@@ -5142,7 +5149,7 @@ msgstr ""
 msgid "Unset instance or server configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/network_acl.go:405 lxc/network_acl.go:406
+#: lxc/network_acl.go:456 lxc/network_acl.go:457
 #, fuzzy
 msgid "Unset network ACL configuration keys"
 msgstr "Clé de configuration invalide"
@@ -5342,7 +5349,7 @@ msgstr ""
 
 #: lxc/cluster.go:114 lxc/cluster.go:805 lxc/cluster_group.go:371
 #: lxc/config_trust.go:285 lxc/monitor.go:31 lxc/network.go:838
-#: lxc/network_acl.go:88 lxc/network_zone.go:83 lxc/operation.go:102
+#: lxc/network_acl.go:93 lxc/network_zone.go:83 lxc/operation.go:102
 #: lxc/profile.go:577 lxc/project.go:389 lxc/storage.go:513 lxc/version.go:20
 #: lxc/warning.go:69
 #, fuzzy
@@ -5421,12 +5428,13 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/network_acl.go:159 lxc/network_acl.go:431 lxc/network_acl.go:610
+#: lxc/network_acl.go:164 lxc/network_acl.go:217 lxc/network_acl.go:482
+#: lxc/network_acl.go:661
 #, fuzzy
 msgid "[<remote>:]<ACL>"
 msgstr "Serveur distant : %s"
 
-#: lxc/network_acl.go:675 lxc/network_acl.go:796
+#: lxc/network_acl.go:726 lxc/network_acl.go:847
 #, fuzzy
 msgid "[<remote>:]<ACL> <direction> <key>=<value>..."
 msgstr ""
@@ -5434,7 +5442,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:212 lxc/network_acl.go:404
+#: lxc/network_acl.go:263 lxc/network_acl.go:455
 #, fuzzy
 msgid "[<remote>:]<ACL> <key>"
 msgstr ""
@@ -5442,7 +5450,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:344
+#: lxc/network_acl.go:395
 #, fuzzy
 msgid "[<remote>:]<ACL> <key>=<value>..."
 msgstr ""
@@ -5450,7 +5458,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:561
+#: lxc/network_acl.go:612
 #, fuzzy
 msgid "[<remote>:]<ACL> <new-name>"
 msgstr ""
@@ -5458,7 +5466,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/network_acl.go:261
+#: lxc/network_acl.go:312
 #, fuzzy
 msgid "[<remote>:]<ACL> [key=value...]"
 msgstr ""
