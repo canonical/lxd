@@ -160,7 +160,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			// Get all users of the storage pool.
 			poolUsedBy := []string{}
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				poolUsedBy, err = tx.GetStoragePoolUsedBy(pool)
+				poolUsedBy, err = tx.GetStoragePoolUsedBy(pool, true)
 				return err
 			})
 			if err != nil {
@@ -568,7 +568,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	// Get all users of the storage pool.
 	poolUsedBy := []string{}
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName)
+		poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName, false)
 		return err
 	})
 	if err != nil {
