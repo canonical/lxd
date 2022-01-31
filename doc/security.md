@@ -40,6 +40,7 @@ The root user and all members of the `lxd` group can interact with the local dae
 ```
 ````
 
+(security_remote_access)=
 ### Access to the remote API
 
 By default, access to the daemon is only possible locally.
