@@ -1,10 +1,10 @@
-# Frequently Asked Questions
+# Frequently asked questions
 
 ## General issues
 
 ### How to enable LXD server for remote access?
-By default LXD server is not accessible from the networks as it only listens
-on a local unix socket. You can make LXD available from the network by specifying
+By default, the LXD server is not accessible from the network as it only listens
+on a local Unix socket. You can make LXD available from the network by specifying
 additional addresses to listen to. This is done with the `core.https_address`
 config variable.
 
@@ -14,24 +14,26 @@ To see the current server configuration, run:
 lxc config show
 ```
 
-To set the address to listen to, find out what addresses are available and use
-the `config set` command on the server:
+To set the address to listen to, first find out what addresses are available and
+then use the `config set` command on the server:
 
 ```bash
 ip addr
 lxc config set core.https_address 192.168.1.15
 ```
 
+Also see {ref}`security_remote_access`.
+
 ### When I do a `lxc remote add` over https, it asks for a password?
 By default, LXD has no password for security reasons, so you can't do a remote
-add this way. In order to set a password, do:
+add this way. To set a password, enter the following command on the host LXD is
+running on:
 
 ```bash
 lxc config set core.trust_password SECRET
 ```
 
-on the host LXD is running on. This will set the remote password that you can
-then use to do `lxc remote add`.
+This will set the remote password that you can then use to do `lxc remote add`.
 
 You can also access the server without setting a password by copying the client
 certificate from `.config/lxc/client.crt` to the server and adding it with:
@@ -40,10 +42,12 @@ certificate from `.config/lxc/client.crt` to the server and adding it with:
 lxc config trust add client.crt
 ```
 
+See {doc}`authentication` for detailed information.
+
 ### How do I configure LXD storage?
 LXD supports btrfs, ceph, directory, lvm and zfs based storage.
 
-First make sure you have the relevant tools for your filesystem of
+First make sure you have the relevant tools for your file system of
 choice installed on the machine (btrfs-progs, lvm2 or zfsutils-linux).
 
 By default, LXD comes with no configured network or storage.
@@ -53,7 +57,7 @@ You can get a basic configuration done with:
     lxd init
 ```
 
-`lxd init` supports both directory based storage and ZFS.
+`lxd init` supports both directory-based storage and ZFS.
 If you want something else, you'll need to use the `lxc storage` command:
 
 ```bash
@@ -63,12 +67,12 @@ lxc profile device add default root disk path=/ pool=default
 
 BACKEND is one of `btrfs`, `ceph`, `dir`, `lvm` or `zfs`.
 
-Unless specified otherwise, LXD will setup loop based storage with a sane default size.
+Unless specified otherwise, LXD will set up loop-based storage with a sane default size.
 
-For production environments, you should be using block backed storage
-instead both for performance and reliability reasons.
+For production environments, you should be using block-backed storage
+instead, both for performance and reliability reasons.
 
-### How can I live migrate a container using LXD?
+### How can I live-migrate a container using LXD?
 Live migration requires a tool installed on both hosts called
 [CRIU](https://criu.org), which is available in Ubuntu via:
 
@@ -76,7 +80,7 @@ Live migration requires a tool installed on both hosts called
 sudo apt install criu
 ```
 
-Then, launch your container with the following,
+Then, launch your container with the following:
 
 ```bash
 lxc launch ubuntu SOME-NAME
@@ -84,11 +88,11 @@ sleep 5s # let the container get to an interesting state
 lxc move host1:SOME-NAME host2:SOME-NAME
 ```
 
-And with luck you'll have migrated the container :). Migration is still in
-experimental stages and may not work for all workloads. Please report bugs on
+This should migrate your container. Be aware though that migration is still in
+experimental stages and might not work for all workloads. Please report bugs on
 lxc-devel, and we can escalate to CRIU lists as necessary.
 
-### Can I bind mount my home directory in a container?
+### Can I bind-mount my home directory in a container?
 Yes. This can be done using a disk device:
 
 ```bash
@@ -102,25 +106,24 @@ For unprivileged containers, you will also need one of:
  - Recursive POSIX ACLs placed on your home directory
 
 Either of those can be used to allow the user in the container to have working read/write permissions.
-When not setting one of those, everything will show up as the overflow uid/gid (65536:65536)
+When not setting one of those, everything will show up as the overflow UID/GID (65536:65536)
 and access to anything that's not world readable will fail.
 
-
-Privileged containers do not have this issue as all uid/gid inthe container are the same outside.
+Privileged containers do not have this issue because all UID/GID in the container are the same as outside.
 But that's also the cause of most of the security issues with such privileged containers.
 
-### How can I run docker inside a LXD container?
-In order to run Docker inside a LXD container the `security.nesting` property of the container should be set to `true`.
+### How can I run Docker inside a LXD container?
+To run Docker inside a LXD container, the `security.nesting` property of the container should be set to `true`.
 
 ```bash
 lxc config set <container> security.nesting true
 ```
 
 Note that LXD containers cannot load kernel modules, so depending on your
-Docker configuration you may need to have the needed extra kernel modules
+Docker configuration you might need to have the needed extra kernel modules
 loaded by the host.
 
-You can do so by setting a comma separate list of kernel modules that your container needs with:
+You can do so by setting a comma-separated list of kernel modules that your container needs with:
 
 ```bash
 lxc config set <container> linux.kernel_modules <modules>
@@ -130,7 +133,6 @@ We have also received some reports that creating a `/.dockerenv` file in your
 container can help Docker ignore some errors it's getting due to running in a
 nested environment.
 
-
 ## Container startup issues
 
 If your container is not starting, or not behaving as you would expect,
@@ -138,7 +140,7 @@ the first thing to do is to look at the console logs generated by the
 container, using the `lxc console --show-log CONTAINERNAME` command.
 
 In this example, we will investigate a RHEL 7 system in which `systemd`
-can not start.
+cannot start.
 
     # lxc console --show-log systemd
     Console log:
@@ -149,21 +151,21 @@ can not start.
     Failed to mount proc at /proc: Operation not permitted
     [!!!!!!] Failed to mount API filesystems, freezing.
 
-The errors here say that /sys and /proc can not be mounted - which is
+The errors here say that `/sys` and `/proc` cannot be mounted - which is
 correct in an unprivileged container.  However, LXD does mount these
-filesystems automatically _if it can_.
+file systems automatically _if it can_.
 
 The [container requirements](container-environment.md) specify that
-every container must come with an empty `/dev`, `/proc`, and `/sys`
+every container must come with an empty `/dev`, `/proc` and `/sys`
 folder, as well as `/sbin/init` existing.  If those folders don't
 exist, LXD will be unable to mount to them, and systemd will then
 try to. As this is an unprivileged container, systemd does not have
 the ability to do this, and it then freezes.
 
 So you can see the environment before anything is changed, you can
-explicitly change the init in a container using the `raw.lxc` config
-param.  This is equivalent to setting `init=/bin/bash` on the linux
-kernel commandline.
+explicitly change the init in a container using the `raw.lxc` configuration
+parameter.  This is equivalent to setting `init=/bin/bash` on the Linux
+kernel command line.
 
     lxc config set systemd raw.lxc 'lxc.init.cmd = /bin/bash'
 
@@ -178,7 +180,7 @@ Here is what it looks like:
     [root@systemd /]#
     root@lxc-01:~#
 
-Now that the container has started, you can look in it and see that things are
+Now that the container has started, you can check it and see that things are
 not running as well as expected.
 
     root@lxc-01:~# lxc exec systemd bash
@@ -198,16 +200,16 @@ files**.
 ## Networking issues
 
 In a larger [Production Environment](production-setup.md), it is common to have
-multiple vlans and have LXD clients attached directly to those vlans. Be aware that
+multiple VLANs and have LXD clients attached directly to those VLANs. Be aware that
 if you are using netplan and systemd-networkd, you will encounter some bugs that
-could cause catastrophic issues
+could cause catastrophic issues.
 
-### Do not use systemd-networkd with netplan and bridges based on vlans
+### Do not use systemd-networkd with netplan and bridges based on VLANs
 
-At time of writing (2019-03-05), netplan can not assign a random MAC address to
-a bridge attached to a vlan. It always picks the same MAC address, which causes
+At time of writing (2019-03-05), netplan cannot assign a random MAC address to
+a bridge attached to a VLAN. It always picks the same MAC address, which causes
 layer2 issues when you have more than one machine on the same network segment.
-It also has difficultly creating multiple bridges.  Make sure you use
+It also has difficulty creating multiple bridges.  Make sure you use
 `network-manager` instead. An example config is below, with a management
 address of 10.61.0.25, and VLAN102 being used for client traffic.
 
@@ -257,20 +259,20 @@ in `learning` state for up to 10 seconds, which is longer than most DHCP request
 last. As there is no possibility of cross-connecting and causing loops, this is
 safe to do.
 
-### Beware of 'port security'
+### Beware of port security
 
 Many switches do *not* allow MAC address changes, and will either drop traffic
-with an incorrect MAC, or, disable the port totally. If you can ping a LXD instance
+with an incorrect MAC or disable the port totally. If you can ping a LXD instance
 from the host, but are not able to ping it from a _different_ host, this could be
 the cause.  The way to diagnose this is to run a tcpdump on the uplink (in this case,
-eth1), and you will see either 'ARP Who has xx.xx.xx.xx tell yy.yy.yy.yy', with you
-sending responses but them not getting acknowledged, or, ICMP packets going in and
+eth1), and you will see either "ARP Who has xx.xx.xx.xx tell yy.yy.yy.yy, with you
+sending responses but them not getting acknowledged, or ICMP packets going in and
 out successfully, but never being received by the other host.
 
 ### Do not run privileged containers unless necessary
 
-A privileged container can do things that effect the entire host - for example, it
-can use things in /sys to reset the network card, which will reset it for **the entire
+A privileged container can do things that affect the entire host - for example, it
+can use things in `/sys` to reset the network card, which will reset it for **the entire
 host**, causing network blips. Almost everything can be run in an unprivileged container,
 or - in cases of things that require unusual privileges, like wanting to mount NFS
-filesystems inside the container, you may need to use bind mounts.
+file systems inside the container - you might need to use bind mounts.
