@@ -151,14 +151,14 @@ func (d *qemu) getQemuCPUMetrics(monitor *qmp.Monitor) (map[string]metrics.CPUMe
 
 		// According to proc(5), utime includes guest_time which therefore needs to be subtracted to get the correct time.
 		stats.SecondsUser -= guestTime
-		stats.SecondsUser *= 10
+		stats.SecondsUser /= 100
 
 		stats.SecondsSystem, err = strconv.ParseFloat(fields[14], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[14], err)
 		}
 
-		stats.SecondsSystem *= 10
+		stats.SecondsSystem /= 100
 
 		cpuMetrics[fmt.Sprintf("cpu%d", i)] = stats
 	}

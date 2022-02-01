@@ -103,56 +103,56 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[1], err)
 		}
 
-		stats.SecondsUser *= 10
+		stats.SecondsUser /= 100
 
 		stats.SecondsNice, err = strconv.ParseFloat(fields[2], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[2], err)
 		}
 
-		stats.SecondsNice *= 10
+		stats.SecondsNice /= 100
 
 		stats.SecondsSystem, err = strconv.ParseFloat(fields[3], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[3], err)
 		}
 
-		stats.SecondsSystem *= 10
+		stats.SecondsSystem /= 100
 
 		stats.SecondsIdle, err = strconv.ParseFloat(fields[4], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[4], err)
 		}
 
-		stats.SecondsIdle *= 10
+		stats.SecondsIdle /= 100
 
 		stats.SecondsIOWait, err = strconv.ParseFloat(fields[5], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[5], err)
 		}
 
-		stats.SecondsIdle *= 10
+		stats.SecondsIdle /= 100
 
 		stats.SecondsIRQ, err = strconv.ParseFloat(fields[6], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[6], err)
 		}
 
-		stats.SecondsIRQ *= 10
+		stats.SecondsIRQ /= 100
 
 		stats.SecondsSoftIRQ, err = strconv.ParseFloat(fields[7], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[7], err)
 		}
 
-		stats.SecondsSoftIRQ *= 10
+		stats.SecondsSoftIRQ /= 100
 
 		stats.SecondsSteal, err = strconv.ParseFloat(fields[8], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[8], err)
 		}
 
-		stats.SecondsSteal *= 10
+		stats.SecondsSteal /= 100
 
 		out[fields[0]] = stats
 	}
