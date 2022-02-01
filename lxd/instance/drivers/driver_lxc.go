@@ -7075,41 +7075,36 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 		realDev := ""
 
 		if dev["pool"] != "" {
-			// Storage pool volume
+			// Storage pool volume.
 			pool, err := storage.GetPoolByName(d.state, dev["pool"])
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get pool")
 			}
 
-			volumes, err := pool.Driver().ListVolumes()
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to list volumes")
+			// Expected volume name.
+			var volName string
+			var volType storageDrivers.VolumeType
+			if dev["source"] != "" {
+				volName = project.StorageVolume(d.project, dev["source"])
+				volType = storageDrivers.VolumeTypeCustom
+			} else {
+				volName = project.Instance(d.project, d.name)
+				volType = storageDrivers.VolumeTypeContainer
 			}
 
-			mountpoint := ""
-
-			for _, vol := range volumes {
-				// Skip all non-custom volumes
-				if vol.Type() != storageDrivers.VolumeTypeCustom || vol.Name() == "" {
-					continue
-				}
-
-				projectName, volName := project.StorageVolumeParts(vol.Name())
-
-				// Find the correct volume
-				if dev["source"] != volName || d.project != projectName {
-					continue
-				}
-
-				mountpoint = vol.MountPath()
-
-				break
+			// Get the volume.
+			vol := pool.GetVolume(volType, storageDrivers.ContentTypeFS, volName, nil)
+			if !pool.Driver().HasVolume(vol) {
+				continue
 			}
 
+			// Check that we have a mountpoint.
+			mountpoint := vol.MountPath()
 			if mountpoint == "" {
 				continue
 			}
 
+			// Grab the filesystem information.
 			statfs, err = filesystem.StatVFS(mountpoint)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed to stat %s", mountpoint)
