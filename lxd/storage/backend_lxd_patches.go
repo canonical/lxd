@@ -51,11 +51,11 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 		// Run inside temporary function to ensure revert has correct volume scope.
 		err = func(curVol *api.StorageVolume) error {
 			// There's no need to pass the config as it's not needed when renaming a volume.
-			oldVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, curVol.Name, nil)
+			oldVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, curVol.Name, nil)
 
 			// Add default project prefix to current volume name.
 			newVolStorageName := project.StorageVolume(project.Default, curVol.Name)
-			newVol := b.newVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, newVolStorageName, nil)
+			newVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentTypeFS, newVolStorageName, nil)
 
 			// Check if volume has already been renamed.
 			if b.driver.HasVolume(newVol) {

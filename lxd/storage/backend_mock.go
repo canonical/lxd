@@ -89,6 +89,10 @@ func (b *mockBackend) ApplyPatch(name string) error {
 	return nil
 }
 
+func (b *mockBackend) GetVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
+	return drivers.Volume{}
+}
+
 func (b *mockBackend) FillInstanceConfig(inst instance.Instance, config map[string]string) error {
 	return nil
 }
