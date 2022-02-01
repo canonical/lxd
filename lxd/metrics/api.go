@@ -12,14 +12,14 @@ type Metrics struct {
 
 // CPUMetrics represents CPU metrics for an instance
 type CPUMetrics struct {
-	SecondsUser    uint64 `json:"cpu_seconds_user" yaml:"cpu_seconds_user"`
-	SecondsNice    uint64 `json:"cpu_seconds_nice" yaml:"cpu_seconds_nice"`
-	SecondsSystem  uint64 `json:"cpu_seconds_system" yaml:"cpu_seconds_system"`
-	SecondsIdle    uint64 `json:"cpu_seconds_idle" yaml:"cpu_seconds_idle"`
-	SecondsIOWait  uint64 `json:"cpu_seconds_iowait" yaml:"cpu_seconds_iowait"`
-	SecondsIRQ     uint64 `json:"cpu_seconds_irq" yaml:"cpu_seconds_irq"`
-	SecondsSoftIRQ uint64 `json:"cpu_seconds_softirq" yaml:"cpu_seconds_softirq"`
-	SecondsSteal   uint64 `json:"cpu_seconds_steal" yaml:"cpu_seconds_steal"`
+	SecondsUser    float64 `json:"cpu_seconds_user" yaml:"cpu_seconds_user"`
+	SecondsNice    float64 `json:"cpu_seconds_nice" yaml:"cpu_seconds_nice"`
+	SecondsSystem  float64 `json:"cpu_seconds_system" yaml:"cpu_seconds_system"`
+	SecondsIdle    float64 `json:"cpu_seconds_idle" yaml:"cpu_seconds_idle"`
+	SecondsIOWait  float64 `json:"cpu_seconds_iowait" yaml:"cpu_seconds_iowait"`
+	SecondsIRQ     float64 `json:"cpu_seconds_irq" yaml:"cpu_seconds_irq"`
+	SecondsSoftIRQ float64 `json:"cpu_seconds_softirq" yaml:"cpu_seconds_softirq"`
+	SecondsSteal   float64 `json:"cpu_seconds_steal" yaml:"cpu_seconds_steal"`
 }
 
 // DiskMetrics represents disk metrics for an instance

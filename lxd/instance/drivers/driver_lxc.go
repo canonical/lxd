@@ -6941,7 +6941,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 				metricType = metrics.MemoryCachedBytes
 			}
 
-			out.AddSamples(metricType, metrics.Sample{Value: v})
+			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
 		}
 	}
 
@@ -6949,10 +6949,10 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	if err != nil {
 		logger.Warn("Failed to get memory usage", log.Ctx{"err": err})
 	} else {
-		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: uint64(memoryUsage)})
+		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: float64(memoryUsage)})
 	}
 
-	memoryLimit := uint64(0)
+	memoryLimit := int64(0)
 
 	// Get total memory
 	totalMemory, err := shared.DeviceTotalMemory()
@@ -6965,15 +6965,15 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 			// If the memory limit couldn't be determined, use the total memory.
 			// If the value of limit is larger than the total memory, there is no limit set.
 			// In this case, also use the total memory as the limit.
-			memoryLimit = uint64(totalMemory)
+			memoryLimit = totalMemory
 		} else {
-			memoryLimit = uint64(limit)
+			memoryLimit = limit
 		}
 	}
 
 	if memoryLimit > 0 {
-		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: memoryLimit})
-		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: memoryLimit - uint64(memoryUsage)})
+		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: float64(memoryLimit)})
+		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage)})
 	}
 
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
@@ -6981,7 +6981,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		if err != nil {
 			logger.Warn("Failed to get swap usage", log.Ctx{"err": err})
 		} else {
-			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: uint64(swapUsage)})
+			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: float64(swapUsage)})
 		}
 	}
 
@@ -6991,8 +6991,8 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		logger.Warn("Failed to get CPU usage", log.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
-			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.System / 1000000), Labels: map[string]string{"mode": "system", "cpu": strconv.Itoa(int(cpu))}})
-			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: uint64(stats.User / 1000000), Labels: map[string]string{"mode": "user", "cpu": strconv.Itoa(int(cpu))}})
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.System / 1000000), Labels: map[string]string{"mode": "system", "cpu": strconv.Itoa(int(cpu))}})
+			out.AddSamples(metrics.CPUSecondsTotal, metrics.Sample{Value: float64(stats.User / 1000000), Labels: map[string]string{"mode": "user", "cpu": strconv.Itoa(int(cpu))}})
 		}
 	}
 
@@ -7002,10 +7002,10 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		logger.Warn("Failed to get disk stats", log.Ctx{"err": err})
 	} else {
 		for disk, stats := range diskStats {
-			out.AddSamples(metrics.DiskReadBytesTotal, metrics.Sample{Value: stats.ReadBytes, Labels: map[string]string{"device": disk}})
-			out.AddSamples(metrics.DiskReadsCompletedTotal, metrics.Sample{Value: stats.ReadsCompleted, Labels: map[string]string{"device": disk}})
-			out.AddSamples(metrics.DiskWrittenBytesTotal, metrics.Sample{Value: stats.WrittenBytes, Labels: map[string]string{"device": disk}})
-			out.AddSamples(metrics.DiskWritesCompletedTotal, metrics.Sample{Value: stats.WritesCompleted, Labels: map[string]string{"device": disk}})
+			out.AddSamples(metrics.DiskReadBytesTotal, metrics.Sample{Value: float64(stats.ReadBytes), Labels: map[string]string{"device": disk}})
+			out.AddSamples(metrics.DiskReadsCompletedTotal, metrics.Sample{Value: float64(stats.ReadsCompleted), Labels: map[string]string{"device": disk}})
+			out.AddSamples(metrics.DiskWrittenBytesTotal, metrics.Sample{Value: float64(stats.WrittenBytes), Labels: map[string]string{"device": disk}})
+			out.AddSamples(metrics.DiskWritesCompletedTotal, metrics.Sample{Value: float64(stats.WritesCompleted), Labels: map[string]string{"device": disk}})
 		}
 	}
 
@@ -7021,14 +7021,14 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	networkState := d.networkState()
 
 	for name, state := range networkState {
-		out.AddSamples(metrics.NetworkReceiveBytesTotal, metrics.Sample{Value: uint64(state.Counters.BytesReceived), Labels: map[string]string{"device": name}})
-		out.AddSamples(metrics.NetworkReceivePacketsTotal, metrics.Sample{Value: uint64(state.Counters.PacketsReceived), Labels: map[string]string{"device": name}})
-		out.AddSamples(metrics.NetworkTransmitBytesTotal, metrics.Sample{Value: uint64(state.Counters.BytesSent), Labels: map[string]string{"device": name}})
-		out.AddSamples(metrics.NetworkTransmitPacketsTotal, metrics.Sample{Value: uint64(state.Counters.PacketsSent), Labels: map[string]string{"device": name}})
-		out.AddSamples(metrics.NetworkReceiveErrsTotal, metrics.Sample{Value: uint64(state.Counters.ErrorsReceived), Labels: map[string]string{"device": name}})
-		out.AddSamples(metrics.NetworkTransmitErrsTotal, metrics.Sample{Value: uint64(state.Counters.ErrorsSent), Labels: map[string]string{"device": name}})
-		out.AddSamples(metrics.NetworkReceiveDropTotal, metrics.Sample{Value: uint64(state.Counters.PacketsDroppedInbound), Labels: map[string]string{"device": name}})
-		out.AddSamples(metrics.NetworkTransmitDropTotal, metrics.Sample{Value: uint64(state.Counters.PacketsDroppedOutbound), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkReceiveBytesTotal, metrics.Sample{Value: float64(state.Counters.BytesReceived), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkReceivePacketsTotal, metrics.Sample{Value: float64(state.Counters.PacketsReceived), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitBytesTotal, metrics.Sample{Value: float64(state.Counters.BytesSent), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitPacketsTotal, metrics.Sample{Value: float64(state.Counters.PacketsSent), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkReceiveErrsTotal, metrics.Sample{Value: float64(state.Counters.ErrorsReceived), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitErrsTotal, metrics.Sample{Value: float64(state.Counters.ErrorsSent), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkReceiveDropTotal, metrics.Sample{Value: float64(state.Counters.PacketsDroppedInbound), Labels: map[string]string{"device": name}})
+		out.AddSamples(metrics.NetworkTransmitDropTotal, metrics.Sample{Value: float64(state.Counters.PacketsDroppedOutbound), Labels: map[string]string{"device": name}})
 	}
 
 	// Get number of processes
@@ -7036,7 +7036,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	if err != nil {
 		logger.Warn("Failed to get total number of processes", log.Ctx{"err": err})
 	} else {
-		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: uint64(pids)})
+		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: float64(pids)})
 	}
 
 	return out, nil
@@ -7187,9 +7187,9 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 		}
 
 		// Add sample
-		out.AddSamples(metrics.FilesystemSizeBytes, metrics.Sample{Value: statfs.Blocks * uint64(statfs.Bsize), Labels: labels})
-		out.AddSamples(metrics.FilesystemAvailBytes, metrics.Sample{Value: statfs.Bavail * uint64(statfs.Bsize), Labels: labels})
-		out.AddSamples(metrics.FilesystemFreeBytes, metrics.Sample{Value: statfs.Bfree * uint64(statfs.Bsize), Labels: labels})
+		out.AddSamples(metrics.FilesystemSizeBytes, metrics.Sample{Value: float64(statfs.Blocks * uint64(statfs.Bsize)), Labels: labels})
+		out.AddSamples(metrics.FilesystemAvailBytes, metrics.Sample{Value: float64(statfs.Bavail * uint64(statfs.Bsize)), Labels: labels})
+		out.AddSamples(metrics.FilesystemFreeBytes, metrics.Sample{Value: float64(statfs.Bfree * uint64(statfs.Bsize)), Labels: labels})
 	}
 
 	return out, nil
