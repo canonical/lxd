@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -105,10 +106,12 @@ func (m *MetricSet) String() string {
 				firstLabel = false
 			}
 
+			valueStr := strconv.FormatFloat(sample.Value, 'g', -1, 64)
+
 			if labels == "" {
-				_, err = out.WriteString(fmt.Sprintf("%s %d\n", MetricNames[metricType], sample.Value))
+				_, err = out.WriteString(fmt.Sprintf("%s %s\n", MetricNames[metricType], valueStr))
 			} else {
-				_, err = out.WriteString(fmt.Sprintf("%s{%s} %d\n", MetricNames[metricType], labels, sample.Value))
+				_, err = out.WriteString(fmt.Sprintf("%s{%s} %s\n", MetricNames[metricType], labels, valueStr))
 			}
 			if err != nil {
 				return ""
@@ -180,58 +183,58 @@ func MetricSetFromAPI(metrics *Metrics, labels map[string]string) (*MetricSet, e
 	for dev, stats := range metrics.Disk {
 		labels := map[string]string{"device": dev}
 
-		set.AddSamples(DiskReadBytesTotal, Sample{Value: stats.ReadBytes, Labels: labels})
-		set.AddSamples(DiskReadsCompletedTotal, Sample{Value: stats.ReadsCompleted, Labels: labels})
-		set.AddSamples(DiskWritesCompletedTotal, Sample{Value: stats.WritesCompleted, Labels: labels})
-		set.AddSamples(DiskWrittenBytesTotal, Sample{Value: stats.WrittenBytes, Labels: labels})
+		set.AddSamples(DiskReadBytesTotal, Sample{Value: float64(stats.ReadBytes), Labels: labels})
+		set.AddSamples(DiskReadsCompletedTotal, Sample{Value: float64(stats.ReadsCompleted), Labels: labels})
+		set.AddSamples(DiskWritesCompletedTotal, Sample{Value: float64(stats.WritesCompleted), Labels: labels})
+		set.AddSamples(DiskWrittenBytesTotal, Sample{Value: float64(stats.WrittenBytes), Labels: labels})
 	}
 
 	// Filesystem stats
 	for dev, stats := range metrics.Filesystem {
 		labels := map[string]string{"device": dev, "fstype": stats.FSType, "mountpoint": stats.Mountpoint}
 
-		set.AddSamples(FilesystemAvailBytes, Sample{Value: stats.AvailableBytes, Labels: labels})
-		set.AddSamples(FilesystemFreeBytes, Sample{Value: stats.FreeBytes, Labels: labels})
-		set.AddSamples(FilesystemSizeBytes, Sample{Value: stats.SizeBytes, Labels: labels})
+		set.AddSamples(FilesystemAvailBytes, Sample{Value: float64(stats.AvailableBytes), Labels: labels})
+		set.AddSamples(FilesystemFreeBytes, Sample{Value: float64(stats.FreeBytes), Labels: labels})
+		set.AddSamples(FilesystemSizeBytes, Sample{Value: float64(stats.SizeBytes), Labels: labels})
 	}
 
 	// Memory stats
-	set.AddSamples(MemoryActiveAnonBytes, Sample{Value: metrics.Memory.ActiveAnonBytes})
-	set.AddSamples(MemoryActiveBytes, Sample{Value: metrics.Memory.ActiveBytes})
-	set.AddSamples(MemoryActiveFileBytes, Sample{Value: metrics.Memory.ActiveFileBytes})
-	set.AddSamples(MemoryCachedBytes, Sample{Value: metrics.Memory.CachedBytes})
-	set.AddSamples(MemoryDirtyBytes, Sample{Value: metrics.Memory.DirtyBytes})
-	set.AddSamples(MemoryHugePagesFreeBytes, Sample{Value: metrics.Memory.HugepagesFreeBytes})
-	set.AddSamples(MemoryHugePagesTotalBytes, Sample{Value: metrics.Memory.HugepagesTotalBytes})
-	set.AddSamples(MemoryInactiveAnonBytes, Sample{Value: metrics.Memory.InactiveAnonBytes})
-	set.AddSamples(MemoryInactiveBytes, Sample{Value: metrics.Memory.InactiveBytes})
-	set.AddSamples(MemoryInactiveFileBytes, Sample{Value: metrics.Memory.InactiveFileBytes})
-	set.AddSamples(MemoryMappedBytes, Sample{Value: metrics.Memory.MappedBytes})
-	set.AddSamples(MemoryMemAvailableBytes, Sample{Value: metrics.Memory.MemAvailableBytes})
-	set.AddSamples(MemoryMemFreeBytes, Sample{Value: metrics.Memory.MemFreeBytes})
-	set.AddSamples(MemoryMemTotalBytes, Sample{Value: metrics.Memory.MemTotalBytes})
-	set.AddSamples(MemoryRSSBytes, Sample{Value: metrics.Memory.RSSBytes})
-	set.AddSamples(MemoryShmemBytes, Sample{Value: metrics.Memory.ShmemBytes})
-	set.AddSamples(MemorySwapBytes, Sample{Value: metrics.Memory.SwapBytes})
-	set.AddSamples(MemoryUnevictableBytes, Sample{Value: metrics.Memory.UnevictableBytes})
-	set.AddSamples(MemoryWritebackBytes, Sample{Value: metrics.Memory.WritebackBytes})
+	set.AddSamples(MemoryActiveAnonBytes, Sample{Value: float64(metrics.Memory.ActiveAnonBytes)})
+	set.AddSamples(MemoryActiveBytes, Sample{Value: float64(metrics.Memory.ActiveBytes)})
+	set.AddSamples(MemoryActiveFileBytes, Sample{Value: float64(metrics.Memory.ActiveFileBytes)})
+	set.AddSamples(MemoryCachedBytes, Sample{Value: float64(metrics.Memory.CachedBytes)})
+	set.AddSamples(MemoryDirtyBytes, Sample{Value: float64(metrics.Memory.DirtyBytes)})
+	set.AddSamples(MemoryHugePagesFreeBytes, Sample{Value: float64(metrics.Memory.HugepagesFreeBytes)})
+	set.AddSamples(MemoryHugePagesTotalBytes, Sample{Value: float64(metrics.Memory.HugepagesTotalBytes)})
+	set.AddSamples(MemoryInactiveAnonBytes, Sample{Value: float64(metrics.Memory.InactiveAnonBytes)})
+	set.AddSamples(MemoryInactiveBytes, Sample{Value: float64(metrics.Memory.InactiveBytes)})
+	set.AddSamples(MemoryInactiveFileBytes, Sample{Value: float64(metrics.Memory.InactiveFileBytes)})
+	set.AddSamples(MemoryMappedBytes, Sample{Value: float64(metrics.Memory.MappedBytes)})
+	set.AddSamples(MemoryMemAvailableBytes, Sample{Value: float64(metrics.Memory.MemAvailableBytes)})
+	set.AddSamples(MemoryMemFreeBytes, Sample{Value: float64(metrics.Memory.MemFreeBytes)})
+	set.AddSamples(MemoryMemTotalBytes, Sample{Value: float64(metrics.Memory.MemTotalBytes)})
+	set.AddSamples(MemoryRSSBytes, Sample{Value: float64(metrics.Memory.RSSBytes)})
+	set.AddSamples(MemoryShmemBytes, Sample{Value: float64(metrics.Memory.ShmemBytes)})
+	set.AddSamples(MemorySwapBytes, Sample{Value: float64(metrics.Memory.SwapBytes)})
+	set.AddSamples(MemoryUnevictableBytes, Sample{Value: float64(metrics.Memory.UnevictableBytes)})
+	set.AddSamples(MemoryWritebackBytes, Sample{Value: float64(metrics.Memory.WritebackBytes)})
 
 	// Network stats
 	for dev, stats := range metrics.Network {
 		labels := map[string]string{"device": dev}
 
-		set.AddSamples(NetworkReceiveBytesTotal, Sample{Value: stats.ReceiveBytes, Labels: labels})
-		set.AddSamples(NetworkReceiveDropTotal, Sample{Value: stats.ReceiveDrop, Labels: labels})
-		set.AddSamples(NetworkReceiveErrsTotal, Sample{Value: stats.ReceiveErrors, Labels: labels})
-		set.AddSamples(NetworkReceivePacketsTotal, Sample{Value: stats.ReceivePackets, Labels: labels})
-		set.AddSamples(NetworkTransmitBytesTotal, Sample{Value: stats.TransmitBytes, Labels: labels})
-		set.AddSamples(NetworkTransmitDropTotal, Sample{Value: stats.TransmitDrop, Labels: labels})
-		set.AddSamples(NetworkTransmitErrsTotal, Sample{Value: stats.TransmitErrors, Labels: labels})
-		set.AddSamples(NetworkTransmitPacketsTotal, Sample{Value: stats.TransmitPackets, Labels: labels})
+		set.AddSamples(NetworkReceiveBytesTotal, Sample{Value: float64(stats.ReceiveBytes), Labels: labels})
+		set.AddSamples(NetworkReceiveDropTotal, Sample{Value: float64(stats.ReceiveDrop), Labels: labels})
+		set.AddSamples(NetworkReceiveErrsTotal, Sample{Value: float64(stats.ReceiveErrors), Labels: labels})
+		set.AddSamples(NetworkReceivePacketsTotal, Sample{Value: float64(stats.ReceivePackets), Labels: labels})
+		set.AddSamples(NetworkTransmitBytesTotal, Sample{Value: float64(stats.TransmitBytes), Labels: labels})
+		set.AddSamples(NetworkTransmitDropTotal, Sample{Value: float64(stats.TransmitDrop), Labels: labels})
+		set.AddSamples(NetworkTransmitErrsTotal, Sample{Value: float64(stats.TransmitErrors), Labels: labels})
+		set.AddSamples(NetworkTransmitPacketsTotal, Sample{Value: float64(stats.TransmitPackets), Labels: labels})
 	}
 
 	// Procs stats
-	set.AddSamples(ProcsTotal, Sample{Value: metrics.ProcessesTotal})
+	set.AddSamples(ProcsTotal, Sample{Value: float64(metrics.ProcessesTotal)})
 
 	return set, nil
 }
