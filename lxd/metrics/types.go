@@ -3,7 +3,7 @@ package metrics
 // A Sample represents an OpenMetrics sample containing labels and the value.
 type Sample struct {
 	Labels map[string]string
-	Value  uint64
+	Value  float64
 }
 
 // MetricSet represents a set of metrics.
