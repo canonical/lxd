@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -465,6 +466,12 @@ func (c *cmdStorageInfo) Run(cmd *cobra.Command, args []string) error {
 	for _, v := range pool.UsedBy {
 		bytype := string(strings.Split(v[5:], "/")[0])
 		bywhat := string(strings.Split(v[5:], "/")[1])
+
+		u, _ := url.Parse(v)
+		node, ok := u.Query()["target"]
+		if ok {
+			bywhat = fmt.Sprintf("%s (%s)", bywhat, node[0])
+		}
 
 		poolusedby[usedbystring][bytype] = append(poolusedby[usedbystring][bytype], bywhat)
 	}
