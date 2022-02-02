@@ -98,61 +98,61 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 
 		stats := metrics.CPUMetrics{}
 
-		stats.SecondsUser, err = strconv.ParseUint(fields[1], 10, 64)
+		stats.SecondsUser, err = strconv.ParseFloat(fields[1], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[1], err)
 		}
 
-		stats.SecondsUser *= 10
+		stats.SecondsUser /= 100
 
-		stats.SecondsNice, err = strconv.ParseUint(fields[2], 10, 64)
+		stats.SecondsNice, err = strconv.ParseFloat(fields[2], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[2], err)
 		}
 
-		stats.SecondsNice *= 10
+		stats.SecondsNice /= 100
 
-		stats.SecondsSystem, err = strconv.ParseUint(fields[3], 10, 64)
+		stats.SecondsSystem, err = strconv.ParseFloat(fields[3], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[3], err)
 		}
 
-		stats.SecondsSystem *= 10
+		stats.SecondsSystem /= 100
 
-		stats.SecondsIdle, err = strconv.ParseUint(fields[4], 10, 64)
+		stats.SecondsIdle, err = strconv.ParseFloat(fields[4], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[4], err)
 		}
 
-		stats.SecondsIdle *= 10
+		stats.SecondsIdle /= 100
 
-		stats.SecondsIOWait, err = strconv.ParseUint(fields[5], 10, 64)
+		stats.SecondsIOWait, err = strconv.ParseFloat(fields[5], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[5], err)
 		}
 
-		stats.SecondsIdle *= 10
+		stats.SecondsIdle /= 100
 
-		stats.SecondsIRQ, err = strconv.ParseUint(fields[6], 10, 64)
+		stats.SecondsIRQ, err = strconv.ParseFloat(fields[6], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[6], err)
 		}
 
-		stats.SecondsIRQ *= 10
+		stats.SecondsIRQ /= 100
 
-		stats.SecondsSoftIRQ, err = strconv.ParseUint(fields[7], 10, 64)
+		stats.SecondsSoftIRQ, err = strconv.ParseFloat(fields[7], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[7], err)
 		}
 
-		stats.SecondsSoftIRQ *= 10
+		stats.SecondsSoftIRQ /= 100
 
-		stats.SecondsSteal, err = strconv.ParseUint(fields[8], 10, 64)
+		stats.SecondsSteal, err = strconv.ParseFloat(fields[8], 64)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[8], err)
 		}
 
-		stats.SecondsSteal *= 10
+		stats.SecondsSteal /= 100
 
 		out[fields[0]] = stats
 	}

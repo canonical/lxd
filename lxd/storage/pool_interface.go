@@ -41,6 +41,8 @@ type Pool interface {
 
 	ApplyPatch(name string) error
 
+	GetVolume(volumeType drivers.VolumeType, contentType drivers.ContentType, name string, config map[string]string) drivers.Volume
+
 	// Instances.
 	FillInstanceConfig(inst instance.Instance, config map[string]string) error
 	CreateInstance(inst instance.Instance, op *operations.Operation) error

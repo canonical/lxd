@@ -314,6 +314,7 @@ var APIExtensions = []string{
 	"storage_zfs_reserve_space",
 	"network_acl_log",
 	"storage_zfs_blocksize",
+	"metrics_cpu_seconds",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

@@ -1602,3 +1602,6 @@ Adds a new `GET /1.0/networks-acls/NAME/log` API to retrieve ACL firewall logs.
 
 ## storage\_zfs\_blocksize
 Introduces a new `zfs.blocksize` property for ZFS storage volumes which allows to set volume block size.
+
+## metrics\_cpu\_seconds
+This is used to detect whether LXD was fixed to output used CPU time in seconds rather than as milliseconds.
