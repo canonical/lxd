@@ -160,7 +160,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 			// Get all users of the storage pool.
 			poolUsedBy := []string{}
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				poolUsedBy, err = tx.GetStoragePoolUsedBy(pool)
+				poolUsedBy, err = tx.GetStoragePoolUsedBy(pool, true)
 				return err
 			})
 			if err != nil {
@@ -559,6 +559,12 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 
 	poolName := mux.Vars(r)["name"]
 
+	targetNode := queryParam(r, "target")
+	allNodes := false
+	if targetNode == "" {
+		allNodes = true
+	}
+
 	// Get the existing storage pool.
 	_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
 	if err != nil {
@@ -568,15 +574,13 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	// Get all users of the storage pool.
 	poolUsedBy := []string{}
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName)
+		poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName, allNodes)
 		return err
 	})
 	if err != nil {
 		return response.SmartError(err)
 	}
 	pool.UsedBy = project.FilterUsedBy(r, poolUsedBy)
-
-	targetNode := queryParam(r, "target")
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {

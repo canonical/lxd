@@ -43,7 +43,7 @@ storage_pools_config JOIN storage_pools ON storage_pools.id=storage_pools_config
 }
 
 // GetStoragePoolUsedBy looks up all users of a storage pool.
-func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
+func (c *ClusterTx) GetStoragePoolUsedBy(name string, allNodes bool) ([]string, error) {
 	usedby := []string{}
 
 	// Get the pool ID.
@@ -81,25 +81,27 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string) ([]string, error) {
 		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
 	}
 
-	remoteDrivers := StorageRemoteDriverNames()
+	nodePredicate := "node_id=?"
+	if allNodes {
+		nodePredicate = "node_id IS NOT NULL"
+	}
 
 	s := fmt.Sprintf(`
 SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volumes.node_id
   FROM storage_volumes
   JOIN projects ON projects.id=storage_volumes.project_id
   JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
-  WHERE storage_pool_id=? AND ((node_id=? OR node_id IS NULL AND storage_pools.driver IN %s) OR storage_volumes.type == 2)
-  ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC`, query.Params(len(remoteDrivers)))
+  WHERE storage_pool_id=? AND ((%s OR node_id IS NULL) OR storage_volumes.type == 2)
+  ORDER BY storage_volumes.type ASC, projects.name ASC, storage_volumes.name ASC, storage_volumes.node_id ASC`, nodePredicate)
 
 	stmt, err := c.tx.Prepare(s)
 	if err != nil {
 		return nil, err
 	}
 
-	args := []interface{}{id, c.nodeID}
-
-	for _, driver := range remoteDrivers {
-		args = append(args, driver)
+	args := []interface{}{id}
+	if !allNodes {
+		args = append(args, c.nodeID)
 	}
 
 	err = query.SelectObjects(stmt, dest, args...)
@@ -111,9 +113,17 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 		// Handle instances.
 		if r.volType == StoragePoolVolumeTypeContainer || r.volType == StoragePoolVolumeTypeVM {
 			if r.projectName == "default" {
-				usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s", r.volName))
+				if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
+					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?target=%s", r.volName, nodesName[*r.nodeID]))
+				} else {
+					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s", r.volName))
+				}
 			} else {
-				usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?project=%s", r.volName, r.projectName))
+				if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
+					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?project=%s&target=%s", r.volName, r.projectName, nodesName[*r.nodeID]))
+				} else {
+					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?project=%s", r.volName, r.projectName))
+				}
 			}
 		}
 
@@ -128,9 +138,17 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 
 			for _, project := range projects {
 				if project == "default" {
-					usedby = append(usedby, fmt.Sprintf("/1.0/images/%s", r.volName))
+					if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
+						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?target=%s", r.volName, nodesName[*r.nodeID]))
+					} else {
+						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s", r.volName))
+					}
 				} else {
-					usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?project=%s", r.volName, project))
+					if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
+						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?project=%s&target=%s", r.volName, project, nodesName[*r.nodeID]))
+					} else {
+						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?project=%s", r.volName, project))
+					}
 				}
 			}
 		}
@@ -740,7 +758,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interfa
 	storagePool.Config = config
 	storagePool.Status = StoragePoolStateToAPIStatus(state)
 
-	nodes, err := c.storagePoolNodes(poolID)
+	nodes, err := c.StoragePoolNodes(poolID)
 	if err != nil {
 		return -1, nil, nil, err
 	}
@@ -766,8 +784,8 @@ func StoragePoolStateToAPIStatus(state StoragePoolState) string {
 	}
 }
 
-// storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
-func (c *Cluster) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
+// StoragePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
+func (c *Cluster) StoragePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
 	var nodes map[int64]StoragePoolNode
 	var err error
 

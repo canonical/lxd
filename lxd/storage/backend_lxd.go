@@ -192,7 +192,7 @@ func (b *lxdBackend) IsUsed() (bool, error) {
 	var err error
 	poolUsedBy := []string{}
 	err = b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		poolUsedBy, err = tx.GetStoragePoolUsedBy(b.name)
+		poolUsedBy, err = tx.GetStoragePoolUsedBy(b.name, false)
 		return err
 	})
 	if err != nil {
