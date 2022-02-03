@@ -11,7 +11,7 @@ This kind of certificate is meant for metrics only, and won't work for interacti
 Here's how to create a new certificate (this is not specific to metrics):
 
 ```bash
-openssl req -x509 -newkey rsa:2048 -keyout ~/.config/lxc/metrics.key -nodes -out ~/.config/lxc/metrics.crt -subj "/CN=lxd.local"
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout metrics.key -nodes -out metrics.crt -days 3650 -subj "/CN=metrics.local"
 ```
 
 Now, this certificate needs to be added to the list of trusted clients:
@@ -56,12 +56,13 @@ Here's what the config needs to look like:
 ```yaml
 scrape_configs:
   - job_name: lxd
-    tls_config:
-      ca_file: 'tls/lxd.crt'
-      key_file: 'tls/metrics.key'
-      cert_file: 'tls/metrics.crt'
-    static_configs:
-      - targets: ['127.0.0.1:8443']
     metrics_path: '/1.0/metrics'
     scheme: 'https'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['127.0.0.1:8443']
+    tls_config:
+      ca_file: 'tls/lxd.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
 ```
