@@ -11,7 +11,7 @@ This kind of certificate is meant for metrics only, and won't work for interacti
 Here's how to create a new certificate (this is not specific to metrics):
 
 ```bash
-openssl req -x509 -newkey rsa:2048 -keyout ~/.config/lxc/metrics.key -nodes -out ~/.config/lxc/metrics.crt -subj "/CN=lxd.local"
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -keyout metrics.key -nodes -out metrics.crt -days 3650 -subj "/CN=metrics.local"
 ```
 
 Now, this certificate needs to be added to the list of trusted clients:
