@@ -581,6 +581,54 @@ func (op *Operation) UpdateMetadata(opMetadata interface{}) error {
 	return nil
 }
 
+// ExtendMetadata updates the metadata of the operation with the additional data provided.
+// It returns an error if the operation is not pending or running, or the operation is read-only.
+func (op *Operation) ExtendMetadata(metadata interface{}) error {
+	// Quick checks.
+	if op.status != api.Pending && op.status != api.Running {
+		return fmt.Errorf("Only pending or running operations can be updated")
+	}
+
+	if op.readonly {
+		return fmt.Errorf("Read-only operations can't be updated")
+	}
+
+	// Parse the new metadata.
+	extraMetadata, err := shared.ParseMetadata(metadata)
+	if err != nil {
+		return err
+	}
+
+	// Get current metadata.
+	op.lock.Lock()
+	newMetadata := op.metadata
+	op.lock.Unlock()
+
+	// Merge with current one.
+	if op.metadata == nil {
+		newMetadata = extraMetadata
+	} else {
+		for k, v := range extraMetadata {
+			newMetadata[k] = v
+		}
+	}
+
+	// Update the operation.
+	op.lock.Lock()
+	op.updatedAt = time.Now()
+	op.metadata = newMetadata
+	op.lock.Unlock()
+
+	logger.Debugf("Updated metadata for %s Operation: %s", op.class.String(), op.id)
+	_, md, _ := op.Render()
+
+	op.lock.Lock()
+	op.sendEvent(md)
+	op.lock.Unlock()
+
+	return nil
+}
+
 // ID returns the operation ID.
 func (op *Operation) ID() string {
 	return op.id
