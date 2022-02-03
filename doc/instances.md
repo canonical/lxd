@@ -850,6 +850,10 @@ required    | boolean   | false             | no        | Whether or not this de
 GPU device entries simply make the requested gpu device appear in the
 instance.
 
+```{note}
+Container devices may match multiple GPUs at once. However, for virtual machines a device can only match a single GPU. 
+```
+
 ##### GPUs Available:
 
 The following GPUs can be specified using the `gputype` property:
