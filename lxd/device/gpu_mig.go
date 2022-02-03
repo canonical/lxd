@@ -22,7 +22,7 @@ const GPUNvidiaDeviceKey = "nvidia.device"
 
 // validateConfig checks the supplied config for correctness.
 func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
-	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
+	if !instanceSupported(instConf.Type(), instancetype.Container) {
 		return ErrUnsupportedDevType
 	}
 
