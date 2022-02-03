@@ -56,13 +56,13 @@ Here's what the config needs to look like:
 ```yaml
 scrape_configs:
   - job_name: lxd
-    tls_config:
-      ca_file: 'tls/lxd.crt'
-      key_file: 'tls/metrics.key'
-      cert_file: 'tls/metrics.crt'
+    metrics_path: '/1.0/metrics'
+    scheme: 'https'
     scrape_interval: 30s
     static_configs:
       - targets: ['127.0.0.1:8443']
-    metrics_path: '/1.0/metrics'
-    scheme: 'https'
+    tls_config:
+      ca_file: 'tls/lxd.crt'
+      cert_file: 'tls/metrics.crt'
+      key_file: 'tls/metrics.key'
 ```
