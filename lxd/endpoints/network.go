@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -171,6 +172,11 @@ func (e *Endpoints) NetworkUpdateTrustedProxy(trustedProxy string) {
 	listener, ok = e.listeners[cluster]
 	if ok && listener != nil {
 		listener.(*listeners.FancyTLSListener).TrustedProxy(proxies)
+	}
+
+	server, ok := e.servers[network]
+	if ok && server != nil {
+		server.ErrorLog = log.New(networkServerErrorLogWriter{proxies: proxies}, "", 0)
 	}
 }
 
