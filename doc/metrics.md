@@ -60,6 +60,7 @@ scrape_configs:
       ca_file: 'tls/lxd.crt'
       key_file: 'tls/metrics.key'
       cert_file: 'tls/metrics.crt'
+    scrape_interval: 30s
     static_configs:
       - targets: ['127.0.0.1:8443']
     metrics_path: '/1.0/metrics'
