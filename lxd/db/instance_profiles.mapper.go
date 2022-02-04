@@ -18,7 +18,7 @@ var _ = api.ServerEnvironment{}
 var instanceProfileObjects = cluster.RegisterStmt(`
 SELECT instances_profiles.instance_id, instances_profiles.profile_id, instances_profiles.apply_order
   FROM instances_profiles
-  ORDER BY instances_profiles.instance_id
+  ORDER BY instances_profiles.instance_id, instances_profiles.apply_order
 `)
 
 var instanceProfileCreate = cluster.RegisterStmt(`

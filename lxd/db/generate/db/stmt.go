@@ -130,15 +130,33 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 			}
 		}
 	}
-	nk := mapping.NaturalKey()
-	orderBy := make([]string, len(nk))
-	for i, field := range nk {
-		if field.IsScalar() {
-			orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
-		} else {
-			orderBy[i] = mapping.FieldColumnName(field.Name, table)
-			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
-				orderBy[i] = strings.Replace(orderBy[i], "reference", "%s", -1)
+	orderBy := []string{}
+	for _, field := range fields {
+		if field.Config.Get("order") != "" {
+			if field.IsScalar() {
+				orderBy = append(orderBy, lex.Plural(lex.Snake(field.Name))+".id")
+			} else {
+				line := mapping.FieldColumnName(field.Name, table)
+				if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+					line = strings.Replace(line, "reference", "%s", -1)
+				}
+
+				orderBy = append(orderBy, line)
+			}
+		}
+	}
+
+	if len(orderBy) < 1 {
+		nk := mapping.NaturalKey()
+		orderBy = make([]string, len(nk))
+		for i, field := range nk {
+			if field.IsScalar() {
+				orderBy[i] = lex.Plural(lex.Snake(field.Name)) + ".id"
+			} else {
+				orderBy[i] = mapping.FieldColumnName(field.Name, table)
+				if mapping.Type == ReferenceTable || mapping.Type == MapTable {
+					orderBy[i] = strings.Replace(orderBy[i], "reference", "%s", -1)
+				}
 			}
 		}
 	}
