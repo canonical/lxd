@@ -1177,3 +1177,6 @@ Adds `allow_inconsistent` field to instance source on `POST /1.0/instances`. If 
 ## image\_restrictions
 This extension adds on to the image properties to include image restrictions/host requirements. These requirements
 help determine the compatbility between an instance and the host system.
+
+## instance\_snapshot\_never
+Adds a `@never` option to `snapshots.schedule` which allows disabling inheritance.
