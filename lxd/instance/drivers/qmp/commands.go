@@ -368,42 +368,6 @@ func (m *Monitor) QueryPCI() ([]PCIDevice, error) {
 	return nil, nil
 }
 
-// MemoryStats represents memory stats.
-type MemoryStats struct {
-	HTLBPGAlloc     int `json:"stat-htlb-pgalloc"`
-	SwapOut         int `json:"stat-swap-out"`
-	AvailableMemory int `json:"stat-available-memory"`
-	HTLBPGFail      int `json:"stat-htlb-pgfail"`
-	FreeMemory      int `json:"stat-free-memory"`
-	MinorFaults     int `json:"stat-minor-faults"`
-	MajorFaults     int `json:"stat-major-faults"`
-	TotalMemory     int `json:"stat-total-memory"`
-	SwapIn          int `json:"stat-swap-in"`
-	DiskCaches      int `json:"stat-disk-caches"`
-}
-
-// GetMemoryStats return memory stats.
-func (m *Monitor) GetMemoryStats() (*MemoryStats, error) {
-	// Prepare the response
-	var resp struct {
-		Return struct {
-			Stats MemoryStats `json:"stats"`
-		} `json:"return"`
-	}
-
-	args := map[string]string{
-		"path":     "/machine/peripheral/qemu_balloon",
-		"property": "guest-stats",
-	}
-
-	err := m.run("qom-get", args, &resp)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed querying memory stats")
-	}
-
-	return &resp.Return.Stats, nil
-}
-
 // BlockStats represents block device stats.
 type BlockStats struct {
 	BytesWritten    int `json:"wr_bytes"`
