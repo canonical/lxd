@@ -4115,7 +4115,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				return true
 			}
 
-			if !shared.StringInSlice(key, liveUpdateKeys) {
+			if shared.StringInSlice(key, liveUpdateKeys) {
 				return true
 			}
 
