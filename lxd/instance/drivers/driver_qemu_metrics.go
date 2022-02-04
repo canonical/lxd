@@ -1,8 +1,10 @@
 package drivers
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/units"
 )
 
 func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
@@ -40,7 +43,7 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 
 	diskStats, err := d.getQemuDiskMetrics(monitor)
 	if err != nil {
-		d.logger.Warn("Failed to get memory metrics", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get disk metrics", log.Ctx{"err": err})
 	} else {
 		out.Disk = diskStats
 	}
@@ -95,15 +98,67 @@ func (d *qemu) getQemuDiskMetrics(monitor *qmp.Monitor) (map[string]metrics.Disk
 }
 
 func (d *qemu) getQemuMemoryMetrics(monitor *qmp.Monitor) (metrics.MemoryMetrics, error) {
-	stats, err := monitor.GetMemoryStats()
+	out := metrics.MemoryMetrics{}
+
+	// Get the QEMU PID.
+	pid, err := d.pid()
 	if err != nil {
-		return metrics.MemoryMetrics{}, err
+		return out, err
 	}
 
-	out := metrics.MemoryMetrics{
-		MemAvailableBytes: uint64(stats.AvailableMemory),
-		MemFreeBytes:      uint64(stats.FreeMemory),
-		MemTotalBytes:     uint64(stats.TotalMemory),
+	// Extract current QEMU RSS.
+	f, err := os.Open(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		return out, err
+	}
+	defer f.Close()
+
+	// Read it line by line.
+	memRSS := int64(-1)
+
+	scan := bufio.NewScanner(f)
+	for scan.Scan() {
+		line := scan.Text()
+
+		// We only care about VmRSS.
+		if !strings.HasPrefix(line, "VmRSS:") {
+			continue
+		}
+
+		// Extract the before last (value) and last (unit) fields
+		fields := strings.Split(line, "\t")
+		value := strings.Replace(fields[len(fields)-1], " ", "", -1)
+
+		// Feed the result to units.ParseByteSizeString to get an int value
+		valueBytes, err := units.ParseByteSizeString(value)
+		if err != nil {
+			return out, err
+		}
+
+		memRSS = valueBytes
+		break
+	}
+
+	if memRSS == -1 {
+		return out, fmt.Errorf("Couldn't find VM memory usage")
+	}
+
+	// Get max memory usage.
+	memTotal := d.expandedConfig["limits.memory"]
+	if memTotal == "" {
+		memTotal = qemuDefaultMemSize // Default if no memory limit specified.
+	}
+
+	memTotalBytes, err := units.ParseByteSizeString(memTotal)
+	if err != nil {
+		return out, err
+	}
+
+	// Prepare struct.
+	out = metrics.MemoryMetrics{
+		MemAvailableBytes: uint64(memTotalBytes - memRSS),
+		MemFreeBytes:      uint64(memTotalBytes - memRSS),
+		MemTotalBytes:     uint64(memTotalBytes),
 	}
 
 	return out, nil
