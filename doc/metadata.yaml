@@ -80,6 +80,9 @@ navigation:
         - title: Clustering
           location: clustering.md
 
+        - title: Instance command execution
+          location: instance-exec.md
+
         - title: Production setup
           location: production-setup.md
 
