@@ -22,9 +22,9 @@ import "fmt"
 // InstanceProfile is an association table struct that associates Instances
 // to Profiles.
 type InstanceProfile struct {
-	InstanceID int `db:"primary=yes"`
+	InstanceID int `db:"primary=yes&order=yes"`
 	ProfileID  int
-	ApplyOrder int
+	ApplyOrder int `db:"order=yes"`
 }
 
 // InstanceProfileFilter specifies potential query parameter fields.
