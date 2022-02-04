@@ -108,10 +108,10 @@ func (m *MetricSet) String() string {
 
 			valueStr := strconv.FormatFloat(sample.Value, 'g', -1, 64)
 
-			if labels == "" {
-				_, err = out.WriteString(fmt.Sprintf("%s %s\n", MetricNames[metricType], valueStr))
-			} else {
+			if labels != "" {
 				_, err = out.WriteString(fmt.Sprintf("%s{%s} %s\n", MetricNames[metricType], labels, valueStr))
+			} else {
+				_, err = out.WriteString(fmt.Sprintf("%s %s\n", MetricNames[metricType], valueStr))
 			}
 			if err != nil {
 				return ""
