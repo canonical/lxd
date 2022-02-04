@@ -7184,9 +7184,10 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 		}
 
 		// Add sample
-		out.AddSamples(metrics.FilesystemSizeBytes, metrics.Sample{Value: float64(statfs.Blocks * uint64(statfs.Bsize)), Labels: labels})
-		out.AddSamples(metrics.FilesystemAvailBytes, metrics.Sample{Value: float64(statfs.Bavail * uint64(statfs.Bsize)), Labels: labels})
-		out.AddSamples(metrics.FilesystemFreeBytes, metrics.Sample{Value: float64(statfs.Bfree * uint64(statfs.Bsize)), Labels: labels})
+		statfsBsize := uint64(statfs.Bsize)
+		out.AddSamples(metrics.FilesystemSizeBytes, metrics.Sample{Value: float64(statfs.Blocks * statfsBsize), Labels: labels})
+		out.AddSamples(metrics.FilesystemAvailBytes, metrics.Sample{Value: float64(statfs.Bavail * statfsBsize), Labels: labels})
+		out.AddSamples(metrics.FilesystemFreeBytes, metrics.Sample{Value: float64(statfs.Bfree * statfsBsize), Labels: labels})
 	}
 
 	return out, nil
