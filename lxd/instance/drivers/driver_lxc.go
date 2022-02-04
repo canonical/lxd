@@ -6904,7 +6904,27 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 		return nil, err
 	}
 
-	// Get Memory metrics
+	// Get Memory limit.
+	memoryLimit := int64(0)
+	memoryTotal, err := shared.DeviceTotalMemory()
+	if err != nil {
+		logger.Warn("Failed to get total memory", log.Ctx{"err": err})
+	} else {
+		// Get memory limit
+		limit, err := cg.GetMemoryLimit()
+		if err != nil || limit > memoryTotal {
+			// If the memory limit couldn't be determined, use the total memory.
+			// If the value of limit is larger than the total memory, there is no limit set.
+			// In this case, also use the total memory as the limit.
+			memoryLimit = memoryTotal
+		} else {
+			memoryLimit = limit
+		}
+	}
+
+	memoryCached := int64(0)
+
+	// Get memory stats.
 	memStats, err := cg.GetMemoryStats()
 	if err != nil {
 		logger.Warn("Failed to get memory stats", log.Ctx{"err": err})
@@ -6939,43 +6959,26 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 				metricType = metrics.MemoryShmemBytes
 			case "cache":
 				metricType = metrics.MemoryCachedBytes
+				memoryCached = int64(v)
 			}
 
 			out.AddSamples(metricType, metrics.Sample{Value: float64(v)})
 		}
 	}
 
+	// Get memory usage.
 	memoryUsage, err := cg.GetMemoryUsage()
 	if err != nil {
 		logger.Warn("Failed to get memory usage", log.Ctx{"err": err})
-	} else {
-		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: float64(memoryUsage)})
-	}
-
-	memoryLimit := int64(0)
-
-	// Get total memory
-	totalMemory, err := shared.DeviceTotalMemory()
-	if err != nil {
-		logger.Warn("Failed to get total memory", log.Ctx{"err": err})
-	} else {
-		// Get memory limit
-		limit, err := cg.GetMemoryLimit()
-		if err != nil || limit > totalMemory {
-			// If the memory limit couldn't be determined, use the total memory.
-			// If the value of limit is larger than the total memory, there is no limit set.
-			// In this case, also use the total memory as the limit.
-			memoryLimit = totalMemory
-		} else {
-			memoryLimit = limit
-		}
 	}
 
 	if memoryLimit > 0 {
-		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: float64(memoryLimit)})
+		out.AddSamples(metrics.MemoryMemTotalBytes, metrics.Sample{Value: float64(memoryLimit)})
+		out.AddSamples(metrics.MemoryMemAvailableBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage + memoryCached)})
 		out.AddSamples(metrics.MemoryMemFreeBytes, metrics.Sample{Value: float64(memoryLimit - memoryUsage)})
 	}
 
+	// Handle swap.
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		swapUsage, err := cg.GetMemorySwapUsage()
 		if err != nil {
