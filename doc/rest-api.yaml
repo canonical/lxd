@@ -877,7 +877,8 @@ definitions:
       aliases:
         description: Aliases to add to the image
         example:
-        - my-image
+        - name: foo
+        - name: bar
         items:
           $ref: '#/definitions/ImageAlias'
         type: array

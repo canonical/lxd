@@ -252,7 +252,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		}
 
 		metadata := shared.Jmap{"return": cmdResult}
-		err = op.UpdateMetadata(metadata)
+		err = op.ExtendMetadata(metadata)
 		if err != nil {
 			return err
 		}
@@ -687,7 +687,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 		metadata["return"] = exitStatus
 
-		err = op.UpdateMetadata(metadata)
+		err = op.ExtendMetadata(metadata)
 		if err != nil {
 			logger.Error("Error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
 		}

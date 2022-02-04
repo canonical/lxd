@@ -46,7 +46,7 @@ type ImagesPost struct {
 	CompressionAlgorithm string `json:"compression_algorithm" yaml:"compression_algorithm"`
 
 	// Aliases to add to the image
-	// Example: ["my-image"]
+	// Example: [{"name": "foo"}, {"name": "bar"}]
 	//
 	// API extension: image_create_aliases
 	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`

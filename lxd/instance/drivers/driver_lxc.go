@@ -7127,7 +7127,9 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 				realDev = dev["source"]
 			}
 		} else {
-			statfs, err = filesystem.StatVFS(dev["source"])
+			source := shared.HostPath(dev["source"])
+
+			statfs, err = filesystem.StatVFS(source)
 			if err != nil {
 				return nil, errors.Wrapf(err, "Failed to stat %s", dev["source"])
 			}
@@ -7136,7 +7138,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 			// Check if mountPath is in mountMap
 			for mountDev, mountInfo := range mountMap {
-				if mountInfo.Mountpoint != dev["source"] {
+				if mountInfo.Mountpoint != source {
 					continue
 				}
 
@@ -7144,7 +7146,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 				stat := unix.Stat_t{}
 
 				// Check if dev has a backing file
-				err = unix.Stat(dev["source"], &stat)
+				err = unix.Stat(source, &stat)
 				if err != nil {
 					return nil, errors.Wrapf(err, "Failed to stat %s", dev["source"])
 				}
