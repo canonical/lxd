@@ -306,7 +306,7 @@ func clusterMemberJoinTokenDecode(input string) (*api.ClusterMemberJoinToken, er
 	return &j, nil
 }
 
-// clusterMemberJoinTokenValid searches for cluster join token that matches the joint token provided.
+// clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
 	ops, err := operationsGetByType(d, r, projectName, db.OperationClusterJoinToken)
