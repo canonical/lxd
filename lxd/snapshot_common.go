@@ -21,6 +21,7 @@ var SnapshotScheduleAliases = map[string]string{
 	"@monthly":  "%s %s 1 * *",
 	"@annually": "%s %s 1 1 *",
 	"@yearly":   "%s %s 1 1 *",
+	"@never":    "",
 }
 
 func snapshotIsScheduledNow(spec string, subjectID int64) bool {
@@ -43,10 +44,16 @@ func buildCronSpecs(spec string, subjectID int64) []string {
 	if strings.Contains(spec, ", ") {
 		for _, curSpec := range util.SplitNTrimSpace(spec, ",", -1, true) {
 
-			result = append(result, getCronSyntax(curSpec, subjectID))
+			entry := getCronSyntax(curSpec, subjectID)
+			if entry != "" {
+				result = append(result, entry)
+			}
 		}
 	} else {
-		result = append(result, getCronSyntax(spec, subjectID))
+		entry := getCronSyntax(spec, subjectID)
+		if entry != "" {
+			result = append(result, entry)
+		}
 	}
 
 	return result
@@ -55,6 +62,10 @@ func buildCronSpecs(spec string, subjectID int64) []string {
 func getCronSyntax(spec string, subjectID int64) string {
 	alias, isAlias := SnapshotScheduleAliases[strings.ToLower(spec)]
 	if isAlias {
+		if alias == "@never" {
+			return ""
+		}
+
 		obfuscatedMinute, obfuscatedHour := getObfuscatedTimeValuesForSubject(subjectID)
 
 		if strings.Count(alias, "%s") > 1 {
