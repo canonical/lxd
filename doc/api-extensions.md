@@ -1605,3 +1605,6 @@ Introduces a new `zfs.blocksize` property for ZFS storage volumes which allows t
 
 ## metrics\_cpu\_seconds
 This is used to detect whether LXD was fixed to output used CPU time in seconds rather than as milliseconds.
+
+## instance\_snapshot\_never
+Adds a `@never` option to `snapshots.schedule` which allows disabling inheritance.
