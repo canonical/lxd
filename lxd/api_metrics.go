@@ -2,10 +2,12 @@ package main
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/metrics"
@@ -13,13 +15,20 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+type metricsCacheEntry struct {
+	metrics *metrics.MetricSet
+	expiry  time.Time
+}
+
+var metricsCache map[string]metricsCacheEntry
+var metricsCacheLock sync.Mutex
+var metricsLock sync.Mutex
+
 var metricsCmd = APIEndpoint{
 	Path: "metrics",
 
 	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowProjectPermission("containers", "view")},
 }
-
-var metricsGetBuilding bool
 
 // swagger:operation GET /1.0/metrics metrics metrics_get
 //
@@ -47,79 +56,139 @@ var metricsGetBuilding bool
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func metricsGet(d *Daemon, r *http.Request) response.Response {
-	// Prevent concurrent comparison/modification of metricsLastFetchedTime and access of d.metrics.
-	d.metricsMutex.Lock()
-
-	// Return cached metrics build in progress or if they have been built in the last 15 seconds.
-	if d.metrics != nil && (metricsGetBuilding || d.metricsLastBuildTime.Add(15*time.Second).After(time.Now())) {
-		metricsStr := d.metrics.String()
-		d.metricsMutex.Unlock()
-
-		return response.SyncResponsePlain(true, metricsStr)
-	}
-
-	// Start metrics build and release lock so other requests can access cached metrics whilst we build.
-	// Access to d.metricsLastBuildTime and d.metrics is forbidden from here on until we lock again later,
-	// so the new metrics set will be built locally and stored in d.metrics at the end.
-	metricsGetBuilding = true
-	d.metricsMutex.Unlock()
-
-	instances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	// Launch concurrent gather of metrics from instances.
-	instCount := 0
 	projectName := queryParam(r, "project")
-	metricsToMerge := make(chan *metrics.MetricSet)
 
-	for _, inst := range instances {
-		// If project has been specified, only consider only instances in this project
-		if projectName != "" && projectName != inst.Project() {
-			continue
-		}
+	// Figure out the projects to retrieve.
+	var projectNames []string
 
-		// Ignore stopped instances
-		if !inst.IsRunning() {
-			continue
-		}
-
-		instCount++
-
-		go func(inst instance.Instance) {
-			instanceMetrics, err := inst.Metrics()
+	if projectName != "" {
+		projectNames = []string{projectName}
+	} else {
+		// Get all projects.
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			projects, err := tx.GetProjects(db.ProjectFilter{})
 			if err != nil {
-				metricsToMerge <- nil
-				logger.Warn("Failed to get instance metrics", log.Ctx{"instance": inst.Name(), "project": inst.Project(), "err": err})
-				return
+				return err
 			}
 
-			// Send metrics for merging.
-			metricsToMerge <- instanceMetrics
-		}(inst)
+			for _, project := range projects {
+				projectNames = append(projectNames, project.Name)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
-	// Merge results into fresh local metrics set.
-	metrics := metrics.NewMetricSet(nil)
+	// Prepare response.
+	resp := metrics.NewMetricSet(nil)
 
-	for i := 0; i < instCount; i++ {
-		instanceMetrics := <-metricsToMerge
-		if instanceMetrics == nil {
+	// Review the cache.
+	metricsCacheLock.Lock()
+	projectMissing := []string{}
+	for _, project := range projectNames {
+		cache, ok := metricsCache[project]
+		if !ok || cache.expiry.Before(time.Now()) {
+			// If missing or expired, record it.
+			projectMissing = append(projectMissing, project)
 			continue
 		}
 
-		metrics.Merge(instanceMetrics)
+		// If present and valid, merge the existing data.
+		resp.Merge(cache.metrics)
+	}
+	metricsCacheLock.Unlock()
+
+	// If all valid, return immediately.
+	if len(projectMissing) == 0 {
+		return response.SyncResponsePlain(true, resp.String())
 	}
 
-	metricsStr := metrics.String()
+	// Acquire update lock.
+	metricsLock.Lock()
+	defer metricsLock.Unlock()
 
-	// Store freshly built metrics in cache.
-	d.metricsMutex.Lock()
-	d.metrics = metrics
-	d.metricsLastBuildTime = time.Now()
-	metricsGetBuilding = false
-	d.metricsMutex.Unlock()
+	// Check if any of the missing data has been filled in.
+	metricsCacheLock.Lock()
+	toFetch := []string{}
+	for _, project := range projectMissing {
+		cache, ok := metricsCache[project]
+		if !ok || cache.expiry.Before(time.Now()) {
+			// Still missing, queue a re-fetch.
+			toFetch = append(toFetch, project)
+			continue
+		}
 
-	return response.SyncResponsePlain(true, metricsStr)
+		// If present and valid, merge the existing data.
+		resp.Merge(cache.metrics)
+	}
+	metricsCacheLock.Unlock()
+
+	// If all valid, return immediately.
+	if len(toFetch) == 0 {
+		return response.SyncResponsePlain(true, resp.String())
+	}
+
+	// Prepare temporary metrics storage.
+	newMetrics := map[string]*metrics.MetricSet{}
+	newMetricsLock := sync.Mutex{}
+
+	// Fetch what's missing.
+	wgInstances := sync.WaitGroup{}
+	for _, project := range toFetch {
+		newMetrics[project] = metrics.NewMetricSet(nil)
+
+		// Get the instances.
+		instances, err := instanceLoadNodeProjectAll(d.State(), project, instancetype.Any)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, inst := range instances {
+			// Ignore stopped instances.
+			if !inst.IsRunning() {
+				continue
+			}
+
+			wgInstances.Add(1)
+			go func(inst instance.Instance) {
+				defer wgInstances.Done()
+
+				instanceMetrics, err := inst.Metrics()
+				if err != nil {
+					logger.Warn("Failed to get instance metrics", log.Ctx{"instance": inst.Name(), "project": inst.Project(), "err": err})
+					return
+				}
+
+				// Add the metrics.
+				newMetricsLock.Lock()
+				defer newMetricsLock.Unlock()
+
+				newMetrics[inst.Project()].Merge(instanceMetrics)
+			}(inst)
+		}
+	}
+
+	wgInstances.Wait()
+
+	// Put the new data in the global cache and in response.
+	metricsCacheLock.Lock()
+
+	if metricsCache == nil {
+		metricsCache = map[string]metricsCacheEntry{}
+	}
+
+	for project, entries := range newMetrics {
+		metricsCache[project] = metricsCacheEntry{
+			expiry:  time.Now().Add(15 * time.Second),
+			metrics: entries,
+		}
+
+		resp.Merge(entries)
+	}
+	metricsCacheLock.Unlock()
+
+	return response.SyncResponsePlain(true, resp.String())
 }
