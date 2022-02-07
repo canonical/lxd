@@ -1281,10 +1281,12 @@ func (d Xtables) InstanceSetupRPFilter(projectName string, instanceName string, 
 		return err
 	}
 
-	// IPv6 filter.
-	err = d.iptablesPrepend(6, comment, "raw", "PREROUTING", args...)
-	if err != nil {
-		return err
+	// IPv6 filter if IPv6 is enabled.
+	if shared.PathExists("/proc/sys/net/ipv6") {
+		err = d.iptablesPrepend(6, comment, "raw", "PREROUTING", args...)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

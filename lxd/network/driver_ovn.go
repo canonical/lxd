@@ -1171,19 +1171,21 @@ func (n *ovn) startUplinkPortBridgeNative(uplinkNet Network, bridgeDevice string
 	}
 
 	// Ensure correct sysctls are set on uplink veth interfaces to avoid getting IPv6 link-local addresses.
-	err := util.SysctlSet(
-		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.uplinkEnd), "1",
-		fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
-		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.uplinkEnd), "0",
-		fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to configure uplink veth interfaces %q and %q: %w", vars.uplinkEnd, vars.ovsEnd, err)
+	if shared.PathExists("/proc/sys/net/ipv6") {
+		err := util.SysctlSet(
+			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.uplinkEnd), "1",
+			fmt.Sprintf("net/ipv6/conf/%s/disable_ipv6", vars.ovsEnd), "1",
+			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.uplinkEnd), "0",
+			fmt.Sprintf("net/ipv6/conf/%s/forwarding", vars.ovsEnd), "0",
+		)
+		if err != nil {
+			return fmt.Errorf("Failed to configure uplink veth interfaces %q and %q: %w", vars.uplinkEnd, vars.ovsEnd, err)
+		}
 	}
 
 	// Connect uplink end of veth pair to uplink bridge and bring up.
 	link := &ip.Link{Name: vars.uplinkEnd}
-	err = link.SetMaster(bridgeDevice)
+	err := link.SetMaster(bridgeDevice)
 	if err != nil {
 		return fmt.Errorf("Failed to connect uplink veth interface %q to uplink bridge %q: %w", vars.uplinkEnd, bridgeDevice, err)
 	}
