@@ -473,7 +473,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Extract the certificate.
 	var cert *x509.Certificate
-	var name string
 	if req.Certificate != "" {
 		data, err := base64.StdEncoding.DecodeString(req.Certificate)
 		if err != nil {
@@ -484,7 +483,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.BadRequest(errors.Wrap(err, "invalid certificate material"))
 		}
-		name = req.Name
 	} else if r.TLS != nil {
 		if len(r.TLS.PeerCertificates) < 1 {
 			// This can happen if the client doesn't send a client certificate or if the server is in
@@ -493,18 +491,28 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
-
-		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		name = remoteHost
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
 
+	// Calculate the fingerprint.
 	fingerprint := shared.CertFingerprint(cert)
+
+	// Figure out a name.
+	name := req.Name
+	if name == "" {
+		// Try to pull the CN.
+		name = cert.Subject.CommonName
+		if name == "" {
+			// Fallback to the client's IP address.
+			remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			name = remoteHost
+		}
+	}
 
 	if !isClusterNotification(r) {
 		// Check if we already have the certificate.
