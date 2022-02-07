@@ -2,7 +2,9 @@ package drivers
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -797,7 +799,201 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 
 // RefreshVolume updates an existing volume to match the state of another.
 func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+	// Get target snapshots
+	targetSnapshots, err := vol.Snapshots(op)
+	if err != nil {
+		return fmt.Errorf("Failed to get target snapshots: %w", err)
+	}
+
+	srcSnapshotsAll, err := srcVol.Snapshots(op)
+	if err != nil {
+		return fmt.Errorf("Failed to get source snapshots: %w", err)
+	}
+
+	// If there are no target or source snapshots, perform a simple copy using zfs.
+	// We cannot use generic vfs volume copy here, as zfs will complain if a generic
+	// copy/refresh is followed by an optimized refresh.
+	if len(targetSnapshots) == 0 || len(srcSnapshotsAll) == 0 {
+		err = d.DeleteVolume(vol, op)
+		if err != nil {
+			return err
+		}
+
+		return d.CreateVolumeFromCopy(vol, srcVol, len(srcSnapshots) > 0, op)
+	}
+
+	transfer := func(src Volume, target Volume, origin Volume) error {
+		var sender *exec.Cmd
+
+		receiver := exec.Command("zfs", "receive", d.dataset(target, false))
+
+		if origin.Name() != src.Name() {
+			sender = exec.Command("zfs", "send", "-i", d.dataset(origin, false), d.dataset(src, false))
+		} else {
+			sender = exec.Command("zfs", "send", d.dataset(src, false))
+		}
+
+		var senderErrBuf bytes.Buffer
+		var receiverErrBuf bytes.Buffer
+
+		// Configure the pipes.
+		sender.Stderr = &senderErrBuf
+		receiver.Stdin, _ = sender.StdoutPipe()
+		receiver.Stdout = os.Stdout
+		receiver.Stderr = &receiverErrBuf
+
+		// Run the transfer.
+		err := receiver.Start()
+		if err != nil {
+			return fmt.Errorf("Failed to receive stream: %w", err)
+		}
+
+		err = sender.Run()
+		if err != nil {
+			// This removes any newlines in the error message.
+			msg := strings.ReplaceAll(senderErrBuf.String(), "\n", " ")
+
+			return fmt.Errorf("Failed to send stream %q: %s: %w", sender.String(), msg, err)
+		}
+
+		err = receiver.Wait()
+		if err != nil {
+			// This removes any newlines in the error message.
+			msg := strings.ReplaceAll(receiverErrBuf.String(), "\n", " ")
+
+			if strings.Contains(msg, "does not match incremental source") {
+				return ErrSnapshotDoesNotMatchIncrementalSource
+			}
+
+			return fmt.Errorf("Failed to wait for receiver: %s: %w", msg, err)
+		}
+
+		return nil
+	}
+
+	// This represents the most recent identical snapshot of the source volume and target volume.
+	lastIdenticalSnapshot := targetSnapshots[len(targetSnapshots)-1]
+	_, lastIdenticalSnapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(lastIdenticalSnapshot.Name())
+
+	// Rollback target volume to the latest identical snapshot
+	err = d.RestoreVolume(vol, lastIdenticalSnapshotOnlyName, op)
+	if err != nil {
+		return fmt.Errorf("Failed to restore volume: %w", err)
+	}
+
+	// Create all missing snapshots on the target using an incremental stream
+	for i, snap := range srcSnapshots {
+		var originSnap Volume
+
+		if i == 0 {
+			originSnap, err = srcVol.NewSnapshot(lastIdenticalSnapshotOnlyName)
+			if err != nil {
+				return fmt.Errorf("Failed to create new snapshot volume: %w", err)
+			}
+		} else {
+			originSnap = srcSnapshots[i-1]
+		}
+
+		err = transfer(snap, vol, originSnap)
+		if err != nil {
+			// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
+			// refresh instead.
+			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
+				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+				return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+			}
+
+			return fmt.Errorf("Failed to transfer snapshot %q: %w", snap.name, err)
+		}
+
+		if snap.IsVMBlock() {
+			srcFSVol := snap.NewVMBlockFilesystemVolume()
+			targetFSVol := vol.NewVMBlockFilesystemVolume()
+			originFSVol := originSnap.NewVMBlockFilesystemVolume()
+
+			err = transfer(srcFSVol, targetFSVol, originFSVol)
+			if err != nil {
+				// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
+				// refresh instead.
+				if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
+					d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+					return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+				}
+
+				return fmt.Errorf("Failed to transfer snapshot %q: %w", snap.name, err)
+			}
+		}
+	}
+
+	// Create temporary snapshot of the source volume.
+	snapUUID := uuid.New()
+
+	srcSnap, err := srcVol.NewSnapshot(snapUUID)
+	if err != nil {
+		return err
+	}
+
+	err = d.CreateVolumeSnapshot(srcSnap, op)
+	if err != nil {
+		return err
+	}
+
+	latestSnapVol := srcSnapshotsAll[len(srcSnapshotsAll)-1]
+
+	err = transfer(srcSnap, vol, latestSnapVol)
+	if err != nil {
+		// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
+		// refresh instead.
+		if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
+			d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+			return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+		}
+
+		return fmt.Errorf("Failed to transfer main volume: %w", err)
+	}
+
+	if srcSnap.IsVMBlock() {
+		srcFSVol := srcSnap.NewVMBlockFilesystemVolume()
+		targetFSVol := vol.NewVMBlockFilesystemVolume()
+		originFSVol := latestSnapVol.NewVMBlockFilesystemVolume()
+
+		err = transfer(srcFSVol, targetFSVol, originFSVol)
+		if err != nil {
+			// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
+			// refresh instead.
+			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
+				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+				return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+			}
+
+			return fmt.Errorf("Failed to transfer main volume: %w", err)
+		}
+	}
+
+	// Restore target volume from main source snapshot.
+	err = d.RestoreVolume(vol, snapUUID, op)
+	if err != nil {
+		return err
+	}
+
+	// Delete temporary source snapshot.
+	err = d.DeleteVolumeSnapshot(srcSnap, op)
+	if err != nil {
+		return err
+	}
+
+	// Delete temporary target snapshot.
+	targetSnap, err := vol.NewSnapshot(snapUUID)
+	if err != nil {
+		return err
+	}
+
+	err = d.DeleteVolumeSnapshot(targetSnap, op)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
