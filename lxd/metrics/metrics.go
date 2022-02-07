@@ -119,6 +119,11 @@ func (m *MetricSet) String() string {
 		}
 	}
 
+	_, err := out.WriteString("# EOF\n")
+	if err != nil {
+		return ""
+	}
+
 	return out.String()
 }
 
