@@ -10,10 +10,12 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/pborman/uuid"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
@@ -586,7 +588,137 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 
 // RefreshVolume provides same-pool volume and specific snapshots syncing functionality.
 func (d *btrfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op *operations.Operation) error {
-	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+	// Get target snapshots
+	targetSnapshots, err := d.volumeSnapshotsSorted(vol, op)
+	if err != nil {
+		return fmt.Errorf("Failed to get target snapshots: %w", err)
+	}
+
+	srcSnapshotsAll, err := d.volumeSnapshotsSorted(srcVol, op)
+	if err != nil {
+		return fmt.Errorf("Failed to get source snapshots: %w", err)
+	}
+
+	// Optimized refresh only makes sense if the source and target have at least one identical snapshot,
+	// as btrfs can then use an incremental streams instead of just copying the datasets.
+	if len(targetSnapshots) == 0 || len(srcSnapshotsAll) == 0 {
+		d.logger.Debug("Performing generic volume refresh")
+		return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
+	}
+
+	d.logger.Debug("Performing optimized volume refresh")
+
+	transfer := func(src Volume, target Volume, origin Volume) error {
+		var sender *exec.Cmd
+
+		srcSubvolPath := filepath.Join(GetPoolMountPath(src.pool), fmt.Sprintf("%s-snapshots/%s", src.volType, src.name))
+		targetSubvolPath := filepath.Join(GetPoolMountPath(target.pool), fmt.Sprintf("%s-snapshots/%s", target.volType, target.name))
+		originSubvolPath := filepath.Join(GetPoolMountPath(origin.pool), fmt.Sprintf("%s-snapshots/%s", origin.volType, origin.name))
+
+		receiver := exec.Command("btrfs", "receive", targetSubvolPath)
+		sender = exec.Command("btrfs", "send", "-p", originSubvolPath, srcSubvolPath)
+
+		// Configure the pipes.
+		receiver.Stdin, _ = sender.StdoutPipe()
+		receiver.Stdout = os.Stdout
+		receiver.Stderr = os.Stderr
+
+		// Run the transfer.
+		err = receiver.Start()
+		if err != nil {
+			return fmt.Errorf("Failed to receive stream: %w", err)
+		}
+
+		err = sender.Run()
+		if err != nil {
+			return fmt.Errorf("Failed to send stream %q: %w", sender.String(), err)
+		}
+
+		err = receiver.Wait()
+		if err != nil {
+			return fmt.Errorf("Failed to wait for receiver: %w", err)
+		}
+
+		return nil
+	}
+
+	// Before refreshing a volume, all extra snapshots (those which exist on the target but
+	// not on the source) are removed. Therefore, the last entry in targetSnapshots represents the
+	// most recent identical snapshot of the source volume and target volume.
+	lastIdenticalSnapshot := targetSnapshots[len(targetSnapshots)-1]
+
+	for i, snap := range srcSnapshots {
+		var srcSnap Volume
+
+		if i == 0 {
+			srcSnap, err = srcVol.NewSnapshot(lastIdenticalSnapshot)
+			if err != nil {
+				return fmt.Errorf("Failed to create new snapshot volume: %w", err)
+			}
+		} else {
+			srcSnap = srcSnapshots[i-1]
+		}
+
+		err = transfer(snap, vol, srcSnap)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create temporary snapshot of the source volume.
+	snapUUID := uuid.New()
+
+	srcSnap, err := srcVol.NewSnapshot(snapUUID)
+	if err != nil {
+		return err
+	}
+
+	err = d.CreateVolumeSnapshot(srcSnap, op)
+	if err != nil {
+		return err
+	}
+
+	// Transfer temporary snapshot to target; this creates a new snapshot for target.
+	parentSnap, err := srcVol.NewSnapshot(srcSnapshotsAll[len(srcSnapshotsAll)-1])
+	if err != nil {
+		return err
+	}
+
+	err = transfer(srcSnap, vol, parentSnap)
+	if err != nil {
+		return err
+	}
+
+	err = d.DeleteVolumeSnapshot(srcSnap, op)
+	if err != nil {
+		return err
+	}
+
+	err = d.deleteSubvolume(vol.MountPath(), false)
+	if err != nil {
+		return err
+	}
+
+	targetSnap, err := vol.NewSnapshot(snapUUID)
+	if err != nil {
+		return err
+	}
+
+	// Set readonly to false on the temporary snapshot, otherwise moving/renaming it won't be
+	// possible.
+	err = d.setSubvolumeReadonlyProperty(targetSnap.MountPath(), false)
+	if err != nil {
+		return err
+	}
+
+	// Rename temporary target snapshot to the actual target,
+	// e.g. containers-snapshots/c2/<uuid> -> containers/c2.
+	err = os.Rename(targetSnap.MountPath(), vol.MountPath())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteVolume deletes a volume of the storage device. If any snapshots of the volume remain then
@@ -1419,9 +1551,9 @@ func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string,
 // volumeSnapshotsSorted returns a list of snapshots for the volume (ordered by subvolume ID).
 // Since the subvolume ID is incremental, this also represents the order of creation.
 func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]string, error) {
-	args := []string{"subvolume", "list", GetPoolMountPath(vol.pool)}
+	stdout := bytes.Buffer{}
 
-	output, err := shared.RunCommand("btrfs", args...)
+	err := shared.RunCommandWithFds(nil, &stdout, "btrfs", "subvolume", "list", GetPoolMountPath(vol.pool))
 	if err != nil {
 		return nil, err
 	}
