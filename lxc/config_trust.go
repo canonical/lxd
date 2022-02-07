@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -135,7 +136,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	if c.flagName != "" {
 		name = c.flagName
 	} else {
-		name, _ = shared.SplitExt(fname)
+		name = filepath.Base(fname)
 	}
 
 	// Add trust relationship.
