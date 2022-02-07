@@ -329,12 +329,6 @@ func RandomCryptoString() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-func SplitExt(fpath string) (string, string) {
-	b := path.Base(fpath)
-	ext := path.Ext(fpath)
-	return b[:len(b)-len(ext)], ext
-}
-
 func AtoiEmptyDefault(s string, def int) (int, error) {
 	if s == "" {
 		return def, nil
