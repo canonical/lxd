@@ -5,6 +5,7 @@ package shared
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -453,12 +453,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 
 	ch := make(chan ([]byte))
 
-	// Takes care that the closeChannel() function is exactly executed once.
-	// This allows us to avoid using a mutex.
-	var once sync.Once
-	closeChannel := func() {
-		close(ch)
-	}
+	channelCtx, channelCancel := context.WithCancel(context.Background())
 
 	// [1]: This function has just one job: Dealing with the case where we
 	// are running an interactive shell session where we put a process in
@@ -479,27 +474,25 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 
 		atomic.StoreInt32(&attachedChildIsDead, 1)
 
+		defer channelCancel()
+
 		ret, revents, err := GetPollRevents(fd, 0, (unix.POLLIN | unix.POLLPRI | unix.POLLERR | unix.POLLHUP | unix.POLLRDHUP | unix.POLLNVAL))
 		if ret < 0 {
 			logger.Errorf("Failed to poll(POLLIN | POLLPRI | POLLHUP | POLLRDHUP) on file descriptor: %s.", err)
 			// Something went wrong so let's exited otherwise we
 			// end up in an endless loop.
-			once.Do(closeChannel)
 		} else if ret > 0 {
 			if (revents & unix.POLLERR) > 0 {
 				logger.Warnf("Detected poll(POLLERR) event.")
 				// Read end has likely been closed so again,
 				// avoid an endless loop.
-				once.Do(closeChannel)
 			} else if (revents & unix.POLLNVAL) > 0 {
 				logger.Warnf("Detected poll(POLLNVAL) event.")
 				// Well, someone closed the fd havent they? So
 				// let's go home.
-				once.Do(closeChannel)
 			}
 		} else if ret == 0 {
 			logger.Debugf("No data in stdout: exiting.")
-			once.Do(closeChannel)
 		}
 	}()
 
@@ -509,7 +502,8 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 		buf := make([]byte, bufferSize)
 		avoidAtomicLoad := false
 
-		defer once.Do(closeChannel)
+		defer close(ch)
+		defer channelCancel()
 		for {
 			nr := 0
 			var err error
@@ -610,6 +604,12 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 			// been buffered.
 			if ((revents & (unix.POLLHUP | unix.POLLRDHUP)) > 0) && !both {
 				logger.Debugf("Detected poll(POLLHUP) event: exiting.")
+				return
+			}
+
+			// Check if channel is closed before potentially writing to it below.
+			if channelCtx.Err() != nil {
+				logger.Debug("Detected closed channel: exiting")
 				return
 			}
 
