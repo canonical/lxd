@@ -182,7 +182,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 	for project, entries := range newMetrics {
 		metricsCache[project] = metricsCacheEntry{
-			expiry:  time.Now().Add(15 * time.Second),
+			expiry:  time.Now().Add(8 * time.Second),
 			metrics: entries,
 		}
 
