@@ -46,7 +46,6 @@ import (
 	instanceDrivers "github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/maas"
-	"github.com/lxc/lxd/lxd/metrics"
 	networkZone "github.com/lxc/lxd/lxd/network/zone"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -124,12 +123,6 @@ type Daemon struct {
 	shutdownCtx    context.Context    // Cancelled when shutdown starts.
 	shutdownCancel context.CancelFunc // Cancels the shutdownCtx to indicate shutdown starting.
 	shutdownDoneCh chan error         // Receives the result of the d.Stop() function and tells LXD to end.
-
-	// Stores the time the metrics were last fetched. This will be used to prevent stressing the instances too much.
-	metricsLastBuildTime time.Time
-	// Cached metrics which are returned instead of querying all instances.
-	metrics      *metrics.MetricSet
-	metricsMutex sync.Mutex
 
 	// Device monitor for watching filesystem events
 	devmonitor devmonitor.FSMonitor
