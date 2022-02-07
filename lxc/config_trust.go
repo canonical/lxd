@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -100,7 +101,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 	if c.flagName != "" {
 		name = c.flagName
 	} else {
-		name, _ = shared.SplitExt(fname)
+		name = filepath.Base(fname)
 	}
 
 	// Add trust relationship.
