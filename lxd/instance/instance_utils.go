@@ -38,7 +38,7 @@ import (
 )
 
 // ValidDevices is linked from instance/drivers.validDevices to validate device config.
-var ValidDevices func(state *state.State, cluster *db.Cluster, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
+var ValidDevices func(state *state.State, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
 
 // Load is linked from instance/drivers.load to allow different instance types to be loaded.
 var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
@@ -926,7 +926,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 	}
 
 	// Validate container devices with the supplied container name and devices.
-	err = ValidDevices(s, s.Cluster, args.Project, args.Type, args.Devices, false)
+	err = ValidDevices(s, args.Project, args.Type, args.Devices, false)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Invalid devices")
 	}
