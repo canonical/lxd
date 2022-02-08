@@ -977,15 +977,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			return err
 		}
 
-		// TODO: this check should probably be performed by the db package itself.
-		exists, err := tx.ProjectExists(args.Project)
-		if err != nil {
-			return errors.Wrapf(err, "Check if project %q exists", args.Project)
-		}
-		if !exists {
-			return fmt.Errorf("Project %q does not exist", args.Project)
-		}
-
 		devices, err := db.APIToDevices(args.Devices.CloneNative())
 		if err != nil {
 			return err
