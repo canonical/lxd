@@ -836,9 +836,16 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceType(urlType.String())
 	}
 
+	var p *db.Project
+
 	targetNode := queryParam(r, "target")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		return project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
+		p, err = tx.GetProject(targetProject)
+		if err != nil {
+			return fmt.Errorf("Failed loading project: %w", err)
+		}
+
+		return project.CheckClusterTargetRestriction(tx, r, p, targetNode)
 	})
 	if err != nil {
 		return response.SmartError(err)
@@ -861,11 +868,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 		if strings.HasPrefix(targetNode, "@") {
 			group = strings.TrimPrefix(targetNode, "@")
-		}
-
-		p, err := d.cluster.GetProject(targetProject)
-		if err != nil {
-			return response.SmartError(err)
 		}
 
 		// Load restricted groups from project.
