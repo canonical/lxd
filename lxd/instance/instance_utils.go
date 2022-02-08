@@ -919,7 +919,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 		args.ExpiryDate = time.Time{}
 	}
 
-	// Validate container config.
+	// Validate instance config.
 	err = ValidConfig(s.OS, args.Config, false, args.Type)
 	if err != nil {
 		return nil, nil, err
