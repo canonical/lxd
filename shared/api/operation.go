@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -66,4 +67,50 @@ type Operation struct {
 	//
 	// API extension: operation_location
 	Location string `json:"location" yaml:"location"`
+}
+
+// ToCertificateAddToken creates a certificate add token from the operation metadata.
+func (op *Operation) ToCertificateAddToken() (*CertificateAddToken, error) {
+	req, ok := op.Metadata["request"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("Operation request is type %T not map[string]interface{}", op.Metadata["request"])
+	}
+
+	clientName, ok := req["name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Failed to get client name")
+	}
+
+	secret, ok := op.Metadata["secret"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Operation secret is type %T not string", op.Metadata["secret"])
+	}
+
+	fingerprint, ok := op.Metadata["fingerprint"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Operation fingerprint is type %T not string", op.Metadata["fingerprint"])
+	}
+
+	addresses, ok := op.Metadata["addresses"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("Operation addresses is type %T not []interface{}", op.Metadata["addresses"])
+	}
+
+	joinToken := CertificateAddToken{
+		ClientName:  clientName,
+		Secret:      secret,
+		Fingerprint: fingerprint,
+		Addresses:   make([]string, 0, len(addresses)),
+	}
+
+	for i, address := range addresses {
+		addressString, ok := address.(string)
+		if !ok {
+			return nil, fmt.Errorf("Operation address index %d is type %T not string", i, address)
+		}
+
+		joinToken.Addresses = append(joinToken.Addresses, addressString)
+	}
+
+	return &joinToken, nil
 }
