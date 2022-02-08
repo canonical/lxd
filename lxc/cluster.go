@@ -790,7 +790,7 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		opAPI := op.Get()
-		joinToken, err := clusterJoinTokenOperationToAPI(&opAPI)
+		joinToken, err := opAPI.ToClusterJoinToken()
 		if err != nil {
 			return errors.Wrapf(err, "Failed converting token operation to join token")
 		}
@@ -875,7 +875,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
 		}
 
-		joinToken, err := clusterJoinTokenOperationToAPI(&op)
+		joinToken, err := op.ToClusterJoinToken()
 		if err != nil {
 			continue // Operation is not a valid cluster member join token operation.
 		}
@@ -957,7 +957,7 @@ func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
 		}
 
-		joinToken, err := clusterJoinTokenOperationToAPI(&op)
+		joinToken, err := op.ToClusterJoinToken()
 		if err != nil {
 			continue // Operation is not a valid cluster member join token operation.
 		}
