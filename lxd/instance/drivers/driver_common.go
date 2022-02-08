@@ -432,20 +432,6 @@ func (d *common) expandConfig(profiles []api.Profile) error {
 	}
 
 	d.expandedConfig = db.ExpandInstanceConfig(d.localConfig, profiles)
-
-	return nil
-}
-
-// expandDevices applies the devices of each profile in order, followed by the local devices.
-func (d *common) expandDevices(profiles []api.Profile) error {
-	if profiles == nil && len(d.profiles) > 0 {
-		var err error
-		profiles, err = d.state.Cluster.GetProfiles(d.project, d.profiles)
-		if err != nil {
-			return err
-		}
-	}
-
 	d.expandedDevices = db.ExpandInstanceDevices(d.localDevices, profiles)
 
 	return nil

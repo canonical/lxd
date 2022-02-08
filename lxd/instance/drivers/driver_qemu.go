@@ -102,11 +102,6 @@ func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (ins
 		return nil, err
 	}
 
-	err = d.expandDevices(profiles)
-	if err != nil {
-		return nil, err
-	}
-
 	return d, nil
 }
 
@@ -3923,12 +3918,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Expand the config.
 	err = d.expandConfig(nil)
 	if err != nil {
-		return errors.Wrap(err, "Expand config")
-	}
-
-	err = d.expandDevices(nil)
-	if err != nil {
-		return errors.Wrap(err, "Expand devices")
+		return err
 	}
 
 	// Diff the configurations.
@@ -4425,11 +4415,6 @@ func (d *qemu) cleanupDevices() {
 func (d *qemu) init() error {
 	// Compute the expanded config and device list.
 	err := d.expandConfig(nil)
-	if err != nil {
-		return err
-	}
-
-	err = d.expandDevices(nil)
 	if err != nil {
 		return err
 	}
