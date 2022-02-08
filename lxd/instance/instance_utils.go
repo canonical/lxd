@@ -925,11 +925,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 		return nil, nil, err
 	}
 
-	// Validate container devices with the supplied container name and devices.
-	err = ValidDevices(s, args.Project, args.Type, args.Devices, false)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Invalid devices")
-	}
+	// Leave validating devices to Create function call below.
 
 	// Validate architecture.
 	_, err = osarch.ArchitectureName(args.Architecture)
