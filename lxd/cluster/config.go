@@ -153,6 +153,11 @@ func (c *Config) ShutdownTimeout() time.Duration {
 	return time.Duration(n) * time.Minute
 }
 
+// ImagesDefaultArchitecture returns the default architecture.
+func (c *Config) ImagesDefaultArchitecture() string {
+	return c.m.GetString("images.default_architecture")
+}
+
 // Dump current configuration keys and their values. Keys with values matching
 // their defaults are omitted.
 func (c *Config) Dump() map[string]interface{} {
