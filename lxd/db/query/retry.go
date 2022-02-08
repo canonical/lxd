@@ -31,15 +31,16 @@ func Retry(f func() error) error {
 			}
 
 			// Process actual errors.
-			logger.Debugf("Database error: %#v", err)
 			if IsRetriableError(err) {
 				if i == maxRetries {
-					logger.Warnf("Give up retrying database error: %v", err)
+					logger.Warn("Database error, giving up", "attempt", i, "err", err)
 					break
 				}
-				logger.Debugf("Retry failed db interaction (%v)", err)
+				logger.Debug("Database error, retrying", "attempt", i, "err", err)
 				time.Sleep(jitter.Deviation(nil, 0.8)(100 * time.Millisecond))
 				continue
+			} else {
+				logger.Debug("Database error", "err", err)
 			}
 		}
 		break

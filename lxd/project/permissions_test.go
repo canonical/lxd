@@ -168,9 +168,12 @@ func TestCheckClusterTargetRestriction_RestrictedTrue(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	p, err := tx.GetProject("p1")
+	require.NoError(t, err)
+
 	req := &http.Request{}
 
-	err = project.CheckClusterTargetRestriction(tx, req, "p1", "n1")
+	err = project.CheckClusterTargetRestriction(tx, req, p, "n1")
 	assert.EqualError(t, err, "This project doesn't allow cluster member targeting")
 }
 
@@ -188,8 +191,11 @@ func TestCheckClusterTargetRestriction_RestrictedFalse(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	p, err := tx.GetProject("p1")
+	require.NoError(t, err)
+
 	req := &http.Request{}
 
-	err = project.CheckClusterTargetRestriction(tx, req, "p1", "n1")
+	err = project.CheckClusterTargetRestriction(tx, req, p, "n1")
 	assert.NoError(t, err)
 }

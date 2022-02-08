@@ -38,7 +38,7 @@ import (
 )
 
 // ValidDevices is linked from instance/drivers.validDevices to validate device config.
-var ValidDevices func(state *state.State, cluster *db.Cluster, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
+var ValidDevices func(state *state.State, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error
 
 // Load is linked from instance/drivers.load to allow different instance types to be loaded.
 var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Instance, error)
@@ -919,17 +919,13 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 		args.ExpiryDate = time.Time{}
 	}
 
-	// Validate container config.
+	// Validate instance config.
 	err = ValidConfig(s.OS, args.Config, false, args.Type)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Validate container devices with the supplied container name and devices.
-	err = ValidDevices(s, s.Cluster, args.Project, args.Type, args.Devices, false)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Invalid devices")
-	}
+	// Leave validating devices to Create function call below.
 
 	// Validate architecture.
 	_, err = osarch.ArchitectureName(args.Architecture)
@@ -975,15 +971,6 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 		node, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
-		}
-
-		// TODO: this check should probably be performed by the db package itself.
-		exists, err := tx.ProjectExists(args.Project)
-		if err != nil {
-			return errors.Wrapf(err, "Check if project %q exists", args.Project)
-		}
-		if !exists {
-			return fmt.Errorf("Project %q does not exist", args.Project)
 		}
 
 		devices, err := db.APIToDevices(args.Devices.CloneNative())

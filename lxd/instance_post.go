@@ -109,8 +109,13 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return errors.Wrap(err, "Failed to load LXD config")
 			}
 
+			p, err := tx.GetProject(projectName)
+			if err != nil {
+				return fmt.Errorf("Failed loading project: %w", err)
+			}
+
 			// Check if user is allowed to use cluster member targeting
-			err = project.CheckClusterTargetRestriction(tx, r, projectName, targetNode)
+			err = project.CheckClusterTargetRestriction(tx, r, p, targetNode)
 			if err != nil {
 				return err
 			}

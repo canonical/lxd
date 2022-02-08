@@ -197,7 +197,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]str
 		return nil, errors.Wrap(err, "Invalid config")
 	}
 
-	err = instance.ValidDevices(s, s.Cluster, d.Project(), d.Type(), d.expandedDevices, true)
+	err = instance.ValidDevices(s, d.Project(), d.Type(), d.expandedDevices, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
@@ -297,14 +297,9 @@ func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]str
 		jsonIdmap = "[]"
 	}
 
-	err = d.VolatileSet(map[string]string{"volatile.idmap.next": jsonIdmap})
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.VolatileSet(map[string]string{"volatile.idmap.base": fmt.Sprintf("%v", base)})
-	if err != nil {
-		return nil, err
+	v := map[string]string{
+		"volatile.idmap.next": jsonIdmap,
+		"volatile.idmap.base": fmt.Sprintf("%v", base),
 	}
 
 	// Invalid idmap cache.
@@ -312,10 +307,12 @@ func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]str
 
 	// Set last_state if not currently set.
 	if d.localConfig["volatile.last_state.idmap"] == "" {
-		err = d.VolatileSet(map[string]string{"volatile.last_state.idmap": "[]"})
-		if err != nil {
-			return nil, err
-		}
+		v["volatile.last_state.idmap"] = "[]"
+	}
+
+	err = d.VolatileSet(v)
+	if err != nil {
+		return nil, err
 	}
 
 	// Re-run init to update the idmap.
@@ -365,11 +362,6 @@ func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (inst
 
 	// Expand config and devices
 	err := d.(*lxc).expandConfig(profiles)
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.(*lxc).expandDevices(profiles)
 	if err != nil {
 		return nil, err
 	}
@@ -641,11 +633,6 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 func (d *lxc) init() error {
 	// Compute the expanded config and device list
 	err := d.expandConfig(nil)
-	if err != nil {
-		return err
-	}
-
-	err = d.expandDevices(nil)
 	if err != nil {
 		return err
 	}
@@ -3953,7 +3940,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(d.state, d.state.Cluster, d.Project(), d.Type(), args.Devices, false)
+		err = instance.ValidDevices(d.state, d.Project(), d.Type(), args.Devices, false)
 		if err != nil {
 			return errors.Wrap(err, "Invalid devices")
 		}
@@ -4067,12 +4054,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Expand the config and refresh the LXC config
 	err = d.expandConfig(nil)
 	if err != nil {
-		return errors.Wrap(err, "Expand config")
-	}
-
-	err = d.expandDevices(nil)
-	if err != nil {
-		return errors.Wrap(err, "Expand devices")
+		return err
 	}
 
 	// Diff the configurations
@@ -4120,7 +4102,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(d.state, d.state.Cluster, d.Project(), d.Type(), d.expandedDevices, true)
+		err = instance.ValidDevices(d.state, d.Project(), d.Type(), d.expandedDevices, true)
 		if err != nil {
 			return errors.Wrap(err, "Invalid expanded devices")
 		}

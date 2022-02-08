@@ -1404,15 +1404,10 @@ func projectHasRestriction(project *db.Project, restrictionKey string, blockValu
 }
 
 // CheckClusterTargetRestriction check if user is allowed to use cluster member targeting
-func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, projectName string, targetFlag string) error {
+func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, project *db.Project, targetFlag string) error {
 	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
 	if rbac.UserIsAdmin(r) {
 		return nil
-	}
-
-	project, err := tx.GetProject(projectName)
-	if err != nil {
-		return fmt.Errorf("Fetch project database object")
 	}
 
 	if projectHasRestriction(project, "restricted.cluster.target", "block") && targetFlag != "" {
