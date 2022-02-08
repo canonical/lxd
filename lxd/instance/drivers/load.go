@@ -62,7 +62,7 @@ func load(s *state.State, args db.InstanceArgs, profiles []api.Profile) (instanc
 }
 
 // validDevices validate instance device configs.
-func validDevices(state *state.State, cluster *db.Cluster, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
+func validDevices(state *state.State, projectName string, instanceType instancetype.Type, devices deviceConfig.Devices, expanded bool) error {
 	// Empty device list
 	if devices == nil {
 		return nil
