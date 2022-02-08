@@ -122,7 +122,7 @@ type ClusterMemberJoinToken struct {
 	Secret string `json:"secret" yaml:"secret"`
 }
 
-// String encodes the cluster member join token as JSON and then Base64.
+// String encodes the cluster member join token as JSON and then base64.
 func (t *ClusterMemberJoinToken) String() string {
 	joinTokenJSON, err := json.Marshal(t)
 	if err != nil {

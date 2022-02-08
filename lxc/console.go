@@ -312,11 +312,13 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 				err = connect(conn)
 				if err != nil {
 					sendDisconnect <- true
+					return
 				}
 
 				count--
 				if count == 0 {
 					sendDisconnect <- true
+					return
 				}
 			}(conn)
 		}
