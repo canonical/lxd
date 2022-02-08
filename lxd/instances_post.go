@@ -854,12 +854,6 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// If no storage pool is found, error out.
-	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil || len(pools) == 0 {
-		return response.BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
-	}
-
 	if req.Devices == nil {
 		req.Devices = map[string]map[string]string{}
 	}
