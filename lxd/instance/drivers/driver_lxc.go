@@ -366,11 +366,6 @@ func lxcLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (inst
 		return nil, err
 	}
 
-	err = d.(*lxc).expandDevices(profiles)
-	if err != nil {
-		return nil, err
-	}
-
 	return d, nil
 }
 
@@ -638,11 +633,6 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 func (d *lxc) init() error {
 	// Compute the expanded config and device list
 	err := d.expandConfig(nil)
-	if err != nil {
-		return err
-	}
-
-	err = d.expandDevices(nil)
 	if err != nil {
 		return err
 	}
@@ -4064,12 +4054,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	// Expand the config and refresh the LXC config
 	err = d.expandConfig(nil)
 	if err != nil {
-		return errors.Wrap(err, "Expand config")
-	}
-
-	err = d.expandDevices(nil)
-	if err != nil {
-		return errors.Wrap(err, "Expand devices")
+		return err
 	}
 
 	// Diff the configurations
