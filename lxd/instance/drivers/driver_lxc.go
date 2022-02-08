@@ -293,14 +293,9 @@ func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]str
 		jsonIdmap = "[]"
 	}
 
-	err = d.VolatileSet(map[string]string{"volatile.idmap.next": jsonIdmap})
-	if err != nil {
-		return nil, err
-	}
-
-	err = d.VolatileSet(map[string]string{"volatile.idmap.base": fmt.Sprintf("%v", base)})
-	if err != nil {
-		return nil, err
+	v := map[string]string{
+		"volatile.idmap.next": jsonIdmap,
+		"volatile.idmap.base": fmt.Sprintf("%v", base),
 	}
 
 	// Invalid idmap cache.
@@ -308,10 +303,12 @@ func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]str
 
 	// Set last_state if not currently set.
 	if d.localConfig["volatile.last_state.idmap"] == "" {
-		err = d.VolatileSet(map[string]string{"volatile.last_state.idmap": "[]"})
-		if err != nil {
-			return nil, err
-		}
+		v["volatile.last_state.idmap"] = "[]"
+	}
+
+	err = d.VolatileSet(v)
+	if err != nil {
+		return nil, err
 	}
 
 	// Re-run init to update the idmap.
