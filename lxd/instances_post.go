@@ -783,12 +783,12 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancesPost(d *Daemon, r *http.Request) response.Response {
-	targetProject := projectParam(r)
+	targetProjectName := projectParam(r)
 	logger.Debugf("Responding to instance create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(d, r, targetProject, r.Body, r.Header.Get("X-LXD-pool"), "")
+		return createFromBackup(d, r, targetProjectName, r.Body, r.Header.Get("X-LXD-pool"), "")
 	}
 
 	// Parse the request
@@ -815,7 +815,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		// the selected node is the local one, this is effectively a
 		// no-op, since GetNodeWithLeastInstances() will return an empty
 		// string.
-		architectures, err := instance.SuitableArchitectures(d.State(), targetProject, req)
+		architectures, err := instance.SuitableArchitectures(d.State(), targetProjectName, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -840,7 +840,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 
-			client = client.UseProject(targetProject)
+			client = client.UseProject(targetProjectName)
 			client = client.UseTarget(targetNode)
 
 			logger.Debugf("Forward instance post request to %s", address)
@@ -850,7 +850,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			opAPI := op.Get()
-			return operations.ForwardedOperationResponse(targetProject, &opAPI)
+			return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
 		}
 	}
 
@@ -893,7 +893,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if req.Source.Project == "" {
-					req.Source.Project = targetProject
+					req.Source.Project = targetProjectName
 				}
 
 				source, err := instance.LoadInstanceDatabaseObject(tx, req.Source.Project, req.Source.Source)
@@ -907,13 +907,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err := project.AllowInstanceCreation(tx, targetProject, req)
+		err := project.AllowInstanceCreation(tx, targetProjectName, req)
 		if err != nil {
 			return err
 		}
 
 		if req.Name == "" {
-			names, err := tx.GetInstanceNames(targetProject)
+			names, err := tx.GetInstanceNames(targetProjectName)
 			if err != nil {
 				return err
 			}
@@ -941,13 +941,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, r, targetProject, &req)
+		return createFromImage(d, r, targetProjectName, &req)
 	case "none":
-		return createFromNone(d, r, targetProject, &req)
+		return createFromNone(d, r, targetProjectName, &req)
 	case "migration":
-		return createFromMigration(d, r, targetProject, &req)
+		return createFromMigration(d, r, targetProjectName, &req)
 	case "copy":
-		return createFromCopy(d, r, targetProject, &req)
+		return createFromCopy(d, r, targetProjectName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
