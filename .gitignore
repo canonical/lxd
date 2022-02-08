@@ -23,6 +23,7 @@ doc/html/
 .sphinx/venv/
 .sphinx/warnings.txt
 .sphinx/_static/swagger-ui
+.sphinx/_static/download
 
 # For Atom ctags
 .tags
