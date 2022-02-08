@@ -287,6 +287,10 @@ func clusterMemberJoinTokenDecode(input string) (*api.ClusterMemberJoinToken, er
 		return nil, err
 	}
 
+	if j.ServerName == "" {
+		return nil, fmt.Errorf("No server name in join token")
+	}
+
 	if len(j.Addresses) < 1 {
 		return nil, fmt.Errorf("No cluster member addresses in join token")
 	}
@@ -302,7 +306,7 @@ func clusterMemberJoinTokenDecode(input string) (*api.ClusterMemberJoinToken, er
 	return &j, nil
 }
 
-// clusterMemberJoinTokenValid searches for cluster join token that matches the joint token provided.
+// clusterMemberJoinTokenValid searches for cluster join token that matches the join token provided.
 // Returns matching operation if found and cancels the operation, otherwise returns nil.
 func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
 	ops, err := operationsGetByType(d, r, projectName, db.OperationClusterJoinToken)
@@ -466,7 +470,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Extract the certificate.
 	var cert *x509.Certificate
-	var name string
 	if req.Certificate != "" {
 		// Add supplied certificate.
 		data, err := base64.StdEncoding.DecodeString(req.Certificate)
@@ -478,7 +481,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.BadRequest(errors.Wrap(err, "invalid certificate material"))
 		}
-		name = req.Name
 	} else if r.TLS != nil {
 		// Add client's certificate.
 		if len(r.TLS.PeerCertificates) < 1 {
@@ -488,18 +490,28 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("No client certificate provided"))
 		}
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
-
-		remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			return response.InternalError(err)
-		}
-
-		name = remoteHost
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
 
+	// Calculate the fingerprint.
 	fingerprint := shared.CertFingerprint(cert)
+
+	// Figure out a name.
+	name := req.Name
+	if name == "" {
+		// Try to pull the CN.
+		name = cert.Subject.CommonName
+		if name == "" {
+			// Fallback to the client's IP address.
+			remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				return response.InternalError(err)
+			}
+
+			name = remoteHost
+		}
+	}
 
 	if !isClusterNotification(r) {
 		// Check if we already have the certificate.
