@@ -114,3 +114,44 @@ func (op *Operation) ToCertificateAddToken() (*CertificateAddToken, error) {
 
 	return &joinToken, nil
 }
+
+// ToClusterJoinToken creates a cluster join token from the operation metadata.
+func (op *Operation) ToClusterJoinToken() (*ClusterMemberJoinToken, error) {
+	serverName, ok := op.Metadata["serverName"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Operation serverName is type %T not string", op.Metadata["serverName"])
+	}
+
+	secret, ok := op.Metadata["secret"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Operation secret is type %T not string", op.Metadata["secret"])
+	}
+
+	fingerprint, ok := op.Metadata["fingerprint"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Operation fingerprint is type %T not string", op.Metadata["fingerprint"])
+	}
+
+	addresses, ok := op.Metadata["addresses"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("Operation addresses is type %T not []interface{}", op.Metadata["addresses"])
+	}
+
+	joinToken := ClusterMemberJoinToken{
+		ServerName:  serverName,
+		Secret:      secret,
+		Fingerprint: fingerprint,
+		Addresses:   make([]string, 0, len(addresses)),
+	}
+
+	for i, address := range addresses {
+		addressString, ok := address.(string)
+		if !ok {
+			return nil, fmt.Errorf("Operation address index %d is type %T not string", i, address)
+		}
+
+		joinToken.Addresses = append(joinToken.Addresses, addressString)
+	}
+
+	return &joinToken, nil
+}
