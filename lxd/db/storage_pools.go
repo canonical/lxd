@@ -61,19 +61,15 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string, allNodes bool) ([]string, 
 	}
 
 	// Get all the storage volumes on this node.
-	vols := []struct {
+	type vol struct {
 		volName     string
 		volType     int64
 		projectName string
 		nodeID      *int64
-	}{}
+	}
+	var vols []vol
 	dest := func(i int) []interface{} {
-		vols = append(vols, struct {
-			volName     string
-			volType     int64
-			projectName string
-			nodeID      *int64
-		}{})
+		vols = append(vols, vol{})
 
 		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
 	}
@@ -106,22 +102,18 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 		return nil, err
 	}
 
+	appendVolume := func(r vol, u *api.URL) {
+		if allNodes && r.nodeID != nil {
+			u.Target(nodesName[*r.nodeID])
+		}
+
+		usedby = append(usedby, u.String())
+	}
+
 	for _, r := range vols {
 		// Handle instances.
 		if r.volType == StoragePoolVolumeTypeContainer || r.volType == StoragePoolVolumeTypeVM {
-			if r.projectName == "default" {
-				if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
-					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?target=%s", r.volName, nodesName[*r.nodeID]))
-				} else {
-					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s", r.volName))
-				}
-			} else {
-				if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
-					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?project=%s&target=%s", r.volName, r.projectName, nodesName[*r.nodeID]))
-				} else {
-					usedby = append(usedby, fmt.Sprintf("/1.0/instances/%s?project=%s", r.volName, r.projectName))
-				}
-			}
+			appendVolume(r, api.NewURL().Path("1.0", "instances", r.volName).Project(r.projectName))
 		}
 
 		// Handle images.
@@ -134,37 +126,13 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 			}
 
 			for _, project := range projects {
-				if project == "default" {
-					if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
-						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?target=%s", r.volName, nodesName[*r.nodeID]))
-					} else {
-						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s", r.volName))
-					}
-				} else {
-					if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
-						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?project=%s&target=%s", r.volName, project, nodesName[*r.nodeID]))
-					} else {
-						usedby = append(usedby, fmt.Sprintf("/1.0/images/%s?project=%s", r.volName, project))
-					}
-				}
+				appendVolume(r, api.NewURL().Path("1.0", "images", r.volName).Project(project))
 			}
 		}
 
 		// Handle custom storage volumes.
 		if r.volType == StoragePoolVolumeTypeCustom {
-			if allNodes && r.nodeID != nil && nodesName[*r.nodeID] != "none" {
-				if r.projectName == "default" {
-					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?target=%s", name, r.volName, nodesName[*r.nodeID]))
-				} else {
-					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?project=%s&target=%s", name, r.volName, r.projectName, nodesName[*r.nodeID]))
-				}
-			} else {
-				if r.projectName == "default" {
-					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s", name, r.volName))
-				} else {
-					usedby = append(usedby, fmt.Sprintf("/1.0/storage-pools/%s/volumes/custom/%s?project=%s", name, r.volName, r.projectName))
-				}
-			}
+			appendVolume(r, api.NewURL().Path("1.0", "storage-pools", name, "volumes", "custom", r.volName).Project(r.projectName))
 		}
 	}
 
@@ -184,11 +152,8 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 				continue
 			}
 
-			if profile.Project == "default" {
-				usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s", profile.Name))
-			} else {
-				usedby = append(usedby, fmt.Sprintf("/1.0/profiles/%s?project=%s", profile.Name, profile.Project))
-			}
+			u := api.NewURL().Path("1.0", "profiles", profile.Name).Project(profile.Project)
+			usedby = append(usedby, u.String())
 		}
 	}
 
