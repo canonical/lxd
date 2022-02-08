@@ -473,12 +473,26 @@ func (c *Cluster) GetNetworkInAnyState(networkName string) (int64, *api.Network,
 // If stateFilter is -1, then a network can be in any state.
 // Returns network ID, network info, and network cluster member info.
 func (c *Cluster) getNetworkByName(networkName string, stateFilter NetworkState) (int64, *api.Network, map[int64]NetworkNode, error) {
-	networkID, networkState, networkType, network, err := c.getPartialNetworkByName(networkName, stateFilter)
-	if err != nil {
-		return -1, nil, nil, err
-	}
+	var err error
+	var networkID int64
+	var networkState NetworkState
+	var networkType NetworkType
+	var network *api.Network
+	var nodes map[int64]NetworkNode
 
-	nodes, err := c.networkPopulatePeerInfo(networkID, network, networkState, networkType)
+	err = c.Transaction(func(tx *ClusterTx) error {
+		networkID, networkState, networkType, network, err = c.getPartialNetworkByName(tx, networkName, stateFilter)
+		if err != nil {
+			return err
+		}
+
+		nodes, err = c.networkPopulatePeerInfo(tx, networkID, network, networkState, networkType)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return -1, nil, nil, err
 	}
@@ -489,7 +503,7 @@ func (c *Cluster) getNetworkByName(networkName string, stateFilter NetworkState)
 // getPartialNetworkByName gets the network with the given name and state.
 // If stateFilter is -1, then a network can be in any state.
 // Returns network ID, network state, network type, and partially populated network info.
-func (c *Cluster) getPartialNetworkByName(networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
+func (c *Cluster) getPartialNetworkByName(tx *ClusterTx, networkName string, stateFilter NetworkState) (int64, NetworkState, NetworkType, *api.Network, error) {
 	var err error
 	var networkID int64 = int64(-1)
 	var network api.Network
@@ -514,19 +528,12 @@ func (c *Cluster) getPartialNetworkByName(networkName string, stateFilter Networ
 
 	q.WriteString(" LIMIT 1")
 
-	err = c.Transaction(func(tx *ClusterTx) error {
-		err = tx.tx.QueryRow(q.String(), args...).Scan(&networkID, &network.Name, &network.Description, &networkState)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return api.StatusErrorf(http.StatusNotFound, "Network not found")
-			}
-
-			return err
+	err = tx.tx.QueryRow(q.String(), args...).Scan(&networkID, &network.Name, &network.Description, &networkState)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return -1, -1, -1, nil, api.StatusErrorf(http.StatusNotFound, "Network not found")
 		}
 
-		return nil
-	})
-	if err != nil {
 		return -1, -1, -1, nil, err
 	}
 
@@ -535,20 +542,20 @@ func (c *Cluster) getPartialNetworkByName(networkName string, stateFilter Networ
 
 // networkPopulatePeerInfo takes a pointer to partially populated network info struct and enriches it.
 // Returns the network cluster member info.
-func (c *Cluster) networkPopulatePeerInfo(networkID int64, network *api.Network, networkState NetworkState, networkType NetworkType) (map[int64]NetworkNode, error) {
+func (c *Cluster) networkPopulatePeerInfo(tx *ClusterTx, networkID int64, network *api.Network, networkState NetworkState, networkType NetworkType) (map[int64]NetworkNode, error) {
 	var err error
 
 	// Populate Status and Type fields by converting from DB values.
 	network.Status = NetworkStateToAPIStatus(networkState)
 	networkFillType(network, networkType)
 
-	network.Config, err = c.getNetworkConfig(networkID)
+	err = c.getNetworkConfig(tx, networkID, network)
 	if err != nil {
 		return nil, err
 	}
 
 	// Populate Location field.
-	nodes, err := c.NetworkNodes(networkID)
+	nodes, err := tx.NetworkNodes(networkID)
 	if err != nil {
 		return nil, err
 	}
@@ -633,69 +640,50 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 		return -1, nil, fmt.Errorf("No network found for interface: %s", devName)
 	}
 
-	config, err := c.getNetworkConfig(id)
-	if err != nil {
-		return -1, nil, err
-	}
-
 	network := api.Network{
 		Name:    name,
 		Managed: true,
 		Type:    "bridge",
 	}
-	network.Config = config
+
+	err = c.Transaction(func(tx *ClusterTx) error {
+		return c.getNetworkConfig(tx, id, &network)
+	})
+	if err != nil {
+		return -1, nil, err
+	}
 
 	return id, &network, nil
 }
 
-// Return the config map of the network with the given ID.
-func (c *Cluster) getNetworkConfig(id int64) (map[string]string, error) {
-	var key, value string
-	query := `
-        SELECT
-            key, value
+// getNetworkConfig populates the config map of the Network with the given ID.
+func (c *Cluster) getNetworkConfig(tx *ClusterTx, networkID int64, network *api.Network) error {
+	q := `
+        SELECT key, value
         FROM networks_config
 		WHERE network_id=?
-                AND (node_id=? OR node_id IS NULL)`
-	inargs := []interface{}{id, c.nodeID}
-	outfmt := []interface{}{key, value}
-	results, err := queryScan(c, query, inargs, outfmt)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get network '%d'", id)
-	}
+		AND (node_id=? OR node_id IS NULL)
+	`
 
-	if len(results) == 0 {
-		/*
-		 * If we didn't get any rows here, let's check to make sure the
-		 * network really exists; if it doesn't, let's send back a 404.
-		 */
-		query := "SELECT id FROM networks WHERE id=?"
-		var r int
-		results, err := queryScan(c, query, []interface{}{id}, []interface{}{r})
+	network.Config = map[string]string{}
+
+	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		var key, value string
+
+		err := scan(&key, &value)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		if len(results) == 0 {
-			return nil, ErrNoSuchObject
-		}
-	}
-
-	config := map[string]string{}
-
-	for _, r := range results {
-		key = r[0].(string)
-		value = r[1].(string)
-
-		_, found := config[key]
+		_, found := network.Config[key]
 		if found {
-			return nil, fmt.Errorf("Duplicate config row found for key %q for network ID %d", key, id)
+			return fmt.Errorf("Duplicate config row found for key %q for network ID %d", key, networkID)
 		}
 
-		config[key] = value
-	}
+		network.Config[key] = value
 
-	return config, nil
+		return nil
+	}, networkID, c.nodeID)
 }
 
 // CreateNetwork creates a new network.
