@@ -106,11 +106,6 @@ func qemuLoad(s *state.State, args db.InstanceArgs, profiles []api.Profile) (ins
 		return nil, err
 	}
 
-	err = d.expandDevices(profiles)
-	if err != nil {
-		return nil, err
-	}
-
 	return d, nil
 }
 
@@ -231,7 +226,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 		return nil, errors.Wrap(err, "Invalid config")
 	}
 
-	err = instance.ValidDevices(s, s.Cluster, d.Project(), d.Type(), d.expandedDevices, true)
+	err = instance.ValidDevices(s, d.Project(), d.Type(), d.expandedDevices, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "Invalid devices")
 	}
@@ -3900,7 +3895,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
-		err = instance.ValidDevices(d.state, d.state.Cluster, d.Project(), d.Type(), args.Devices, false)
+		err = instance.ValidDevices(d.state, d.Project(), d.Type(), args.Devices, false)
 		if err != nil {
 			return errors.Wrap(err, "Invalid devices")
 		}
@@ -4004,12 +3999,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Expand the config.
 	err = d.expandConfig(nil)
 	if err != nil {
-		return errors.Wrap(err, "Expand config")
-	}
-
-	err = d.expandDevices(nil)
-	if err != nil {
-		return errors.Wrap(err, "Expand devices")
+		return err
 	}
 
 	// Diff the configurations.
@@ -4057,7 +4047,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		// Do full expanded validation of the devices diff.
-		err = instance.ValidDevices(d.state, d.state.Cluster, d.Project(), d.Type(), d.expandedDevices, true)
+		err = instance.ValidDevices(d.state, d.Project(), d.Type(), d.expandedDevices, true)
 		if err != nil {
 			return errors.Wrap(err, "Invalid expanded devices")
 		}
@@ -4506,11 +4496,6 @@ func (d *qemu) cleanupDevices() {
 func (d *qemu) init() error {
 	// Compute the expanded config and device list.
 	err := d.expandConfig(nil)
-	if err != nil {
-		return err
-	}
-
-	err = d.expandDevices(nil)
 	if err != nil {
 		return err
 	}

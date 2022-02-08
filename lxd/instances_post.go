@@ -811,12 +811,12 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instancesPost(d *Daemon, r *http.Request) response.Response {
-	targetProject := projectParam(r)
+	targetProjectName := projectParam(r)
 	logger.Debugf("Responding to instance create")
 
 	// If we're getting binary content, process separately
 	if r.Header.Get("Content-Type") == "application/octet-stream" {
-		return createFromBackup(d, r, targetProject, r.Body, r.Header.Get("X-LXD-pool"), r.Header.Get("X-LXD-name"))
+		return createFromBackup(d, r, targetProjectName, r.Body, r.Header.Get("X-LXD-pool"), r.Header.Get("X-LXD-name"))
 	}
 
 	// Parse the request
@@ -836,8 +836,15 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceType(urlType.String())
 	}
 
+	var targetProject *db.Project
+
 	targetNode := queryParam(r, "target")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		targetProject, err = tx.GetProject(targetProjectName)
+		if err != nil {
+			return fmt.Errorf("Failed loading project: %w", err)
+		}
+
 		return project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
 	})
 	if err != nil {
@@ -863,15 +870,10 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			group = strings.TrimPrefix(targetNode, "@")
 		}
 
-		p, err := d.cluster.GetProject(targetProject)
-		if err != nil {
-			return response.SmartError(err)
-		}
-
 		// Load restricted groups from project.
 		var allowedGroups []string
-		if !isClusterNotification(r) && shared.IsTrue(p.Config["restricted"]) {
-			allowedGroups = util.SplitNTrimSpace(p.Config["restricted.cluster.groups"], ",", -1, true)
+		if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
+			allowedGroups = util.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
 		} else {
 			allowedGroups = nil
 		}
@@ -897,7 +899,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Validate restrictions.
-			if !isClusterNotification(r) && shared.IsTrue(p.Config["restricted"]) {
+			if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
 				found := false
 
 				for _, entry := range allowedGroups {
@@ -913,32 +915,34 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		architectures, err := instance.SuitableArchitectures(d.State(), targetProject, req)
+		architectures, err := instance.SuitableArchitectures(d.State(), targetProjectName, req)
 		if err != nil {
 			return response.BadRequest(err)
 		}
 
-		defaultArch := ""
-		if p.Config["images.default_architecture"] != "" {
-			defaultArch = p.Config["images.default_architecture"]
-		} else {
-			defaultArch, err = cluster.ConfigGetString(d.cluster, "images.default_architecture")
-			if err != nil {
-				return response.SmartError(err)
-			}
-		}
-
-		defaultArchId := -1
-		if defaultArch != "" {
-			defaultArchId, err = osarch.ArchitectureId(defaultArch)
-			if err != nil {
-				return response.SmartError(err)
-			}
-		}
-
 		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			defaultArch := ""
+			if targetProject.Config["images.default_architecture"] != "" {
+				defaultArch = targetProject.Config["images.default_architecture"]
+			} else {
+				config, err := cluster.ConfigLoad(tx)
+				if err != nil {
+					return err
+				}
+
+				defaultArch = config.ImagesDefaultArchitecture()
+			}
+
+			defaultArchID := -1
+			if defaultArch != "" {
+				defaultArchID, err = osarch.ArchitectureId(defaultArch)
+				if err != nil {
+					return err
+				}
+			}
+
 			var err error
-			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchId, group, allowedGroups)
+			targetNode, err = tx.GetNodeWithLeastInstances(architectures, defaultArchID, group, allowedGroups)
 			return err
 		})
 		if err != nil {
@@ -961,7 +965,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				return response.SmartError(err)
 			}
 
-			client = client.UseProject(targetProject)
+			client = client.UseProject(targetProjectName)
 			client = client.UseTarget(targetNode)
 
 			logger.Debugf("Forward instance post request to %s", address)
@@ -971,14 +975,8 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			opAPI := op.Get()
-			return operations.ForwardedOperationResponse(targetProject, &opAPI)
+			return operations.ForwardedOperationResponse(targetProjectName, &opAPI)
 		}
-	}
-
-	// If no storage pool is found, error out.
-	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil || len(pools) == 0 {
-		return response.BadRequest(fmt.Errorf("No storage pool found. Please create a new storage pool"))
 	}
 
 	if req.Devices == nil {
@@ -1020,7 +1018,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 				}
 
 				if req.Source.Project == "" {
-					req.Source.Project = targetProject
+					req.Source.Project = targetProjectName
 				}
 
 				source, err := instance.LoadInstanceDatabaseObject(tx, req.Source.Project, req.Source.Source)
@@ -1034,13 +1032,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err := project.AllowInstanceCreation(tx, targetProject, req)
+		err := project.AllowInstanceCreation(tx, targetProjectName, req)
 		if err != nil {
 			return err
 		}
 
 		if req.Name == "" {
-			names, err := tx.GetInstanceNames(targetProject)
+			names, err := tx.GetInstanceNames(targetProjectName)
 			if err != nil {
 				return err
 			}
@@ -1068,13 +1066,13 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 	switch req.Source.Type {
 	case "image":
-		return createFromImage(d, r, targetProject, &req)
+		return createFromImage(d, r, targetProjectName, &req)
 	case "none":
-		return createFromNone(d, r, targetProject, &req)
+		return createFromNone(d, r, targetProjectName, &req)
 	case "migration":
-		return createFromMigration(d, r, targetProject, &req)
+		return createFromMigration(d, r, targetProjectName, &req)
 	case "copy":
-		return createFromCopy(d, r, targetProject, &req)
+		return createFromCopy(d, r, targetProjectName, &req)
 	default:
 		return response.BadRequest(fmt.Errorf("Unknown source type %s", req.Source.Type))
 	}
