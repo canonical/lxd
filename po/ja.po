@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-22 23:20-0500\n"
+"POT-Creation-Date: 2022-02-23 10:23-0500\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -784,6 +784,12 @@ msgstr "カード: %s (%s)"
 msgid "Certificate add token for %s deleted"
 msgstr "証明書は既に格納されています。\n"
 
+#: lxc/remote.go:182
+#, c-format
+msgid ""
+"Certificate fingerprint mismatch between certificate token and server %q"
+msgstr ""
+
 #: lxc/remote.go:404
 #, c-format
 msgid "Certificate fingerprint: %s"
@@ -804,12 +810,12 @@ msgstr "クライアント証明書がサーバに格納されました:"
 msgid "Client version: %s\n"
 msgstr "クライアントバージョン: %s\n"
 
-#: lxc/cluster.go:819
+#: lxc/cluster.go:779
 #, c-format
 msgid "Cluster join token for %s:%s deleted"
 msgstr ""
 
-#: lxc/cluster.go:594 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
+#: lxc/cluster.go:554 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
 #: lxc/config.go:617 lxc/config.go:736 lxc/copy.go:53 lxc/info.go:46
 #: lxc/init.go:55 lxc/move.go:58 lxc/network.go:272 lxc/network.go:687
 #: lxc/network.go:745 lxc/network.go:1032 lxc/network.go:1099
@@ -961,27 +967,27 @@ msgstr "コア:"
 msgid "Could not create server cert dir"
 msgstr "サーバ証明書格納用のディレクトリを作成できません"
 
-#: lxc/cluster.go:883
+#: lxc/cluster.go:843
 #, fuzzy, c-format
 msgid "Could not find certificate file path: %s"
 msgstr "パス %s をサニタイズできません"
 
-#: lxc/cluster.go:887
+#: lxc/cluster.go:847
 #, fuzzy, c-format
 msgid "Could not find certificate key file path: %s"
 msgstr "パス %s をサニタイズできません"
 
-#: lxc/cluster.go:892
+#: lxc/cluster.go:852
 #, fuzzy, c-format
 msgid "Could not read certificate file: %s with error: %v"
 msgstr "パス %s をサニタイズできません"
 
-#: lxc/cluster.go:897
+#: lxc/cluster.go:857
 #, fuzzy, c-format
 msgid "Could not read certificate key file: %s with error: %v"
 msgstr "パス %s をサニタイズできません"
 
-#: lxc/cluster.go:914
+#: lxc/cluster.go:874
 #, c-format
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
@@ -1142,7 +1148,7 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147
 #: lxc/alias.go:198 lxc/cluster.go:31 lxc/cluster.go:93 lxc/cluster.go:172
 #: lxc/cluster.go:222 lxc/cluster.go:272 lxc/cluster.go:355 lxc/cluster.go:440
-#: lxc/cluster.go:593 lxc/cluster.go:663 lxc/cluster.go:761 lxc/cluster.go:840
+#: lxc/cluster.go:553 lxc/cluster.go:623 lxc/cluster.go:721 lxc/cluster.go:800
 #: lxc/config.go:30 lxc/config.go:92 lxc/config.go:363 lxc/config.go:455
 #: lxc/config.go:613 lxc/config.go:733 lxc/config_device.go:24
 #: lxc/config_device.go:78 lxc/config_device.go:196 lxc/config_device.go:274
@@ -1511,18 +1517,43 @@ msgstr "FINGERPRINT"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
+#: lxc/remote.go:229
+#, fuzzy
+msgid "Failed to add remote"
+msgstr "エイリアス %s の削除に失敗しました"
+
 #: lxc/move.go:240
 msgid "Failed to connect to cluster member"
 msgstr "クラスタメンバへの接続に失敗しました"
+
+#: lxc/remote.go:195
+#, fuzzy, c-format
+msgid "Failed to create %q: %w"
+msgstr "エイリアス %s の作成に失敗しました"
 
 #: lxc/utils.go:213
 #, c-format
 msgid "Failed to create alias %s"
 msgstr "エイリアス %s の作成に失敗しました"
 
+#: lxc/remote.go:213
+#, fuzzy, c-format
+msgid "Failed to create certificate: %w"
+msgstr "エイリアス %s の作成に失敗しました"
+
+#: lxc/remote.go:220
+#, fuzzy, c-format
+msgid "Failed to find project: %w"
+msgstr "'lxc.1' の生成が失敗しました: %v"
+
 #: lxc/copy.go:412
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
+
+#: lxc/copy.go:366
+#, fuzzy, c-format
+msgid "Failed to refresh target instance '%s': %v"
+msgstr "'lxc.%s.1' の生成が失敗しました: %v"
 
 #: lxc/utils.go:203
 #, c-format
@@ -1606,7 +1637,7 @@ msgstr ""
 "\n"
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
-#: lxc/alias.go:105 lxc/cluster.go:95 lxc/cluster.go:664
+#: lxc/alias.go:105 lxc/cluster.go:95 lxc/cluster.go:624
 #: lxc/config_template.go:241 lxc/config_trust.go:183 lxc/config_trust.go:262
 #: lxc/image.go:997 lxc/image_alias.go:158 lxc/list.go:121 lxc/network.go:826
 #: lxc/network.go:909 lxc/operation.go:107 lxc/profile.go:584
@@ -1624,6 +1655,11 @@ msgstr "フォーマット (csv|json|table|yaml)"
 #, fuzzy
 msgid "Format (man|md|rest|yaml)"
 msgstr "フォーマット (csv|json|table|yaml)"
+
+#: lxc/main_aliases.go:99
+#, c-format
+msgid "Found alias %q references an argument outside the given number"
+msgstr ""
 
 #: lxc/info.go:363 lxc/info.go:374 lxc/info.go:378 lxc/info.go:384
 #, c-format
@@ -1856,6 +1892,11 @@ msgstr "インスタンスタイプ"
 msgid "Invalid URL scheme \"%s\" in \"%s\""
 msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
 
+#: lxc/main_aliases.go:95 lxc/main_aliases.go:133
+#, fuzzy, c-format
+msgid "Invalid argument %q"
+msgstr "不正な送り先 %s"
+
 #: lxc/config_trust.go:222
 msgid "Invalid certificate"
 msgstr "不正な証明書です"
@@ -1886,6 +1927,11 @@ msgstr "不正なフォーマット %q"
 msgid "Invalid instance name: %s"
 msgstr "インスタンス名: %s"
 
+#: lxc/utils.go:251
+#, fuzzy, c-format
+msgid "Invalid key=value configuration: %s"
+msgstr "不適切な キー=値 のペア: %s"
+
 #: lxc/list.go:528
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
@@ -1905,6 +1951,19 @@ msgid ""
 msgstr ""
 "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
+#: lxc/move.go:127 lxc/storage_volume.go:1343
+#, fuzzy
+msgid "Invalid new snapshot name"
+msgstr "'/' はスナップショットの名前には使用できません"
+
+#: lxc/move.go:123
+msgid "Invalid new snapshot name, parent must be the same as source"
+msgstr ""
+
+#: lxc/storage_volume.go:1339
+msgid "Invalid new snapshot name, parent volume must be the same as source"
+msgstr ""
+
 #: lxc/main.go:472
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
@@ -1918,6 +1977,13 @@ msgstr "不正なパス %s"
 #, c-format
 msgid "Invalid protocol: %s"
 msgstr "不正なプロトコル: %s"
+
+#: lxc/storage_volume.go:860 lxc/storage_volume.go:1043
+#: lxc/storage_volume.go:1328 lxc/storage_volume.go:1449
+#: lxc/storage_volume.go:1535
+#, fuzzy
+msgid "Invalid snapshot name"
+msgstr "インスタンス名: %s"
 
 #: lxc/file.go:286
 #, c-format
@@ -1959,7 +2025,7 @@ msgstr "LXD - コマンドラインクライアント"
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
-#: lxc/cluster.go:129 lxc/cluster.go:698 lxc/cluster.go:788 lxc/cluster.go:879
+#: lxc/cluster.go:129 lxc/cluster.go:658 lxc/cluster.go:748 lxc/cluster.go:839
 msgid "LXD server isn't part of a cluster"
 msgstr "LXD サーバはクラスタの一部ではありません"
 
@@ -1995,7 +2061,7 @@ msgstr "エイリアスを一覧表示します"
 msgid "List all active certificate add tokens"
 msgstr "クラスタのメンバをすべて一覧表示します"
 
-#: lxc/cluster.go:662 lxc/cluster.go:663
+#: lxc/cluster.go:622 lxc/cluster.go:623
 #, fuzzy
 msgid "List all active cluster member join tokens"
 msgstr "クラスタのメンバをすべて一覧表示します"
@@ -2446,8 +2512,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -2472,7 +2538,7 @@ msgstr "VF の最大数: %d"
 msgid "Mdev profiles:"
 msgstr "プロファイルを管理します"
 
-#: lxc/cluster.go:644
+#: lxc/cluster.go:604
 #, fuzzy, c-format
 msgid "Member %s join token:"
 msgstr "メンバ名 %s を %s に変更しました"
@@ -2639,7 +2705,7 @@ msgstr "ディレクトリからのインポートは root で実行する必要
 msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
-#: lxc/cluster.go:151 lxc/cluster.go:744 lxc/config_trust.go:332
+#: lxc/cluster.go:151 lxc/cluster.go:704 lxc/config_trust.go:332
 #: lxc/list.go:440 lxc/network.go:882 lxc/profile.go:623 lxc/project.go:458
 #: lxc/remote.go:665 lxc/storage.go:573 lxc/storage_volume.go:1186
 msgid "NAME"
@@ -2735,7 +2801,7 @@ msgstr "指定するデバイスに適用する新しいキー/値"
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
 
-#: lxc/cluster.go:826
+#: lxc/cluster.go:786
 #, c-format
 msgid "No cluster join token for member %s on remote: %s"
 msgstr ""
@@ -2765,6 +2831,11 @@ msgstr "%q に設定する値が指定されていません"
 #, c-format
 msgid "Node %d:\n"
 msgstr "ノード %d:\n"
+
+#: lxc/storage_volume.go:1355
+#, fuzzy
+msgid "Not a snapshot name"
+msgstr "'/' はスナップショットの名前には使用できません"
 
 #: lxc/storage_volume.go:191 lxc/storage_volume.go:264
 msgid "Only \"custom\" volumes can be attached to instances"
@@ -2858,7 +2929,7 @@ msgstr "Pid: %d"
 msgid "Please provide client name: "
 msgstr ""
 
-#: lxc/cluster.go:618
+#: lxc/cluster.go:578
 #, fuzzy
 msgid "Please provide cluster member name: "
 msgstr "クラスターメンバー名がありません"
@@ -3178,7 +3249,7 @@ msgstr "ストレージボリューム名 \"%s\" を \"%s\" に変更しまし�
 msgid "Render: %s (%s)"
 msgstr "レンダー: %s (%s)"
 
-#: lxc/cluster.go:592 lxc/cluster.go:593
+#: lxc/cluster.go:552 lxc/cluster.go:553
 #, fuzzy
 msgid "Request a join token for adding a cluster member"
 msgstr "クラスタメンバの詳細を表示します"
@@ -3239,7 +3310,7 @@ msgstr "イメージの取得中: %s"
 msgid "Revoke certificate add token"
 msgstr "追加すべき証明書が提供されていません"
 
-#: lxc/cluster.go:760
+#: lxc/cluster.go:720
 #, fuzzy
 msgid "Revoke cluster member join token"
 msgstr "クラスタのメンバをすべて一覧表示します"
@@ -3678,7 +3749,7 @@ msgstr "ストレージボリュームの移動が成功しました!"
 msgid "Store the instance state"
 msgstr "インスタンスの状態を保存します"
 
-#: lxc/cluster.go:919
+#: lxc/cluster.go:879
 #, c-format
 msgid "Successfully updated cluster certificates for remote %s"
 msgstr ""
@@ -3713,7 +3784,7 @@ msgstr "デフォルトのリモートを切り替えます"
 msgid "TARGET"
 msgstr "TARGET"
 
-#: lxc/cluster.go:745 lxc/config_trust.go:333
+#: lxc/cluster.go:705 lxc/config_trust.go:333
 msgid "TOKEN"
 msgstr ""
 
@@ -3729,6 +3800,10 @@ msgstr "--instance-only と --target は同時に指定できません"
 #: lxc/move.go:166
 msgid "The --mode flag can't be used with --target"
 msgstr "--mode と --target は同時に指定できません"
+
+#: lxc/console.go:129
+msgid "The --show-log flag is only supported for by 'console' output type"
+msgstr ""
 
 #: lxc/move.go:158
 msgid "The --stateless flag can't be used with --target"
@@ -3776,6 +3851,10 @@ msgstr ""
 msgid "The profile device doesn't exist"
 msgstr "プロファイルのデバイスが存在しません"
 
+#: lxc/info.go:339
+msgid "The server doesn't implement the newer v2 resources API"
+msgstr ""
+
 #: lxc/move.go:245
 msgid "The source LXD server is not clustered"
 msgstr "移動元の LXD サーバはクラスタに属していません"
@@ -3794,6 +3873,16 @@ msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 "publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ"
 "さい。"
+
+#: lxc/cluster.go:409
+#, fuzzy
+msgid "This LXD server is already clustered"
+msgstr "移動元の LXD サーバはクラスタに属していません"
+
+#: lxc/cluster.go:399
+#, fuzzy
+msgid "This LXD server is not available on the network"
+msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
 #: lxc/main.go:277
 msgid ""
@@ -3940,10 +4029,20 @@ msgstr "テンポラリファイルを作成できません: %v"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 
+#: lxc/console.go:160
+#, fuzzy, c-format
+msgid "Unknown console type %q"
+msgstr "未知のファイルタイプ '%s'"
+
 #: lxc/file.go:731
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
+
+#: lxc/console.go:112
+#, fuzzy, c-format
+msgid "Unknown output type %q"
+msgstr "未知のリモート名: %q"
 
 #: lxc/move.go:53
 msgid "Unset all profiles on the target instance"
@@ -3983,12 +4082,12 @@ msgstr "ストレージボリュームの設定を削除します"
 msgid "Unsupported instance type: %s"
 msgstr "サポートされていないインスタンスタイプです: %s"
 
-#: lxc/cluster.go:839
+#: lxc/cluster.go:799
 #, fuzzy
 msgid "Update cluster certificate"
 msgstr "証明書を受け入れます"
 
-#: lxc/cluster.go:841
+#: lxc/cluster.go:801
 msgid ""
 "Update cluster certificate with PEM certificate and key read from input "
 "files."
@@ -4108,7 +4207,7 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 msgstr ""
 "attach-profile [<remote:>]<pool> <volume> <profile> [<device name>] <path>"
 
-#: lxc/cluster.go:90 lxc/cluster.go:661 lxc/config_trust.go:178
+#: lxc/cluster.go:90 lxc/cluster.go:621 lxc/config_trust.go:178
 #: lxc/config_trust.go:258 lxc/monitor.go:31 lxc/network.go:819
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:384
 #: lxc/storage.go:520 lxc/version.go:20
@@ -4121,7 +4220,7 @@ msgstr "list [<remote>:]"
 msgid "[<remote>:] <backup file>"
 msgstr "import [<remote>:] <backup file>"
 
-#: lxc/cluster.go:837
+#: lxc/cluster.go:797
 #, fuzzy
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr "get [<remote>:]<project> <key>"
@@ -4322,7 +4421,7 @@ msgstr ""
 "delete [<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/"
 "<snapshot>]...]"
 
-#: lxc/cluster.go:170 lxc/cluster.go:269 lxc/cluster.go:759
+#: lxc/cluster.go:170 lxc/cluster.go:269 lxc/cluster.go:719
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr "show [<remote>:]<member>"
@@ -4564,7 +4663,7 @@ msgstr "add [<remote>] <IP|FQDN|URL>"
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr "init [[<remote>:]<image>] [<remote>:][<name>] [< config"
 
-#: lxc/cluster.go:591
+#: lxc/cluster.go:551
 #, fuzzy
 msgid "[[<remote>:]<member>]"
 msgstr "show [<remote>:]<member>"
@@ -4943,8 +5042,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -5319,12 +5418,6 @@ msgstr "yes"
 
 #~ msgid "Environment:"
 #~ msgstr "環境変数:"
-
-#~ msgid "Failed to generate 'lxc.%s.1': %v"
-#~ msgstr "'lxc.%s.1' の生成が失敗しました: %v"
-
-#~ msgid "Failed to generate 'lxc.1': %v"
-#~ msgstr "'lxc.1' の生成が失敗しました: %v"
 
 #~ msgid "Ignore aliases when determining what command to run"
 #~ msgstr "どのコマンドを実行するか決める際にエイリアスを無視します"
@@ -6511,8 +6604,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect \"custom"
-#~ "\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect "
+#~ "\"custom\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"
@@ -6662,9 +6755,6 @@ msgstr "yes"
 #~ msgid "wrong number of subcommand arguments"
 #~ msgstr "サブコマンドの引数の数が正しくありません"
 
-#~ msgid "'/' not allowed in snapshot name"
-#~ msgstr "'/' はスナップショットの名前には使用できません"
-
 #, fuzzy
 #~ msgid "Could not create config dir"
 #~ msgstr "サーバ証明書格納用のディレクトリを作成できません"
@@ -6784,10 +6874,6 @@ msgstr "yes"
 #~ msgstr "応答がありません！"
 
 #~ msgid "unknown remote name: %q"
-#~ msgstr "未知のリモート名: %q"
-
-#, fuzzy
-#~ msgid "unknown transport type: %s"
 #~ msgstr "未知のリモート名: %q"
 
 #~ msgid "cannot resolve unix socket address: %v"
