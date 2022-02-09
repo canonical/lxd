@@ -290,15 +290,17 @@ func (d *Daemon) getTrustedCertificates() map[db.CertificateType]map[string]x509
 // will validate the TLS certificate or Macaroon.
 //
 // This does not perform authorization, only validates authentication.
+// Returns whether trusted or not, the username (or certificate fingerprint) of the trusted client, and the type of
+// client that has been authenticated (cluster, unix, candid or tls).
 func (d *Daemon) Authenticate(w http.ResponseWriter, r *http.Request) (bool, string, string, error) {
 	trustedCerts := d.getTrustedCertificates()
 
 	// Allow internal cluster traffic by checking against the trusted certfificates.
 	if r.TLS != nil {
 		for _, i := range r.TLS.PeerCertificates {
-			trusted, _ := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], d.endpoints.NetworkCert(), false)
+			trusted, fingerprint := util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], d.endpoints.NetworkCert(), false)
 			if trusted {
-				return true, "", "cluster", nil
+				return true, fingerprint, "cluster", nil
 			}
 		}
 	}
@@ -490,7 +492,13 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 		}
 
-		logCtx := log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "username": username, "protocol": protocol}
+		logCtx := log.Ctx{"method": r.Method, "url": r.URL.RequestURI(), "ip": r.RemoteAddr, "protocol": protocol}
+		if protocol == "cluster" {
+			logCtx["fingerprint"] = username
+		} else {
+			logCtx["username"] = username
+		}
+
 		untrustedOk := (r.Method == "GET" && c.Get.AllowUntrusted) || (r.Method == "POST" && c.Post.AllowUntrusted)
 		if trusted {
 			logger.Debug("Handling API request", logCtx)
