@@ -109,7 +109,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 
 	// Validate flags.
 	if !shared.StringInSlice(c.flagType, []string{"console", "vga"}) {
-		return fmt.Errorf("Unknown output type %q", c.flagType)
+		return fmt.Errorf(i18n.G("Unknown output type %q"), c.flagType)
 	}
 
 	// Connect to LXD
@@ -126,7 +126,7 @@ func (c *cmdConsole) Run(cmd *cobra.Command, args []string) error {
 	// Show the current log if requested
 	if c.flagShowLog {
 		if c.flagType != "console" {
-			return fmt.Errorf("The --show-log flag is only supported for by 'console' output type")
+			return fmt.Errorf(i18n.G("The --show-log flag is only supported for by 'console' output type"))
 		}
 
 		console := &lxd.InstanceConsoleLogArgs{}
@@ -157,7 +157,7 @@ func (c *cmdConsole) Console(d lxd.InstanceServer, name string) error {
 	case "vga":
 		return c.vga(d, name)
 	}
-	return fmt.Errorf("Unknown console type %q", c.flagType)
+	return fmt.Errorf(i18n.G("Unknown console type %q"), c.flagType)
 }
 
 func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {

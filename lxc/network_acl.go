@@ -773,12 +773,12 @@ func (c *cmdNetworkACLRule) parseConfigToRule(config map[string]string) (*api.Ne
 	for k, v := range config {
 		fieldIndex, found := allowedKeys[k]
 		if !found {
-			return nil, fmt.Errorf("Unknown key: %s", k)
+			return nil, fmt.Errorf(i18n.G("Unknown key: %s"), k)
 		}
 
 		fieldValue := ruleValue.Field(fieldIndex)
 		if !fieldValue.CanSet() {
-			return nil, fmt.Errorf("Cannot set key: %s", k)
+			return nil, fmt.Errorf(i18n.G("Cannot set key: %s"), k)
 		}
 
 		fieldValue.SetString(v) // Set the value into the struct field.
@@ -836,7 +836,7 @@ func (c *cmdNetworkACLRule) RunAdd(cmd *cobra.Command, args []string) error {
 	} else if args[1] == "egress" {
 		netACL.Egress = append(netACL.Egress, *rule)
 	} else {
-		return fmt.Errorf("The direction argument must be one of: ingress, egress")
+		return fmt.Errorf(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 
 	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
@@ -892,7 +892,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 	for k := range filters {
 		_, found := allowedKeys[k]
 		if !found {
-			return fmt.Errorf("Unknown key: %s", k)
+			return fmt.Errorf(i18n.G("Unknown key: %s"), k)
 		}
 	}
 
@@ -925,7 +925,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 		for _, r := range rules {
 			if isFilterMatch(&r, filters) {
 				if removed && !c.flagRemoveForce {
-					return nil, fmt.Errorf("Multiple rules match. Use --force to remove them all")
+					return nil, fmt.Errorf(i18n.G("Multiple rules match. Use --force to remove them all"))
 				}
 
 				removed = true
@@ -936,7 +936,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 		}
 
 		if !removed {
-			return nil, fmt.Errorf("No matching rule(s) found")
+			return nil, fmt.Errorf(i18n.G("No matching rule(s) found"))
 		}
 
 		return newRules, nil
@@ -958,7 +958,7 @@ func (c *cmdNetworkACLRule) RunRemove(cmd *cobra.Command, args []string) error {
 
 		netACL.Egress = rules
 	} else {
-		return fmt.Errorf("The direction argument must be one of: ingress, egress")
+		return fmt.Errorf(i18n.G("The direction argument must be one of: ingress, egress"))
 	}
 
 	return resource.server.UpdateNetworkACL(resource.name, netACL.Writable(), etag)
