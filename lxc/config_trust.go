@@ -112,7 +112,7 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 
 	// Validate flags.
 	if !shared.StringInSlice(c.flagType, []string{"client", "metrics"}) {
-		return fmt.Errorf("Unknown certificate type %q", c.flagType)
+		return fmt.Errorf(i18n.G("Unknown certificate type %q"), c.flagType)
 	}
 
 	// Parse remote

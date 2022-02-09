@@ -179,7 +179,7 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 
 			certDigest := shared.CertFingerprint(certificate)
 			if rawToken.Fingerprint != certDigest {
-				return fmt.Errorf("Certificate fingerprint mismatch between certificate token and server %q", addr)
+				return fmt.Errorf(i18n.G("Certificate fingerprint mismatch between certificate token and server %q"), addr)
 			}
 
 			dnam := conf.ConfigPath("servercerts")
@@ -192,7 +192,7 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 
 			certOut, err := os.Create(certf)
 			if err != nil {
-				return fmt.Errorf("Failed to create %q: %w", certf, err)
+				return fmt.Errorf(i18n.G("Failed to create %q: %w"), certf, err)
 			}
 
 			pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
@@ -210,14 +210,14 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 
 		err = d.CreateCertificate(req)
 		if err != nil {
-			return fmt.Errorf("Failed to create certificate: %w", err)
+			return fmt.Errorf(i18n.G("Failed to create certificate: %w"), err)
 		}
 
 		// Handle project.
 		remote := conf.Remotes[server]
 		project, err := c.findProject(d.(lxd.InstanceServer), c.flagProject)
 		if err != nil {
-			return fmt.Errorf("Failed to find project: %w", err)
+			return fmt.Errorf(i18n.G("Failed to find project: %w"), err)
 		}
 
 		remote.Project = project
@@ -226,7 +226,7 @@ func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.Certi
 		return conf.SaveConfig(c.global.confPath)
 	}
 
-	return fmt.Errorf("Failed to add remote")
+	return fmt.Errorf(i18n.G("Failed to add remote"))
 }
 
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
