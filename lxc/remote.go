@@ -83,7 +83,7 @@ type cmdRemoteAdd struct {
 
 func (c *cmdRemoteAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL>"))
+	cmd.Use = usage("add", i18n.G("[<remote>] <IP|FQDN|URL|token>"))
 	cmd.Short = i18n.G("Add new remote servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Add new remote servers
@@ -150,6 +150,85 @@ func (c *cmdRemoteAdd) findProject(d lxd.InstanceServer, project string) (string
 	return project, nil
 }
 
+func (c *cmdRemoteAdd) RunToken(server string, token string, rawToken *api.CertificateAddToken) error {
+	conf := c.global.conf
+
+	var certificate *x509.Certificate
+	var err error
+	var d lxd.InstanceServer
+
+	if !conf.HasClientCertificate() {
+		fmt.Fprintf(os.Stderr, i18n.G("Generating a client certificate. This may take a minute...")+"\n")
+		err = conf.GenerateClientCertificate()
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, addr := range rawToken.Addresses {
+		addr = fmt.Sprintf("https://%s", addr)
+
+		conf.Remotes[server] = config.Remote{Addr: addr, Protocol: c.flagProtocol, AuthType: c.flagAuthType, Domain: c.flagDomain}
+
+		d, err = conf.GetInstanceServer(server)
+		if err != nil {
+			certificate, err = shared.GetRemoteCertificate(addr, c.global.conf.UserAgent)
+			if err != nil {
+				continue
+			}
+
+			certDigest := shared.CertFingerprint(certificate)
+			if rawToken.Fingerprint != certDigest {
+				return fmt.Errorf("Certificate fingerprint mismatch between certificate token and server %q", addr)
+			}
+
+			dnam := conf.ConfigPath("servercerts")
+			err := os.MkdirAll(dnam, 0750)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Could not create server cert dir"))
+			}
+
+			certf := conf.ServerCertPath(server)
+
+			certOut, err := os.Create(certf)
+			if err != nil {
+				return fmt.Errorf("Failed to create %q: %w", certf, err)
+			}
+
+			pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+			certOut.Close()
+		}
+
+		d, err = conf.GetInstanceServer(server)
+		if err != nil {
+			continue
+		}
+
+		req := api.CertificatesPost{
+			Password: token,
+		}
+
+		err = d.CreateCertificate(req)
+		if err != nil {
+			return fmt.Errorf("Failed to create certificate: %w", err)
+		}
+
+		// Handle project.
+		remote := conf.Remotes[server]
+		project, err := c.findProject(d.(lxd.InstanceServer), c.flagProject)
+		if err != nil {
+			return fmt.Errorf("Failed to find project: %w", err)
+		}
+
+		remote.Project = project
+		conf.Remotes[server] = remote
+
+		return conf.SaveConfig(c.global.confPath)
+	}
+
+	return fmt.Errorf("Failed to add remote")
+}
+
 func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	conf := c.global.conf
 
@@ -189,6 +268,11 @@ func (c *cmdRemoteAdd) Run(cmd *cobra.Command, args []string) error {
 	// Initialize the remotes list if needed
 	if conf.Remotes == nil {
 		conf.Remotes = map[string]config.Remote{}
+	}
+
+	rawToken, err := shared.CertificateTokenDecode(addr)
+	if err == nil {
+		return c.RunToken(server, addr, rawToken)
 	}
 
 	// Complex remote URL parsing

@@ -24,6 +24,87 @@ test_remote_url() {
   done
 }
 
+test_remote_url_with_token() {
+  # Try adding remote using a correctly constructed but invalid token
+  invalid_token="eyJjbGllbnRfbmFtZSI6IiIsImZpbmdlcnByaW50IjoiMWM0MmMzOTgxOWIyNGJiYjQxNGFhYTY2NDUwNzlmZGY2NDQ4MTUzMDcxNjA0YTFjODJjMjVhN2JhNjBkZmViMCIsImFkZHJlc3NlcyI6WyIxOTIuMTY4LjE3OC4yNDo4NDQzIiwiWzIwMDM6Zjc6MzcxMToyMzAwOmQ5ZmY6NWRiMDo3ZTA2OmQ1ODldOjg0NDMiLCIxMC41OC4yLjE6ODQ0MyIsIjEwLjAuMy4xOjg0NDMiLCIxOTIuMTY4LjE3OC43MDo4NDQzIiwiWzIwMDM6Zjc6MzcxMToyMzAwOjQwMTY6ODVkNDo2M2FlOjNhYWVdOjg0NDMiLCIxMC4xMjQuODYuMTo4NDQzIiwiW2ZkNDI6ZTY5Zjo3OTczOjIyMjU6OjFdOjg0NDMiXSwic2VjcmV0IjoiODVlMGU5YmViODk0ZTFhMTU3YmYxODI4YTk0Y2IwYTdjY2YxMzQ4NzMyN2ZjMTY3MDcyY2JlNjQ3NmVmOGJkMiJ9"
+  ! lxc_remote remote add test "${invalid_token}" || false
+
+  # Generate token for client foo
+  echo foo | lxc config trust add -q
+
+  # Listing all tokens should show only a single one
+  [ "$(lxc config trust list-tokens -f json | jq '[.[] | select(.ClientName == "foo")] |  length')" -eq 1 ]
+
+  # Extract token
+  token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
+
+  # Invalidate token so that it cannot be used again
+  lxc config trust revoke-token foo
+
+  # Ensure the token is invalidated
+  [ "$(lxc config trust list-tokens -f json | jq 'length')" -eq 0 ]
+
+  # Try adding the remote using the invalidated token
+  ! lxc_remote remote add test "${token}" || false
+
+  # Generate token for client foo
+  lxc project create foo
+  echo foo | lxc config trust add -q --projects foo --restricted
+
+  # Extract the token
+  token="$(lxc config trust list-tokens -f json | jq -r '.[].Token')"
+
+  # Add the valid token
+  lxc_remote remote add test "${token}"
+
+  # Ensure the token is invalidated
+  [ "$(lxc config trust list-tokens -f json | jq 'length')" -eq 0 ]
+
+  # List instances as the remote has been added
+  lxc_remote ls test:
+
+  # Clean up
+  lxc_remote remote remove test
+  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+
+  # Generate new token
+  echo foo | lxc config trust add -q
+
+  # Extract token
+  token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
+
+  # create new certificate
+  openssl req -x509 -newkey rsa:2048 -keyout "${TEST_DIR}/token-client.key" -nodes -out "${TEST_DIR}/token-client.crt" -subj "/CN=lxd.local"
+
+  # Try accessing instances (this should fail)
+  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
+
+  # Add valid token
+  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"password\": ${token}}" "https://${LXD_ADDR}/1.0/certificates"
+
+  # Check if we can see instances
+  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.status_code')" -eq 200 ]
+
+  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+
+  # Generate new token
+  echo foo | lxc config trust add -q --projects foo --restricted
+
+  # Extract token
+  token="$(lxc config trust list-tokens -f json | jq '.[].Token')"
+
+  # Add valid token but override projects
+  curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" -X POST -d "{\"password\":${token},\"projects\":[\"default\",\"foo\"],\"restricted\":false}" "https://${LXD_ADDR}/1.0/certificates"
+
+  # Check if we can see instances in the foo project
+  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances?project=foo" | jq '.status_code')" -eq 200 ]
+
+  # Check if we can see instances in the default project (this should fail)
+  [ "$(curl -k -s --key "${TEST_DIR}/token-client.key" --cert "${TEST_DIR}/token-client.crt" "https://${LXD_ADDR}/1.0/instances" | jq '.error_code')" -eq 403 ]
+
+  lxc config trust rm "$(lxc config trust list -f json | jq -r '.[].fingerprint')"
+}
+
 test_remote_admin() {
   ! lxc_remote remote add badpass "${LXD_ADDR}" --accept-certificate --password bad || false
   ! lxc_remote list badpass: || false

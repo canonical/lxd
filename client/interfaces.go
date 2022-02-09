@@ -83,6 +83,7 @@ type InstanceServer interface {
 	CreateCertificate(certificate api.CertificatesPost) (err error)
 	UpdateCertificate(fingerprint string, certificate api.CertificatePut, ETag string) (err error)
 	DeleteCertificate(fingerprint string) (err error)
+	CreateCertificateToken(certificate api.CertificatesPost) (op Operation, err error)
 
 	// Container functions
 	GetContainerNames() (names []string, err error)

@@ -85,3 +85,22 @@ func (r *ProtocolLXD) DeleteCertificate(fingerprint string) error {
 
 	return nil
 }
+
+// CreateCertificateToken requests a certificate add token
+func (r *ProtocolLXD) CreateCertificateToken(certificate api.CertificatesPost) (Operation, error) {
+	if !r.HasExtension("certificate_token") {
+		return nil, fmt.Errorf("The server is missing the required \"certificate_token\" API extension")
+	}
+
+	if !certificate.Token {
+		return nil, fmt.Errorf("Token needs to be true if requesting a token")
+	}
+
+	// Send the request
+	op, _, err := r.queryOperation("POST", "/certificates", certificate, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}

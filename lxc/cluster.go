@@ -692,57 +692,20 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func clusterJoinTokenOperationToAPI(op *api.Operation) (*api.ClusterMemberJoinToken, error) {
-	serverName, ok := op.Metadata["serverName"].(string)
-	if !ok {
-		return nil, fmt.Errorf("Operation serverName is type %T not string", op.Metadata["serverName"])
-	}
-
-	secret, ok := op.Metadata["secret"].(string)
-	if !ok {
-		return nil, fmt.Errorf("Operation secret is type %T not string", op.Metadata["secret"])
-	}
-
-	fingerprint, ok := op.Metadata["fingerprint"].(string)
-	if !ok {
-		return nil, fmt.Errorf("Operation fingerprint is type %T not string", op.Metadata["fingerprint"])
-	}
-
-	addresses, ok := op.Metadata["addresses"].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("Operation addresses is type %T not []interface{}", op.Metadata["addresses"])
-	}
-
-	joinToken := api.ClusterMemberJoinToken{
-		ServerName:  serverName,
-		Secret:      secret,
-		Fingerprint: fingerprint,
-		Addresses:   make([]string, 0, len(addresses)),
-	}
-
-	for i, address := range addresses {
-		addressString, ok := address.(string)
-		if !ok {
-			return nil, fmt.Errorf("Operation address index %d is type %T not string", i, address)
-		}
-
-		joinToken.Addresses = append(joinToken.Addresses, addressString)
-	}
-
-	return &joinToken, nil
-}
-
 // Add
 type cmdClusterAdd struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
+
+	flagName string
 }
 
 func (c *cmdClusterAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("add", i18n.G("[<remote>:]<member>"))
+	cmd.Use = usage("add", i18n.G("[[<remote>:]<member>]"))
 	cmd.Short = i18n.G("Request a join token for adding a cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Request a join token for adding a cluster member`))
+	cmd.Flags().StringVar(&c.flagName, "name", "", i18n.G("Cluster member name")+"``")
 
 	cmd.RunE = c.Run
 
@@ -765,7 +728,14 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing cluster member name"))
+		if c.flagName == "" {
+			resource.name, err = cli.AskString(i18n.G("Please provide cluster member name: "), "", nil)
+			if err != nil {
+				return err
+			}
+		} else {
+			resource.name = c.flagName
+		}
 	}
 
 	// Request the join token.
@@ -780,7 +750,7 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 
 	if !c.global.flagQuiet {
 		opAPI := op.Get()
-		joinToken, err := clusterJoinTokenOperationToAPI(&opAPI)
+		joinToken, err := opAPI.ToClusterJoinToken()
 		if err != nil {
 			return errors.Wrapf(err, "Failed converting token operation to join token")
 		}
@@ -865,7 +835,7 @@ func (c *cmdClusterListTokens) Run(cmd *cobra.Command, args []string) error {
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
 		}
 
-		joinToken, err := clusterJoinTokenOperationToAPI(&op)
+		joinToken, err := op.ToClusterJoinToken()
 		if err != nil {
 			continue // Operation is not a valid cluster member join token operation.
 		}
@@ -947,7 +917,7 @@ func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
 			continue // Tokens are single use, so if cancelled but not deleted yet its not available.
 		}
 
-		joinToken, err := clusterJoinTokenOperationToAPI(&op)
+		joinToken, err := op.ToClusterJoinToken()
 		if err != nil {
 			continue // Operation is not a valid cluster member join token operation.
 		}

@@ -316,6 +316,7 @@ var APIExtensions = []string{
 	"storage_zfs_blocksize",
 	"metrics_cpu_seconds",
 	"instance_snapshot_never",
+	"certificate_token",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
