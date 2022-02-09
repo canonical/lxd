@@ -857,7 +857,7 @@ func (c *cmdStorageVolumeEdit) Run(cmd *cobra.Command, args []string) error {
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
 	if len(fields) > 2 {
-		return fmt.Errorf("Invalid snapshot name")
+		return fmt.Errorf(i18n.G("Invalid snapshot name"))
 	} else if len(fields) > 1 {
 		isSnapshot = true
 	}
@@ -1040,7 +1040,7 @@ func (c *cmdStorageVolumeGet) Run(cmd *cobra.Command, args []string) error {
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
 	if len(fields) > 2 {
-		return fmt.Errorf("Invalid snapshot name")
+		return fmt.Errorf(i18n.G("Invalid snapshot name"))
 	} else if len(fields) > 1 {
 		isSnapshot = true
 	}
@@ -1325,7 +1325,7 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
 	if len(fields) > 2 {
-		return fmt.Errorf("Invalid snapshot name")
+		return fmt.Errorf(i18n.G("Invalid snapshot name"))
 	} else if len(fields) > 1 {
 		isSnapshot = true
 	}
@@ -1336,11 +1336,11 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 		dstParentName, dstSnapName, dstIsSnap := shared.InstanceGetParentAndSnapshotName(args[2])
 
 		if dstParentName != fields[0] {
-			return fmt.Errorf("Invalid new snapshot name, parent volume must be the same as source")
+			return fmt.Errorf(i18n.G("Invalid new snapshot name, parent volume must be the same as source"))
 		}
 
 		if !dstIsSnap {
-			return fmt.Errorf("Invalid new snapshot name")
+			return fmt.Errorf(i18n.G("Invalid new snapshot name"))
 		}
 
 		vol.Name = dstSnapName
@@ -1352,7 +1352,7 @@ func (c *cmdStorageVolumeRename) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(fields) != 2 {
-			return fmt.Errorf("Not a snapshot name")
+			return fmt.Errorf(i18n.G("Not a snapshot name"))
 		}
 
 		op, err := client.RenameStoragePoolVolumeSnapshot(resource.name, volType, fields[0], fields[1], vol)
@@ -1446,7 +1446,7 @@ func (c *cmdStorageVolumeSet) Run(cmd *cobra.Command, args []string) error {
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
 	if len(fields) > 2 {
-		return fmt.Errorf("Invalid snapshot name")
+		return fmt.Errorf(i18n.G("Invalid snapshot name"))
 	} else if len(fields) > 1 {
 		isSnapshot = true
 	}
@@ -1532,7 +1532,7 @@ func (c *cmdStorageVolumeShow) Run(cmd *cobra.Command, args []string) error {
 	isSnapshot := false
 	fields := strings.Split(volName, "/")
 	if len(fields) > 2 {
-		return fmt.Errorf("Invalid snapshot name")
+		return fmt.Errorf(i18n.G("Invalid snapshot name"))
 	} else if len(fields) > 1 {
 		isSnapshot = true
 	}
