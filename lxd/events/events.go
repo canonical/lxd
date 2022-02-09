@@ -66,7 +66,7 @@ func (s *Server) SetLocalLocation(location string) {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler) (*Listener, error) {
+func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler, excludeLocations []string) (*Listener, error) {
 	if allProjects && projectName != "" {
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
@@ -83,9 +83,10 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 			recvFunc:     recvFunc,
 		},
 
-		allProjects:    allProjects,
-		projectName:    projectName,
-		excludeSources: excludeSources,
+		allProjects:      allProjects,
+		projectName:      projectName,
+		excludeSources:   excludeSources,
+		excludeLocations: excludeLocations,
 	}
 
 	s.lock.Lock()
@@ -189,6 +190,11 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 			continue
 		}
 
+		// If the event doesn't come from this member and has been excluded by listener, don't deliver it.
+		if eventSource != EventSourceLocal && shared.StringInSlice(event.Location, listener.excludeLocations) {
+			continue
+		}
+
 		go func(listener *Listener, event api.Event) {
 			// Check that the listener still exists
 			if listener == nil {
@@ -221,8 +227,8 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 type Listener struct {
 	listenerCommon
 
-	location       string
-	allProjects    bool
-	projectName    string
-	excludeSources []EventSource
+	allProjects      bool
+	projectName      string
+	excludeSources   []EventSource
+	excludeLocations []string
 }
