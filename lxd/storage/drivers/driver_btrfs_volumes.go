@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -1411,6 +1412,38 @@ func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
 func (d *btrfs) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	return genericVFSVolumeSnapshots(d, vol, op)
+}
+
+// volumeSnapshotsSorted returns a list of snapshots for the volume (ordered by subvolume ID).
+// Since the subvolume ID is incremental, this also represents the order of creation.
+func (d *btrfs) volumeSnapshotsSorted(vol Volume, op *operations.Operation) ([]string, error) {
+	args := []string{"subvolume", "list", GetPoolMountPath(vol.pool)}
+
+	output, err := shared.RunCommand("btrfs", args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var snapshotNames []string
+
+	snapshotPrefix := fmt.Sprintf("%s-snapshots/%s", vol.volType, vol.name)
+	scanner := bufio.NewScanner(strings.NewReader(output))
+
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+
+		if len(fields) != 9 {
+			continue
+		}
+
+		if !strings.HasPrefix(fields[8], snapshotPrefix) {
+			continue
+		}
+
+		snapshotNames = append(snapshotNames, filepath.Base(fields[8]))
+	}
+
+	return snapshotNames, nil
 }
 
 // RestoreVolume restores a volume from a snapshot.
