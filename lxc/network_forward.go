@@ -840,7 +840,7 @@ func (c *cmdNetworkForwardPort) RunRemove(cmd *cobra.Command, args []string) err
 		for _, port := range ports {
 			if isFilterMatch(&port, filterArgs) {
 				if removed && !c.flagRemoveForce {
-					return nil, fmt.Errorf("Multiple ports match. Use --force to remove them all")
+					return nil, fmt.Errorf(i18n.G("Multiple ports match. Use --force to remove them all"))
 				}
 
 				removed = true
@@ -851,7 +851,7 @@ func (c *cmdNetworkForwardPort) RunRemove(cmd *cobra.Command, args []string) err
 		}
 
 		if !removed {
-			return nil, fmt.Errorf("No matching port(s) found")
+			return nil, fmt.Errorf(i18n.G("No matching port(s) found"))
 		}
 
 		return newPorts, nil

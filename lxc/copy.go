@@ -363,7 +363,7 @@ func (c *cmdCopy) copyInstance(conf *config.Config, sourceResource string, destR
 	if c.flagRefresh {
 		inst, etag, err := dest.GetInstance(destName)
 		if err != nil {
-			return fmt.Errorf("Failed to refresh target instance '%s': %v", destName, err)
+			return fmt.Errorf(i18n.G("Failed to refresh target instance '%s': %v"), destName, err)
 		}
 
 		// Ensure we don't change the target's volatile.idmap.next value.
