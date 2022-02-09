@@ -65,6 +65,7 @@ const (
 	OperationVolumeSnapshotRename
 	OperationClusterMemberEvacuate
 	OperationClusterMemberRestore
+	OperationCertificateAddToken
 )
 
 // Description return a human-readable description of the operation type.

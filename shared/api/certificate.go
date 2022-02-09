@@ -1,5 +1,10 @@
 package api
 
+import (
+	"encoding/base64"
+	"encoding/json"
+)
+
 // CertificateTypeClient indicates a client certificate type.
 const CertificateTypeClient = "client"
 
@@ -21,6 +26,12 @@ type CertificatesPost struct {
 	// Server trust password (used to add an untrusted client)
 	// Example: blah
 	Password string `json:"password" yaml:"password"`
+
+	// Whether to create a certificate add token
+	// Example: true
+	//
+	// API extension: certificate_token
+	Token bool `json:"token" yaml:"token"`
 }
 
 // CertificatePut represents the modifiable fields of a LXD certificate
@@ -71,4 +82,37 @@ type Certificate struct {
 // Writable converts a full Certificate struct into a CertificatePut struct (filters read-only fields)
 func (cert *Certificate) Writable() CertificatePut {
 	return cert.CertificatePut
+}
+
+// CertificateAddToken represents the fields contained within an encoded certificate add token.
+//
+// swagger:model
+//
+// API extension: certificate_token
+type CertificateAddToken struct {
+	// The name of the new client
+	// Example: user@host
+	ClientName string `json:"client_name" yaml:"client_name"`
+
+	// The fingerprint of the network certificate
+	// Example: 57bb0ff4340b5bb28517e062023101adf788c37846dc8b619eb2c3cb4ef29436
+	Fingerprint string `json:"fingerprint" yaml:"fingerprint"`
+
+	// The addresses of the server
+	// Example: ["10.98.30.229:8443"]
+	Addresses []string `json:"addresses" yaml:"addresses"`
+
+	// The random join secret
+	// Example: 2b2284d44db32675923fe0d2020477e0e9be11801ff70c435e032b97028c35cd
+	Secret string `json:"secret" yaml:"secret"`
+}
+
+// String encodes the certificate add token as JSON and then base64.
+func (t *CertificateAddToken) String() string {
+	joinTokenJSON, err := json.Marshal(t)
+	if err != nil {
+		return ""
+	}
+
+	return base64.StdEncoding.EncodeToString(joinTokenJSON)
 }

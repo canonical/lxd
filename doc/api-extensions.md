@@ -1608,3 +1608,8 @@ This is used to detect whether LXD was fixed to output used CPU time in seconds 
 
 ## instance\_snapshot\_never
 Adds a `@never` option to `snapshots.schedule` which allows disabling inheritance.
+
+## certificate\_token
+This adds token-based certificate addition to the trust store as a safer alternative to a trust password.
+
+It adds the `token` field to `POST /1.0/certificates`.
