@@ -275,7 +275,7 @@ func (c *cmdClusterGet) Run(cmd *cobra.Command, args []string) error {
 
 	value, ok := member.Config[args[1]]
 	if !ok {
-		return fmt.Errorf("The key %q doest not exist on cluster member %q", args[1], resource.name)
+		return fmt.Errorf(i18n.G("The key %q doest not exist on cluster member %q"), args[1], resource.name)
 	}
 
 	fmt.Printf("%s\n", value)
@@ -550,7 +550,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if server.Config["core.https_address"] == "" {
-		return fmt.Errorf("This LXD server is not available on the network")
+		return fmt.Errorf(i18n.G("This LXD server is not available on the network"))
 	}
 
 	// Check if already enabled
@@ -560,7 +560,7 @@ func (c *cmdClusterEnable) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	if currentCluster.Enabled {
-		return fmt.Errorf("This LXD server is already clustered")
+		return fmt.Errorf(i18n.G("This LXD server is already clustered"))
 	}
 
 	// Enable clustering.

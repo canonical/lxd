@@ -92,11 +92,11 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 			argNoStr := match[1]
 			argNo, err := strconv.Atoi(argNoStr)
 			if err != nil {
-				return nil, false, fmt.Errorf("Invalid argument %q", match[0])
+				return nil, false, fmt.Errorf(i18n.G("Invalid argument %q"), match[0])
 			}
 
 			if argNo > len(atArgs) {
-				return nil, false, fmt.Errorf("Found alias %q references an argument outside the given number", strings.Join(aliasKey, " "))
+				return nil, false, fmt.Errorf(i18n.G("Found alias %q references an argument outside the given number"), strings.Join(aliasKey, " "))
 			}
 
 			numberedArgsMap[argNo] = atArgs[argNo-1]
@@ -130,7 +130,7 @@ func expandAlias(conf *config.Config, args []string) ([]string, bool, error) {
 				argNoStr := match[1]
 				argNo, err := strconv.Atoi(argNoStr)
 				if err != nil {
-					return nil, false, fmt.Errorf("Invalid argument %q", match[0])
+					return nil, false, fmt.Errorf(i18n.G("Invalid argument %q"), match[0])
 				}
 
 				replacement := numberedArgsMap[argNo]
