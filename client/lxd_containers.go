@@ -18,6 +18,9 @@ import (
 )
 
 // Container handling functions
+//
+// Deprecated: Those functions are deprecated and won't be updated anymore.
+// Please use the equivalent Instance function instead.
 
 // GetContainerNames returns a list of container names
 func (r *ProtocolLXD) GetContainerNames() ([]string, error) {
