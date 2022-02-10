@@ -23,6 +23,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -981,9 +982,23 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 	deadline, _ := ctx.Deadline()
 	dialer := &net.Dialer{Timeout: time.Until(deadline)}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to HTTP endpoint %q: %w", addr, err)
+	}
+	revert.Add(func() { conn.Close() })
+
+	remoteTCP, err := util.ExtractTCPConn(conn)
+	if err != nil {
+		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+	} else {
+		err := util.SetTCPTimeouts(remoteTCP)
+		if err != nil {
+			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+		}
 	}
 
 	err = request.Write(conn)
@@ -1017,6 +1032,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
 	}
 
+	revert.Success()
 	return conn, nil
 }
 
