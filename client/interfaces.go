@@ -86,6 +86,9 @@ type InstanceServer interface {
 	CreateCertificateToken(certificate api.CertificatesPost) (op Operation, err error)
 
 	// Container functions
+	//
+	// Deprecated: Those functions are deprecated and won't be updated anymore.
+	// Please use the equivalent Instance function instead.
 	GetContainerNames() (names []string, err error)
 	GetContainers() (containers []api.Container, err error)
 	GetContainersFull() (containers []api.ContainerFull, err error)
