@@ -274,7 +274,7 @@ func (c *cmdPublish) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf(i18n.G("Instance published with fingerprint: %s")+"\n", fingerprint)
 
+	fmt.Printf(i18n.G("Instance published with fingerprint: %s")+"\n", fingerprint)
 	return nil
 }
