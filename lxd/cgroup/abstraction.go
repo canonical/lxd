@@ -726,7 +726,7 @@ func (cg *CGroup) GetMemoryStats() (map[string]uint64, error) {
 			out["rss"], _ = strconv.ParseUint(field[1], 10, 64)
 		case "total_shmem", "shmem":
 			out["shmem"], _ = strconv.ParseUint(field[1], 10, 64)
-		case "total_cache": // v1 only
+		case "total_cache", "file":
 			out["cache"], _ = strconv.ParseUint(field[1], 10, 64)
 		}
 	}
