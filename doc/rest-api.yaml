@@ -40,6 +40,35 @@ definitions:
         x-go-name: Type
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
+  CertificateAddToken:
+    properties:
+      addresses:
+        description: The addresses of the server
+        example:
+        - 10.98.30.229:8443
+        items:
+          type: string
+        type: array
+        x-go-name: Addresses
+      client_name:
+        description: The name of the new client
+        example: user@host
+        type: string
+        x-go-name: ClientName
+      fingerprint:
+        description: The fingerprint of the network certificate
+        example: 57bb0ff4340b5bb28517e062023101adf788c37846dc8b619eb2c3cb4ef29436
+        type: string
+        x-go-name: Fingerprint
+      secret:
+        description: The random join secret
+        example: 2b2284d44db32675923fe0d2020477e0e9be11801ff70c435e032b97028c35cd
+        type: string
+        x-go-name: Secret
+    title: CertificateAddToken represents the fields contained within an encoded certificate
+      add token.
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
   CertificatePut:
     description: CertificatePut represents the modifiable fields of a LXD certificate
     properties:
@@ -108,6 +137,11 @@ definitions:
         example: true
         type: boolean
         x-go-name: Restricted
+      token:
+        description: Whether to create a certificate add token
+        example: true
+        type: boolean
+        x-go-name: Token
       type:
         description: Usage type for the certificate (only client currently)
         example: client
