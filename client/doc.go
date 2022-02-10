@@ -4,9 +4,9 @@
 //
 // This package lets you connect to LXD daemons or SimpleStream image
 // servers over a Unix socket or HTTPs. You can then interact with those
-// remote servers, creating containers, images, moving them around, ...
+// remote servers, creating instances, images, moving them around, ...
 //
-// Example - container creation
+// Example - instance creation
 //
 // This creates a container on a local LXD daemon and then starts it.
 //
@@ -16,17 +16,18 @@
 //    return err
 //  }
 //
-//  // Container creation request
-//  req := api.ContainersPost{
+//  // Instance creation request
+//  req := api.InstancesPost{
 //    Name: "my-container",
-//    Source: api.ContainerSource{
+//    Source: api.InstanceSource{
 //      Type:  "image",
 //      Alias: "my-image",
 //    },
+//    Type: "container"
 //  }
 //
-//  // Get LXD to create the container (background operation)
-//  op, err := c.CreateContainer(req)
+//  // Get LXD to create the instance (background operation)
+//  op, err := c.CreateInstance(req)
 //  if err != nil {
 //    return err
 //  }
@@ -37,13 +38,13 @@
 //    return err
 //  }
 //
-//  // Get LXD to start the container (background operation)
-//  reqState := api.ContainerStatePut{
+//  // Get LXD to start the instance (background operation)
+//  reqState := api.InstanceStatePut{
 //    Action: "start",
 //    Timeout: -1,
 //  }
 //
-//  op, err = c.UpdateContainerState(name, reqState, "")
+//  op, err = c.UpdateInstanceState(name, reqState, "")
 //  if err != nil {
 //    return err
 //  }
@@ -65,7 +66,7 @@
 //  }
 //
 //  // Setup the exec request
-//  req := api.ContainerExecPost{
+//  req := api.InstanceExecPost{
 //    Command: []string{"bash"},
 //    WaitForWS: true,
 //    Interactive: true,
@@ -74,7 +75,7 @@
 //  }
 //
 //  // Setup the exec arguments (fds)
-//  args := lxd.ContainerExecArgs{
+//  args := lxd.InstanceExecArgs{
 //    Stdin: os.Stdin,
 //    Stdout: os.Stdout,
 //    Stderr: os.Stderr,
@@ -92,7 +93,7 @@
 //  }
 //
 //  // Get the current state
-//  op, err := c.ExecContainer("c1", req, &args)
+//  op, err := c.ExecInstance("c1", req, &args)
 //  if err != nil {
 //    return err
 //  }
