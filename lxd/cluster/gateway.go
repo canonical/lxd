@@ -23,6 +23,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -362,7 +363,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 			return g.memoryDial(ctx, address)
 		}
 
-		conn, err := dqliteNetworkDial(ctx, address, g)
+		conn, err := dqliteNetworkDial(ctx, "dqlite", address, g)
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +385,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 		if err != nil {
 			return nil, err
 		}
-		conn, err := dqliteNetworkDial(ctx, nodeAddress, g)
+		conn, err := dqliteNetworkDial(ctx, "raft", nodeAddress, g)
 		if err != nil {
 			return nil, err
 		}
@@ -406,7 +407,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener.Close()
 
-		go dqliteProxy("raftDial", g.stopCh, conn, goUnix)
+		go dqliteProxy("raft", g.stopCh, conn, goUnix)
 
 		return cUnix, nil
 	}
@@ -952,7 +953,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	return address, nil
 }
 
-func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, error) {
+func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway) (net.Conn, error) {
 	config, err := tlsClientConfig(g.networkCert, g.serverCert())
 	if err != nil {
 		return nil, err
@@ -981,9 +982,26 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 	deadline, _ := ctx.Deadline()
 	dialer := &net.Dialer{Timeout: time.Until(deadline)}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed connecting to HTTP endpoint %q: %w", addr, err)
+	}
+	revert.Add(func() { conn.Close() })
+
+	logger := logging.AddContext(logger.Log, log.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
+	logger.Info("Dqlite connected outbound")
+
+	remoteTCP, err := util.ExtractTCPConn(conn)
+	if err != nil {
+		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+	} else {
+		err := util.SetTCPTimeouts(remoteTCP)
+		if err != nil {
+			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+		}
 	}
 
 	err = request.Write(conn)
@@ -993,7 +1011,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 
 	response, err := http.ReadResponse(bufio.NewReader(conn), request)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read response")
+		return nil, fmt.Errorf("Failed to read response: %w", err)
 	}
 
 	// If the remote server has detected that we are out of date, let's
@@ -1017,6 +1035,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
 	}
 
+	revert.Success()
 	return conn, nil
 }
 
@@ -1056,7 +1075,7 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 			continue
 		}
 
-		go dqliteProxy("runDqliteProxy", stopCh, remote, local)
+		go dqliteProxy("dqlite", stopCh, remote, local)
 	}
 }
 
