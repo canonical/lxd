@@ -338,7 +338,6 @@ type qemu struct {
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
-	agentClient      *http.Client
 	architectureName string
 	storagePool      storagePools.Pool
 }
@@ -346,8 +345,14 @@ type qemu struct {
 // getAgentClient returns the current agent client handle. To avoid TLS setup each time this
 // function is called, the handle is cached internally in the Qemu struct.
 func (d *qemu) getAgentClient() (*http.Client, error) {
-	if d.agentClient != nil {
-		return d.agentClient, nil
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, err
+	}
+
+	if !monitor.AgentReady() {
+		return nil, errQemuAgentOffline
 	}
 
 	// The connection uses mutual authentication, so use the LXD server's key & cert for client.
@@ -5406,16 +5411,6 @@ func (d *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 // agentGetState connects to the agent inside of the VM and does
 // an API call to get the current state.
 func (d *qemu) agentGetState() (*api.InstanceState, error) {
-	// Check if the agent is running.
-	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
-	if err != nil {
-		return nil, err
-	}
-
-	if !monitor.AgentReady() {
-		return nil, errQemuAgentOffline
-	}
-
 	client, err := d.getAgentClient()
 	if err != nil {
 		return nil, err
