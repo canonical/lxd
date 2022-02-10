@@ -167,7 +167,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	// Start status notifier in background.
-	go c.startStatusNotifier(ctx)
+	cancelStatusNotifier := c.startStatusNotifier(ctx)
 
 	errChan := make(chan error, 1)
 
@@ -193,15 +193,19 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, unix.SIGTERM)
 
+	exitStatus := 0
+
 	select {
 	case <-chSignal:
-		cancelFunc()
-		os.Exit(0)
 	case err := <-errChan:
 		fmt.Fprintln(os.Stderr, err)
-		cancelFunc()
-		os.Exit(1)
+		exitStatus = 1
 	}
+
+	cancelStatusNotifier() // Ensure STOPPED status is written to QEMU status ringbuffer.
+	cancelFunc()
+
+	os.Exit(exitStatus)
 
 	return nil
 }
