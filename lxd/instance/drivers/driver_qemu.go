@@ -346,6 +346,16 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 		return d.agentClient, nil
 	}
 
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return nil, err
+	}
+
+	if !monitor.AgentReady() {
+		return nil, errQemuAgentOffline
+	}
+
 	// The connection uses mutual authentication, so use the LXD server's key & cert for client.
 	agentCert, _, clientCert, clientKey, err := d.generateAgentCert()
 	if err != nil {
