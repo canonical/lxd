@@ -5416,16 +5416,6 @@ func (d *qemu) diskState() (map[string]api.InstanceStateDisk, error) {
 // agentGetState connects to the agent inside of the VM and does
 // an API call to get the current state.
 func (d *qemu) agentGetState() (*api.InstanceState, error) {
-	// Check if the agent is running.
-	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
-	if err != nil {
-		return nil, err
-	}
-
-	if !monitor.AgentReady() {
-		return nil, errQemuAgentOffline
-	}
-
 	client, err := d.getAgentClient()
 	if err != nil {
 		return nil, err
