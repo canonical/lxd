@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -166,7 +167,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	// Start status notifier in background.
-	go c.startStatusNotifier(ctx)
+	cancelStatusNotifier := c.startStatusNotifier(ctx)
 
 	errChan := make(chan error, 1)
 
@@ -192,38 +193,55 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, unix.SIGTERM)
 
+	exitStatus := 0
+
 	select {
 	case <-chSignal:
-		cancelFunc()
-		os.Exit(0)
 	case err := <-errChan:
 		fmt.Fprintln(os.Stderr, err)
-		cancelFunc()
-		os.Exit(1)
+		exitStatus = 1
 	}
+
+	cancelStatusNotifier() // Ensure STOPPED status is written to QEMU status ringbuffer.
+	cancelFunc()
+
+	os.Exit(exitStatus)
 
 	return nil
 }
 
 // startStatusNotifier sends status of agent to vserial ring buffer every 10s or when context is done.
-func (c *cmdAgent) startStatusNotifier(ctx context.Context) {
-	ticker := time.NewTicker(time.Duration(time.Second) * 10)
-	defer ticker.Stop()
-
+// Returns a function that can be used to update the running status to STOPPED in the ring buffer.
+func (c *cmdAgent) startStatusNotifier(ctx context.Context) context.CancelFunc {
 	// Write initial started status.
 	c.writeStatus("STARTED")
 
-	for {
-		select {
-		case <-ticker.C:
-			// Re-populate status periodically in case LXD restarts.
-			c.writeStatus("STARTED")
-		case <-ctx.Done():
-			// Indicate we are stopping to LXD.
-			c.writeStatus("STOPPED")
-			return
-		}
+	wg := sync.WaitGroup{}
+	exitCtx, exit := context.WithCancel(ctx) // Allows manual synchronous cancellation via cancel function.
+	cancel := func() {
+		exit()    // Signal for the go routine to end.
+		wg.Wait() // Wait for the go routine to actually finish.
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done() // Signal to cancel function that we are done.
+
+		ticker := time.NewTicker(time.Duration(time.Second) * 5)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				c.writeStatus("STARTED") // Re-populate status periodically in case LXD restarts.
+			case <-exitCtx.Done():
+				c.writeStatus("STOPPED") // Indicate we are stopping to LXD and exit go routine.
+				return
+			}
+		}
+	}()
+
+	return cancel
 }
 
 // writeStatus writes a status code to the vserial ring buffer used to detect agent status on host.

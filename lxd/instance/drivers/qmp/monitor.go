@@ -25,6 +25,7 @@ type Monitor struct {
 	qmp  *qmp.SocketMonitor
 
 	agentReady    bool
+	agentReadyMu  sync.Mutex
 	disconnected  bool
 	chDisconnect  chan struct{}
 	eventHandler  func(name string, data map[string]interface{})
@@ -57,11 +58,13 @@ func (m *Monitor) start() error {
 		if len(entries) > 1 {
 			status := entries[len(entries)-2]
 
+			m.agentReadyMu.Lock()
 			if status == "STARTED" {
 				m.agentReady = true
 			} else if status == "STOPPED" {
 				m.agentReady = false
 			}
+			m.agentReadyMu.Unlock()
 		}
 	}
 
@@ -235,6 +238,9 @@ func Connect(path string, serialCharDev string, eventHandler func(name string, d
 
 // AgentReady indicates whether an agent has been detected.
 func (m *Monitor) AgentReady() bool {
+	m.agentReadyMu.Lock()
+	defer m.agentReadyMu.Unlock()
+
 	return m.agentReady
 }
 
