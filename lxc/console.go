@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
@@ -70,7 +71,7 @@ type readWriteCloser struct {
 
 type stdinMirror struct {
 	r                 io.Reader
-	consoleDisconnect chan<- bool
+	consoleDisconnect chan struct{}
 	foundEscape       *bool
 }
 
@@ -86,12 +87,8 @@ func (er stdinMirror) Read(p []byte) (int, error) {
 	}
 
 	if v == 'q' && *er.foundEscape {
-		select {
-		case er.consoleDisconnect <- true:
-			return 0, err
-		default:
-			return 0, err
-		}
+		close(er.consoleDisconnect)
+		return 0, err
 	}
 
 	*er.foundEscape = false
@@ -186,7 +183,7 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	}
 
 	consoleDisconnect := make(chan bool)
-	sendDisconnect := make(chan bool)
+	sendDisconnect := make(chan struct{})
 	defer close(sendDisconnect)
 
 	consoleArgs := lxd.InstanceConsoleArgs{
@@ -235,20 +232,15 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		Type: "vga",
 	}
 
-	consoleDisconnect := make(chan bool)
-	sendDisconnect := make(chan bool)
-	defer close(sendDisconnect)
+	chDisconnect := make(chan bool)
+	chViewer := make(chan struct{})
 
 	consoleArgs := lxd.InstanceConsoleArgs{
 		Control:           handler,
-		ConsoleDisconnect: consoleDisconnect,
+		ConsoleDisconnect: chDisconnect,
 	}
 
-	go func() {
-		<-sendDisconnect
-		close(consoleDisconnect)
-	}()
-
+	// Setup local socket.
 	var socket string
 	var listener net.Listener
 	if runtime.GOOS != "windows" {
@@ -277,7 +269,6 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		if err != nil {
 			return err
 		}
-		defer listener.Close()
 		defer os.Remove(path.Name())
 
 		socket = fmt.Sprintf("spice+unix://%s", path.Name())
@@ -286,38 +277,48 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		if err != nil {
 			return err
 		}
-		defer listener.Close()
 
 		addr := listener.Addr().(*net.TCPAddr)
 		socket = fmt.Sprintf("spice://127.0.0.1:%d", addr.Port)
 	}
 
+	// Clean everything up when the viewer is done.
+	go func() {
+		<-chViewer
+		listener.Close()
+		close(chDisconnect)
+	}()
+
+	// Spawn the remote console.
 	op, connect, err := d.ConsoleInstanceDynamic(name, req, &consoleArgs)
 	if err != nil {
+		close(chViewer)
 		return err
 	}
 
 	// Handle connections to the socket.
+	wgConnections := sync.WaitGroup{}
+	chConnected := make(chan struct{})
 	go func() {
-		count := 0
+		hasConnected := false
 
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
 				return
 			}
-			count++
+
+			if !hasConnected {
+				hasConnected = true
+				close(chConnected)
+			}
+			wgConnections.Add(1)
 
 			go func(conn io.ReadWriteCloser) {
+				defer wgConnections.Done()
+
 				err = connect(conn)
 				if err != nil {
-					sendDisconnect <- true
-					return
-				}
-
-				count--
-				if count == 0 {
-					sendDisconnect <- true
 					return
 				}
 			}(conn)
@@ -344,10 +345,14 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		// Handle the command exiting.
 		go func() {
 			cmd.Wait()
-			sendDisconnect <- true
+			close(chViewer)
 		}()
 
-		defer func() {
+		// Kill the viewer on remote disconnection.
+		go func() {
+			<-chConnected
+			wgConnections.Wait()
+
 			if cmd.Process == nil {
 				return
 			}
@@ -358,6 +363,11 @@ func (c *cmdConsole) vga(d lxd.InstanceServer, name string) error {
 		fmt.Println(i18n.G("LXD automatically uses either spicy or remote-viewer when present."))
 		fmt.Println(i18n.G("As neither could be found, the raw SPICE socket can be found at:"))
 		fmt.Printf("  %s\n", socket)
+
+		// Wait for all connections to complete.
+		<-chConnected
+		wgConnections.Wait()
+		close(chViewer)
 	}
 
 	// Wait for the operation to complete.
