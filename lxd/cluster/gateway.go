@@ -363,7 +363,7 @@ func (g *Gateway) DialFunc() client.DialFunc {
 			return g.memoryDial(ctx, address)
 		}
 
-		conn, err := dqliteNetworkDial(ctx, address, g)
+		conn, err := dqliteNetworkDial(ctx, "dqlite", address, g)
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +385,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 		if err != nil {
 			return nil, err
 		}
-		conn, err := dqliteNetworkDial(ctx, nodeAddress, g)
+		conn, err := dqliteNetworkDial(ctx, "raft", nodeAddress, g)
 		if err != nil {
 			return nil, err
 		}
@@ -953,7 +953,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 	return address, nil
 }
 
-func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, error) {
+func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway) (net.Conn, error) {
 	config, err := tlsClientConfig(g.networkCert, g.serverCert())
 	if err != nil {
 		return nil, err
@@ -991,6 +991,9 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 	}
 	revert.Add(func() { conn.Close() })
 
+	logger := logging.AddContext(logger.Log, log.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
+	logger.Info("Dqlite connected outbound")
+
 	remoteTCP, err := util.ExtractTCPConn(conn)
 	if err != nil {
 		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
@@ -1008,7 +1011,7 @@ func dqliteNetworkDial(ctx context.Context, addr string, g *Gateway) (net.Conn, 
 
 	response, err := http.ReadResponse(bufio.NewReader(conn), request)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read response")
+		return nil, fmt.Errorf("Failed to read response: %w", err)
 	}
 
 	// If the remote server has detected that we are out of date, let's
