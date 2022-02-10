@@ -407,7 +407,7 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener.Close()
 
-		go dqliteProxy("raftDial", g.stopCh, conn, goUnix)
+		go dqliteProxy("raft", g.stopCh, conn, goUnix)
 
 		return cUnix, nil
 	}
@@ -1075,7 +1075,7 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 			continue
 		}
 
-		go dqliteProxy("runDqliteProxy", stopCh, remote, local)
+		go dqliteProxy("dqlite", stopCh, remote, local)
 	}
 }
 
