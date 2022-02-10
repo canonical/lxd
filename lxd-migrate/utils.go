@@ -1,0 +1,348 @@
+package main
+
+import (
+	"bufio"
+	"context"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+
+	cookiejar "github.com/juju/persistent-cookiejar"
+	"golang.org/x/sys/unix"
+	"golang.org/x/term"
+	schemaform "gopkg.in/juju/environschema.v1/form"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
+	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
+
+	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/lxd/migration"
+	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
+	cli "github.com/lxc/lxd/shared/cmd"
+	"github.com/lxc/lxd/shared/version"
+)
+
+func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
+	opAPI := op.Get()
+
+	// Connect to the websockets
+	wsControl, err := op.GetWebsocket(opAPI.Metadata["control"].(string))
+	if err != nil {
+		return err
+	}
+
+	wsFs, err := op.GetWebsocket(opAPI.Metadata["fs"].(string))
+	if err != nil {
+		return err
+	}
+
+	// Setup control struct
+	var fs migration.MigrationFSType
+	var rsyncHasFeature bool
+
+	if instanceType == api.InstanceTypeVM {
+		fs = migration.MigrationFSType_BLOCK_AND_RSYNC
+		rsyncHasFeature = false
+	} else {
+		fs = migration.MigrationFSType_RSYNC
+		rsyncHasFeature = true
+	}
+
+	header := migration.MigrationHeader{
+		RsyncFeatures: &migration.RsyncFeatures{
+			Xattrs:   &rsyncHasFeature,
+			Delete:   &rsyncHasFeature,
+			Compress: &rsyncHasFeature,
+		},
+		Fs: &fs,
+	}
+
+	if instanceType == api.InstanceTypeVM {
+		stat, err := os.Stat(filepath.Join(rootfs, "root.img"))
+		if err != nil {
+			return err
+		}
+
+		size := stat.Size()
+		header.VolumeSize = &size
+		rootfs = shared.AddSlash(rootfs)
+	}
+
+	err = migration.ProtoSend(wsControl, &header)
+	if err != nil {
+		protoSendError(wsControl, err)
+		return err
+	}
+
+	err = migration.ProtoRecv(wsControl, &header)
+	if err != nil {
+		protoSendError(wsControl, err)
+		return err
+	}
+
+	// Send the filesystem
+	abort := func(err error) error {
+		protoSendError(wsControl, err)
+		return err
+	}
+
+	err = rsyncSend(ctx, wsFs, rootfs, rsyncArgs, instanceType)
+	if err != nil {
+		return abort(err)
+	}
+
+	// Send block volume
+	if instanceType == api.InstanceTypeVM {
+		f, err := os.Open(filepath.Join(rootfs, "root.img"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		conn := &shared.WebsocketIO{Conn: wsFs}
+
+		go func() {
+			<-ctx.Done()
+			conn.Close()
+			f.Close()
+		}()
+
+		_, err = io.Copy(conn, f)
+		if err != nil {
+			return err
+		}
+
+		conn.Close()
+	}
+
+	// Check the result
+	msg := migration.MigrationControl{}
+	err = migration.ProtoRecv(wsControl, &msg)
+	if err != nil {
+		wsControl.Close()
+		return err
+	}
+
+	if !*msg.Success {
+		return fmt.Errorf(*msg.Message)
+	}
+
+	return nil
+}
+
+func connectTarget(url string, certPath string, keyPath string, authType string) (lxd.InstanceServer, string, error) {
+	args := lxd.ConnectionArgs{
+		AuthType: authType,
+	}
+	clientFingerprint := ""
+
+	if authType == "tls" {
+		var clientCrt []byte
+		var clientKey []byte
+
+		// Generate a new client certificate for this
+		if certPath == "" || keyPath == "" {
+			var err error
+
+			clientCrt, clientKey, err = shared.GenerateMemCert(true, false)
+			if err != nil {
+				return nil, "", err
+			}
+
+			clientFingerprint, err = shared.CertFingerprintStr(string(clientCrt))
+			if err != nil {
+				return nil, "", err
+			}
+
+			fmt.Printf("\nYour temporary certificate is:\n%s\n", string(clientCrt))
+		} else {
+			var err error
+
+			clientCrt, err = ioutil.ReadFile(certPath)
+			if err != nil {
+				return nil, "", fmt.Errorf("Failed to read client certificate: %w", err)
+			}
+
+			clientKey, err = ioutil.ReadFile(keyPath)
+			if err != nil {
+				return nil, "", fmt.Errorf("Failed to read client key: %w", err)
+			}
+		}
+
+		args.TLSClientCert = string(clientCrt)
+		args.TLSClientKey = string(clientKey)
+	} else if authType == "candid" {
+		args.AuthInteractor = []httpbakery.Interactor{
+			form.Interactor{Filler: schemaform.IOFiller{}},
+			httpbakery.WebBrowserInteractor{
+				OpenWebBrowser: httpbakery.OpenWebBrowser,
+			},
+		}
+
+		f, err := ioutil.TempFile("", "lxd-migrate_")
+		if err != nil {
+			return nil, "", err
+		}
+		f.Close()
+
+		jar, err := cookiejar.New(
+			&cookiejar.Options{
+				Filename: f.Name(),
+			})
+		if err != nil {
+			return nil, "", err
+		}
+
+		args.CookieJar = jar
+	}
+
+	// Attempt to connect using the system CA
+	args.UserAgent = fmt.Sprintf("LXC-MIGRATE %s", version.Version)
+	c, err := lxd.ConnectLXD(url, &args)
+
+	var certificate *x509.Certificate
+	if err != nil {
+		// Failed to connect using the system CA, so retrieve the remote certificate
+		certificate, err = shared.GetRemoteCertificate(url, args.UserAgent)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	// Handle certificate prompt
+	if certificate != nil {
+		serverCrt := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certificate.Raw})
+		args.TLSServerCert = string(serverCrt)
+
+		// Setup a new connection, this time with the remote certificate
+		c, err = lxd.ConnectLXD(url, &args)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	if authType == "candid" {
+		c.RequireAuthenticated(false)
+	}
+
+	// Get server information
+	srv, _, err := c.GetServer()
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Check if our cert is already trusted
+	if srv.Auth == "trusted" {
+		fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
+		return c, "", nil
+	}
+
+	if authType == "tls" {
+		fmt.Println("It is recommended to have this certificate be manually added to LXD through `lxc config trust add` on the target server.\nAlternatively you could use a pre-defined trust password to add it remotely (use of a trust password can be a security issue).")
+
+		fmt.Println("")
+
+		useTrustPassword, err := cli.AskBool("Would you like to use a trust password? [default=no]: ", "no")
+		if err != nil {
+			return nil, "", err
+		}
+
+		if useTrustPassword {
+			// Prompt for trust password
+			fmt.Print("Trust password: ")
+			pwd, err := term.ReadPassword(0)
+			if err != nil {
+				return nil, "", err
+			}
+			fmt.Println("")
+
+			// Add client certificate to trust store
+			req := api.CertificatesPost{
+				Password: string(pwd),
+			}
+			req.Type = api.CertificateTypeClient
+
+			err = c.CreateCertificate(req)
+			if err != nil {
+				return nil, "", err
+			}
+		} else {
+			fmt.Print("Press ENTER after the certificate was added to the remote server: ")
+			bufio.NewReader(os.Stdin).ReadString('\n')
+		}
+	} else {
+		c.RequireAuthenticated(true)
+	}
+
+	// Get full server information
+	srv, _, err = c.GetServer()
+	if err != nil {
+		if clientFingerprint != "" {
+			c.DeleteCertificate(clientFingerprint)
+		}
+
+		return nil, "", err
+	}
+
+	if srv.Auth == "untrusted" {
+		return nil, "", fmt.Errorf("Server doesn't trust us after authentication")
+	}
+
+	fmt.Printf("\nRemote LXD server:\n  Hostname: %s\n  Version: %s\n\n", srv.Environment.ServerName, srv.Environment.ServerVersion)
+
+	return c, clientFingerprint, nil
+}
+
+func setupSource(path string, mounts []string) error {
+	prefix := "/"
+	if len(mounts) > 0 {
+		prefix = mounts[0]
+	}
+
+	// Mount everything
+	for _, mount := range mounts {
+		target := fmt.Sprintf("%s/%s", path, strings.TrimPrefix(mount, prefix))
+
+		// Mount the path
+		err := unix.Mount(mount, target, "none", unix.MS_BIND, "")
+		if err != nil {
+			return fmt.Errorf("Failed to mount %s: %v", mount, err)
+		}
+
+		// Make it read-only
+		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
+		if err != nil {
+			return fmt.Errorf("Failed to make %s read-only: %v", mount, err)
+		}
+	}
+
+	return nil
+}
+
+func parseURL(URL string) (string, error) {
+	u, err := url.Parse(URL)
+	if err != nil {
+		return "", err
+	}
+
+	// Create a URL with scheme and hostname since it wasn't provided
+	if u.Scheme == "" && u.Host == "" && u.Path != "" {
+		u, err = url.Parse(fmt.Sprintf("https://%s", u.Path))
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// If no port was provided, use default port
+	if u.Port() == "" {
+		u.Host = fmt.Sprintf("%s:%d", u.Hostname(), shared.HTTPSDefaultPort)
+	}
+
+	return u.String(), nil
+}
