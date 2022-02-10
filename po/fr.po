@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-10 10:12-0500\n"
+"POT-Creation-Date: 2022-02-10 14:58-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -20,7 +20,6 @@ msgstr ""
 "X-Generator: Weblate 3.4-dev\n"
 
 #: lxc/storage.go:229
-#, fuzzy
 msgid ""
 "### This is a YAML representation of a storage pool.\n"
 "### Any line starting with a '#' will be ignored.\n"
@@ -36,17 +35,13 @@ msgid ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 msgstr ""
-"### Cette partie est une représentation d'un ensemble de stockage au format "
-"YAML.\n"
+"### Cette partie est une représentation au format YAML d'un pool de "
+"stockage .\n"
 "### Toute ligne commençant par un '#' sera ignorée.\n"
 "###\n"
-"### L'ensemble de stockage est constituté d'un ensemble d'élements de "
-"configuration.\n"
-"### Un ensemble de stockage consiste en plusieurs éléments de "
-"configuration.\n"
+"### Un pool de stockage consiste en plusieurs éléments de configuration.\n"
 "###\n"
 "### Voici un exemple :\n"
-"###\n"
 "### name: default\n"
 "### driver: zfs\n"
 "### used_by: []\n"
@@ -56,7 +51,6 @@ msgstr ""
 "###   zfs.pool_name: default"
 
 #: lxc/storage_volume.go:852
-#, fuzzy
 msgid ""
 "### This is a YAML representation of a storage volume.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -69,27 +63,30 @@ msgid ""
 "### config:\n"
 "###   size: \"61203283968\""
 msgstr ""
-"### Ceci est une représentation yaml des propriétés de l'image.\n"
+"### Ceci est une représentation au format YAML d'un volume de stockage.\n"
 "### Toute ligne commençant par un '# sera ignorée.\n"
 "###\n"
-"### Chaque propriété est représentée par une ligne unique :\n"
-"### Un exemple serait :\n"
-"###  description: Mon image personnalisée"
+"### Un volume de stockage est constitué d'un ensemble d'éléments "
+"configurable.\n"
+"###\n"
+"### name: vol1\n"
+"### type: custom\n"
+"### used_by: []\n"
+"### config:\n"
+"###   size: \"61203283968\""
 
 #: lxc/config_trust.go:228
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### Note that the fingerprint is shown but cannot be changed"
 msgstr ""
-"### Ceci est une représentation yaml des propriétés de l'image.\n"
+"### Ceci est une représentation yaml d'un certificat.\n"
 "### Toute ligne commençant par un '# sera ignorée.\n"
 "###\n"
-"### Chaque propriété est représentée par une ligne unique :\n"
-"### Un exemple serait :\n"
-"###  description: Mon image personnalisée"
+"### Prenez note que l'empreinte digitale (fingerprint ) est affichée mais ne "
+"peut pas être modifiée"
 
 #: lxc/cluster_group.go:356
 #, fuzzy
@@ -144,7 +141,6 @@ msgstr ""
 "### Notez que le nom est affiché mais ne peut être modifié"
 
 #: lxc/image.go:370
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the image properties.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -153,7 +149,7 @@ msgid ""
 "### An example would be:\n"
 "###  description: My custom image"
 msgstr ""
-"### Ceci est une représentation yaml des propriétés de l'image.\n"
+"### Ceci est une représentation YAML des propriétés d'une image.\n"
 "### Toute ligne commençant par un '# sera ignorée.\n"
 "###\n"
 "### Chaque propriété est représentée par une ligne unique :\n"
@@ -161,7 +157,6 @@ msgstr ""
 "###  description: Mon image personnalisée"
 
 #: lxc/config_metadata.go:64
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the instance metadata.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -184,26 +179,28 @@ msgid ""
 "###     template: template.tpl\n"
 "###     properties: {}"
 msgstr ""
-"### Ceci est une réprésentation yaml de la configuration.\n"
+"### Ceci est une représentation YAML des métadonnées de l'instance .\n"
 "### Toute ligne commençant par un '# sera ignorée.\n"
 "###\n"
 "### Un exemple de configuration ressemble à :\n"
-"### name: container1\n"
-"### profiles:\n"
-"### - default\n"
-"### config:\n"
-"###   volatile.eth0.hwaddr: 00:16:3e:e9:f8:7f\n"
-"### devices:\n"
-"###   homedir:\n"
-"###     path: /extra\n"
-"###     source: /home/user\n"
-"###     type: disk\n"
-"### ephemeral: false\n"
 "###\n"
-"### Notez que le nom est affiché mais ne peut être modifié"
+"### architecture: x86_64\n"
+"### creation_date: 1477146654\n"
+"### expiry_date: 0\n"
+"### properties:\n"
+"###   architecture: x86_64\n"
+"###   description: BusyBox x86_64\n"
+"###   name: busybox-x86_64\n"
+"###   os: BusyBox\n"
+"### templates:\n"
+"###   /template:\n"
+"###     when:\n"
+"###     - \"\"\n"
+"###     create_only: false\n"
+"###     template: template.tpl\n"
+"###     properties: {}"
 
 #: lxc/network_acl.go:492
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the network ACL.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -230,23 +227,32 @@ msgid ""
 "### Note that only the ingress and egress rules, description and "
 "configuration keys can be changed."
 msgstr ""
-"### Ceci est une représentation yaml du réseau.\n"
+"### Ceci est une représentation YAML d'une liste de contrôle d'accès réseau "
+"(ACL). .\n"
 "### Toute ligne commençant par un '# sera ignorée.\n"
 "###\n"
-"### Un réseau est constitué d'un ensemble d'éléments de configuration.\n"
-"### A network consists of a set of configuration item<\n"
+"### Une liste de contrôle d'accès réseau (ACL) se compose d'un ensemble de "
+"règles et d'éléments de configuration \n"
 "###\n"
-"### Un exemple reseemblerait à :\n"
-"### name: lxdbr0\n"
+"### Un exemple resemblerait à :\n"
+"### name: allow-all-inbound\n"
+"### description: test desc\n"
+"### egress: []\n"
+"### ingress:\n"
+"### - action: allow\n"
+"###   state: enabled\n"
+"###   protocol: \"\"\n"
+"###   source: \"\"\n"
+"###   source_port: \"\"\n"
+"###   destination: \"\"\n"
+"###   destination_port: \"\"\n"
+"###   icmp_type: \"\"\n"
+"###   icmp_code: \"\"\n"
 "### config:\n"
-"###   ipv4.address: 10.62.42.1/24\n"
-"###   ipv4.nat: true\n"
-"###   ipv6.address: fd00:56ad:9f7a:9800::1/64\n"
-"###   ipv6.nat: true\n"
-"### managed: true\n"
-"### type: bridge\n"
+"###  user.foo: bah\n"
 "###\n"
-"### Notez que seule la configuration peut être modifiée."
+"### Notez que seules les règles d'entrée et de sortie, la description et les "
+"clés de configuration peuvent être modifiées ."
 
 #: lxc/network_forward.go:496
 #, fuzzy
@@ -486,7 +492,7 @@ msgstr ""
 #: lxc/info.go:315
 #, c-format
 msgid "%d (id: %d, online: %v, NUMA node: %v)"
-msgstr ""
+msgstr "%d (id: %d, online: %v, NUMA node: %v)"
 
 #: lxc/info.go:160
 #, fuzzy, c-format
@@ -520,25 +526,26 @@ msgstr "(aucun)"
 #: lxc/info.go:305
 #, c-format
 msgid "- Level %d (type: %s): %s"
-msgstr ""
+msgstr "- Niveau %d (type: %s): %s"
 
 #: lxc/info.go:284
 #, c-format
 msgid "- Partition %d"
-msgstr ""
+msgstr "- Partition %d"
 
 #: lxc/info.go:194
 #, c-format
 msgid "- Port %d (%s)"
-msgstr ""
+msgstr "- Port %d (%s)"
 
 #: lxc/action.go:206
 msgid "--console can't be used while forcing instance shutdown"
 msgstr ""
+"--console ne peut être pas utilisée tant que l'arrêt de l'instance est forcé"
 
 #: lxc/action.go:351
 msgid "--console can't be used with --all"
-msgstr ""
+msgstr "--console ne peut être utilisé avec --all"
 
 #: lxc/action.go:355
 #, fuzzy
@@ -547,32 +554,32 @@ msgstr "Profil à appliquer au nouveau conteneur"
 
 #: lxc/init.go:124
 msgid "--empty cannot be combined with an image name"
-msgstr ""
+msgstr "L'argument --empty ne peut pas être combiné avec un nom d'image"
 
 #: lxc/config.go:413 lxc/config.go:649
 msgid "--expanded cannot be used with a server"
-msgstr ""
+msgstr "--expanded ne peut être utilisé avec un serveur"
 
 #: lxc/copy.go:158
 msgid "--instance-only can't be passed when the source is a snapshot"
-msgstr ""
+msgstr "--instance-only ne peut être utilisé lorsque la source est un snapshot"
 
 #: lxc/copy.go:87
 msgid "--no-profiles cannot be used with --refresh"
-msgstr ""
+msgstr "--no-profiles ne peut pas être utilisé avec --refresh"
 
 #: lxc/query.go:71
 msgid "--project cannot be used with the query command"
-msgstr ""
+msgstr "--project ne peut pas être utilisé avec la commande query"
 
 #: lxc/copy.go:169
 msgid "--refresh can only be used with instances"
-msgstr ""
+msgstr "--refresh ne peut être utilisé qu'avec des instances"
 
 #: lxc/config.go:152 lxc/config.go:397 lxc/config.go:532 lxc/config.go:675
 #: lxc/info.go:446
 msgid "--target cannot be used with instances"
-msgstr ""
+msgstr "--target ne peut pas être utilisé avec des instances"
 
 #: lxc/alias.go:195
 #, fuzzy
@@ -586,7 +593,7 @@ msgstr "Cible invalide %s"
 
 #: lxc/alias.go:144
 msgid "<old alias> <new alias>"
-msgstr ""
+msgstr "<ancien alias> <nouvel alias>"
 
 #: lxc/storage_volume.go:1395
 #, fuzzy
@@ -634,10 +641,11 @@ msgstr ""
 msgid ""
 "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
 msgstr ""
+"<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
 
 #: lxc/manpage.go:20
 msgid "<target>"
-msgstr ""
+msgstr "<cible>"
 
 #: lxc/alias.go:129 lxc/image.go:1029 lxc/image_alias.go:234
 msgid "ALIAS"
@@ -695,7 +703,7 @@ msgstr "Alias :"
 
 #: lxc/remote.go:87
 msgid "Add new remote servers"
-msgstr ""
+msgstr "Ajouter de nouveaux serveurs distants"
 
 #: lxc/remote.go:88
 msgid ""
@@ -708,10 +716,18 @@ msgid ""
 "  lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --"
 "protocol=simplestreams\n"
 msgstr ""
+"Ajouter de nouveaux serveurs distants\n"
+"\n"
+"L'URL des ressources distantes doit être HTTPS (https://).\n"
+"\n"
+"L'authentification de base peut être utilisée lorsqu'elle est combinée avec "
+"le protocole « simplestreams » :\n"
+"  lxc remote add un-nom https://UTILISATEUR:MOTDEPASSE@exemple.com/un/chemin "
+"--protocol=simplestreams\n"
 
 #: lxc/config_trust.go:87
 msgid "Add new trusted clients"
-msgstr ""
+msgstr "Ajouter de nouveaux clients de confiance"
 
 #: lxc/config_trust.go:88
 msgid ""
@@ -784,7 +800,7 @@ msgstr "Architecture : %s"
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:359
+#: lxc/console.go:364
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -824,12 +840,12 @@ msgstr "Afficher la configuration étendue"
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:35
+#: lxc/console.go:36
 #, fuzzy
 msgid "Attach to instance consoles"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/console.go:36
+#: lxc/console.go:37
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -1201,7 +1217,7 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 msgid "Config parsing error: %s"
 msgstr "Erreur lors de la lecture de la configuration : %s"
 
-#: lxc/console.go:143
+#: lxc/console.go:140
 msgid "Console log:"
 msgstr ""
 
@@ -1610,7 +1626,7 @@ msgstr ""
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
 #: lxc/config_trust.go:219 lxc/config_trust.go:331 lxc/config_trust.go:412
 #: lxc/config_trust.go:503 lxc/config_trust.go:546 lxc/config_trust.go:617
-#: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
+#: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:75 lxc/file.go:111 lxc/file.go:160
 #: lxc/file.go:223 lxc/file.go:418 lxc/image.go:38 lxc/image.go:144
 #: lxc/image.go:304 lxc/image.go:355 lxc/image.go:480 lxc/image.go:639
@@ -2679,7 +2695,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:358
+#: lxc/console.go:363
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -4374,7 +4390,7 @@ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
-#: lxc/console.go:43
+#: lxc/console.go:44
 #, fuzzy
 msgid "Retrieve the instance's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -5031,7 +5047,7 @@ msgstr ""
 msgid "The --mode flag can't be used with --target-project"
 msgstr ""
 
-#: lxc/console.go:129
+#: lxc/console.go:126
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
@@ -5161,7 +5177,7 @@ msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
-#: lxc/console.go:204
+#: lxc/console.go:201
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -5225,7 +5241,7 @@ msgstr "Expire : %s"
 msgid "Type of certificate"
 msgstr "Accepter le certificat"
 
-#: lxc/console.go:44
+#: lxc/console.go:45
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -5288,7 +5304,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:160
+#: lxc/console.go:157
 #, c-format
 msgid "Unknown console type %q"
 msgstr ""
@@ -5303,7 +5319,7 @@ msgstr ""
 msgid "Unknown key: %s"
 msgstr ""
 
-#: lxc/console.go:112
+#: lxc/console.go:109
 #, c-format
 msgid "Unknown output type %q"
 msgstr ""
@@ -5847,7 +5863,7 @@ msgstr ""
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
-#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:34
+#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
 #, fuzzy
 msgid "[<remote>:]<instance>"
 msgstr ""
@@ -7018,32 +7034,36 @@ msgstr ""
 
 #: lxc/config.go:53
 msgid "please use `lxc profile`"
-msgstr ""
+msgstr "s'il vous plaît utilisez  `lxc profile`"
 
 #: lxc/storage.go:457
 msgid "space used"
-msgstr ""
+msgstr "espace utilisé"
 
 #: lxc/storage.go:456
 msgid "total space"
-msgstr ""
+msgstr "espace total"
 
 #: lxc/version.go:48
 msgid "unreachable"
-msgstr ""
+msgstr "inaccessible"
 
 #: lxc/storage.go:451
 msgid "used by"
-msgstr ""
+msgstr "utilisé par"
 
 #: lxc/remote.go:414
 msgid "y"
-msgstr ""
+msgstr "o"
 
 #: lxc/cluster.go:456 lxc/delete.go:47 lxc/image.go:901 lxc/image.go:906
 #: lxc/image.go:1089
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy, c-format
+#~ msgid "Failed to create alias %s"
+#~ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
 #, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
@@ -8496,3 +8516,30 @@ msgstr "oui"
 #~ "Exemple :\n"
 #~ "    lxc list -c n,volatile.base_image:\\BASE IMAGE\\:0,s46,volatile.eth0."
 #~ "hwaddr:MAC"
+
+#, fuzzy
+#~ msgid "[<remote>:] <cert>"
+#~ msgstr ""
+#~ "Supprimer des conteneurs ou des instantanés.\n"
+#~ "\n"
+#~ "lxc delete [<remote>:]<container>[/<snapshot>] [<remote>:][<container>[/"
+#~ "<snapshot>]...]\n"
+#~ "\n"
+#~ "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
+#~ "(configuration, instantanés, …)."
+
+#~ msgid "Failed to generate 'lxc.%s.1': %v"
+#~ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
+
+#~ msgid "Failed to generate 'lxc.1': %v"
+#~ msgstr "Échec lors de la génération de 'lxc.1': %v"
+
+#~ msgid "'/' not allowed in snapshot name"
+#~ msgstr "'/' n'est pas autorisé dans le nom d'un instantané"
+
+#, fuzzy
+#~ msgid "[<remote>:]<token>"
+#~ msgstr ""
+#~ "Change l'état d'un ou plusieurs conteneurs à %s.\n"
+#~ "\n"
+#~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"

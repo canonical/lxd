@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-10 10:12-0500\n"
+"POT-Creation-Date: 2022-02-10 14:58-0500\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -764,7 +764,7 @@ msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 "本当に %s しますか? （対象: クラスターメンバー %q） (yes/no) [default=no]: "
 
-#: lxc/console.go:359
+#: lxc/console.go:364
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr "どちらもみつかりませんでした。raw SPICE ソケットはこちらにあります:"
 
@@ -801,11 +801,11 @@ msgstr "新たにストレージボリュームをインスタンスに追加し
 msgid "Attach new storage volumes to profiles"
 msgstr "新しいストレージボリュームをプロファイルに追加します"
 
-#: lxc/console.go:35
+#: lxc/console.go:36
 msgid "Attach to instance consoles"
 msgstr "インスタンスのコンソールに接続します"
 
-#: lxc/console.go:36
+#: lxc/console.go:37
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -1169,7 +1169,7 @@ msgstr "移動先のインスタンスに適用するキー/値の設定"
 msgid "Config parsing error: %s"
 msgstr "設定の構文エラー: %s"
 
-#: lxc/console.go:143
+#: lxc/console.go:140
 msgid "Console log:"
 msgstr "コンソールログ:"
 
@@ -1540,7 +1540,7 @@ msgstr ""
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
 #: lxc/config_trust.go:219 lxc/config_trust.go:331 lxc/config_trust.go:412
 #: lxc/config_trust.go:503 lxc/config_trust.go:546 lxc/config_trust.go:617
-#: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
+#: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:75 lxc/file.go:111 lxc/file.go:160
 #: lxc/file.go:223 lxc/file.go:418 lxc/image.go:38 lxc/image.go:144
 #: lxc/image.go:304 lxc/image.go:355 lxc/image.go:480 lxc/image.go:639
@@ -2593,7 +2593,7 @@ msgstr "LOCATION"
 msgid "LXD - Command line client"
 msgstr "LXD - コマンドラインクライアント"
 
-#: lxc/console.go:358
+#: lxc/console.go:363
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 "LXD は spicy か remote-viewer がインストールされている場合は自動的にどちらか"
@@ -4294,7 +4294,7 @@ msgstr "クラスターメンバーをリストアしています: %s"
 msgid "Restrict the certificate to one or more projects"
 msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 
-#: lxc/console.go:43
+#: lxc/console.go:44
 msgid "Retrieve the instance's console log"
 msgstr "インスタンスのコンソールログを取得します"
 
@@ -4949,7 +4949,7 @@ msgstr "--mode と --target は同時に指定できません"
 msgid "The --mode flag can't be used with --target-project"
 msgstr "--mode と --target-project は同時に指定できません"
 
-#: lxc/console.go:129
+#: lxc/console.go:126
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
@@ -5088,7 +5088,7 @@ msgid "To create a new network, use: lxc network create"
 msgstr ""
 "新しいネットワークを作成するには、lxc network create を使用してください"
 
-#: lxc/console.go:204
+#: lxc/console.go:201
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr "コンソールから切り離すには <ctrl>+a q を押します"
 
@@ -5153,7 +5153,7 @@ msgstr "タイプ"
 msgid "Type of certificate"
 msgstr "証明書の形式"
 
-#: lxc/console.go:44
+#: lxc/console.go:45
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -5218,7 +5218,7 @@ msgstr "未知のファイルタイプ '%s'"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 
-#: lxc/console.go:160
+#: lxc/console.go:157
 #, fuzzy, c-format
 msgid "Unknown console type %q"
 msgstr "未知のファイルタイプ '%s'"
@@ -5233,7 +5233,7 @@ msgstr "未知のファイルタイプ '%s'"
 msgid "Unknown key: %s"
 msgstr "未知のファイルタイプ '%s'"
 
-#: lxc/console.go:112
+#: lxc/console.go:109
 #, fuzzy, c-format
 msgid "Unknown output type %q"
 msgstr "未知のリモート名: %q"
@@ -5582,7 +5582,7 @@ msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "[<remote>:]<image> [[<remote>:]<image>...]"
 
 #: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
-#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:34
+#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
 msgid "[<remote>:]<instance>"
 msgstr "[<remote>:]<instance>"
 

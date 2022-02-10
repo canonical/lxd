@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-10 10:12-0500\n"
+"POT-Creation-Date: 2022-02-10 14:58-0500\n"
 "PO-Revision-Date: 2020-04-27 19:48+0000\n"
 "Last-Translator: Predatorix Phoenix <predatorix@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -793,7 +793,7 @@ msgstr "Architektur: %s\n"
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:359
+#: lxc/console.go:364
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -834,12 +834,12 @@ msgstr "Netzwerkschnittstellen an Container anbinden"
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:35
+#: lxc/console.go:36
 #, fuzzy
 msgid "Attach to instance consoles"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/console.go:36
+#: lxc/console.go:37
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -1213,7 +1213,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Config parsing error: %s"
 msgstr "YAML Analyse Fehler %v\n"
 
-#: lxc/console.go:143
+#: lxc/console.go:140
 msgid "Console log:"
 msgstr ""
 
@@ -1600,7 +1600,7 @@ msgstr ""
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
 #: lxc/config_trust.go:219 lxc/config_trust.go:331 lxc/config_trust.go:412
 #: lxc/config_trust.go:503 lxc/config_trust.go:546 lxc/config_trust.go:617
-#: lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
+#: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:75 lxc/file.go:111 lxc/file.go:160
 #: lxc/file.go:223 lxc/file.go:418 lxc/image.go:38 lxc/image.go:144
 #: lxc/image.go:304 lxc/image.go:355 lxc/image.go:480 lxc/image.go:639
@@ -2654,7 +2654,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:358
+#: lxc/console.go:363
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -4272,7 +4272,7 @@ msgstr "der Name des Ursprung Containers muss angegeben werden"
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
-#: lxc/console.go:43
+#: lxc/console.go:44
 #, fuzzy
 msgid "Retrieve the instance's console log"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -4917,7 +4917,7 @@ msgstr ""
 msgid "The --mode flag can't be used with --target-project"
 msgstr "--refresh kann nur mit Containern verwendet werden"
 
-#: lxc/console.go:129
+#: lxc/console.go:126
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
@@ -5043,7 +5043,7 @@ msgstr ""
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
-#: lxc/console.go:204
+#: lxc/console.go:201
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -5104,7 +5104,7 @@ msgstr ""
 msgid "Type of certificate"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/console.go:44
+#: lxc/console.go:45
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -5167,7 +5167,7 @@ msgstr "Unbekannter Befehl %s für Abbild"
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:160
+#: lxc/console.go:157
 #, fuzzy, c-format
 msgid "Unknown console type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -5182,7 +5182,7 @@ msgstr "Unbekannter Befehl %s für Abbild"
 msgid "Unknown key: %s"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/console.go:112
+#: lxc/console.go:109
 #, fuzzy, c-format
 msgid "Unknown output type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -5699,7 +5699,7 @@ msgstr ""
 "lxd %s <Name>\n"
 
 #: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
-#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:34
+#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
 #, fuzzy
 msgid "[<remote>:]<instance>"
 msgstr ""
