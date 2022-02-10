@@ -10,7 +10,7 @@ require (
 	github.com/Rican7/retry v0.3.1
 	github.com/armon/go-proxyproto v0.0.0-20210323213023-7e956b284f0a
 	github.com/canonical/candid v1.11.0
-	github.com/canonical/go-dqlite v1.10.3-0.20220104182624-3491db06d32b
+	github.com/canonical/go-dqlite v1.10.3-0.20220216095006-3300b906d18c
 	github.com/digitalocean/go-qemu v0.0.0-20210326154740-ac9e0b687001
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
@@ -20,7 +20,7 @@ require (
 	github.com/go-httprequest/httprequest v1.1.2
 	github.com/google/gopacket v1.1.19
 	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/gosexy/gettext v0.0.0-20160830220431-74466a0a0c4a
 	github.com/hashicorp/go-msgpack v1.1.5
 	github.com/j-keck/arping v1.0.2
@@ -31,11 +31,11 @@ require (
 	github.com/juju/schema v1.0.1-0.20190814234152-1f8aaeef0989
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mattn/go-colorable v0.1.12
-	github.com/mattn/go-sqlite3 v1.14.10
-	github.com/mdlayher/ndp v0.0.0-20210831201139-f982b8766fb5
+	github.com/mattn/go-sqlite3 v1.14.11
+	github.com/mdlayher/ndp v0.0.0-20220213140253-2a2b53cd2045
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
-	github.com/mdlayher/vsock v1.0.0
-	github.com/miekg/dns v1.1.45
+	github.com/mdlayher/vsock v1.1.1
+	github.com/miekg/dns v1.1.46
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -45,8 +45,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
-	golang.org/x/crypto v0.0.0-20220126173729-e04a8579fee6
-	golang.org/x/sys v0.0.0-20220204135822-1c1b9b1eba6a
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
+	golang.org/x/sys v0.0.0-20220222200937-f2425489ef4c
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20200109203555-b30bc20e4fd1
@@ -69,8 +69,8 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jkeiser/iter v0.0.0-20200628201005-c8aa0ae784d1 // indirect
-	github.com/juju/collections v0.0.0-20200605021417-0d0ec82b7271 // indirect
-	github.com/juju/errors v0.0.0-20210818161939-5560c4c073ff // indirect
+	github.com/juju/collections v0.0.0-20220203020748-febd7cad8a7a // indirect
+	github.com/juju/errors v0.0.0-20220203013757-bd733f3c86b9 // indirect
 	github.com/juju/go4 v0.0.0-20160222163258-40d72ab9641a // indirect
 	github.com/juju/loggo v0.0.0-20210728185423-eebad3a902c4 // indirect
 	github.com/juju/mgo/v2 v2.0.0-20220111072304-f200228f1090 // indirect
@@ -80,7 +80,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/mdlayher/socket v0.1.1 // indirect
+	github.com/mdlayher/socket v0.2.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
