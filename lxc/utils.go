@@ -179,7 +179,7 @@ func profileDeviceAdd(client lxd.InstanceServer, name string, devName string, de
 	return nil
 }
 
-// Create the specified image alises, updating those that already exist
+// Create the specified image alises, updating those that already exist.
 func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fingerprint string) error {
 	if len(aliases) == 0 {
 		return nil
@@ -200,19 +200,21 @@ func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fin
 	for _, alias := range GetExistingAliases(names, resp) {
 		err := client.DeleteImageAlias(alias.Name)
 		if err != nil {
-			fmt.Println(fmt.Sprintf(i18n.G("Failed to remove alias %s"), alias.Name))
+			return fmt.Errorf(i18n.G("Failed to remove alias %s: %w"), alias.Name, err)
 		}
 	}
-	// Create new aliases
+
+	// Create new aliases.
 	for _, alias := range aliases {
 		aliasPost := api.ImageAliasesPost{}
 		aliasPost.Name = alias.Name
 		aliasPost.Target = fingerprint
 		err := client.CreateImageAlias(aliasPost)
 		if err != nil {
-			fmt.Println(fmt.Sprintf(i18n.G("Failed to create alias %s"), alias.Name))
+			return fmt.Errorf(i18n.G("Failed to create alias %s: %w"), alias.Name, err)
 		}
 	}
+
 	return nil
 }
 
