@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-23 10:23-0500\n"
+"POT-Creation-Date: 2022-02-23 10:25-0500\n"
 "PO-Revision-Date: 2020-03-27 12:50+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -111,7 +111,7 @@ msgstr ""
 "###\n"
 "### Note that the name is shown but cannot be changed"
 
-#: lxc/image.go:347
+#: lxc/image.go:351
 msgid ""
 "### This is a YAML representation of the image properties.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -293,7 +293,7 @@ msgstr "%d (id: %d, オンライン: %v)"
 msgid "%s (%d available)"
 msgstr "%s (他%d個)"
 
-#: lxc/image.go:1040
+#: lxc/image.go:1045
 #, c-format
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
@@ -425,7 +425,7 @@ msgstr "rename <remote> <new-name>"
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr "edit [<remote>:]<instance>/<path>"
 
-#: lxc/image.go:614
+#: lxc/image.go:618
 #, fuzzy
 msgid ""
 "<tarball>|<directory>|<URL> [<rootfs tarball>] [<remote>:] [key=value...]"
@@ -438,15 +438,15 @@ msgstr ""
 msgid "<target>"
 msgstr "manpage <target>"
 
-#: lxc/alias.go:129 lxc/image.go:1005 lxc/image_alias.go:234
+#: lxc/alias.go:129 lxc/image.go:1010 lxc/image_alias.go:234
 msgid "ALIAS"
 msgstr "ALIAS"
 
-#: lxc/image.go:1006
+#: lxc/image.go:1011
 msgid "ALIASES"
 msgstr "ALIASES"
 
-#: lxc/cluster.go:156 lxc/image.go:1011 lxc/list.go:430
+#: lxc/cluster.go:156 lxc/image.go:1016 lxc/list.go:430
 msgid "ARCHITECTURE"
 msgstr "ARCHITECTURE"
 
@@ -531,7 +531,7 @@ msgstr "エイリアス %s は存在しません"
 msgid "Alias name missing"
 msgstr "エイリアスを指定してください"
 
-#: lxc/image.go:926
+#: lxc/image.go:931
 msgid "Aliases:"
 msgstr "エイリアス:"
 
@@ -540,7 +540,7 @@ msgstr "エイリアス:"
 msgid "Alternative certificate name"
 msgstr "サーバの証明書が変更されていました"
 
-#: lxc/image.go:897 lxc/info.go:468
+#: lxc/image.go:902 lxc/info.go:468
 #, c-format
 msgid "Architecture: %s"
 msgstr "アーキテクチャ: %s"
@@ -608,7 +608,7 @@ msgstr "認証タイプ '%s' はサーバではサポートされていません
 msgid "Auto negotiation: %v"
 msgstr "オートネゴシエーション: %v"
 
-#: lxc/image.go:936
+#: lxc/image.go:941
 #, c-format
 msgid "Auto update: %s"
 msgstr "自動更新: %s"
@@ -642,7 +642,7 @@ msgstr "不適切なキー/値のペア: %s"
 msgid "Bad key=value pair: %s"
 msgstr "不適切な キー=値 のペア: %s"
 
-#: lxc/image.go:717
+#: lxc/image.go:721
 #, c-format
 msgid "Bad property: %s"
 msgstr "不正なイメージプロパティ形式: %s"
@@ -713,7 +713,7 @@ msgstr "CREATED AT"
 msgid "CUDA Version: %v"
 msgstr "CUDA バージョン: %v"
 
-#: lxc/image.go:935
+#: lxc/image.go:940
 #, c-format
 msgid "Cached: %s"
 msgstr "キャッシュ済: %s"
@@ -735,7 +735,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/utils.go:237 lxc/utils.go:257
+#: lxc/utils.go:239 lxc/utils.go:259
 #, c-format
 msgid "Can't read from stdin: %s"
 msgstr "標準入力から読み込めません: %s"
@@ -834,7 +834,7 @@ msgstr "クラスタメンバ名"
 msgid "Clustering enabled"
 msgstr "クラスタリングが有効になりました"
 
-#: lxc/image.go:996 lxc/list.go:120 lxc/storage_volume.go:1103
+#: lxc/image.go:1001 lxc/list.go:120 lxc/storage_volume.go:1103
 msgid "Columns"
 msgstr "カラムレイアウト"
 
@@ -872,7 +872,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
 #: lxc/cluster.go:521 lxc/config.go:258 lxc/config.go:331
-#: lxc/config_metadata.go:145 lxc/image.go:425 lxc/network.go:655
+#: lxc/config_metadata.go:145 lxc/image.go:429 lxc/network.go:655
 #: lxc/profile.go:501 lxc/project.go:307 lxc/storage.go:307
 #: lxc/storage_volume.go:946 lxc/storage_volume.go:976
 #, c-format
@@ -1060,7 +1060,7 @@ msgstr "ストレージプールを作成します"
 msgid "Create the instance with no profiles applied"
 msgstr "プロファイルを適用しないインスタンスを作成します"
 
-#: lxc/image.go:904 lxc/info.go:470
+#: lxc/image.go:909 lxc/info.go:470
 #, c-format
 msgid "Created: %s"
 msgstr "作成日時: %s"
@@ -1083,7 +1083,7 @@ msgstr "現在の VF 数: %d"
 msgid "DATABASE"
 msgstr "DATABASE"
 
-#: lxc/image.go:1010 lxc/image_alias.go:237 lxc/list.go:433 lxc/network.go:885
+#: lxc/image.go:1015 lxc/image_alias.go:237 lxc/list.go:433 lxc/network.go:885
 #: lxc/operation.go:163 lxc/storage.go:574 lxc/storage_volume.go:1187
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
@@ -1112,7 +1112,7 @@ msgstr "インスタンス内のファイルを削除します"
 msgid "Delete image aliases"
 msgstr "イメージのエイリアスを削除します"
 
-#: lxc/image.go:280 lxc/image.go:281
+#: lxc/image.go:284 lxc/image.go:285
 msgid "Delete images"
 msgstr "イメージを削除します"
 
@@ -1163,9 +1163,9 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/config_trust.go:394 lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31
 #: lxc/exec.go:42 lxc/export.go:32 lxc/file.go:75 lxc/file.go:111
 #: lxc/file.go:160 lxc/file.go:223 lxc/file.go:418 lxc/image.go:38
-#: lxc/image.go:131 lxc/image.go:281 lxc/image.go:332 lxc/image.go:457
-#: lxc/image.go:616 lxc/image.go:836 lxc/image.go:971 lxc/image.go:1269
-#: lxc/image.go:1348 lxc/image_alias.go:25 lxc/image_alias.go:61
+#: lxc/image.go:131 lxc/image.go:285 lxc/image.go:336 lxc/image.go:461
+#: lxc/image.go:620 lxc/image.go:841 lxc/image.go:976 lxc/image.go:1274
+#: lxc/image.go:1353 lxc/image_alias.go:25 lxc/image_alias.go:61
 #: lxc/image_alias.go:108 lxc/image_alias.go:153 lxc/image_alias.go:255
 #: lxc/import.go:28 lxc/info.go:34 lxc/init.go:41 lxc/launch.go:25
 #: lxc/list.go:46 lxc/main.go:80 lxc/manpage.go:22 lxc/monitor.go:33
@@ -1273,7 +1273,7 @@ msgstr ""
 "サーバから変更されたイメージ、インスタンス、スナップショットを取得できません"
 "でした"
 
-#: lxc/image.go:631
+#: lxc/image.go:635
 msgid "Directory import is not available on this platform"
 msgstr "このプラットフォーム上ではディレクトリのインポートは利用できません"
 
@@ -1344,7 +1344,7 @@ msgstr "クラスターメンバーの設定をYAMLファイルで編集しま�
 msgid "Edit files in instances"
 msgstr "インスタンス内のファイルを編集します"
 
-#: lxc/image.go:331 lxc/image.go:332
+#: lxc/image.go:335 lxc/image.go:336
 msgid "Edit image properties"
 msgstr "イメージのプロパティを編集します"
 
@@ -1380,7 +1380,7 @@ msgstr "ストレージプールの設定をYAMLで編集します"
 msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
 
-#: lxc/image.go:1022 lxc/list.go:477 lxc/storage_volume.go:1207
+#: lxc/image.go:1027 lxc/list.go:477 lxc/storage_volume.go:1207
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
@@ -1462,20 +1462,20 @@ msgstr ""
 "デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナル"
 "の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
-#: lxc/image.go:910
+#: lxc/image.go:915
 #, c-format
 msgid "Expires: %s"
 msgstr "失効日時: %s"
 
-#: lxc/image.go:912
+#: lxc/image.go:917
 msgid "Expires: never"
 msgstr "失効日時: 失効しない"
 
-#: lxc/image.go:456
+#: lxc/image.go:460
 msgid "Export and download images"
 msgstr "イメージをエクスポートしてダウンロードします"
 
-#: lxc/image.go:457
+#: lxc/image.go:461
 msgid ""
 "Export and download images\n"
 "\n"
@@ -1498,7 +1498,7 @@ msgstr "インスタンスを tarball 形式のバックアップとしてエク
 msgid "Exporting the backup: %s"
 msgstr "バックアップのエクスポート中: %s"
 
-#: lxc/image.go:523
+#: lxc/image.go:527
 #, c-format
 msgid "Exporting the image: %s"
 msgstr "イメージのエクスポート中: %s"
@@ -1507,7 +1507,7 @@ msgstr "イメージのエクスポート中: %s"
 msgid "FILENAME"
 msgstr "FILENAME"
 
-#: lxc/config_trust.go:238 lxc/image.go:1007 lxc/image.go:1008
+#: lxc/config_trust.go:238 lxc/image.go:1012 lxc/image.go:1013
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "FINGERPRINT"
@@ -1531,9 +1531,9 @@ msgstr "クラスタメンバへの接続に失敗しました"
 msgid "Failed to create %q: %w"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/utils.go:213
-#, c-format
-msgid "Failed to create alias %s"
+#: lxc/utils.go:214
+#, fuzzy, c-format
+msgid "Failed to create alias %s: %w"
 msgstr "エイリアス %s の作成に失敗しました"
 
 #: lxc/remote.go:213
@@ -1556,8 +1556,8 @@ msgid "Failed to refresh target instance '%s': %v"
 msgstr "'lxc.%s.1' の生成が失敗しました: %v"
 
 #: lxc/utils.go:203
-#, c-format
-msgid "Failed to remove alias %s"
+#, fuzzy, c-format
+msgid "Failed to remove alias %s: %w"
 msgstr "エイリアス %s の削除に失敗しました"
 
 #: lxc/file.go:744
@@ -1573,7 +1573,7 @@ msgstr "Fast モード (--columns=nsacPt と同じ)"
 msgid "Filtering isn't supported yet"
 msgstr "情報表示のフィルタリングはまだサポートされていません"
 
-#: lxc/image.go:895
+#: lxc/image.go:900
 #, c-format
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
@@ -1639,7 +1639,7 @@ msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:95 lxc/cluster.go:624
 #: lxc/config_template.go:241 lxc/config_trust.go:183 lxc/config_trust.go:262
-#: lxc/image.go:997 lxc/image_alias.go:158 lxc/list.go:121 lxc/network.go:826
+#: lxc/image.go:1002 lxc/image_alias.go:158 lxc/list.go:121 lxc/network.go:826
 #: lxc/network.go:909 lxc/operation.go:107 lxc/profile.go:584
 #: lxc/project.go:389 lxc/remote.go:611 lxc/storage.go:525
 #: lxc/storage_volume.go:1120
@@ -1797,7 +1797,7 @@ msgstr ""
 msgid "Ignore the instance state"
 msgstr "インスタンスの状態を無視します"
 
-#: lxc/image.go:1329
+#: lxc/image.go:1334
 msgid "Image already up to date."
 msgstr "イメージは更新済みです。"
 
@@ -1805,25 +1805,25 @@ msgstr "イメージは更新済みです。"
 msgid "Image copied successfully!"
 msgstr "イメージのコピーが成功しました!"
 
-#: lxc/image.go:599
+#: lxc/image.go:603
 msgid "Image exported successfully!"
 msgstr "イメージのエクスポートが成功しました!"
 
-#: lxc/image.go:304 lxc/image.go:1292
+#: lxc/image.go:308 lxc/image.go:1297
 msgid "Image identifier missing"
 msgstr "イメージ名を指定してください"
 
-#: lxc/image.go:372
+#: lxc/image.go:376
 #, c-format
 msgid "Image identifier missing: %s"
 msgstr "イメージ名を指定してください: %s"
 
-#: lxc/image.go:807
+#: lxc/image.go:811
 #, c-format
 msgid "Image imported with fingerprint: %s"
 msgstr "イメージは以下のフィンガープリントでインポートされました: %s"
 
-#: lxc/image.go:1327
+#: lxc/image.go:1332
 msgid "Image refreshed successfully!"
 msgstr "イメージの更新が成功しました!"
 
@@ -1837,7 +1837,7 @@ msgid "Import backups of instances including their snapshots."
 msgstr ""
 "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
 
-#: lxc/image.go:616
+#: lxc/image.go:620
 msgid ""
 "Import image into the image store\n"
 "\n"
@@ -1848,7 +1848,7 @@ msgstr ""
 "ディレクトリのインポートは Linux 上でのみ可能で、root で実行する必要がありま"
 "す。"
 
-#: lxc/image.go:615
+#: lxc/image.go:619
 msgid "Import images into the image store"
 msgstr "イメージをイメージストアにインポートします"
 
@@ -1878,7 +1878,7 @@ msgstr "インスタンス名を指定する必要があります"
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
 
-#: lxc/publish.go:277
+#: lxc/publish.go:278
 #, c-format
 msgid "Instance published with fingerprint: %s"
 msgstr "インスタンスは以下のフィンガープリントで publish されます: %s"
@@ -1927,7 +1927,7 @@ msgstr "不正なフォーマット %q"
 msgid "Invalid instance name: %s"
 msgstr "インスタンス名: %s"
 
-#: lxc/utils.go:251
+#: lxc/utils.go:253
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "不適切な キー=値 のペア: %s"
@@ -2029,12 +2029,12 @@ msgstr ""
 msgid "LXD server isn't part of a cluster"
 msgstr "LXD サーバはクラスタの一部ではありません"
 
-#: lxc/image.go:916
+#: lxc/image.go:921
 #, c-format
 msgid "Last used: %s"
 msgstr "最終使用: %s"
 
-#: lxc/image.go:918
+#: lxc/image.go:923
 msgid "Last used: never"
 msgstr "最終使用: 未使用"
 
@@ -2097,11 +2097,11 @@ msgstr ""
 "指定するフィルタはイメージのハッシュ値の一部でもイメージのエイリアスの一部で"
 "も構いません。\n"
 
-#: lxc/image.go:970
+#: lxc/image.go:975
 msgid "List images"
 msgstr "イメージを一覧表示します"
 
-#: lxc/image.go:971
+#: lxc/image.go:976
 msgid ""
 "List images\n"
 "\n"
@@ -2411,7 +2411,7 @@ msgstr "MESSAGE"
 msgid "MTU: %d"
 msgstr "MTU: %d"
 
-#: lxc/image.go:137 lxc/image.go:621
+#: lxc/image.go:137 lxc/image.go:625
 msgid "Make image public"
 msgstr "イメージを public にする"
 
@@ -2697,7 +2697,7 @@ msgstr "コピー／移動元とは異なるプロジェクトにコピーしま
 msgid "Moving the storage volume: %s"
 msgstr "ストレージボリュームの移動中: %s"
 
-#: lxc/image.go:633
+#: lxc/image.go:637
 msgid "Must run as root to import from directory"
 msgstr "ディレクトリからのインポートは root で実行する必要があります"
 
@@ -2788,7 +2788,7 @@ msgstr "ネットワーク使用状況:"
 msgid "New alias to define at target"
 msgstr "新しいエイリアスを定義する"
 
-#: lxc/image.go:140 lxc/image.go:622
+#: lxc/image.go:140 lxc/image.go:626
 msgid "New aliases to add to the image"
 msgstr "イメージに新しいエイリアスを追加します"
 
@@ -2849,7 +2849,7 @@ msgstr "\"カスタム\" のボリュームのみがスナップショットを�
 msgid "Only https URLs are supported for simplestreams"
 msgstr "simplestreams は https の URL のみサポートします"
 
-#: lxc/image.go:706
+#: lxc/image.go:710
 msgid "Only https:// is supported for remote image import"
 msgstr "リモートイメージのインポートは https:// のみをサポートします"
 
@@ -2891,7 +2891,7 @@ msgstr "PROFILES"
 msgid "PROTOCOL"
 msgstr "PROTOCOL"
 
-#: lxc/image.go:1009 lxc/remote.go:669
+#: lxc/image.go:1014 lxc/remote.go:669
 msgid "PUBLIC"
 msgstr "PUBLIC"
 
@@ -2944,7 +2944,7 @@ msgid "Ports:"
 msgstr "ポート:"
 
 #: lxc/cluster.go:522 lxc/config.go:259 lxc/config.go:332
-#: lxc/config_metadata.go:146 lxc/config_template.go:206 lxc/image.go:426
+#: lxc/config_metadata.go:146 lxc/config_template.go:206 lxc/image.go:430
 #: lxc/network.go:656 lxc/profile.go:502 lxc/project.go:308 lxc/storage.go:308
 #: lxc/storage_volume.go:947 lxc/storage_volume.go:977
 #, fuzzy
@@ -3025,11 +3025,11 @@ msgstr "移動先のインスタンスに適用するプロファイル"
 msgid "Profiles %s applied to %s"
 msgstr "プロファイル %s が %s に追加されました"
 
-#: lxc/image.go:948
+#: lxc/image.go:953
 msgid "Profiles:"
 msgstr "プロファイル:"
 
-#: lxc/image.go:946
+#: lxc/image.go:951
 msgid "Profiles: "
 msgstr "プロファイル: "
 
@@ -3058,7 +3058,7 @@ msgstr "プロジェクト名 %s を %s に変更しました"
 msgid "Project to use for the remote"
 msgstr "リモートの URL を設定します"
 
-#: lxc/image.go:921
+#: lxc/image.go:926
 msgid "Properties:"
 msgstr "プロパティ:"
 
@@ -3066,7 +3066,7 @@ msgstr "プロパティ:"
 msgid "Public image server"
 msgstr "Public なイメージサーバとして設定します"
 
-#: lxc/image.go:899
+#: lxc/image.go:904
 #, c-format
 msgid "Public: %s"
 msgstr "パブリック: %s"
@@ -3102,7 +3102,7 @@ msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
 msgid "Query path must start with /"
 msgstr ""
 
-#: lxc/image.go:462 lxc/image.go:839 lxc/image.go:1351
+#: lxc/image.go:466 lxc/image.go:844 lxc/image.go:1356
 msgid "Query virtual machine images"
 msgstr "仮想マシンイメージを対象にします"
 
@@ -3115,7 +3115,7 @@ msgstr "読み取り専用: %v"
 msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
-#: lxc/image.go:1268 lxc/image.go:1269
+#: lxc/image.go:1273 lxc/image.go:1274
 msgid "Refresh images"
 msgstr "イメージを更新します"
 
@@ -3124,7 +3124,7 @@ msgstr "イメージを更新します"
 msgid "Refreshing instance: %s"
 msgstr "インスタンスの更新中: %s"
 
-#: lxc/image.go:1297
+#: lxc/image.go:1302
 #, c-format
 msgid "Refreshing the image: %s"
 msgstr "イメージの更新中: %s"
@@ -3319,7 +3319,7 @@ msgstr "クラスタのメンバをすべて一覧表示します"
 msgid "Run against all instances"
 msgstr "すべてのインスタンスに対してコマンドを実行します"
 
-#: lxc/image.go:1012
+#: lxc/image.go:1017
 msgid "SIZE"
 msgstr "SIZE"
 
@@ -3560,7 +3560,7 @@ msgstr ""
 msgid "Show full device configuration"
 msgstr "プロファイルの設定を表示します"
 
-#: lxc/image.go:1347 lxc/image.go:1348
+#: lxc/image.go:1352 lxc/image.go:1353
 msgid "Show image properties"
 msgstr "イメージのプロパティを表示します"
 
@@ -3628,7 +3628,7 @@ msgstr "ストレージプールで利用可能なリソースを表示します
 msgid "Show the used and free space in bytes"
 msgstr "使用量と空き容量を byte で表示します"
 
-#: lxc/image.go:835 lxc/image.go:836
+#: lxc/image.go:840 lxc/image.go:841
 msgid "Show useful information about images"
 msgstr "イメージについての情報を表示します"
 
@@ -3636,7 +3636,7 @@ msgstr "イメージについての情報を表示します"
 msgid "Show useful information about storage pools"
 msgstr "ストレージプールの情報を表示します"
 
-#: lxc/image.go:896
+#: lxc/image.go:901
 #, c-format
 msgid "Size: %.2fMB"
 msgstr "サイズ: %.2fMB"
@@ -3668,7 +3668,7 @@ msgstr "ソケット %d:"
 msgid "Some instances failed to %s"
 msgstr "一部のインスタンスで %s が失敗しました"
 
-#: lxc/image.go:939
+#: lxc/image.go:944
 msgid "Source:"
 msgstr "取得元:"
 
@@ -3788,7 +3788,7 @@ msgstr "TARGET"
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/image.go:1014 lxc/image_alias.go:236 lxc/list.go:446 lxc/network.go:883
+#: lxc/image.go:1019 lxc/image_alias.go:236 lxc/list.go:446 lxc/network.go:883
 #: lxc/network.go:956 lxc/operation.go:162 lxc/storage_volume.go:1185
 msgid "TYPE"
 msgstr "TYPE"
@@ -3913,7 +3913,7 @@ msgstr "スレッド:"
 msgid "Time to wait for the instance before killing it"
 msgstr "インスタンスを強制停止するまで待つ時間"
 
-#: lxc/image.go:900
+#: lxc/image.go:905
 msgid "Timestamps:"
 msgstr "タイムスタンプ:"
 
@@ -3970,7 +3970,7 @@ msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpu
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr "転送モード。pull, push, relay のいずれか(デフォルトはpull)。"
 
-#: lxc/image.go:728
+#: lxc/image.go:732
 #, c-format
 msgid "Transferring image: %s"
 msgstr "イメージを転送中: %s"
@@ -3991,7 +3991,7 @@ msgid ""
 "SPICE graphical output"
 msgstr ""
 
-#: lxc/image.go:898 lxc/info.go:268 lxc/info.go:482
+#: lxc/image.go:903 lxc/info.go:268 lxc/info.go:482
 #, c-format
 msgid "Type: %s"
 msgstr "タイプ: %s"
@@ -4001,7 +4001,7 @@ msgstr "タイプ: %s"
 msgid "Type: %s (ephemeral)"
 msgstr "タイプ: %s (ephemeral)"
 
-#: lxc/image.go:1013
+#: lxc/image.go:1018
 msgid "UPLOAD DATE"
 msgstr "UPLOAD DATE"
 
@@ -4024,7 +4024,7 @@ msgstr "UUID: %v"
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/image.go:1029 lxc/list.go:491 lxc/storage_volume.go:1214
+#: lxc/image.go:1034 lxc/list.go:491 lxc/storage_volume.go:1214
 #, c-format
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
@@ -4093,7 +4093,7 @@ msgid ""
 "files."
 msgstr ""
 
-#: lxc/image.go:907
+#: lxc/image.go:912
 #, c-format
 msgid "Uploaded: %s"
 msgstr "アップロード日時: %s"
@@ -4245,7 +4245,7 @@ msgstr "edit [<remote>:]<network>"
 msgid "[<remote>:] [<cert>]"
 msgstr "add [<remote>:] <cert>"
 
-#: lxc/image.go:968 lxc/list.go:43
+#: lxc/image.go:973 lxc/list.go:43
 #, fuzzy
 msgid "[<remote>:] [<filter>...]"
 msgstr "list [<remote>:] [<filter>...]"
@@ -4280,7 +4280,7 @@ msgstr "rename [<remote>:]<alias> <new-name>"
 msgid "[<remote>:]<cluster member>"
 msgstr "edit [<remote>:]<cluster member>"
 
-#: lxc/image.go:330 lxc/image.go:834 lxc/image.go:1346
+#: lxc/image.go:334 lxc/image.go:839 lxc/image.go:1351
 #, fuzzy
 msgid "[<remote>:]<image>"
 msgstr "edit [<remote>:]<image>"
@@ -4295,12 +4295,12 @@ msgstr "copy [<remote>:]<image> <remote>:"
 msgid "[<remote>:]<image> [<remote>:][<name>]"
 msgstr "launch [<remote>:]<image> [<remote>:][<name>]"
 
-#: lxc/image.go:455
+#: lxc/image.go:459
 #, fuzzy
 msgid "[<remote>:]<image> [<target>]"
 msgstr "export [<remote>:]<image> [<target>]"
 
-#: lxc/image.go:278 lxc/image.go:1267
+#: lxc/image.go:282 lxc/image.go:1272
 #, fuzzy
 msgid "[<remote>:]<image> [[<remote>:]<image>...]"
 msgstr "delete [<remote>:]<image> [[<remote>:]<image>...]"
@@ -4676,7 +4676,7 @@ msgstr "現在値"
 msgid "description"
 msgstr "説明"
 
-#: lxc/image.go:885
+#: lxc/image.go:890
 msgid "disabled"
 msgstr "無効"
 
@@ -4684,7 +4684,7 @@ msgstr "無効"
 msgid "driver"
 msgstr "ドライバ"
 
-#: lxc/image.go:887
+#: lxc/image.go:892
 msgid "enabled"
 msgstr "有効"
 
@@ -4799,7 +4799,7 @@ msgstr ""
 "   /etc/hosts ファイルを、インスタンス \"foo\" 内 (の /etc/hosts) にコピーし"
 "ます。"
 
-#: lxc/image.go:334
+#: lxc/image.go:338
 msgid ""
 "lxc image edit <image>\n"
 "    Launch a text editor to edit the properties\n"
@@ -5057,7 +5057,7 @@ msgstr ""
 msgid "name"
 msgstr "名前"
 
-#: lxc/image.go:875 lxc/image.go:880 lxc/image.go:1067
+#: lxc/image.go:880 lxc/image.go:885 lxc/image.go:1072
 msgid "no"
 msgstr "no"
 
@@ -5102,8 +5102,8 @@ msgstr "ストレージを使用中の"
 msgid "y"
 msgstr "y"
 
-#: lxc/cluster.go:302 lxc/delete.go:47 lxc/image.go:877 lxc/image.go:882
-#: lxc/image.go:1065
+#: lxc/cluster.go:302 lxc/delete.go:47 lxc/image.go:882 lxc/image.go:887
+#: lxc/image.go:1070
 msgid "yes"
 msgstr "yes"
 
