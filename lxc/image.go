@@ -283,7 +283,11 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	err = ensureImageAliases(destinationServer, aliases, fp)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Delete
@@ -831,6 +835,7 @@ func (c *cmdImageImport) Run(cmd *cobra.Command, args []string) error {
 		for i, entry := range c.flagAliases {
 			aliases[i].Name = entry
 		}
+
 		err = ensureImageAliases(d, aliases, fingerprint)
 		if err != nil {
 			return err
