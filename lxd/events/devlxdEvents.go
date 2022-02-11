@@ -41,7 +41,6 @@ func (s *DevLXDServer) AddListener(instanceID int, connection *websocket.Conn, m
 		listenerCommon: listenerCommon{
 			Conn:         connection,
 			messageTypes: messageTypes,
-			localOnly:    true,
 			ctx:          ctx,
 			ctxCancel:    ctxCancel,
 			id:           uuid.New(),
