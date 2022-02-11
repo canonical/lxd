@@ -136,7 +136,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 	return nil
 }
 
-func connectTarget(url string, certPath string, keyPath string, authType string) (lxd.InstanceServer, string, error) {
+func connectTarget(url string, certPath string, keyPath string, authType string, token string) (lxd.InstanceServer, string, error) {
 	args := lxd.ConnectionArgs{
 		AuthType: authType,
 	}
@@ -160,7 +160,10 @@ func connectTarget(url string, certPath string, keyPath string, authType string)
 				return nil, "", err
 			}
 
-			fmt.Printf("\nYour temporary certificate is:\n%s\n", string(clientCrt))
+			// When using certificate add tokens, there's no need to show the temporary certificate.
+			if token == "" {
+				fmt.Printf("\nYour temporary certificate is:\n%s\n", string(clientCrt))
+			}
 		} else {
 			var err error
 
@@ -244,37 +247,48 @@ func connectTarget(url string, certPath string, keyPath string, authType string)
 	}
 
 	if authType == "tls" {
-		fmt.Println("It is recommended to have this certificate be manually added to LXD through `lxc config trust add` on the target server.\nAlternatively you could use a pre-defined trust password to add it remotely (use of a trust password can be a security issue).")
-
-		fmt.Println("")
-
-		useTrustPassword, err := cli.AskBool("Would you like to use a trust password? [default=no]: ", "no")
-		if err != nil {
-			return nil, "", err
-		}
-
-		if useTrustPassword {
-			// Prompt for trust password
-			fmt.Print("Trust password: ")
-			pwd, err := term.ReadPassword(0)
-			if err != nil {
-				return nil, "", err
-			}
-			fmt.Println("")
-
-			// Add client certificate to trust store
+		if token != "" {
 			req := api.CertificatesPost{
-				Password: string(pwd),
+				Password: token,
 			}
-			req.Type = api.CertificateTypeClient
 
 			err = c.CreateCertificate(req)
 			if err != nil {
-				return nil, "", err
+				return nil, "", fmt.Errorf("Failed to create certificate: %w", err)
 			}
 		} else {
-			fmt.Print("Press ENTER after the certificate was added to the remote server: ")
-			bufio.NewReader(os.Stdin).ReadString('\n')
+			fmt.Println("It is recommended to have this certificate be manually added to LXD through `lxc config trust add` on the target server.\nAlternatively you could use a pre-defined trust password to add it remotely (use of a trust password can be a security issue).")
+
+			fmt.Println("")
+
+			useTrustPassword, err := cli.AskBool("Would you like to use a trust password? [default=no]: ", "no")
+			if err != nil {
+				return nil, "", err
+			}
+
+			if useTrustPassword {
+				// Prompt for trust password
+				fmt.Print("Trust password: ")
+				pwd, err := term.ReadPassword(0)
+				if err != nil {
+					return nil, "", err
+				}
+				fmt.Println("")
+
+				// Add client certificate to trust store
+				req := api.CertificatesPost{
+					Password: string(pwd),
+				}
+				req.Type = api.CertificateTypeClient
+
+				err = c.CreateCertificate(req)
+				if err != nil {
+					return nil, "", err
+				}
+			} else {
+				fmt.Print("Press ENTER after the certificate was added to the remote server: ")
+				bufio.NewReader(os.Stdin).ReadString('\n')
+			}
 		}
 	} else {
 		c.RequireAuthenticated(true)
