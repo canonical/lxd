@@ -94,13 +94,17 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	}
 	defer c.Close() // This ensures the go routine below is ended when this function ends.
 
-	// Get the current local serverName and store it for the events
+	// Get the current local serverName and store it for the events.
 	// We do that now to avoid issues with changes to the name and to limit
-	// the number of DB access to just one per connection
-	var serverName string
+	// the number of DB access to just one per connection.
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		serverName, err = tx.GetLocalNodeName()
-		return err
+		serverName, err := tx.GetLocalNodeName()
+		if err != nil {
+			return err
+		}
+
+		d.events.SetLocalLocation(serverName)
+		return nil
 	})
 	if err != nil {
 		return err
@@ -114,7 +118,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		excludeSources = append(excludeSources, events.EventSourcePull)
 	}
 
-	listener, err := d.events.AddListener(projectName, allProjects, c, types, serverName, excludeSources, nil)
+	listener, err := d.events.AddListener(projectName, allProjects, c, types, excludeSources, nil)
 	if err != nil {
 		return err
 	}
