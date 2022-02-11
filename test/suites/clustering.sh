@@ -2892,3 +2892,81 @@ test_clustering_remove_members() {
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
 }
+
+test_clustering_events() {
+  # shellcheck disable=2039
+  local LXD_DIR
+
+  setup_clustering_bridge
+  prefix="lxd$$"
+  bridge="${prefix}"
+
+  setup_clustering_netns 1
+  LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_ONE_DIR}"
+  ns1="${prefix}1"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}"
+
+  # Add a newline at the end of each line. YAML has weird rules...
+  cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
+
+  # Spawn a second node.
+  setup_clustering_netns 2
+  LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_TWO_DIR}"
+  ns2="${prefix}2"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}"
+
+  # Spawn a third node.
+  setup_clustering_netns 3
+  LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_THREE_DIR}"
+  ns3="${prefix}3"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+
+  ensure_import_testimage
+
+  # c1 should go to node1.
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node1"
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
+  monitorNode1PID=$!
+  LXD_DIR="${LXD_TWO_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node2.log" &
+  monitorNode2PID=$!
+  LXD_DIR="${LXD_THREE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node3.log" &
+  monitorNode3PID=$!
+
+  # Delete instance generating stop and delete lifecycle events.
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
+  sleep 1 # Wait for event to be distributed.
+
+  # Kill monitors.
+  kill -9 ${monitorNode1PID}
+  kill -9 ${monitorNode2PID}
+  kill -9 ${monitorNode3PID}
+
+  # Check events were distributed.
+  for i in 1 2 3; do
+    grep "instance-stopped" "${TEST_DIR}/node${i}.log" -c | grep -F 1
+    grep "instance-deleted" "${TEST_DIR}/node${i}.log" -c | grep -F 1
+  done
+
+  # Cleanup.
+  LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
+  LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
+  LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
+  sleep 0.5
+  rm -f "${LXD_THREE_DIR}/unix.socket"
+  rm -f "${LXD_TWO_DIR}/unix.socket"
+  rm -f "${LXD_ONE_DIR}/unix.socket"
+
+  teardown_clustering_netns
+  teardown_clustering_bridge
+
+  kill_lxd "${LXD_ONE_DIR}"
+  kill_lxd "${LXD_TWO_DIR}"
+  kill_lxd "${LXD_THREE_DIR}"
+}

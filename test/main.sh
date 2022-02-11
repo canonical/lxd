@@ -190,6 +190,7 @@ if [ "${1:-"all"}" != "standalone" ]; then
     run_test test_clustering_edit_configuration "clustering config edit"
     run_test test_clustering_remove_members "clustering config remove members"
     # run_test test_clustering_upgrade "clustering upgrade"
+    run_test test_clustering_events "clustering events"
 fi
 
 if [ "${1:-"all"}" != "cluster" ]; then
