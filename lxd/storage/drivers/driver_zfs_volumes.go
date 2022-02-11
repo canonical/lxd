@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/migration"
@@ -277,7 +278,7 @@ func (d *zfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Handle the non-optimized tarballs through the generic unpacker.
 	if !*srcBackup.OptimizedStorage {
-		return genericVFSBackupUnpack(d, vol, srcBackup.Snapshots, srcData, op)
+		return genericVFSBackupUnpack(d, d.state.OS, vol, srcBackup.Snapshots, srcData, op)
 	}
 
 	if d.HasVolume(vol) {
@@ -306,7 +307,9 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 	// Define function to unpack a volume from a backup tarball file.
 	unpackVolume := func(v Volume, r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
 		d.Logger().Debug("Unpacking optimized volume", log.Ctx{"source": srcFile, "target": target})
-		tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+
+		targetPath := fmt.Sprintf("%s/storage-pools/%s", shared.VarPath(""), target)
+		tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, d.state.OS, targetPath)
 		if err != nil {
 			return err
 		}
