@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/response"
@@ -105,10 +106,15 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		return err
 	}
 
-	// If this request is an internal one initiated by another node wanting
-	// to watch the events on this node, set the listener to broadcast only
-	// local events.
-	listener, err := d.events.AddListener(projectName, allProjects, c, types, serverName, isClusterNotification(r), nil)
+	var excludeSources []events.EventSource
+
+	if isClusterNotification(r) {
+		// If client is another cluster member, it will already be pulling events from other cluster
+		// members so no need to also deliver forwarded events that this member receives.
+		excludeSources = append(excludeSources, events.EventSourcePull)
+	}
+
+	listener, err := d.events.AddListener(projectName, allProjects, c, types, serverName, excludeSources, nil)
 	if err != nil {
 		return err
 	}
