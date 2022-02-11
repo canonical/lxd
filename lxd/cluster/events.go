@@ -10,6 +10,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
+	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -218,7 +219,7 @@ func hubAddresses(localAddress string, members map[int64]APIHeartbeatMember) ([]
 }
 
 // EventsUpdateListeners refreshes the cluster event listener connections.
-func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
+func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, inject events.InjectFunc) {
 	listenersUpdateLock.Lock()
 	defer listenersUpdateLock.Unlock()
 
@@ -320,7 +321,11 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 				return
 			}
 
-			listener.AddHandler(nil, func(event api.Event) { f(m.ID, event) })
+			listener.AddHandler(nil, func(event api.Event) {
+				// Inject event received via pull as forwarded so that its not forwarded again
+				// onto other members.
+				inject(event, events.EventSourcePull)
+			})
 
 			listener.SetEventMode(localEventMode, eventHubPushCh)
 
