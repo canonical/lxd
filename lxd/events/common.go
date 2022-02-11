@@ -33,15 +33,10 @@ type listenerCommon struct {
 	lock         sync.Mutex
 	pongsPending uint
 	recvFunc     EventHandler
-
-	// If true, this listener won't get events forwarded from other
-	// nodes. It only used by listeners created internally by LXD nodes
-	// connecting to other LXD nodes to get their local events only.
-	localOnly bool
 }
 
 func (e *listenerCommon) heartbeat() {
-	logger.Debug("Event listener server handler started", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
+	logger.Debug("Event listener server handler started", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr()})
 
 	defer e.Close()
 
@@ -85,7 +80,7 @@ func (e *listenerCommon) heartbeat() {
 		e.lock.Lock()
 		if e.pongsPending > 2 {
 			e.lock.Unlock()
-			logger.Warn("Hearbeat for event listener handler timed out", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
+			logger.Warn("Hearbeat for event listener handler timed out", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr()})
 			return
 		}
 		err := e.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
@@ -132,7 +127,7 @@ func (e *listenerCommon) Close() {
 		return
 	}
 
-	logger.Debug("Event listener server handler stopped", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr(), "localOnly": e.localOnly})
+	logger.Debug("Event listener server handler stopped", log.Ctx{"listener": e.ID(), "local": e.Conn.LocalAddr(), "remote": e.Conn.RemoteAddr()})
 
 	e.Conn.Close()
 	e.ctxCancel()
