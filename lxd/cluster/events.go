@@ -19,6 +19,7 @@ import (
 var listeners = map[string]*lxd.EventListener{}
 var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
+var listenersUpdateLock sync.Mutex
 
 // EventListenerWait waits for there to be listener connected to the specified address, or one of the event hubs
 // if operating in event hub mode.
@@ -55,6 +56,9 @@ func EventListenerWait(ctx context.Context, address string) error {
 
 // EventsUpdateListeners refreshes the cluster event listener connections.
 func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, serverCert func() *shared.CertInfo, members map[int64]APIHeartbeatMember, f func(int64, api.Event)) {
+	listenersUpdateLock.Lock()
+	defer listenersUpdateLock.Unlock()
+
 	// If no heartbeat members provided, populate from global database.
 	if members == nil {
 		var dbMembers []db.NodeInfo
