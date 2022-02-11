@@ -32,7 +32,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.11
 	github.com/mdlayher/ndp v0.0.0-20210831201139-f982b8766fb5
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
-	github.com/mdlayher/vsock v1.0.0
+	github.com/mdlayher/vsock v1.0.1
 	github.com/miekg/dns v1.1.46
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/osrg/gobgp/v3 v3.0.0-rc4
@@ -86,7 +86,7 @@ require (
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/mdlayher/socket v0.1.1 // indirect
+	github.com/mdlayher/socket v0.1.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
