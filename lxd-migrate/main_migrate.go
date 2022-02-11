@@ -164,6 +164,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		authMethodCandid AuthMethod = iota
 		authMethodTLSCertificate
 		authMethodTLSTemporaryCertificate
+		authMethodTLSCertificateToken
 	)
 
 	// TLS is always available for LXD servers
@@ -179,6 +180,9 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	}
 
 	if shared.StringInSlice("tls", apiServer.AuthMethods) {
+		fmt.Printf("%d) Use a certificate token\n", i)
+		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificateToken)
+		i++
 		fmt.Printf("%d) Use an existing TLS authentication certificate\n", i)
 		availableAuthMethods = append(availableAuthMethods, authMethodTLSCertificate)
 		i++
@@ -197,6 +201,7 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 
 	var certPath string
 	var keyPath string
+	var token string
 
 	if authMethod == authMethodTLSCertificate {
 		certPath, err = cli.AskString("Please provide the certificate path: ", "", func(path string) error {
@@ -220,6 +225,18 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 		if err != nil {
 			return nil, "", err
 		}
+	} else if authMethod == authMethodTLSCertificateToken {
+		token, err = cli.AskString("Please provide the certificate token: ", "", func(token string) error {
+			_, err := shared.CertificateTokenDecode(token)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	var authType string
@@ -227,11 +244,11 @@ func (c *cmdMigrate) askServer() (lxd.InstanceServer, string, error) {
 	switch authMethod {
 	case authMethodCandid:
 		authType = "candid"
-	case authMethodTLSCertificate, authMethodTLSTemporaryCertificate:
+	case authMethodTLSCertificate, authMethodTLSTemporaryCertificate, authMethodTLSCertificateToken:
 		authType = "tls"
 	}
 
-	return connectTarget(serverURL, certPath, keyPath, authType)
+	return connectTarget(serverURL, certPath, keyPath, authType, token)
 }
 
 func (c *cmdMigrate) RunInteractive(server lxd.InstanceServer) (cmdMigrateData, error) {
