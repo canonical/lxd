@@ -26,6 +26,9 @@ const EventSourcePull = 1
 // EventSourcePush indicates the event was received from an event listener client connected to us.
 const EventSourcePush = 2
 
+// InjectFunc is used to inject an event received by a listener into the local events dispatcher.
+type InjectFunc func(event api.Event, eventSource EventSource)
+
 // Server represents an instance of an event server.
 type Server struct {
 	serverCommon
