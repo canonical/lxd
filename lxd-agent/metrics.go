@@ -131,7 +131,7 @@ func getCPUMetrics(d *Daemon) (map[string]metrics.CPUMetrics, error) {
 			return nil, fmt.Errorf("Failed to parse %q: %w", fields[5], err)
 		}
 
-		stats.SecondsIdle /= 100
+		stats.SecondsIOWait /= 100
 
 		stats.SecondsIRQ, err = strconv.ParseFloat(fields[6], 64)
 		if err != nil {
