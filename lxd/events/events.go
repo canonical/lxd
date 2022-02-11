@@ -14,6 +14,18 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// EventSource indicates the source of an event.
+type EventSource uint8
+
+// EventSourceLocal indicates the event was generated locally.
+const EventSourceLocal = 0
+
+// EventSourcePull indicates the event was received from an outbound event listener stream.
+const EventSourcePull = 1
+
+// EventSourcePush indicates the event was received from an event listener client connected to us.
+const EventSourcePush = 2
+
 // Server represents an instance of an event server.
 type Server struct {
 	serverCommon
