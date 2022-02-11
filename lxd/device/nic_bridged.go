@@ -472,10 +472,25 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.inst.Type() == instancetype.VM {
+		var mtu uint32
+		if d.config["mtu"] != "" {
+			mtu64, err := strconv.ParseUint(d.config["mtu"], 10, 32)
+			if err != nil {
+				return nil, err
+			}
+			mtu = uint32(mtu64)
+		} else if d.config["parent"] != "" {
+			mtu, err = network.GetDevMTU(d.config["parent"])
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "hwaddr", Value: d.config["hwaddr"]},
+				{Key: "mtu", Value: strconv.Itoa(int(mtu))},
 			}...)
 	}
 
@@ -1246,15 +1261,9 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 		addresses = append(addresses, addr)
 	}
 
-	// Get MTU of host interface if exists.
-	iface, err := net.InterfaceByName(d.config["host_name"])
+	mtu, err := d.getHostMTU()
 	if err != nil {
 		d.logger.Warn("Failed getting host interface state for MTU", log.Ctx{"host_name": d.config["host_name"], "err": err})
-	}
-
-	mtu := -1
-	if iface != nil {
-		mtu = iface.MTU
 	}
 
 	// Retrieve the host counters, as we report the values from the instance's point of view,
@@ -1280,4 +1289,19 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	}
 
 	return &network, nil
+}
+
+func (d *nicBridged) getHostMTU() (int, error) {
+	// Get MTU of host interface if exists.
+	iface, err := net.InterfaceByName(d.config["host_name"])
+	if err != nil {
+		return 0, err
+	}
+
+	mtu := -1
+	if iface != nil {
+		mtu = iface.MTU
+	}
+
+	return mtu, nil
 }
