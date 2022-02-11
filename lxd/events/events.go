@@ -31,6 +31,7 @@ type Server struct {
 	serverCommon
 
 	listeners map[string]*Listener
+	location  string
 }
 
 // NewServer returns a new event server.
@@ -46,8 +47,17 @@ func NewServer(debug bool, verbose bool) *Server {
 	return server
 }
 
+// SetLocalLocation sets the local location of this member.
+// This value will be added to the Location event field if not populated from another member.
+func (s *Server) SetLocalLocation(location string) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	s.location = location
+}
+
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, location string, excludeSources []EventSource, recvFunc EventHandler) (*Listener, error) {
+func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler) (*Listener, error) {
 	if allProjects && projectName != "" {
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
@@ -64,7 +74,6 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 			recvFunc:     recvFunc,
 		},
 
-		location:       location,
 		allProjects:    allProjects,
 		projectName:    projectName,
 		excludeSources: excludeSources,
@@ -142,6 +151,13 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 	}
 
 	s.lock.Lock()
+
+	// Set the Location for local events to the local serverName if not already populated (do it here rather
+	// than in Send as the lock to read s.location has been taken here already).
+	if eventSource == EventSourceLocal && event.Location == "" {
+		event.Location = s.location
+	}
+
 	listeners := s.listeners
 	for _, listener := range listeners {
 		// If the event is project specific, check if the listener is requesting events from that project.
@@ -166,18 +182,6 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 			// Make sure we're not done already
 			if listener.IsClosed() {
 				return
-			}
-
-			// Set the Location to the expected serverName
-			if event.Location == "" {
-				eventCopy := api.Event{}
-				err := shared.DeepCopy(&event, &eventCopy)
-				if err != nil {
-					return
-				}
-				eventCopy.Location = listener.location
-
-				event = eventCopy
 			}
 
 			listener.SetWriteDeadline(time.Now().Add(5 * time.Second))
