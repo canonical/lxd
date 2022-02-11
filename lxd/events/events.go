@@ -14,6 +14,18 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// EventSource indicates the source of an event.
+type EventSource uint8
+
+// EventSourceLocal indicates the event was generated locally.
+const EventSourceLocal = 0
+
+// EventSourcePull indicates the event was received from an outbound event listener stream.
+const EventSourcePull = 1
+
+// EventSourcePush indicates the event was received from an event listener client connected to us.
+const EventSourcePush = 2
+
 // Server represents an instance of an event server.
 type Server struct {
 	serverCommon
@@ -35,7 +47,7 @@ func NewServer(debug bool, verbose bool) *Server {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, location string, localOnly bool, recvFunc EventHandler) (*Listener, error) {
+func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, location string, excludeSources []EventSource, recvFunc EventHandler) (*Listener, error) {
 	if allProjects && projectName != "" {
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
@@ -46,16 +58,16 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 		listenerCommon: listenerCommon{
 			Conn:         connection,
 			messageTypes: messageTypes,
-			localOnly:    localOnly,
 			ctx:          ctx,
 			ctxCancel:    ctxCancel,
 			id:           uuid.New(),
 			recvFunc:     recvFunc,
 		},
 
-		location:    location,
-		allProjects: allProjects,
-		projectName: projectName,
+		location:       location,
+		allProjects:    allProjects,
+		projectName:    projectName,
+		excludeSources: excludeSources,
 	}
 
 	s.lock.Lock()
@@ -90,7 +102,7 @@ func (s *Server) Send(projectName string, eventType string, eventMessage interfa
 		Project:   projectName,
 	}
 
-	return s.broadcast(event, false)
+	return s.broadcast(event, EventSourceLocal)
 }
 
 // Forward to the local events dispatcher an event received from another node.
@@ -112,13 +124,23 @@ func (s *Server) Forward(id int64, event api.Event) {
 		}
 	}
 
-	err := s.broadcast(event, true)
+	err := s.broadcast(event, EventSourcePull)
 	if err != nil {
 		logger.Warnf("Failed to forward event from member %d: %v", id, err)
 	}
 }
 
-func (s *Server) broadcast(event api.Event, isForward bool) error {
+func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
+	sourceInSlice := func(source EventSource, sources []EventSource) bool {
+		for _, i := range sources {
+			if source == i {
+				return true
+			}
+		}
+
+		return false
+	}
+
 	s.lock.Lock()
 	listeners := s.listeners
 	for _, listener := range listeners {
@@ -127,7 +149,7 @@ func (s *Server) broadcast(event api.Event, isForward bool) error {
 			continue
 		}
 
-		if isForward && listener.localOnly {
+		if sourceInSlice(eventSource, listener.excludeSources) {
 			continue
 		}
 
@@ -179,7 +201,8 @@ func (s *Server) broadcast(event api.Event, isForward bool) error {
 type Listener struct {
 	listenerCommon
 
-	location    string
-	allProjects bool
-	projectName string
+	location       string
+	allProjects    bool
+	projectName    string
+	excludeSources []EventSource
 }
