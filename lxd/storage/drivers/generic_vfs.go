@@ -13,12 +13,14 @@ import (
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
@@ -634,7 +636,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 // created and a revert function that can be used to undo the actions this function performs should something
 // subsequently fail. For VolumeTypeCustom volumes, a nil post hook is returned as it is expected that the DB
 // record be created before the volume is unpacked due to differences in the archive format that allows this.
-func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
+func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []string, srcData io.ReadSeeker, op *operations.Operation) (VolumePostHook, revert.Hook, error) {
 	// Define function to unpack a volume from a backup tarball file.
 	unpackVolume := func(r io.ReadSeeker, tarArgs []string, unpacker []string, srcPrefix string, mountPath string) error {
 		volTypeName := "container"
@@ -682,7 +684,19 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 			// Extract filesystem volume.
 			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), log.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
 			srcData.Seek(0, 0)
-			err = shared.RunCommandWithFds(r, nil, "tar", args...)
+
+			f, err := os.OpenFile(mountPath, os.O_RDONLY, 0)
+			if err != nil {
+				return errors.Wrapf(err, "Error opening directory")
+			}
+			defer f.Close()
+
+			allowedCmds := []string{}
+			if len(unpacker) > 0 {
+				allowedCmds = append(allowedCmds, unpacker[0])
+			}
+
+			err = archive.ExtractWithFds("tar", args, allowedCmds, ioutil.NopCloser(r), sysOS, f)
 			if err != nil {
 				return errors.Wrapf(err, "Error starting unpack")
 			}
@@ -697,7 +711,7 @@ func genericVFSBackupUnpack(d Driver, vol Volume, snapshots []string, srcData io
 
 			srcFile := fmt.Sprintf("%s.%s", srcPrefix, genericVolumeBlockExtension)
 
-			tr, cancelFunc, err := shared.CompressedTarReader(context.Background(), r, unpacker)
+			tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, sysOS, mountPath)
 			if err != nil {
 				return err
 			}
