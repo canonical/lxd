@@ -40,6 +40,14 @@ var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
 var listenersUpdateLock sync.Mutex
 
+// ServerEventMode returns the event distribution mode that this local server is operating in.
+func ServerEventMode() EventMode {
+	listenersLock.Lock()
+	defer listenersLock.Unlock()
+
+	return eventMode
+}
+
 // EventListenerWait waits for there to be listener connected to the specified address, or one of the event hubs
 // if operating in event hub mode.
 func EventListenerWait(ctx context.Context, address string) error {
