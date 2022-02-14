@@ -184,7 +184,6 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 
 	consoleDisconnect := make(chan bool)
 	sendDisconnect := make(chan struct{})
-	defer close(sendDisconnect)
 
 	consoleArgs := lxd.InstanceConsoleArgs{
 		Terminal: &readWriteCloser{stdinMirror{os.Stdin,
