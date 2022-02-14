@@ -536,7 +536,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 			}
 		}
 
-		return -1, fmt.Errorf("Invalid cluster role '%s'", role)
+		return -1, fmt.Errorf("Invalid cluster role %q", role)
 	}
 
 	// Translate role names to ids
