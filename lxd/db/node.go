@@ -41,15 +41,16 @@ var ClusterRoles = map[int]ClusterRole{}
 
 // NodeInfo holds information about a single LXD instance in a cluster.
 type NodeInfo struct {
-	ID            int64     // Stable node identifier
-	Name          string    // User-assigned name of the node
-	Address       string    // Network address of the node
-	Description   string    // Node description (optional)
-	Schema        int       // Schema version of the LXD code running the node
-	APIExtensions int       // Number of API extensions of the LXD code running on the node
-	Heartbeat     time.Time // Timestamp of the last heartbeat
-	Roles         []string  // List of cluster roles
-	Architecture  int       // Node architecture
+	ID            int64         // Stable node identifier
+	Name          string        // User-assigned name of the node
+	Address       string        // Network address of the node
+	Description   string        // Node description (optional)
+	Schema        int           // Schema version of the LXD code running the node
+	APIExtensions int           // Number of API extensions of the LXD code running on the node
+	Heartbeat     time.Time     // Timestamp of the last heartbeat
+	Roles         []ClusterRole // List of cluster roles
+	Architecture  int           // Node architecture
+	State         int           // Node state
 }
 
 // IsOffline returns true if the last successful heartbeat time of the node is
@@ -114,7 +115,11 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	result.ServerName = n.Name
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = false
-	result.Roles = n.Roles
+
+	result.Roles = make([]string, 0, len(n.Roles))
+	for _, r := range n.Roles {
+		result.Roles = append(result.Roles, string(r))
+	}
 
 	// Check if node is the leader node
 	if leader == n.Address {
@@ -383,7 +388,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles;"
 
-	nodeRoles := map[int64][]string{}
+	nodeRoles := map[int64][]ClusterRole{}
 	rows, err := c.tx.Query(sql)
 	if err != nil {
 		if err.Error() != "no such table: nodes_roles" {
@@ -402,12 +407,12 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 			}
 
 			if nodeRoles[nodeID] == nil {
-				nodeRoles[nodeID] = []string{}
+				nodeRoles[nodeID] = []ClusterRole{}
 			}
 
 			roleName := string(ClusterRoles[role])
 
-			nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
+			nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
 		}
 	}
 
