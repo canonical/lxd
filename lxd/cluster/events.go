@@ -21,6 +21,17 @@ var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
 var listenersUpdateLock sync.Mutex
 
+// RoleInSlice returns whether or not the rule is within the roles list.
+func RoleInSlice(role db.ClusterRole, roles []db.ClusterRole) bool {
+	for _, r := range roles {
+		if r == role {
+			return true
+		}
+	}
+
+	return false
+}
+
 // EventListenerWait waits for there to be listener connected to the specified address, or one of the event hubs
 // if operating in event hub mode.
 func EventListenerWait(ctx context.Context, address string) error {
