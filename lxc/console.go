@@ -183,18 +183,24 @@ func (c *cmdConsole) console(d lxd.InstanceServer, name string) error {
 	}
 
 	consoleDisconnect := make(chan bool)
+	manualDisconnect := make(chan struct{})
+
 	sendDisconnect := make(chan struct{})
 	defer close(sendDisconnect)
 
 	consoleArgs := lxd.InstanceConsoleArgs{
 		Terminal: &readWriteCloser{stdinMirror{os.Stdin,
-			sendDisconnect, new(bool)}, os.Stdout},
+			manualDisconnect, new(bool)}, os.Stdout},
 		Control:           handler,
 		ConsoleDisconnect: consoleDisconnect,
 	}
 
 	go func() {
-		<-sendDisconnect
+		select {
+		case <-sendDisconnect:
+		case <-manualDisconnect:
+		}
+
 		close(consoleDisconnect)
 	}()
 
