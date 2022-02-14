@@ -84,6 +84,13 @@ type ServerEnvironment struct {
 	// API extension: clustering
 	ServerClustered bool `json:"server_clustered" yaml:"server_clustered"`
 
+	// Mode that the event distribution subsystem is operating in on this server.
+	// Either "full-mesh", "hub-server" or "hub-client".
+	// Example: full-mesh
+	//
+	// API extension: event_hub
+	ServerEventMode string `json:"server_event_mode" yaml:"server_event_mode"`
+
 	// Server hostname
 	// Example: castiana
 	//
