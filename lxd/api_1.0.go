@@ -312,6 +312,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		ServerPid:              os.Getpid(),
 		ServerVersion:          version.Version,
 		ServerClustered:        clustered,
+		ServerEventMode:        string(cluster.ServerEventMode()),
 		ServerName:             serverName,
 		Firewall:               fmt.Sprintf("%s", d.firewall),
 	}
