@@ -1618,3 +1618,6 @@ It adds the `token` field to `POST /1.0/certificates`.
 This adds the ability to disable the `routed` NIC IP neighbor probing for availability on the parent network.
 
 Adds the `ipv4.neighbor_probe` and `ipv6.neighbor_probe` NIC settings. Defaulting to `true` if not specified.
+
+## event\_hub
+This adds support for `event-hub` cluster member role and the `ServerEventMode` environment field.
