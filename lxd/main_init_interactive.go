@@ -1041,7 +1041,7 @@ they otherwise would.
 	}
 
 	// Ask if the user wants images to be automatically refreshed
-	imageStaleRefresh, err := cli.AskBool("Would you like stale cached images to be updated automatically? (yes/no) [default=yes] ", "yes")
+	imageStaleRefresh, err := cli.AskBool("Would you like stale cached images to be updated automatically? (yes/no) [default=yes]: ", "yes")
 	if err != nil {
 		return err
 	}
