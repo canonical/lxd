@@ -21,6 +21,20 @@ import (
 // operating in the normal full-mesh mode).
 const eventHubMinHosts = 2
 
+// EventMode indicates the event distribution mode.
+type EventMode string
+
+// EventModeFullMesh is when every cluster member connects to every other cluster member to pull events.
+const EventModeFullMesh EventMode = "full-mesh"
+
+// EventModeHubServer is when the cluster is operating in event-hub mode and this server is designated as a hub
+// server, meaning that it will only connect to the other event-hub members and not other members.
+const EventModeHubServer EventMode = "hub-server"
+
+// EventModeHubClient is when the cluster is operating in event-hub mode and this member is designated as a hub
+// client, meaning that it is expected to connect to the event-hub members.
+const EventModeHubClient EventMode = "hub-client"
+
 var listeners = map[string]*lxd.EventListener{}
 var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
