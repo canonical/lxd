@@ -61,7 +61,7 @@ type NodeInfo struct {
 	Schema        int               // Schema version of the LXD code running the node
 	APIExtensions int               // Number of API extensions of the LXD code running on the node
 	Heartbeat     time.Time         // Timestamp of the last heartbeat
-	Roles         []string          // List of cluster roles
+	Roles         []ClusterRole     // List of cluster roles
 	Architecture  int               // Node architecture
 	State         int               // Node state
 	Config        map[string]string // Configuration for the node
@@ -146,7 +146,12 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = false
 	result.Config = n.Config
-	result.Roles = n.Roles
+
+	result.Roles = make([]string, 0, len(n.Roles))
+	for _, r := range n.Roles {
+		result.Roles = append(result.Roles, string(r))
+	}
+
 	result.Groups = n.Groups
 
 	// Check if node is the leader node
@@ -437,7 +442,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles"
 
-	nodeRoles := map[int64][]string{}
+	nodeRoles := map[int64][]ClusterRole{}
 	rows, err := c.tx.Query(sql)
 	if err != nil {
 		// Don't fail on a missing table, we need to handle updates
@@ -456,12 +461,12 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 			}
 
 			if nodeRoles[nodeID] == nil {
-				nodeRoles[nodeID] = []string{}
+				nodeRoles[nodeID] = []ClusterRole{}
 			}
 
 			roleName := string(ClusterRoles[role])
 
-			nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
+			nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
 		}
 
 		err = rows.Err()
