@@ -3301,13 +3301,33 @@ test_clustering_events() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
+  # Spawn a fourth node.
+  setup_clustering_netns 4
+  LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FOUR_DIR}"
+  ns4="${prefix}4"
+  spawn_lxd_and_join_cluster "${ns4}" "${bridge}" "${cert}" 4 1 "${LXD_FOUR_DIR}"
+
+  # Spawn a firth node.
+  setup_clustering_netns 5
+  LXD_FIVE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD_FIVE_DIR}"
+  ns5="${prefix}5"
+  spawn_lxd_and_join_cluster "${ns5}" "${bridge}" "${cert}" 5 1 "${LXD_FIVE_DIR}"
+
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
 
   ensure_import_testimage
 
   # c1 should go to node1.
-  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c1 --target=node1
   LXD_DIR="${LXD_ONE_DIR}" lxc info c1 | grep -q "Location: node1"
+  LXD_DIR="${LXD_ONE_DIR}" lxc launch testimage c2 --target=node2
 
   LXD_DIR="${LXD_ONE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node1.log" &
   monitorNode1PID=$!
@@ -3316,26 +3336,121 @@ test_clustering_events() {
   LXD_DIR="${LXD_THREE_DIR}" lxc monitor --type=lifecycle > "${TEST_DIR}/node3.log" &
   monitorNode3PID=$!
 
-  # Delete instance generating stop and delete lifecycle events.
-  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
-  sleep 1 # Wait for event to be distributed.
-
-  # Kill monitors.
-  kill -9 ${monitorNode1PID}
-  kill -9 ${monitorNode2PID}
-  kill -9 ${monitorNode3PID}
+  # Restart instance generating restart lifecycle event.
+  LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
+  LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
 
   # Check events were distributed.
   for i in 1 2 3; do
-    grep "instance-stopped" "${TEST_DIR}/node${i}.log" -c | grep -F 1
-    grep "instance-deleted" "${TEST_DIR}/node${i}.log" -c | grep -F 1
+    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 2
   done
 
+  # Switch into event-hub mode.
+  printf "roles: [\"database\", \"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_ONE_DIR}" lxc cluster edit node1
+  printf "roles: [\"database\", \"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_TWO_DIR}" lxc cluster edit node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub | grep -Fx 2
+
+  # Check events were distributed.
+  for i in 1 2 3; do
+    grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log" | grep -Fx 2
+  done
+
+  sleep 1 # Wait for notification heartbeat to distribute new roles.
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-server"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+
+  # Restart instance generating restart lifecycle event.
+  LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
+  LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+
+  # Check events were distributed.
+  for i in 1 2 3; do
+    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 4
+  done
+
+  # Launch container on node3 to check image distribution events work during event-hub mode.
+  LXD_DIR="${LXD_THREE_DIR}" lxc launch testimage c3 --target=node3
+
+  for i in 1 2 3; do
+    grep -Fc "instance-created" "${TEST_DIR}/node${i}.log" | grep -Fx 1
+  done
+
+  # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
+  printf "roles: [\"database\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_ONE_DIR}" lxc cluster edit node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub | grep -Fx 1
+
+  sleep 1 # Wait for notification heartbeat to distribute new roles.
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: full-mesh"
+
+  # Check events were distributed.
+  for i in 1 2 3; do
+    grep -Fc "cluster-member-updated" "${TEST_DIR}/node${i}.log" | grep -Fx 3
+  done
+
+  # Restart instance generating restart lifecycle event.
+  LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
+  LXD_DIR="${LXD_THREE_DIR}" lxc restart -f c2
+
+  # Check events were distributed.
+  for i in 1 2 3; do
+    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 6
+  done
+
+  # Switch back into event-hub mode by giving the role to node4 and node5.
+  printf "roles: [\"database\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_TWO_DIR}" lxc cluster edit node2
+  printf "roles: [\"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_FOUR_DIR}" lxc cluster edit node4
+  printf "roles: [\"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_FIVE_DIR}" lxc cluster edit node5
+
+  sleep 1 # Wait for notification heartbeat to distribute new roles.
+  LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_TWO_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_THREE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
+  LXD_DIR="${LXD_FOUR_DIR}" lxc info | grep -F "server_event_mode: hub-server"
+  LXD_DIR="${LXD_FIVE_DIR}" lxc info | grep -F "server_event_mode: hub-server"
+
+  # Shutdown the hub servers.
+  LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls
+
+  LXD_DIR="${LXD_FOUR_DIR}" lxd shutdown
+  LXD_DIR="${LXD_FIVE_DIR}" lxd shutdown
+
+  sleep 12
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster ls
+
+  # Confirm that local operations are not blocked by having no event hubs running, but that events are not being
+  # distributed.
+  LXD_DIR="${LXD_ONE_DIR}" lxc restart -f c1
+  sleep 1
+  grep -Fc "instance-restarted" "${TEST_DIR}/node1.log"
+  grep -Fc "instance-restarted" "${TEST_DIR}/node1.log" | grep -Fx 7
+  for i in 2 3; do
+    grep -Fc "instance-restarted" "${TEST_DIR}/node${i}.log" | grep -Fx 6
+  done
+
+  # Kill monitors.
+  kill -9 ${monitorNode1PID} || true
+  kill -9 ${monitorNode2PID} || true
+  kill -9 ${monitorNode3PID} || true
+
   # Cleanup.
+  LXD_DIR="${LXD_ONE_DIR}" lxc delete -f c1
+  LXD_DIR="${LXD_TWO_DIR}" lxc delete -f c2
+  LXD_DIR="${LXD_THREE_DIR}" lxc delete -f c3
   LXD_DIR="${LXD_THREE_DIR}" lxd shutdown
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
   sleep 0.5
+  rm -f "${LXD_FIVE_DIR}/unix.socket"
+  rm -f "${LXD_FOUR_DIR}/unix.socket"
   rm -f "${LXD_THREE_DIR}/unix.socket"
   rm -f "${LXD_TWO_DIR}/unix.socket"
   rm -f "${LXD_ONE_DIR}/unix.socket"
@@ -3346,4 +3461,6 @@ test_clustering_events() {
   kill_lxd "${LXD_ONE_DIR}"
   kill_lxd "${LXD_TWO_DIR}"
   kill_lxd "${LXD_THREE_DIR}"
+  kill_lxd "${LXD_FOUR_DIR}"
+  kill_lxd "${LXD_FIVE_DIR}"
 }
