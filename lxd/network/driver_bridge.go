@@ -512,7 +512,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 	}
 
 	// Delete apparmor profiles.
-	err = apparmor.NetworkDelete(n.state, n)
+	err = apparmor.NetworkDelete(n.state.OS, n)
 	if err != nil {
 		return err
 	}
@@ -1479,7 +1479,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 	}
 
 	// Generate and load apparmor profiles.
-	err = apparmor.NetworkLoad(n.state, n)
+	err = apparmor.NetworkLoad(n.state.OS, n)
 	if err != nil {
 		return err
 	}
@@ -1760,7 +1760,7 @@ func (n *bridge) Stop() error {
 	}
 
 	// Unload apparmor profiles.
-	err = apparmor.NetworkUnload(n.state, n)
+	err = apparmor.NetworkUnload(n.state.OS, n)
 	if err != nil {
 		return err
 	}
