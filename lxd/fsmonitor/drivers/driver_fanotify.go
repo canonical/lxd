@@ -143,7 +143,10 @@ func (d *fanotify) getEvents(mountFd int) {
 
 		fd, err := unix.OpenByHandleAt(mountFd, fh, 0)
 		if err != nil {
-			d.logger.Error("Failed to open file", log.Ctx{"err": err})
+			errno := err.(unix.Errno)
+			if errno != unix.ESTALE {
+				d.logger.Error("Failed to open file", log.Ctx{"err": err})
+			}
 			continue
 		}
 		unix.CloseOnExec(fd)
