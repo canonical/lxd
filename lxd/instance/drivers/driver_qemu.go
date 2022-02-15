@@ -4991,52 +4991,6 @@ func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	return tlsConn, nil
 }
 
-// FilePull retrieves a file from the instance.
-func (d *qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
-	client, err := d.getAgentClient()
-	if err != nil {
-		return 0, 0, 0, "", nil, err
-	}
-
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
-	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"devName": d.Name(), "err": err})
-		return 0, 0, 0, "", nil, fmt.Errorf("Failed to connect to lxd-agent")
-	}
-	defer agent.Disconnect()
-
-	content, resp, err := agent.GetInstanceFile("", srcPath)
-	if err != nil {
-		return 0, 0, 0, "", nil, err
-	}
-
-	switch resp.Type {
-	case "file", "symlink":
-		data, err := ioutil.ReadAll(content)
-		if err != nil {
-			return 0, 0, 0, "", nil, err
-		}
-
-		err = ioutil.WriteFile(dstPath, data, os.FileMode(resp.Mode))
-		if err != nil {
-			return 0, 0, 0, "", nil, err
-		}
-
-		err = os.Lchown(dstPath, int(resp.UID), int(resp.GID))
-		if err != nil {
-			return 0, 0, 0, "", nil, err
-		}
-
-		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, nil, nil
-	case "directory":
-		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, resp.Entries, nil
-	}
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileRetrieved.Event(d, log.Ctx{"file-source": srcPath, "file-destination": dstPath}))
-
-	return 0, 0, 0, "", nil, fmt.Errorf("bad file type %s", resp.Type)
-}
-
 // FilePush pushes a file into the instance.
 func (d *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
 	client, err := d.getAgentClient()
