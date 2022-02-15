@@ -598,7 +598,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent.File = bytes.NewReader([]byte(logContents))
-	ent.FileModify = time.Now()
+	ent.FileModified = time.Now()
 	ent.FileSize = int64(len(logContents))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)

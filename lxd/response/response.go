@@ -285,9 +285,9 @@ type FileResponseEntry struct {
 	Path string
 
 	// Read from a file.
-	File       io.ReadSeeker
-	FileSize   int64
-	FileModify time.Time
+	File         io.ReadSeeker
+	FileSize     int64
+	FileModified time.Time
 
 	// Optional.
 	Cleanup func()
@@ -324,7 +324,7 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 		if r.files[0].File != nil {
 			rs = r.files[0].File
-			mt = r.files[0].FileModify
+			mt = r.files[0].FileModified
 			sz = r.files[0].FileSize
 		} else {
 			f, err := os.Open(r.files[0].Path)
