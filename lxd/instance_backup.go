@@ -616,5 +616,5 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceBackupRetrieved.Event(name, backup.Instance(), nil))
 
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
+	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 }

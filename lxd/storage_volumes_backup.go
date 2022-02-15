@@ -782,5 +782,5 @@ func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) resp
 
 	d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRetrieved.Event(poolName, volumeTypeName, volumeName, projectName, request.CreateRequestor(r), nil))
 
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
+	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 }
