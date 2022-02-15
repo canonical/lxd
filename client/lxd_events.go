@@ -75,7 +75,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		for {
 			select {
 			case <-time.After(time.Minute):
-			case <-r.chConnected:
+			case <-r.ctxConnected.Done():
 			case <-stopCh:
 			}
 
