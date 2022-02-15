@@ -211,7 +211,7 @@ func (d *proxy) Start() (*deviceConfig.RunConfig, error) {
 			logPath := filepath.Join(d.inst.LogPath(), logFileName)
 
 			// Load the apparmor profile
-			err = apparmor.ForkproxyLoad(d.state, d.inst, d)
+			err = apparmor.ForkproxyLoad(d.state.OS, d.inst, d)
 			if err != nil {
 				return fmt.Errorf("Failed to start device %q: %w", d.name, err)
 			}
@@ -336,7 +336,7 @@ func (d *proxy) Stop() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Unload apparmor profile.
-	err = apparmor.ForkproxyUnload(d.state, d.inst, d)
+	err = apparmor.ForkproxyUnload(d.state.OS, d.inst, d)
 	if err != nil {
 		return nil, err
 	}
@@ -553,7 +553,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 
 func (d *proxy) Remove() error {
 	// Delete apparmor profile.
-	err := apparmor.ForkproxyDelete(d.state, d.inst, d)
+	err := apparmor.ForkproxyDelete(d.state.OS, d.inst, d)
 	if err != nil {
 		return err
 	}
