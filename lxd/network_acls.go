@@ -578,7 +578,7 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 
 	ent := response.FileResponseEntry{}
 	ent.File = bytes.NewReader([]byte(log))
-	ent.FileModify = time.Now()
+	ent.FileModified = time.Now()
 	ent.FileSize = int64(len(log))
 
 	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
