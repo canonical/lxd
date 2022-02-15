@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -38,6 +39,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
 	"github.com/lxc/lxd/lxd/lifecycle"
+	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
@@ -1977,6 +1979,11 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		}
 	}
 
+	// Wait for any file operations to complete.
+	// This is to avoid having an active mount by forkfile and so all file operations
+	// from this point will use the container's namespace rather than a chroot.
+	d.stopForkfile()
+
 	// Mount instance root volume.
 	_, err = d.mount()
 	if err != nil {
@@ -2949,6 +2956,10 @@ func (d *lxc) onStop(args map[string]string) error {
 		d.IsRunning()
 		d.logger.Debug("Container stopped, cleaning up")
 
+		// Wait for any file operations to complete.
+		// This is to required so we can actually unmount the container.
+		d.stopForkfile()
+
 		// Clean up devices.
 		d.cleanupDevices(false, "")
 
@@ -3394,6 +3405,9 @@ func (d *lxc) Snapshot(name string, expiry time.Time, stateful bool) error {
 		}
 	}
 
+	// Wait for any file operations to complete to have a more consistent snapshot.
+	d.stopForkfile()
+
 	return d.snapshotCommon(d, name, expiry, stateful)
 }
 
@@ -3614,6 +3628,12 @@ func (d *lxc) Delete(force bool) error {
 		err := fmt.Errorf("Container is protected")
 		d.logger.Warn("Failed to delete container", log.Ctx{"err": err})
 		return err
+	}
+
+	// Wait for any file operations to complete.
+	// This is to required so we can actually unmount the container and delete it.
+	if !d.IsSnapshot() {
+		d.stopForkfile()
 	}
 
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
@@ -5338,6 +5358,189 @@ func (d *lxc) FileExists(path string) error {
 	return nil
 }
 
+// FileSFTPConn returns a connection to the forkfile handler.
+func (d *lxc) FileSFTPConn() (net.Conn, error) {
+	// Lock to avoid concurrent spawning.
+	spawnUnlock := locking.Lock(fmt.Sprintf("forkfile_%d", d.id))
+	defer spawnUnlock()
+
+	// Attempt to connect on existing socket.
+	forkfilePath := filepath.Join(d.LogPath(), "forkfile.sock")
+
+	forkfileAddr, err := net.ResolveUnixAddr("unix", forkfilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	forkfileConn, err := net.DialUnix("unix", nil, forkfileAddr)
+	if err == nil {
+		// Found an existing server.
+		return forkfileConn, nil
+	}
+
+	// Check for ongoing operations (that may involve shifting).
+	operationlock.Get(d.Project(), d.Name()).Wait()
+
+	// Create the listener.
+	os.Remove(forkfilePath)
+	forkfileListener, err := net.ListenUnix("unix", forkfileAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Spawn forkfile in a Go routine.
+	chReady := make(chan error)
+	go func() {
+		// Lock to avoid concurrent running forkfile.
+		runUnlock := locking.Lock(d.forkfileRunningLockName())
+		defer runUnlock()
+
+		// Setup reverter.
+		reverter := revert.New()
+		defer reverter.Fail()
+
+		// Always cleanup on failure.
+		// This isn't defered as we want those run immediately after
+		// forkfile exits and not after other defers are run.
+		reverter.Add(func() {
+			forkfileListener.Close()
+			os.Remove(forkfilePath)
+		})
+
+		// Mount the filesystem if needed.
+		if !d.IsRunning() {
+			// Mount the root filesystem if required.
+			_, err := d.mount()
+			if err != nil {
+				chReady <- err
+				return
+			}
+			defer d.unmount()
+		}
+
+		// Start building the command.
+		args := []string{
+			d.state.OS.ExecPath,
+			"forkfile",
+			"--",
+		}
+		extraFiles := []*os.File{}
+
+		// Get the listener file.
+		forkfileFile, err := forkfileListener.File()
+		if err != nil {
+			chReady <- err
+			return
+		}
+		defer forkfileFile.Close()
+
+		args = append(args, "3")
+		extraFiles = append(extraFiles, forkfileFile)
+
+		// Get the rootfs.
+		rootfsFile, err := os.Open(d.RootfsPath())
+		if err != nil {
+			chReady <- err
+			return
+		}
+		defer rootfsFile.Close()
+
+		args = append(args, "4")
+		extraFiles = append(extraFiles, rootfsFile)
+
+		// Get the pidfd.
+		pidFdNr, pidFd := d.inheritInitPidFd()
+		if pidFdNr >= 0 {
+			defer pidFd.Close()
+			args = append(args, "5")
+			extraFiles = append(extraFiles, pidFd)
+		} else {
+			args = append(args, "-1")
+		}
+
+		// Finalize the args.
+		args = append(args, fmt.Sprintf("%d", d.InitPID()))
+
+		// Prepare sftp server.
+		forkfile := exec.Cmd{
+			Path:       d.state.OS.ExecPath,
+			Args:       args,
+			ExtraFiles: extraFiles,
+		}
+
+		var stderr bytes.Buffer
+		forkfile.Stderr = &stderr
+
+		if !d.IsRunning() {
+			// Get the disk idmap.
+			idmapset, err := d.DiskIdmap()
+			if err != nil {
+				chReady <- err
+				return
+			}
+
+			if idmapset != nil {
+				forkfile.SysProcAttr = &syscall.SysProcAttr{
+					Cloneflags: syscall.CLONE_NEWUSER,
+					Credential: &syscall.Credential{
+						Uid: uint32(0),
+						Gid: uint32(0),
+					},
+					UidMappings: idmapset.ToUidMappings(),
+					GidMappings: idmapset.ToGidMappings(),
+				}
+			}
+		}
+
+		// Start the server.
+		err = forkfile.Start()
+		if err != nil {
+			chReady <- fmt.Errorf("Failed to run forkfile: %w: %s", err, strings.TrimSpace(stderr.String()))
+			return
+		}
+
+		// Write PID file.
+		err = ioutil.WriteFile(filepath.Join(d.LogPath(), "forkfile.pid"), []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
+		if err != nil {
+			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
+			return
+		}
+
+		// Indicate the process was spawned.
+		close(chReady)
+
+		// Wait for completion.
+		err = forkfile.Wait()
+		if err != nil {
+			d.logger.Error("Failed to run SFTP server", log.Ctx{"err": err, "stderr": strings.TrimSpace(stderr.String())})
+			return
+		}
+
+		// Close the listener and delete the socket to avoid clients
+		// thinking a listener is available while deferred calls are being
+		// processed.
+		forkfileListener.Close()
+		os.Remove(forkfilePath)
+
+		// All done.
+		reverter.Success()
+	}()
+
+	// Wait for forkfile to have been spawned.
+	err = <-chReady
+	if err != nil {
+		return nil, err
+	}
+
+	// Connect to the new server.
+	forkfileConn, err = net.DialUnix("unix", nil, forkfileAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return forkfileConn, nil
+}
+
 // FilePull gets a file from the instance.
 func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error) {
 	// Check for ongoing operations (that may involve shifting).
@@ -5618,6 +5821,29 @@ func (d *lxc) FileRemove(path string) error {
 
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileDeleted.Event(d, log.Ctx{"file": path}))
 	return nil
+}
+
+// stopForkFile attempts to send SIGINT to forkfile then waits for it to exit.
+func (d *lxc) stopForkfile() {
+	// Make sure that when the function exits, no forkfile is running.
+	defer func() {
+		unlock := locking.Lock(d.forkfileRunningLockName())
+		defer unlock()
+	}()
+
+	// Try to send SIGINT to forkfile to speed up shutdown.
+	content, err := ioutil.ReadFile(filepath.Join(d.LogPath(), "forkfile.pid"))
+	if err != nil {
+		return
+	}
+
+	pid, err := strconv.ParseInt(strings.TrimSpace(string(content)), 10, 64)
+	if err != nil {
+		return
+	}
+
+	unix.Kill(int(pid), unix.SIGINT)
+	return
 }
 
 // Console attaches to the instance console.
@@ -6877,4 +7103,9 @@ func (d *lxc) loadRawLXCConfig() error {
 	}
 
 	return nil
+}
+
+// forfileRunningLockName returns the forkfile-running_ID lock name.
+func (d *common) forkfileRunningLockName() string {
+	return fmt.Sprintf("forkfile-running_%d", d.id)
 }
