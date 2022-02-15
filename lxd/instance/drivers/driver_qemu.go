@@ -1,9 +1,11 @@
 package drivers
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -4923,6 +4926,68 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 // FileExists is not implemented for VMs.
 func (d *qemu) FileExists(path string) error {
 	return instance.ErrNotImplemented
+}
+
+// FileSFTPConn returns a connection to the agent SFTP endpoint.
+func (d *qemu) FileSFTPConn() (net.Conn, error) {
+	// Connect to the agent.
+	client, err := d.getAgentClient()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the HTTP transport.
+	httpTransport := client.Transport.(*http.Transport)
+
+	// Send the upgrade request.
+	u, err := url.Parse("https://custom.socket/1.0/sftp")
+	if err != nil {
+		return nil, err
+	}
+
+	req := &http.Request{
+		Method:     http.MethodGet,
+		URL:        u,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(http.Header),
+		Host:       u.Host,
+	}
+
+	req.Header["Upgrade"] = []string{"sftp"}
+	req.Header["Connection"] = []string{"Upgrade"}
+
+	conn, err := httpTransport.Dial("tcp", "8443")
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConn := tls.Client(conn, httpTransport.TLSClientConfig)
+	err = tlsConn.Handshake()
+	if err != nil {
+		return nil, err
+	}
+
+	err = req.Write(tlsConn)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(tlsConn), req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		return nil, fmt.Errorf("Dialing failed: expected status code 101 got %d", resp.StatusCode)
+	}
+
+	if resp.Header.Get("Upgrade") != "sftp" {
+		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
+	}
+
+	return tlsConn, nil
 }
 
 // FilePull retrieves a file from the instance.
