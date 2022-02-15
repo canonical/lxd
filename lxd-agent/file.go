@@ -90,8 +90,9 @@ func fileGet(path string, r *http.Request) response.Response {
 
 		files[0].Path = f.Name()
 		files[0].Filename = filepath.Base(path)
+		files[0].Cleanup = func() { os.Remove(f.Name()) }
 
-		return response.FileResponse(r, files, headers, true)
+		return response.FileResponse(r, files, headers)
 	} else if fType == "directory" {
 		return response.SyncResponseHeaders(true, dirEnts, headers)
 	}
