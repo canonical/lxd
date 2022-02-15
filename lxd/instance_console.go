@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -569,7 +571,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		consoleBufferLogPath := c.ConsoleBufferLogPath()
 		ent.Path = consoleBufferLogPath
 		ent.Filename = consoleBufferLogPath
-		return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
+		return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 	}
 
 	// Query the container's console ringbuffer.
@@ -589,14 +591,17 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if errno == unix.ENODATA {
-			return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
+			return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 		}
 
 		return response.SmartError(err)
 	}
 
-	ent.Buffer = []byte(logContents)
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
+	ent.File = bytes.NewReader([]byte(logContents))
+	ent.FileModify = time.Now()
+	ent.FileSize = int64(len(logContents))
+
+	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 }
 
 // swagger:operation DELETE /1.0/instances/{name}/console instances instance_console_delete
