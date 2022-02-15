@@ -298,10 +298,13 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			// might be something waiting for a future connection.
 			listener.Disconnect()
 			delete(listeners, member.Address)
+			listenersLock.Unlock()
 
+			// Log after releasing listenersLock to avoid deadlock on listenersLock with EventHubPush.
 			logger.Info("Removed inactive member event listener client", log.Ctx{"local": localAddress, "remote": member.Address})
+		} else {
+			listenersLock.Unlock()
 		}
-		listenersLock.Unlock()
 
 		keepListeners[member.Address] = struct{}{} // Add to current listeners list.
 
@@ -332,24 +335,34 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 				}
 			}
 
-			logger.Info("Added member event listener client")
 			listenersLock.Unlock()
+
+			// Log after releasing listenersLock to avoid deadlock on listenersLock with EventHubPush.
+			logger.Info("Added member event listener client")
 		}(member)
 	}
-
 	wg.Wait()
 
 	// Disconnect and delete any out of date listeners and their notifiers.
+	var removedAddresses []string
+
 	listenersLock.Lock()
 	for address, listener := range listeners {
 		if _, found := keepListeners[address]; !found {
 			listener.Disconnect()
 			delete(listeners, address)
 
-			logger.Info("Removed old member event listener client", log.Ctx{"local": localAddress, "remote": address})
+			// Record address removed, but don't log it here as this could cause a deadlock on
+			// listenersLock with EventHubPush
+			removedAddresses = append(removedAddresses, address)
 		}
 	}
 	listenersLock.Unlock()
+
+	// Log the listeners removed after releasing listenersLock.
+	for _, removedAddress := range removedAddresses {
+		logger.Info("Removed old member event listener client", log.Ctx{"local": localAddress, "remote": removedAddress})
+	}
 }
 
 // Establish a client connection to get events from the given node.
