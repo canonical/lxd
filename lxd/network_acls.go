@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -575,6 +577,9 @@ func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	ent := response.FileResponseEntry{}
-	ent.Buffer = []byte(log)
-	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil, false)
+	ent.File = bytes.NewReader([]byte(log))
+	ent.FileModify = time.Now()
+	ent.FileSize = int64(len(log))
+
+	return response.FileResponse(r, []response.FileResponseEntry{ent}, nil)
 }

@@ -152,8 +152,9 @@ func instanceFileGet(c instance.Instance, path string, r *http.Request) response
 		files[0].Identifier = filepath.Base(path)
 		files[0].Path = temp.Name()
 		files[0].Filename = filepath.Base(path)
+		files[0].Cleanup = func() { os.Remove(temp.Name()) }
 
-		return response.FileResponse(r, files, headers, true)
+		return response.FileResponse(r, files, headers)
 	} else if type_ == "directory" {
 		os.Remove(temp.Name())
 		return response.SyncResponseHeaders(true, dirEnts, headers)
