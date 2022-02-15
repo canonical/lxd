@@ -277,22 +277,31 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 
 // FileResponseEntry represents a file response entry.
 type FileResponseEntry struct {
+	// Required.
 	Identifier string
-	Path       string
 	Filename   string
-	Buffer     []byte /* either a path or a buffer must be provided */
+
+	// Read from a filesystem path.
+	Path string
+
+	// Read from a file.
+	File       io.ReadSeeker
+	FileSize   int64
+	FileModify time.Time
+
+	// Optional.
+	Cleanup func()
 }
 
 type fileResponse struct {
-	req              *http.Request
-	files            []FileResponseEntry
-	headers          map[string]string
-	removeAfterServe bool
+	req     *http.Request
+	files   []FileResponseEntry
+	headers map[string]string
 }
 
 // FileResponse returns a new file response.
-func FileResponse(r *http.Request, files []FileResponseEntry, headers map[string]string, removeAfterServe bool) Response {
-	return &fileResponse{r, files, headers, removeAfterServe}
+func FileResponse(r *http.Request, files []FileResponseEntry, headers map[string]string) Response {
+	return &fileResponse{r, files, headers}
 }
 
 func (r *fileResponse) Render(w http.ResponseWriter) error {
@@ -313,10 +322,10 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		var mt time.Time
 		var sz int64
 
-		if r.files[0].Path == "" {
-			rs = bytes.NewReader(r.files[0].Buffer)
-			mt = time.Now()
-			sz = int64(len(r.files[0].Buffer))
+		if r.files[0].File != nil {
+			rs = r.files[0].File
+			mt = r.files[0].FileModify
+			sz = r.files[0].FileSize
 		} else {
 			f, err := os.Open(r.files[0].Path)
 			if err != nil {
@@ -339,11 +348,9 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		w.Header().Set("Content-Disposition", fmt.Sprintf("inline;filename=%s", r.files[0].Filename))
 
 		http.ServeContent(w, r.req, r.files[0].Filename, mt, rs)
-		if r.files[0].Path != "" && r.removeAfterServe {
-			err := os.Remove(r.files[0].Path)
-			if err != nil {
-				return err
-			}
+
+		if r.files[0].Cleanup != nil {
+			r.files[0].Cleanup()
 		}
 
 		return nil
@@ -358,7 +365,9 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 
 	for _, entry := range r.files {
 		var rd io.Reader
-		if entry.Path != "" {
+		if entry.File != nil {
+			rd = entry.File
+		} else {
 			fd, err := os.Open(entry.Path)
 			if err != nil {
 				return err
@@ -366,8 +375,6 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 			defer fd.Close()
 
 			rd = fd
-		} else {
-			rd = bytes.NewReader(entry.Buffer)
 		}
 
 		fw, err := mw.CreateFormFile(entry.Identifier, entry.Filename)
@@ -379,6 +386,11 @@ func (r *fileResponse) Render(w http.ResponseWriter) error {
 		if err != nil {
 			return err
 		}
+
+		if entry.Cleanup != nil {
+			entry.Cleanup()
+		}
+
 	}
 
 	return nil
