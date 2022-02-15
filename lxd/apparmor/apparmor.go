@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -25,8 +25,8 @@ const (
 var aaPath = shared.VarPath("security", "apparmor")
 
 // runApparmor runs the relevant AppArmor command.
-func runApparmor(state *state.State, command string, name string) error {
-	if !state.OS.AppArmorAvailable {
+func runApparmor(sysOS *sys.OS, command string, name string) error {
+	if !sysOS.AppArmorAvailable {
 		return nil
 	}
 
@@ -44,12 +44,12 @@ func runApparmor(state *state.State, command string, name string) error {
 }
 
 // createNamespace creates a new AppArmor namespace.
-func createNamespace(state *state.State, name string) error {
-	if !state.OS.AppArmorAvailable {
+func createNamespace(sysOS *sys.OS, name string) error {
+	if !sysOS.AppArmorAvailable {
 		return nil
 	}
 
-	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
+	if !sysOS.AppArmorStacking || sysOS.AppArmorStacked {
 		return nil
 	}
 
@@ -63,12 +63,12 @@ func createNamespace(state *state.State, name string) error {
 }
 
 // deleteNamespace destroys an AppArmor namespace.
-func deleteNamespace(state *state.State, name string) error {
-	if !state.OS.AppArmorAvailable {
+func deleteNamespace(sysOS *sys.OS, name string) error {
+	if !sysOS.AppArmorAvailable {
 		return nil
 	}
 
-	if !state.OS.AppArmorStacking || state.OS.AppArmorStacked {
+	if !sysOS.AppArmorStacking || sysOS.AppArmorStacked {
 		return nil
 	}
 
@@ -82,7 +82,7 @@ func deleteNamespace(state *state.State, name string) error {
 }
 
 // hasProfile checks if the profile is already loaded.
-func hasProfile(state *state.State, name string) (bool, error) {
+func hasProfile(sysOS *sys.OS, name string) (bool, error) {
 	mangled := strings.Replace(strings.Replace(strings.Replace(name, "/", ".", -1), "<", "", -1), ">", "", -1)
 
 	profilesPath := "/sys/kernel/security/apparmor/policy/profiles"
@@ -104,30 +104,30 @@ func hasProfile(state *state.State, name string) (bool, error) {
 }
 
 // parseProfile parses the profile without loading it into the kernel.
-func parseProfile(state *state.State, name string) error {
-	if !state.OS.AppArmorAvailable {
+func parseProfile(sysOS *sys.OS, name string) error {
+	if !sysOS.AppArmorAvailable {
 		return nil
 	}
 
-	return runApparmor(state, cmdParse, name)
+	return runApparmor(sysOS, cmdParse, name)
 }
 
 // loadProfile loads the AppArmor profile into the kernel.
-func loadProfile(state *state.State, name string) error {
-	if !state.OS.AppArmorAdmin {
+func loadProfile(sysOS *sys.OS, name string) error {
+	if !sysOS.AppArmorAdmin {
 		return nil
 	}
 
-	return runApparmor(state, cmdLoad, name)
+	return runApparmor(sysOS, cmdLoad, name)
 }
 
 // unloadProfile removes the profile from the kernel.
-func unloadProfile(state *state.State, fullName string, name string) error {
-	if !state.OS.AppArmorAvailable {
+func unloadProfile(sysOS *sys.OS, fullName string, name string) error {
+	if !sysOS.AppArmorAvailable {
 		return nil
 	}
 
-	ok, err := hasProfile(state, fullName)
+	ok, err := hasProfile(sysOS, fullName)
 	if err != nil {
 		return err
 	}
@@ -136,21 +136,21 @@ func unloadProfile(state *state.State, fullName string, name string) error {
 		return nil
 	}
 
-	return runApparmor(state, cmdUnload, name)
+	return runApparmor(sysOS, cmdUnload, name)
 }
 
 // deleteProfile unloads and delete profile and cache for a profile.
-func deleteProfile(state *state.State, fullName string, name string) error {
-	if !state.OS.AppArmorAdmin {
+func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
+	if !sysOS.AppArmorAdmin {
 		return nil
 	}
 
-	cacheDir, err := getCacheDir(state)
+	cacheDir, err := getCacheDir(sysOS)
 	if err != nil {
 		return err
 	}
 
-	err = unloadProfile(state, fullName, name)
+	err = unloadProfile(sysOS, fullName, name)
 	if err != nil {
 		return err
 	}
@@ -169,12 +169,12 @@ func deleteProfile(state *state.State, fullName string, name string) error {
 }
 
 // parserSupports checks if the parser supports a particular feature.
-func parserSupports(state *state.State, feature string) (bool, error) {
-	if !state.OS.AppArmorAvailable {
+func parserSupports(sysOS *sys.OS, feature string) (bool, error) {
+	if !sysOS.AppArmorAvailable {
 		return false, nil
 	}
 
-	ver, err := getVersion(state)
+	ver, err := getVersion(sysOS)
 	if err != nil {
 		return false, err
 	}
@@ -192,8 +192,8 @@ func parserSupports(state *state.State, feature string) (bool, error) {
 }
 
 // getVersion reads and parses the AppArmor version.
-func getVersion(state *state.State) (*version.DottedVersion, error) {
-	if !state.OS.AppArmorAvailable {
+func getVersion(sysOS *sys.OS) (*version.DottedVersion, error) {
+	if !sysOS.AppArmorAvailable {
 		return version.NewDottedVersion("0.0")
 	}
 
@@ -207,14 +207,14 @@ func getVersion(state *state.State) (*version.DottedVersion, error) {
 }
 
 // getCacheDir returns the applicable AppArmor cache directory.
-func getCacheDir(state *state.State) (string, error) {
+func getCacheDir(sysOS *sys.OS) (string, error) {
 	basePath := filepath.Join(aaPath, "cache")
 
-	if !state.OS.AppArmorAvailable {
+	if !sysOS.AppArmorAvailable {
 		return basePath, nil
 	}
 
-	ver, err := getVersion(state)
+	ver, err := getVersion(sysOS)
 	if err != nil {
 		return "", err
 	}

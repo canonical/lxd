@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 )
 
 // Internal copy of the network interface.
@@ -15,7 +15,7 @@ type network interface {
 }
 
 // NetworkLoad ensures that the network's profiles are loaded into the kernel.
-func NetworkLoad(state *state.State, n network) error {
+func NetworkLoad(sysOS *sys.OS, n network) error {
 	/* In order to avoid forcing a profile parse (potentially slow) on
 	 * every network start, let's use AppArmor's binary policy cache,
 	 * which checks mtime of the files to figure out if the policy needs to
@@ -35,7 +35,7 @@ func NetworkLoad(state *state.State, n network) error {
 		return err
 	}
 
-	updated, err := dnsmasqProfile(state, n)
+	updated, err := dnsmasqProfile(sysOS, n)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func NetworkLoad(state *state.State, n network) error {
 		}
 	}
 
-	err = loadProfile(state, dnsmasqProfileFilename(n))
+	err = loadProfile(sysOS, dnsmasqProfileFilename(n))
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func NetworkLoad(state *state.State, n network) error {
 			return err
 		}
 
-		updated, err := forkdnsProfile(state, n)
+		updated, err := forkdnsProfile(sysOS, n)
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func NetworkLoad(state *state.State, n network) error {
 			}
 		}
 
-		err = loadProfile(state, forkdnsProfileFilename(n))
+		err = loadProfile(sysOS, forkdnsProfileFilename(n))
 		if err != nil {
 			return err
 		}
@@ -83,16 +83,16 @@ func NetworkLoad(state *state.State, n network) error {
 
 // NetworkUnload ensures that the network's profiles are unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
-func NetworkUnload(state *state.State, n network) error {
+func NetworkUnload(sysOS *sys.OS, n network) error {
 	// dnsmasq
-	err := unloadProfile(state, DnsmasqProfileName(n), dnsmasqProfileFilename(n))
+	err := unloadProfile(sysOS, DnsmasqProfileName(n), dnsmasqProfileFilename(n))
 	if err != nil {
 		return err
 	}
 
 	// forkdns
 	if n.Config()["bridge.mode"] == "fan" {
-		err := unloadProfile(state, ForkdnsProfileName(n), forkdnsProfileFilename(n))
+		err := unloadProfile(sysOS, ForkdnsProfileName(n), forkdnsProfileFilename(n))
 		if err != nil {
 			return err
 		}
@@ -102,14 +102,14 @@ func NetworkUnload(state *state.State, n network) error {
 }
 
 // NetworkDelete removes the profiles from cache/disk.
-func NetworkDelete(state *state.State, n network) error {
-	err := deleteProfile(state, DnsmasqProfileName(n), dnsmasqProfileFilename(n))
+func NetworkDelete(sysOS *sys.OS, n network) error {
+	err := deleteProfile(sysOS, DnsmasqProfileName(n), dnsmasqProfileFilename(n))
 	if err != nil {
 		return err
 	}
 
 	if n.Config()["bridge.mode"] == "fan" {
-		err := deleteProfile(state, ForkdnsProfileName(n), forkdnsProfileFilename(n))
+		err := deleteProfile(sysOS, ForkdnsProfileName(n), forkdnsProfileFilename(n))
 		if err != nil {
 			return err
 		}
