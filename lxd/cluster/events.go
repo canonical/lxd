@@ -363,6 +363,10 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 	for _, removedAddress := range removedAddresses {
 		logger.Info("Removed old member event listener client", log.Ctx{"local": localAddress, "remote": removedAddress})
 	}
+
+	if len(members) > 1 && len(keepListeners) <= 0 {
+		logger.Error("No active cluster event listener clients")
+	}
 }
 
 // Establish a client connection to get events from the given node.
