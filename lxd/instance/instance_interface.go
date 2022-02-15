@@ -2,6 +2,7 @@ package instance
 
 import (
 	"io"
+	"net"
 	"os"
 	"time"
 
@@ -94,6 +95,7 @@ type Instance interface {
 	VolatileSet(changes map[string]string) error
 
 	// File handling.
+	FileSFTPConn() (net.Conn, error)
 	FileExists(path string) error
 	FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error)
 	FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
