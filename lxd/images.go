@@ -3280,7 +3280,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		files[1].Path = rootfsPath
 		files[1].Filename = filename
 
-		return response.FileResponse(r, files, nil, false)
+		return response.FileResponse(r, files, nil)
 	}
 
 	files := make([]response.FileResponseEntry, 1)
@@ -3291,7 +3291,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 	requestor := request.CreateRequestor(r)
 	d.State().Events.SendLifecycle(projectName, lifecycle.ImageRetrieved.Event(imgInfo.Fingerprint, projectName, requestor, nil))
 
-	return response.FileResponse(r, files, nil, false)
+	return response.FileResponse(r, files, nil)
 }
 
 // swagger:operation POST /1.0/images/{fingerprint}/secret images images_secret_post
