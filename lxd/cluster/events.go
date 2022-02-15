@@ -40,17 +40,82 @@ const EventModeHubClient EventMode = "hub-client"
 type eventListenerClient struct {
 	*lxd.EventListener
 
-	client lxd.InstanceServer
+	client        lxd.InstanceServer
+	hubPushCancel context.CancelFunc
 }
 
 // Disconnect disconnects both the listener and the client.
 func (lc *eventListenerClient) Disconnect() {
+	if lc.hubPushCancel != nil {
+		lc.hubPushCancel()
+	}
+
 	lc.EventListener.Disconnect()
 	lc.client.Disconnect()
 }
 
+// SetEventMode applies the specified eventMode of the local server to the listener.
+// If the eventMode is EventModeHubClient then a go routine is started that consumes events from eventHubPushCh and
+// pushes them to the remote server. If the eventMode is anything else then the go routine is stopped if running.
+func (lc *eventListenerClient) SetEventMode(eventMode EventMode, eventHubPushCh chan api.Event) {
+	if eventMode == EventModeHubClient {
+		if lc.hubPushCancel != nil || !lc.IsActive() {
+			return
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		go func() {
+			lc.hubPushCancel = cancel
+			info, _ := lc.client.GetConnectionInfo()
+			logger.Info("Event hub client started", log.Ctx{"remote": info.URL})
+			defer logger.Info("Event hub client stopped", log.Ctx{"remote": info.URL})
+			defer func() {
+				cancel()
+				lc.hubPushCancel = nil
+			}()
+
+			for {
+				select {
+				case event, more := <-eventHubPushCh:
+					if !more {
+						return
+					}
+
+					err := lc.client.SendEvent(event)
+					if err != nil {
+						//  Send failed, something is wrong with this hub server.
+						lc.Disconnect() // Disconnect listener and client.
+
+						// Try and put event back onto event hub push queue for consumption
+						// by another consumer.
+						ctx, cancel := context.WithTimeout(context.Background(), eventHubPushChTimeout)
+						defer cancel()
+
+						select {
+						case eventHubPushCh <- event:
+						case <-ctx.Done(): // Don't block if all consumers are slow/down.
+						}
+
+						return
+					}
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	} else if lc.hubPushCancel != nil {
+		lc.hubPushCancel()
+		lc.hubPushCancel = nil
+	}
+
+	return
+}
+
 var eventMode EventMode = EventModeFullMesh
 var eventHubAddresses []string
+var eventHubPushCh = make(chan api.Event, 10) // Buffer size to accommodate slow consumers before dropping events.
+var eventHubPushChTimeout = time.Duration(time.Second)
 var listeners = map[string]*eventListenerClient{}
 var listenersNotify = map[chan struct{}][]string{}
 var listenersLock sync.Mutex
@@ -224,6 +289,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		if ok {
 			if listener.IsActive() {
 				keepListeners[member.Address] = struct{}{} // Add to current listeners list.
+				listener.SetEventMode(localEventMode, eventHubPushCh)
 				listenersLock.Unlock()
 				continue
 			}
@@ -252,6 +318,8 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			}
 
 			listener.AddHandler(nil, func(event api.Event) { f(m.ID, event) })
+
+			listener.SetEventMode(localEventMode, eventHubPushCh)
 
 			listenersLock.Lock()
 			listeners[m.Address] = listener
