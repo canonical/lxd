@@ -100,7 +100,6 @@ type Instance interface {
 	FileSFTP() (*sftp.Client, error)
 	FileExists(path string) error
 	FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
-	FileRemove(path string) error
 
 	// Console - Allocate and run a console tty or a spice Unix socket.
 	Console(protocol string) (*os.File, chan error, error)

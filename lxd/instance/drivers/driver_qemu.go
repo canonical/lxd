@@ -4948,30 +4948,6 @@ func (d *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int
 	return nil
 }
 
-// FileRemove removes a file from the instance.
-func (d *qemu) FileRemove(path string) error {
-	// Connect to the agent.
-	client, err := d.getAgentClient()
-	if err != nil {
-		return err
-	}
-
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
-	if err != nil {
-		return fmt.Errorf("Failed to connect to lxd-agent")
-	}
-	defer agent.Disconnect()
-
-	// Delete instance file.
-	err = agent.DeleteInstanceFile("", path)
-	if err != nil {
-		return err
-	}
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileDeleted.Event(d, log.Ctx{"file": path}))
-	return nil
-}
-
 // FileSFTP returns an SFTP connection to the agent endpoint.
 func (d *qemu) FileSFTP() (*sftp.Client, error) {
 	// Connect to the forkfile daemon.

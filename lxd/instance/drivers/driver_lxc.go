@@ -5658,68 +5658,6 @@ func (d *lxc) FilePush(fileType string, srcpath string, dstpath string, uid int6
 	return nil
 }
 
-// FileRemove removes a file inside the instance.
-func (d *lxc) FileRemove(path string) error {
-	// Check for ongoing operations (that may involve shifting).
-	operationlock.Get(d.Project(), d.Name()).Wait()
-
-	var errStr string
-
-	// Setup container storage if needed
-	_, err := d.mount()
-	if err != nil {
-		return err
-	}
-	defer d.unmount()
-
-	pidFdNr, pidFd := d.inheritInitPidFd()
-	if pidFdNr >= 0 {
-		defer pidFd.Close()
-	}
-
-	// Remove the file from the container
-	_, stderr, err := shared.RunCommandSplit(
-		nil,
-		[]*os.File{pidFd},
-		d.state.OS.ExecPath,
-		"forkfile",
-		"remove",
-		d.RootfsPath(),
-		fmt.Sprintf("%d", d.InitPID()),
-		fmt.Sprintf("%d", pidFdNr),
-		path,
-	)
-
-	// Process forkremovefile response
-	for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
-		if line == "" {
-			continue
-		}
-
-		// Extract errors
-		if strings.HasPrefix(line, "error: ") {
-			errStr = strings.TrimPrefix(line, "error: ")
-			continue
-		}
-
-		if strings.HasPrefix(line, "errno: ") {
-			errno := strings.TrimPrefix(line, "errno: ")
-			if errno == "2" {
-				return os.ErrNotExist
-			}
-
-			return fmt.Errorf(errStr)
-		}
-	}
-
-	if err != nil {
-		return err
-	}
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileDeleted.Event(d, log.Ctx{"file": path}))
-	return nil
-}
-
 // stopForkFile attempts to send SIGINT to forkfile then waits for it to exit.
 func (d *lxc) stopForkfile() {
 	// Make sure that when the function exits, no forkfile is running.
