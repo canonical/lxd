@@ -388,57 +388,48 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
 	}
 
-	// If the context has been cancelled, return immediately.
-	err = ctx.Err()
-	if err != nil {
-		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
-		return
-	}
+	// Check if context has been cancelled.
+	ctxErr := ctx.Err()
 
 	// Look for any new node which appeared since sending last heartbeat.
-	var currentNodes []db.NodeInfo
-	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		currentNodes, err = tx.GetNodes()
+	if ctxErr == nil {
+		var currentNodes []db.NodeInfo
+		err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			currentNodes, err = tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 		if err != nil {
-			return err
+			logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+			return
 		}
 
-		return nil
-	})
-	if err != nil {
-		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
-		return
-	}
+		newNodes := []db.NodeInfo{}
+		for _, currentNode := range currentNodes {
+			existing := false
+			for _, node := range allNodes {
+				if node.Address == currentNode.Address && node.ID == currentNode.ID {
+					existing = true
+					break
+				}
+			}
 
-	newNodes := []db.NodeInfo{}
-	for _, currentNode := range currentNodes {
-		existing := false
-		for _, node := range allNodes {
-			if node.Address == currentNode.Address && node.ID == currentNode.ID {
-				existing = true
-				break
+			if !existing {
+				// We found a new node
+				allNodes = append(allNodes, currentNode)
+				newNodes = append(newNodes, currentNode)
 			}
 		}
 
-		if !existing {
-			// We found a new node
-			allNodes = append(allNodes, currentNode)
-			newNodes = append(newNodes, currentNode)
+		// If any new nodes found, send heartbeat to just them (with full node state).
+		if len(newNodes) > 0 {
+			hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
+			hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, 0)
 		}
-	}
-
-	// If any new nodes found, send heartbeat to just them (with full node state).
-	if len(newNodes) > 0 {
-		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, 0)
-	}
-
-	// If the context has been cancelled, return immediately.
-	err = ctx.Err()
-	if err != nil {
-		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
-		return
 	}
 
 	// Initialise slice to indicate to HeartbeatNodeHook that its being called from leader.
@@ -467,6 +458,12 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	})
 	if err != nil {
 		logger.Error("Failed updating cluster heartbeats", log.Ctx{"err": err})
+		return
+	}
+
+	// If the context has been cancelled, return prematurely after saving the members we did manage to ping.
+	if ctxErr != nil {
+		logger.Warn("Aborting heartbeat round", log.Ctx{"err": ctxErr, "mode": modeStr, "local": localAddress})
 		return
 	}
 
