@@ -26,7 +26,7 @@ var zfsDirectIO bool
 var zfsTrim bool
 
 var zfsDefaultSettings = map[string]string{
-	"mountpoint": "none",
+	"mountpoint": "legacy",
 	"setuid":     "on",
 	"exec":       "on",
 	"devices":    "on",
@@ -216,7 +216,7 @@ func (d *zfs) Create() error {
 		if strings.Contains(d.config["zfs.pool_name"], "/") {
 			// Handle a dataset.
 			if !d.checkDataset(d.config["zfs.pool_name"]) {
-				err := d.createDataset(d.config["zfs.pool_name"], "mountpoint=none")
+				err := d.createDataset(d.config["zfs.pool_name"], "mountpoint=legacy")
 				if err != nil {
 					return err
 				}
@@ -264,7 +264,7 @@ func (d *zfs) Create() error {
 	// Create the initial datasets.
 	for _, dataset := range d.initialDatasets() {
 
-		properties := []string{"mountpoint=none"}
+		properties := []string{"mountpoint=legacy"}
 		if shared.StringInSlice(dataset, []string{"virtual-machines", "deleted/virtual-machines"}) {
 			if len(zfsVersion) >= 3 && zfsVersion[0:3] == "0.6" {
 				d.logger.Warn("Unable to set volmode on parent virtual-machines datasets due to ZFS being too old")
