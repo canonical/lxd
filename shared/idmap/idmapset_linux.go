@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -490,6 +491,42 @@ func (m IdmapSet) ToLxcString() []string {
 		}
 	}
 	return lines
+}
+
+func (m IdmapSet) ToUidMappings() []syscall.SysProcIDMap {
+	mapping := []syscall.SysProcIDMap{}
+
+	for _, e := range m.Idmap {
+		if !e.Isuid {
+			continue
+		}
+
+		mapping = append(mapping, syscall.SysProcIDMap{
+			ContainerID: int(e.Nsid),
+			HostID:      int(e.Hostid),
+			Size:        int(e.Maprange),
+		})
+	}
+
+	return mapping
+}
+
+func (m IdmapSet) ToGidMappings() []syscall.SysProcIDMap {
+	mapping := []syscall.SysProcIDMap{}
+
+	for _, e := range m.Idmap {
+		if !e.Isgid {
+			continue
+		}
+
+		mapping = append(mapping, syscall.SysProcIDMap{
+			ContainerID: int(e.Nsid),
+			HostID:      int(e.Hostid),
+			Size:        int(e.Maprange),
+		})
+	}
+
+	return mapping
 }
 
 func (m IdmapSet) Append(s string) (IdmapSet, error) {
