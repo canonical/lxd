@@ -568,6 +568,10 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	heartbeatCancel := gateway.HearbeatCancelFunc()
 	if heartbeatCancel != nil {
 		heartbeatCancel()
+
+		// Wait for heartbeat to finish and then release.
+		gateway.HeartbeatLock.Lock()
+		gateway.HeartbeatLock.Unlock()
 	}
 
 	hbState := NewAPIHearbeat(state.Cluster)
