@@ -5,7 +5,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -67,7 +67,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 `))
 
 // dnsmasqProfile generates the AppArmor profile template from the given network.
-func dnsmasqProfile(state *state.State, n network) (string, error) {
+func dnsmasqProfile(sysOS *sys.OS, n network) (string, error) {
 	rootPath := ""
 	if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"

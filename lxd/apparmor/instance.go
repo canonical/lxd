@@ -10,7 +10,7 @@ import (
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
@@ -49,20 +49,20 @@ func instanceProfileFilename(inst instance) string {
 }
 
 // InstanceLoad ensures that the instances's policy is loaded into the kernel so the it can boot.
-func InstanceLoad(state *state.State, inst instance) error {
+func InstanceLoad(sysOS *sys.OS, inst instance) error {
 	if inst.Type() == instancetype.Container {
-		err := createNamespace(state, InstanceNamespaceName(inst))
+		err := createNamespace(sysOS, InstanceNamespaceName(inst))
 		if err != nil {
 			return err
 		}
 	}
 
-	err := instanceProfileGenerate(state, inst)
+	err := instanceProfileGenerate(sysOS, inst)
 	if err != nil {
 		return err
 	}
 
-	err = loadProfile(state, instanceProfileFilename(inst))
+	err = loadProfile(sysOS, instanceProfileFilename(inst))
 	if err != nil {
 		return err
 	}
@@ -72,15 +72,15 @@ func InstanceLoad(state *state.State, inst instance) error {
 
 // InstanceUnload ensures that the instances's policy namespace is unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
-func InstanceUnload(state *state.State, inst instance) error {
+func InstanceUnload(sysOS *sys.OS, inst instance) error {
 	if inst.Type() == instancetype.Container {
-		err := deleteNamespace(state, InstanceNamespaceName(inst))
+		err := deleteNamespace(sysOS, InstanceNamespaceName(inst))
 		if err != nil {
 			return err
 		}
 	}
 
-	err := unloadProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
+	err := unloadProfile(sysOS, InstanceProfileName(inst), instanceProfileFilename(inst))
 	if err != nil {
 		return err
 	}
@@ -89,22 +89,22 @@ func InstanceUnload(state *state.State, inst instance) error {
 }
 
 // InstanceValidate generates the instance profile file and validates it.
-func InstanceValidate(state *state.State, inst instance) error {
-	err := instanceProfileGenerate(state, inst)
+func InstanceValidate(sysOS *sys.OS, inst instance) error {
+	err := instanceProfileGenerate(sysOS, inst)
 	if err != nil {
 		return err
 	}
 
-	return parseProfile(state, instanceProfileFilename(inst))
+	return parseProfile(sysOS, instanceProfileFilename(inst))
 }
 
 // InstanceDelete removes the policy from cache/disk.
-func InstanceDelete(state *state.State, inst instance) error {
-	return deleteProfile(state, InstanceProfileName(inst), instanceProfileFilename(inst))
+func InstanceDelete(sysOS *sys.OS, inst instance) error {
+	return deleteProfile(sysOS, InstanceProfileName(inst), instanceProfileFilename(inst))
 }
 
 // instanceProfileGenerate generates instance apparmor profile policy file.
-func instanceProfileGenerate(state *state.State, inst instance) error {
+func instanceProfileGenerate(sysOS *sys.OS, inst instance) error {
 	/* In order to avoid forcing a profile parse (potentially slow) on
 	 * every container start, let's use AppArmor's binary policy cache,
 	 * which checks mtime of the files to figure out if the policy needs to
@@ -122,7 +122,7 @@ func instanceProfileGenerate(state *state.State, inst instance) error {
 		return err
 	}
 
-	updated, err := instanceProfile(state, inst)
+	updated, err := instanceProfile(sysOS, inst)
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func instanceProfileGenerate(state *state.State, inst instance) error {
 }
 
 // instanceProfile generates the AppArmor profile template from the given instance.
-func instanceProfile(state *state.State, inst instance) (string, error) {
+func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 	// Prepare raw.apparmor.
 	rawContent := ""
 	rawApparmor, ok := inst.ExpandedConfig()["raw.apparmor"]
@@ -149,7 +149,7 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 	}
 
 	// Check for features.
-	unixSupported, err := parserSupports(state, "unix")
+	unixSupported, err := parserSupports(sysOS, "unix")
 	if err != nil {
 		return "", err
 	}
@@ -158,15 +158,15 @@ func instanceProfile(state *state.State, inst instance) (string, error) {
 	var sb *strings.Builder = &strings.Builder{}
 	if inst.Type() == instancetype.Container {
 		err = lxcProfileTpl.Execute(sb, map[string]interface{}{
-			"feature_cgns":     state.OS.CGInfo.Namespacing,
-			"feature_cgroup2":  state.OS.CGInfo.Layout == cgroup.CgroupsUnified || state.OS.CGInfo.Layout == cgroup.CgroupsHybrid,
-			"feature_stacking": state.OS.AppArmorStacking && !state.OS.AppArmorStacked,
+			"feature_cgns":     sysOS.CGInfo.Namespacing,
+			"feature_cgroup2":  sysOS.CGInfo.Layout == cgroup.CgroupsUnified || sysOS.CGInfo.Layout == cgroup.CgroupsHybrid,
+			"feature_stacking": sysOS.AppArmorStacking && !sysOS.AppArmorStacked,
 			"feature_unix":     unixSupported,
 			"name":             InstanceProfileName(inst),
 			"namespace":        InstanceNamespaceName(inst),
 			"nesting":          shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
 			"raw":              rawContent,
-			"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || state.OS.RunningInUserNS,
+			"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || sysOS.RunningInUserNS,
 		})
 		if err != nil {
 			return "", err

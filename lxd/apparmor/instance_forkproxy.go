@@ -10,7 +10,7 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
@@ -87,7 +87,7 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 `))
 
 // forkproxyProfile generates the AppArmor profile template from the given network.
-func forkproxyProfile(state *state.State, inst instance, dev device) (string, error) {
+func forkproxyProfile(sysOS *sys.OS, inst instance, dev device) (string, error) {
 	rootPath := ""
 	if shared.InSnap() {
 		rootPath = "/var/lib/snapd/hostfs"
@@ -176,7 +176,7 @@ func forkproxyProfileFilename(inst instance, dev device) string {
 }
 
 // ForkproxyLoad ensures that the instances's policy is loaded into the kernel so the it can boot.
-func ForkproxyLoad(state *state.State, inst instance, dev device) error {
+func ForkproxyLoad(sysOS *sys.OS, inst instance, dev device) error {
 	/* In order to avoid forcing a profile parse (potentially slow) on
 	 * every container start, let's use AppArmor's binary policy cache,
 	 * which checks mtime of the files to figure out if the policy needs to
@@ -194,7 +194,7 @@ func ForkproxyLoad(state *state.State, inst instance, dev device) error {
 		return err
 	}
 
-	updated, err := forkproxyProfile(state, inst, dev)
+	updated, err := forkproxyProfile(sysOS, inst, dev)
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func ForkproxyLoad(state *state.State, inst instance, dev device) error {
 		}
 	}
 
-	err = loadProfile(state, forkproxyProfileFilename(inst, dev))
+	err = loadProfile(sysOS, forkproxyProfileFilename(inst, dev))
 	if err != nil {
 		return err
 	}
@@ -216,11 +216,11 @@ func ForkproxyLoad(state *state.State, inst instance, dev device) error {
 
 // ForkproxyUnload ensures that the instances's policy namespace is unloaded to free kernel memory.
 // This does not delete the policy from disk or cache.
-func ForkproxyUnload(state *state.State, inst instance, dev device) error {
-	return unloadProfile(state, ForkproxyProfileName(inst, dev), forkproxyProfileFilename(inst, dev))
+func ForkproxyUnload(sysOS *sys.OS, inst instance, dev device) error {
+	return unloadProfile(sysOS, ForkproxyProfileName(inst, dev), forkproxyProfileFilename(inst, dev))
 }
 
 // ForkproxyDelete removes the policy from cache/disk.
-func ForkproxyDelete(state *state.State, inst instance, dev device) error {
-	return deleteProfile(state, ForkproxyProfileName(inst, dev), forkproxyProfileFilename(inst, dev))
+func ForkproxyDelete(sysOS *sys.OS, inst instance, dev device) error {
+	return deleteProfile(sysOS, ForkproxyProfileName(inst, dev), forkproxyProfileFilename(inst, dev))
 }
