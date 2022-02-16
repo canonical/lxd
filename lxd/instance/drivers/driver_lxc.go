@@ -1740,13 +1740,22 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 			}
 		} else {
 			relativeTargetPath := strings.TrimPrefix(mount.TargetPath, "/")
-			if d.FileExists(relativeTargetPath) == nil {
+
+			// Connect to files API.
+			files, err := d.FileSFTP()
+			if err != nil {
+				return err
+			}
+			defer files.Close()
+
+			_, err = files.Lstat(relativeTargetPath)
+			if err == nil {
 				err := d.removeMount(mount.TargetPath)
 				if err != nil {
 					return fmt.Errorf("Error unmounting the device path inside container: %s", err)
 				}
 
-				err = d.FileRemove(relativeTargetPath)
+				err = files.Remove(relativeTargetPath)
 				if err != nil {
 					// Only warn here and don't fail as removing a directory
 					// mount may fail if there was already files inside
@@ -4224,15 +4233,25 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					if err != nil {
 						return err
 					}
-				} else if d.FileExists("/dev/lxd") == nil {
-					err = d.removeMount("/dev/lxd")
+				} else {
+					// Connect to files API.
+					files, err := d.FileSFTP()
 					if err != nil {
 						return err
 					}
+					defer files.Close()
 
-					err = d.FileRemove("/dev/lxd")
-					if err != nil {
-						return err
+					_, err = files.Lstat("/dev/lxd")
+					if err == nil {
+						err = d.removeMount("/dev/lxd")
+						if err != nil {
+							return err
+						}
+
+						err = files.Remove("/dev/lxd")
+						if err != nil {
+							return err
+						}
 					}
 				}
 			} else if key == "linux.kernel_modules" && value != "" {
