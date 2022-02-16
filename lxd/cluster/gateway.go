@@ -125,7 +125,7 @@ type Gateway struct {
 	HeartbeatOfflineThreshold time.Duration
 	heartbeatCancel           context.CancelFunc
 	heartbeatCancelLock       sync.Mutex
-	heartbeatLock             sync.Mutex
+	HeartbeatLock             sync.Mutex
 
 	// NodeStore wrapper.
 	store *dqliteNodeStore
