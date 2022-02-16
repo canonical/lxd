@@ -370,7 +370,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 	}
 
 	if len(members) > 1 && len(keepListeners) <= 0 {
-		logger.Error("No active cluster event listener clients")
+		logger.Error("No active cluster event listener clients", log.Ctx{"local": localAddress})
 	}
 }
 
