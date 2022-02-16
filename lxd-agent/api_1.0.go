@@ -18,11 +18,11 @@ var api10 = []APIEndpoint{
 	api10Cmd,
 	execCmd,
 	eventsCmd,
-	fileCmd,
 	metricsCmd,
 	operationsCmd,
 	operationCmd,
 	operationWebsocket,
+	sftpCmd,
 	stateCmd,
 }
 
