@@ -98,7 +98,6 @@ type Instance interface {
 	// File handling.
 	FileSFTPConn() (net.Conn, error)
 	FileSFTP() (*sftp.Client, error)
-	FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
 
 	// Console - Allocate and run a console tty or a spice Unix socket.
 	Console(protocol string) (*os.File, chan error, error)

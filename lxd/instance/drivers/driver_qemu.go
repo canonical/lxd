@@ -4894,55 +4894,6 @@ func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	return tlsConn, nil
 }
 
-// FilePush pushes a file into the instance.
-func (d *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
-	client, err := d.getAgentClient()
-	if err != nil {
-		return err
-	}
-
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
-	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
-		return fmt.Errorf("Failed to connect to lxd-agent")
-	}
-	defer agent.Disconnect()
-
-	args := lxd.InstanceFileArgs{
-		GID:       gid,
-		Mode:      mode,
-		Type:      fileType,
-		UID:       uid,
-		WriteMode: write,
-	}
-
-	if fileType == "file" {
-		f, err := os.Open(srcPath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		args.Content = f
-	} else if fileType == "symlink" {
-		symlinkTarget, err := os.Readlink(dstPath)
-		if err != nil {
-			return err
-		}
-
-		args.Content = bytes.NewReader([]byte(symlinkTarget))
-	}
-
-	err = agent.CreateInstanceFile("", dstPath, args)
-	if err != nil {
-		return err
-	}
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFilePushed.Event(d, log.Ctx{"file-source": srcPath, "file-destination": dstPath, "info": args}))
-
-	return nil
-}
-
 // FileSFTP returns an SFTP connection to the agent endpoint.
 func (d *qemu) FileSFTP() (*sftp.Client, error) {
 	// Connect to the forkfile daemon.
