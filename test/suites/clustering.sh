@@ -243,11 +243,9 @@ test_clustering_membership() {
   # List all nodes, using clients points to different nodes and
   # checking which are database nodes and which are database-standby nodes.
   LXD_DIR="${LXD_THREE_DIR}" lxc cluster list
-  LXD_DIR="${LXD_THREE_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
-  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster show node2 | grep -q "\- database$"
-  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node3 | grep -q "\- database$"
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby$"
-  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster show node5 | grep -q "\- database-standby$"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node1 | grep -q "\- database-leader$"
+  LXD_DIR="${LXD_THREE_DIR}" lxc cluster list | grep -Fc "database-standby" | grep -Fx 2
+  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster list | grep -Fc "database " | grep -Fx 3
 
   # Show a single node
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node5 | grep -q "node5"
