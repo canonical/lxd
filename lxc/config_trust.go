@@ -138,9 +138,13 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 		// Use token
 		cert.Token = true
 
-		cert.Name, err = cli.AskString(i18n.G("Please provide client name: "), "", nil)
-		if err != nil {
-			return err
+		if c.flagName != "" {
+			cert.Name = c.flagName
+		} else {
+			cert.Name, err = cli.AskString(i18n.G("Please provide client name: "), "", nil)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		// Load the certificate.
