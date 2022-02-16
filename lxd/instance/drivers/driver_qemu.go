@@ -4924,11 +4924,6 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
 }
 
-// FileExists is not implemented for VMs.
-func (d *qemu) FileExists(path string) error {
-	return instance.ErrNotImplemented
-}
-
 // FileSFTPConn returns a connection to the agent SFTP endpoint.
 func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	// Connect to the agent.

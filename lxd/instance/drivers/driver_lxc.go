@@ -5331,56 +5331,6 @@ func (d *lxc) inheritInitPidFd() (int, *os.File) {
 	return -1, nil
 }
 
-// FileExists returns whether file exists inside instance.
-func (d *lxc) FileExists(path string) error {
-	// Check for ongoing operations (that may involve shifting).
-	operationlock.Get(d.Project(), d.Name()).Wait()
-
-	if !d.IsRunning() {
-		// Setup container storage if needed.
-		_, err := d.mount()
-		if err != nil {
-			return err
-		}
-		defer d.unmount()
-	}
-
-	pidFdNr, pidFd := d.inheritInitPidFd()
-	if pidFdNr >= 0 {
-		defer pidFd.Close()
-	}
-
-	// Check if the file exists in the container
-	_, stderr, err := shared.RunCommandSplit(
-		nil,
-		[]*os.File{pidFd},
-		d.state.OS.ExecPath,
-		"forkfile",
-		"exists",
-		d.RootfsPath(),
-		fmt.Sprintf("%d", d.InitPID()),
-		fmt.Sprintf("%d", pidFdNr),
-		path,
-	)
-
-	// Process forkcheckfile response
-	if stderr != "" {
-		if strings.HasPrefix(stderr, "error:") {
-			return fmt.Errorf(strings.TrimPrefix(strings.TrimSuffix(stderr, "\n"), "error: "))
-		}
-
-		for _, line := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
-			d.logger.Debug("forkcheckfile", log.Ctx{"line": line})
-		}
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // FileSFTPConn returns a connection to the forkfile handler.
 func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	// Lock to avoid concurrent spawning.
