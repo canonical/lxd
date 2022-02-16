@@ -455,7 +455,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 				if !node.updated {
 					// If member has not been updated during this heartbeat round it means
 					// they are currently unreachable or rejecting heartbeats due to being
-					// in the process of shutting down. Eitherway we do not want to use this
+					// in the process of shutting down. Either way we do not want to use this
 					// member as a candidate for role promotion.
 					unavailableMembers = append(unavailableMembers, node.Address)
 					continue
