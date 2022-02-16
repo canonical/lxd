@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/pkg/sftp"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -97,6 +98,7 @@ type Instance interface {
 
 	// File handling.
 	FileSFTPConn() (net.Conn, error)
+	FileSFTP() (*sftp.Client, error)
 	FileExists(path string) error
 	FilePull(srcpath string, dstpath string) (int64, int64, os.FileMode, string, []string, error)
 	FilePush(fileType string, srcpath string, dstpath string, uid int64, gid int64, mode int, write string) error
