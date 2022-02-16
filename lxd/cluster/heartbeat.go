@@ -153,8 +153,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			if spreadRange > 0 {
 				select {
 				case <-time.After(time.Duration(rand.Intn(spreadRange)) * time.Millisecond):
-				case <-ctx.Done():
-					return
+				case <-ctx.Done(): // Proceed immediately to heartbeat of member if asked to.
 				}
 			}
 		}
@@ -162,7 +161,8 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 		// Update timestamp to current, used for time skew detection
 		heartbeatData.Time = time.Now().UTC()
 
-		err := HeartbeatNode(ctx, address, networkCert, serverCert, heartbeatData)
+		// Don't use ctx here, as we still want to finish off the request if the ctx has been cancelled.
+		err := HeartbeatNode(context.Background(), address, networkCert, serverCert, heartbeatData)
 		if err == nil {
 			heartbeatData.Lock()
 			// Ensure only update nodes that exist in Members already.
@@ -185,9 +185,11 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 		} else {
 			logger.Warn("Failed heartbeat", log.Ctx{"remote": address, "err": err})
 
-			err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
-			if err != nil {
-				logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			if ctx.Err() == nil {
+				err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
+				if err != nil {
+					logger.Warn("Failed to create warning", log.Ctx{"err": err})
+				}
 			}
 		}
 	}
@@ -288,8 +290,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// Avoid concurent heartbeat loops.
 	// This is possible when both the regular task and the out of band heartbeat round from a dqlite
 	// connection or notification restart both kick in at the same time.
-	g.heartbeatLock.Lock()
-	defer g.heartbeatLock.Unlock()
+	g.HeartbeatLock.Lock()
+	defer g.HeartbeatLock.Unlock()
 
 	// Acquire the cancellation lock and populate it so that this heartbeat round can be cancelled if a
 	// notification cancellation request arrives during the round. Also setup a defer so that the cancellation
@@ -400,57 +402,48 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, allNodes, spreadDuration)
 	}
 
-	// If the context has been cancelled, return immediately.
-	err = ctx.Err()
-	if err != nil {
-		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
-		return
-	}
+	// Check if context has been cancelled.
+	ctxErr := ctx.Err()
 
 	// Look for any new node which appeared since sending last heartbeat.
-	var currentNodes []db.NodeInfo
-	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-		currentNodes, err = tx.GetNodes()
+	if ctxErr == nil {
+		var currentNodes []db.NodeInfo
+		err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			var err error
+			currentNodes, err = tx.GetNodes()
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
 		if err != nil {
-			return err
+			logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+			return
 		}
 
-		return nil
-	})
-	if err != nil {
-		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
-		return
-	}
+		newNodes := []db.NodeInfo{}
+		for _, currentNode := range currentNodes {
+			existing := false
+			for _, node := range allNodes {
+				if node.Address == currentNode.Address && node.ID == currentNode.ID {
+					existing = true
+					break
+				}
+			}
 
-	newNodes := []db.NodeInfo{}
-	for _, currentNode := range currentNodes {
-		existing := false
-		for _, node := range allNodes {
-			if node.Address == currentNode.Address && node.ID == currentNode.ID {
-				existing = true
-				break
+			if !existing {
+				// We found a new node
+				allNodes = append(allNodes, currentNode)
+				newNodes = append(newNodes, currentNode)
 			}
 		}
 
-		if !existing {
-			// We found a new node
-			allNodes = append(allNodes, currentNode)
-			newNodes = append(newNodes, currentNode)
+		// If any new nodes found, send heartbeat to just them (with full node state).
+		if len(newNodes) > 0 {
+			hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
+			hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, 0)
 		}
-	}
-
-	// If any new nodes found, send heartbeat to just them (with full node state).
-	if len(newNodes) > 0 {
-		hbState.Update(true, raftNodes, allNodes, g.HeartbeatOfflineThreshold)
-		hbState.Send(ctx, g.networkCert, g.serverCert(), localAddress, newNodes, 0)
-	}
-
-	// If the context has been cancelled, return immediately.
-	err = ctx.Err()
-	if err != nil {
-		logger.Warn("Aborting heartbeat round", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
-		return
 	}
 
 	// Initialise slice to indicate to HeartbeatNodeHook that its being called from leader.
@@ -462,7 +455,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 				if !node.updated {
 					// If member has not been updated during this heartbeat round it means
 					// they are currently unreachable or rejecting heartbeats due to being
-					// in the process of shutting down. Eitherway we do not want to use this
+					// in the process of shutting down. Either way we do not want to use this
 					// member as a candidate for role promotion.
 					unavailableMembers = append(unavailableMembers, node.Address)
 					continue
@@ -479,6 +472,12 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	})
 	if err != nil {
 		logger.Error("Failed updating cluster heartbeats", log.Ctx{"err": err})
+		return
+	}
+
+	// If the context has been cancelled, return prematurely after saving the members we did manage to ping.
+	if ctxErr != nil {
+		logger.Warn("Aborting heartbeat round", log.Ctx{"err": ctxErr, "mode": modeStr, "local": localAddress})
 		return
 	}
 

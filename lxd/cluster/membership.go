@@ -568,6 +568,10 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	heartbeatCancel := gateway.HearbeatCancelFunc()
 	if heartbeatCancel != nil {
 		heartbeatCancel()
+
+		// Wait for heartbeat to finish and then release.
+		gateway.HeartbeatLock.Lock()
+		gateway.HeartbeatLock.Unlock()
 	}
 
 	hbState := NewAPIHearbeat(state.Cluster)
@@ -613,12 +617,17 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	// Setup a full-state notification heartbeat.
 	hbState.Update(true, raftNodes, allNodes, gateway.HeartbeatOfflineThreshold)
 
+	var wg sync.WaitGroup
+
 	// Refresh local event listeners.
-	go EventsUpdateListeners(state.Endpoints, state.Cluster, state.ServerCert, hbState.Members, state.Events.Forward)
+	wg.Add(1)
+	go func() {
+		EventsUpdateListeners(state.Endpoints, state.Cluster, state.ServerCert, hbState.Members, state.Events.Forward)
+		wg.Done()
+	}()
 
 	// Notify all other members of the change in membership.
 	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"local": localAddress})
-	var wg sync.WaitGroup
 	for _, node := range allNodes {
 		if node.Address == localAddress {
 			continue
