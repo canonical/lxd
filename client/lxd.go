@@ -23,9 +23,10 @@ import (
 
 // ProtocolLXD represents a LXD API server
 type ProtocolLXD struct {
-	ctx         context.Context
-	server      *api.Server
-	chConnected chan struct{}
+	ctx                context.Context
+	server             *api.Server
+	ctxConnected       context.Context
+	ctxConnectedCancel context.CancelFunc
 
 	// eventConns contains event listener connections associated to a project name (or empty for all projects).
 	eventConns map[string]*websocket.Conn
@@ -54,8 +55,8 @@ type ProtocolLXD struct {
 
 // Disconnect gets rid of any background goroutines
 func (r *ProtocolLXD) Disconnect() {
-	if r.chConnected != nil {
-		close(r.chConnected)
+	if r.ctxConnected.Err() != nil {
+		r.ctxConnectedCancel()
 	}
 }
 
