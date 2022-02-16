@@ -28,6 +28,7 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
@@ -5015,6 +5016,29 @@ func (d *qemu) FileRemove(path string) error {
 
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileDeleted.Event(d, log.Ctx{"file": path}))
 	return nil
+}
+
+// FileSFTP returns an SFTP connection to the agent endpoint.
+func (d *qemu) FileSFTP() (*sftp.Client, error) {
+	// Connect to the forkfile daemon.
+	conn, err := d.FileSFTPConn()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a SFTP client.
+	client, err := sftp.NewClientPipe(conn, conn)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		// Wait for the client to be done before closing the connection.
+		client.Wait()
+		conn.Close()
+	}()
+
+	return client, nil
 }
 
 // Console gets access to the instance's console.
