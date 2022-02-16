@@ -185,9 +185,11 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 		} else {
 			logger.Warn("Failed heartbeat", log.Ctx{"remote": address, "err": err})
 
-			err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
-			if err != nil {
-				logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			if ctx.Err() == nil {
+				err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
+				if err != nil {
+					logger.Warn("Failed to create warning", log.Ctx{"err": err})
+				}
 			}
 		}
 	}
