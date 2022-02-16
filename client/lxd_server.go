@@ -95,6 +95,8 @@ func (r *ProtocolLXD) GetServerResources() (*api.Resources, error) {
 func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 	return &ProtocolLXD{
 		ctx:                  r.ctx,
+		ctxConnected:         r.ctxConnected,
+		ctxConnectedCancel:   r.ctxConnectedCancel,
 		server:               r.server,
 		http:                 r.http,
 		httpCertificate:      r.httpCertificate,
@@ -117,6 +119,8 @@ func (r *ProtocolLXD) UseProject(name string) InstanceServer {
 func (r *ProtocolLXD) UseTarget(name string) InstanceServer {
 	return &ProtocolLXD{
 		ctx:                  r.ctx,
+		ctxConnected:         r.ctxConnected,
+		ctxConnectedCancel:   r.ctxConnectedCancel,
 		server:               r.server,
 		http:                 r.http,
 		httpCertificate:      r.httpCertificate,

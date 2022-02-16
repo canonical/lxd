@@ -75,7 +75,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 		for {
 			select {
 			case <-time.After(time.Minute):
-			case <-r.chConnected:
+			case <-r.ctxConnected.Done():
 			case <-stopCh:
 			}
 
@@ -182,6 +182,11 @@ func (r *ProtocolLXD) SendEvent(event api.Event) error {
 		return fmt.Errorf("No available event listener connection")
 	}
 
-	eventConn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	deadline, ok := r.ctx.Deadline()
+	if !ok {
+		deadline = time.Now().Add(5 * time.Second)
+	}
+
+	eventConn.SetWriteDeadline(deadline)
 	return eventConn.WriteJSON(event)
 }

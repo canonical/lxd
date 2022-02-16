@@ -104,15 +104,18 @@ func ConnectLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, client
 		args = &ConnectionArgs{}
 	}
 
+	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
+
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:            ctx,
-		httpHost:       "https://custom.socket",
-		httpProtocol:   "custom",
-		httpUserAgent:  args.UserAgent,
-		chConnected:    make(chan struct{}, 1),
-		eventConns:     make(map[string]*websocket.Conn),
-		eventListeners: make(map[string][]*EventListener),
+		ctx:                ctx,
+		httpHost:           "https://custom.socket",
+		httpProtocol:       "custom",
+		httpUserAgent:      args.UserAgent,
+		ctxConnected:       ctxConnected,
+		ctxConnectedCancel: ctxConnectedCancel,
+		eventConns:         make(map[string]*websocket.Conn),
+		eventListeners:     make(map[string][]*EventListener),
 	}
 
 	// Setup the HTTP client
@@ -154,16 +157,19 @@ func ConnectLXDUnixWithContext(ctx context.Context, path string, args *Connectio
 		args = &ConnectionArgs{}
 	}
 
+	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
+
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:            ctx,
-		httpHost:       "http://unix.socket",
-		httpUnixPath:   path,
-		httpProtocol:   "unix",
-		httpUserAgent:  args.UserAgent,
-		chConnected:    make(chan struct{}, 1),
-		eventConns:     make(map[string]*websocket.Conn),
-		eventListeners: make(map[string][]*EventListener),
+		ctx:                ctx,
+		httpHost:           "http://unix.socket",
+		httpUnixPath:       path,
+		httpProtocol:       "unix",
+		httpUserAgent:      args.UserAgent,
+		ctxConnected:       ctxConnected,
+		ctxConnectedCancel: ctxConnectedCancel,
+		eventConns:         make(map[string]*websocket.Conn),
+		eventListeners:     make(map[string][]*EventListener),
 	}
 
 	// Determine the socket path
@@ -287,17 +293,20 @@ func httpsLXD(ctx context.Context, url string, args *ConnectionArgs) (InstanceSe
 		args = &ConnectionArgs{}
 	}
 
+	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
+
 	// Initialize the client struct
 	server := ProtocolLXD{
-		ctx:              ctx,
-		httpCertificate:  args.TLSServerCert,
-		httpHost:         url,
-		httpProtocol:     "https",
-		httpUserAgent:    args.UserAgent,
-		bakeryInteractor: args.AuthInteractor,
-		chConnected:      make(chan struct{}, 1),
-		eventConns:       make(map[string]*websocket.Conn),
-		eventListeners:   make(map[string][]*EventListener),
+		ctx:                ctx,
+		httpCertificate:    args.TLSServerCert,
+		httpHost:           url,
+		httpProtocol:       "https",
+		httpUserAgent:      args.UserAgent,
+		bakeryInteractor:   args.AuthInteractor,
+		ctxConnected:       ctxConnected,
+		ctxConnectedCancel: ctxConnectedCancel,
+		eventConns:         make(map[string]*websocket.Conn),
+		eventListeners:     make(map[string][]*EventListener),
 	}
 
 	if args.AuthType == "candid" {
