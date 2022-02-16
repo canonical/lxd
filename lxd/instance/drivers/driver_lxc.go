@@ -24,6 +24,7 @@ import (
 	"github.com/flosch/pongo2"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
@@ -5688,6 +5689,29 @@ func (d *lxc) FilePull(srcpath string, dstpath string) (int64, int64, os.FileMod
 	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileRetrieved.Event(d, log.Ctx{"file-source": srcpath, "file-destination": dstpath}))
 
 	return uid, gid, os.FileMode(mode), fileType, dirEnts, nil
+}
+
+// FileSFTP returns an SFTP connection to the forkfile handler.
+func (d *lxc) FileSFTP() (*sftp.Client, error) {
+	// Connect to the forkfile daemon.
+	conn, err := d.FileSFTPConn()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a SFTP client.
+	client, err := sftp.NewClientPipe(conn, conn)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		// Wait for the client to be done before closing the connection.
+		client.Wait()
+		conn.Close()
+	}()
+
+	return client, nil
 }
 
 // FilePush sends a file into the instance.
