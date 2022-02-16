@@ -153,8 +153,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			if spreadRange > 0 {
 				select {
 				case <-time.After(time.Duration(rand.Intn(spreadRange)) * time.Millisecond):
-				case <-ctx.Done():
-					return
+				case <-ctx.Done(): // Proceed immediately to heartbeat of member if asked to.
 				}
 			}
 		}
@@ -162,7 +161,8 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 		// Update timestamp to current, used for time skew detection
 		heartbeatData.Time = time.Now().UTC()
 
-		err := HeartbeatNode(ctx, address, networkCert, serverCert, heartbeatData)
+		// Don't use ctx here, as we still want to finish off the request if the ctx has been cancelled.
+		err := HeartbeatNode(context.Background(), address, networkCert, serverCert, heartbeatData)
 		if err == nil {
 			heartbeatData.Lock()
 			// Ensure only update nodes that exist in Members already.
