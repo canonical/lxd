@@ -264,12 +264,6 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 	localAddress := endpoints.NetworkAddress()
 	hubAddresses, localEventMode := hubAddresses(localAddress, members)
 
-	// Store event hub addresses in global slice.
-	listenersLock.Lock()
-	eventHubAddresses = hubAddresses
-	eventMode = localEventMode
-	listenersLock.Unlock()
-
 	keepListeners := make(map[string]struct{})
 	wg := sync.WaitGroup{}
 	for _, member := range members {
@@ -362,6 +356,12 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			removedAddresses = append(removedAddresses, address)
 		}
 	}
+
+	// Store event hub addresses in global slice late in the function after all event connections have been
+	// opened above. This way the reported state by this server won't be updated until its ready.
+	eventHubAddresses = hubAddresses
+	eventMode = localEventMode
+
 	listenersLock.Unlock()
 
 	// Log the listeners removed after releasing listenersLock.
