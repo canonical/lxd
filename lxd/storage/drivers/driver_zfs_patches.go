@@ -14,7 +14,7 @@ func (d *zfs) patchStorageCreateVM() error {
 			continue
 		}
 
-		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=none", "canmount=noauto")
+		err := d.createDataset(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=legacy", "canmount=noauto")
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func (d *zfs) patchStorageZFSMount() error {
 		}
 
 		if oldMountPoint != "none" {
-			err := d.setDatasetProperties(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=none", "canmount=noauto")
+			err := d.setDatasetProperties(filepath.Join(d.config["zfs.pool_name"], dataset), "mountpoint=legacy", "canmount=noauto")
 			if err != nil {
 				return err
 			}
