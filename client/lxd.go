@@ -245,7 +245,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, "", err
 	}

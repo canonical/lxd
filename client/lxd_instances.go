@@ -324,7 +324,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1061,7 +1061,7 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1174,7 +1174,7 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return err
 	}
@@ -1735,7 +1735,7 @@ func (r *ProtocolLXD) GetInstanceLogfile(name string, filename string) (io.ReadC
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1855,7 +1855,7 @@ func (r *ProtocolLXD) GetInstanceTemplateFile(instanceName string, templateName 
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1896,7 +1896,7 @@ func (r *ProtocolLXD) CreateInstanceTemplateFile(instanceName string, templateNa
 	req.Header.Set("Content-Type", "application/octet-stream")
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
 		_, _, err := lxdParseResponse(resp)
@@ -2119,7 +2119,7 @@ func (r *ProtocolLXD) GetInstanceConsoleLog(instanceName string, args *InstanceC
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
