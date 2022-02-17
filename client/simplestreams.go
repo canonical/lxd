@@ -40,3 +40,13 @@ func (r *ProtocolSimpleStreams) GetHTTPClient() (*http.Client, error) {
 
 	return r.http, nil
 }
+
+// DoHTTP performs a Request, using macaroon authentication if set.
+func (r *ProtocolSimpleStreams) DoHTTP(req *http.Request) (*http.Response, error) {
+	// Set the user agent
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
+
+	return r.http.Do(req)
+}
