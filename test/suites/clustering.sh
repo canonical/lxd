@@ -2222,7 +2222,7 @@ test_clustering_rebalance() {
   ns3="${prefix}3"
   spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}"
 
-  # Spawn a fourth node, this will be a non-voter, stand-by node.
+  # Spawn a fourth node
   setup_clustering_netns 4
   LXD_FOUR_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_FOUR_DIR}"
@@ -2232,8 +2232,9 @@ test_clustering_rebalance() {
   # Wait a bit for raft roles to update.
   sleep 5
 
+  # Check there is one database-standby member.
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby" | grep -Fx 1
 
   # Kill the second node.
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.offline_threshold 11
