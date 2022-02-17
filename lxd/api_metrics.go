@@ -83,7 +83,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Prepare response.
-	resp := metrics.NewMetricSet(nil)
+	metricSet := metrics.NewMetricSet(nil)
 
 	// Review the cache.
 	metricsCacheLock.Lock()
@@ -97,13 +97,13 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If present and valid, merge the existing data.
-		resp.Merge(cache.metrics)
+		metricSet.Merge(cache.metrics)
 	}
 	metricsCacheLock.Unlock()
 
 	// If all valid, return immediately.
 	if len(projectMissing) == 0 {
-		return response.SyncResponsePlain(true, resp.String())
+		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
 	// Acquire update lock.
@@ -122,13 +122,13 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If present and valid, merge the existing data.
-		resp.Merge(cache.metrics)
+		metricSet.Merge(cache.metrics)
 	}
 	metricsCacheLock.Unlock()
 
 	// If all valid, return immediately.
 	if len(toFetch) == 0 {
-		return response.SyncResponsePlain(true, resp.String())
+		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
 	// Prepare temporary metrics storage.
@@ -186,9 +186,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 			metrics: entries,
 		}
 
-		resp.Merge(entries)
+		metricSet.Merge(entries)
 	}
 	metricsCacheLock.Unlock()
 
-	return response.SyncResponsePlain(true, resp.String())
+	return response.SyncResponsePlain(true, metricSet.String())
 }
