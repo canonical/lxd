@@ -115,7 +115,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	req.Header.Set("X-LXD-pool", args.PoolName)
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
@@ -775,7 +775,7 @@ func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.Re
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -877,7 +877,7 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return err
 	}
@@ -1342,7 +1342,7 @@ func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.Read
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1437,7 +1437,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
@@ -1473,7 +1473,7 @@ func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, template
 	req.Header.Set("Content-Type", "application/octet-stream")
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	// Check the return value for a cleaner error
 	if resp.StatusCode != http.StatusOK {
 		_, _, err := lxdParseResponse(resp)
@@ -1590,7 +1590,7 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, err
 	}
