@@ -2423,6 +2423,7 @@ test_clustering_failure_domains() {
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   sleep 3
 
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster show
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node2 | grep -q "database: false"
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster show node5 | grep -q "database: true"
 
