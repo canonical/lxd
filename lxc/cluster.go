@@ -275,7 +275,7 @@ func (c *cmdClusterGet) Run(cmd *cobra.Command, args []string) error {
 
 	value, ok := member.Config[args[1]]
 	if !ok {
-		return fmt.Errorf(i18n.G("The key %q doest not exist on cluster member %q"), args[1], resource.name)
+		return fmt.Errorf(i18n.G("The key %q does not exist on cluster member %q"), args[1], resource.name)
 	}
 
 	fmt.Printf("%s\n", value)
