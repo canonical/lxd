@@ -1143,7 +1143,7 @@ type cmdNetworkZoneRecordEntry struct {
 func (c *cmdNetworkZoneRecordEntry) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("entry")
-	cmd.Short = i18n.G("Manage network zone record entriess")
+	cmd.Short = i18n.G("Manage network zone record entries")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G("Manage network zone record entries"))
 
 	// Rule Add.
