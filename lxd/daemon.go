@@ -1933,7 +1933,13 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 	// Refresh event listeners from heartbeat members (after certificates refreshed if needed).
 	// Run asynchronously so that connecting to remote members doesn't delay other heartbeat tasks.
-	go cluster.EventsUpdateListeners(d.endpoints, d.cluster, d.serverCert, heartbeatData.Members, d.events.Forward)
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		cluster.EventsUpdateListeners(d.endpoints, d.cluster, d.serverCert, heartbeatData.Members, d.events.Forward)
+		wg.Done()
+	}()
 
 	// Only update the node list if there are no state change task failures.
 	// If there are failures, then we leave the old state so that we can re-try the tasks again next heartbeat.
@@ -2008,4 +2014,6 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			d.clusterMembershipMutex.Unlock()
 		}
 	}
+
+	wg.Wait()
 }
