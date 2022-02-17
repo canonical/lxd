@@ -45,6 +45,11 @@ var metricsCmd = APIEndpoint{
 //     description: Project name
 //     type: string
 //     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
 // responses:
 //   "200":
 //     description: Metrics
@@ -57,6 +62,12 @@ var metricsCmd = APIEndpoint{
 //     $ref: "#/responses/InternalServerError"
 func metricsGet(d *Daemon, r *http.Request) response.Response {
 	projectName := queryParam(r, "project")
+
+	// Forward if requested.
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
 
 	// Figure out the projects to retrieve.
 	var projectNames []string
