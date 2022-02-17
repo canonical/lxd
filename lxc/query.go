@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -100,21 +101,20 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		cleanErr := err
 
-		// Lets assume the endpoint is raw output
-		// Get a raw http client
-		httpClient, err := d.GetHTTPClient()
-		if err != nil {
-			return err
-		}
-
 		// Get the URL prefix
 		httpInfo, err := d.GetConnectionInfo()
 		if err != nil {
 			return err
 		}
 
+		// Setup input.
+		var rs io.ReadSeeker
+		if c.flagData != "" {
+			rs = bytes.NewReader([]byte(c.flagData))
+		}
+
 		// Setup the request
-		req, err := http.NewRequest(c.flagAction, fmt.Sprintf("%s%s", httpInfo.URL, path), bytes.NewReader([]byte(c.flagData)))
+		req, err := http.NewRequest(c.flagAction, fmt.Sprintf("%s%s", httpInfo.URL, path), rs)
 		if err != nil {
 			return err
 		}
@@ -122,7 +122,7 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 		// Set the encoding accordingly
 		req.Header.Set("Content-Type", "plain/text")
 
-		resp, err := httpClient.Do(req)
+		resp, err := d.DoHTTP(req)
 		if err != nil {
 			return err
 		}
