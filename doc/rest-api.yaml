@@ -9129,6 +9129,11 @@ paths:
         in: query
         name: project
         type: string
+      - description: Cluster member name
+        example: lxd01
+        in: query
+        name: target
+        type: string
       produces:
       - text/plain
       responses:
