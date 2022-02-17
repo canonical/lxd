@@ -492,52 +492,39 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 
 			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
 			d.logger.Debug("Receiving volume", log.Ctx{"name": v.name, "receivePath": receivePath, "path": subVolTargetPath})
+
 			subVolRecvPath, err := d.receiveSubVolume(conn, receivePath)
 			if err != nil {
 				return err
 			}
 
-			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
-
-			// And move it to the target path.
-			err = os.Rename(subVolRecvPath, subVolTargetPath)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to rename '%s' to '%s'", subVolRecvPath, subVolTargetPath)
-			}
+			// In case of an error ensure that the subvolume is read-write otherwise directories
+			// and parent directories cannot be removed.
+			revert.Add(func() {
+				d.setSubvolumeReadonlyProperty(subVolRecvPath, false)
+			})
 		}
 
 		return nil
 	}
 
-	// Get instances directory (e.g. /var/lib/lxd/storage-pools/btrfs/containers).
-	instancesPath := GetVolumeMountPath(d.name, vol.volType, "")
+	// Get volume snapshot directory (e.g. /var/lib/lxd/storage-pools/btrfs/containers-snapshots/c2).
+	targetPath := GetVolumeSnapshotDir(d.name, vol.volType, vol.name)
 
-	// Create a temporary directory which will act as the parent directory of the received ro snapshot.
-	tmpVolumesMountPoint, err := ioutil.TempDir(instancesPath, "migration.")
+	// Create the parent directory.
+	err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create temporary directory under %q", instancesPath)
+		return err
 	}
-	defer os.RemoveAll(tmpVolumesMountPoint)
-
-	err = os.Chmod(tmpVolumesMountPoint, 0100)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod %q", tmpVolumesMountPoint)
-	}
+	revert.Add(func() { deleteParentSnapshotDirIfEmpty(d.name, vol.volType, vol.name) })
 
 	// Handle btrfs send/receive migration.
 	if len(volTargetArgs.Snapshots) > 0 {
-		// Create the parent directory.
-		err := createParentSnapshotDirIfMissing(d.name, vol.volType, vol.name)
-		if err != nil {
-			return err
-		}
-		revert.Add(func() { deleteParentSnapshotDirIfEmpty(d.name, vol.volType, vol.name) })
-
 		// Transfer the snapshots.
 		for _, snapName := range volTargetArgs.Snapshots {
 			snapVol, _ := vol.NewSnapshot(snapName)
-			err = receiveVolume(snapVol, tmpVolumesMountPoint)
+
+			err := receiveVolume(snapVol, targetPath)
 			if err != nil {
 				return err
 			}
@@ -545,15 +532,27 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 	}
 
 	// Receive main volume.
-	err = receiveVolume(vol, tmpVolumesMountPoint)
+	err = receiveVolume(vol, targetPath)
+	if err != nil {
+		return err
+	}
+
+	mainSnapshotPath := filepath.Join(targetPath, ".migration-send")
+
+	err = d.setSubvolumeReadonlyProperty(mainSnapshotPath, false)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(mainSnapshotPath, vol.MountPath())
 	if err != nil {
 		return err
 	}
 
 	// Restore readonly property on subvolumes that need it.
 	for _, subVol := range migrationHeader.Subvolumes {
-		if !subVol.Readonly {
-			continue // All subvolumes are made writable during receive process so we can skip these.
+		if subVol.Readonly {
+			continue // All subvolumes are readonly during receive process so we can skip these.
 		}
 
 		v := vol
@@ -562,8 +561,10 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 		}
 
 		path := filepath.Join(v.MountPath(), subVol.Path)
-		d.logger.Debug("Setting subvolume readonly", log.Ctx{"name": v.name, "path": path})
-		err = d.setSubvolumeReadonlyProperty(path, true)
+
+		d.logger.Debug("Setting subvolume readwrite", log.Ctx{"name": v.name, "path": path})
+
+		err = d.setSubvolumeReadonlyProperty(path, false)
 		if err != nil {
 			return err
 		}
