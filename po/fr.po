@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-10 14:58-0500\n"
+"POT-Creation-Date: 2022-02-17 11:18-0500\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -75,7 +75,7 @@ msgstr ""
 "### config:\n"
 "###   size: \"61203283968\""
 
-#: lxc/config_trust.go:228
+#: lxc/config_trust.go:232
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -800,7 +800,7 @@ msgstr "Architecture : %s"
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
 
-#: lxc/console.go:364
+#: lxc/console.go:370
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -943,7 +943,7 @@ msgstr "Octets émis"
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:390
+#: lxc/config_trust.go:394
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -1060,7 +1060,7 @@ msgstr ""
 msgid "Cannot set key: %s"
 msgstr ""
 
-#: lxc/config_trust.go:175
+#: lxc/config_trust.go:179
 msgid "Cannot use metrics type certificate when using a token"
 msgstr ""
 
@@ -1074,7 +1074,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr "Créé : %s"
 
-#: lxc/config_trust.go:596
+#: lxc/config_trust.go:600
 #, fuzzy, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "Le réseau %s a été supprimé"
@@ -1090,7 +1090,7 @@ msgstr ""
 msgid "Certificate fingerprint: %s"
 msgstr "Empreinte du certificat : %s"
 
-#: lxc/config_trust.go:199
+#: lxc/config_trust.go:203
 #, fuzzy, c-format
 msgid "Client %s certificate add token: %s"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -1208,7 +1208,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
 #: lxc/cluster.go:675 lxc/cluster_group.go:333 lxc/config.go:258
-#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:297
+#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:301
 #: lxc/image.go:448 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:501 lxc/project.go:312
@@ -1624,8 +1624,8 @@ msgstr ""
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
-#: lxc/config_trust.go:219 lxc/config_trust.go:331 lxc/config_trust.go:412
-#: lxc/config_trust.go:503 lxc/config_trust.go:546 lxc/config_trust.go:617
+#: lxc/config_trust.go:223 lxc/config_trust.go:335 lxc/config_trust.go:416
+#: lxc/config_trust.go:507 lxc/config_trust.go:550 lxc/config_trust.go:621
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:75 lxc/file.go:111 lxc/file.go:160
 #: lxc/file.go:223 lxc/file.go:418 lxc/image.go:38 lxc/image.go:144
@@ -1826,7 +1826,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
-#: lxc/config_trust.go:393
+#: lxc/config_trust.go:397
 msgid "EXPIRY DATE"
 msgstr "DATE D'EXPIRATION"
 
@@ -1915,7 +1915,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:218 lxc/config_trust.go:219
+#: lxc/config_trust.go:222 lxc/config_trust.go:223
 #, fuzzy
 msgid "Edit trust configurations as YAML"
 msgstr "Clé de configuration invalide"
@@ -2081,7 +2081,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr "NOM"
 
-#: lxc/config_trust.go:391 lxc/image.go:1031 lxc/image.go:1032
+#: lxc/config_trust.go:395 lxc/image.go:1031 lxc/image.go:1032
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
@@ -2090,7 +2090,7 @@ msgstr "EMPREINTE"
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/config_trust.go:196
+#: lxc/config_trust.go:200
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
@@ -2217,8 +2217,8 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:119 lxc/cluster.go:778
-#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:333
-#: lxc/config_trust.go:414 lxc/image.go:1021 lxc/image_alias.go:158
+#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:337
+#: lxc/config_trust.go:418 lxc/image.go:1021 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:845 lxc/network.go:938 lxc/network_acl.go:99
 #: lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89
 #: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:584
@@ -2404,7 +2404,7 @@ msgstr "IPv4"
 msgid "IPV6"
 msgstr "IPv6"
 
-#: lxc/config_trust.go:392
+#: lxc/config_trust.go:396
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
@@ -2561,7 +2561,7 @@ msgstr "Schème d'URL invalide \"%s\" in \"%s\""
 msgid "Invalid argument %q"
 msgstr "Cible invalide %s"
 
-#: lxc/config_trust.go:372
+#: lxc/config_trust.go:376
 msgid "Invalid certificate"
 msgstr "Certificat invalide"
 
@@ -2695,7 +2695,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:363
+#: lxc/console.go:369
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2737,7 +2737,7 @@ msgstr ""
 msgid "List aliases"
 msgstr "Alias :"
 
-#: lxc/config_trust.go:411 lxc/config_trust.go:412
+#: lxc/config_trust.go:415 lxc/config_trust.go:416
 #, fuzzy
 msgid "List all active certificate add tokens"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -3043,7 +3043,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:330 lxc/config_trust.go:331
+#: lxc/config_trust.go:334 lxc/config_trust.go:335
 msgid "List trusted clients"
 msgstr ""
 
@@ -3241,14 +3241,9 @@ msgstr "Nom du réseau"
 msgid "Manage network peerings"
 msgstr "Nom du réseau"
 
-#: lxc/network_zone.go:1147
+#: lxc/network_zone.go:1146 lxc/network_zone.go:1147
 #, fuzzy
 msgid "Manage network zone record entries"
-msgstr "Nom du réseau"
-
-#: lxc/network_zone.go:1146
-#, fuzzy
-msgid "Manage network zone record entriess"
 msgstr "Nom du réseau"
 
 #: lxc/network_zone.go:592 lxc/network_zone.go:593
@@ -3357,7 +3352,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/config_trust.go:251 lxc/config_trust.go:642
+#: lxc/config_trust.go:255 lxc/config_trust.go:646
 #, fuzzy
 msgid "Missing certificate fingerprint"
 msgstr "Empreinte du certificat : %s"
@@ -3557,7 +3552,7 @@ msgid "Must supply instance name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/cluster.go:176 lxc/cluster.go:858 lxc/cluster_group.go:427
-#: lxc/config_trust.go:389 lxc/config_trust.go:484 lxc/list.go:567
+#: lxc/config_trust.go:393 lxc/config_trust.go:488 lxc/list.go:567
 #: lxc/network.go:909 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:674 lxc/storage.go:577
@@ -3734,7 +3729,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "New key/value to apply to a specific device"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/config_trust.go:603
+#: lxc/config_trust.go:607
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -3909,7 +3904,7 @@ msgstr "Création du conteneur"
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/config_trust.go:141
+#: lxc/config_trust.go:144
 msgid "Please provide client name: "
 msgstr ""
 
@@ -3933,7 +3928,7 @@ msgstr ""
 
 #: lxc/cluster.go:676 lxc/cluster_group.go:334 lxc/config.go:259
 #: lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206
-#: lxc/config_trust.go:298 lxc/image.go:449 lxc/network.go:675
+#: lxc/config_trust.go:302 lxc/image.go:449 lxc/network.go:675
 #: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:979
@@ -4245,7 +4240,7 @@ msgstr ""
 msgid "Remove rules from an ACL"
 msgstr "Création du conteneur"
 
-#: lxc/config_trust.go:502 lxc/config_trust.go:503
+#: lxc/config_trust.go:506 lxc/config_trust.go:507
 msgid "Remove trusted clients"
 msgstr ""
 
@@ -4400,7 +4395,7 @@ msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/config_trust.go:545 lxc/config_trust.go:546
+#: lxc/config_trust.go:549 lxc/config_trust.go:550
 #, fuzzy
 msgid "Revoke certificate add token"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4831,7 +4826,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:616 lxc/config_trust.go:617
+#: lxc/config_trust.go:620 lxc/config_trust.go:621
 #, fuzzy
 msgid "Show trust configurations"
 msgstr "Afficher la configuration étendue"
@@ -5016,11 +5011,11 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:859 lxc/config_trust.go:485
+#: lxc/cluster.go:859 lxc/config_trust.go:489
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/config_trust.go:388 lxc/image.go:1038 lxc/image_alias.go:236
+#: lxc/config_trust.go:392 lxc/image.go:1038 lxc/image_alias.go:236
 #: lxc/list.go:573 lxc/network.go:910 lxc/network.go:985 lxc/operation.go:162
 #: lxc/storage_volume.go:1306 lxc/warning.go:214
 msgid "TYPE"
@@ -5095,7 +5090,7 @@ msgstr ""
 
 #: lxc/cluster.go:278
 #, fuzzy, c-format
-msgid "The key %q doest not exist on cluster member %q"
+msgid "The key %q does not exist on cluster member %q"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #: lxc/init.go:399
@@ -5177,7 +5172,7 @@ msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
-#: lxc/console.go:201
+#: lxc/console.go:207
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -5547,7 +5542,7 @@ msgstr ""
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/cluster.go:114 lxc/cluster.go:775 lxc/cluster_group.go:371
-#: lxc/config_trust.go:328 lxc/config_trust.go:410 lxc/monitor.go:31
+#: lxc/config_trust.go:332 lxc/config_trust.go:414 lxc/monitor.go:31
 #: lxc/network.go:838 lxc/network_acl.go:93 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
 #: lxc/storage.go:520 lxc/version.go:20 lxc/warning.go:69
@@ -5571,7 +5566,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config_trust.go:500
+#: lxc/config_trust.go:504
 #, fuzzy
 msgid "[<remote>:] <fingerprint>"
 msgstr ""
@@ -5595,7 +5590,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/config_trust.go:544
+#: lxc/config_trust.go:548
 #, fuzzy
 msgid "[<remote>:] <token>"
 msgstr ""
@@ -5769,7 +5764,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/config_trust.go:217 lxc/config_trust.go:615
+#: lxc/config_trust.go:221 lxc/config_trust.go:619
 #, fuzzy
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
@@ -7060,6 +7055,10 @@ msgstr "o"
 #: lxc/image.go:1089
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy
+#~ msgid "Manage network zone record entriess"
+#~ msgstr "Nom du réseau"
 
 #, fuzzy, c-format
 #~ msgid "Failed to create alias %s"
