@@ -65,3 +65,12 @@ func (u *URL) Target(clusterMemberName string) *URL {
 
 	return u
 }
+
+// WithQuery adds a given query parameter with its value to the URL.
+func (u *URL) WithQuery(key string, value string) *URL {
+	queryArgs := u.Query()
+	queryArgs.Add(key, value)
+	u.RawQuery = queryArgs.Encode()
+
+	return u
+}
