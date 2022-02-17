@@ -467,7 +467,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return
 	}
 
-	// If full node state was sent and node refresh task is specified, run it async.
+	// If full node state was sent and node refresh task is specified.
 	if g.HeartbeatNodeHook != nil {
 		g.HeartbeatNodeHook(hbState, true, unavailableMembers)
 	}
