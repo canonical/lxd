@@ -560,15 +560,6 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return response.BadRequest(errors.Wrap(err, "invalid certificate material"))
 		}
-	} else if r.TLS != nil {
-		// Add client's certificate.
-		if len(r.TLS.PeerCertificates) < 1 {
-			// This can happen if the client doesn't send a client certificate or if the server is in
-			// CA mode. We rely on this check to prevent non-CA trusted client certificates from being
-			// added when in CA mode.
-			return response.BadRequest(fmt.Errorf("No client certificate provided"))
-		}
-		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 	} else if req.Token {
 		// Get all addresses the server is listening on. This is encoded in the certificate token,
 		// so that the client will not have to specify a server address. The client will iterate
@@ -615,6 +606,16 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		}
 
 		return operations.OperationResponse(op)
+	} else if r.TLS != nil {
+		// Add client's certificate.
+		if len(r.TLS.PeerCertificates) < 1 {
+			// This can happen if the client doesn't send a client certificate or if the server is in
+			// CA mode. We rely on this check to prevent non-CA trusted client certificates from being
+			// added when in CA mode.
+			return response.BadRequest(fmt.Errorf("No client certificate provided"))
+		}
+
+		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
 	}
