@@ -270,7 +270,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
 		// If we created a VLAN interface, we need to setup the sysctls on that interface.
-		if statusDev == "created" {
+		if shared.IsTrue(saveData["last_state.created"]) {
 			err := d.setupParentSysctls(d.effectiveParentName)
 			if err != nil {
 				return nil, err
