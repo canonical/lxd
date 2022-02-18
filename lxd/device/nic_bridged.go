@@ -805,7 +805,10 @@ func (d *nicBridged) postStop() error {
 	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
 	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
 	networkNICRouteDelete(d.config["parent"], routes...)
-	d.removeFilters(d.config)
+
+	if shared.IsTrue(d.config["security.mac_filtering"]) || shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
+		d.removeFilters(d.config)
+	}
 
 	return nil
 }
