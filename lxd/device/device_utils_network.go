@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/j-keck/arping"
 	"github.com/mdlayher/ndp"
@@ -909,9 +910,20 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 }
 
 func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) error {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		// Set default timeout of 500ms if no deadline context provided.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(500*time.Millisecond))
+		defer cancel()
+		deadline, _ = ctx.Deadline()
+	}
+
 	if address.To4() != nil {
 		errs := make(chan error, 1)
 		go func() {
+			timeout := deadline.Sub(time.Now())
+			arping.SetTimeout(timeout)
 			_, _, err := arping.PingOverIfaceByName(address, parentInterface)
 			if err == nil {
 				errs <- fmt.Errorf("ipv4.address %q is already in use", address.String())
