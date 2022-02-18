@@ -126,11 +126,6 @@ func (d *nicRouted) validateEnvironment() error {
 		return fmt.Errorf("Requires name property to start")
 	}
 
-	extensions := d.state.OS.LXCFeatures
-	if !extensions["network_veth_router"] || !extensions["network_l2proxy"] {
-		return fmt.Errorf("Requires liblxc has following API extensions: network_veth_router, network_l2proxy")
-	}
-
 	if d.config["parent"] != "" && !network.InterfaceExists(d.config["parent"]) {
 		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 	}
