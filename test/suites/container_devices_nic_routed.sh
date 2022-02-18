@@ -61,6 +61,18 @@ test_container_devices_nic_routed() {
     nictype=routed \
     vlan=1234 || false
 
+  # Check VLAN parent interface creation and teardown.
+  lxc config device add "${ctName}" eth0 nic \
+    name=eth0 \
+    nictype=routed \
+    parent=${ctName} \
+    vlan=1235
+  lxc start "${ctName}"
+  stat "/sys/class/net/${ctName}.1235"
+  lxc stop -f "${ctName}"
+  ! stat "/sys/class/net/${ctName}.1235" || false
+  lxc config device remove "${ctName}" eth0
+
   # Check starting routed container.
   lxc config device add "${ctName}" eth0 nic \
     name=eth0 \
