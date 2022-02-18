@@ -9,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // newByType returns a new unitialised device based of the type indicated by the project and device config.
@@ -103,6 +104,11 @@ func load(inst instance.Instance, state *state.State, projectName string, name s
 // not compatible with the instance type then an ErrUnsupportedDevType error is returned.
 // Note: The supplied config may be modified during validation to enrich. If this is not desired, supply a copy.
 func New(inst instance.Instance, state *state.State, name string, conf deviceConfig.Device, volatileGet VolatileGetter, volatileSet VolatileSetter) (Device, error) {
+	err := validate.IsDeviceName(name)
+	if err != nil {
+		return nil, err
+	}
+
 	dev, err := load(inst, state, inst.Project(), name, conf, volatileGet, volatileSet)
 	if err != nil {
 		return nil, err
@@ -120,6 +126,11 @@ func New(inst instance.Instance, state *state.State, name string, conf deviceCon
 // blown instance to allow profile devices to be validated too.
 // Note: The supplied config may be modified during validation to enrich. If this is not desired, supply a copy.
 func Validate(instConfig instance.ConfigReader, state *state.State, name string, conf deviceConfig.Device) error {
+	err := validate.IsDeviceName(name)
+	if err != nil {
+		return err
+	}
+
 	dev, err := load(nil, state, instConfig.Project(), name, conf, nil, nil)
 	if err != nil {
 		return err
