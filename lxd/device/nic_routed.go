@@ -541,9 +541,8 @@ func (d *nicRouted) postStop() error {
 
 	networkVethFillFromVolatile(d.config, v)
 
-	parentName := ""
 	if d.config["parent"] != "" {
-		parentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
+		d.effectiveParentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
 	}
 
 	// Delete host-side interface.
@@ -556,11 +555,11 @@ func (d *nicRouted) postStop() error {
 	}
 
 	// Delete IP neighbour proxy entries on the parent.
-	if parentName != "" {
+	if d.effectiveParentName != "" {
 		for _, key := range []string{"ipv4.address", "ipv6.address"} {
 			for _, addr := range util.SplitNTrimSpace(d.config[key], ",", -1, true) {
 				neighProxy := &ip.NeighProxy{
-					DevName: parentName,
+					DevName: d.effectiveParentName,
 					Addr:    net.ParseIP(addr),
 				}
 
@@ -571,7 +570,7 @@ func (d *nicRouted) postStop() error {
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
-		err := networkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
+		err := networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			errs = append(errs, err)
 		}
