@@ -150,7 +150,7 @@ func (c *cmdClusterGroupCreate) Command() *cobra.Command {
 	cmd.Use = usage("create", i18n.G("[<remote>:]<group>"))
 	cmd.Short = i18n.G("Create a cluster group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Creates a new cluster groups`))
+		`Create a cluster group`))
 
 	cmd.RunE = c.Run
 
@@ -207,7 +207,7 @@ func (c *cmdClusterGroupDelete) Command() *cobra.Command {
 	cmd.Aliases = []string{"rm"}
 	cmd.Short = i18n.G("Delete a cluster group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Deletes a new cluster groups`))
+		`Delete a cluster group`))
 
 	cmd.RunE = c.Run
 
@@ -259,7 +259,7 @@ func (c *cmdClusterGroupEdit) Command() *cobra.Command {
 	cmd.Use = usage("edit", i18n.G("[<remote>:]<group>"))
 	cmd.Short = i18n.G("Edit a cluster group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Edits a cluster group`))
+		`Edit a cluster group`))
 
 	cmd.RunE = c.Run
 
@@ -443,7 +443,7 @@ func (c *cmdClusterGroupRemove) Command() *cobra.Command {
 	cmd.Use = usage("remove", i18n.G("[<remote>:]<member> <group>"))
 	cmd.Short = i18n.G("Remove member from group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Removes a cluster member from a cluster group`))
+		`Remove a cluster member from a cluster group`))
 
 	cmd.RunE = c.Run
 
@@ -516,7 +516,7 @@ func (c *cmdClusterGroupRename) Command() *cobra.Command {
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Rename a cluster group")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Rename a cluster groups`))
+		`Rename a cluster group`))
 
 	cmd.RunE = c.Run
 
