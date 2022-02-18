@@ -835,7 +835,9 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 	return nil
 }
 
-func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) error {
+// isIPAvailable checks if address responds to ARP/NDP neighbour probe on the parentInterface.
+// Returns true if IP is available.
+func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) (bool, error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		// Set default timeout of 500ms if no deadline context provided.
@@ -850,29 +852,33 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 		timeout := deadline.Sub(time.Now())
 		arping.SetTimeout(timeout)
 		_, _, err := arping.PingOverIfaceByName(address, parentInterface)
-		if err == nil {
-			return fmt.Errorf("ipv4.address %q is already in use", address.String())
+		if err != nil {
+			if errors.Cause(err) == arping.ErrTimeout {
+				return false, nil
+			}
+
+			return false, err
 		}
 
-		return nil
+		return true, nil
 	}
 
 	// Handle IPv6 address.
 	networkInterface, err := net.InterfaceByName(parentInterface)
 	if err != nil {
-		return nil
+		return false, err
 	}
 
 	conn, _, err := ndp.Listen(networkInterface, ndp.LinkLocal)
 	if err != nil {
-		return nil
+		return false, err
 	}
 
 	defer conn.Close()
 
 	solicitedNodeMulticast, err := ndp.SolicitedNodeMulticast(address)
 	if err != nil {
-		return nil
+		return false, err
 	}
 
 	neighbourSolicitationMessage := &ndp.NeighborSolicitation{
@@ -882,19 +888,23 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 	conn.SetDeadline(deadline)
 	err = conn.WriteTo(neighbourSolicitationMessage, nil, solicitedNodeMulticast)
 	if err != nil {
-		return nil
+		return false, err
 	}
 
 	conn.SetDeadline(deadline)
 	msg, _, _, err := conn.ReadFrom()
 	if err != nil {
-		return nil
+		if cause, ok := err.(net.Error); ok && cause.Timeout() {
+			return false, nil
+		}
+
+		return false, err
 	}
 
 	neighbourAdvertisement, ok := msg.(*ndp.NeighborAdvertisement)
-	if ok {
-		return fmt.Errorf("ipv6.address %q is already in use", neighbourAdvertisement.TargetAddress.String())
+	if ok && neighbourAdvertisement.TargetAddress.Equal(address) {
+		return true, nil
 	}
 
-	return nil
+	return false, nil
 }
