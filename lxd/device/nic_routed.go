@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -233,7 +234,16 @@ func (d *nicRouted) checkIPAvailability(parent string) error {
 		go func(address net.IP) {
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
-			errs <- isIPAvailable(ctx, address, parent)
+			inUse, err := isIPAvailable(ctx, address, parent)
+			if err != nil {
+				d.logger.Warn("Failed checking IP address available on parent network", log.Ctx{"IP": address, "parent": parent, "err": err})
+			}
+
+			if inUse {
+				errs <- fmt.Errorf("IP address %q in use on parent network %q", address, parent)
+			} else {
+				errs <- nil
+			}
 		}(address)
 	}
 
