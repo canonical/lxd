@@ -53,8 +53,15 @@ test_container_devices_nic_routed() {
   # Record how many nics we started with.
   startNicCount=$(find /sys/class/net | wc -l)
 
-  # Check that starting routed container.
   lxc init testimage "${ctName}"
+
+  # Check vlan option not allowed without parent option.
+  ! lxc config device add "${ctName}" eth0 nic \
+    name=eth0 \
+    nictype=routed \
+    vlan=1234 || false
+
+  # Check starting routed container.
   lxc config device add "${ctName}" eth0 nic \
     name=eth0 \
     nictype=routed \
