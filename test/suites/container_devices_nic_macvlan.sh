@@ -127,5 +127,6 @@ test_container_devices_nic_macvlan() {
   # Cleanup.
   lxc delete "${ctName}" -f
   lxc delete "${ctName}2" -f
+  lxc profile delete "${ctName}"
   ip link delete "${ctName}" type dummy
 }
