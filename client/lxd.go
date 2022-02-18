@@ -103,8 +103,8 @@ func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
 	return r.http, nil
 }
 
-// Do performs a Request, using macaroon authentication if set.
-func (r *ProtocolLXD) do(req *http.Request) (*http.Response, error) {
+// DoHTTP performs a Request, using macaroon authentication if set.
+func (r *ProtocolLXD) DoHTTP(req *http.Request) (*http.Response, error) {
 	// Set the user agent
 	if r.httpUserAgent != "" {
 		req.Header.Set("User-Agent", r.httpUserAgent)
@@ -245,7 +245,7 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	}
 
 	// Send the request
-	resp, err := r.do(req)
+	resp, err := r.DoHTTP(req)
 	if err != nil {
 		return nil, "", err
 	}

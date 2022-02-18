@@ -45,6 +45,11 @@ var metricsCmd = APIEndpoint{
 //     description: Project name
 //     type: string
 //     example: default
+//   - in: query
+//     name: target
+//     description: Cluster member name
+//     type: string
+//     example: lxd01
 // responses:
 //   "200":
 //     description: Metrics
@@ -57,6 +62,12 @@ var metricsCmd = APIEndpoint{
 //     $ref: "#/responses/InternalServerError"
 func metricsGet(d *Daemon, r *http.Request) response.Response {
 	projectName := queryParam(r, "project")
+
+	// Forward if requested.
+	resp := forwardedResponseIfTargetIsRemote(d, r)
+	if resp != nil {
+		return resp
+	}
 
 	// Figure out the projects to retrieve.
 	var projectNames []string
@@ -83,7 +94,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Prepare response.
-	resp := metrics.NewMetricSet(nil)
+	metricSet := metrics.NewMetricSet(nil)
 
 	// Review the cache.
 	metricsCacheLock.Lock()
@@ -97,13 +108,13 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If present and valid, merge the existing data.
-		resp.Merge(cache.metrics)
+		metricSet.Merge(cache.metrics)
 	}
 	metricsCacheLock.Unlock()
 
 	// If all valid, return immediately.
 	if len(projectMissing) == 0 {
-		return response.SyncResponsePlain(true, resp.String())
+		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
 	// Acquire update lock.
@@ -122,13 +133,13 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// If present and valid, merge the existing data.
-		resp.Merge(cache.metrics)
+		metricSet.Merge(cache.metrics)
 	}
 	metricsCacheLock.Unlock()
 
 	// If all valid, return immediately.
 	if len(toFetch) == 0 {
-		return response.SyncResponsePlain(true, resp.String())
+		return response.SyncResponsePlain(true, metricSet.String())
 	}
 
 	// Prepare temporary metrics storage.
@@ -186,9 +197,9 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 			metrics: entries,
 		}
 
-		resp.Merge(entries)
+		metricSet.Merge(entries)
 	}
 	metricsCacheLock.Unlock()
 
-	return response.SyncResponsePlain(true, resp.String())
+	return response.SyncResponsePlain(true, metricSet.String())
 }
