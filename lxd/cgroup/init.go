@@ -161,7 +161,7 @@ func (info *Info) SupportsVersion(resource Resource) (Backend, bool) {
 
 		return Unavailable, false
 	case CPUSet:
-		val, ok := cgControllers["memory"]
+		val, ok := cgControllers["cpuset"]
 		return val, ok
 	case Devices:
 		val, ok := cgControllers["devices"]
