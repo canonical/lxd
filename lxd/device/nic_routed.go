@@ -85,6 +85,8 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 	rules["ipv4.address"] = validate.Optional(validate.IsNetworkAddressV4List)
 	rules["ipv6.address"] = validate.Optional(validate.IsNetworkAddressV6List)
 	rules["gvrp"] = validate.Optional(validate.IsBool)
+	rules["ipv4.neighbor_probe"] = validate.Optional(validate.IsBool)
+	rules["ipv6.neighbor_probe"] = validate.Optional(validate.IsBool)
 
 	err = d.config.Validate(rules)
 	if err != nil {
@@ -213,17 +215,16 @@ func (d *nicRouted) validateEnvironment() error {
 // checkIPAvailability checks using ARP and NDP neighbour probes whether any of the NIC's IPs are already in use.
 func (d *nicRouted) checkIPAvailability(parent string) error {
 	var addresses []net.IP
-	ipv4AddrStr, ok := d.config["ipv4.address"]
-	if ok {
-		ipv4Addrs := util.SplitNTrimSpace(ipv4AddrStr, ",", -1, true)
+
+	if !shared.IsFalse(d.config["ipv4.neighbor_probe"]) {
+		ipv4Addrs := util.SplitNTrimSpace(d.config["ipv4.address"], ",", -1, true)
 		for _, addr := range ipv4Addrs {
 			addresses = append(addresses, net.ParseIP(addr))
 		}
 	}
 
-	ipv6AddrStr, ok := d.config["ipv6.address"]
-	if ok {
-		ipv6Addrs := util.SplitNTrimSpace(ipv6AddrStr, ",", -1, true)
+	if !shared.IsFalse(d.config["ipv6.neighbor_probe"]) {
+		ipv6Addrs := util.SplitNTrimSpace(d.config["ipv6.address"], ",", -1, true)
 		for _, addr := range ipv6Addrs {
 			addresses = append(addresses, net.ParseIP(addr))
 		}
