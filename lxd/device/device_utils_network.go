@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/j-keck/arping"
 	"github.com/mdlayher/ndp"
@@ -908,71 +909,78 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 	return nil
 }
 
-func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) error {
-	if address.To4() != nil {
-		errs := make(chan error, 1)
-		go func() {
-			_, _, err := arping.PingOverIfaceByName(address, parentInterface)
-			if err == nil {
-				errs <- fmt.Errorf("ipv4.address %q is already in use", address.String())
-			}
-			errs <- nil
-		}()
-
-		select {
-		case err := <-errs:
-			return err
-		case <-ctx.Done():
-			return nil
-		}
-	} else {
-		networkInterface, err := net.InterfaceByName(parentInterface)
-		if err != nil {
-			return nil
-		}
-
-		conn, _, err := ndp.Listen(networkInterface, ndp.LinkLocal)
-		if err != nil {
-			return nil
-		}
-
-		defer conn.Close()
-
-		solicitedNodeMulticast, err := ndp.SolicitedNodeMulticast(address)
-		if err != nil {
-			return nil
-		}
-
-		neighbourSolicitationMessage := &ndp.NeighborSolicitation{
-			TargetAddress: address,
-		}
-
-		err = conn.WriteTo(neighbourSolicitationMessage, nil, solicitedNodeMulticast)
-		if err != nil {
-			return nil
-		}
-
-		msgs := make(chan ndp.Message)
-		go func() {
-			msg, _, _, err := conn.ReadFrom()
-			if err != nil {
-				return
-			}
-
-			msgs <- msg
-		}()
-
-		select {
-		case msg := <-msgs:
-			neighbourAdvertisement, ok := msg.(*ndp.NeighborAdvertisement)
-			if ok {
-				return fmt.Errorf("ipv6.address %q is already in use", neighbourAdvertisement.TargetAddress.String())
-			}
-		case <-ctx.Done():
-			return nil
-		}
+// isIPAvailable checks if address responds to ARP/NDP neighbour probe on the parentInterface.
+// Returns true if IP is available.
+func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) (bool, error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		// Set default timeout of 500ms if no deadline context provided.
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(500*time.Millisecond))
+		defer cancel()
+		deadline, _ = ctx.Deadline()
 	}
-	return nil
+
+	// Handle IPv4 address.
+	if address.To4() != nil {
+		timeout := deadline.Sub(time.Now())
+		arping.SetTimeout(timeout)
+		_, _, err := arping.PingOverIfaceByName(address, parentInterface)
+		if err != nil {
+			if errors.Cause(err) == arping.ErrTimeout {
+				return false, nil
+			}
+
+			return false, err
+		}
+
+		return true, nil
+	}
+
+	// Handle IPv6 address.
+	networkInterface, err := net.InterfaceByName(parentInterface)
+	if err != nil {
+		return false, err
+	}
+
+	conn, _, err := ndp.Listen(networkInterface, ndp.LinkLocal)
+	if err != nil {
+		return false, err
+	}
+
+	defer conn.Close()
+
+	solicitedNodeMulticast, err := ndp.SolicitedNodeMulticast(address)
+	if err != nil {
+		return false, err
+	}
+
+	neighbourSolicitationMessage := &ndp.NeighborSolicitation{
+		TargetAddress: address,
+	}
+
+	conn.SetDeadline(deadline)
+	err = conn.WriteTo(neighbourSolicitationMessage, nil, solicitedNodeMulticast)
+	if err != nil {
+		return false, err
+	}
+
+	conn.SetDeadline(deadline)
+	msg, _, _, err := conn.ReadFrom()
+	if err != nil {
+		if cause, ok := err.(net.Error); ok && cause.Timeout() {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	neighbourAdvertisement, ok := msg.(*ndp.NeighborAdvertisement)
+	if ok && neighbourAdvertisement.TargetAddress.Equal(address) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // networkVLANListExpand takes in a list of raw VLAN values (string) that includes

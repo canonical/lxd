@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -28,6 +29,7 @@ var nicRoutedIPGateway = map[string]string{
 
 type nicRouted struct {
 	deviceCommon
+	effectiveParentName string
 }
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running.
@@ -105,11 +107,16 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	// Ensure that address is set if routes is set
+	// Ensure that address is set if routes is set.
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		if d.config[fmt.Sprintf("%s.routes", keyPrefix)] != "" && d.config[fmt.Sprintf("%s.address", keyPrefix)] == "" {
 			return fmt.Errorf("%s.routes requires %s.address to be set", keyPrefix, keyPrefix)
 		}
+	}
+
+	// Ensure that VLAN setting is only used with parent setting.
+	if d.config["parent"] == "" && d.config["vlan"] != "" {
+		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
 	}
 
 	return nil
@@ -121,92 +128,89 @@ func (d *nicRouted) validateEnvironment() error {
 		return fmt.Errorf("Requires name property to start")
 	}
 
-	extensions := d.state.OS.LXCFeatures
-	if !extensions["network_veth_router"] || !extensions["network_l2proxy"] {
-		return fmt.Errorf("Requires liblxc has following API extensions: network_veth_router, network_l2proxy")
-	}
-
-	if d.config["parent"] != "" && !network.InterfaceExists(d.config["parent"]) {
-		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
-	}
-
-	if d.config["parent"] == "" && d.config["vlan"] != "" {
-		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
-	}
-
-	// Check necessary "all" sysctls are configured for use with l2proxy parent for routed mode.
-	if d.config["parent"] != "" && d.config["ipv6.address"] != "" {
-		// net.ipv6.conf.all.forwarding=1 is required to enable general packet forwarding for IPv6.
-		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", "all")
-		sysctlVal, err := util.SysctlGet(ipv6FwdPath)
-		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
-		}
-		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", "all")
+	if d.config["parent"] != "" {
+		// Check parent interface exists (don't use d.effectiveParentName here as we want to check the
+		// parent of any VLAN interface exists too). The VLAN interface will be created later if needed.
+		if !network.InterfaceExists(d.config["parent"]) {
+			return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
 		}
 
-		// net.ipv6.conf.all.proxy_ndp=1 is needed otherwise unicast neighbour solicitations are rejected.
-		// This causes periodic latency spikes every 15-20s as the neighbour has to resort to using
-		// multicast NDP resolution and expires the previous neighbour entry.
-		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", "all")
-		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
-		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
-		}
-		if sysctlVal != "1\n" {
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", "all")
-		}
-	}
+		// Detect the effective parent interface that we will be using (taking into account VLAN setting).
+		d.effectiveParentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
 
-	// Generate effective parent name, including the VLAN part if option used.
-	effectiveParentName := network.GetHostDevice(d.config["parent"], d.config["vlan"])
-
-	// If the effective parent doesn't exist and the vlan option is specified, it means we are going to create
-	// the VLAN parent at start, and we will configure the needed sysctls so don't need to check them yet.
-	if d.config["vlan"] != "" && network.InterfaceExists(effectiveParentName) {
-		return nil
-	}
-
-	// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
-	if effectiveParentName != "" && d.config["ipv4.address"] != "" {
-		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", effectiveParentName)
-		sysctlVal, err := util.SysctlGet(ipv4FwdPath)
-		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
-		}
-		if sysctlVal != "1\n" {
-			// Replace . in parent name with / for sysctl formatting.
-			return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
-		}
-	}
-
-	// Check necessary devic specific sysctls are configured for use with l2proxy parent for routed mode.
-	if effectiveParentName != "" && d.config["ipv6.address"] != "" {
-		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", effectiveParentName)
-		sysctlVal, err := util.SysctlGet(ipv6FwdPath)
-		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
-		}
-		if sysctlVal != "1\n" {
-			// Replace . in parent name with / for sysctl formatting.
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", strings.Replace(effectiveParentName, ".", "/", -1))
+		// If the effective parent doesn't exist and the vlan option is specified, it means we are going to
+		// create the VLAN parent at start, and we will configure the needed sysctls then, so skip checks
+		// on the effective parent.
+		if d.config["vlan"] != "" && !network.InterfaceExists(d.effectiveParentName) {
+			return nil
 		}
 
-		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", effectiveParentName)
-		sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
-		if err != nil {
-			return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+		// Check necessary "all" sysctls are configured for use with l2proxy parent for routed mode.
+		if d.config["ipv6.address"] != "" {
+			// net.ipv6.conf.all.forwarding=1 is required to enable general packet forwarding for IPv6.
+			ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", "all")
+			sysctlVal, err := util.SysctlGet(ipv6FwdPath)
+			if err != nil {
+				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+			}
+			if sysctlVal != "1\n" {
+				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", "all")
+			}
+
+			// net.ipv6.conf.all.proxy_ndp=1 is needed otherwise unicast neighbour solicitations are .
+			// rejected This causes periodic latency spikes every 15-20s as the neighbour has to resort
+			// to using multicast NDP resolution and expires the previous neighbour entry.
+			ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", "all")
+			sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
+			if err != nil {
+				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+			}
+			if sysctlVal != "1\n" {
+				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", "all")
+			}
 		}
-		if sysctlVal != "1\n" {
-			// Replace . in parent name with / for sysctl formatting.
-			return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", strings.Replace(effectiveParentName, ".", "/", -1))
+
+		// Check necessary sysctls are configured for use with l2proxy parent for routed mode.
+		if d.config["ipv4.address"] != "" {
+			ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", d.effectiveParentName)
+			sysctlVal, err := util.SysctlGet(ipv4FwdPath)
+			if err != nil {
+				return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
+			}
+			if sysctlVal != "1\n" {
+				// Replace . in parent name with / for sysctl formatting.
+				return fmt.Errorf("Routed mode requires sysctl net.ipv4.conf.%s.forwarding=1", strings.Replace(d.effectiveParentName, ".", "/", -1))
+			}
+		}
+
+		// Check necessary devic specific sysctls are configured for use with l2proxy parent for routed mode.
+		if d.config["ipv6.address"] != "" {
+			ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", d.effectiveParentName)
+			sysctlVal, err := util.SysctlGet(ipv6FwdPath)
+			if err != nil {
+				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+			}
+			if sysctlVal != "1\n" {
+				// Replace . in parent name with / for sysctl formatting.
+				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", strings.Replace(d.effectiveParentName, ".", "/", -1))
+			}
+
+			ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", d.effectiveParentName)
+			sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
+			if err != nil {
+				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+			}
+			if sysctlVal != "1\n" {
+				// Replace . in parent name with / for sysctl formatting.
+				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", strings.Replace(d.effectiveParentName, ".", "/", -1))
+			}
 		}
 	}
 
 	return nil
 }
 
+// checkIPAvailability checks using ARP and NDP neighbour probes whether any of the NIC's IPs are already in use.
 func (d *nicRouted) checkIPAvailability(parent string) error {
 	var addresses []net.IP
 	ipv4AddrStr, ok := d.config["ipv4.address"]
@@ -230,7 +234,16 @@ func (d *nicRouted) checkIPAvailability(parent string) error {
 		go func(address net.IP) {
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
-			errs <- isIPAvailable(ctx, address, parent)
+			inUse, err := isIPAvailable(ctx, address, parent)
+			if err != nil {
+				d.logger.Warn("Failed checking IP address available on parent network", log.Ctx{"IP": address, "parent": parent, "err": err})
+			}
+
+			if inUse {
+				errs <- fmt.Errorf("IP address %q in use on parent network %q", address, parent)
+			} else {
+				errs <- nil
+			}
 		}(address)
 	}
 
@@ -255,13 +268,14 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	networkCreateSharedDeviceLock.Lock()
 	defer networkCreateSharedDeviceLock.Unlock()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
-	parentName := ""
-	if d.config["parent"] != "" {
-		parentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
-		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], parentName, d.config["vlan"], shared.IsTrue(d.config["gvrp"]))
+	if d.config["vlan"] != "" {
+		statusDev, err := networkCreateVlanDeviceIfNeeded(d.state, d.config["parent"], d.effectiveParentName, d.config["vlan"], shared.IsTrue(d.config["gvrp"]))
 		if err != nil {
 			return nil, err
 		}
@@ -270,23 +284,24 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		saveData["last_state.created"] = fmt.Sprintf("%t", statusDev != "existing")
 
 		// If we created a VLAN interface, we need to setup the sysctls on that interface.
-		if statusDev == "created" {
-			err := d.setupParentSysctls(parentName)
+		if shared.IsTrue(saveData["last_state.created"]) {
+			revert.Add(func() {
+				networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
+			})
+
+			err := d.setupParentSysctls(d.effectiveParentName)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	if parentName != "" {
-		err := d.checkIPAvailability(parentName)
+	if d.effectiveParentName != "" {
+		err := d.checkIPAvailability(d.effectiveParentName)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	saveData["host_name"] = d.config["host_name"]
 
@@ -403,9 +418,9 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			// If there is a parent interface, add neighbour proxy entry.
-			if parentName != "" {
+			if d.effectiveParentName != "" {
 				np := ip.NeighProxy{
-					DevName: parentName,
+					DevName: d.effectiveParentName,
 					Addr:    net.ParseIP(addrStr),
 				}
 				err = np.Add()
@@ -572,9 +587,8 @@ func (d *nicRouted) postStop() error {
 
 	networkVethFillFromVolatile(d.config, v)
 
-	parentName := ""
 	if d.config["parent"] != "" {
-		parentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
+		d.effectiveParentName = network.GetHostDevice(d.config["parent"], d.config["vlan"])
 	}
 
 	// Delete host-side interface.
@@ -587,11 +601,11 @@ func (d *nicRouted) postStop() error {
 	}
 
 	// Delete IP neighbour proxy entries on the parent.
-	if parentName != "" {
+	if d.effectiveParentName != "" {
 		for _, key := range []string{"ipv4.address", "ipv6.address"} {
 			for _, addr := range util.SplitNTrimSpace(d.config[key], ",", -1, true) {
 				neighProxy := &ip.NeighProxy{
-					DevName: parentName,
+					DevName: d.effectiveParentName,
 					Addr:    net.ParseIP(addr),
 				}
 
@@ -602,7 +616,7 @@ func (d *nicRouted) postStop() error {
 
 	// This will delete the parent interface if we created it for VLAN parent.
 	if shared.IsTrue(v["last_state.created"]) {
-		err := networkRemoveInterfaceIfNeeded(d.state, parentName, d.inst, d.config["parent"], d.config["vlan"])
+		err := networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
 		if err != nil {
 			errs = append(errs, err)
 		}
