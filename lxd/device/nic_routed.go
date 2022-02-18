@@ -140,7 +140,7 @@ func (d *nicRouted) validateEnvironment() error {
 		// If the effective parent doesn't exist and the vlan option is specified, it means we are going to
 		// create the VLAN parent at start, and we will configure the needed sysctls then, so skip checks
 		// on the effective parent.
-		if d.config["vlan"] != "" && network.InterfaceExists(d.effectiveParentName) {
+		if d.config["vlan"] != "" && !network.InterfaceExists(d.effectiveParentName) {
 			return nil
 		}
 
