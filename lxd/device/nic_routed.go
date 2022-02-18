@@ -112,6 +112,11 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
+	// Ensure that VLAN setting is only used with parent setting.
+	if d.config["parent"] == "" && d.config["vlan"] != "" {
+		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
+	}
+
 	return nil
 }
 
@@ -128,10 +133,6 @@ func (d *nicRouted) validateEnvironment() error {
 
 	if d.config["parent"] != "" && !network.InterfaceExists(d.config["parent"]) {
 		return fmt.Errorf("Parent device %q doesn't exist", d.config["parent"])
-	}
-
-	if d.config["parent"] == "" && d.config["vlan"] != "" {
-		return fmt.Errorf("The vlan setting can only be used when combined with a parent interface")
 	}
 
 	// Check necessary "all" sysctls are configured for use with l2proxy parent for routed mode.
