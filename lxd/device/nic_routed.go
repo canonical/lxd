@@ -105,7 +105,7 @@ func (d *nicRouted) validateConfig(instConf instance.ConfigReader) error {
 		}
 	}
 
-	// Ensure that address is set if routes is set
+	// Ensure that address is set if routes is set.
 	for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 		if d.config[fmt.Sprintf("%s.routes", keyPrefix)] != "" && d.config[fmt.Sprintf("%s.address", keyPrefix)] == "" {
 			return fmt.Errorf("%s.routes requires %s.address to be set", keyPrefix, keyPrefix)
