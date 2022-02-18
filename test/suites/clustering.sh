@@ -2120,7 +2120,7 @@ test_clustering_handover() {
   echo "Launched member 4"
 
   LXD_DIR="${LXD_TWO_DIR}" lxc cluster list
-  LXD_DIR="${LXD_TWO_DIR}" lxc cluster show node4 | grep -q "\- database-standby"
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster list | grep -Fc "database-standby" | grep -Fx 1
 
   # Shutdown the first node.
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown
