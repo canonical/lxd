@@ -257,6 +257,9 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	networkCreateSharedDeviceLock.Lock()
 	defer networkCreateSharedDeviceLock.Unlock()
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	saveData := make(map[string]string)
 
 	// Decide which parent we should use based on VLAN setting.
@@ -271,6 +274,10 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 
 		// If we created a VLAN interface, we need to setup the sysctls on that interface.
 		if shared.IsTrue(saveData["last_state.created"]) {
+			revert.Add(func() {
+				networkRemoveInterfaceIfNeeded(d.state, d.effectiveParentName, d.inst, d.config["parent"], d.config["vlan"])
+			})
+
 			err := d.setupParentSysctls(d.effectiveParentName)
 			if err != nil {
 				return nil, err
@@ -284,9 +291,6 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			return nil, err
 		}
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	saveData["host_name"] = d.config["host_name"]
 
