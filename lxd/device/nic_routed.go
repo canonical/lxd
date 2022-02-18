@@ -198,6 +198,7 @@ func (d *nicRouted) validateEnvironment() error {
 	return nil
 }
 
+// checkIPAvailability checks using ARP and NDP neighbour probes whether any of the NIC's IPs are already in use.
 func (d *nicRouted) checkIPAvailability(parent string) error {
 	var addresses []net.IP
 	ipv4AddrStr, ok := d.config["ipv4.address"]
