@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-17 11:18-0500\n"
+"POT-Creation-Date: 2022-02-18 07:39+0100\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -1307,7 +1307,7 @@ msgstr ""
 msgid "Couldn't find a matching entry"
 msgstr ""
 
-#: lxc/cluster_group.go:151
+#: lxc/cluster_group.go:151 lxc/cluster_group.go:152
 msgid "Create a cluster group"
 msgstr ""
 
@@ -1412,11 +1412,6 @@ msgstr ""
 msgid "Created: %s"
 msgstr "Criado: %s"
 
-#: lxc/cluster_group.go:152
-#, fuzzy
-msgid "Creates a new cluster groups"
-msgstr "Criar novas redes"
-
 #: lxc/init.go:156
 #, c-format
 msgid "Creating %s"
@@ -1466,7 +1461,7 @@ msgstr "Definir um algoritmo de compressão: para imagem ou nenhum"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
 
-#: lxc/cluster_group.go:208
+#: lxc/cluster_group.go:208 lxc/cluster_group.go:209
 msgid "Delete a cluster group"
 msgstr ""
 
@@ -1545,10 +1540,6 @@ msgstr ""
 
 #: lxc/warning.go:354 lxc/warning.go:355
 msgid "Delete warning"
-msgstr ""
-
-#: lxc/cluster_group.go:209
-msgid "Deletes a new cluster groups"
 msgstr ""
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
@@ -1779,7 +1770,7 @@ msgid ""
 "(interrupt two more times to force)"
 msgstr ""
 
-#: lxc/cluster_group.go:260
+#: lxc/cluster_group.go:260 lxc/cluster_group.go:261
 msgid "Edit a cluster group"
 msgstr ""
 
@@ -1862,10 +1853,6 @@ msgstr ""
 #, fuzzy
 msgid "Edit trust configurations as YAML"
 msgstr "Editar configurações de perfil como YAML"
-
-#: lxc/cluster_group.go:261
-msgid "Edits a cluster group"
-msgstr ""
 
 #: lxc/image.go:1046 lxc/list.go:616 lxc/storage_volume.go:1330
 #: lxc/warning.go:234
@@ -3963,6 +3950,11 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
+#: lxc/cluster_group.go:445
+#, fuzzy
+msgid "Remove a cluster member from a cluster group"
+msgstr "Nome de membro do cluster"
+
 #: lxc/cluster.go:425 lxc/cluster.go:426
 msgid "Remove a member from the cluster"
 msgstr ""
@@ -4020,17 +4012,8 @@ msgstr "Adicionar perfis aos containers"
 msgid "Remove trusted clients"
 msgstr ""
 
-#: lxc/cluster_group.go:445
-#, fuzzy
-msgid "Removes a cluster member from a cluster group"
-msgstr "Nome de membro do cluster"
-
-#: lxc/cluster_group.go:517
+#: lxc/cluster_group.go:517 lxc/cluster_group.go:518
 msgid "Rename a cluster group"
-msgstr ""
-
-#: lxc/cluster_group.go:518
-msgid "Rename a cluster groups"
 msgstr ""
 
 #: lxc/cluster.go:375 lxc/cluster.go:376
@@ -6138,6 +6121,10 @@ msgstr ""
 #: lxc/image.go:1089
 msgid "yes"
 msgstr "sim"
+
+#, fuzzy
+#~ msgid "Creates a new cluster groups"
+#~ msgstr "Criar novas redes"
 
 #, fuzzy
 #~ msgid "Manage network zone record entriess"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-17 11:18-0500\n"
+"POT-Creation-Date: 2022-02-18 07:39+0100\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -1340,7 +1340,7 @@ msgstr ""
 msgid "Couldn't find a matching entry"
 msgstr ""
 
-#: lxc/cluster_group.go:151
+#: lxc/cluster_group.go:151 lxc/cluster_group.go:152
 msgid "Create a cluster group"
 msgstr ""
 
@@ -1464,11 +1464,6 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Created: %s"
 msgstr "Créé : %s"
 
-#: lxc/cluster_group.go:152
-#, fuzzy
-msgid "Creates a new cluster groups"
-msgstr "Copie de l'image : %s"
-
 #: lxc/init.go:156
 #, c-format
 msgid "Creating %s"
@@ -1518,7 +1513,7 @@ msgstr "Définir un algorithme de compression : pour image ou aucun"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
 
-#: lxc/cluster_group.go:208
+#: lxc/cluster_group.go:208 lxc/cluster_group.go:209
 msgid "Delete a cluster group"
 msgstr ""
 
@@ -1600,10 +1595,6 @@ msgstr "Copie de l'image : %s"
 #, fuzzy
 msgid "Delete warning"
 msgstr "Récupération de l'image : %s"
-
-#: lxc/cluster_group.go:209
-msgid "Deletes a new cluster groups"
-msgstr ""
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147
@@ -1836,7 +1827,7 @@ msgid ""
 "(interrupt two more times to force)"
 msgstr ""
 
-#: lxc/cluster_group.go:260
+#: lxc/cluster_group.go:260 lxc/cluster_group.go:261
 msgid "Edit a cluster group"
 msgstr ""
 
@@ -1919,10 +1910,6 @@ msgstr ""
 #, fuzzy
 msgid "Edit trust configurations as YAML"
 msgstr "Clé de configuration invalide"
-
-#: lxc/cluster_group.go:261
-msgid "Edits a cluster group"
-msgstr ""
 
 #: lxc/image.go:1046 lxc/list.go:616 lxc/storage_volume.go:1330
 #: lxc/warning.go:234
@@ -4185,6 +4172,11 @@ msgstr "Serveur distant : %s"
 msgid "Remove %s (yes/no): "
 msgstr "Supprimer %s (oui/non) : "
 
+#: lxc/cluster_group.go:445
+#, fuzzy
+msgid "Remove a cluster member from a cluster group"
+msgstr "Vous devez fournir le nom d'un conteneur pour : "
+
 #: lxc/cluster.go:425 lxc/cluster.go:426
 msgid "Remove a member from the cluster"
 msgstr ""
@@ -4244,19 +4236,9 @@ msgstr "Création du conteneur"
 msgid "Remove trusted clients"
 msgstr ""
 
-#: lxc/cluster_group.go:445
-#, fuzzy
-msgid "Removes a cluster member from a cluster group"
-msgstr "Vous devez fournir le nom d'un conteneur pour : "
-
-#: lxc/cluster_group.go:517
+#: lxc/cluster_group.go:517 lxc/cluster_group.go:518
 msgid "Rename a cluster group"
 msgstr ""
-
-#: lxc/cluster_group.go:518
-#, fuzzy
-msgid "Rename a cluster groups"
-msgstr "Copie de l'image : %s"
 
 #: lxc/cluster.go:375 lxc/cluster.go:376
 msgid "Rename a cluster member"
@@ -7055,6 +7037,14 @@ msgstr "o"
 #: lxc/image.go:1089
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy
+#~ msgid "Creates a new cluster groups"
+#~ msgstr "Copie de l'image : %s"
+
+#, fuzzy
+#~ msgid "Rename a cluster groups"
+#~ msgstr "Copie de l'image : %s"
 
 #, fuzzy
 #~ msgid "Manage network zone record entriess"
