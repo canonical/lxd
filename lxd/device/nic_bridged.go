@@ -601,8 +601,14 @@ func (d *nicBridged) postStop() error {
 	}
 
 	// Remove host-side routes from bridge interface.
-	networkNICRouteDelete(d.config["parent"], append(util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true), util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)...)
-	d.removeFilters(d.config)
+	routes := []string{}
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
+	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
+	networkNICRouteDelete(d.config["parent"], routes...)
+
+	if shared.IsTrue(d.config["security.mac_filtering"]) || shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
+		d.removeFilters(d.config)
+	}
 
 	return nil
 }
