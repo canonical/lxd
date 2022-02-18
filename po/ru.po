@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-17 11:18-0500\n"
+"POT-Creation-Date: 2022-02-18 07:39+0100\n"
 "PO-Revision-Date: 2020-10-08 08:16+0000\n"
 "Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1305,7 +1305,7 @@ msgstr ""
 msgid "Couldn't find a matching entry"
 msgstr ""
 
-#: lxc/cluster_group.go:151
+#: lxc/cluster_group.go:151 lxc/cluster_group.go:152
 msgid "Create a cluster group"
 msgstr ""
 
@@ -1410,11 +1410,6 @@ msgstr "Невозможно добавить имя контейнера в с�
 msgid "Created: %s"
 msgstr ""
 
-#: lxc/cluster_group.go:152
-#, fuzzy
-msgid "Creates a new cluster groups"
-msgstr "Копирование образа: %s"
-
 #: lxc/init.go:156
 #, c-format
 msgid "Creating %s"
@@ -1463,7 +1458,7 @@ msgstr ""
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr ""
 
-#: lxc/cluster_group.go:208
+#: lxc/cluster_group.go:208 lxc/cluster_group.go:209
 msgid "Delete a cluster group"
 msgstr ""
 
@@ -1539,10 +1534,6 @@ msgstr "Копирование образа: %s"
 
 #: lxc/warning.go:354 lxc/warning.go:355
 msgid "Delete warning"
-msgstr ""
-
-#: lxc/cluster_group.go:209
-msgid "Deletes a new cluster groups"
 msgstr ""
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
@@ -1773,7 +1764,7 @@ msgid ""
 "(interrupt two more times to force)"
 msgstr ""
 
-#: lxc/cluster_group.go:260
+#: lxc/cluster_group.go:260 lxc/cluster_group.go:261
 msgid "Edit a cluster group"
 msgstr ""
 
@@ -1848,10 +1839,6 @@ msgstr ""
 
 #: lxc/config_trust.go:222 lxc/config_trust.go:223
 msgid "Edit trust configurations as YAML"
-msgstr ""
-
-#: lxc/cluster_group.go:261
-msgid "Edits a cluster group"
 msgstr ""
 
 #: lxc/image.go:1046 lxc/list.go:616 lxc/storage_volume.go:1330
@@ -3970,6 +3957,11 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
+#: lxc/cluster_group.go:445
+#, fuzzy
+msgid "Remove a cluster member from a cluster group"
+msgstr "Копирование образа: %s"
+
 #: lxc/cluster.go:425 lxc/cluster.go:426
 msgid "Remove a member from the cluster"
 msgstr ""
@@ -4024,19 +4016,9 @@ msgstr ""
 msgid "Remove trusted clients"
 msgstr ""
 
-#: lxc/cluster_group.go:445
-#, fuzzy
-msgid "Removes a cluster member from a cluster group"
-msgstr "Копирование образа: %s"
-
-#: lxc/cluster_group.go:517
+#: lxc/cluster_group.go:517 lxc/cluster_group.go:518
 msgid "Rename a cluster group"
 msgstr ""
-
-#: lxc/cluster_group.go:518
-#, fuzzy
-msgid "Rename a cluster groups"
-msgstr "Копирование образа: %s"
 
 #: lxc/cluster.go:375 lxc/cluster.go:376
 msgid "Rename a cluster member"
@@ -6584,6 +6566,14 @@ msgstr ""
 #: lxc/image.go:1089
 msgid "yes"
 msgstr "да"
+
+#, fuzzy
+#~ msgid "Creates a new cluster groups"
+#~ msgstr "Копирование образа: %s"
+
+#, fuzzy
+#~ msgid "Rename a cluster groups"
+#~ msgstr "Копирование образа: %s"
 
 #, fuzzy
 #~ msgid "Manage network zone record entriess"
