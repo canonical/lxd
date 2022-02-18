@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-17 11:18-0500\n"
+"POT-Creation-Date: 2022-02-18 07:39+0100\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -1290,7 +1290,7 @@ msgstr "リモート '%s' に対する新しいリモート証明書がエラー
 msgid "Couldn't find a matching entry"
 msgstr ""
 
-#: lxc/cluster_group.go:151
+#: lxc/cluster_group.go:151 lxc/cluster_group.go:152
 #, fuzzy
 msgid "Create a cluster group"
 msgstr "クラスタメンバの名前を変更します"
@@ -1389,11 +1389,6 @@ msgstr "プロファイルを適用しないインスタンスを作成します
 msgid "Created: %s"
 msgstr "作成日時: %s"
 
-#: lxc/cluster_group.go:152
-#, fuzzy
-msgid "Creates a new cluster groups"
-msgstr "新たにカスタムストレージボリュームを作成します"
-
 #: lxc/init.go:156
 #, c-format
 msgid "Creating %s"
@@ -1441,7 +1436,7 @@ msgstr "圧縮アルゴリズムを指定します: backup or none"
 msgid "Delete a background operation (will attempt to cancel)"
 msgstr "バックグラウンドの操作を削除します（キャンセルを試みます）"
 
-#: lxc/cluster_group.go:208
+#: lxc/cluster_group.go:208 lxc/cluster_group.go:209
 #, fuzzy
 msgid "Delete a cluster group"
 msgstr "クラスタメンバの名前を変更します"
@@ -1514,10 +1509,6 @@ msgstr "ストレージボリュームを削除します"
 #: lxc/warning.go:354 lxc/warning.go:355
 msgid "Delete warning"
 msgstr "警告を削除します"
-
-#: lxc/cluster_group.go:209
-msgid "Deletes a new cluster groups"
-msgstr ""
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147
@@ -1750,7 +1741,7 @@ msgstr ""
 "ファイル転送のサーバ側の初期処理はキャンセルできません（強制的に中断するには"
 "あと2回行ってください）"
 
-#: lxc/cluster_group.go:260
+#: lxc/cluster_group.go:260 lxc/cluster_group.go:261
 msgid "Edit a cluster group"
 msgstr ""
 
@@ -1822,10 +1813,6 @@ msgstr "ストレージボリュームの設定をYAMLで編集します"
 #: lxc/config_trust.go:222 lxc/config_trust.go:223
 msgid "Edit trust configurations as YAML"
 msgstr "信頼済みクライアント設定をYAMLで編集します"
-
-#: lxc/cluster_group.go:261
-msgid "Edits a cluster group"
-msgstr ""
 
 #: lxc/image.go:1046 lxc/list.go:616 lxc/storage_volume.go:1330
 #: lxc/warning.go:234
@@ -4110,6 +4097,11 @@ msgstr "リムーバブルディスク: %v"
 msgid "Remove %s (yes/no): "
 msgstr "%s を消去しますか (yes/no): "
 
+#: lxc/cluster_group.go:445
+#, fuzzy
+msgid "Remove a cluster member from a cluster group"
+msgstr "クラスタからメンバを削除します"
+
 #: lxc/cluster.go:425 lxc/cluster.go:426
 msgid "Remove a member from the cluster"
 msgstr "クラスタからメンバを削除します"
@@ -4165,19 +4157,9 @@ msgstr "ACL からルールを削除します"
 msgid "Remove trusted clients"
 msgstr "信頼済みクライアントを削除します"
 
-#: lxc/cluster_group.go:445
-#, fuzzy
-msgid "Removes a cluster member from a cluster group"
-msgstr "クラスタからメンバを削除します"
-
-#: lxc/cluster_group.go:517
+#: lxc/cluster_group.go:517 lxc/cluster_group.go:518
 #, fuzzy
 msgid "Rename a cluster group"
-msgstr "クラスタメンバの名前を変更します"
-
-#: lxc/cluster_group.go:518
-#, fuzzy
-msgid "Rename a cluster groups"
 msgstr "クラスタメンバの名前を変更します"
 
 #: lxc/cluster.go:375 lxc/cluster.go:376
@@ -6431,6 +6413,14 @@ msgstr "y"
 #: lxc/image.go:1089
 msgid "yes"
 msgstr "yes"
+
+#, fuzzy
+#~ msgid "Creates a new cluster groups"
+#~ msgstr "新たにカスタムストレージボリュームを作成します"
+
+#, fuzzy
+#~ msgid "Rename a cluster groups"
+#~ msgstr "クラスタメンバの名前を変更します"
 
 #, fuzzy
 #~ msgid "Manage network zone record entriess"
