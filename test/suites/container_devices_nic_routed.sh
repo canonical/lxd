@@ -15,17 +15,13 @@ test_container_devices_nic_routed() {
   sysctl net.ipv6.conf.all.forwarding=1
   sysctl net.ipv6.conf.all.proxy_ndp=1
 
-  # Test routed support to offline container (hot plugging not supported).
-  ip link add "${ctName}" type dummy
+  # Standard bridge.
+  lxc network create "${ctName}" \
+        ipv4.address=192.0.2.1/24 \
+        ipv6.address=2001:db8::1/64
   sysctl net.ipv6.conf."${ctName}".proxy_ndp=1
   sysctl net.ipv6.conf."${ctName}".forwarding=1
   sysctl net.ipv4.conf."${ctName}".forwarding=1
-  sysctl net.ipv6.conf."${ctName}".accept_dad=0
-
-  # Add IP addresses to parent interface (this is needed for automatic gateway detection in container).
-  ip link set "${ctName}" up
-  ip addr add 192.0.2.1/32 dev "${ctName}"
-  ip addr add 2001:db8::1/128 dev "${ctName}"
 
   # Wait for IPv6 DAD to complete.
   while true
@@ -37,15 +33,36 @@ test_container_devices_nic_routed() {
     sleep 0.5
   done
 
+  # Create container connected to bridge (which will be used for neighbor probe testing).
+  lxc init testimage "${ctName}neigh"
+  lxc config device add "${ctName}neigh" eth0 nic network="${ctName}"
+  lxc start "${ctName}neigh"
+  lxc exec "${ctName}neigh" -- ip -4 addr add 192.0.2.254/24 dev eth0
+  lxc exec "${ctName}neigh" -- ip -4 route add default via 192.0.2.1 dev eth0
+  lxc exec "${ctName}neigh" -- ip -6 addr add 2001:db8::FFFF/64 dev eth0
+  lxc exec "${ctName}neigh" -- ip -6 route add default via 2001:db8::1 dev eth0
+
+  # Wait for IPv6 DAD to complete.
+  while true
+  do
+    if ! lxc exec "${ctName}neigh" -- ip -6 a show dev eth0 | grep "tentative" ; then
+      break
+    fi
+
+    sleep 0.5
+  done
+
+  ping -c2 -W5 192.0.2.254
+  ping6 -c2 -W5 "2001:db8::FFFF"
+
   # Create dummy vlan parent.
   # Use slash notation when setting sysctls on vlan interface (that has period in interface name).
   ip link add link "${ctName}" name "${ctName}.1234" type vlan id 1234
   sysctl net/ipv6/conf/"${ctName}.1234"/proxy_ndp=1
   sysctl net/ipv6/conf/"${ctName}.1234"/forwarding=1
   sysctl net/ipv4/conf/"${ctName}.1234"/forwarding=1
-  sysctl net/ipv6/conf/"${ctName}.1234"/accept_dad=0
 
-  # Add IP addresses to parent interface (this is needed for automatic gateway detection in container).
+  # Add IP addresses to parent vlan interface (this is needed for automatic gateway detection in container).
   ip link set "${ctName}.1234" up
   ip addr add 192.0.3.254/32 dev "${ctName}.1234"
   ip addr add 2001:db8:2::1/128 dev "${ctName}.1234"
@@ -73,11 +90,30 @@ test_container_devices_nic_routed() {
   ! stat "/sys/class/net/${ctName}.1235" || false
   lxc config device remove "${ctName}" eth0
 
-  # Check starting routed container.
+  # Add routed NIC to instance.
   lxc config device add "${ctName}" eth0 nic \
     name=eth0 \
     nictype=routed \
-    parent=${ctName} \
+    parent=${ctName}
+
+  # Check starting routed NIC with IPs in use on parent network is prevented.
+  lxc config device set "${ctName}" eth0 ipv4.address="192.0.2.254"
+  ! lxc start "${ctName}" || false
+  lxc config device set "${ctName}" eth0 ipv4.neighbor_probe=false
+  lxc start "${ctName}"
+  lxc stop "${ctName}" -f
+
+  lxc config device set "${ctName}" eth0 ipv4.address="" ipv6.address="2001:db8::FFFF"
+
+  ! lxc start "${ctName}" || false
+  lxc config device set "${ctName}" eth0 ipv6.neighbor_probe=false
+  lxc start "${ctName}"
+  lxc stop "${ctName}" -f
+  lxc config device unset "${ctName}" eth0 ipv4.neighbor_probe
+  lxc config device unset "${ctName}" eth0 ipv6.neighbor_probe
+
+  # Check starting routed NIC with unused IPs.
+  lxc config device set "${ctName}" eth0 \
     ipv4.address="192.0.2.1${ipRand}" \
     ipv6.address="2001:db8::1${ipRand}" \
     ipv4.routes="192.0.3.0/24" \
@@ -126,7 +162,6 @@ test_container_devices_nic_routed() {
   ip link set "${ctName}" mtu 1605
   lxc config device unset "${ctName}" eth0 mtu
   lxc start "${ctName}"
-  lxc exec "${ctName}" -- sysctl net.ipv6.conf.eth0.accept_dad=0
 
   if ! lxc exec "${ctName}" -- grep "1605" /sys/class/net/eth0/mtu ; then
     echo "mtu not inherited from parent"
@@ -156,8 +191,6 @@ test_container_devices_nic_routed() {
   # Enable both IP families.
   lxc config device set "${ctName}2" eth0 ipv4.address="192.0.2.2${ipRand}, 192.0.2.3${ipRand}"
   lxc start "${ctName}2"
-
-  lxc exec "${ctName}2" -- sysctl net.ipv6.conf.eth0.accept_dad=0
 
   # Wait for IPv6 DAD to complete.
   while true
@@ -236,6 +269,8 @@ test_container_devices_nic_routed() {
   # Cleanup routed checks
   lxc delete "${ctName}" -f
   lxc delete "${ctName}2" -f
+  lxc delete "${ctName}neigh" -f
   ip link delete "${ctName}.1234"
-  ip link delete "${ctName}"
+  lxc network show "${ctName}"
+  lxc network delete "${ctName}"
 }
