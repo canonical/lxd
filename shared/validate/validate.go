@@ -805,6 +805,37 @@ func ParseNetworkVLANRange(vlan string) (int, int, error) {
 
 // IsHostname checks the string is valid DNS hostname.
 func IsHostname(name string) error {
+	err := isName(name)
+	if err != nil {
+		return err
+	}
+
+	match, _ := regexp.MatchString("^[-a-zA-Z0-9]*$", name)
+	if !match {
+		return fmt.Errorf("Name can only contain alphanumeric and hyphen characters")
+	}
+
+	return nil
+}
+
+// IsDeviceName performs the same checks as ValidHostname but also allows underscores.
+func IsDeviceName(name string) error {
+	err := isName(name)
+	if err != nil {
+		return err
+	}
+
+	match, _ := regexp.MatchString("^[-_a-zA-Z0-9]*$", name)
+	if !match {
+		return fmt.Errorf("Name can only contain alphanumeric and hyphen characters")
+	}
+
+	return nil
+}
+
+// isName checks that the given string is 1-63 characters long, does not start or end with a hyphen and does not start
+// with a number.
+func isName(name string) error {
 	// Validate length
 	if len(name) < 1 || len(name) > 63 {
 		return fmt.Errorf("Name must be 1-63 characters long")
@@ -816,18 +847,12 @@ func IsHostname(name string) error {
 	}
 
 	if _, err := strconv.Atoi(string(name[0])); err == nil {
-		return fmt.Errorf("Name must not be a number")
+		return fmt.Errorf("Name must not start with a number")
 	}
 
 	// Validate last character
 	if strings.HasSuffix(name, "-") {
 		return fmt.Errorf(`Name must not end with "-" character`)
-	}
-
-	// Validate the character set
-	match, _ := regexp.MatchString("^[-a-zA-Z0-9]*$", name)
-	if !match {
-		return fmt.Errorf("Name can only contain alphanumeric and hyphen characters")
 	}
 
 	return nil
