@@ -802,3 +802,33 @@ func ParseNetworkVLANRange(vlan string) (int, int, error) {
 
 	return vlanRangeStart, vlanRangeEnd - vlanRangeStart + 1, nil
 }
+
+// IsHostname checks the string is valid DNS hostname.
+func IsHostname(name string) error {
+	// Validate length
+	if len(name) < 1 || len(name) > 63 {
+		return fmt.Errorf("Name must be 1-63 characters long")
+	}
+
+	// Validate first character
+	if strings.HasPrefix(name, "-") {
+		return fmt.Errorf(`Name must not start with "-" character`)
+	}
+
+	if _, err := strconv.Atoi(string(name[0])); err == nil {
+		return fmt.Errorf("Name must not be a number")
+	}
+
+	// Validate last character
+	if strings.HasSuffix(name, "-") {
+		return fmt.Errorf(`Name must not end with "-" character`)
+	}
+
+	// Validate the character set
+	match, _ := regexp.MatchString("^[-a-zA-Z0-9]*$", name)
+	if !match {
+		return fmt.Errorf("Name can only contain alphanumeric and hyphen characters")
+	}
+
+	return nil
+}
