@@ -543,11 +543,11 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	// Apply and host-side network filters (uses enriched host_name from networkVethFillFromVolatile).
-	err = d.setupHostFilters(nil)
+	r, err := d.setupHostFilters(nil)
 	if err != nil {
 		return nil, err
 	}
-	revert.Add(func() { d.removeFilters(d.config) })
+	revert.Add(r)
 
 	// Attach host side veth interface to bridge.
 	err = network.AttachInterface(d.config["parent"], saveData["host_name"])
@@ -671,6 +671,9 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// If instance is running, apply host side limits and filters first before rebuilding
 	// dnsmasq config below so that existing config can be used as part of the filter removal.
 	if isRunning {
@@ -712,10 +715,11 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		}
 
 		// Apply and host-side network filters (uses enriched host_name from networkVethFillFromVolatile).
-		err = d.setupHostFilters(oldConfig)
+		r, err := d.setupHostFilters(oldConfig)
 		if err != nil {
 			return err
 		}
+		revert.Add(r)
 	}
 
 	// Rebuild dnsmasq entry if needed and reload.
@@ -750,6 +754,7 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 
@@ -800,7 +805,10 @@ func (d *nicBridged) postStop() error {
 	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
 	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
 	networkNICRouteDelete(d.config["parent"], routes...)
-	d.removeFilters(d.config)
+
+	if shared.IsTrue(d.config["security.mac_filtering"]) || shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
+		d.removeFilters(d.config)
+	}
 
 	return nil
 }
@@ -896,13 +904,16 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 }
 
 // setupHostFilters applies any host side network filters.
-func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) error {
+func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) (revert.Hook, error) {
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Check br_netfilter kernel module is loaded and enabled for IPv6 before clearing existing rules.
 	// We won't try to load it as its default mode can cause unwanted traffic blocking.
 	if shared.IsTrue(d.config["security.ipv6_filtering"]) {
 		err := network.BridgeNetfilterEnabled(6)
 		if err != nil {
-			return fmt.Errorf("security.ipv6_filtering requires bridge netfilter: %w", err)
+			return nil, fmt.Errorf("security.ipv6_filtering requires bridge netfilter: %w", err)
 		}
 	}
 
@@ -915,11 +926,15 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) error {
 	if shared.IsTrue(d.config["security.mac_filtering"]) || shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
 		err := d.setFilters()
 		if err != nil {
-			return err
+			return nil, err
 		}
+
+		revert.Add(func() { d.removeFilters(d.config) })
 	}
 
-	return nil
+	revertExternal := revert.Clone()
+	revert.Success()
+	return revertExternal.Fail, nil
 }
 
 // removeFilters removes any network level filters defined for the instance.
