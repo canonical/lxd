@@ -4077,6 +4077,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	if isRunning {
 		// Only certain keys can be changed on a running VM.
 		liveUpdateKeys := []string{
+			"cluster.evacuate",
 			"limits.memory",
 			"security.agent.metrics",
 		}
