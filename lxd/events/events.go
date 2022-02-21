@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 // EventSource indicates the source of an event.
@@ -26,22 +27,30 @@ const EventSourcePull = 1
 // EventSourcePush indicates the event was received from an event listener client connected to us.
 const EventSourcePush = 2
 
+// InjectFunc is used to inject an event received by a listener into the local events dispatcher.
+type InjectFunc func(event api.Event, eventSource EventSource)
+
+// NotifyFunc is called when an event is dispatched.
+type NotifyFunc func(event api.Event)
+
 // Server represents an instance of an event server.
 type Server struct {
 	serverCommon
 
 	listeners map[string]*Listener
+	notify    NotifyFunc
 	location  string
 }
 
 // NewServer returns a new event server.
-func NewServer(debug bool, verbose bool) *Server {
+func NewServer(debug bool, verbose bool, notify NotifyFunc) *Server {
 	server := &Server{
 		serverCommon: serverCommon{
 			debug:   debug,
 			verbose: verbose,
 		},
 		listeners: map[string]*Listener{},
+		notify:    notify,
 	}
 
 	return server
@@ -57,7 +66,7 @@ func (s *Server) SetLocalLocation(location string) {
 }
 
 // AddListener creates and returns a new event listener.
-func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler) (*Listener, error) {
+func (s *Server) AddListener(projectName string, allProjects bool, connection *websocket.Conn, messageTypes []string, excludeSources []EventSource, recvFunc EventHandler, excludeLocations []string) (*Listener, error) {
 	if allProjects && projectName != "" {
 		return nil, fmt.Errorf("Cannot specify project name when listening for events on all projects")
 	}
@@ -74,9 +83,10 @@ func (s *Server) AddListener(projectName string, allProjects bool, connection *w
 			recvFunc:     recvFunc,
 		},
 
-		allProjects:    allProjects,
-		projectName:    projectName,
-		excludeSources: excludeSources,
+		allProjects:      allProjects,
+		projectName:      projectName,
+		excludeSources:   excludeSources,
+		excludeLocations: excludeLocations,
 	}
 
 	s.lock.Lock()
@@ -114,8 +124,9 @@ func (s *Server) Send(projectName string, eventType string, eventMessage interfa
 	return s.broadcast(event, EventSourceLocal)
 }
 
-// Forward to the local events dispatcher an event received from another node.
-func (s *Server) Forward(id int64, event api.Event) {
+// Inject an event from another member into the local events dispatcher.
+// eventSource is used to indicate where this event was received from.
+func (s *Server) Inject(event api.Event, eventSource EventSource) {
 	if event.Type == "logging" {
 		// Parse the message
 		logEntry := api.EventLogging{}
@@ -133,9 +144,9 @@ func (s *Server) Forward(id int64, event api.Event) {
 		}
 	}
 
-	err := s.broadcast(event, EventSourcePull)
+	err := s.broadcast(event, eventSource)
 	if err != nil {
-		logger.Warnf("Failed to forward event from member %d: %v", id, err)
+		logger.Warn("Failed to forward event from member", log.Ctx{"member": event.Location, "err": err})
 	}
 }
 
@@ -158,6 +169,12 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 		event.Location = s.location
 	}
 
+	// If a notifcation hook is present, then call it for locally produced events.
+	// This can be used to send local events to another target (such as an event-hub member).
+	if s.notify != nil && eventSource == EventSourceLocal {
+		s.notify(event)
+	}
+
 	listeners := s.listeners
 	for _, listener := range listeners {
 		// If the event is project specific, check if the listener is requesting events from that project.
@@ -170,6 +187,11 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 		}
 
 		if !shared.StringInSlice(event.Type, listener.messageTypes) {
+			continue
+		}
+
+		// If the event doesn't come from this member and has been excluded by listener, don't deliver it.
+		if eventSource != EventSourceLocal && shared.StringInSlice(event.Location, listener.excludeLocations) {
 			continue
 		}
 
@@ -205,8 +227,8 @@ func (s *Server) broadcast(event api.Event, eventSource EventSource) error {
 type Listener struct {
 	listenerCommon
 
-	location       string
-	allProjects    bool
-	projectName    string
-	excludeSources []EventSource
+	allProjects      bool
+	projectName      string
+	excludeSources   []EventSource
+	excludeLocations []string
 }

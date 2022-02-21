@@ -12,7 +12,7 @@ type Daemon struct {
 
 // newDaemon returns a new Daemon object with the given configuration.
 func newDaemon(debug, verbose bool) *Daemon {
-	lxdEvents := events.NewServer(debug, verbose)
+	lxdEvents := events.NewServer(debug, verbose, nil)
 
 	return &Daemon{
 		events: lxdEvents,

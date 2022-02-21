@@ -4848,6 +4848,13 @@ definitions:
         example: false
         type: boolean
         x-go-name: ServerClustered
+      server_event_mode:
+        description: |-
+          Mode that the event distribution subsystem is operating in on this server.
+          Either "full-mesh", "hub-server" or "hub-client".
+        example: full-mesh
+        type: string
+        x-go-name: ServerEventMode
       server_name:
         description: Server hostname
         example: castiana
