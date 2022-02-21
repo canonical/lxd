@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/validate"
 )
 
 // ValidName checks the ACL name is valid.
@@ -19,7 +20,7 @@ func ValidName(name string) error {
 	}
 
 	// Ensures we can differentiate an ACL name from an IP in rules that reference this ACL.
-	err := shared.ValidHostname(name)
+	err := validate.IsHostname(name)
 	if err != nil {
 		return err
 	}
