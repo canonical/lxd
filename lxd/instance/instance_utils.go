@@ -34,6 +34,7 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -845,7 +846,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 func ValidName(instanceName string, isSnapshot bool) error {
 	if isSnapshot {
 		parentName, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
-		err := shared.ValidHostname(parentName)
+		err := validate.IsHostname(parentName)
 		if err != nil {
 			return errors.Wrap(err, "Invalid instance name")
 		}
@@ -859,7 +860,7 @@ func ValidName(instanceName string, isSnapshot bool) error {
 			return fmt.Errorf("The character %q is reserved for snapshots", shared.SnapshotDelimiter)
 		}
 
-		err := shared.ValidHostname(instanceName)
+		err := validate.IsHostname(instanceName)
 		if err != nil {
 			return errors.Wrap(err, "Invalid instance name")
 		}
