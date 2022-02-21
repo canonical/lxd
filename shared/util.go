@@ -645,6 +645,7 @@ func Uint64InSlice(key uint64, list []uint64) bool {
 	return false
 }
 
+// IsTrue returns true if value is "true", "1", "yes" or "on" (case insensitive).
 func IsTrue(value string) bool {
 	return StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
 }
