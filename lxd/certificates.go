@@ -482,12 +482,16 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	trusted, _, protocol, err := d.Authenticate(nil, r)
+	trusted, _, _, err := d.Authenticate(nil, r)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	if !trusted || (protocol == "candid" && !rbac.UserIsAdmin(r)) {
+	if !rbac.UserIsAdmin(r) {
+		if trusted {
+			return response.BadRequest(fmt.Errorf("Client is already trusted"))
+		}
+
 		if req.Password != "" {
 			// Check if cluster member join token supplied as password.
 			joinToken, err := clusterMemberJoinTokenDecode(req.Password)
