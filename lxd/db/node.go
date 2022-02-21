@@ -33,12 +33,17 @@ const ClusterRoleDatabaseStandBy = ClusterRole("database-standby")
 // ClusterRoleDatabaseLeader represents the database leader role in a cluster.
 const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 
+// ClusterRoleEventHub represents a cluster member who operates as an event hub.
+const ClusterRoleEventHub = ClusterRole("event-hub")
+
 // ClusterRoles maps role ids into human-readable names.
 //
 // Note: the database role is currently stored directly in the raft
 // configuration which acts as single source of truth for it. This map should
 // only contain LXD-specific cluster roles.
-var ClusterRoles = map[int]ClusterRole{}
+var ClusterRoles = map[int]ClusterRole{
+	1: ClusterRoleEventHub,
+}
 
 // Numeric type codes identifying different cluster member states.
 const (
@@ -56,7 +61,7 @@ type NodeInfo struct {
 	Schema        int               // Schema version of the LXD code running the node
 	APIExtensions int               // Number of API extensions of the LXD code running on the node
 	Heartbeat     time.Time         // Timestamp of the last heartbeat
-	Roles         []string          // List of cluster roles
+	Roles         []ClusterRole     // List of cluster roles
 	Architecture  int               // Node architecture
 	State         int               // Node state
 	Config        map[string]string // Configuration for the node
@@ -141,7 +146,12 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	result.URL = fmt.Sprintf("https://%s", n.Address)
 	result.Database = false
 	result.Config = n.Config
-	result.Roles = n.Roles
+
+	result.Roles = make([]string, 0, len(n.Roles))
+	for _, r := range n.Roles {
+		result.Roles = append(result.Roles, string(r))
+	}
+
 	result.Groups = n.Groups
 
 	// Check if node is the leader node
@@ -432,7 +442,7 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles"
 
-	nodeRoles := map[int64][]string{}
+	nodeRoles := map[int64][]ClusterRole{}
 	rows, err := c.tx.Query(sql)
 	if err != nil {
 		// Don't fail on a missing table, we need to handle updates
@@ -451,12 +461,12 @@ func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]No
 			}
 
 			if nodeRoles[nodeID] == nil {
-				nodeRoles[nodeID] = []string{}
+				nodeRoles[nodeID] = []ClusterRole{}
 			}
 
 			roleName := string(ClusterRoles[role])
 
-			nodeRoles[nodeID] = append(nodeRoles[nodeID], roleName)
+			nodeRoles[nodeID] = append(nodeRoles[nodeID], ClusterRole(roleName))
 		}
 
 		err = rows.Err()
@@ -648,54 +658,6 @@ func (c *ClusterTx) UpdateNodeConfig(id int64, config map[string]string) error {
 	return nil
 }
 
-// CreateNodeRole adds a role to the node.
-func (c *ClusterTx) CreateNodeRole(id int64, role ClusterRole) error {
-	// Translate role names to ids
-	roleID := -1
-	for k, v := range ClusterRoles {
-		if v == role {
-			roleID = k
-			break
-		}
-	}
-
-	if roleID < 0 {
-		return fmt.Errorf("Invalid role: %v", role)
-	}
-
-	// Update the database record
-	_, err := c.tx.Exec("INSERT INTO nodes_roles (node_id, role) VALUES (?, ?)", id, roleID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// RemoveNodeRole removes a role from the node.
-func (c *ClusterTx) RemoveNodeRole(id int64, role ClusterRole) error {
-	// Translate role names to ids
-	roleID := -1
-	for k, v := range ClusterRoles {
-		if v == role {
-			roleID = k
-			break
-		}
-	}
-
-	if roleID < 0 {
-		return fmt.Errorf("Invalid role: %v", role)
-	}
-
-	// Update the database record
-	_, err := c.tx.Exec("DELETE FROM nodes_roles WHERE node_id=? AND role=?", id, roleID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // UpdateNodeRoles changes the list of roles on a member.
 func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 	getRoleID := func(role ClusterRole) (int, error) {
@@ -705,7 +667,7 @@ func (c *ClusterTx) UpdateNodeRoles(id int64, roles []ClusterRole) error {
 			}
 		}
 
-		return -1, fmt.Errorf("Invalid cluster role '%s'", role)
+		return -1, fmt.Errorf("Invalid cluster role %q", role)
 	}
 
 	// Translate role names to ids
