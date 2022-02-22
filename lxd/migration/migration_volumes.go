@@ -28,6 +28,7 @@ type VolumeSourceArgs struct {
 	Data              interface{} // Optional store to persist storage driver state between MultiSync phases.
 	ContentType       string
 	AllowInconsistent bool
+	Refresh           bool
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
