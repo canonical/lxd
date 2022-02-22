@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -23,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -412,7 +414,7 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // VM Format A: Separate metadata tarball and root qcow2 file.
 // 	- Unpack metadata tarball into mountPath.
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
-func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend, runningInUserns bool, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
+func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend bool, sysOS *sys.OS, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"imageFile": imageFile, "vol": vol.Name()})
 
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
@@ -424,7 +426,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		rootfsPath := filepath.Join(destPath, "rootfs")
 
 		// Unpack the main image file.
-		err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
+		err := archive.Unpack(imageFile, destPath, blockBackend, sysOS, tracker)
 		if err != nil {
 			return -1, err
 		}
@@ -436,7 +438,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 				return -1, fmt.Errorf("Error creating rootfs directory")
 			}
 
-			err = shared.Unpack(imageRootfsFile, rootfsPath, blockBackend, runningInUserns, tracker)
+			err = archive.Unpack(imageRootfsFile, rootfsPath, blockBackend, sysOS, tracker)
 			if err != nil {
 				return -1, err
 			}
@@ -532,7 +534,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 
 	if shared.PathExists(imageRootfsFile) {
 		// Unpack the main image file.
-		err := shared.Unpack(imageFile, destPath, blockBackend, runningInUserns, tracker)
+		err := archive.Unpack(imageFile, destPath, blockBackend, sysOS, tracker)
 		if err != nil {
 			return -1, err
 		}
@@ -551,7 +553,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		defer os.RemoveAll(tempDir)
 
 		// Unpack the whole image.
-		err = shared.Unpack(imageFile, tempDir, blockBackend, runningInUserns, tracker)
+		err = archive.Unpack(imageFile, tempDir, blockBackend, sysOS, tracker)
 		if err != nil {
 			return -1, err
 		}
