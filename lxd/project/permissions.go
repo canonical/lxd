@@ -1386,8 +1386,7 @@ func FilterUsedBy(r *http.Request, entries []string) []string {
 
 // Return true if particular restriction in project is violated
 func projectHasRestriction(project *db.Project, restrictionKey string, blockValue string) bool {
-	restricted := project.Config["restricted"]
-	if !shared.IsTrue(restricted) {
+	if shared.IsFalseOrEmpty(project.Config["restricted"]) {
 		return false
 	}
 
