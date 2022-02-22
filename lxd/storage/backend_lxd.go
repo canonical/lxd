@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
@@ -860,14 +859,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 		defer src.Unfreeze()
 
-		// Sync the filesystem.
-		rootfsFile, err := os.Open(src.RootfsPath())
-		if err != nil {
-			return err
-		}
-
-		unix.Syncfs(int(rootfsFile.Fd()))
-		rootfsFile.Close()
+		// Attempt to sync the filesystem.
+		filesystem.SyncFS(src.RootfsPath())
 	}
 
 	revert.Add(func() { b.DeleteInstance(inst, op) })
@@ -1982,14 +1975,8 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 
 		defer inst.Unfreeze()
 
-		// Sync the filesystem.
-		rootfsFile, err := os.Open(inst.RootfsPath())
-		if err != nil {
-			return err
-		}
-
-		unix.Syncfs(int(rootfsFile.Fd()))
-		rootfsFile.Close()
+		// Attempt to sync the filesystem.
+		filesystem.SyncFS(inst.RootfsPath())
 	}
 
 	err = b.driver.MigrateVolume(vol, conn, args, op)
@@ -2257,14 +2244,8 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		}
 		defer src.Unfreeze()
 
-		// Sync the filesystem.
-		rootfsFile, err := os.Open(src.RootfsPath())
-		if err != nil {
-			return err
-		}
-
-		unix.Syncfs(int(rootfsFile.Fd()))
-		rootfsFile.Close()
+		// Attempt to sync the filesystem.
+		filesystem.SyncFS(src.RootfsPath())
 	}
 
 	isSnap := inst.IsSnapshot()
