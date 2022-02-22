@@ -85,7 +85,7 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, c in
 }}
 
 var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	if !shared.IsTrue(c.ExpandedConfig()["security.devlxd.images"]) {
+	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.devlxd.images"]) {
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
 

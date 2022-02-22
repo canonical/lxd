@@ -173,7 +173,7 @@ func (d *ceph) Create() error {
 	} else {
 		ok := d.HasVolume(placeholderVol)
 		if ok {
-			if d.config["ceph.osd.force_reuse"] == "" || !shared.IsTrue(d.config["ceph.osd.force_reuse"]) {
+			if shared.IsFalseOrEmpty(d.config["ceph.osd.force_reuse"]) {
 				return fmt.Errorf("Pool '%s' in cluster '%s' seems to be in use by another LXD instance. Use 'ceph.osd.force_reuse=true' to force", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
 			}
 
@@ -356,7 +356,7 @@ func (d *ceph) MigrationTypes(contentType ContentType, refresh bool) []migration
 
 	// Do not pass compression argument to rsync if the associated
 	// config key, that is rsync.compression, is set to false.
-	if d.Config()["rsync.compression"] != "" && !shared.IsTrue(d.Config()["rsync.compression"]) {
+	if shared.IsFalse(d.Config()["rsync.compression"]) {
 		rsyncFeatures = []string{"delete", "bidirectional"}
 	} else {
 		rsyncFeatures = []string{"delete", "compress", "bidirectional"}

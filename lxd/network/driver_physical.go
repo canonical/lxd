@@ -200,7 +200,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 
 	// Record if we created this device or not (if we have not already recorded that we created it previously),
 	// so it can be removed on stop. This way we won't overwrite the setting on LXD restart.
-	if !shared.IsTrue(n.config["volatile.last_state.created"]) {
+	if shared.IsFalseOrEmpty(n.config["volatile.last_state.created"]) {
 		n.config["volatile.last_state.created"] = fmt.Sprintf("%t", created)
 		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			return tx.UpdateNetwork(n.id, n.description, n.config)

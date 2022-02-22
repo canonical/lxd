@@ -141,7 +141,7 @@ func (d *common) MigrationTypes(contentType ContentType, refresh bool) []migrati
 
 	// Do not pass compression argument to rsync if the associated
 	// config key, that is rsync.compression, is set to false.
-	if d.Config()["rsync.compression"] != "" && !shared.IsTrue(d.Config()["rsync.compression"]) {
+	if shared.IsFalse(d.Config()["rsync.compression"]) {
 		rsyncFeatures = []string{"xattrs", "delete", "bidirectional"}
 	} else {
 		rsyncFeatures = []string{"xattrs", "delete", "compress", "bidirectional"}

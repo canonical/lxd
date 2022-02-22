@@ -427,7 +427,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		addressKey := fmt.Sprintf("%s.address", keyPrefix)
 		netSubnet := netSubnets[addressKey]
 
-		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && netSubnet != nil {
+		if shared.IsFalseOrEmpty(config[fmt.Sprintf("%s.nat", keyPrefix)]) && netSubnet != nil {
 			// Add to list to check for conflicts.
 			externalSubnets = append(externalSubnets, netSubnet)
 		}
@@ -1655,7 +1655,7 @@ func (n *ovn) allowedUplinkNetworks(p *db.Project) ([]string, error) {
 	}
 
 	// If project is not restricted, return full network list.
-	if !shared.IsTrue(p.Config["restricted"]) {
+	if shared.IsFalseOrEmpty(p.Config["restricted"]) {
 		return uplinkNetworkNames, nil
 	}
 
@@ -3633,7 +3633,7 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 // DHCPv4Subnet returns the DHCPv4 subnet (if DHCP is enabled on network).
 func (n *ovn) DHCPv4Subnet() *net.IPNet {
 	// DHCP is disabled on this network (an empty ipv4.dhcp setting indicates enabled by default).
-	if n.config["ipv4.dhcp"] != "" && !shared.IsTrue(n.config["ipv4.dhcp"]) {
+	if shared.IsFalse(n.config["ipv4.dhcp"]) {
 		return nil
 	}
 
@@ -3648,7 +3648,7 @@ func (n *ovn) DHCPv4Subnet() *net.IPNet {
 // DHCPv6Subnet returns the DHCPv6 subnet (if DHCP or SLAAC is enabled on network).
 func (n *ovn) DHCPv6Subnet() *net.IPNet {
 	// DHCP is disabled on this network (an empty ipv6.dhcp setting indicates enabled by default).
-	if n.config["ipv6.dhcp"] != "" && !shared.IsTrue(n.config["ipv6.dhcp"]) {
+	if shared.IsFalse(n.config["ipv6.dhcp"]) {
 		return nil
 	}
 
@@ -3674,7 +3674,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 		for _, netInfo := range networks {
 			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 				// If NAT is disabled, then network subnet is an external subnet.
-				if !shared.IsTrue(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
+				if shared.IsFalseOrEmpty(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
 					key := fmt.Sprintf("%s.address", keyPrefix)
 
 					_, ipNet, err := net.ParseCIDR(netInfo.Config[key])
