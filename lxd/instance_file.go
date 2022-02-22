@@ -1,28 +1,38 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/sftp"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
 
 func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
+	projectName := projectParam(r)
+	name := mux.Vars(r)["name"]
+
+	// Redirect to correct server if needed.
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
 		return response.SmartError(err)
 	}
-
-	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
 
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
@@ -32,23 +42,29 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
+	// Load the instance.
+	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Parse and cleanup the path.
 	path := r.FormValue("path")
 	if path == "" {
 		return response.BadRequest(fmt.Errorf("Missing path argument"))
 	}
 
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
 	switch r.Method {
 	case "GET":
-		return instanceFileGet(c, path, r)
+		return instanceFileGet(d.State(), inst, path, r)
 	case "POST":
-		return instanceFilePost(c, path, r)
+		return instanceFilePost(d.State(), inst, path, r)
 	case "DELETE":
-		return instanceFileDelete(c, path, r)
+		return instanceFileDelete(d.State(), inst, path, r)
 	default:
 		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
 	}
@@ -118,49 +134,113 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/NotFound"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
-func instanceFileGet(c instance.Instance, path string, r *http.Request) response.Response {
-	/*
-	 * Copy out of the ns to a temporary file, and then use that to serve
-	 * the request from. This prevents us from having to worry about stuff
-	 * like people breaking out of the container root by symlinks or
-	 * ../../../s etc. in the path, since we can just rely on the kernel
-	 * for correctness.
-	 */
-	temp, err := ioutil.TempFile("", "lxd_forkgetfile_")
+func instanceFileGet(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	// Get a SFTP client.
+	client, err := inst.FileSFTP()
 	if err != nil {
 		return response.InternalError(err)
 	}
-	defer temp.Close()
+	reverter.Add(func() { client.Close() })
 
-	// Pull the file from the container
-	uid, gid, mode, type_, dirEnts, err := c.FilePull(path, temp.Name())
+	// Get the file stats.
+	stat, err := client.Lstat(path)
 	if err != nil {
-		os.Remove(temp.Name())
 		return response.SmartError(err)
 	}
 
-	headers := map[string]string{
-		"X-LXD-uid":  fmt.Sprintf("%d", uid),
-		"X-LXD-gid":  fmt.Sprintf("%d", gid),
-		"X-LXD-mode": fmt.Sprintf("%04o", mode),
-		"X-LXD-type": type_,
+	fileType := "file"
+	if stat.Mode().IsDir() {
+		fileType = "directory"
+	} else if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+		fileType = "symlink"
 	}
 
-	if type_ == "file" || type_ == "symlink" {
-		// Make a file response struct
+	fs := stat.Sys().(*sftp.FileStat)
+
+	// Prepare the response.
+	headers := map[string]string{
+		"X-LXD-uid":  fmt.Sprintf("%d", fs.UID),
+		"X-LXD-gid":  fmt.Sprintf("%d", fs.GID),
+		"X-LXD-mode": fmt.Sprintf("%04o", stat.Mode().Perm()),
+		"X-LXD-type": fileType,
+	}
+
+	if fileType == "file" {
+		// Open the file.
+		file, err := client.Open(path)
+		if err != nil {
+			return response.SmartError(err)
+		}
+		reverter.Add(func() { file.Close() })
+
+		// Setup cleanup logic.
+		cleanup := reverter.Clone()
+		reverter.Success()
+
+		// Make a file response struct.
 		files := make([]response.FileResponseEntry, 1)
 		files[0].Identifier = filepath.Base(path)
-		files[0].Path = temp.Name()
 		files[0].Filename = filepath.Base(path)
-		files[0].Cleanup = func() { os.Remove(temp.Name()) }
+		files[0].File = file
+		files[0].FileSize = stat.Size()
+		files[0].FileModified = stat.ModTime()
+		files[0].Cleanup = func() {
+			cleanup.Fail()
+		}
 
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, log.Ctx{"path": path}))
 		return response.FileResponse(r, files, headers)
-	} else if type_ == "directory" {
-		os.Remove(temp.Name())
+	} else if fileType == "symlink" {
+		// Find symlink target.
+		target, err := client.ReadLink(path)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// If not an absolute symlink, need to mangle to something
+		// relative to the source path. This is required because there
+		// is no sftp function to get the final target path and RealPath doesn't
+		// allow specifying the path to resolve from.
+		if !strings.HasPrefix(target, "/") {
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+
+		// Convert to absolute path.
+		target, err = client.RealPath(target)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Make a file response struct.
+		files := make([]response.FileResponseEntry, 1)
+		files[0].Identifier = filepath.Base(path)
+		files[0].Filename = filepath.Base(path)
+		files[0].File = bytes.NewReader([]byte(target))
+		files[0].FileModified = time.Now()
+		files[0].FileSize = int64(len(target))
+
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, log.Ctx{"path": path}))
+		return response.FileResponse(r, files, headers)
+	} else if fileType == "directory" {
+		dirEnts := []string{}
+
+		// List the directory.
+		entries, err := client.ReadDir(path)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		for _, entry := range entries {
+			dirEnts = append(dirEnts, entry.Name())
+		}
+
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, log.Ctx{"path": path}))
 		return response.SyncResponseHeaders(true, dirEnts, headers)
 	} else {
-		os.Remove(temp.Name())
-		return response.InternalError(fmt.Errorf("bad file type %s", type_))
+		return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 	}
 }
 
@@ -230,7 +310,14 @@ func instanceFileGet(c instance.Instance, path string, r *http.Request) response
 //     $ref: "#/responses/NotFound"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
-func instanceFilePost(c instance.Instance, path string, r *http.Request) response.Response {
+func instanceFilePost(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+	// Get a SFTP client.
+	client, err := inst.FileSFTP()
+	if err != nil {
+		return response.InternalError(err)
+	}
+	defer client.Close()
+
 	// Extract file ownership and mode from headers
 	uid, gid, mode, type_, write := shared.ParseLXDFileHeaders(r.Header)
 
@@ -238,45 +325,109 @@ func instanceFilePost(c instance.Instance, path string, r *http.Request) respons
 		return response.BadRequest(fmt.Errorf("Bad file write mode: %s", write))
 	}
 
+	// Check if the file already exists.
+	_, err = client.Stat(path)
+	exists := err == nil
+
 	if type_ == "file" {
-		// Write file content to a tempfile
-		temp, err := ioutil.TempFile("", "lxd_forkputfile_")
-		if err != nil {
-			return response.InternalError(err)
-		}
-		defer func() {
-			temp.Close()
-			os.Remove(temp.Name())
-		}()
+		fileMode := os.O_RDWR
 
-		_, err = io.Copy(temp, r.Body)
-		if err != nil {
-			return response.InternalError(err)
+		if write == "overwrite" {
+			fileMode |= os.O_CREATE | os.O_TRUNC
 		}
 
-		// Transfer the file into the container
-		err = c.FilePush("file", temp.Name(), path, uid, gid, mode, write)
+		// Open/create the file.
+		file, err := client.OpenFile(path, fileMode)
+		if err != nil {
+			return response.SmartError(err)
+		}
+		defer file.Close()
+
+		// Go to the end of the file.
+		_, err = file.Seek(0, io.SeekEnd)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
+		// Transfer the file into the instance.
+		_, err = io.Copy(file, r.Body)
+		if err != nil {
+			return response.InternalError(err)
+		}
+
+		if !exists {
+			// Set file permissions.
+			if mode >= 0 {
+				err = file.Chmod(fs.FileMode(mode))
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+
+			// Set file ownership.
+			if uid >= 0 || gid >= 0 {
+				err = file.Chown(int(uid), int(gid))
+				if err != nil {
+					return response.SmartError(err)
+				}
+			}
+		}
+
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, log.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	} else if type_ == "symlink" {
+		// Figure out target.
 		target, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			return response.InternalError(err)
 		}
 
-		err = c.FilePush("symlink", string(target), path, uid, gid, mode, write)
-		if err != nil {
-			return response.InternalError(err)
+		// Check if already setup.
+		currentTarget, err := client.ReadLink(path)
+		if err == nil && currentTarget == string(target) {
+			return response.EmptySyncResponse
 		}
+
+		// Create the symlink.
+		err = client.Symlink(string(target), path)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, log.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	} else if type_ == "directory" {
-		err := c.FilePush("directory", "", path, uid, gid, mode, write)
-		if err != nil {
-			return response.InternalError(err)
+		// Check if it already exists.
+		if exists {
+			return response.EmptySyncResponse
 		}
+
+		// Create the directory.
+		err = client.Mkdir(path)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Set file permissions.
+		if mode < 0 {
+			// Default mode for directories (sftp doesn't know about umask).
+			mode = 0750
+		}
+
+		err = client.Chmod(path, fs.FileMode(mode))
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		// Set file ownership.
+		if uid >= 0 || gid >= 0 {
+			err = client.Chown(path, int(uid), int(gid))
+			if err != nil {
+				return response.SmartError(err)
+			}
+		}
+
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, log.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	} else {
 		return response.BadRequest(fmt.Errorf("Bad file type: %s", type_))
@@ -314,11 +465,20 @@ func instanceFilePost(c instance.Instance, path string, r *http.Request) respons
 //     $ref: "#/responses/NotFound"
 //   "500":
 //     $ref: "#/responses/InternalServerError"
-func instanceFileDelete(c instance.Instance, path string, r *http.Request) response.Response {
-	err := c.FileRemove(path)
+func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+	// Get a SFTP client.
+	client, err := inst.FileSFTP()
+	if err != nil {
+		return response.InternalError(err)
+	}
+	defer client.Close()
+
+	// Delete the file.
+	err = client.Remove(path)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileDeleted.Event(inst, log.Ctx{"path": path}))
 	return response.EmptySyncResponse
 }
