@@ -655,6 +655,7 @@ func IsTrueOrEmpty(value string) bool {
 	return value == "" || IsTrue(value)
 }
 
+// IsFalse returns true if value is "false", "0", "no" or "off" (case insensitive).
 func IsFalse(value string) bool {
 	return StringInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
 }
