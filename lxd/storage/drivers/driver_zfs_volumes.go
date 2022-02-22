@@ -516,8 +516,8 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 			return err
 		}
 
-		// If using "zfs.clone_copy" delete the snapshot at the end.
-		if (d.config["zfs.clone_copy"] != "" && !shared.IsTrue(d.config["zfs.clone_copy"])) || len(snapshots) > 0 {
+		// If zfs.clone_copy is disabled delete the snapshot at the end.
+		if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
 			// Delete the snapshot at the end.
 			defer shared.RunCommand("zfs", "destroy", srcSnapshot)
 		} else {
@@ -529,7 +529,7 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 	}
 
 	// If zfs.clone_copy is disabled or source volume has snapshots, then use full copy mode.
-	if (d.config["zfs.clone_copy"] != "" && !shared.IsTrue(d.config["zfs.clone_copy"])) || len(snapshots) > 0 {
+	if shared.IsFalse(d.config["zfs.clone_copy"]) || len(snapshots) > 0 {
 		snapName := strings.SplitN(srcSnapshot, "@", 2)[1]
 
 		// Send/receive the snapshot.
