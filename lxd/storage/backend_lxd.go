@@ -77,6 +77,11 @@ func (b *lxdBackend) LocalStatus() string {
 	return db.StoragePoolStateToAPIStatus(node.State)
 }
 
+// ToAPI returns the storage pool as an API representation.
+func (b *lxdBackend) ToAPI() api.StoragePool {
+	return b.db
+}
+
 // Driver returns the storage pool driver.
 func (b *lxdBackend) Driver() drivers.Driver {
 	return b.driver
