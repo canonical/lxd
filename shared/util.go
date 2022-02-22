@@ -649,6 +649,11 @@ func IsTrue(value string) bool {
 	return StringInSlice(strings.ToLower(value), []string{"true", "1", "yes", "on"})
 }
 
+// IsTrueOrEmpty returns true if value is empty or if IsTrue() returns true.
+func IsTrueOrEmpty(value string) bool {
+	return value == "" || IsTrue(value)
+}
+
 func IsFalse(value string) bool {
 	return StringInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
 }
