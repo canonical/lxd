@@ -516,6 +516,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	volSourceArgs.MigrationType = migrationTypes[0]
 	volSourceArgs.Snapshots = sendSnapshotNames
 	volSourceArgs.TrackProgress = true
+	volSourceArgs.Refresh = respHeader.GetRefresh()
 
 	err = pool.MigrateInstance(s.instance, &shared.WebsocketIO{Conn: s.fsConn}, volSourceArgs, migrateOp)
 	if err != nil {
