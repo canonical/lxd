@@ -12,6 +12,9 @@ const StoragePoolStatusErrored = "Errored"
 // StoragePoolStatusUnknown storage pool is in unknown status.
 const StoragePoolStatusUnknown = "Unknown"
 
+// StoragePoolStatusUnvailable storage pool failed to initialize.
+const StoragePoolStatusUnvailable = "Unavailable"
+
 // StoragePoolsPost represents the fields of a new LXD storage pool
 //
 // swagger:model
