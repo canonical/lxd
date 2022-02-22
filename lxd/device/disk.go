@@ -1362,7 +1362,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 	var nextIdmap *idmap.IdmapSet
 	nextJSONMap := "[]"
-	if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
+	if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
 		c := d.inst.(instance.Container)
 		// Get the container's idmap.
 		if c.IsRunning() {
@@ -1386,7 +1386,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	if !nextIdmap.Equals(lastIdmap) {
 		d.logger.Debug("Shifting storage volume")
 
-		if !shared.IsTrue(poolVolumePut.Config["security.shifted"]) {
+		if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
 			volumeUsedBy := []instance.Instance{}
 			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, volume, true, func(dbInst db.Instance, project db.Project, profiles []api.Profile, usedByDevices []string) error {
 				inst, err := instance.Load(d.state, db.InstanceToArgs(&dbInst), profiles)
