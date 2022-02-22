@@ -276,7 +276,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 	}
 
 	// If "features.images" is not enabled, the budget is unlimited.
-	if !shared.IsTrue(info.Project.Config["features.images"]) {
+	if shared.IsFalse(info.Project.Config["features.images"]) {
 		return -1, nil
 	}
 
