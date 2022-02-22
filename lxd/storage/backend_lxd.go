@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -36,6 +37,9 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 )
+
+var unavailablePools = make(map[string]struct{})
+var unavailablePoolsMu = sync.Mutex{}
 
 type lxdBackend struct {
 	driver drivers.Driver
@@ -325,6 +329,15 @@ func (b *lxdBackend) Mount() (bool, error) {
 	logger.Debug("Mount started")
 	defer logger.Debug("Mount finished")
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() {
+		unavailablePoolsMu.Lock()
+		unavailablePools[b.Name()] = struct{}{}
+		unavailablePoolsMu.Unlock()
+	})
+
 	path := drivers.GetPoolMountPath(b.name)
 
 	// Create the storage path if needed.
@@ -334,9 +347,6 @@ func (b *lxdBackend) Mount() (bool, error) {
 			return false, fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
 		}
 	}
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	ourMount, err := b.driver.Mount()
 	if err != nil {
@@ -354,6 +364,12 @@ func (b *lxdBackend) Mount() (bool, error) {
 	}
 
 	revert.Success()
+
+	// Ensure pool is marked as available now its mounted.
+	unavailablePoolsMu.Lock()
+	delete(unavailablePools, b.Name())
+	unavailablePoolsMu.Unlock()
+
 	return ourMount, nil
 }
 
