@@ -173,7 +173,7 @@ func (d *ceph) Create() error {
 	} else {
 		ok := d.HasVolume(placeholderVol)
 		if ok {
-			if d.config["ceph.osd.force_reuse"] == "" || !shared.IsTrue(d.config["ceph.osd.force_reuse"]) {
+			if shared.IsFalseOrEmpty(d.config["ceph.osd.force_reuse"]) {
 				return fmt.Errorf("Pool '%s' in cluster '%s' seems to be in use by another LXD instance. Use 'ceph.osd.force_reuse=true' to force", d.config["ceph.osd.pool_name"], d.config["ceph.cluster_name"])
 			}
 
