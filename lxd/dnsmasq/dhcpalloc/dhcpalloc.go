@@ -270,7 +270,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 	netConfig := t.opts.Network.Config()
 
 	// Try using an EUI64 IP when in either SLAAC or DHCPv6 stateful mode without custom ranges.
-	if !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) || netConfig["ipv6.dhcp.ranges"] == "" {
+	if shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) || netConfig["ipv6.dhcp.ranges"] == "" {
 		IP, err := eui64.ParseMAC(subnet.IP, mac)
 		if err != nil {
 			return nil, err
