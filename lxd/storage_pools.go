@@ -141,34 +141,51 @@ var storagePoolCmd = APIEndpoint{
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
-	pools, err := d.cluster.GetStoragePoolNames()
+	poolNames, err := d.cluster.GetStoragePoolNames()
 	if err != nil && err != db.ErrNoSuchObject {
+		return response.SmartError(err)
+	}
+
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
 		return response.SmartError(err)
 	}
 
 	resultString := []string{}
 	resultMap := []api.StoragePool{}
-	for _, pool := range pools {
+	for _, poolName := range poolNames {
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, pool))
+			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s", version.APIVersion, poolName))
 		} else {
-			_, pl, _, err := d.cluster.GetStoragePoolInAnyState(pool)
+			pool, err := storagePools.GetPoolByName(d.State(), poolName)
 			if err != nil {
-				continue
+				return response.SmartError(err)
 			}
 
 			// Get all users of the storage pool.
 			poolUsedBy := []string{}
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-				poolUsedBy, err = tx.GetStoragePoolUsedBy(pool, true)
+				poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName, true)
 				return err
 			})
 			if err != nil {
 				return response.SmartError(err)
 			}
-			pl.UsedBy = project.FilterUsedBy(r, poolUsedBy)
 
-			resultMap = append(resultMap, *pl)
+			poolAPI := pool.ToAPI()
+			poolAPI.UsedBy = project.FilterUsedBy(r, poolUsedBy)
+
+			// If no member is specified and the daemon is clustered, we omit the node-specific fields.
+			if clustered {
+				for _, key := range db.StoragePoolNodeConfigKeys {
+					delete(poolAPI.Config, key)
+				}
+			} else {
+				// Use local status if not clustered. To allow seeing unavailable pools.
+				poolAPI.Status = pool.LocalStatus()
+			}
+
+			resultMap = append(resultMap, poolAPI)
 		}
 	}
 
@@ -559,14 +576,18 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 
 	poolName := mux.Vars(r)["name"]
 
-	targetNode := queryParam(r, "target")
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	allNodes := false
-	if targetNode == "" {
+	if clustered && queryParam(r, "target") == "" {
 		allNodes = true
 	}
 
 	// Get the existing storage pool.
-	_, pool, _, err := d.cluster.GetStoragePoolInAnyState(poolName)
+	pool, err := storagePools.GetPoolByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -580,24 +601,23 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 	if err != nil {
 		return response.SmartError(err)
 	}
-	pool.UsedBy = project.FilterUsedBy(r, poolUsedBy)
 
-	clustered, err := cluster.Enabled(d.db)
-	if err != nil {
-		return response.SmartError(err)
-	}
+	poolAPI := pool.ToAPI()
+	poolAPI.UsedBy = project.FilterUsedBy(r, poolUsedBy)
 
-	// If no target node is specified and the daemon is clustered, we omit
-	// the node-specific fields.
-	if targetNode == "" && clustered {
+	// If no member is specified and the daemon is clustered, we omit the node-specific fields.
+	if allNodes {
 		for _, key := range db.StoragePoolNodeConfigKeys {
-			delete(pool.Config, key)
+			delete(poolAPI.Config, key)
 		}
+	} else {
+		// Use local status if not clustered. To allow seeing unavailable pools.
+		poolAPI.Status = pool.LocalStatus()
 	}
 
-	etag := []interface{}{pool.Name, pool.Driver, pool.Config}
+	etag := []interface{}{pool.Name, pool.Driver, poolAPI.Config}
 
-	return response.SyncResponseETag(true, &pool, etag)
+	return response.SyncResponseETag(true, &poolAPI, etag)
 }
 
 // swagger:operation PUT /1.0/storage-pools/{name} storage storage_pool_put
