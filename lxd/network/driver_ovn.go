@@ -1655,7 +1655,7 @@ func (n *ovn) allowedUplinkNetworks(p *db.Project) ([]string, error) {
 	}
 
 	// If project is not restricted, return full network list.
-	if !shared.IsTrue(p.Config["restricted"]) {
+	if shared.IsFalseOrEmpty(p.Config["restricted"]) {
 		return uplinkNetworkNames, nil
 	}
 
