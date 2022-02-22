@@ -563,7 +563,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 			continue
 		}
 
-		if !shared.IsTrue(container.ExpandedConfig()["security.idmap.isolated"]) {
+		if shared.IsFalseOrEmpty(container.ExpandedConfig()["security.idmap.isolated"]) {
 			continue
 		}
 
