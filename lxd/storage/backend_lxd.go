@@ -1322,10 +1322,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		bEndErrCh := make(chan error, 1)
 		go func() {
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
-				Name:          src.Name(),
-				Snapshots:     snapshotNames,
-				MigrationType: migrationTypes[0],
-				TrackProgress: true, // Do use a progress tracker on sender.
+				Name:              src.Name(),
+				Snapshots:         snapshotNames,
+				MigrationType:     migrationTypes[0],
+				TrackProgress:     true, // Do use a progress tracker on sender.
+				AllowInconsistent: allowInconsistent,
 			}, op)
 
 			if err != nil {
