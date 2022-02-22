@@ -292,8 +292,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 	records := []map[string]string{}
 
 	// Check if we should include NAT records.
-	val, ok := d.info.Config["network.nat"]
-	includeNAT := !ok || shared.IsTrue(val)
+	includeNAT := shared.IsTrueOrEmpty(d.info.Config["network.nat"])
 
 	// Load all networks for the zone.
 	networks, err := d.state.Cluster.GetNetworksForZone(d.projectName, d.info.Name)
@@ -315,11 +314,9 @@ func (d *zone) Content() (*strings.Builder, error) {
 		}
 
 		// Check whether what records to include.
-		val, _ = n.Config()["ipv4.nat"]
-		includeV4 := includeNAT || !shared.IsTrue(val)
-
-		val, _ = n.Config()["ipv6.nat"]
-		includeV6 := includeNAT || !shared.IsTrue(val)
+		netConfig := n.Config()
+		includeV4 := includeNAT || shared.IsFalseOrEmpty(netConfig["ipv4.nat"])
+		includeV6 := includeNAT || shared.IsFalseOrEmpty(netConfig["ipv6.nat"])
 
 		// Check if dealing with a reverse zone.
 		isReverse4 := strings.HasSuffix(d.info.Name, ip4Arpa)
