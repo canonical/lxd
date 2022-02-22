@@ -33,11 +33,7 @@ var errLVMNotFound = fmt.Errorf("Not found")
 // usesThinpool indicates whether the config specifies to use a thin pool or not.
 func (d *lvm) usesThinpool() bool {
 	// Default is to use a thinpool.
-	if d.config["lvm.use_thinpool"] == "" {
-		return true
-	}
-
-	return shared.IsTrue(d.config["lvm.use_thinpool"])
+	return shared.IsTrueOrEmpty(d.config["lvm.use_thinpool"])
 }
 
 // thinpoolName returns the thinpool volume to use.
