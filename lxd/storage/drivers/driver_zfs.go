@@ -477,28 +477,9 @@ func (d *zfs) MigrationTypes(contentType ContentType, refresh bool) []migration.
 		rsyncFeatures = []string{"xattrs", "delete", "compress", "bidirectional"}
 	}
 
-	// When performing a refresh, always use rsync. Using zfs send/receive
-	// here doesn't make sense since it would need to send everything again
-	// which defeats the purpose of a refresh.
-	if refresh {
-		var transportType migration.MigrationFSType
-
-		if contentType == ContentTypeBlock {
-			transportType = migration.MigrationFSType_BLOCK_AND_RSYNC
-		} else {
-			transportType = migration.MigrationFSType_RSYNC
-		}
-
-		return []migration.Type{
-			{
-				FSType:   transportType,
-				Features: rsyncFeatures,
-			},
-		}
-	}
-
 	// Detect ZFS features.
-	features := []string{}
+	features := []string{migration.ZFSFeatureMigrationHeader}
+
 	if len(zfsVersion) >= 3 && zfsVersion[0:3] != "0.6" {
 		features = append(features, "compress")
 	}
