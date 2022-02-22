@@ -660,6 +660,11 @@ func IsFalse(value string) bool {
 	return StringInSlice(strings.ToLower(value), []string{"false", "0", "no", "off"})
 }
 
+// IsFalseOrEmpty returns true if value is empty or if IsFalse() returns true.
+func IsFalseOrEmpty(value string) bool {
+	return value == "" || IsFalse(value)
+}
+
 func IsUserConfig(key string) bool {
 	return strings.HasPrefix(key, "user.")
 }
