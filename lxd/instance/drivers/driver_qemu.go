@@ -966,7 +966,7 @@ func (d *qemu) validateStartup(stateful bool) error {
 	}
 
 	// Cannot perform stateful start unless config is appropriately set.
-	if stateful && !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+	if stateful && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
 		return fmt.Errorf("Stateful start requires migration.stateful to be set to true")
 	}
 
@@ -3353,7 +3353,7 @@ func (d *qemu) Stop(stateful bool) error {
 	}
 
 	// Check for stateful.
-	if stateful && !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+	if stateful && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
 		return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
 	}
 
@@ -3488,7 +3488,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 	// Deal with state.
 	if stateful {
 		// Confirm the instance has stateful migration enabled.
-		if !shared.IsTrue(d.expandedConfig["migration.stateful"]) {
+		if shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
 			return fmt.Errorf("Stateful stop requires migration.stateful to be set to true")
 		}
 
