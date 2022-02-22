@@ -134,3 +134,16 @@ func IsMountPoint(path string) bool {
 
 	return true
 }
+
+// SyncFS will force a filesystem sync for the filesystem backing the provided path.
+func SyncFS(path string) error {
+	// Get us a file descriptor.
+	fsFile, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer fsFile.Close()
+
+	// Call SyncFS.
+	return unix.Syncfs(int(fsFile.Fd()))
+}
