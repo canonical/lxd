@@ -149,7 +149,7 @@ func (b *mockBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteC
 	return nil
 }
 
-func (b *mockBackend) RefreshInstance(i instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error {
 	return nil
 }
 
