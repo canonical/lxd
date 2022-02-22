@@ -411,7 +411,7 @@ func (d *zfs) Mount() (bool, error) {
 // Unmount unmounts the storage pool.
 func (d *zfs) Unmount() (bool, error) {
 	// Skip if zfs.export config is set to false
-	if d.config["zfs.export"] != "" && !shared.IsTrue(d.config["zfs.export"]) {
+	if shared.IsFalse(d.config["zfs.export"]) {
 		return false, nil
 	}
 
