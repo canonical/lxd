@@ -678,7 +678,7 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 
 	needed := false
 	for key, check := range keys {
-		if !shared.IsTrue(config[key]) {
+		if shared.IsFalseOrEmpty(config[key]) {
 			continue
 		}
 
@@ -1880,7 +1880,7 @@ func (s *Server) HandleBpfSyscall(c Instance, siov *Iovec) int {
 	defer logger.Debug("Handling bpf syscall", ctx)
 	var bpfCmd, bpfProgType, bpfAttachType C.int
 
-	if !shared.IsTrue(c.ExpandedConfig()["security.syscalls.intercept.bpf.devices"]) {
+	if shared.IsFalseOrEmpty(c.ExpandedConfig()["security.syscalls.intercept.bpf.devices"]) {
 		ctx["syscall_continue"] = "true"
 		ctx["syscall_handler_reason"] = fmt.Sprintf("No bpf policy specified")
 		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
@@ -2030,7 +2030,7 @@ func lxcSupportSeccompNotify(state *state.State) error {
 func MountSyscallFilter(config map[string]string) []string {
 	fs := []string{}
 
-	if !shared.IsTrue(config["security.syscalls.intercept.mount"]) {
+	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
 		return fs
 
 	}
@@ -2047,7 +2047,7 @@ func MountSyscallFilter(config map[string]string) []string {
 
 // SyscallInterceptMountFilter creates a new mount syscall interception filter
 func SyscallInterceptMountFilter(config map[string]string) (map[string]string, error) {
-	if !shared.IsTrue(config["security.syscalls.intercept.mount"]) {
+	if shared.IsFalseOrEmpty(config["security.syscalls.intercept.mount"]) {
 		return map[string]string{}, nil
 
 	}
