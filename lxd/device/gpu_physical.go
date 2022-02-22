@@ -185,7 +185,7 @@ func (d *gpuPhysical) startContainer() (*deviceConfig.RunConfig, error) {
 	// No need to mount additional nvidia non-card devices as the nvidia.runtime setting will do this for us.
 	if sawNvidia {
 		instanceConfig := d.inst.ExpandedConfig()
-		if !shared.IsTrue(instanceConfig["nvidia.runtime"]) {
+		if shared.IsFalseOrEmpty(instanceConfig["nvidia.runtime"]) {
 			nvidiaDevices, err := d.getNvidiaNonCardDevices()
 			if err != nil {
 				return nil, err

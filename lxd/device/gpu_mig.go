@@ -76,7 +76,7 @@ func (d *gpuMIG) validateConfig(instConf instance.ConfigReader) error {
 
 // validateEnvironment checks the runtime environment for correctness.
 func (d *gpuMIG) validateEnvironment() error {
-	if !shared.IsTrue(d.inst.ExpandedConfig()["nvidia.runtime"]) {
+	if shared.IsFalseOrEmpty(d.inst.ExpandedConfig()["nvidia.runtime"]) {
 		return fmt.Errorf("nvidia.runtime must be set to true for MIG GPUs to work")
 	}
 

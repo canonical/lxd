@@ -276,7 +276,7 @@ func GetImageSpaceBudget(tx *db.ClusterTx, projectName string) (int64, error) {
 	}
 
 	// If "features.images" is not enabled, the budget is unlimited.
-	if !shared.IsTrue(info.Project.Config["features.images"]) {
+	if shared.IsFalse(info.Project.Config["features.images"]) {
 		return -1, nil
 	}
 
@@ -476,7 +476,7 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 				return nil
 			}
 			containerConfigChecks["security.idmap.isolated"] = func(instanceValue string) error {
-				if restrictionValue == "isolated" && !shared.IsTrue(instanceValue) {
+				if restrictionValue == "isolated" && shared.IsFalseOrEmpty(instanceValue) {
 					return fmt.Errorf("Non-isolated containers are forbidden")
 				}
 
@@ -1386,8 +1386,7 @@ func FilterUsedBy(r *http.Request, entries []string) []string {
 
 // Return true if particular restriction in project is violated
 func projectHasRestriction(project *db.Project, restrictionKey string, blockValue string) bool {
-	restricted := project.Config["restricted"]
-	if !shared.IsTrue(restricted) {
+	if shared.IsFalseOrEmpty(project.Config["restricted"]) {
 		return false
 	}
 

@@ -567,7 +567,7 @@ func findIdmap(state *state.State, cName string, isolatedStr string, configBase 
 			continue
 		}
 
-		if !shared.IsTrue(container.ExpandedConfig()["security.idmap.isolated"]) {
+		if shared.IsFalseOrEmpty(container.ExpandedConfig()["security.idmap.isolated"]) {
 			continue
 		}
 
@@ -1155,7 +1155,7 @@ func (d *lxc) initLXC(config bool) error {
 
 		if d.state.OS.CGInfo.Supports(cgroup.MemorySwappiness, cg) {
 			// Configure the swappiness
-			if memorySwap != "" && !shared.IsTrue(memorySwap) {
+			if shared.IsFalse(memorySwap) {
 				err = cg.SetMemorySwappiness(0)
 				if err != nil {
 					return err
@@ -4440,7 +4440,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				if key == "limits.memory.swap" || key == "limits.memory.swap.priority" {
 					memorySwap := d.expandedConfig["limits.memory.swap"]
 					memorySwapPriority := d.expandedConfig["limits.memory.swap.priority"]
-					if memorySwap != "" && !shared.IsTrue(memorySwap) {
+					if shared.IsFalse(memorySwap) {
 						err = cg.SetMemorySwappiness(0)
 						if err != nil {
 							return err

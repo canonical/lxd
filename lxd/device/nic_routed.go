@@ -216,14 +216,14 @@ func (d *nicRouted) validateEnvironment() error {
 func (d *nicRouted) checkIPAvailability(parent string) error {
 	var addresses []net.IP
 
-	if !shared.IsFalse(d.config["ipv4.neighbor_probe"]) {
+	if shared.IsTrueOrEmpty(d.config["ipv4.neighbor_probe"]) {
 		ipv4Addrs := util.SplitNTrimSpace(d.config["ipv4.address"], ",", -1, true)
 		for _, addr := range ipv4Addrs {
 			addresses = append(addresses, net.ParseIP(addr))
 		}
 	}
 
-	if !shared.IsFalse(d.config["ipv6.neighbor_probe"]) {
+	if shared.IsTrueOrEmpty(d.config["ipv6.neighbor_probe"]) {
 		ipv6Addrs := util.SplitNTrimSpace(d.config["ipv6.address"], ",", -1, true)
 		for _, addr := range ipv6Addrs {
 			addresses = append(addresses, net.ParseIP(addr))

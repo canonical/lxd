@@ -899,7 +899,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 	}
 
 	for _, p := range projects {
-		if !shared.IsTrue(p.Config["features.networks"]) && p.Name != project.Default {
+		if shared.IsFalseOrEmpty(p.Config["features.networks"]) && p.Name != project.Default {
 			// Skip non-default projects that can't have their own networks so we don't try
 			// and add the same default project networks twice.
 			continue

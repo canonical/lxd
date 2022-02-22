@@ -91,7 +91,7 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 		return err
 	}
 
-	if instConf.Type() == instancetype.VM && !shared.IsTrue(d.config["nat"]) {
+	if instConf.Type() == instancetype.VM && shared.IsFalseOrEmpty(d.config["nat"]) {
 		return fmt.Errorf("Only NAT mode is supported for proxies on VM instances")
 	}
 

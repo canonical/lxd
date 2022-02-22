@@ -27,23 +27,30 @@ test_static_analysis() {
     fi
 
     ## Functions starting by empty line
-    OUT=$(grep -r "^$" -B1 . 2>/dev/null | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
+    OUT=$(grep -r --exclude-dir=.git "^$" -B1 . 2>/dev/null | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: Functions must not start with an empty line: ${OUT}"
       false
     fi
 
     ## Mixed tabs/spaces in scripts
-    OUT=$(grep -Pr '\t' . 2>/dev/null | grep '\.sh:' || true)
+    OUT=$(grep -Pr --exclude-dir=.git '\t' . 2>/dev/null | grep '\.sh:' || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: mixed tabs and spaces in script: ${OUT}"
       false
     fi
 
     ## Trailing space in scripts
-    OUT=$(grep -r " $" . 2>/dev/null | grep '\.sh:' || true)
+    OUT=$(grep -r --exclude-dir=.git " $" . 2>/dev/null | grep '\.sh:' || true)
     if [ -n "${OUT}" ]; then
       echo "ERROR: trailing space in script: ${OUT}"
+      false
+    fi
+
+    # Use of negated shared.Is(True|False)*() functions.
+    OUT=$(grep -Pr --exclude-dir=.git '!(shared\.)?Is(True|False).*\(' . 2>/dev/null || true)
+    if [ -n "${OUT}" ]; then
+      echo "ERROR: negated shared.Is(True|False)*() function in script: ${OUT}"
       false
     fi
 
@@ -127,7 +134,6 @@ test_static_analysis() {
 #      golint -set_exit_status shared/osarch/...
       golint -set_exit_status shared/simplestreams/...
       golint -set_exit_status shared/subprocess/...
-      golint -set_exit_status shared/subtest/...
       golint -set_exit_status shared/termios/...
       golint -set_exit_status shared/units/...
       golint -set_exit_status shared/version/...
