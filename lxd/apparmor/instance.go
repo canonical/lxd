@@ -166,7 +166,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			"namespace":        InstanceNamespaceName(inst),
 			"nesting":          shared.IsTrue(inst.ExpandedConfig()["security.nesting"]),
 			"raw":              rawContent,
-			"unprivileged":     !shared.IsTrue(inst.ExpandedConfig()["security.privileged"]) || sysOS.RunningInUserNS,
+			"unprivileged":     shared.IsFalseOrEmpty(inst.ExpandedConfig()["security.privileged"]) || sysOS.RunningInUserNS,
 		})
 		if err != nil {
 			return "", err
