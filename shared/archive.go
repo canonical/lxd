@@ -1,13 +1,10 @@
 package shared
 
 import (
-	"archive/tar"
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 )
 
 // DetectCompression detects compression from a file name.
@@ -59,45 +56,4 @@ func DetectCompressionFile(f io.Reader) ([]string, string, []string, error) {
 	default:
 		return nil, "", nil, fmt.Errorf("Unsupported compression")
 	}
-}
-
-// CompressedTarReader returns a tar reader from the supplied (optionally compressed) tarball stream.
-// The unpacker arguments are those returned by DetectCompressionFile().
-// The returned cancelFunc should be called when finished with reader to clean up any resources used. This can be
-// done before reading to the end of the tarball if desired.
-func CompressedTarReader(ctx context.Context, r io.ReadSeeker, unpacker []string) (*tar.Reader, context.CancelFunc, error) {
-	ctx, cancelFunc := context.WithCancel(ctx)
-
-	r.Seek(0, 0)
-	var tr *tar.Reader
-
-	if len(unpacker) > 0 {
-		cmd := exec.CommandContext(ctx, unpacker[0], unpacker[1:]...)
-		cmd.Stdin = r
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, cancelFunc, err
-		}
-
-		err = cmd.Start()
-		if err != nil {
-			stdout.Close()
-			return nil, cancelFunc, err
-		}
-
-		ctxCancelFunc := cancelFunc
-
-		// Now that unpacker process has started, wrap context cancel function with one that waits for
-		// the unpacker process to complete.
-		cancelFunc = func() {
-			ctxCancelFunc()
-			cmd.Wait()
-		}
-
-		tr = tar.NewReader(stdout)
-	} else {
-		tr = tar.NewReader(r)
-	}
-
-	return tr, cancelFunc, nil
 }
