@@ -129,7 +129,6 @@ func (c *ClusterTx) UpdateCertificateProjects(object Certificate) error {
 			return err
 		}
 
-		return nil
 	}
 	return nil
 }
