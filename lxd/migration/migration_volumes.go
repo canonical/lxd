@@ -69,6 +69,8 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 		for _, feature := range preferredType.Features {
 			if feature == "compress" {
 				features.Compress = &hasFeature
+			} else if feature == ZFSFeatureMigrationHeader {
+				features.MigrationHeader = &hasFeature
 			}
 		}
 
