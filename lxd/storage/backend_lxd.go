@@ -1389,6 +1389,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 				MigrationType:     migrationTypes[0],
 				TrackProgress:     true, // Do use a progress tracker on sender.
 				AllowInconsistent: allowInconsistent,
+				Refresh:           true, // Indicate to sender to use incremental streams.
 			}, op)
 
 			if err != nil {
