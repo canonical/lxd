@@ -100,7 +100,7 @@ func (d *disk) CanMigrate() bool {
 // isRequired indicates whether the supplied device config requires this device to start OK.
 func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
 	// Defaults to required.
-	if (devConfig["required"] == "" || shared.IsTrue(devConfig["required"])) && !shared.IsTrue(devConfig["optional"]) {
+	if shared.IsTrueOrEmpty(devConfig["required"]) && shared.IsFalseOrEmpty(devConfig["optional"]) {
 		return true
 	}
 
