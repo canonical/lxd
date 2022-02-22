@@ -427,7 +427,7 @@ func (n *ovn) Validate(config map[string]string) error {
 		addressKey := fmt.Sprintf("%s.address", keyPrefix)
 		netSubnet := netSubnets[addressKey]
 
-		if !shared.IsTrue(config[fmt.Sprintf("%s.nat", keyPrefix)]) && netSubnet != nil {
+		if shared.IsFalseOrEmpty(config[fmt.Sprintf("%s.nat", keyPrefix)]) && netSubnet != nil {
 			// Add to list to check for conflicts.
 			externalSubnets = append(externalSubnets, netSubnet)
 		}
@@ -3674,7 +3674,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 		for _, netInfo := range networks {
 			for _, keyPrefix := range []string{"ipv4", "ipv6"} {
 				// If NAT is disabled, then network subnet is an external subnet.
-				if !shared.IsTrue(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
+				if shared.IsFalseOrEmpty(netInfo.Config[fmt.Sprintf("%s.nat", keyPrefix)]) {
 					key := fmt.Sprintf("%s.address", keyPrefix)
 
 					_, ipNet, err := net.ParseCIDR(netInfo.Config[key])
