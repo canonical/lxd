@@ -359,7 +359,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	}
 
 	if opts.refresh {
-		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, op)
+		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, false, op)
 		if err != nil {
 			return nil, errors.Wrap(err, "Refresh instance")
 		}
