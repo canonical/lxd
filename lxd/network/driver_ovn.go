@@ -3633,7 +3633,7 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 // DHCPv4Subnet returns the DHCPv4 subnet (if DHCP is enabled on network).
 func (n *ovn) DHCPv4Subnet() *net.IPNet {
 	// DHCP is disabled on this network (an empty ipv4.dhcp setting indicates enabled by default).
-	if n.config["ipv4.dhcp"] != "" && !shared.IsTrue(n.config["ipv4.dhcp"]) {
+	if shared.IsFalse(n.config["ipv4.dhcp"]) {
 		return nil
 	}
 
@@ -3648,7 +3648,7 @@ func (n *ovn) DHCPv4Subnet() *net.IPNet {
 // DHCPv6Subnet returns the DHCPv6 subnet (if DHCP or SLAAC is enabled on network).
 func (n *ovn) DHCPv6Subnet() *net.IPNet {
 	// DHCP is disabled on this network (an empty ipv6.dhcp setting indicates enabled by default).
-	if n.config["ipv6.dhcp"] != "" && !shared.IsTrue(n.config["ipv6.dhcp"]) {
+	if shared.IsFalse(n.config["ipv6.dhcp"]) {
 		return nil
 	}
 
