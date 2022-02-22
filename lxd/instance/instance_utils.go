@@ -187,7 +187,7 @@ func ValidConfig(sysOS *sys.OS, config map[string]string, expanded bool, instanc
 		return err
 	}
 
-	if expanded && (config["security.privileged"] == "" || !shared.IsTrue(config["security.privileged"])) && sysOS.IdmapSet == nil {
+	if expanded && (shared.IsFalseOrEmpty(config["security.privileged"])) && sysOS.IdmapSet == nil {
 		return fmt.Errorf("LXD doesn't have a uid/gid allocation. In this mode, only privileged containers are supported")
 	}
 
