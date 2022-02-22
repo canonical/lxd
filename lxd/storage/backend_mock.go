@@ -44,6 +44,10 @@ func (b *mockBackend) LocalStatus() string {
 	return api.NetworkStatusUnknown
 }
 
+func (b *mockBackend) ToAPI() api.StoragePool {
+	return api.StoragePool{}
+}
+
 func (b *mockBackend) Driver() drivers.Driver {
 	return b.driver
 }
