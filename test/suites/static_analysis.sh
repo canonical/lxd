@@ -47,6 +47,13 @@ test_static_analysis() {
       false
     fi
 
+    # Use of negated shared.Is(True|False)*() functions.
+    OUT=$(grep -Pr --exclude-dir=.git '!(shared\.)?Is(True|False).*\(' . 2>/dev/null || true)
+    if [ -n "${OUT}" ]; then
+      echo "ERROR: negated shared.Is(True|False)*() function in script: ${OUT}"
+      false
+    fi
+
     ## go vet, if it exists
     if go help vet >/dev/null 2>&1; then
       go vet ./...
