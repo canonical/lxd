@@ -1,9 +1,11 @@
 package drivers
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,6 +28,7 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
@@ -4920,128 +4924,89 @@ func (d *qemu) CGroup() (*cgroup.CGroup, error) {
 	return nil, instance.ErrNotImplemented
 }
 
-// FileExists is not implemented for VMs.
-func (d *qemu) FileExists(path string) error {
-	return instance.ErrNotImplemented
-}
-
-// FilePull retrieves a file from the instance.
-func (d *qemu) FilePull(srcPath string, dstPath string) (int64, int64, os.FileMode, string, []string, error) {
-	client, err := d.getAgentClient()
-	if err != nil {
-		return 0, 0, 0, "", nil, err
-	}
-
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
-	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"devName": d.Name(), "err": err})
-		return 0, 0, 0, "", nil, fmt.Errorf("Failed to connect to lxd-agent")
-	}
-	defer agent.Disconnect()
-
-	content, resp, err := agent.GetInstanceFile("", srcPath)
-	if err != nil {
-		return 0, 0, 0, "", nil, err
-	}
-
-	switch resp.Type {
-	case "file", "symlink":
-		data, err := ioutil.ReadAll(content)
-		if err != nil {
-			return 0, 0, 0, "", nil, err
-		}
-
-		err = ioutil.WriteFile(dstPath, data, os.FileMode(resp.Mode))
-		if err != nil {
-			return 0, 0, 0, "", nil, err
-		}
-
-		err = os.Lchown(dstPath, int(resp.UID), int(resp.GID))
-		if err != nil {
-			return 0, 0, 0, "", nil, err
-		}
-
-		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, nil, nil
-	case "directory":
-		return resp.UID, resp.GID, os.FileMode(resp.Mode), resp.Type, resp.Entries, nil
-	}
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileRetrieved.Event(d, log.Ctx{"file-source": srcPath, "file-destination": dstPath}))
-
-	return 0, 0, 0, "", nil, fmt.Errorf("bad file type %s", resp.Type)
-}
-
-// FilePush pushes a file into the instance.
-func (d *qemu) FilePush(fileType string, srcPath string, dstPath string, uid int64, gid int64, mode int, write string) error {
-	client, err := d.getAgentClient()
-	if err != nil {
-		return err
-	}
-
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
-	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
-		return fmt.Errorf("Failed to connect to lxd-agent")
-	}
-	defer agent.Disconnect()
-
-	args := lxd.InstanceFileArgs{
-		GID:       gid,
-		Mode:      mode,
-		Type:      fileType,
-		UID:       uid,
-		WriteMode: write,
-	}
-
-	if fileType == "file" {
-		f, err := os.Open(srcPath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		args.Content = f
-	} else if fileType == "symlink" {
-		symlinkTarget, err := os.Readlink(dstPath)
-		if err != nil {
-			return err
-		}
-
-		args.Content = bytes.NewReader([]byte(symlinkTarget))
-	}
-
-	err = agent.CreateInstanceFile("", dstPath, args)
-	if err != nil {
-		return err
-	}
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFilePushed.Event(d, log.Ctx{"file-source": srcPath, "file-destination": dstPath, "info": args}))
-
-	return nil
-}
-
-// FileRemove removes a file from the instance.
-func (d *qemu) FileRemove(path string) error {
+// FileSFTPConn returns a connection to the agent SFTP endpoint.
+func (d *qemu) FileSFTPConn() (net.Conn, error) {
 	// Connect to the agent.
 	client, err := d.getAgentClient()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	agent, err := lxd.ConnectLXDHTTP(nil, client)
+	// Get the HTTP transport.
+	httpTransport := client.Transport.(*http.Transport)
+
+	// Send the upgrade request.
+	u, err := url.Parse("https://custom.socket/1.0/sftp")
 	if err != nil {
-		return fmt.Errorf("Failed to connect to lxd-agent")
+		return nil, err
 	}
-	defer agent.Disconnect()
 
-	// Delete instance file.
-	err = agent.DeleteInstanceFile("", path)
+	req := &http.Request{
+		Method:     http.MethodGet,
+		URL:        u,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(http.Header),
+		Host:       u.Host,
+	}
+
+	req.Header["Upgrade"] = []string{"sftp"}
+	req.Header["Connection"] = []string{"Upgrade"}
+
+	conn, err := httpTransport.Dial("tcp", "8443")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceFileDeleted.Event(d, log.Ctx{"file": path}))
-	return nil
+	tlsConn := tls.Client(conn, httpTransport.TLSClientConfig)
+	err = tlsConn.Handshake()
+	if err != nil {
+		return nil, err
+	}
+
+	err = req.Write(tlsConn)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(tlsConn), req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		return nil, fmt.Errorf("Dialing failed: expected status code 101 got %d", resp.StatusCode)
+	}
+
+	if resp.Header.Get("Upgrade") != "sftp" {
+		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
+	}
+
+	return tlsConn, nil
+}
+
+// FileSFTP returns an SFTP connection to the agent endpoint.
+func (d *qemu) FileSFTP() (*sftp.Client, error) {
+	// Connect to the forkfile daemon.
+	conn, err := d.FileSFTPConn()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a SFTP client.
+	client, err := sftp.NewClientPipe(conn, conn)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		// Wait for the client to be done before closing the connection.
+		client.Wait()
+		conn.Close()
+	}()
+
+	return client, nil
 }
 
 // Console gets access to the instance's console.

@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -858,6 +859,15 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		}
 
 		defer src.Unfreeze()
+
+		// Sync the filesystem.
+		rootfsFile, err := os.Open(src.RootfsPath())
+		if err != nil {
+			return err
+		}
+
+		unix.Syncfs(int(rootfsFile.Fd()))
+		rootfsFile.Close()
 	}
 
 	revert.Add(func() { b.DeleteInstance(inst, op) })
@@ -1971,6 +1981,15 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		}
 
 		defer inst.Unfreeze()
+
+		// Sync the filesystem.
+		rootfsFile, err := os.Open(inst.RootfsPath())
+		if err != nil {
+			return err
+		}
+
+		unix.Syncfs(int(rootfsFile.Fd()))
+		rootfsFile.Close()
 	}
 
 	err = b.driver.MigrateVolume(vol, conn, args, op)
@@ -2231,12 +2250,21 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 
 	// Some driver backing stores require that running instances be frozen during snapshot.
 	if b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
+		// Freeze the processes.
 		err = src.Freeze()
 		if err != nil {
 			return err
 		}
-
 		defer src.Unfreeze()
+
+		// Sync the filesystem.
+		rootfsFile, err := os.Open(src.RootfsPath())
+		if err != nil {
+			return err
+		}
+
+		unix.Syncfs(int(rootfsFile.Fd()))
+		rootfsFile.Close()
 	}
 
 	isSnap := inst.IsSnapshot()
