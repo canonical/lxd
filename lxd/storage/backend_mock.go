@@ -153,7 +153,7 @@ func (b *mockBackend) RefreshCustomVolume(projectName string, srcProjectName str
 	return nil
 }
 
-func (b *mockBackend) RefreshInstance(i instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error {
 	return nil
 }
 

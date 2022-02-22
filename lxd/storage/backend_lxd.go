@@ -1226,7 +1226,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 // RefreshInstance synchronises one instance's volume (and optionally snapshots) over another.
 // Snapshots that are not present in the source but are in the destination are removed from the
 // destination if snapshots are included in the synchronisation.
-func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error {
+func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "srcSnapshots": len(srcSnapshots)})
 	logger.Debug("RefreshInstance started")
 	defer logger.Debug("RefreshInstance finished")
@@ -1315,10 +1315,11 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		bEndErrCh := make(chan error, 1)
 		go func() {
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
-				Name:          src.Name(),
-				Snapshots:     snapshotNames,
-				MigrationType: migrationTypes[0],
-				TrackProgress: true, // Do use a progress tracker on sender.
+				Name:              src.Name(),
+				Snapshots:         snapshotNames,
+				MigrationType:     migrationTypes[0],
+				TrackProgress:     true, // Do use a progress tracker on sender.
+				AllowInconsistent: allowInconsistent,
 			}, op)
 
 			if err != nil {
