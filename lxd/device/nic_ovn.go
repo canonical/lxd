@@ -159,7 +159,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	if d.config["ipv6.address"] != "" {
 		// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs).
-		if n.DHCPv6Subnet() == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) {
+		if n.DHCPv6Subnet() == nil || shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) {
 			return fmt.Errorf("Cannot specify %q when DHCP or %q are disabled on network %q", "ipv6.address", "ipv6.dhcp.stateful", d.config["network"])
 		}
 
@@ -657,7 +657,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 				Netmask: v6mask,
 				Scope:   "global",
 			})
-		} else if !shared.IsTrue(netConfig["ipv6.dhcp.stateful"]) && d.config["hwaddr"] != "" && v6subnet != nil {
+		} else if shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"]) && d.config["hwaddr"] != "" && v6subnet != nil {
 			// If no static DHCPv6 allocation and stateful DHCPv6 is disabled, and IPv6 is enabled on
 			// the bridge, the the NIC is likely to use its MAC and SLAAC to configure its address.
 			hwAddr, err := net.ParseMAC(d.config["hwaddr"])
