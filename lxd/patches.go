@@ -2652,11 +2652,11 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 			}
 		case "zfs":
 			// Unset default values.
-			if !shared.IsTrue(pool.Config["volume.zfs.use_refquota"]) {
+			if shared.IsFalse(pool.Config["volume.zfs.use_refquota"]) {
 				pool.Config["volume.zfs.use_refquota"] = ""
 			}
 
-			if !shared.IsTrue(pool.Config["volume.zfs.remove_snapshots"]) {
+			if shared.IsFalse(pool.Config["volume.zfs.remove_snapshots"]) {
 				pool.Config["volume.zfs.remove_snapshots"] = ""
 			}
 
@@ -2712,10 +2712,10 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 				}
 			case "zfs":
 				// Unset default values.
-				if !shared.IsTrue(volume.Config["zfs.use_refquota"]) {
+				if shared.IsFalse(volume.Config["zfs.use_refquota"]) {
 					volume.Config["zfs.use_refquota"] = ""
 				}
-				if !shared.IsTrue(volume.Config["zfs.remove_snapshots"]) {
+				if shared.IsFalse(volume.Config["zfs.remove_snapshots"]) {
 					volume.Config["zfs.remove_snapshots"] = ""
 				}
 				// Unset "size" property.
