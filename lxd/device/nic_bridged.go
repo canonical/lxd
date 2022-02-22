@@ -101,7 +101,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check that DHCPv4 is enabled on parent network (needed to use static assigned IPs) when
 			// IP filtering isn't enabled (if it is we allow the use of static IPs for this purpose).
-			if dhcpv4Subnet == nil && !shared.IsTrue(d.config["security.ipv4_filtering"]) {
+			if dhcpv4Subnet == nil && shared.IsFalseOrEmpty(d.config["security.ipv4_filtering"]) {
 				return fmt.Errorf(`Cannot specify "ipv4.address" when DHCP is disabled (unless using security.ipv4_filtering) on network %q`, n.Name())
 			}
 
@@ -132,7 +132,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check that DHCPv6 is enabled on parent network (needed to use static assigned IPs) when
 			// IP filtering isn't enabled (if it is we allow the use of static IPs for this purpose).
-			if (dhcpv6Subnet == nil || !shared.IsTrue(netConfig["ipv6.dhcp.stateful"])) && !shared.IsTrue(d.config["security.ipv6_filtering"]) {
+			if (dhcpv6Subnet == nil || shared.IsFalseOrEmpty(netConfig["ipv6.dhcp.stateful"])) && shared.IsFalseOrEmpty(d.config["security.ipv6_filtering"]) {
 				return fmt.Errorf(`Cannot specify "ipv6.address" when DHCP or "ipv6.dhcp.stateful" are disabled (unless using security.ipv6_filtering) on network %q`, n.Name())
 			}
 
@@ -1179,7 +1179,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 				}
 			}
 
-			if !shared.IsTrue(d.network.Config()["ipv6.dhcp.stateful"]) && v6subnet != nil {
+			if shared.IsFalseOrEmpty(d.network.Config()["ipv6.dhcp.stateful"]) && v6subnet != nil {
 				// If stateful DHCPv6 is disabled, and IPv6 is enabled on the bridge, the the NIC
 				// is likely to use its MAC and SLAAC to configure its address.
 				if hwAddr != nil {
