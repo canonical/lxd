@@ -2177,7 +2177,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 				// Add EUI64 records.
 				ipv6Address := n.config["ipv6.address"]
-				if ipv6Address != "" && ipv6Address != "none" && !shared.IsTrue(n.config["ipv6.dhcp.stateful"]) {
+				if ipv6Address != "" && ipv6Address != "none" && shared.IsFalseOrEmpty(n.config["ipv6.dhcp.stateful"]) {
 					_, netAddress, _ := net.ParseCIDR(ipv6Address)
 					hwAddr, _ := net.ParseMAC(dev["hwaddr"])
 					if netAddress != nil && hwAddr != nil {
