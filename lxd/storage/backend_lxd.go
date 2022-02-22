@@ -1233,7 +1233,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 // RefreshInstance synchronises one instance's volume (and optionally snapshots) over another.
 // Snapshots that are not present in the source but are in the destination are removed from the
 // destination if snapshots are included in the synchronisation.
-func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, op *operations.Operation) error {
+func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "srcSnapshots": len(srcSnapshots)})
 	logger.Debug("RefreshInstance started")
 	defer logger.Debug("RefreshInstance finished")
