@@ -356,7 +356,7 @@ func (d *ceph) MigrationTypes(contentType ContentType, refresh bool) []migration
 
 	// Do not pass compression argument to rsync if the associated
 	// config key, that is rsync.compression, is set to false.
-	if d.Config()["rsync.compression"] != "" && !shared.IsTrue(d.Config()["rsync.compression"]) {
+	if shared.IsFalse(d.Config()["rsync.compression"]) {
 		rsyncFeatures = []string{"delete", "bidirectional"}
 	} else {
 		rsyncFeatures = []string{"delete", "compress", "bidirectional"}
