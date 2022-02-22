@@ -383,7 +383,7 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 				return nil
 			}
 			containerConfigChecks["security.idmap.isolated"] = func(instanceValue string) error {
-				if restrictionValue == "isolated" && !shared.IsTrue(instanceValue) {
+				if restrictionValue == "isolated" && shared.IsFalseOrEmpty(instanceValue) {
 					return fmt.Errorf("Non-isolated containers are forbidden")
 				}
 
