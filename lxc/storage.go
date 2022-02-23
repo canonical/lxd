@@ -559,11 +559,10 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 	for _, pool := range pools {
 		usedby := strconv.Itoa(len(pool.UsedBy))
 		details := []string{pool.Name, pool.Description, pool.Driver}
-		if resource.server.IsClustered() {
-			details = append(details, strings.ToUpper(pool.Status))
-		} else {
+		if !resource.server.IsClustered() {
 			details = append(details, pool.Config["source"])
 		}
+		details = append(details, strings.ToUpper(pool.Status))
 		details = append(details, usedby)
 		data = append(data, details)
 	}
@@ -574,11 +573,10 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("DESCRIPTION"),
 		i18n.G("DRIVER"),
 	}
-	if resource.server.IsClustered() {
-		header = append(header, i18n.G("STATE"))
-	} else {
+	if !resource.server.IsClustered() {
 		header = append(header, i18n.G("SOURCE"))
 	}
+	header = append(header, i18n.G("STATE"))
 	header = append(header, i18n.G("USED BY"))
 
 	return utils.RenderTable(c.flagFormat, header, data, pools)
