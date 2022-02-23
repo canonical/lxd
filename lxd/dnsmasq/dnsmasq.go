@@ -17,12 +17,13 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+const staticAllocationDeviceSeparator = "."
+
 // DHCPAllocation represents an IP allocation from dnsmasq.
 type DHCPAllocation struct {
-	IP     net.IP
-	Name   string
-	MAC    net.HardwareAddr
-	Static bool
+	IP             net.IP
+	StaticFileName string
+	MAC            net.HardwareAddr
 }
 
 // ConfigMutex used to coordinate access to the dnsmasq config files.
@@ -50,8 +51,8 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 		return nil
 	}
 
-	entryFile := dnsMasqEntryFileName(projectName, instanceName, deviceName)
-	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", entryFile), []byte(line+"\n"), 0644)
+	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
+	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName), []byte(line+"\n"), 0644)
 	if err != nil {
 		return err
 	}
@@ -61,8 +62,8 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 
 // RemoveStaticEntry removes a single dhcp-host line for a network/instance combination.
 func RemoveStaticEntry(network string, projectName string, instanceName string, deviceName string) error {
-	entryFile := dnsMasqEntryFileName(projectName, instanceName, deviceName)
-	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", entryFile))
+	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
+	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -115,19 +116,13 @@ func GetVersion() (*version.DottedVersion, error) {
 	return version.Parse(lines[2])
 }
 
-// DHCPStaticAllocation retrieves the dnsmasq statically allocated MAC and IPs for an instance.
+// DHCPStaticAllocation retrieves the dnsmasq statically allocated MAC and IPs for an instance device static file.
 // Returns MAC, IPv4 and IPv6 DHCPAllocation structs respectively.
-// The projectName, instanceName, and deviceName are used to generate the entryFileName. If the entryFileName
-// argument is provided, then projectName, instanceName, and deviceName are ignored.
-func DHCPStaticAllocation(network, projectName, instanceName, deviceName, entryFileName string) (net.HardwareAddr, DHCPAllocation, DHCPAllocation, error) {
+func DHCPStaticAllocation(network string, deviceStaticFileName string) (net.HardwareAddr, DHCPAllocation, DHCPAllocation, error) {
 	var IPv4, IPv6 DHCPAllocation
 	var mac net.HardwareAddr
 
-	if entryFileName == "" {
-		entryFileName = dnsMasqEntryFileName(projectName, instanceName, deviceName)
-	}
-
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", entryFileName))
+	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName))
 	if err != nil {
 		return nil, IPv4, IPv6, err
 	}
@@ -143,14 +138,14 @@ func DHCPStaticAllocation(network, projectName, instanceName, deviceName, entryF
 				if IP.To4() == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
-				IPv4 = DHCPAllocation{Name: instanceName, Static: true, IP: IP.To4(), MAC: mac}
+				IPv4 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP.To4(), MAC: mac}
 
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
-				IPv6 = DHCPAllocation{Name: instanceName, Static: true, IP: IP, MAC: mac}
+				IPv6 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP, MAC: mac}
 			} else if strings.Count(field, ":") == 5 {
 				// This field is expected to come first, so that mac variable can be used with
 				// populating the DHCPAllocation structs too.
@@ -190,7 +185,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 	}
 
 	for _, entry := range files {
-		_, IPv4, IPv6, err := DHCPStaticAllocation(network, "", "", "", entry.Name())
+		_, IPv4, IPv6, err := DHCPStaticAllocation(network, entry.Name())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -230,13 +225,12 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 				copy(IPKey[:], IP.To16())
 
 				// Don't replace IPs from static config as more reliable.
-				if IPv6s[IPKey].Name != "" {
+				if IPv6s[IPKey].StaticFileName != "" {
 					continue
 				}
 
 				IPv6s[IPKey] = DHCPAllocation{
-					Static: false,
-					IP:     IP.To16(),
+					IP: IP.To16(),
 				}
 			} else {
 				// MAC only available in IPv4 leases.
@@ -249,14 +243,13 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 				copy(IPKey[:], IP.To4())
 
 				// Don't replace IPs from static config as more reliable.
-				if IPv4s[IPKey].Name != "" {
+				if IPv4s[IPKey].StaticFileName != "" {
 					continue
 				}
 
 				IPv4s[IPKey] = DHCPAllocation{
-					MAC:    MAC,
-					Static: false,
-					IP:     IP.To4(),
+					MAC: MAC,
+					IP:  IP.To4(),
 				}
 			}
 		}
@@ -268,8 +261,9 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 	return IPv4s, IPv6s, nil
 }
 
-func dnsMasqEntryFileName(projectName string, instanceName string, deviceName string) string {
+// StaticAllocationFileName returns the file name to use for a dnsmasq instance device static allocation.
+func StaticAllocationFileName(projectName string, instanceName string, deviceName string) string {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 
-	return strings.Join([]string{project.Instance(projectName, instanceName), escapedDeviceName}, ".")
+	return strings.Join([]string{project.Instance(projectName, instanceName), escapedDeviceName}, staticAllocationDeviceSeparator)
 }
