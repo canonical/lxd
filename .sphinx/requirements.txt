@@ -31,4 +31,4 @@ sphinx-tabs
 sphinx-reredirects
 linkify-it-py
 furo
-sphinxext-opengraph
+git+git://github.com/ru-fu/sphinxext-opengraph@fix-url-for-dirhtml#egg=sphinxext-opengraph
