@@ -270,8 +270,9 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 	return IPv4s, IPv6s, nil
 }
 
-func dnsMasqEntryFileName(projectName string, instanceName string, deviceName string) string {
+// StaticAllocationFileName returns the file name to use for a dnsmasq instance device static allocation.
+func StaticAllocationFileName(projectName string, instanceName string, deviceName string) string {
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 
-	return strings.Join([]string{project.Instance(projectName, instanceName), escapedDeviceName}, ".")
+	return strings.Join([]string{project.Instance(projectName, instanceName), escapedDeviceName}, staticAllocationDeviceSeparator)
 }
