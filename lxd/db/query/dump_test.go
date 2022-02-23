@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"context"
 	"database/sql"
 	"sort"
 	"testing"
@@ -12,7 +13,7 @@ import (
 
 func TestDump(t *testing.T) {
 	tx := newTxForDump(t, "local")
-	dump, err := query.Dump(tx, schemas["local"], false /* schemaOnly */)
+	dump, err := query.Dump(context.Background(), tx, schemas["local"], false /* schemaOnly */)
 	require.NoError(t, err)
 	assert.Equal(t, `PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
@@ -53,7 +54,7 @@ func TestDumpTablePatches(t *testing.T) {
 	tx := newTxForDump(t, "local")
 	tables := query.DumpParseSchema(schemas["local"])
 
-	dump, err := query.DumpTable(tx, "patches", tables["patches"])
+	dump, err := query.DumpTable(context.Background(), tx, "patches", tables["patches"])
 	require.NoError(t, err)
 	assert.Equal(t, `CREATE TABLE patches (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -70,7 +71,7 @@ func TestDumpTableConfig(t *testing.T) {
 	tx := newTxForDump(t, "local")
 	tables := query.DumpParseSchema(schemas["local"])
 
-	dump, err := query.DumpTable(tx, "config", tables["config"])
+	dump, err := query.DumpTable(context.Background(), tx, "config", tables["config"])
 	require.NoError(t, err)
 	assert.Equal(t, `CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -85,7 +86,7 @@ func TestDumpTableStoragePoolsConfig(t *testing.T) {
 	tx := newTxForDump(t, "global")
 	tables := query.DumpParseSchema(schemas["global"])
 
-	dump, err := query.DumpTable(tx, "storage_pools_config", tables["storage_pools_config"])
+	dump, err := query.DumpTable(context.Background(), tx, "storage_pools_config", tables["storage_pools_config"])
 	require.NoError(t, err)
 	assert.Equal(t, `CREATE TABLE storage_pools_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
