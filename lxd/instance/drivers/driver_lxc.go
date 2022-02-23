@@ -6827,7 +6827,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	memoryLimit := int64(0)
 	memoryTotal, err := shared.DeviceTotalMemory()
 	if err != nil {
-		logger.Warn("Failed to get total memory", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get total memory", log.Ctx{"err": err})
 	} else {
 		// Get memory limit
 		limit, err := cg.GetMemoryLimit()
@@ -6846,7 +6846,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	// Get memory stats.
 	memStats, err := cg.GetMemoryStats()
 	if err != nil {
-		logger.Warn("Failed to get memory stats", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get memory stats", log.Ctx{"err": err})
 	} else {
 		for k, v := range memStats {
 			var metricType metrics.MetricType
@@ -6888,7 +6888,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	// Get memory usage.
 	memoryUsage, err := cg.GetMemoryUsage()
 	if err != nil {
-		logger.Warn("Failed to get memory usage", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get memory usage", log.Ctx{"err": err})
 	}
 
 	if memoryLimit > 0 {
@@ -6901,7 +6901,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	if d.state.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
 		swapUsage, err := cg.GetMemorySwapUsage()
 		if err != nil {
-			logger.Warn("Failed to get swap usage", log.Ctx{"err": err})
+			d.logger.Warn("Failed to get swap usage", log.Ctx{"err": err})
 		} else {
 			out.AddSamples(metrics.MemorySwapBytes, metrics.Sample{Value: float64(swapUsage)})
 		}
@@ -6910,7 +6910,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	// Get CPU stats
 	usage, err := cg.GetCPUAcctUsageAll()
 	if err != nil {
-		logger.Warn("Failed to get CPU usage", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get CPU usage", log.Ctx{"err": err})
 	} else {
 		for cpu, stats := range usage {
 			cpuID := strconv.Itoa(int(cpu))
@@ -6923,7 +6923,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	// Get disk stats
 	diskStats, err := cg.GetIOStats()
 	if err != nil {
-		logger.Warn("Failed to get disk stats", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get disk stats", log.Ctx{"err": err})
 	} else {
 		for disk, stats := range diskStats {
 			labels := map[string]string{"device": disk}
@@ -6938,7 +6938,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	// Get filesystem stats
 	fsStats, err := d.getFSStats()
 	if err != nil {
-		logger.Warn("Failed to get fs stats", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get fs stats", log.Ctx{"err": err})
 	} else {
 		out.Merge(fsStats)
 	}
@@ -6962,7 +6962,7 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	// Get number of processes
 	pids, err := cg.GetTotalProcesses()
 	if err != nil {
-		logger.Warn("Failed to get total number of processes", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get total number of processes", log.Ctx{"err": err})
 	} else {
 		out.AddSamples(metrics.ProcsTotal, metrics.Sample{Value: float64(pids)})
 	}
