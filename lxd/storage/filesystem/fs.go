@@ -147,3 +147,17 @@ func SyncFS(path string) error {
 	// Call SyncFS.
 	return unix.Syncfs(int(fsFile.Fd()))
 }
+
+// PathNameEncode encodes a path string to be used as part of a file name.
+// The encoding scheme replaces "-" with "--" and then "/" with "-".
+func PathNameEncode(text string) string {
+	return strings.Replace(strings.Replace(text, "-", "--", -1), "/", "-", -1)
+}
+
+// PathNameDecode decodes a string containing an encoded path back to its original form.
+// The decoding scheme converts "-" back to "/" and "--" back to "-".
+func PathNameDecode(text string) string {
+	// This converts "--" to the null character "\0" first, to allow remaining "-" chars to be
+	// converted back to "/" before making a final pass to convert "\0" back to original "-".
+	return strings.Replace(strings.Replace(strings.Replace(text, "--", "\000", -1), "-", "/", -1), "\000", "-", -1)
+}
