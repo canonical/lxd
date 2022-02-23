@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/version"
@@ -268,5 +269,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 }
 
 func dnsMasqEntryFileName(projectName string, instanceName string, deviceName string) string {
-	return strings.Join([]string{project.Instance(projectName, instanceName), deviceName}, ".")
+	escapedDeviceName := filesystem.PathNameEncode(deviceName)
+
+	return strings.Join([]string{project.Instance(projectName, instanceName), escapedDeviceName}, ".")
 }
