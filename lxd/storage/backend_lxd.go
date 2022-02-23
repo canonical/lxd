@@ -73,6 +73,15 @@ func (b *lxdBackend) Status() string {
 
 // LocalStatus returns storage pool status of the local cluster member.
 func (b *lxdBackend) LocalStatus() string {
+	unavailablePoolsMu.Lock()
+	defer unavailablePoolsMu.Unlock()
+
+	// Check if pool is unavailable locally and replace status if so.
+	// But don't modify b.db.Status as the status may be recovered later so we don't want to persist it here.
+	if _, found := unavailablePools[b.name]; found {
+		return api.StoragePoolStatusUnvailable
+	}
+
 	node, exists := b.nodes[b.state.Cluster.GetNodeID()]
 	if !exists {
 		return api.StoragePoolStatusUnknown
