@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"bufio"
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
