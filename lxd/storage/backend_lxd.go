@@ -90,6 +90,19 @@ func (b *lxdBackend) LocalStatus() string {
 	return db.StoragePoolStateToAPIStatus(node.State)
 }
 
+// isStatusReady returns an error if pool is not ready for use on this server.
+func (b *lxdBackend) isStatusReady() error {
+	if b.Status() == api.StoragePoolStatusPending {
+		return fmt.Errorf("Specified pool is not fully created")
+	}
+
+	if b.LocalStatus() == api.StoragePoolStatusUnvailable {
+		return fmt.Errorf("Specified pool is not currently available on this server")
+	}
+
+	return nil
+}
+
 // ToAPI returns the storage pool as an API representation.
 func (b *lxdBackend) ToAPI() api.StoragePool {
 	return b.db
@@ -599,8 +612,9 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 	logger.Debug("CreateInstance started")
 	defer logger.Debug("CreateInstance finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -830,8 +844,9 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	logger.Debug("CreateInstanceFromCopy started")
 	defer logger.Debug("CreateInstanceFromCopy finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	if inst.Type() != src.Type() {
@@ -1020,8 +1035,9 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	logger.Debug("RefreshCustomVolume started")
 	defer logger.Debug("RefreshCustomVolume finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	if srcProjectName == "" {
@@ -1431,8 +1447,9 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 	logger.Debug("CreateInstanceFromImage started")
 	defer logger.Debug("CreateInstanceFromImage finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -1542,8 +1559,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	logger.Debug("CreateInstanceFromMigration started")
 	defer logger.Debug("CreateInstanceFromMigration finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	if args.Config != nil {
@@ -2620,8 +2638,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 	logger.Debug("EnsureImage started")
 	defer logger.Debug("EnsureImage finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	if !b.driver.Info().OptimizedImages {
@@ -2876,8 +2895,9 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	logger.Debug("CreateCustomVolume started")
 	defer logger.Debug("CreateCustomVolume finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	// Get the volume name on storage.
@@ -2885,7 +2905,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 
 	// Validate config.
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, config)
-	err := b.driver.ValidateVolume(vol, false)
+	err = b.driver.ValidateVolume(vol, false)
 	if err != nil {
 		return err
 	}
@@ -2934,8 +2954,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	logger.Debug("CreateCustomVolumeFromCopy started")
 	defer logger.Debug("CreateCustomVolumeFromCopy finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	if srcProjectName == "" {
@@ -3217,8 +3238,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	logger.Debug("CreateCustomVolumeFromMigration started")
 	defer logger.Debug("CreateCustomVolumeFromMigration finished")
 
-	if b.Status() == api.StoragePoolStatusPending {
-		return fmt.Errorf("Specified pool is not fully created")
+	err := b.isStatusReady()
+	if err != nil {
+		return err
 	}
 
 	storagePoolSupported := false
@@ -3255,7 +3277,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		vol.SetConfigSize(fmt.Sprintf("%d", args.VolumeSize))
 	}
 
-	err := b.driver.ValidateVolume(vol, true)
+	err = b.driver.ValidateVolume(vol, true)
 	if err != nil {
 		return err
 	}
