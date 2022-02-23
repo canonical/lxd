@@ -28,39 +28,48 @@
     </a>
   {%- endif %}
 </div>
-
-<div class="related-information">
-  {%- if show_copyright %}
-    {%- if hasdoc('copyright') %}
-      {% trans path=pathto('copyright'), copyright=copyright|e -%}
-        <a href="{{ path }}">Copyright</a> &#169; {{ copyright }}.
-      {%- endtrans %}
-    {%- else %}
-      {% trans copyright=copyright|e -%}
-        Copyright &#169; {{ copyright }}
-      {%- endtrans %}
+<div class="bottom-of-page">
+  <div class="left-details">
+    {%- if show_copyright %}
+    <div class="copyright">
+      {%- if hasdoc('copyright') %}
+        {% trans path=pathto('copyright'), copyright=copyright|e -%}
+          <a href="{{ path }}">Copyright</a> &#169; {{ copyright }}
+        {%- endtrans %}
+      {%- else %}
+        {% trans copyright=copyright|e -%}
+          Copyright &#169; {{ copyright }}
+        {%- endtrans %}
+      {%- endif %}
+    </div>
     {%- endif %}
-  {%- endif %}
-  {%- if last_updated %}
-    {%- if show_copyright %} | {%- endif %}
-    {% trans last_updated=last_updated|e -%}
-      Last updated on {{ last_updated }}.
-    {%- endtrans %}
-  {%- endif %}
 
-  {# ru-fu: removed "created using" #}
+    {# ru-fu: removed "Made with" #}
 
-  {%- if show_source and has_source and sourcename %}
-    | <a class="muted-link" href="{{ pathto('_sources/' + sourcename, true)|e }}"
-       rel="nofollow">
-      {{ _('Show Source') }}
-    </a>
-  {%- endif %}
+    {%- if last_updated -%}
+    <div class="last-updated">
+      {% trans last_updated=last_updated|e -%}
+        Last updated on {{ last_updated }}
+      {%- endtrans -%}
+    </div>
+    {%- endif %}
+  </div>
+  <div class="right-details">
 
-  {# ru-fu: added Edit on GitHub #}
+    {# ru-fu: replaced RTD icons with our links #}
 
-  {% if github_url and github_version and github_folder and github_filetype %}
-     {%- if show_copyright or last_updated or show_sphinx or show_source %} | {%- endif %}
-     <a class="muted-link" href="{{ github_url }}/edit/{{ github_version }}{{ github_folder }}{{ pagename }}.{{ github_filetype }}">Edit on GitHub</a>
-  {% endif %}
+    {%- if show_source and has_source and sourcename %}
+    <div class="show-source">
+      <a class="muted-link" href="{{ pathto('_sources/' + sourcename, true)|e }}"
+         rel="nofollow">Show source</a>
+    </div>
+    {%- endif %}
+    {% if github_url and github_version and github_folder and github_filetype %}
+    <div class="edit-github">
+      <a class="muted-link" href="{{ github_url }}/edit/{{ github_version }}{{ github_folder }}{{ pagename }}.{{ github_filetype }}">Edit on GitHub</a>
+    </div>
+    {% endif %}
+
+    </div>
+  </div>
 </div>
