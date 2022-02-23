@@ -39,7 +39,24 @@ test_container_devices_nic_bridged() {
   lxc profile device set "${ctName}" eth0 host_name "${vethHostName}"
   lxc profile device set "${ctName}" eth0 mtu "1400"
   lxc profile device set "${ctName}" eth0 hwaddr "${ctMAC}"
-  lxc launch testimage "${ctName}" -p "${ctName}"
+
+  lxc init testimage "${ctName}" -p "${ctName}"
+
+  # Test device name validation.
+  lxc config device add "${ctName}" 127.0.0.1 nic network=${brName}
+  lxc config device remove "${ctName}" 127.0.0.1
+  lxc config device add "${ctName}" ::1 nic network=${brName}
+  lxc config device remove "${ctName}" ::1
+  lxc config device add "${ctName}" _valid-name nic network=${brName}
+  lxc config device remove "${ctName}" _valid-name
+  lxc config device add "${ctName}" /foo nic network=${brName}
+  lxc config device remove "${ctName}" /foo
+  ! lxc config device add "${ctName}" .invalid nic network=${brName} || false
+  ! lxc config device add "${ctName}" ./invalid nic network=${brName} || false
+  ! lxc config device add "${ctName}" ../invalid nic network=${brName} || false
+
+  # Start instance.
+  lxc start "${ctName}"
 
   # Check profile routes are applied on boot.
   if ! ip -4 r list dev "${brName}" | grep "192.0.2.1${ipRand}" ; then
