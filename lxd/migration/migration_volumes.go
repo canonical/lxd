@@ -173,6 +173,18 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 				}
 			}
 
+			if offer.Refresh != nil && *offer.Refresh == true {
+				// Optimized refresh with zfs only works if ZfsFeatureMigrationHeader is available.
+				if ourType.FSType == MigrationFSType_ZFS && !shared.StringInSlice(ZFSFeatureMigrationHeader, commonFeatures) {
+					continue
+				}
+
+				// Optimized refresh with btrfs only works if BtrfsFeatureSubvolumeUUIDs is available.
+				if ourType.FSType == MigrationFSType_BTRFS && !shared.StringInSlice(BTRFSFeatureSubvolumeUUIDs, commonFeatures) {
+					continue
+				}
+			}
+
 			// Append type with combined features.
 			matchedTypes = append(matchedTypes, Type{
 				FSType:   ourType.FSType,
