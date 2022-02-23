@@ -699,7 +699,6 @@ func (m *Method) update(buf *file.Buffer) error {
 		buf.L("%s := %s{%s}", lex.Minuscule(mapping.Name), mapping.Name, fields)
 		buf.L("_, err = c.Create%s%s(%s)", m.config["struct"], ref, lex.Minuscule(mapping.Name))
 		m.ifErrNotNil(buf, "err")
-		buf.L("return nil")
 		buf.L("}")
 	case ReferenceTable:
 		buf.L("// Delete current entry.")
