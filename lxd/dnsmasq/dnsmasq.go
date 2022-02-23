@@ -21,10 +21,9 @@ const staticAllocationDeviceSeparator = "."
 
 // DHCPAllocation represents an IP allocation from dnsmasq.
 type DHCPAllocation struct {
-	IP     net.IP
-	Name   string
-	MAC    net.HardwareAddr
-	Static bool
+	IP             net.IP
+	StaticFileName string
+	MAC            net.HardwareAddr
 }
 
 // ConfigMutex used to coordinate access to the dnsmasq config files.
