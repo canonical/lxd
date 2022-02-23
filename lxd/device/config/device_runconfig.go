@@ -55,3 +55,9 @@ type RunConfig struct {
 	PCIDevice        []RunConfigItem  // PCI device configuration settings.
 	Revert           *revert.Reverter // Revert setup of device on post-setup error.
 }
+
+// NICConfig contains network interface configuration to be passed into a VM and applied by the agent.
+type NICConfig struct {
+	MACAddress string `json:"mac_address"`
+	MTU        uint32 `json:"mtu"`
+}

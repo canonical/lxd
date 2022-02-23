@@ -2234,6 +2234,14 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		}
 	}
 
+	// Clear and recreate nics directory to ensure that no leftover configuration is erroneously applied by the agent.
+	nicConfigPath := filepath.Join(configDrivePath, "nics")
+	os.RemoveAll(nicConfigPath)
+	err = os.MkdirAll(nicConfigPath, 0500)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -3043,7 +3051,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	revert := revert.New()
 	defer revert.Fail()
 
-	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup string
+	var devName, nicName, devHwaddr, pciSlotName, pciIOMMUGroup, mtu, name string
 	for _, nicItem := range nicConfig {
 		if nicItem.Key == "devName" {
 			devName = nicItem.Value
@@ -3055,6 +3063,22 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			pciSlotName = nicItem.Value
 		} else if nicItem.Key == "pciIOMMUGroup" {
 			pciIOMMUGroup = nicItem.Value
+		} else if nicItem.Key == "mtu" {
+			mtu = nicItem.Value
+		} else if nicItem.Key == "name" {
+			name = nicItem.Value
+		}
+	}
+
+	// If the devices' configured name has no value, fallback to the device key/name.
+	if name == "" {
+		name = devName
+	}
+
+	if shared.IsTrue(d.expandedConfig["agent.rename_interfaces"]) {
+		err := d.writeNICDevConfig(mtu, name, devHwaddr)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -3189,6 +3213,31 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	}
 
 	return nil, fmt.Errorf("Unrecognised device type")
+}
+
+func (d *qemu) writeNICDevConfig(mtuStr string, devName string, devHwaddr string) error {
+	mtuInt, err := strconv.Atoi(mtuStr)
+	if err != nil {
+		logger.Warn("Invalid MTU returned by device run configuration", log.Ctx{
+			"deviceName": devName,
+		})
+		mtuInt = 0
+	}
+	mtu := uint32(mtuInt)
+
+	// Parse MAC address to ensure it is in a consistent form (avoiding casing errors).
+	hw, err := net.ParseMAC(devHwaddr)
+	if err != nil {
+		return err
+	}
+
+	nicConfigBytes, err := json.Marshal(deviceConfig.NICConfig{MACAddress: hw.String(), MTU: mtu})
+	if err != nil {
+		return err
+	}
+
+	nicConfigDir := filepath.Join(d.Path(), "config", "nics")
+	return ioutil.WriteFile(filepath.Join(nicConfigDir, fmt.Sprintf("%s.json", devName)), nicConfigBytes, 0700)
 }
 
 // addPCIDevConfig adds the qemu config required for adding a raw PCI device.
