@@ -52,8 +52,8 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 		return nil
 	}
 
-	entryFile := dnsMasqEntryFileName(projectName, instanceName, deviceName)
-	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", entryFile), []byte(line+"\n"), 0644)
+	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
+	err := ioutil.WriteFile(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName), []byte(line+"\n"), 0644)
 	if err != nil {
 		return err
 	}
@@ -63,8 +63,8 @@ func UpdateStaticEntry(network string, projectName string, instanceName string, 
 
 // RemoveStaticEntry removes a single dhcp-host line for a network/instance combination.
 func RemoveStaticEntry(network string, projectName string, instanceName string, deviceName string) error {
-	entryFile := dnsMasqEntryFileName(projectName, instanceName, deviceName)
-	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", entryFile))
+	deviceStaticFileName := StaticAllocationFileName(projectName, instanceName, deviceName)
+	err := os.Remove(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName))
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -126,7 +126,7 @@ func DHCPStaticAllocation(network, projectName, instanceName, deviceName, entryF
 	var mac net.HardwareAddr
 
 	if entryFileName == "" {
-		entryFileName = dnsMasqEntryFileName(projectName, instanceName, deviceName)
+		entryFileName = StaticAllocationFileName(projectName, instanceName, deviceName)
 	}
 
 	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", entryFileName))
