@@ -355,12 +355,12 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 		schema = node.FreshSchema()
 	}
 
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(r.Context(), nil)
 	if err != nil {
 		return response.SmartError(errors.Wrap(err, "failed to start transaction"))
 	}
 	defer tx.Rollback()
-	dump, err := query.Dump(tx, schema, schemaOnly == 1)
+	dump, err := query.Dump(r.Context(), tx, schema, schemaOnly == 1)
 	if err != nil {
 		return response.SmartError(errors.Wrapf(err, "failed dump database %s", database))
 	}
