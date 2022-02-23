@@ -108,3 +108,9 @@ table.min-width-4-8 td.text-left:nth-child(4) {
 abbr[title] {
     text-decoration: underline solid #cdcdcd;
 }
+
+/** Use the same style for right-details as for left-details **/
+.bottom-of-page .right-details {
+    font-size: var(--font-size--small);
+    display: block;
+}
