@@ -97,14 +97,6 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	// Load the certificate.
-	fname := args[len(args)-1]
-	if fname == "-" {
-		fname = "/dev/stdin"
-	} else {
-		fname = shared.HostPathFollow(fname)
-	}
-
 	cert := api.CertificatesPost{}
 	cert.Type = api.CertificateTypeClient
 
