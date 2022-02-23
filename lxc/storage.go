@@ -565,10 +565,7 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 
 		details = append(details, pool.Description)
 		details = append(details, usedby)
-		if resource.server.IsClustered() {
-			details = append(details, strings.ToUpper(pool.Status))
-		}
-
+		details = append(details, strings.ToUpper(pool.Status))
 		data = append(data, details)
 	}
 	sort.Sort(byName(data))
@@ -583,9 +580,7 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 
 	header = append(header, i18n.G("DESCRIPTION"))
 	header = append(header, i18n.G("USED BY"))
-	if resource.server.IsClustered() {
-		header = append(header, i18n.G("STATE"))
-	}
+	header = append(header, i18n.G("STATE"))
 
 	return utils.RenderTable(c.flagFormat, header, data, pools)
 }
