@@ -85,15 +85,6 @@ var WarningTypeNames = map[WarningType]string{
 	WarningInstanceTypeNotOperational:             "Instance type not operational",
 }
 
-// WarningTypes associates a warning type to its type code.
-var WarningTypes = map[string]WarningType{}
-
-func init() {
-	for code, name := range WarningTypeNames {
-		WarningTypes[name] = code
-	}
-}
-
 // Severity returns the severity of the warning type.
 func (t WarningType) Severity() WarningSeverity {
 	switch t {
