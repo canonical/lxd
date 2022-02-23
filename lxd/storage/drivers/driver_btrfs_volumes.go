@@ -20,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -251,7 +252,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 			if subVol.Path != string(filepath.Separator) {
 				// If subvolume is non-root, then we expect the file to be encoded as its original
 				// path with the leading / removed.
-				srcFilePath = filepath.Join("backup", fmt.Sprintf("%s_%s.bin", srcFilePrefix, PathNameEncode(strings.TrimPrefix(subVol.Path, string(filepath.Separator)))))
+				srcFilePath = filepath.Join("backup", fmt.Sprintf("%s_%s.bin", srcFilePrefix, filesystem.PathNameEncode(strings.TrimPrefix(subVol.Path, string(filepath.Separator)))))
 			}
 
 			// Define where we will move the subvolume after it is unpacked.
@@ -1218,7 +1219,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 			if subVolume.Path != string(filepath.Separator) {
 				// Encode the path of the subvolume (without the leading /) into the filename so
 				// that we find the file from the optimized header's Path field on restore.
-				subVolName = fmt.Sprintf("_%s", PathNameEncode(strings.TrimPrefix(subVolume.Path, string(filepath.Separator))))
+				subVolName = fmt.Sprintf("_%s", filesystem.PathNameEncode(strings.TrimPrefix(subVolume.Path, string(filepath.Separator))))
 			}
 
 			fileName := fmt.Sprintf("%s%s.bin", fileNamePrefix, subVolName)
