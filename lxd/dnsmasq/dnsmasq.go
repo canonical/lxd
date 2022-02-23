@@ -116,19 +116,13 @@ func GetVersion() (*version.DottedVersion, error) {
 	return version.Parse(lines[2])
 }
 
-// DHCPStaticAllocation retrieves the dnsmasq statically allocated MAC and IPs for an instance.
+// DHCPStaticAllocation retrieves the dnsmasq statically allocated MAC and IPs for an instance device static file.
 // Returns MAC, IPv4 and IPv6 DHCPAllocation structs respectively.
-// The projectName, instanceName, and deviceName are used to generate the entryFileName. If the entryFileName
-// argument is provided, then projectName, instanceName, and deviceName are ignored.
-func DHCPStaticAllocation(network, projectName, instanceName, deviceName, entryFileName string) (net.HardwareAddr, DHCPAllocation, DHCPAllocation, error) {
+func DHCPStaticAllocation(network string, deviceStaticFileName string) (net.HardwareAddr, DHCPAllocation, DHCPAllocation, error) {
 	var IPv4, IPv6 DHCPAllocation
 	var mac net.HardwareAddr
 
-	if entryFileName == "" {
-		entryFileName = StaticAllocationFileName(projectName, instanceName, deviceName)
-	}
-
-	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", entryFileName))
+	file, err := os.Open(shared.VarPath("networks", network, "dnsmasq.hosts", deviceStaticFileName))
 	if err != nil {
 		return nil, IPv4, IPv6, err
 	}
@@ -144,14 +138,14 @@ func DHCPStaticAllocation(network, projectName, instanceName, deviceName, entryF
 				if IP.To4() == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
-				IPv4 = DHCPAllocation{Name: instanceName, Static: true, IP: IP.To4(), MAC: mac}
+				IPv4 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP.To4(), MAC: mac}
 
 			} else if strings.HasPrefix(field, "[") && strings.HasSuffix(field, "]") {
 				IP := net.ParseIP(field[1 : len(field)-1])
 				if IP == nil {
 					return nil, IPv4, IPv6, fmt.Errorf("Error parsing IP address %q", field)
 				}
-				IPv6 = DHCPAllocation{Name: instanceName, Static: true, IP: IP, MAC: mac}
+				IPv6 = DHCPAllocation{StaticFileName: deviceStaticFileName, IP: IP, MAC: mac}
 			} else if strings.Count(field, ":") == 5 {
 				// This field is expected to come first, so that mac variable can be used with
 				// populating the DHCPAllocation structs too.
