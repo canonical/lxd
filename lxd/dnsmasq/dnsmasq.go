@@ -225,13 +225,12 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 				copy(IPKey[:], IP.To16())
 
 				// Don't replace IPs from static config as more reliable.
-				if IPv6s[IPKey].Name != "" {
+				if IPv6s[IPKey].StaticFileName != "" {
 					continue
 				}
 
 				IPv6s[IPKey] = DHCPAllocation{
-					Static: false,
-					IP:     IP.To16(),
+					IP: IP.To16(),
 				}
 			} else {
 				// MAC only available in IPv4 leases.
@@ -244,14 +243,13 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 				copy(IPKey[:], IP.To4())
 
 				// Don't replace IPs from static config as more reliable.
-				if IPv4s[IPKey].Name != "" {
+				if IPv4s[IPKey].StaticFileName != "" {
 					continue
 				}
 
 				IPv4s[IPKey] = DHCPAllocation{
-					MAC:    MAC,
-					Static: false,
-					IP:     IP.To4(),
+					MAC: MAC,
+					IP:  IP.To4(),
 				}
 			}
 		}
