@@ -665,7 +665,8 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	// If IP filtering is enabled, and no static IP in config, check if there is already a
 	// dynamically assigned static IP in dnsmasq config and write that back out in new config.
 	if (shared.IsTrue(d.config["security.ipv4_filtering"]) && ipv4Address == "") || (shared.IsTrue(d.config["security.ipv6_filtering"]) && ipv6Address == "") {
-		_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d.config["parent"], d.inst.Project(), d.inst.Name(), d.Name(), "")
+		deviceStaticFileName := dnsmasq.StaticAllocationFileName(d.inst.Project(), d.inst.Name(), d.Name())
+		_, curIPv4, curIPv6, err := dnsmasq.DHCPStaticAllocation(d.config["parent"], deviceStaticFileName)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
@@ -769,7 +770,8 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
 	// This covers the case when IPs are not defined in config, but have been assigned in managed DHCP.
-	_, IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticAllocation(m["parent"], d.inst.Project(), d.inst.Name(), d.Name(), "")
+	deviceStaticFileName := dnsmasq.StaticAllocationFileName(d.inst.Project(), d.inst.Name(), d.Name())
+	_, IPv4Alloc, IPv6Alloc, err := dnsmasq.DHCPStaticAllocation(m["parent"], deviceStaticFileName)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return
