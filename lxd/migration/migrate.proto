@@ -64,6 +64,7 @@ message zfsFeatures {
 message btrfsFeatures {
 	optional bool		migration_header = 1;
 	optional bool		header_subvolumes = 2;
+	optional bool       header_subvolume_uuids = 3;
 }
 
 message MigrationHeader {
