@@ -180,7 +180,7 @@ func (t *Transaction) AllocateIPv6() (net.IP, error) {
 // getDHCPFreeIPv4 attempts to find a free IPv4 address for the device.
 // It first checks whether there is an existing allocation for the instance.
 // If no previous allocation, then a free IP is picked from the ranges configured.
-func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, instName string, mac net.HardwareAddr) (net.IP, error) {
+func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation, deviceStaticFileName string, mac net.HardwareAddr) (net.IP, error) {
 	lxdIP, subnet, err := net.ParseCIDR(t.opts.Network.Config()["ipv4.address"])
 	if err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 	// Lets see if there is already an allocation for our device and that it sits within subnet.
 	// If there are custom DHCP ranges defined, check also that the IP falls within one of the ranges.
 	for _, DHCP := range usedIPs {
-		if (instName == DHCP.Name || bytes.Compare(mac, DHCP.MAC) == 0) && DHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+		if (deviceStaticFileName == DHCP.StaticFileName || bytes.Compare(mac, DHCP.MAC) == 0) && DHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
 			return DHCP.IP, nil
 		}
 	}
@@ -249,7 +249,7 @@ func (t *Transaction) getDHCPFreeIPv4(usedIPs map[[4]byte]dnsmasq.DHCPAllocation
 // DHCPv6 stateful mode is enabled without custom ranges, then an EUI64 IP is generated from the
 // device's MAC address. Finally if stateful custom ranges are enabled, then a free IP is picked
 // from the ranges configured.
-func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, instName string, mac net.HardwareAddr) (net.IP, error) {
+func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocation, deviceStaticFileName string, mac net.HardwareAddr) (net.IP, error) {
 	lxdIP, subnet, err := net.ParseCIDR(t.opts.Network.Config()["ipv6.address"])
 	if err != nil {
 		return nil, err
@@ -262,7 +262,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 	// allocations using instance name. If there are custom DHCP ranges defined, check also
 	// that the IP falls within one of the ranges.
 	for _, DHCP := range usedIPs {
-		if instName == DHCP.Name && DHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
+		if deviceStaticFileName == DHCP.StaticFileName && DHCPValidIP(subnet, dhcpRanges, DHCP.IP) {
 			return DHCP.IP, nil
 		}
 	}
@@ -344,7 +344,8 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 	t := &Transaction{opts: opts}
 
 	// Read current static IP allocation configured from dnsmasq host config (if exists).
-	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(opts.Network.Name(), opts.ProjectName, opts.HostName, opts.DeviceName, "")
+	deviceStaticFileName := dnsmasq.StaticAllocationFileName(opts.ProjectName, opts.HostName, opts.DeviceName)
+	t.currentDHCPMAC, t.currentDHCPv4, t.currentDHCPv6, err = dnsmasq.DHCPStaticAllocation(opts.Network.Name(), deviceStaticFileName)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
