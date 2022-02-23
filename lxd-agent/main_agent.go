@@ -106,6 +106,8 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 		time.Sleep(300 * time.Second)
 	}
 
+	reconfigureNetworkInterfaces()
+
 	// Load the kernel driver.
 	logger.Info("Loading vsock module")
 	err = util.LoadModule("vsock")

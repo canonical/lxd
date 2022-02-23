@@ -319,6 +319,7 @@ var APIExtensions = []string{
 	"certificate_token",
 	"instance_nic_routed_neighbor_probe",
 	"event_hub",
+	"agent_rename_interfaces",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
