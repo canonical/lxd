@@ -9,8 +9,8 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 )
 
-// ResolveWarningsOlderThan resolves all warnings which are older than the provided time.
-func ResolveWarningsOlderThan(cluster *db.Cluster, date time.Time) error {
+// ResolveWarningsByLocalNodeOlderThan resolves all warnings which are older than the provided time.
+func ResolveWarningsByLocalNodeOlderThan(cluster *db.Cluster, date time.Time) error {
 	var err error
 	var localName string
 
@@ -171,7 +171,7 @@ func ResolveWarningsByNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, nodeNa
 		}
 
 		for _, w := range warnings {
-			if w.Node != nodeName || w.Project != projectName || w.EntityTypeCode != entityTypeCode || entityID != entityID {
+			if w.Node != nodeName || w.Project != projectName || w.EntityTypeCode != entityTypeCode || w.EntityID != entityID {
 				continue
 			}
 
@@ -222,7 +222,7 @@ func DeleteWarningsByNodeAndProjectAndEntity(cluster *db.Cluster, nodeName strin
 		}
 
 		for _, w := range warnings {
-			if w.Node != nodeName || w.Project != projectName || w.EntityTypeCode != entityTypeCode || entityID != entityID {
+			if w.Node != nodeName || w.Project != projectName || w.EntityTypeCode != entityTypeCode || w.EntityID != entityID {
 				continue
 			}
 
@@ -273,7 +273,7 @@ func DeleteWarningsByNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, nodeNam
 		}
 
 		for _, w := range warnings {
-			if w.Node != nodeName || w.Project != projectName || w.EntityTypeCode != entityTypeCode || entityID != entityID {
+			if w.Node != nodeName || w.Project != projectName || w.EntityTypeCode != entityTypeCode || w.EntityID != entityID {
 				continue
 			}
 
