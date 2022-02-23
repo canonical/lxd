@@ -12,7 +12,16 @@ import (
 
 // Transaction executes the given function within a database transaction.
 func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	funcCtx := func(ctx context.Context, tx *sql.Tx) error {
+		return f(tx)
+	}
+
+	return TransactionCtx(context.Background(), db, funcCtx)
+}
+
+// TransactionCtx executes the given function within a database transaction with a 10s context timeout.
+func TransactionCtx(ctx context.Context, db *sql.DB, f func(context.Context, *sql.Tx) error) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	tx, err := db.BeginTx(ctx, nil)
@@ -25,7 +34,7 @@ func Transaction(db *sql.DB, f func(*sql.Tx) error) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 
-	err = f(tx)
+	err = f(ctx, tx)
 	if err != nil {
 		return rollback(tx, err)
 	}
