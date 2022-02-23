@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -358,7 +357,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 		if !exists {
 			// Set file permissions.
 			if mode >= 0 {
-				err = file.Chmod(fs.FileMode(mode))
+				err = file.Chmod(os.FileMode(mode))
 				if err != nil {
 					return response.SmartError(err)
 				}
@@ -414,7 +413,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			mode = 0750
 		}
 
-		err = client.Chmod(path, fs.FileMode(mode))
+		err = client.Chmod(path, os.FileMode(mode))
 		if err != nil {
 			return response.SmartError(err)
 		}
