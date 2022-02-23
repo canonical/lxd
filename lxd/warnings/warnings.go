@@ -9,8 +9,8 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 )
 
-// ResolveWarningsOlderThan resolves all warnings which are older than the provided time.
-func ResolveWarningsOlderThan(cluster *db.Cluster, date time.Time) error {
+// ResolveWarningsByLocalNodeOlderThan resolves all warnings which are older than the provided time.
+func ResolveWarningsByLocalNodeOlderThan(cluster *db.Cluster, date time.Time) error {
 	var err error
 	var localName string
 
