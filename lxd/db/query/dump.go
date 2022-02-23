@@ -1,6 +1,7 @@
 package query
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -13,7 +14,7 @@ import (
 
 // Dump returns a SQL text dump of all rows across all tables, similar to
 // sqlite3's dump feature
-func Dump(tx *sql.Tx, schema string, schemaOnly bool) (string, error) {
+func Dump(ctx context.Context, tx *sql.Tx, schema string, schemaOnly bool) (string, error) {
 	schemas := dumpParseSchema(schema)
 
 	// Begin
@@ -21,7 +22,7 @@ func Dump(tx *sql.Tx, schema string, schemaOnly bool) (string, error) {
 BEGIN TRANSACTION;
 `
 	// Schema table
-	tableDump, err := dumpTable(tx, "schema", dumpSchemaTable)
+	tableDump, err := dumpTable(ctx, tx, "schema", dumpSchemaTable)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to dump table schema")
 	}
@@ -39,7 +40,7 @@ BEGIN TRANSACTION;
 			dump += schemas[table] + "\n"
 			continue
 		}
-		tableDump, err := dumpTable(tx, table, schemas[table])
+		tableDump, err := dumpTable(ctx, tx, table, schemas[table])
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to dump table %s", table)
 		}
@@ -48,7 +49,7 @@ BEGIN TRANSACTION;
 
 	// Sequences (unless the schemaOnly flag is true)
 	if !schemaOnly {
-		tableDump, err = dumpTable(tx, "sqlite_sequence", "DELETE FROM sqlite_sequence;")
+		tableDump, err = dumpTable(ctx, tx, "sqlite_sequence", "DELETE FROM sqlite_sequence;")
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to dump table sqlite_sequence")
 		}
@@ -78,11 +79,11 @@ func dumpParseSchema(schema string) map[string]string {
 
 // Dump a single table, returning a SQL text containing statements for its
 // schema and data.
-func dumpTable(tx *sql.Tx, table, schema string) (string, error) {
+func dumpTable(ctx context.Context, tx *sql.Tx, table, schema string) (string, error) {
 	statements := []string{schema}
 
 	// Query all rows.
-	rows, err := tx.Query(fmt.Sprintf("SELECT * FROM %s ORDER BY rowid", table))
+	rows, err := tx.QueryContext(ctx, fmt.Sprintf("SELECT * FROM %s ORDER BY rowid", table))
 	if err != nil {
 		return "", errors.Wrap(err, "failed to fetch rows")
 	}
