@@ -185,7 +185,7 @@ func DHCPAllAllocations(network string) (map[[4]byte]DHCPAllocation, map[[16]byt
 	}
 
 	for _, entry := range files {
-		_, IPv4, IPv6, err := DHCPStaticAllocation(network, "", "", "", entry.Name())
+		_, IPv4, IPv6, err := DHCPStaticAllocation(network, entry.Name())
 		if err != nil {
 			return nil, nil, err
 		}
