@@ -17,6 +17,8 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
+const staticAllocationDeviceSeparator = "."
+
 // DHCPAllocation represents an IP allocation from dnsmasq.
 type DHCPAllocation struct {
 	IP     net.IP
