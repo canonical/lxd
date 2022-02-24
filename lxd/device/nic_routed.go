@@ -34,7 +34,7 @@ type nicRouted struct {
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running.
 func (d *nicRouted) CanHotPlug() bool {
-	return false
+	return true
 }
 
 // UpdatableFields returns a list of fields that can be updated without triggering a device remove & add.
