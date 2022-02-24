@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/filter"
@@ -1739,8 +1740,8 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		}
 		defer os.Remove(tarFile.Name())
 
-		// Decompress to tarData temporary file.
-		err = shared.RunCommandWithFds(nil, tarFile, decomArgs[0], decomArgs[1:]...)
+		// Decompress to tarFile temporary file.
+		err = archive.ExtractWithFds(decomArgs[0], decomArgs[1:], nil, nil, d.State().OS, tarFile)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1756,7 +1757,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 	// Parse the backup information.
 	backupFile.Seek(0, 0)
 	logger.Debug("Reading backup file info")
-	bInfo, err := backup.GetInfo(backupFile)
+	bInfo, err := backup.GetInfo(backupFile, d.State().OS, backupFile.Name())
 	if err != nil {
 		return response.BadRequest(err)
 	}
