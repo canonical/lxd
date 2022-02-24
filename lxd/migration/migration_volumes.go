@@ -89,6 +89,8 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 				features.MigrationHeader = &hasFeature
 			} else if feature == BTRFSFeatureSubvolumes {
 				features.HeaderSubvolumes = &hasFeature
+			} else if feature == BTRFSFeatureSubvolumeUUIDs {
+				features.HeaderSubvolumeUuids = &hasFeature
 			}
 		}
 
