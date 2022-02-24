@@ -16,8 +16,9 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
+	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -28,7 +29,6 @@ import (
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/sys"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -299,14 +299,14 @@ func lxcValidConfig(rawLxc string) error {
 		}
 
 		networkKeyPrefix := "lxc.net."
-		if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
+		if !RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 			networkKeyPrefix = "lxc.network."
 		}
 
 		if strings.HasPrefix(key, networkKeyPrefix) {
 			fields := strings.Split(key, ".")
 
-			if !util.RuntimeLiblxcVersionAtLeast(2, 1, 0) {
+			if !RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 1, 0) {
 				// lxc.network.X.ipv4 or lxc.network.X.ipv6
 				if len(fields) == 4 && shared.StringInSlice(fields[3], []string{"ipv4", "ipv6"}) {
 					continue
@@ -1161,4 +1161,73 @@ func IsSameLogicalInstance(inst Instance, dbInst *db.Instance) bool {
 	}
 
 	return false
+}
+
+// RuntimeLiblxcVersionAtLeast checks if the system's liblxc matches the
+// provided version requirement
+func RuntimeLiblxcVersionAtLeast(version string, major int, minor int, micro int) bool {
+	version = strings.Replace(version, " (devel)", "-devel", 1)
+	parts := strings.Split(version, ".")
+	partsLen := len(parts)
+	if partsLen == 0 {
+		return false
+	}
+
+	develParts := strings.Split(parts[partsLen-1], "-")
+	if len(develParts) == 2 && develParts[1] == "devel" {
+		return true
+	}
+
+	maj := -1
+	min := -1
+	mic := -1
+
+	for i, v := range parts {
+		if i > 2 {
+			break
+		}
+
+		num, err := strconv.Atoi(v)
+		if err != nil {
+			return false
+		}
+
+		switch i {
+		case 0:
+			maj = num
+		case 1:
+			min = num
+		case 2:
+			mic = num
+		}
+	}
+
+	/* Major version is greater. */
+	if maj > major {
+		return true
+	}
+
+	if maj < major {
+		return false
+	}
+
+	/* Minor number is greater.*/
+	if min > minor {
+		return true
+	}
+
+	if min < minor {
+		return false
+	}
+
+	/* Patch number is greater. */
+	if mic > micro {
+		return true
+	}
+
+	if mic < micro {
+		return false
+	}
+
+	return true
 }
