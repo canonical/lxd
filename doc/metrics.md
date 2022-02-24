@@ -18,7 +18,7 @@ openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyou
 Now, this certificate needs to be added to the list of trusted clients:
 
 ```bash
-lxc config trust add ~/.config/lxc/metrics.crt --type=metrics
+lxc config trust add metrics.crt --type=metrics
 ```
 
 ## Add target to Prometheus
@@ -41,7 +41,7 @@ For this, these three files can be copied to `/etc/prometheus/tls`:
 mkdir /etc/prometheus/tls
 
 # Copy newly created certificate and key to tls directory
-cp ~/.config/lxc/metrics.crt ~/.config/lxc/metrics.key /etc/prometheus/tls
+cp metrics.crt metrics.key /etc/prometheus/tls
 
 # Copy LXD server certificate to tls directory
 cp /var/snap/lxd/common/lxd/server.crt /etc/prometheus/tls
