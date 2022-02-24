@@ -262,8 +262,10 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Setup the network interface pair.
 	var peerName string
+	var mtu uint32
 	var vfPCIDev pcidev.Device
 	var pciIOMMUGroup uint64
+
 	if d.config["acceleration"] == "sriov" {
 		ovs := openvswitch.NewOVS()
 		if !ovs.HardwareOffloadingEnabled() {
@@ -316,7 +318,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 				saveData["host_name"] = network.RandomDevName("veth")
 			}
 
-			peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
+			peerName, mtu, err = networkCreateVethPair(saveData["host_name"], d.config)
 			if err != nil {
 				return nil, err
 			}
@@ -326,7 +328,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 			}
 
 			peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
-			err = networkCreateTap(saveData["host_name"], d.config)
+			mtu, err = networkCreateTap(saveData["host_name"], d.config)
 			if err != nil {
 				return nil, err
 			}
@@ -364,12 +366,14 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 					{Key: "devName", Value: d.name},
 					{Key: "pciSlotName", Value: vfPCIDev.SlotName},
 					{Key: "pciIOMMUGroup", Value: fmt.Sprintf("%d", pciIOMMUGroup)},
+					{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 				}...)
 		} else {
 			runConf.NetworkInterface = append(runConf.NetworkInterface,
 				[]deviceConfig.RunConfigItem{
 					{Key: "devName", Value: d.name},
 					{Key: "hwaddr", Value: d.config["hwaddr"]},
+					{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 				}...)
 		}
 	}

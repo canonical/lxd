@@ -1,6 +1,8 @@
 package config
 
-import "github.com/lxc/lxd/lxd/revert"
+import (
+	"github.com/lxc/lxd/lxd/revert"
+)
 
 // MountOwnerShiftNone do not use owner shifting.
 const MountOwnerShiftNone = ""
@@ -56,8 +58,13 @@ type RunConfig struct {
 	Revert           *revert.Reverter // Revert setup of device on post-setup error.
 }
 
+// NICConfigDir shared constant used to indicate where NIC config is stored.
+const NICConfigDir = "nics"
+
 // NICConfig contains network interface configuration to be passed into a VM and applied by the agent.
 type NICConfig struct {
+	DeviceName string `json:"device_name"`
+	NICName    string `json:"nic_name"`
 	MACAddress string `json:"mac_address"`
 	MTU        uint32 `json:"mtu"`
 }
