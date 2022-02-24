@@ -464,6 +464,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		}
 	} else if d.inst.Type() == instancetype.VM {
 		nic = append(nic, []deviceConfig.RunConfigItem{
+			{Key: "name", Value: d.config["name"]},
 			{Key: "devName", Value: d.name},
 			{Key: "link", Value: peerName},
 			{Key: "hwaddr", Value: d.config["hwaddr"]},
