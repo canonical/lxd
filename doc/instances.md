@@ -760,7 +760,7 @@ GPU device entries simply make the requested gpu device appear in the
 instance.
 
 ```{note}
-Container devices may match multiple GPUs at once. However, for virtual machines a device can only match a single GPU. 
+Container devices may match multiple GPUs at once. However, for virtual machines a device can only match a single GPU.
 ```
 
 ##### GPUs Available:
