@@ -6,6 +6,9 @@ const BTRFSFeatureMigrationHeader = "migration_header"
 // BTRFSFeatureSubvolumes indicates migration can send/recv subvolumes.
 const BTRFSFeatureSubvolumes = "header_subvolumes"
 
+// BTRFSFeatureSubvolumeUUIDs indicates that the header will include subvolume UUIDs.
+const BTRFSFeatureSubvolumeUUIDs = "header_subvolume_uuids"
+
 // ZFSFeatureMigrationHeader indicates a migration header will be sent/recv in data channel first.
 const ZFSFeatureMigrationHeader = "migration_header"
 
@@ -70,6 +73,10 @@ func (m *MigrationHeader) GetBtrfsFeaturesSlice() []string {
 
 		if m.BtrfsFeatures.HeaderSubvolumes != nil && *m.BtrfsFeatures.HeaderSubvolumes == true {
 			features = append(features, BTRFSFeatureSubvolumes)
+		}
+
+		if m.BtrfsFeatures.HeaderSubvolumeUuids != nil && *m.BtrfsFeatures.HeaderSubvolumeUuids == true {
+			features = append(features, BTRFSFeatureSubvolumeUUIDs)
 		}
 	}
 
