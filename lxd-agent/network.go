@@ -8,12 +8,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
-	"gopkg.in/inconshreveable/log15.v2"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/ip"
@@ -83,60 +81,70 @@ func serverTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// reconfigureNetworkInterfaces checks for the existence of files under ./nics in the config share.
-// Each file is named <device>.json and contains the MTU and MAC address.
+// reconfigureNetworkInterfaces checks for the existence of files under NICConfigDir in the config share.
+// Each file is named <device>.json and contains the Device Name, NIC Name, MTU and MAC address.
 func reconfigureNetworkInterfaces() {
-	// Abort if configuration folder does not exist (nothing to do), otherwise log and return.
-	nicDir, err := ioutil.ReadDir("nics")
-	if os.IsNotExist(err) {
-		return
-	} else if err != nil {
-		logger.Error("Could not read network interface configuration directory", log15.Ctx{"err": err})
+	nicDirEntries, err := ioutil.ReadDir(deviceConfig.NICConfigDir)
+	if err != nil {
+		// Abort if configuration folder does not exist (nothing to do), otherwise log and return.
+		if os.IsNotExist(err) {
+			return
+		}
+
+		logger.Error("Could not read network interface configuration directory", log.Ctx{"err": err})
 		return
 	}
 
-	// nicData is a map of MAC address to new interface name and MTU.
-	nicData := make(map[string]struct {
-		Name string
-		MTU  uint32
-	})
-	for _, f := range nicDir {
-		nicBytes, err := ioutil.ReadFile(filepath.Join("nics", f.Name()))
+	// nicData is a map of MAC address to NICConfig.
+	nicData := make(map[string]deviceConfig.NICConfig, len(nicDirEntries))
+
+	for _, f := range nicDirEntries {
+		nicBytes, err := ioutil.ReadFile(filepath.Join(deviceConfig.NICConfigDir, f.Name()))
 		if err != nil {
-			logger.Error("Could not read network interface configuration file", log15.Ctx{"err": err})
+			logger.Error("Could not read network interface configuration file", log.Ctx{"err": err})
 		}
 
 		var conf deviceConfig.NICConfig
 		err = json.Unmarshal(nicBytes, &conf)
 		if err != nil {
-			logger.Error("Could not parse network interface configuration file", log15.Ctx{"err": err})
+			logger.Error("Could not parse network interface configuration file", log.Ctx{"err": err})
 			return
 		}
 
-		// The new interface name will be the device name (which is the file name sans ".json").
-		newInterfaceName := strings.TrimSuffix(f.Name(), filepath.Ext(f.Name()))
-		nicData[conf.MACAddress] = struct {
-			Name string
-			MTU  uint32
-		}{
-			Name: newInterfaceName,
-			MTU:  conf.MTU,
+		if conf.MACAddress != "" {
+			nicData[conf.MACAddress] = conf
 		}
 	}
 
-	configureNIC := func(currentInterfaceName, currentMACAddress, currentMTU string) error {
+	// configureNIC applies any config specified for the interface based on its current MAC address.
+	configureNIC := func(currentNIC net.Interface) error {
 		reverter := revert.New()
 		defer reverter.Fail()
 
-		nic, ok := nicData[currentMACAddress]
+		// Look for a NIC config entry for this interface based on its MAC address.
+		nic, ok := nicData[currentNIC.HardwareAddr.String()]
 		if !ok {
 			return nil
 		}
 
-		link := ip.Link{
-			Name: currentInterfaceName,
-			MTU:  currentMTU,
+		var changeName, changeMTU bool
+		if nic.NICName != "" && currentNIC.Name != nic.NICName {
+			changeName = true
 		}
+
+		if nic.MTU > 0 && currentNIC.MTU != int(nic.MTU) {
+			changeMTU = true
+		}
+
+		if !changeName && !changeMTU {
+			return nil // Nothing to do.
+		}
+
+		link := ip.Link{
+			Name: currentNIC.Name,
+			MTU:  fmt.Sprintf("%d", currentNIC.MTU),
+		}
+
 		err := link.SetDown()
 		if err != nil {
 			return err
@@ -145,23 +153,34 @@ func reconfigureNetworkInterfaces() {
 			link.SetUp()
 		})
 
-		err = link.SetName(nic.Name)
-		if err != nil {
-			return err
-		}
-		link.Name = nic.Name
-		reverter.Add(func() {
-			link.SetName(currentInterfaceName)
-		})
-
-		if nic.MTU != 0 {
-			err = link.SetMTU(fmt.Sprintf("%d", nic.MTU))
+		// Apply the name from the NIC config if needed.
+		if changeName {
+			err = link.SetName(nic.NICName)
 			if err != nil {
 				return err
 			}
 			reverter.Add(func() {
-				link.SetMTU(currentMTU)
+				link.SetName(currentNIC.Name)
+				link.Name = currentNIC.Name
 			})
+
+			link.Name = nic.NICName
+		}
+
+		// Apply the MTU from the NIC config if needed.
+		if changeMTU {
+			newMTU := fmt.Sprintf("%d", nic.MTU)
+			err = link.SetMTU(newMTU)
+			if err != nil {
+				return err
+			}
+			reverter.Add(func() {
+				currentMTU := fmt.Sprintf("%d", currentNIC.MTU)
+				link.SetMTU(currentMTU)
+				link.MTU = currentMTU
+			})
+
+			link.MTU = newMTU
 		}
 
 		err = link.SetUp()
@@ -175,13 +194,13 @@ func reconfigureNetworkInterfaces() {
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		logger.Error("Unable to read network interfaces")
+		logger.Error("Unable to read network interfaces", log.Ctx{"err": err})
 	}
 
 	for _, iface := range ifaces {
-		err = configureNIC(iface.Name, iface.HardwareAddr.String(), strconv.Itoa(iface.MTU))
+		err = configureNIC(iface)
 		if err != nil {
-			logger.Error("Unable to reconfigure network interface", log15.Ctx{"err": err})
+			logger.Error("Unable to reconfigure network interface", log.Ctx{"interface": iface.Name, "err": err})
 		}
 	}
 
