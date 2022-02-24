@@ -6,6 +6,7 @@ package subprocess
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -25,13 +26,15 @@ type Process struct {
 
 	chExit     chan struct{} `yaml:"-"`
 	hasMonitor bool          `yaml:"-"`
+	closeFds   bool          `yaml:"-"`
 
-	Name     string   `yaml:"name"`
-	Args     []string `yaml:"args,flow"`
-	Apparmor string   `yaml:"apparmor"`
-	PID      int64    `yaml:"pid"`
-	Stdout   string   `yaml:"stdout"`
-	Stderr   string   `yaml:"stderr"`
+	Name     string         `yaml:"name"`
+	Args     []string       `yaml:"args,flow"`
+	Apparmor string         `yaml:"apparmor"`
+	PID      int64          `yaml:"pid"`
+	Stdin    io.ReadCloser  `yaml:"-"`
+	Stdout   io.WriteCloser `yaml:"-"`
+	Stderr   io.WriteCloser `yaml:"-"`
 
 	UID       uint32 `yaml:"uid"`
 	GID       uint32 `yaml:"gid"`
@@ -120,7 +123,9 @@ func (p *Process) start(fds []*os.File) error {
 	} else {
 		cmd = exec.Command(p.Name, p.Args...)
 	}
-	cmd.Stdin = nil
+	cmd.Stdout = p.Stdout
+	cmd.Stderr = p.Stderr
+	cmd.Stdin = p.Stdin
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.Setsid = true
 
@@ -134,25 +139,12 @@ func (p *Process) start(fds []*os.File) error {
 		cmd.ExtraFiles = fds
 	}
 
-	// Setup output capture.
-	if p.Stdout != "" {
-		out, err := os.Create(p.Stdout)
-		if err != nil {
-			return errors.Wrapf(err, "Unable to open stdout file")
-		}
-		defer out.Close()
-		cmd.Stdout = out
+	if p.Stdout != nil && p.closeFds {
+		defer p.Stdout.Close()
 	}
 
-	if p.Stderr == p.Stdout {
-		cmd.Stderr = cmd.Stdout
-	} else if p.Stderr != "" {
-		out, err := os.Create(p.Stderr)
-		if err != nil {
-			return errors.Wrapf(err, "Unable to open stderr file")
-		}
-		defer out.Close()
-		cmd.Stderr = out
+	if p.Stderr != nil && p.Stderr != p.Stdout && p.closeFds {
+		defer p.Stderr.Close()
 	}
 
 	// Start the process.

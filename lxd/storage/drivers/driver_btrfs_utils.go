@@ -417,11 +417,11 @@ func (d *btrfs) restorationHeader(vol Volume, snapshots []string) (*BTRFSMetaDat
 }
 
 // loadOptimizedBackupHeader extracts optimized backup header from a given ReadSeeker.
-func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker) (*BTRFSMetaDataHeader, error) {
+func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*BTRFSMetaDataHeader, error) {
 	header := BTRFSMetaDataHeader{}
 
 	// Extract.
-	tr, cancelFunc, err := backup.TarReader(r)
+	tr, cancelFunc, err := backup.TarReader(r, d.state.OS, mountPath)
 	if err != nil {
 		return nil, err
 	}

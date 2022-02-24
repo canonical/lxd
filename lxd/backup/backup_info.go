@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
+	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -51,7 +52,7 @@ type Info struct {
 }
 
 // GetInfo extracts backup information from a given ReadSeeker.
-func GetInfo(r io.ReadSeeker) (*Info, error) {
+func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 	result := Info{}
 	hasIndexFile := false
 
@@ -60,7 +61,7 @@ func GetInfo(r io.ReadSeeker) (*Info, error) {
 	optimizedHeaderFalse := false
 
 	// Extract.
-	tr, cancelFunc, err := TarReader(r)
+	tr, cancelFunc, err := TarReader(r, sysOS, outputPath)
 	if err != nil {
 		return nil, err
 	}
