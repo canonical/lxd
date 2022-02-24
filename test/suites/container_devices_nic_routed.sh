@@ -38,9 +38,9 @@ test_container_devices_nic_routed() {
   lxc config device add "${ctName}neigh" eth0 nic network="${ctName}"
   lxc start "${ctName}neigh"
   lxc exec "${ctName}neigh" -- ip -4 addr add 192.0.2.254/24 dev eth0
-  lxc exec "${ctName}neigh" -- ip -4 route add default via 192.0.2.1 dev eth0
+  lxc exec "${ctName}neigh" -- ip -4 route replace default via 192.0.2.1 dev eth0
   lxc exec "${ctName}neigh" -- ip -6 addr add 2001:db8::FFFF/64 dev eth0
-  lxc exec "${ctName}neigh" -- ip -6 route add default via 2001:db8::1 dev eth0
+  lxc exec "${ctName}neigh" -- ip -6 route replace default via 2001:db8::1 dev eth0
 
   # Wait for IPv6 DAD to complete.
   while true
