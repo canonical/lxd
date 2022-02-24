@@ -3149,7 +3149,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 
 			err := m.AddNIC(qemuNetDev, qemuDev)
 			if err != nil {
-				return errors.Wrapf(err, "Failed setting up device %v", devName)
+				return errors.Wrapf(err, "Failed setting up device %q", devName)
 			}
 
 			return nil
