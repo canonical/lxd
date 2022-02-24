@@ -395,19 +395,20 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	saveData["host_name"] = d.config["host_name"]
 
 	var peerName string
+	var mtu uint32
 
 	// Create veth pair and configure the peer end with custom hwaddr and mtu if supplied.
 	if d.inst.Type() == instancetype.Container {
 		if saveData["host_name"] == "" {
 			saveData["host_name"] = network.RandomDevName("veth")
 		}
-		peerName, err = networkCreateVethPair(saveData["host_name"], d.config)
+		peerName, mtu, err = networkCreateVethPair(saveData["host_name"], d.config)
 	} else if d.inst.Type() == instancetype.VM {
 		if saveData["host_name"] == "" {
 			saveData["host_name"] = network.RandomDevName("tap")
 		}
 		peerName = saveData["host_name"] // VMs use the host_name to link to the TAP FD.
-		err = networkCreateTap(saveData["host_name"], d.config)
+		mtu, err = networkCreateTap(saveData["host_name"], d.config)
 	}
 
 	if err != nil {
@@ -472,25 +473,11 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 	}
 
 	if d.inst.Type() == instancetype.VM {
-		var mtu uint32
-		if d.config["mtu"] != "" {
-			mtu64, err := strconv.ParseUint(d.config["mtu"], 10, 32)
-			if err != nil {
-				return nil, err
-			}
-			mtu = uint32(mtu64)
-		} else if d.config["parent"] != "" {
-			mtu, err = network.GetDevMTU(d.config["parent"])
-			if err != nil {
-				return nil, err
-			}
-		}
-
 		runConf.NetworkInterface = append(runConf.NetworkInterface,
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "hwaddr", Value: d.config["hwaddr"]},
-				{Key: "mtu", Value: strconv.Itoa(int(mtu))},
+				{Key: "mtu", Value: fmt.Sprintf("%d", mtu)},
 			}...)
 	}
 
