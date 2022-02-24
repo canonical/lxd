@@ -63,6 +63,8 @@ const NICConfigDir = "nics"
 
 // NICConfig contains network interface configuration to be passed into a VM and applied by the agent.
 type NICConfig struct {
+	DeviceName string `json:"device_name"`
+	NICName    string `json:"nic_name"`
 	MACAddress string `json:"mac_address"`
 	MTU        uint32 `json:"mtu"`
 }
