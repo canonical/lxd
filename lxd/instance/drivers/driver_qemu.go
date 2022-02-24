@@ -3071,11 +3071,6 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 	}
 
-	// If the devices' configured name has no value, fallback to the device key/name.
-	if name == "" {
-		name = devName
-	}
-
 	if shared.IsTrue(d.expandedConfig["agent.rename_interfaces"]) {
 		err := d.writeNICDevConfig(mtu, name, devHwaddr)
 		if err != nil {
