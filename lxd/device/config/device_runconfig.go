@@ -58,6 +58,9 @@ type RunConfig struct {
 	Revert           *revert.Reverter // Revert setup of device on post-setup error.
 }
 
+// NICConfigDir shared constant used to indicate where NIC config is stored.
+const NICConfigDir = "nics"
+
 // NICConfig contains network interface configuration to be passed into a VM and applied by the agent.
 type NICConfig struct {
 	MACAddress string `json:"mac_address"`
