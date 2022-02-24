@@ -1622,6 +1622,6 @@ Adds the `ipv4.neighbor_probe` and `ipv6.neighbor_probe` NIC settings. Defaultin
 ## event\_hub
 This adds support for `event-hub` cluster member role and the `ServerEventMode` environment field.
 
-## agent\_rename\_interfaces
-If set to true, on start-up the lxd-agent will rename the network interfaces to match the names of the instances network
+## agent\_nic\_config
+If set to true, on VM start-up the lxd-agent will apply NIC config to change the names and MTU of the instance NIC
 devices.
