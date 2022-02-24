@@ -1899,8 +1899,9 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 		return false, nil
 	}
 
-	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, deviceName)
-	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, deviceName)
+	escapedDeviceName := filesystem.PathNameEncode(deviceName)
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName)
 
 	// Request removal of device.
 	err = monitor.RemoveNIC(netDevID, deviceID)
@@ -3026,8 +3027,8 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 	}
 
-	var qemuNetDev map[string]interface{}
-	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, devName)
+	escapedDeviceName := filesystem.PathNameEncode(devName)
+	qemuDev["id"] = fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
 
 	if len(bootIndexes) > 0 {
 		bootIndex, found := bootIndexes[devName]
@@ -3035,6 +3036,8 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			qemuDev["bootindex"] = strconv.Itoa(bootIndex)
 		}
 	}
+
+	var qemuNetDev map[string]interface{}
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
@@ -3050,7 +3053,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 
 		qemuNetDev = map[string]interface{}{
-			"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, devName),
+			"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 			"type":  "tap",
 			"vhost": true,
 			"fd":    fmt.Sprintf("/dev/tap%d", ifindex), // Indicates the file to open and the FD name.
@@ -3067,7 +3070,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
 		qemuNetDev = map[string]interface{}{
-			"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, devName),
+			"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 			"type":       "tap",
 			"vhost":      true,
 			"script":     "no",
