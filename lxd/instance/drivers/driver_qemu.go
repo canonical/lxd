@@ -2234,8 +2234,8 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		}
 	}
 
-	// Clear and recreate nics directory to ensure that no leftover configuration is erroneously applied by the agent.
-	nicConfigPath := filepath.Join(configDrivePath, "nics")
+	// Clear NICConfigDir to ensure that no leftover configuration is erroneously applied by the agent.
+	nicConfigPath := filepath.Join(configDrivePath, deviceConfig.NICConfigDir)
 	os.RemoveAll(nicConfigPath)
 	err = os.MkdirAll(nicConfigPath, 0500)
 	if err != nil {
