@@ -3071,7 +3071,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 	}
 
-	if shared.IsTrue(d.expandedConfig["agent.rename_interfaces"]) {
+	if shared.IsTrue(d.expandedConfig["agent.nic_config"]) {
 		err := d.writeNICDevConfig(mtu, devName, name, devHwaddr)
 		if err != nil {
 			return nil, fmt.Errorf("Failed writing NIC config for device %q: %w", devName, err)

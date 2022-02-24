@@ -42,7 +42,7 @@ The currently supported keys are:
 
 Key                                         | Type      | Default           | Live update   | Condition                 | Description
 :--                                         | :---      | :------           | :----------   | :----------               | :----------
-agent.rename_interfaces                     | boolean   | false             | n/a           | virtual-machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers). 
+agent.nic_config                            | boolean   | false             | n/a           | virtual-machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).
 boot.autostart                              | boolean   | -                 | n/a           | -                         | Always start the instance when LXD starts (if not set, restore last state)
 boot.autostart.delay                        | integer   | 0                 | n/a           | -                         | Number of seconds to wait after the instance started before starting the next one
 boot.autostart.priority                     | integer   | 0                 | n/a           | -                         | What order to start the instances in (starting with highest)
