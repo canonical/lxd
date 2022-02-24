@@ -200,8 +200,8 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 // networkCreateVethPair creates and configures a veth pair. It will set the hwaddr and mtu settings
 // in the supplied config to the newly created peer interface. If mtu is not specified, but parent
 // is supplied in config, then the MTU of the new peer interface will inherit the parent MTU.
-// Accepts the name of the host side interface as a parameter and returns the peer interface name.
-func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, error) {
+// Accepts the name of the host side interface as a parameter and returns the peer interface name and MTU used.
+func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint32, error) {
 	peerName := network.RandomDevName("veth")
 
 	veth := &ip.Veth{
@@ -212,13 +212,13 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 	}
 	err := veth.Add()
 	if err != nil {
-		return "", fmt.Errorf("Failed to create the veth interfaces %s and %s: %v", hostName, peerName, err)
+		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %v", hostName, peerName, err)
 	}
 
 	err = veth.SetUp()
 	if err != nil {
 		network.InterfaceRemove(hostName)
-		return "", fmt.Errorf("Failed to bring up the veth interface %s: %v", hostName, err)
+		return "", 0, fmt.Errorf("Failed to bring up the veth interface %q: %w", hostName, err)
 	}
 
 	// Set the MAC address on peer.
@@ -227,52 +227,46 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, erro
 		err := link.SetAddress(m["hwaddr"])
 		if err != nil {
 			network.InterfaceRemove(peerName)
-			return "", fmt.Errorf("Failed to set the MAC address: %v", err)
+			return "", 0, fmt.Errorf("Failed to set the MAC address: %w", err)
 		}
 	}
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
+	var mtu uint32
 	if m["mtu"] != "" {
-		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
+		nicMTU, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
-			return "", fmt.Errorf("Invalid MTU specified: %v", err)
+			return "", 0, fmt.Errorf("Invalid MTU specified: %w", err)
 		}
 
-		err = NetworkSetDevMTU(peerName, uint32(mtu))
-		if err != nil {
-			network.InterfaceRemove(peerName)
-			return "", fmt.Errorf("Failed to set the MTU: %v", err)
-		}
-
-		err = NetworkSetDevMTU(hostName, uint32(mtu))
-		if err != nil {
-			network.InterfaceRemove(peerName)
-			return "", fmt.Errorf("Failed to set the MTU: %v", err)
-		}
+		mtu = uint32(nicMTU)
 	} else if m["parent"] != "" {
-		parentMTU, err := network.GetDevMTU(m["parent"])
+		mtu, err = network.GetDevMTU(m["parent"])
 		if err != nil {
-			return "", fmt.Errorf("Failed to get the parent MTU: %v", err)
-		}
-
-		err = NetworkSetDevMTU(peerName, parentMTU)
-		if err != nil {
-			network.InterfaceRemove(peerName)
-			return "", fmt.Errorf("Failed to set the MTU: %v", err)
-		}
-
-		err = NetworkSetDevMTU(hostName, parentMTU)
-		if err != nil {
-			network.InterfaceRemove(peerName)
-			return "", fmt.Errorf("Failed to set the MTU: %v", err)
+			return "", 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
 		}
 	}
 
-	return peerName, nil
+	if mtu > 0 {
+		err = NetworkSetDevMTU(peerName, mtu)
+		if err != nil {
+			network.InterfaceRemove(peerName)
+			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
+		}
+
+		err = NetworkSetDevMTU(hostName, mtu)
+		if err != nil {
+			network.InterfaceRemove(peerName)
+			return "", 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
+		}
+	}
+
+	return peerName, mtu, nil
 }
 
 // networkCreateTap creates and configures a TAP device.
-func networkCreateTap(hostName string, m deviceConfig.Device) error {
+// Returns the MTU used.
+func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	tuntap := &ip.Tuntap{
 		Name:       hostName,
 		Mode:       "tap",
@@ -280,7 +274,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 	}
 	err := tuntap.Add()
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create the tap interfaces %s", hostName)
+		return 0, errors.Wrapf(err, "Failed to create the tap interfaces %q", hostName)
 	}
 
 	revert := revert.New()
@@ -289,35 +283,37 @@ func networkCreateTap(hostName string, m deviceConfig.Device) error {
 	link := &ip.Link{Name: hostName}
 	err = link.SetUp()
 	if err != nil {
-		return errors.Wrapf(err, "Failed to bring up the tap interface %s", hostName)
+		return 0, errors.Wrapf(err, "Failed to bring up the tap interface %q", hostName)
 	}
 	revert.Add(func() { network.InterfaceRemove(hostName) })
 
 	// Set the MTU on peer. If not specified and has parent, will inherit MTU from parent.
+	var mtu uint32
 	if m["mtu"] != "" {
-		mtu, err := strconv.ParseUint(m["mtu"], 10, 32)
+		nicMTU, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
-			return errors.Wrap(err, "Invalid MTU specified")
+			return 0, errors.Wrap(err, "Invalid MTU specified")
 		}
 
-		err = NetworkSetDevMTU(hostName, uint32(mtu))
-		if err != nil {
-			return errors.Wrap(err, "Failed to set the MTU")
-		}
+		mtu = uint32(nicMTU)
 	} else if m["parent"] != "" {
 		parentMTU, err := network.GetDevMTU(m["parent"])
 		if err != nil {
-			return errors.Wrap(err, "Failed to get the parent MTU")
+			return 0, errors.Wrap(err, "Failed to get the parent MTU")
 		}
 
-		err = NetworkSetDevMTU(hostName, parentMTU)
+		mtu = parentMTU
+	}
+
+	if mtu > 0 {
+		err = NetworkSetDevMTU(hostName, mtu)
 		if err != nil {
-			return errors.Wrap(err, "Failed to set the MTU")
+			return 0, fmt.Errorf("Failed to set the MTU %d: %w", mtu, err)
 		}
 	}
 
 	revert.Success()
-	return nil
+	return mtu, nil
 }
 
 // networkVethFillFromVolatile fills veth host_name and hwaddr fields from volatile if not set in device config.
