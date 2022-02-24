@@ -1,6 +1,8 @@
 package config
 
-import "github.com/lxc/lxd/lxd/revert"
+import (
+	"github.com/lxc/lxd/lxd/revert"
+)
 
 // MountOwnerShiftNone do not use owner shifting.
 const MountOwnerShiftNone = ""
