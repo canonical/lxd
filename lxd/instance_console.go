@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -551,7 +550,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+	if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		return response.BadRequest(fmt.Errorf("Querying the console buffer requires liblxc >= 3.0"))
 	}
 
@@ -631,7 +630,7 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
-	if !util.RuntimeLiblxcVersionAtLeast(3, 0, 0) {
+	if !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
 		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
 
