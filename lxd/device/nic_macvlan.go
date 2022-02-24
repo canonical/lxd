@@ -180,6 +180,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 			[]deviceConfig.RunConfigItem{
 				{Key: "devName", Value: d.name},
 				{Key: "hwaddr", Value: d.config["hwaddr"]},
+				{Key: "mtu", Value: d.config["mtu"]},
 			}...)
 	}
 
