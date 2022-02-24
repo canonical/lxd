@@ -27,7 +27,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -530,7 +529,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 			return abort(err)
 		}
 
-		if util.RuntimeLiblxcVersionAtLeast(2, 0, 4) {
+		if instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 2, 0, 4) {
 			// What happens below is slightly convoluted. Due to various complications
 			// with networking, there's no easy way for criu to exit and leave the
 			// container in a frozen state for us to somehow resume later.
