@@ -168,10 +168,15 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	var dbWarnings []db.Warning
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		filter := db.WarningFilter{}
+
 		if projectName != "" {
-			dbWarnings, err = tx.GetWarningsByProject(projectName)
-		} else {
-			dbWarnings, err = tx.GetWarnings()
+			filter.Project = &projectName
+		}
+
+		dbWarnings, err = tx.GetWarnings(filter)
+		if err != nil {
+			return err
 		}
 		if err != nil {
 			return errors.Wrap(err, "Failed to get warnings")
@@ -428,8 +433,13 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 
 func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		// Retrieve warnings by status
-		warnings, err := tx.GetWarningsByStatus(db.WarningStatusResolved)
+		// Retrieve warnings by resolved status.
+		statusResolved := db.WarningStatusResolved
+		filter := db.WarningFilter{
+			Status: &statusResolved,
+		}
+
+		warnings, err := tx.GetWarnings(filter)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get resolved warnings")
 		}
