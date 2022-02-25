@@ -120,25 +120,15 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 			EntityID:       &entityID,
 		}
 
-		allWarnings, err := tx.GetWarnings(filter)
+		warnings, err := tx.GetWarnings(filter)
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve warnings")
 		}
 
-		var warnings []Warning
-
-		// Check if one of the warnings match. If so, it will be updated. Otherwise it will be
-		// created.
-		for _, w := range allWarnings {
-			warnings = append(warnings, w)
-		}
-
 		if len(warnings) > 1 {
 			// This shouldn't happen
-			return fmt.Errorf("Too many warnings match the criteria")
-		}
-
-		if len(warnings) == 1 {
+			return fmt.Errorf("More than one warnings (%d) match the criteria: typeCode: %d, nodeName: %q, projectName: %q, entityTypeCode: %d, entityID: %d", len(warnings), typeCode, nodeName, projectName, entityTypeCode, entityID)
+		} else if len(warnings) == 1 {
 			// If there is a historical warning that was previously automatically resolved and the same
 			// warning has now reoccurred then set the status back to WarningStatusNew so it shows as
 			// a current active warning.
