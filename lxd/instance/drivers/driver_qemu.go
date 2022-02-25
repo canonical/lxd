@@ -5860,6 +5860,55 @@ func (d *qemu) Info() instance.Info {
 	return data
 }
 
+func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
+	pidFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		return false, err
+	}
+	defer os.Remove(pidFile.Name())
+
+	qemuArgs := []string{
+		"qemu",
+		"-S",
+		"-nographic",
+		"-nodefaults",
+		"-daemonize",
+		"-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+		"-pidfile", pidFile.Name(),
+	}
+	qemuArgs = append(qemuArgs, args...)
+
+	checkFeature := exec.Cmd{
+		Path: qemu,
+		Args: qemuArgs,
+	}
+
+	err = checkFeature.Start()
+	if err != nil {
+		// Not supported.
+		return false, nil
+	}
+
+	err = checkFeature.Wait()
+	if err != nil {
+		return false, err
+	}
+
+	pidFile.Seek(0, 0)
+	content, err := ioutil.ReadAll(pidFile)
+	if err != nil {
+		return false, err
+	}
+
+	pid, err := strconv.Atoi(strings.Split(string(content), "\n")[0])
+	if err != nil {
+		return false, err
+	}
+
+	unix.Kill(pid, unix.SIGKILL)
+	return true, nil
+}
+
 func (d *qemu) Metrics() (*metrics.MetricSet, error) {
 	if d.agentMetricsEnabled() {
 		return d.getAgentMetrics()
