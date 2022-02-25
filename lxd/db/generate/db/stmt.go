@@ -163,12 +163,30 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 
 	for _, field := range mapping.ScalarFields() {
 		join := field.Config.Get("join")
+		if join == "" {
+			continue
+		}
+
 		right := strings.Split(join, ".")[0]
 		via := entityTable(s.entity)
 		if field.Config.Get("via") != "" {
 			via = entityTable(field.Config.Get("via"))
 		}
 		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
+	}
+
+	for _, field := range mapping.ScalarFields() {
+		join := field.Config.Get("leftjoin")
+		if join == "" {
+			continue
+		}
+
+		right := strings.Split(join, ".")[0]
+		via := entityTable(s.entity)
+		if field.Config.Get("via") != "" {
+			via = entityTable(field.Config.Get("via"))
+		}
+		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
 	}
 
 	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
