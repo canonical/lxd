@@ -2976,6 +2976,15 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
 
+	// Check supported features.
+	drivers, _ := SupportedInstanceTypes()
+	info := drivers[d.Type()]
+
+	// If possible, use io_uring for added performance.
+	if shared.StringInSlice("io_uring", info.Features) {
+		aioMode = "io_uring"
+	}
+
 	// Handle local disk devices.
 	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
 		srcDevPath := driveConf.DevPath
@@ -5813,9 +5822,10 @@ func (d *qemu) writeInstanceData() error {
 // Info returns "qemu" and the currently loaded qemu version.
 func (d *qemu) Info() instance.Info {
 	data := instance.Info{
-		Name:  "qemu",
-		Type:  instancetype.VM,
-		Error: fmt.Errorf("Unknown error"),
+		Name:     "qemu",
+		Features: []string{},
+		Type:     instancetype.VM,
+		Error:    fmt.Errorf("Unknown error"),
 	}
 
 	if !shared.PathExists("/dev/kvm") {
@@ -5825,7 +5835,7 @@ func (d *qemu) Info() instance.Info {
 
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
-		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded: %v", err)
+		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded: %w", err)
 		return data
 	}
 
@@ -5855,9 +5865,69 @@ func (d *qemu) Info() instance.Info {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
+	// Check IO-uring support.
+	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
+	if err != nil {
+		data.Error = fmt.Errorf("QEMU failed to run a feature check: %w", err)
+		return data
+	}
+
+	if supported {
+		data.Features = append(data.Features, "io_uring")
+	}
+
 	data.Error = nil
 
 	return data
+}
+
+func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
+	pidFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		return false, err
+	}
+	defer os.Remove(pidFile.Name())
+
+	qemuArgs := []string{
+		"qemu",
+		"-S",
+		"-nographic",
+		"-nodefaults",
+		"-daemonize",
+		"-bios", filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+		"-pidfile", pidFile.Name(),
+	}
+	qemuArgs = append(qemuArgs, args...)
+
+	checkFeature := exec.Cmd{
+		Path: qemu,
+		Args: qemuArgs,
+	}
+
+	err = checkFeature.Start()
+	if err != nil {
+		// Not supported.
+		return false, nil
+	}
+
+	err = checkFeature.Wait()
+	if err != nil {
+		return false, err
+	}
+
+	pidFile.Seek(0, 0)
+	content, err := ioutil.ReadAll(pidFile)
+	if err != nil {
+		return false, err
+	}
+
+	pid, err := strconv.Atoi(strings.Split(string(content), "\n")[0])
+	if err != nil {
+		return false, err
+	}
+
+	unix.Kill(pid, unix.SIGKILL)
+	return true, nil
 }
 
 func (d *qemu) Metrics() (*metrics.MetricSet, error) {
