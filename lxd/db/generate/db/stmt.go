@@ -102,7 +102,12 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 				column = mapping.FieldColumnName(field.Name, table)
 			}
 
-			where = append(where, fmt.Sprintf("%s = ? ", column))
+			if coalesce, ok := field.Config["coalesce"]; ok {
+				// Ensure filters operate on the coalesced value for fields using coalesce setting.
+				where = append(where, fmt.Sprintf("coalesce(%s, %s) = ? ", column, coalesce[0]))
+			} else {
+				where = append(where, fmt.Sprintf("%s = ? ", column))
+			}
 		}
 	}
 
