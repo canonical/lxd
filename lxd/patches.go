@@ -201,7 +201,7 @@ func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
 
 func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		warnings, err := tx.GetWarnings()
+		warnings, err := tx.GetWarnings(db.WarningFilter{})
 		if err != nil {
 			return err
 		}
