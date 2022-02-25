@@ -5825,7 +5825,7 @@ func (d *qemu) Info() instance.Info {
 
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
-		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded: %v", err)
+		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded: %w", err)
 		return data
 	}
 
