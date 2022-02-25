@@ -240,7 +240,6 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	params := make([]string, len(fields))
 
 	for i, field := range fields {
-
 		if field.IsScalar() {
 			ref := lex.Snake(field.Name)
 			columns[i] = ref + "_id"
