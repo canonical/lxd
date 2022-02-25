@@ -402,6 +402,62 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 	return subVols, nil
 }
 
+func (d *btrfs) getSubvolumeUUID(vol Volume) (string, error) {
+	stdout := strings.Builder{}
+
+	poolMountPath := GetPoolMountPath(vol.pool)
+
+	// List all subvolumes in the given filesystem with their UUIDs.
+	err := shared.RunCommandWithFds(nil, &stdout, "btrfs", "subvolume", "list", "-u", poolMountPath)
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(stdout.String()))
+
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+
+		if len(fields) != 11 {
+			continue
+		}
+
+		if vol.MountPath() == filepath.Join(poolMountPath, fields[10]) {
+			return fields[8], nil
+		}
+	}
+
+	return "", nil
+}
+
+func (d *btrfs) getSubVolumeReceivedUUID(vol Volume) (string, error) {
+	stdout := strings.Builder{}
+
+	poolMountPath := GetPoolMountPath(vol.pool)
+
+	// List all subvolumes in the given filesystem with their UUIDs.
+	err := shared.RunCommandWithFds(nil, &stdout, "btrfs", "subvolume", "list", "-R", poolMountPath)
+	if err != nil {
+		return "", err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(stdout.String()))
+
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+
+		if len(fields) != 11 {
+			continue
+		}
+
+		if vol.MountPath() == filepath.Join(poolMountPath, fields[10]) && fields[8] != "-" {
+			return fields[8], nil
+		}
+	}
+
+	return "", nil
+}
+
 // BTRFSMetaDataHeader is the meta data header about the volumes being sent/stored.
 // Note: This is used by both migration and backup subsystems so do not modify without considering both!
 type BTRFSMetaDataHeader struct {
