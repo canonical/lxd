@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -284,11 +285,29 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 
 }
 
+// warningsDelete deletes any persistent warnings for the pool.
+func (b *lxdBackend) warningsDelete() error {
+	err := b.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.DeleteWarnings(dbCluster.TypeStoragePool, int(b.ID()))
+	})
+	if err != nil {
+		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
+	}
+
+	return nil
+}
+
 // Delete removes the pool.
 func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"clientType": clientType})
 	logger.Debug("Delete started")
 	defer logger.Debug("Delete finished")
+
+	// Delete any persistent warnings for pool.
+	err := b.warningsDelete()
+	if err != nil {
+		return err
+	}
 
 	// If completely gone, just return
 	path := shared.VarPath("storage-pools", b.name)
@@ -337,10 +356,14 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 	}
 
 	// Delete the mountpoint.
-	err := os.Remove(path)
+	err = os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
 		return errors.Wrapf(err, "Failed to remove directory %q", path)
 	}
+
+	unavailablePoolsMu.Lock()
+	delete(unavailablePools, b.Name())
+	unavailablePoolsMu.Unlock()
 
 	return nil
 }
