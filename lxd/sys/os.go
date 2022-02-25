@@ -157,7 +157,7 @@ func (s *OS) Init() ([]db.Warning, error) {
 		break
 	}
 
-	s.IdmapSet = util.GetIdmapSet()
+	s.IdmapSet = idmap.GetIdmapSet()
 	s.ExecPath = util.GetExecPath()
 	s.RunningInUserNS = shared.RunningInUserNS()
 
