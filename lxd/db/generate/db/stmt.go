@@ -118,6 +118,17 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	for i, field := range fields {
 		if field.IsScalar() {
 			columns[i] = field.Column()
+
+			coalesce, ok := field.Config["coalesce"]
+			if ok {
+				// Handle columns in format "<field> AS <alias>".
+				parts := strings.SplitN(columns[i], " ", 2)
+				columns[i] = fmt.Sprintf("coalesce(%s, %s)", parts[0], coalesce[0])
+
+				if len(parts) > 1 {
+					columns[i] = fmt.Sprintf("%s %s", columns[i], parts[1])
+				}
+			}
 		} else {
 			columns[i] = mapping.FieldColumnName(field.Name, table)
 			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
