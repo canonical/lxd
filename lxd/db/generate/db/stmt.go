@@ -79,19 +79,14 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		table = "%s_" + table
 	}
 
-	where := ""
+	var where []string
 
 	if strings.HasPrefix(s.kind, "objects-by") {
 		filters := strings.Split(s.kind[len("objects-by-"):], "-and-")
-		where = "WHERE "
 
-		for i, filter := range filters {
-			if i > 0 {
-				where += "AND "
-			}
-
+		for _, filter := range filters {
 			if filter == "Parent" {
-				where += fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity))
+				where = append(where, fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity)))
 				continue
 			}
 
@@ -107,9 +102,8 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 				column = mapping.FieldColumnName(field.Name, table)
 			}
 
-			where += fmt.Sprintf("%s = ? ", column)
+			where = append(where, fmt.Sprintf("%s = ? ", column))
 		}
-
 	}
 
 	boiler := stmts["objects"]
@@ -200,7 +194,13 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
 	}
 
-	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
+	var filterStr strings.Builder
+	if len(where) > 0 {
+		filterStr.WriteString("WHERE ")
+		filterStr.WriteString(strings.Join(where, "AND "))
+	}
+
+	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, filterStr.String(), strings.Join(orderBy, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
