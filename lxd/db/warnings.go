@@ -12,20 +12,39 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t warnings.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -p db -e warning objects
+//go:generate mapper stmt -p db -e warning objects-by-UUID
+//go:generate mapper stmt -p db -e warning objects-by-Project
+//go:generate mapper stmt -p db -e warning objects-by-Status
+//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode
+//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode-and-Project
+//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityTypeCode-and-EntityID
+//go:generate mapper stmt -p db -e warning delete-by-UUID
+//go:generate mapper stmt -p db -e warning delete-by-EntityTypeCode-and-EntityID
+//
+//go:generate mapper method -p db -e warning GetMany
+//go:generate mapper method -p db -e warning GetOne-by-UUID
+//go:generate mapper method -p db -e warning DeleteOne-by-UUID
+//go:generate mapper method -p db -e warning DeleteMany-by-EntityTypeCode-and-EntityID
+
 // Warning is a value object holding db-related details about a warning.
 type Warning struct {
 	ID             int
-	Node           string
-	Project        string
-	EntityTypeCode int
-	EntityID       int
-	UUID           string
+	Node           string `db:"coalesce=''&leftjoin=nodes.name"`
+	Project        string `db:"coalesce=''&leftjoin=projects.name"`
+	EntityTypeCode int    `db:"coalesce=-1"`
+	EntityID       int    `db:"coalesce=-1"`
+	UUID           string `db:"primary=yes"`
 	TypeCode       WarningType
 	Status         WarningStatus
 	FirstSeenDate  time.Time
@@ -35,22 +54,21 @@ type Warning struct {
 	Count          int
 }
 
+// WarningFilter specifies potential query parameter fields.
+type WarningFilter struct {
+	ID             *int
+	UUID           *string
+	Project        *string
+	Node           *string
+	TypeCode       *WarningType
+	EntityTypeCode *int
+	EntityID       *int
+	Status         *WarningStatus
+}
+
 var warningCreate = cluster.RegisterStmt(`
 INSERT INTO warnings (node_id, project_id, entity_type_code, entity_id, uuid, type_code, status, first_seen_date, last_seen_date, updated_date, last_message, count)
   VALUES ((SELECT nodes.id FROM nodes WHERE nodes.name = ?), (SELECT projects.id FROM projects WHERE projects.name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`)
-
-var warningDelete = cluster.RegisterStmt(`
-DELETE FROM warnings WHERE uuid = ?
-`)
-
-var warningDeleteByStatus = cluster.RegisterStmt(`
-DELETE FROM warnings WHERE status = ?
-`)
-
-var warningID = cluster.RegisterStmt(`
-SELECT warnings.id FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id
-  WHERE warnings.uuid = ?
 `)
 
 // UpsertWarningLocalNode creates or updates a warning for the local node. Returns error if no local node name.
@@ -94,7 +112,15 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 	now := time.Now()
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		allWarnings, err := tx.GetWarnings()
+		filter := WarningFilter{
+			TypeCode:       &typeCode,
+			Node:           &nodeName,
+			Project:        &projectName,
+			EntityTypeCode: &entityTypeCode,
+			EntityID:       &entityID,
+		}
+
+		allWarnings, err := tx.GetWarnings(filter)
 		if err != nil {
 			return errors.Wrap(err, "Failed to retrieve warnings")
 		}
@@ -104,10 +130,6 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 		// Check if one of the warnings match. If so, it will be updated. Otherwise it will be
 		// created.
 		for _, w := range allWarnings {
-			if !(w.EntityID == entityID && w.EntityTypeCode == entityTypeCode && typeCode == WarningType(w.TypeCode) && projectName == w.Project && nodeName == w.Node) {
-				continue
-			}
-
 			warnings = append(warnings, w)
 		}
 
@@ -193,77 +215,6 @@ func (c *ClusterTx) UpdateWarningState(UUID string, message string, status Warni
 	return nil
 }
 
-func (c *ClusterTx) doGetWarnings(q string, args ...interface{}) ([]Warning, error) {
-	stmt, err := c.tx.Prepare(q)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
-	// Result slice.
-	objects := make([]Warning, 0)
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, Warning{})
-		return []interface{}{
-			&objects[i].ID,
-			&objects[i].Node,
-			&objects[i].Project,
-			&objects[i].EntityTypeCode,
-			&objects[i].EntityID,
-			&objects[i].UUID,
-			&objects[i].TypeCode,
-			&objects[i].Status,
-			&objects[i].FirstSeenDate,
-			&objects[i].LastSeenDate,
-			&objects[i].UpdatedDate,
-			&objects[i].LastMessage,
-			&objects[i].Count,
-		}
-	}
-
-	// Select.
-	err = query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch warnings")
-	}
-
-	return objects, nil
-}
-
-// GetWarningsByType returns all available warnings with the given type.
-func (c *ClusterTx) GetWarningsByType(typeCode WarningType) ([]Warning, error) {
-	q := `SELECT warnings.id, IFNULL(nodes.name, "") AS node, IFNULL(projects.name, "") AS project, IFNULL(warnings.entity_type_code, -1), IFNULL(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
-	FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id WHERE type_code=? ORDER BY warnings.last_seen_date`
-
-	return c.doGetWarnings(q, typeCode)
-}
-
-// GetWarningsByStatus returns all available warnings with the given status.
-func (c *ClusterTx) GetWarningsByStatus(status WarningStatus) ([]Warning, error) {
-	q := `SELECT warnings.id, IFNULL(nodes.name, "") AS node, IFNULL(projects.name, "") AS project, IFNULL(warnings.entity_type_code, -1), IFNULL(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
-	FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id WHERE status=? ORDER BY warnings.last_seen_date`
-
-	return c.doGetWarnings(q, status)
-}
-
-// GetWarningsByProject returns all available warnings in the given project.
-func (c *ClusterTx) GetWarningsByProject(projectName string) ([]Warning, error) {
-	q := `SELECT warnings.id, IFNULL(nodes.name, "") AS node, IFNULL(projects.name, "") AS project, IFNULL(warnings.entity_type_code, -1), IFNULL(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
-	FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id WHERE project=? ORDER BY warnings.last_seen_date`
-
-	return c.doGetWarnings(q, projectName)
-}
-
-// GetWarnings returns all available warnings.
-func (c *ClusterTx) GetWarnings() ([]Warning, error) {
-	q := `SELECT warnings.id, IFNULL(nodes.name, "") AS node, IFNULL(projects.name, "") AS project, IFNULL(warnings.entity_type_code, -1), IFNULL(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
-	FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id ORDER BY warnings.last_seen_date`
-
-	return c.doGetWarnings(q)
-}
-
 // createWarning adds a new warning to the database.
 func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 	// Check if a warning with the same key exists.
@@ -336,107 +287,9 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 	return id, nil
 }
 
-// GetWarning returns the warning with the given key.
-func (c *ClusterTx) GetWarning(UUID string) (*Warning, error) {
-	q := `SELECT warnings.id, IFNULL(nodes.name, "") AS node, IFNULL(projects.name, "") AS project, IFNULL(warnings.entity_type_code, -1), IFNULL(warnings.entity_id, -1), warnings.uuid, warnings.type_code, warnings.status, warnings.first_seen_date, warnings.last_seen_date, warnings.updated_date, warnings.last_message, warnings.count
-	FROM warnings LEFT JOIN nodes ON warnings.node_id = nodes.id LEFT JOIN projects ON warnings.project_id = projects.id WHERE uuid = ?`
-
-	stmt, err := c.tx.Prepare(q)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
-	// Result slice.
-	var objects []Warning
-
-	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
-		objects = append(objects, Warning{})
-		return []interface{}{
-			&objects[i].ID,
-			&objects[i].Node,
-			&objects[i].Project,
-			&objects[i].EntityTypeCode,
-			&objects[i].EntityID,
-			&objects[i].UUID,
-			&objects[i].TypeCode,
-			&objects[i].Status,
-			&objects[i].FirstSeenDate,
-			&objects[i].LastSeenDate,
-			&objects[i].UpdatedDate,
-			&objects[i].LastMessage,
-			&objects[i].Count,
-		}
-	}
-
-	// Select.
-	err = query.SelectObjects(stmt, dest, UUID)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch warnings")
-	}
-
-	switch len(objects) {
-	case 0:
-		return nil, ErrNoSuchObject
-	case 1:
-		return &objects[0], nil
-	default:
-		return nil, fmt.Errorf("More than one warning matches")
-	}
-}
-
-// DeleteWarning deletes the warning matching the given key parameters.
-func (c *ClusterTx) DeleteWarning(UUID string) error {
-	stmt := c.stmt(warningDelete)
-	result, err := stmt.Exec(UUID)
-	if err != nil {
-		return errors.Wrap(err, "Delete warning")
-	}
-
-	n, err := result.RowsAffected()
-	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
-	}
-	if n != 1 {
-		return fmt.Errorf("Query deleted %d rows instead of 1", n)
-	}
-
-	return nil
-}
-
-// GetWarningID return the ID of the warning with the given key.
-func (c *ClusterTx) GetWarningID(UUID string) (int64, error) {
-	stmt := c.stmt(warningID)
-	rows, err := stmt.Query(UUID)
-	if err != nil {
-		return -1, errors.Wrap(err, "Failed to get warning ID")
-	}
-	defer rows.Close()
-
-	// Ensure we read one and only one row.
-	if !rows.Next() {
-		return -1, ErrNoSuchObject
-	}
-	var id int64
-	err = rows.Scan(&id)
-	if err != nil {
-		return -1, errors.Wrap(err, "Failed to scan ID")
-	}
-	if rows.Next() {
-		return -1, fmt.Errorf("More than one row returned")
-	}
-	err = rows.Err()
-	if err != nil {
-		return -1, errors.Wrap(err, "Result set failure")
-	}
-
-	return id, nil
-}
-
 // WarningExists checks if a warning with the given key exists.
 func (c *ClusterTx) WarningExists(UUID string) (bool, error) {
-	_, err := c.GetWarningID(UUID)
+	_, err := c.GetWarning(UUID)
 	if err != nil {
 		if err == ErrNoSuchObject {
 			return false, nil
@@ -445,24 +298,6 @@ func (c *ClusterTx) WarningExists(UUID string) (bool, error) {
 	}
 
 	return true, nil
-}
-
-// DeleteWarningsByStatus deletes all warnings with the given status.
-func (c *ClusterTx) DeleteWarningsByStatus(status WarningStatus) error {
-	stmt := c.stmt(warningDeleteByStatus)
-
-	_, err := stmt.Exec(int(status))
-	if err != nil {
-		return errors.Wrap(err, "Delete all warning")
-	}
-
-	return nil
-}
-
-// DeleteWarningsByEntity deletes all warnings with the given entity type and entity ID.
-func (c *ClusterTx) DeleteWarningsByEntity(entityTypeCode int, entityID int) error {
-	_, err := c.tx.Exec(`DELETE FROM warnings WHERE entity_type_code = ? AND entity_id = ?`, entityTypeCode, entityID)
-	return err
 }
 
 // ToAPI returns a LXD API entry.
