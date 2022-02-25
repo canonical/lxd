@@ -2976,6 +2976,15 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
 
+	// Check supported features.
+	drivers, _ := SupportedInstanceTypes()
+	info := drivers[d.Type()]
+
+	// If possible, use io_uring for added performance.
+	if shared.StringInSlice("io_uring", info.Features) {
+		aioMode = "io_uring"
+	}
+
 	// Handle local disk devices.
 	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
 		srcDevPath := driveConf.DevPath
@@ -5813,9 +5822,10 @@ func (d *qemu) writeInstanceData() error {
 // Info returns "qemu" and the currently loaded qemu version.
 func (d *qemu) Info() instance.Info {
 	data := instance.Info{
-		Name:  "qemu",
-		Type:  instancetype.VM,
-		Error: fmt.Errorf("Unknown error"),
+		Name:     "qemu",
+		Features: []string{},
+		Type:     instancetype.VM,
+		Error:    fmt.Errorf("Unknown error"),
 	}
 
 	if !shared.PathExists("/dev/kvm") {
@@ -5853,6 +5863,17 @@ func (d *qemu) Info() instance.Info {
 		data.Version = qemuVersion
 	} else {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
+	}
+
+	// Check IO-uring support.
+	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
+	if err != nil {
+		data.Error = fmt.Errorf("QEMU failed to run a feature check: %w", err)
+		return data
+	}
+
+	if supported {
+		data.Features = append(data.Features, "io_uring")
 	}
 
 	data.Error = nil
