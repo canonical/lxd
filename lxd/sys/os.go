@@ -154,7 +154,7 @@ func (s *OS) Init() error {
 		break
 	}
 
-	s.IdmapSet = util.GetIdmapSet()
+	s.IdmapSet = idmap.GetIdmapSet()
 	s.ExecPath = util.GetExecPath()
 	s.RunningInUserNS = shared.RunningInUserNS()
 
