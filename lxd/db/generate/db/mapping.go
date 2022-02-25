@@ -310,4 +310,6 @@ var columnarTypeNames = []string{
 	"string",
 	"time.Time",
 	"sql.NullTime",
+	"WarningType",
+	"WarningStatus",
 }
