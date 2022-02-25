@@ -564,24 +564,7 @@ func patchNetworkPIDFiles(name string, d *Daemon) error {
 }
 
 func patchGenericStorage(name string, d *Daemon) error {
-	// Load all the pools.
-	pools, _ := d.cluster.GetStoragePoolNames()
-
-	for _, poolName := range pools {
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
-		if err != storageDrivers.ErrUnknownDriver {
-			if err != nil {
-				return err
-			}
-
-			err = pool.ApplyPatch(name)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return storagePools.Patch(d.State(), name)
 }
 
 func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
