@@ -79,19 +79,14 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		table = "%s_" + table
 	}
 
-	where := ""
+	var where []string
 
 	if strings.HasPrefix(s.kind, "objects-by") {
 		filters := strings.Split(s.kind[len("objects-by-"):], "-and-")
-		where = "WHERE "
 
-		for i, filter := range filters {
-			if i > 0 {
-				where += "AND "
-			}
-
+		for _, filter := range filters {
 			if filter == "Parent" {
-				where += fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity))
+				where = append(where, fmt.Sprintf("SUBSTR(%s.name,1,?)=? ", lex.Plural(s.entity)))
 				continue
 			}
 
@@ -107,9 +102,13 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 				column = mapping.FieldColumnName(field.Name, table)
 			}
 
-			where += fmt.Sprintf("%s = ? ", column)
+			if coalesce, ok := field.Config["coalesce"]; ok {
+				// Ensure filters operate on the coalesced value for fields using coalesce setting.
+				where = append(where, fmt.Sprintf("coalesce(%s, %s) = ? ", column, coalesce[0]))
+			} else {
+				where = append(where, fmt.Sprintf("%s = ? ", column))
+			}
 		}
-
 	}
 
 	boiler := stmts["objects"]
@@ -118,6 +117,17 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 	for i, field := range fields {
 		if field.IsScalar() {
 			columns[i] = field.Column()
+
+			coalesce, ok := field.Config["coalesce"]
+			if ok {
+				// Handle columns in format "<field> AS <alias>".
+				parts := strings.SplitN(columns[i], " ", 2)
+				columns[i] = fmt.Sprintf("coalesce(%s, %s)", parts[0], coalesce[0])
+
+				if len(parts) > 1 {
+					columns[i] = fmt.Sprintf("%s %s", columns[i], parts[1])
+				}
+			}
 		} else {
 			columns[i] = mapping.FieldColumnName(field.Name, table)
 			if mapping.Type == ReferenceTable || mapping.Type == MapTable {
@@ -163,6 +173,10 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 
 	for _, field := range mapping.ScalarFields() {
 		join := field.Config.Get("join")
+		if join == "" {
+			continue
+		}
+
 		right := strings.Split(join, ".")[0]
 		via := entityTable(s.entity)
 		if field.Config.Get("via") != "" {
@@ -171,7 +185,27 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
 	}
 
-	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, where, strings.Join(orderBy, ", "))
+	for _, field := range mapping.ScalarFields() {
+		join := field.Config.Get("leftjoin")
+		if join == "" {
+			continue
+		}
+
+		right := strings.Split(join, ".")[0]
+		via := entityTable(s.entity)
+		if field.Config.Get("via") != "" {
+			via = entityTable(field.Config.Get("via"))
+		}
+		table += fmt.Sprintf(" LEFT JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
+	}
+
+	var filterStr strings.Builder
+	if len(where) > 0 {
+		filterStr.WriteString("WHERE ")
+		filterStr.WriteString(strings.Join(where, "AND "))
+	}
+
+	sql := fmt.Sprintf(boiler, strings.Join(columns, ", "), table, filterStr.String(), strings.Join(orderBy, ", "))
 	kind := strings.Replace(s.kind, "-", "_", -1)
 	stmtName := stmtCodeVar(s.entity, kind)
 	if mapping.Type == ReferenceTable || mapping.Type == MapTable {
@@ -211,7 +245,6 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	params := make([]string, len(fields))
 
 	for i, field := range fields {
-
 		if field.IsScalar() {
 			ref := lex.Snake(field.Name)
 			columns[i] = ref + "_id"
