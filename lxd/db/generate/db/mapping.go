@@ -154,7 +154,7 @@ func (m *Mapping) ScalarFields() []*Field {
 	fields := []*Field{}
 
 	for _, field := range m.Fields {
-		if field.Config.Get("join") != "" {
+		if field.Config.Get("join") != "" || field.Config.Get("leftjoin") != "" {
 			fields = append(fields, field)
 		}
 	}
@@ -235,7 +235,7 @@ func (f *Field) Stmt() string {
 
 // IsScalar returns true if the field is a scalar column value from a joined table.
 func (f *Field) IsScalar() bool {
-	return f.Config.Get("join") != ""
+	return f.Config.Get("join") != "" || f.Config.Get("leftjoin") != ""
 }
 
 // IsIndirect returns true if the field is a scalar column value from a joined
@@ -259,9 +259,12 @@ func (f *Field) Column() string {
 	column := lex.Snake(f.Name)
 
 	join := f.Config.Get("join")
+	if join == "" {
+		join = f.Config.Get("leftjoin")
+	}
+
 	if join != "" {
 		column = fmt.Sprintf("%s AS %s", join, column)
-
 	}
 
 	return column
@@ -307,4 +310,6 @@ var columnarTypeNames = []string{
 	"string",
 	"time.Time",
 	"sql.NullTime",
+	"WarningType",
+	"WarningStatus",
 }

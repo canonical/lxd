@@ -880,7 +880,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 // warningsDelete deletes any persistent warnings for the instance.
 func (d *common) warningsDelete() error {
 	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.DeleteWarningsByEntity(dbCluster.TypeInstance, d.ID())
+		return tx.DeleteWarnings(dbCluster.TypeInstance, d.ID())
 	})
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting persistent warnings")
