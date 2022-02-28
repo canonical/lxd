@@ -121,6 +121,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 
 	command := ""
 	args := []string{}
+	var allowedCmds []string
 	var reader io.Reader
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
@@ -158,6 +159,11 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 				Tracker:    tracker,
 			}
 		}
+
+		// Allow supplementary commands for the unpacker to use.
+		if len(unpacker) > 0 {
+			allowedCmds = append(allowedCmds, unpacker[0])
+		}
 	} else if strings.HasPrefix(extension, ".squashfs") {
 		// unsquashfs does not support reading from stdin,
 		// so ProgressTracker is not possible.
@@ -175,11 +181,6 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		args = append(args, file)
 	} else {
 		return fmt.Errorf("Unsupported image format: %s", extension)
-	}
-
-	allowedCmds := []string{}
-	if len(unpacker) > 0 {
-		allowedCmds = append(allowedCmds, unpacker[0])
 	}
 
 	outputDir, err := os.OpenFile(path, os.O_RDONLY, 0)
