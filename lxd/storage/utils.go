@@ -421,6 +421,8 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
 func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend bool, sysOS *sys.OS, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
 	logger := logging.AddContext(logger.Log, log.Ctx{"imageFile": imageFile, "vol": vol.Name()})
+	logger.Info("Image unpack started")
+	defer logger.Info("Image unpack stopped")
 
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
 	imageRootfsFile := imageFile + ".rootfs"
