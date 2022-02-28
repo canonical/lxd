@@ -64,6 +64,17 @@ var instanceStateCmd = APIEndpoint{
 	Put: APIEndpointAction{Handler: instanceStatePut, AccessHandler: allowProjectPermission("containers", "operate-containers")},
 }
 
+var instanceSFTPCmd = APIEndpoint{
+	Name: "instanceFile",
+	Path: "instances/{name}/sftp",
+	Aliases: []APIEndpointAlias{
+		{Name: "containerFile", Path: "containers/{name}/files"},
+		{Name: "vmFile", Path: "virtual-machines/{name}/files"},
+	},
+
+	Get: APIEndpointAction{Handler: instanceSFTPHandler, AccessHandler: allowProjectPermission("containers", "operate-containers")},
+}
+
 var instanceFileCmd = APIEndpoint{
 	Name: "instanceFile",
 	Path: "instances/{name}/files",
