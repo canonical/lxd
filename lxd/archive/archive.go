@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/sys"
@@ -246,9 +247,8 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 			return fmt.Errorf("Unable to unpack image, run out of disk space")
 		}
 
-		logger.Debugf("Unpacking failed")
-		logger.Debugf(err.Error())
-		return fmt.Errorf("Unpack failed, %s.", err)
+		logger.Warn("Unpack failed", log.Ctx{"file": file, "allowedCmds": allowedCmds, "extension": extension, "path": path, "err": err})
+		return fmt.Errorf("Unpack failed: %w", err)
 	}
 
 	return nil
