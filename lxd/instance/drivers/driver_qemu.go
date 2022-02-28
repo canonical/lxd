@@ -5740,13 +5740,12 @@ func (d *qemu) checkFeature(qemu string, args ...string) (bool, error) {
 
 	err = checkFeature.Start()
 	if err != nil {
-		// Not supported.
-		return false, nil
+		return false, err // QEMU not operational. VM support missing.
 	}
 
 	err = checkFeature.Wait()
 	if err != nil {
-		return false, err
+		return false, nil // VM support available, but io_ring feature not.
 	}
 
 	pidFile.Seek(0, 0)
