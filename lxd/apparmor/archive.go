@@ -21,7 +21,7 @@ profile "{{.name}}" {
 {{- end }}
 
   {{ .outputPath }}/ rw,
-  {{ .outputPath }}/** rw,
+  {{ .outputPath }}/** rwl,
   {{ .varPath }}/backups/** rw,
   {{ .varPath }}/images/** r,
 
@@ -32,6 +32,8 @@ profile "{{.name}}" {
   capability dac_override,
   capability chown,
   capability fsetid,
+  capability fowner,
+  capability setfcap,
 
 {{- if .snap }}
   # Snap-specific libraries
