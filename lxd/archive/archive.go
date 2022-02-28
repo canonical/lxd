@@ -241,9 +241,9 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		if int64(fs.Bfree) < 10 {
 			if blockBackend {
 				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size)")
-			} else {
-				return fmt.Errorf("Unable to unpack image, run out of disk space")
 			}
+
+			return fmt.Errorf("Unable to unpack image, run out of disk space")
 		}
 
 		logger.Debugf("Unpacking failed")
