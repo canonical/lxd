@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
+	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
 	"github.com/lxc/lxd/lxd/sys"
@@ -121,6 +122,7 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 
 	command := ""
 	args := []string{}
+	var allowedCmds []string
 	var reader io.Reader
 	if strings.HasPrefix(extension, ".tar") {
 		command = "tar"
@@ -158,6 +160,11 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 				Tracker:    tracker,
 			}
 		}
+
+		// Allow supplementary commands for the unpacker to use.
+		if len(unpacker) > 0 {
+			allowedCmds = append(allowedCmds, unpacker[0])
+		}
 	} else if strings.HasPrefix(extension, ".squashfs") {
 		// unsquashfs does not support reading from stdin,
 		// so ProgressTracker is not possible.
@@ -175,11 +182,6 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		args = append(args, file)
 	} else {
 		return fmt.Errorf("Unsupported image format: %s", extension)
-	}
-
-	allowedCmds := []string{}
-	if len(unpacker) > 0 {
-		allowedCmds = append(allowedCmds, unpacker[0])
 	}
 
 	outputDir, err := os.OpenFile(path, os.O_RDONLY, 0)
@@ -240,14 +242,13 @@ func Unpack(file string, path string, blockBackend bool, sysOS *sys.OS, tracker 
 		if int64(fs.Bfree) < 10 {
 			if blockBackend {
 				return fmt.Errorf("Unable to unpack image, run out of disk space (consider increasing your pool's volume.size)")
-			} else {
-				return fmt.Errorf("Unable to unpack image, run out of disk space")
 			}
+
+			return fmt.Errorf("Unable to unpack image, run out of disk space")
 		}
 
-		logger.Debugf("Unpacking failed")
-		logger.Debugf(err.Error())
-		return fmt.Errorf("Unpack failed, %s.", err)
+		logger.Warn("Unpack failed", log.Ctx{"file": file, "allowedCmds": allowedCmds, "extension": extension, "path": path, "err": err})
+		return fmt.Errorf("Unpack failed: %w", err)
 	}
 
 	return nil
