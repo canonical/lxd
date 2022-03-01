@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-18 07:39+0100\n"
+"POT-Creation-Date: 2022-03-01 14:04+0100\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -570,7 +570,7 @@ msgstr "--container-only no se puede pasar cuando la fuente es una instantánea"
 msgid "--no-profiles cannot be used with --refresh"
 msgstr "--container-only no se puede pasar cuando la fuente es una instantánea"
 
-#: lxc/query.go:71
+#: lxc/query.go:72
 msgid "--project cannot be used with the query command"
 msgstr ""
 
@@ -658,7 +658,7 @@ msgstr ""
 msgid "Acknowledge warning"
 msgstr ""
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Action (defaults to GET)"
 msgstr "Accion (predeterminados a GET)"
 
@@ -1571,7 +1571,7 @@ msgstr ""
 #: lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
 #: lxc/project.go:222 lxc/project.go:342 lxc/project.go:392 lxc/project.go:491
 #: lxc/project.go:546 lxc/project.go:606 lxc/project.go:635 lxc/project.go:688
-#: lxc/project.go:747 lxc/publish.go:34 lxc/query.go:32 lxc/remote.go:33
+#: lxc/project.go:747 lxc/publish.go:34 lxc/query.go:33 lxc/remote.go:33
 #: lxc/remote.go:88 lxc/remote.go:575 lxc/remote.go:611 lxc/remote.go:697
 #: lxc/remote.go:767 lxc/remote.go:821 lxc/remote.go:859 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93
@@ -2365,7 +2365,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "Infiniband:"
 msgstr ""
 
-#: lxc/query.go:43
+#: lxc/query.go:44
 msgid "Input data"
 msgstr ""
 
@@ -2804,7 +2804,7 @@ msgid ""
 "that control which image attributes to output when displaying in table\n"
 "or csv format.\n"
 "\n"
-"Default column layout is: lfpdasu\n"
+"Default column layout is: tndcuL\n"
 "\n"
 "Column shorthand chars:\n"
 "\n"
@@ -3041,8 +3041,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -3672,7 +3672,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Print the raw response"
 msgstr ""
 
@@ -3812,7 +3812,7 @@ msgstr ""
 msgid "Pushing %s to %s: %%s"
 msgstr ""
 
-#: lxc/query.go:82
+#: lxc/query.go:83
 msgid "Query path must start with /"
 msgstr ""
 
@@ -4135,7 +4135,7 @@ msgstr ""
 msgid "STORAGE VOLUMES"
 msgstr ""
 
-#: lxc/query.go:31 lxc/query.go:32
+#: lxc/query.go:32 lxc/query.go:33
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -5100,7 +5100,7 @@ msgstr "Cacheado: %s"
 msgid "WWN: %s"
 msgstr ""
 
-#: lxc/query.go:40
+#: lxc/query.go:41
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -5230,7 +5230,7 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<ACL> [key=value...]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/query.go:30
+#: lxc/query.go:31
 #, fuzzy
 msgid "[<remote>:]<API path>"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -6027,7 +6027,7 @@ msgid ""
 "    Update a project using the content of project.yaml"
 msgstr ""
 
-#: lxc/query.go:34
+#: lxc/query.go:35
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
@@ -6073,8 +6073,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
