@@ -1,19 +1,24 @@
 package lxd
 
 import (
+	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/sftp"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/tcp"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -1220,6 +1225,109 @@ func (r *ProtocolLXD) DeleteInstanceFile(instanceName string, filePath string) e
 	}
 
 	return nil
+}
+
+// rawSFTPConn connects to the apiURL, upgrades to an SFTP raw connection and returns it.
+func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
+	// Get the HTTP transport.
+	httpTransport := r.http.Transport.(*http.Transport)
+
+	req := &http.Request{
+		Method:     http.MethodGet,
+		URL:        apiURL,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(http.Header),
+		Host:       apiURL.Host,
+	}
+
+	req.Header["Upgrade"] = []string{"sftp"}
+	req.Header["Connection"] = []string{"Upgrade"}
+
+	conn, err := httpTransport.Dial("tcp", apiURL.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	tcpConn, err := tcp.ExtractConn(conn)
+	if err == nil {
+		err = tcp.SetTimeouts(tcpConn)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if httpTransport.TLSClientConfig != nil {
+		tlsConn := tls.Client(conn, httpTransport.TLSClientConfig)
+		err = tlsConn.Handshake()
+		if err != nil {
+			return nil, err
+		}
+
+		conn = tlsConn
+	}
+
+	err = req.Write(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(conn), req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		_, _, err := lxdParseResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if resp.Header.Get("Upgrade") != "sftp" {
+		return nil, fmt.Errorf("Missing or unexpected Upgrade header in response")
+	}
+
+	return conn, err
+}
+
+// GetInstanceFileSFTPConn returns a connection to the instance's SFTP endpoint.
+func (r *ProtocolLXD) GetInstanceFileSFTPConn(instanceName string) (net.Conn, error) {
+	u, err := url.Parse(r.httpHost)
+	if err != nil {
+		return nil, err
+	}
+
+	apiURL := api.NewURL()
+	apiURL.URL = *u // Preload the URL with the parsed values from r.httpHost.
+	apiURL.Path("1.0", "instances", instanceName, "sftp")
+	r.setURLQueryAttributes(&apiURL.URL)
+
+	return r.rawSFTPConn(&apiURL.URL)
+}
+
+// GetInstanceFileSFTP returns an SFTP connection to the instance.
+func (r *ProtocolLXD) GetInstanceFileSFTP(instanceName string) (*sftp.Client, error) {
+	conn, err := r.GetInstanceFileSFTPConn(instanceName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a SFTP client.
+	client, err := sftp.NewClientPipe(conn, conn)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	go func() {
+		// Wait for the client to be done before closing the connection.
+		client.Wait()
+		conn.Close()
+	}()
+
+	return client, nil
 }
 
 // GetInstanceSnapshotNames returns a list of snapshot names for the instance.
