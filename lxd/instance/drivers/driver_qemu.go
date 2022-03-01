@@ -70,7 +70,7 @@ import (
 // qemuUnsafeIO is used to indicate disk should use unsafe cache I/O.
 const qemuUnsafeIO = "unsafeio"
 
-// qemuDirectIO is used to indicate disk should use direct I/O (and not try to use uring).
+// qemuDirectIO is used to indicate disk should use direct I/O (and not try to use io_uring).
 const qemuDirectIO = "directio"
 
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
@@ -2838,7 +2838,7 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 		DevPath: mountInfo.DiskPath,
 	}
 
-	// Handle loop backed storage pools with limited or missing Direct I/O or uring support.
+	// Handle loop backed storage pools with limited or missing Direct I/O or io_uring support.
 	driverInfo := pool.Driver().Info()
 	driverConf := pool.Driver().Config()
 	if shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) {
@@ -2846,7 +2846,7 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 			// Force unsafe I/O due to lack of direct I/O support.
 			driveConf.Opts = append(driveConf.Opts, qemuUnsafeIO)
 		} else {
-			// Force traditional (non-uring) direct I/O as uring doesn't work well on loops.
+			// Force traditional (non-io_uring) direct I/O as io_uring doesn't work well on loops.
 			driveConf.Opts = append(driveConf.Opts, qemuDirectIO)
 		}
 	}
@@ -5707,7 +5707,7 @@ func (d *qemu) Info() instance.Info {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
-	// Check IO-uring support.
+	// Check io_uring support.
 	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
 	if err != nil {
 		data.Error = fmt.Errorf("QEMU failed to run a feature check: %w", err)
