@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -81,7 +80,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		// Read from stdin
 		bytes, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return errors.Wrap(err, "Failed to read from stdin")
+			return fmt.Errorf("Failed to read from stdin: %w", err)
 		}
 		query = string(bytes)
 	}
@@ -102,12 +101,12 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		}
 		response, _, err := d.RawQuery("GET", url, nil, "")
 		if err != nil {
-			return errors.Wrap(err, "failed to request dump")
+			return fmt.Errorf("failed to request dump: %w", err)
 		}
 		dump := internalSQLDump{}
 		err = json.Unmarshal(response.Metadata, &dump)
 		if err != nil {
-			return errors.Wrap(err, "failed to parse dump response")
+			return fmt.Errorf("failed to parse dump response: %w", err)
 		}
 		fmt.Printf(dump.Text)
 		return nil

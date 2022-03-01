@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
@@ -53,7 +52,7 @@ func newMigrationSource(inst instance.Instance, stateful bool, instanceOnly bool
 
 	if stateful && inst.IsRunning() {
 		if inst.Type() == instancetype.VM {
-			return nil, errors.Wrap(storageDrivers.ErrNotImplemented, "Unable to perform VM live migration")
+			return nil, fmt.Errorf("Unable to perform VM live migration: %w", storageDrivers.ErrNotImplemented)
 		}
 
 		_, err := exec.LookPath("criu")
@@ -429,7 +428,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	if s.instance.Type() == instancetype.VM {
 		blockSize, err := storagePools.InstanceDiskBlockSize(pool, s.instance, migrateOp)
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting source disk size")
+			return fmt.Errorf("Failed getting source disk size: %w", err)
 		}
 
 		logger.Debugf("Set migration offer volume size for %q: %d", s.instance.Name(), blockSize)
@@ -941,7 +940,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 					// Create the snapshot as it doesn't seem to exist.
 					_, snapInstOp, err := instance.CreateInternal(state, snapArgs, true, nil, revert)
 					if err != nil {
-						return errors.Wrapf(err, "Failed creating instance snapshot record %q", snapArgs.Name)
+						return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 					}
 					defer snapInstOp.Done(err)
 				}

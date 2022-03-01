@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -291,7 +290,7 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 		if localOp.Status() == api.Running {
 			_, err := localOp.Cancel()
 			if err != nil {
-				return errors.Wrapf(err, "Failed to cancel local operation %q", op.ID)
+				return fmt.Errorf("Failed to cancel local operation %q: %w", op.ID, err)
 			}
 		}
 
@@ -307,7 +306,7 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 		filter := db.OperationFilter{UUID: &op.ID}
 		ops, err := tx.GetOperations(filter)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading operation %q", op.ID)
+			return fmt.Errorf("Failed loading operation %q: %w", op.ID, err)
 		}
 		if len(ops) < 1 {
 			return db.ErrNoSuchObject
@@ -327,12 +326,12 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 
 	client, err := cluster.Connect(memberAddress, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to %q", memberAddress)
+		return fmt.Errorf("Failed to connect to %q: %w", memberAddress, err)
 	}
 
 	err = client.UseProject(projectName).DeleteOperation(op.ID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to delete remote operation %q on %q", op.ID, memberAddress)
+		return fmt.Errorf("Failed to delete remote operation %q on %q: %w", op.ID, memberAddress, err)
 	}
 
 	return nil
@@ -604,7 +603,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 
 		_, apiOp, err := op.Render()
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed converting local operation %q to API representation", op.ID())
+			return nil, fmt.Errorf("Failed converting local operation %q to API representation: %w", op.ID(), err)
 		}
 
 		ops = append(ops, apiOp)
@@ -628,17 +627,17 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting member offline threshold value")
+			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
 		}
 
 		nodes, err = tx.GetNodes()
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting members")
+			return fmt.Errorf("Failed getting members: %w", err)
 		}
 
 		ops, err := tx.GetOperationsOfType(projectName, opType)
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting operations for project %q and type %d", projectName, opType)
+			return fmt.Errorf("Failed getting operations for project %q and type %d: %w", projectName, opType, err)
 		}
 
 		// Group operations by member address and UUID.
@@ -659,7 +658,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	// Get local address.
 	localAddress, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting member local address")
+		return nil, fmt.Errorf("Failed getting member local address: %w", err)
 	}
 
 	memberOnline := func(memberAddress string) bool {
@@ -691,7 +690,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
 		client, err := cluster.Connect(memberAddress, networkCert, serverCert, r, true)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed connecting to %q", memberAddress)
+			return nil, fmt.Errorf("Failed connecting to %q: %w", memberAddress, err)
 		}
 
 		// Get all remote operations in project.

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 )
@@ -48,12 +46,12 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 			parentID, err := tx.storagePoolVolumeGetTypeID(
 				project, volumeName, volumeType, poolID, int64(nodeID))
 			if err != nil {
-				return errors.Wrap(err, "Find parent volume")
+				return fmt.Errorf("Find parent volume: %w", err)
 			}
 
 			_, err = tx.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
 			if err != nil {
-				return errors.Wrap(err, "Increment storage volumes sequence")
+				return fmt.Errorf("Increment storage volumes sequence: %w", err)
 			}
 
 			row := tx.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
@@ -66,7 +64,7 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 				"INSERT INTO storage_volumes_snapshots (id, storage_volume_id, name, description, expiry_date) VALUES (?, ?, ?, ?, ?)",
 				volumeID, parentID, snapshotName, volumeDescription, expiryDate)
 			if err != nil {
-				return errors.Wrap(err, "Insert volume snapshot")
+				return fmt.Errorf("Insert volume snapshot: %w", err)
 			}
 
 			if int64(nodeID) == c.nodeID {
@@ -76,7 +74,7 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 
 			err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, true)
 			if err != nil {
-				return errors.Wrap(err, "Insert storage volume configuration")
+				return fmt.Errorf("Insert storage volume configuration: %w", err)
 			}
 		}
 		return nil

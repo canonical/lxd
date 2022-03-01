@@ -3,8 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -87,7 +85,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM {
 		err = util.LoadModule("vfio-pci")
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+			return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 		}
 	}
 

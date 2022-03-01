@@ -5,8 +5,6 @@ package nictype
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/state"
 )
@@ -21,7 +19,7 @@ func NICType(s *state.State, d deviceConfig.Device) (string, error) {
 		if d["network"] != "" {
 			_, netInfo, _, err := s.Cluster.GetNetworkInAnyState(d["network"])
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed to load network %q", d["network"])
+				return "", fmt.Errorf("Failed to load network %q: %w", d["network"], err)
 			}
 
 			var nicType string

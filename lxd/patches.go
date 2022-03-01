@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -133,12 +133,12 @@ func (p *patch) apply(d *Daemon) error {
 
 	err := p.run(p.name, d)
 	if err != nil {
-		return errors.Wrapf(err, "Failed applying patch %q", p.name)
+		return fmt.Errorf("Failed applying patch %q: %w", p.name, err)
 	}
 
 	err = d.db.MarkPatchAsApplied(p.name)
 	if err != nil {
-		return errors.Wrapf(err, "Failed marking patch applied %q", p.name)
+		return fmt.Errorf("Failed marking patch applied %q: %w", p.name, err)
 	}
 
 	return nil
@@ -313,7 +313,7 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 
 		leaderAddress, err := d.gateway.LeaderAddress()
 		if err != nil {
-			if errors.Cause(err) == cluster.ErrNodeIsNotClustered {
+			if errors.Unwrap(err) == cluster.ErrNodeIsNotClustered {
 				break // Apply change on standalone node.
 			}
 
@@ -381,7 +381,7 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 				logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
 				err := tx.UpdateInstanceConfig(inst.ID, changes)
 				if err != nil {
-					return errors.Wrapf(err, "Failed renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, inst.Name, inst.Project)
+					return fmt.Errorf("Failed renaming config key %q to %q for VM %q (Project %q): %w", oldUUIDKey, newUUIDKey, inst.Name, inst.Project, err)
 				}
 			}
 
@@ -401,7 +401,7 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 					logger.Debugf("Renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
 					err = tx.UpdateInstanceSnapshotConfig(snap.ID, changes)
 					if err != nil {
-						return errors.Wrapf(err, "Failed renaming config key %q to %q for VM %q (Project %q)", oldUUIDKey, newUUIDKey, snap.Name, snap.Project)
+						return fmt.Errorf("Failed renaming config key %q to %q for VM %q (Project %q): %w", oldUUIDKey, newUUIDKey, snap.Name, snap.Project, err)
 					}
 				}
 			}
@@ -419,7 +419,7 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 	// Setup a transaction.
 	tx, err := d.cluster.Begin()
 	if err != nil {
-		return errors.Wrap(err, "Failed to begin transaction")
+		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
 
 	revert.Add(func() { tx.Rollback() })
@@ -427,13 +427,13 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
 	if err != nil {
-		return errors.Wrap(err, "Failed to get IDs of current nodes")
+		return fmt.Errorf("Failed to get IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing lvm pools.
 	poolIDs, err := query.SelectIntegers(tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
 	if err != nil {
-		return errors.Wrap(err, "Failed to get IDs of current lvm pools")
+		return fmt.Errorf("Failed to get IDs of current lvm pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
@@ -441,7 +441,7 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 		config, err := query.SelectConfig(
 			tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch of lvm pool config")
+			return fmt.Errorf("Failed to fetch of lvm pool config: %w", err)
 		}
 
 		value, ok := config["lvm.thinpool_name"]
@@ -454,7 +454,7 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 DELETE FROM storage_pools_config WHERE key='lvm.thinpool_name' AND storage_pool_id=? AND node_id IS NULL
 `, poolID)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to delete lvm.thinpool_name config")
+			return fmt.Errorf("Failed to delete lvm.thinpool_name config: %w", err)
 		}
 
 		// Add the config entry for each node
@@ -464,14 +464,14 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
   VALUES(?, ?, 'lvm.thinpool_name', ?)
 `, poolID, nodeID, value)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create lvm.thinpool_name node config")
+				return fmt.Errorf("Failed to create lvm.thinpool_name node config: %w", err)
 			}
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrap(err, "Failed to commit transaction")
+		return fmt.Errorf("Failed to commit transaction: %w", err)
 	}
 
 	revert.Success()
@@ -508,7 +508,7 @@ func patchNetworkFANEnableNAT(name string, d *Daemon) error {
 			if modified {
 				err = tx.UpdateNetwork(networkID, network.Description, network.Config)
 				if err != nil {
-					return errors.Wrapf(err, "Failed setting ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
+					return fmt.Errorf("Failed setting ipv4.nat=true for fan network %q (%d): %w", network.Name, networkID, err)
 				}
 
 				logger.Debugf("Set ipv4.nat=true for fan network %q (%d)", network.Name, networkID)
@@ -2445,19 +2445,19 @@ func patchContainerConfigRegen(name string, d *Daemon) error {
 func patchLvmNodeSpecificConfigKeys(name string, d *Daemon) error {
 	tx, err := d.cluster.Begin()
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
 	// Fetch the IDs of all existing nodes.
 	nodeIDs, err := query.SelectIntegers(tx, "SELECT id FROM nodes")
 	if err != nil {
-		return errors.Wrap(err, "failed to get IDs of current nodes")
+		return fmt.Errorf("failed to get IDs of current nodes: %w", err)
 	}
 
 	// Fetch the IDs of all existing lvm pools.
 	poolIDs, err := query.SelectIntegers(tx, "SELECT id FROM storage_pools WHERE driver='lvm'")
 	if err != nil {
-		return errors.Wrap(err, "failed to get IDs of current lvm pools")
+		return fmt.Errorf("failed to get IDs of current lvm pools: %w", err)
 	}
 
 	for _, poolID := range poolIDs {
@@ -2466,7 +2466,7 @@ func patchLvmNodeSpecificConfigKeys(name string, d *Daemon) error {
 		config, err := query.SelectConfig(
 			tx, "storage_pools_config", "storage_pool_id=? AND node_id IS NULL", poolID)
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch of lvm pool config")
+			return fmt.Errorf("failed to fetch of lvm pool config: %w", err)
 		}
 
 		for _, key := range []string{"lvm.thinpool_name", "lvm.vg_name"} {
@@ -2480,7 +2480,7 @@ func patchLvmNodeSpecificConfigKeys(name string, d *Daemon) error {
 DELETE FROM storage_pools_config WHERE key=? AND storage_pool_id=? AND node_id IS NULL
 `, key, poolID)
 			if err != nil {
-				return errors.Wrapf(err, "failed to delete %s config", key)
+				return fmt.Errorf("failed to delete %s config: %w", key, err)
 			}
 
 			// Add the config entry for each node
@@ -2490,7 +2490,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
   VALUES(?, ?, ?, ?)
 `, poolID, nodeID, key, value)
 				if err != nil {
-					return errors.Wrapf(err, "failed to create %s node config", key)
+					return fmt.Errorf("failed to create %s node config: %w", key, err)
 				}
 			}
 		}
@@ -2498,7 +2498,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrap(err, "failed to commit transaction")
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return err
@@ -3811,20 +3811,20 @@ func patchNetworkClearBridgeVolatileHwaddr(name string, d *Daemon) error {
 	// Get the list of networks.
 	networks, err := d.cluster.GetNetworks()
 	if err != nil {
-		return errors.Wrapf(err, "Failed loading networks for network_clear_bridge_volatile_hwaddr patch")
+		return fmt.Errorf("Failed loading networks for network_clear_bridge_volatile_hwaddr patch: %w", err)
 	}
 
 	for _, networkName := range networks {
 		_, net, _, err := d.cluster.GetNetworkInAnyState(networkName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
+			return fmt.Errorf("Failed loading network %q for network_clear_bridge_volatile_hwaddr patch: %w", networkName, err)
 		}
 
 		if net.Config["volatile.bridge.hwaddr"] != "" {
 			delete(net.Config, "volatile.bridge.hwaddr")
 			err = d.cluster.UpdateNetwork(net.Name, net.Description, net.Config)
 			if err != nil {
-				return errors.Wrapf(err, "Failed updating network %q for network_clear_bridge_volatile_hwaddr patch", networkName)
+				return fmt.Errorf("Failed updating network %q for network_clear_bridge_volatile_hwaddr patch: %w", networkName, err)
 			}
 		}
 	}

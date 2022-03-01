@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
@@ -13,7 +12,7 @@ import (
 func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 	currentServer, _, err := d.GetServer()
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve current server configuration")
+		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
 	}
 
 	var config initDataNode
@@ -21,7 +20,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	networks, err := d.GetNetworks()
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve current server configuration")
+		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
 	}
 
 	for _, network := range networks {
@@ -40,7 +39,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	storagePools, err := d.GetStoragePools()
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve current server configuration")
+		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
 	}
 
 	for _, storagePool := range storagePools {
@@ -55,7 +54,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	profiles, err := d.GetProfiles()
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve current server configuration")
+		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
 	}
 
 	for _, profile := range profiles {
@@ -70,7 +69,7 @@ func (c *cmdInit) RunDump(d lxd.InstanceServer) error {
 
 	out, err := yaml.Marshal(config)
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve current server configuration")
+		return fmt.Errorf("Failed to retrieve current server configuration: %w", err)
 	}
 
 	fmt.Printf("%s\n", out)

@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -938,12 +937,12 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		for _, volume := range volumeNames {
 			_, imgInfo, err := d.cluster.GetImage(volume, db.ImageFilter{Project: &projectName})
 			if err != nil {
-				return response.InternalError(errors.Wrapf(err, "Failed getting image info for %q", volume))
+				return response.InternalError(fmt.Errorf("Failed getting image info for %q: %w", volume, err))
 			}
 
 			err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, pool.Name())
 			if err != nil {
-				return response.InternalError(errors.Wrapf(err, "Error deleting image %q from pool", volume))
+				return response.InternalError(fmt.Errorf("Error deleting image %q from pool: %w", volume, err))
 			}
 		}
 	}

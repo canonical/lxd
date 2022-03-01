@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
@@ -96,7 +94,7 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	// Make sure that vfio-pci is loaded.
 	err = util.LoadModule("vfio-pci")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+		return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 	}
 
 	// Since there might be multiple GPUs, we iterate through them and get the first free
@@ -107,13 +105,13 @@ func (d *gpuSRIOV) Start() (*deviceConfig.RunConfig, error) {
 
 		pciParentDev, err = pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 		if err != nil {
-			err = errors.Wrapf(err, "Failed to get PCI device info for GPU %q", parentPCIAddress)
+			err = fmt.Errorf("Failed to get PCI device info for GPU %q: %w", parentPCIAddress, err)
 			continue
 		}
 
 		vfID, err = d.findFreeVirtualFunction(pciParentDev)
 		if err != nil {
-			err = errors.Wrap(err, "Failed to find free virtual function")
+			err = fmt.Errorf("Failed to find free virtual function: %w", err)
 			continue
 		}
 

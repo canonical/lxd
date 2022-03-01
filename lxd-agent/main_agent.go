@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 
@@ -110,7 +109,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	logger.Info("Loading vsock module")
 	err = util.LoadModule("vsock")
 	if err != nil {
-		return errors.Wrap(err, "Unable to load the vsock kernel module")
+		return fmt.Errorf("Unable to load the vsock kernel module: %w", err)
 	}
 
 	// Wait for vsock device to appear.
@@ -123,7 +122,7 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup the listener.
 	l, err := vsock.Listen(shared.HTTPSDefaultPort)
 	if err != nil {
-		return errors.Wrap(err, "Failed to listen on vsock")
+		return fmt.Errorf("Failed to listen on vsock: %w", err)
 	}
 	logger.Info("Started vsock listener")
 
@@ -140,12 +139,12 @@ func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Load the expected server certificate.
 	cert, err := shared.ReadCert("server.crt")
 	if err != nil {
-		return errors.Wrap(err, "Failed to read client certificate")
+		return fmt.Errorf("Failed to read client certificate: %w", err)
 	}
 
 	tlsConfig, err := serverTLSConfig()
 	if err != nil {
-		return errors.Wrap(err, "Failed to get TLS config")
+		return fmt.Errorf("Failed to get TLS config: %w", err)
 	}
 
 	d := newDaemon(c.global.flagLogDebug, c.global.flagLogVerbose)

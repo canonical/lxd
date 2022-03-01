@@ -10,7 +10,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
-	"github.com/pkg/errors"
 )
 
 type cmdMove struct {
@@ -204,7 +203,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	del.flagForceProtected = true
 	err = del.Run(cmd, args[:1])
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete original instance after copying it")
+		return fmt.Errorf("Failed to delete original instance after copying it: %w", err)
 	}
 
 	return nil
@@ -237,7 +236,7 @@ func moveClusterInstance(conf *config.Config, sourceResource, destResource, targ
 	// Connect to the source host
 	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
+		return fmt.Errorf(i18n.G("Failed to connect to cluster member: %w"), err)
 	}
 
 	// Check that it's a cluster
@@ -250,12 +249,12 @@ func moveClusterInstance(conf *config.Config, sourceResource, destResource, targ
 	req := api.InstancePost{Name: destName, Migration: true}
 	op, err := source.MigrateInstance(sourceName, req)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration API failure"))
+		return fmt.Errorf(i18n.G("Migration API failure: %w"), err)
 	}
 
 	err = op.Wait()
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration operation failure"))
+		return fmt.Errorf(i18n.G("Migration operation failure: %w"), err)
 	}
 
 	return nil

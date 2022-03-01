@@ -3,11 +3,11 @@ package query
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 // Transaction executes the given function within a database transaction.
@@ -31,7 +31,7 @@ func TransactionCtx(ctx context.Context, db *sql.DB, f func(context.Context, *sq
 		if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
 			db.Exec("ROLLBACK")
 		}
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
 	err = f(ctx, tx)

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/archive"
@@ -474,7 +473,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// Get info about qcow2 file.
 		imgJSON, err := shared.RunCommand("qemu-img", "info", "--output=json", imgPath)
 		if err != nil {
-			return -1, errors.Wrapf(err, "Failed reading image info %q", dstPath)
+			return -1, fmt.Errorf("Failed reading image info %q: %w", dstPath, err)
 		}
 
 		imgInfo := struct {
@@ -507,7 +506,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		if shared.PathExists(dstPath) {
 			volSizeBytes, err := drivers.BlockDiskSizeBytes(dstPath)
 			if err != nil {
-				return -1, errors.Wrapf(err, "Error getting current size of %q", dstPath)
+				return -1, fmt.Errorf("Error getting current size of %q: %w", dstPath, err)
 			}
 
 			// If the target volume's size is smaller than the image unpack size, then we need to
@@ -516,7 +515,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 				logger.Debug("Increasing volume size", log.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize})
 				err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
 				if err != nil {
-					return -1, errors.Wrapf(err, "Error increasing volume size")
+					return -1, fmt.Errorf("Error increasing volume size: %w", err)
 				}
 			}
 		}
@@ -526,7 +525,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		logger.Debug("Converting qcow2 image to raw disk", log.Ctx{"imgPath": imgPath, "dstPath": dstPath})
 		_, err = shared.RunCommand("qemu-img", "dd", "-f", "qcow2", "-O", "raw", fmt.Sprintf("bs=%d", drivers.MinBlockBoundary), fmt.Sprintf("if=%s", imgPath), fmt.Sprintf("of=%s", dstPath))
 		if err != nil {
-			return -1, errors.Wrapf(err, "Failed converting image to raw at %q", dstPath)
+			return -1, fmt.Errorf("Failed converting image to raw at %q: %w", dstPath, err)
 		}
 
 		return imgInfo.VirtualSize, nil
@@ -571,7 +570,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		// Delete the qcow2.
 		err = os.Remove(imgPath)
 		if err != nil {
-			return -1, errors.Wrapf(err, "Failed to remove %q", imgPath)
+			return -1, fmt.Errorf("Failed to remove %q: %w", imgPath, err)
 		}
 
 		// Transfer the content excluding the destBlockFile name so that we don't delete the block file
@@ -614,7 +613,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 
 		projects, err := tx.GetProjects(db.ProjectFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Failed loading projects")
+			return fmt.Errorf("Failed loading projects: %w", err)
 		}
 
 		// Index of all projects by name.
@@ -624,7 +623,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 
 		profiles, err = tx.GetProfiles(db.ProfileFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Failed loading profiles")
+			return fmt.Errorf("Failed loading profiles: %w", err)
 		}
 
 		return nil
@@ -751,7 +750,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.Instance, error) {
 	pool, err := GetPoolByName(s, poolName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed loading storage pool %q", poolName)
+		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
 
 	info := pool.Driver().Info()
@@ -766,7 +765,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to get local node name")
+			return fmt.Errorf("Failed to get local node name: %w", err)
 		}
 
 		return nil
@@ -899,7 +898,7 @@ func InstanceDiskBlockSize(pool Pool, inst instance.Instance, op *operations.Ope
 
 	blockDiskSize, err := drivers.BlockDiskSizeBytes(mountInfo.DiskPath)
 	if err != nil {
-		return -1, errors.Wrapf(err, "Error getting block disk size %q", mountInfo.DiskPath)
+		return -1, fmt.Errorf("Error getting block disk size %q: %w", mountInfo.DiskPath, err)
 	}
 
 	return blockDiskSize, nil

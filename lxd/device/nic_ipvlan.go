@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
-	"github.com/pkg/errors"
 )
 
 type nicIPVLAN struct {
@@ -279,7 +278,7 @@ func (d *nicIPVLAN) postStop() error {
 	if network.InterfaceExists(d.config["host_name"]) {
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			errs = append(errs, errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"]))
+			errs = append(errs, fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err))
 		}
 	}
 

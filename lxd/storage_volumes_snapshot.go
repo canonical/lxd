@@ -11,7 +11,6 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -1010,12 +1009,12 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSn
 	for _, s := range expiredSnapshots {
 		pool, err := storagePools.GetPoolByName(d.State(), s.PoolName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to get pool %q", s.PoolName)
+			return fmt.Errorf("Failed to get pool %q: %w", s.PoolName, err)
 		}
 
 		err = pool.DeleteCustomVolumeSnapshot(s.ProjectName, s.Name, nil)
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting custom volume snapshot %s", s.Name)
+			return fmt.Errorf("Error deleting custom volume snapshot %s: %w", s.Name, err)
 		}
 	}
 
@@ -1063,7 +1062,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				// Get the offline threshold.
 				config, err := cluster.ConfigLoad(tx)
 				if err != nil {
-					return errors.Wrap(err, "Failed to load LXD config")
+					return fmt.Errorf("Failed to load LXD config: %w", err)
 				}
 
 				// Get all the members.

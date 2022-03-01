@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
@@ -45,7 +43,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Get current config
 		currentServer, etag, err := d.GetServer()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to retrieve current server configuration")
+			return nil, fmt.Errorf("Failed to retrieve current server configuration: %w", err)
 		}
 
 		// Setup reverter
@@ -55,7 +53,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		newServer := api.ServerPut{}
 		err = shared.DeepCopy(currentServer.Writable(), &newServer)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to copy server configuration")
+			return nil, fmt.Errorf("Failed to copy server configuration: %w", err)
 		}
 
 		for k, v := range config.Config {
@@ -65,7 +63,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Apply it
 		err = d.UpdateServer(newServer, etag)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to update server configuration")
+			return nil, fmt.Errorf("Failed to update server configuration: %w", err)
 		}
 	}
 
@@ -74,7 +72,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Get the list of networks
 		networkNames, err := d.GetNetworkNames()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to retrieve list of networks")
+			return nil, fmt.Errorf("Failed to retrieve list of networks: %w", err)
 		}
 
 		// Network creator
@@ -82,7 +80,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Create the network if doesn't exist
 			err := d.CreateNetwork(network)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create network '%s'", network.Name)
+				return fmt.Errorf("Failed to create network '%s': %w", network.Name, err)
 			}
 
 			// Setup reverter
@@ -95,7 +93,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Get the current network
 			currentNetwork, etag, err := d.GetNetwork(network.Name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to retrieve current network '%s'", network.Name)
+				return fmt.Errorf("Failed to retrieve current network '%s': %w", network.Name, err)
 			}
 
 			// Setup reverter
@@ -105,7 +103,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			newNetwork := api.NetworkPut{}
 			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to copy configuration of network '%s'", network.Name)
+				return fmt.Errorf("Failed to copy configuration of network '%s': %w", network.Name, err)
 			}
 
 			// Description override
@@ -121,7 +119,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Apply it
 			err = d.UpdateNetwork(currentNetwork.Name, newNetwork, etag)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to update network '%s'", network.Name)
+				return fmt.Errorf("Failed to update network '%s': %w", network.Name, err)
 			}
 
 			return nil
@@ -151,7 +149,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Get the list of storagePools
 		storagePoolNames, err := d.GetStoragePoolNames()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to retrieve list of storage pools")
+			return nil, fmt.Errorf("Failed to retrieve list of storage pools: %w", err)
 		}
 
 		// StoragePool creator
@@ -159,7 +157,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Create the storagePool if doesn't exist
 			err := d.CreateStoragePool(storagePool)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create storage pool '%s'", storagePool.Name)
+				return fmt.Errorf("Failed to create storage pool '%s': %w", storagePool.Name, err)
 			}
 
 			// Setup reverter
@@ -172,7 +170,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Get the current storagePool
 			currentStoragePool, etag, err := d.GetStoragePool(storagePool.Name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to retrieve current storage pool '%s'", storagePool.Name)
+				return fmt.Errorf("Failed to retrieve current storage pool '%s': %w", storagePool.Name, err)
 			}
 
 			// Quick check.
@@ -187,7 +185,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			newStoragePool := api.StoragePoolPut{}
 			err = shared.DeepCopy(currentStoragePool.Writable(), &newStoragePool)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to copy configuration of storage pool '%s'", storagePool.Name)
+				return fmt.Errorf("Failed to copy configuration of storage pool '%s': %w", storagePool.Name, err)
 			}
 
 			// Description override
@@ -203,7 +201,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Apply it
 			err = d.UpdateStoragePool(currentStoragePool.Name, newStoragePool, etag)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to update storage pool '%s'", storagePool.Name)
+				return fmt.Errorf("Failed to update storage pool '%s': %w", storagePool.Name, err)
 			}
 
 			return nil
@@ -233,7 +231,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		// Get the list of profiles
 		profileNames, err := d.GetProfileNames()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to retrieve list of profiles")
+			return nil, fmt.Errorf("Failed to retrieve list of profiles: %w", err)
 		}
 
 		// Profile creator
@@ -241,7 +239,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Create the profile if doesn't exist
 			err := d.CreateProfile(profile)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to create profile '%s'", profile.Name)
+				return fmt.Errorf("Failed to create profile '%s': %w", profile.Name, err)
 			}
 
 			// Setup reverter
@@ -254,7 +252,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Get the current profile
 			currentProfile, etag, err := d.GetProfile(profile.Name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to retrieve current profile '%s'", profile.Name)
+				return fmt.Errorf("Failed to retrieve current profile '%s': %w", profile.Name, err)
 			}
 
 			// Setup reverter
@@ -264,7 +262,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			newProfile := api.ProfilePut{}
 			err = shared.DeepCopy(currentProfile.Writable(), &newProfile)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to copy configuration of profile '%s'", profile.Name)
+				return fmt.Errorf("Failed to copy configuration of profile '%s': %w", profile.Name, err)
 			}
 
 			// Description override
@@ -295,7 +293,7 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 			// Apply it
 			err = d.UpdateProfile(currentProfile.Name, newProfile, etag)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to update profile '%s'", profile.Name)
+				return fmt.Errorf("Failed to update profile '%s': %w", profile.Name, err)
 			}
 
 			return nil
@@ -336,7 +334,7 @@ func initDataClusterApply(d lxd.InstanceServer, config *initDataCluster) error {
 	// Get the current cluster configuration
 	currentCluster, etag, err := d.GetCluster()
 	if err != nil {
-		return errors.Wrap(err, "Failed to retrieve current cluster config")
+		return fmt.Errorf("Failed to retrieve current cluster config: %w", err)
 	}
 
 	// Check if already enabled
@@ -344,12 +342,12 @@ func initDataClusterApply(d lxd.InstanceServer, config *initDataCluster) error {
 		// Configure the cluster
 		op, err := d.UpdateCluster(config.ClusterPut, etag)
 		if err != nil {
-			return errors.Wrap(err, "Failed to configure cluster")
+			return fmt.Errorf("Failed to configure cluster: %w", err)
 		}
 
 		err = op.Wait()
 		if err != nil {
-			return errors.Wrap(err, "Failed to configure cluster")
+			return fmt.Errorf("Failed to configure cluster: %w", err)
 		}
 	}
 

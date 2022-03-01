@@ -24,7 +24,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 var api10Cmd = APIEndpoint{
@@ -517,7 +516,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return response.InternalError(errors.Wrap(err, "Failed to check for cluster state"))
+		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
 	nodeChanged := map[string]string{}
@@ -526,7 +525,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		var err error
 		newNodeConfig, err = node.ConfigLoad(tx)
 		if err != nil {
-			return errors.Wrap(err, "Failed to load node config")
+			return fmt.Errorf("Failed to load node config: %w", err)
 		}
 
 		// We currently don't allow changing the cluster.https_address once it's set.
@@ -605,7 +604,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		var err error
 		newClusterConfig, err = cluster.ConfigLoad(tx)
 		if err != nil {
-			return errors.Wrap(err, "Failed to load cluster config")
+			return fmt.Errorf("Failed to load cluster config: %w", err)
 		}
 
 		if patch {

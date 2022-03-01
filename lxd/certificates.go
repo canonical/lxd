@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -249,7 +248,7 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 		return err
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed reading certificates from local database")
+		return fmt.Errorf("Failed reading certificates from local database: %w", err)
 	}
 
 	for _, dbCert := range dbCerts {
@@ -316,7 +315,7 @@ func clusterMemberJoinTokenDecode(input string) (*api.ClusterMemberJoinToken, er
 func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string, joinToken *api.ClusterMemberJoinToken) (*api.Operation, error) {
 	ops, err := operationsGetByType(d, r, projectName, db.OperationClusterJoinToken)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting cluster join token operations")
+		return nil, fmt.Errorf("Failed getting cluster join token operations: %w", err)
 	}
 
 	var foundOp *api.Operation
@@ -349,7 +348,7 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 		// Token is single-use, so cancel it now.
 		err = operationCancel(d, r, projectName, foundOp)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to cancel operation %q", foundOp.ID)
+			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
 
 		return foundOp, nil
@@ -364,7 +363,7 @@ func clusterMemberJoinTokenValid(d *Daemon, r *http.Request, projectName string,
 func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.CertificateAddToken) (*api.Operation, error) {
 	ops, err := operationsGetByType(d, r, project.Default, db.OperationCertificateAddToken)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting certificate token operations")
+		return nil, fmt.Errorf("Failed getting certificate token operations: %w", err)
 	}
 
 	var foundOp *api.Operation
@@ -388,7 +387,7 @@ func certificateTokenValid(d *Daemon, r *http.Request, addToken *api.Certificate
 		// Token is single-use, so cancel it now.
 		err = operationCancel(d, r, project.Default, foundOp)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to cancel operation %q", foundOp.ID)
+			return nil, fmt.Errorf("Failed to cancel operation %q: %w", foundOp.ID, err)
 		}
 
 		return foundOp, nil
@@ -502,7 +501,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				// If so then check there is a matching join operation.
 				joinOp, err := clusterMemberJoinTokenValid(d, r, project.Default, joinToken)
 				if err != nil {
-					return response.InternalError(errors.Wrapf(err, "Failed during search for join token operation"))
+					return response.InternalError(fmt.Errorf("Failed during search for join token operation: %w", err))
 				}
 
 				if joinOp == nil {
@@ -515,7 +514,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 					// If so then check there is a matching join operation.
 					joinOp, err := certificateTokenValid(d, r, joinToken)
 					if err != nil {
-						return response.InternalError(errors.Wrapf(err, "Failed during search for certificate add token operation"))
+						return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
 					}
 
 					if joinOp == nil {
@@ -564,7 +563,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 		cert, err = x509.ParseCertificate(data)
 		if err != nil {
-			return response.BadRequest(errors.Wrap(err, "invalid certificate material"))
+			return response.BadRequest(fmt.Errorf("invalid certificate material: %w", err))
 		}
 	} else if req.Token {
 		// Get all addresses the server is listening on. This is encoded in the certificate token,

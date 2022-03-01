@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -299,7 +298,7 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 
 		err := backupCreate(d.State(), args, inst, op)
 		if err != nil {
-			return errors.Wrap(err, "Create backup")
+			return fmt.Errorf("Create backup: %w", err)
 		}
 
 		return nil

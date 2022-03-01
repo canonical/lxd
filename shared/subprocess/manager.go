@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -60,13 +59,13 @@ func NewProcessWithFds(name string, args []string, stdin io.ReadCloser, stdout i
 func ImportProcess(path string) (*Process, error) {
 	dat, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to read file '%s'", path)
+		return nil, fmt.Errorf("Unable to read file '%s': %w", path, err)
 	}
 
 	proc := Process{}
 	err = yaml.Unmarshal(dat, &proc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to parse Process YAML")
+		return nil, fmt.Errorf("Unable to parse Process YAML: %w", err)
 	}
 
 	return &proc, nil

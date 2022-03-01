@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,7 +21,6 @@ import (
 	dqliteclient "github.com/canonical/go-dqlite/client"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
@@ -931,7 +931,7 @@ func (d *Daemon) init() error {
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return errors.Wrapf(err, "Failed checking if clustered")
+		return fmt.Errorf("Failed checking if clustered: %w", err)
 	}
 
 	// Detect if clustered, but not yet upgraded to per-server client certificates.
@@ -985,17 +985,17 @@ func (d *Daemon) init() error {
 
 	address, err := node.HTTPSAddress(d.db)
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch node address")
+		return fmt.Errorf("Failed to fetch node address: %w", err)
 	}
 
 	clusterAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch cluster address")
+		return fmt.Errorf("Failed to fetch cluster address: %w", err)
 	}
 
 	debugAddress, err := node.DebugAddress(d.db)
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch debug address")
+		return fmt.Errorf("Failed to fetch debug address: %w", err)
 	}
 
 	if os.Getenv("LISTEN_PID") != "" {
@@ -1077,7 +1077,7 @@ func (d *Daemon) init() error {
 			continue
 		}
 
-		return errors.Wrap(err, "Failed to initialize global database")
+		return fmt.Errorf("Failed to initialize global database: %w", err)
 	}
 
 	d.firewall = firewall.New()
@@ -1513,7 +1513,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 	errs := []error{}
 	trackError := func(err error, desc string) {
 		if err != nil {
-			errs = append(errs, errors.Wrap(err, desc))
+			errs = append(errs, fmt.Errorf(desc+": %w", err))
 		}
 	}
 
@@ -1744,7 +1744,7 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 		logger.Info("Renaming local database file from lxd.db to database/local.db")
 		err := os.Rename(d.os.LegacyLocalDatabasePath(), d.os.LocalDatabasePath())
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to rename legacy local database file")
+			return nil, fmt.Errorf("Failed to rename legacy local database file: %w", err)
 		}
 	}
 
@@ -1998,7 +1998,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", log.Ctx{"local": localAddress})
 			err := rebalanceMemberRoles(d, nil, unavailableMembers)
-			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+			if err != nil && errors.Unwrap(err) != cluster.ErrNotLeader {
 				logger.Warn("Could not rebalance cluster member roles", log.Ctx{"err": err, "local": localAddress})
 			}
 			d.clusterMembershipMutex.Unlock()
@@ -2008,7 +2008,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Upgrading members without raft role in heartbeat", log.Ctx{"local": localAddress})
 			err := upgradeNodesWithoutRaftRole(d)
-			if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+			if err != nil && errors.Unwrap(err) != cluster.ErrNotLeader {
 				logger.Warn("Failed upgrading raft roles:", log.Ctx{"err": err, "local": localAddress})
 			}
 			d.clusterMembershipMutex.Unlock()

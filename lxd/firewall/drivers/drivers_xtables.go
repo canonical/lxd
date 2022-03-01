@@ -11,8 +11,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -462,7 +460,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 	out, err := shared.RunCommand("ebtables", "-L", "--Lmac2", "--Lx")
 	if err != nil {
 		ebtablesMu.Unlock()
-		return errors.Wrapf(err, "Failed to get a list of network filters to for %q", deviceName)
+		return fmt.Errorf("Failed to get a list of network filters to for %q: %w", deviceName, err)
 	}
 
 	errs := []error{}
@@ -930,7 +928,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 
 	_, err := exec.LookPath(cmd)
 	if err != nil {
-		return false, false, errors.Wrapf(err, "Failed checking %q chain %q exists in table %q", cmd, chain, table)
+		return false, false, fmt.Errorf("Failed checking %q chain %q exists in table %q: %w", cmd, chain, table, err)
 	}
 
 	// Attempt to dump the rules of the chain, if this fails then chain doesn't exist.
@@ -962,7 +960,7 @@ func (d Xtables) iptablesChainCreate(ipVersion uint, table string, chain string)
 	// Attempt to create chain in table.
 	_, err := shared.RunCommand(cmd, "-t", table, "-N", chain)
 	if err != nil {
-		return errors.Wrapf(err, "Failed creating %q chain %q in table %q", cmd, chain, table)
+		return fmt.Errorf("Failed creating %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
 
 	return nil
@@ -983,14 +981,14 @@ func (d Xtables) iptablesChainDelete(ipVersion uint, table string, chain string,
 	if flushFirst {
 		_, err := shared.RunCommand(cmd, "-t", table, "-F", chain)
 		if err != nil {
-			return errors.Wrapf(err, "Failed flushing %q chain %q in table %q", cmd, chain, table)
+			return fmt.Errorf("Failed flushing %q chain %q in table %q: %w", cmd, chain, table, err)
 		}
 	}
 
 	// Attempt to delete chain in table.
 	_, err := shared.RunCommand(cmd, "-t", table, "-X", chain)
 	if err != nil {
-		return errors.Wrapf(err, "Failed deleting %q chain %q in table %q", cmd, chain, table)
+		return fmt.Errorf("Failed deleting %q chain %q in table %q: %w", cmd, chain, table, err)
 	}
 
 	return nil

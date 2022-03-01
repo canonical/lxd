@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/sys"
@@ -70,7 +69,7 @@ func GetInfo(r io.ReadSeeker, sysOS *sys.OS, outputPath string) (*Info, error) {
 			break // End of archive.
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error reading backup file info")
+			return nil, fmt.Errorf("Error reading backup file info: %w", err)
 		}
 
 		if hdr.Name == "backup/index.yaml" {

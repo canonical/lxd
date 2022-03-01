@@ -4,7 +4,7 @@
 package operations
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
 )
@@ -24,7 +24,7 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 		if op.projectName != "" {
 			projectID, err := tx.GetProjectID(op.projectName)
 			if err != nil {
-				return errors.Wrap(err, "Fetch project ID")
+				return fmt.Errorf("Fetch project ID: %w", err)
 			}
 			opInfo.ProjectID = &projectID
 		}
@@ -33,7 +33,7 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 		return err
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to add %q Operation %s to database", opType.Description(), op.id)
+		return fmt.Errorf("failed to add %q Operation %s to database: %w", opType.Description(), op.id, err)
 	}
 
 	return nil

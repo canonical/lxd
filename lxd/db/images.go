@@ -5,11 +5,10 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -211,7 +210,7 @@ func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) 
 	// Check which project name to use
 	enabled, err := c.ProjectHasProfiles(project)
 	if err != nil {
-		return errors.Wrap(err, "Check if project has profiles")
+		return fmt.Errorf("Check if project has profiles: %w", err)
 	}
 	if !enabled {
 		project = "default"
@@ -251,7 +250,7 @@ SELECT fingerprint
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -409,7 +408,7 @@ func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) 
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -438,7 +437,7 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -479,7 +478,7 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 		profileProject := *filter.Project
 		enabled, err := tx.ProjectHasImages(*filter.Project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project := "default"
@@ -488,7 +487,7 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 
 		images, err := tx.getImagesByFingerprintPrefix(fingerprintPrefix, filter)
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch images")
+			return fmt.Errorf("Failed to fetch images: %w", err)
 		}
 
 		switch len(images) {
@@ -512,12 +511,12 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
 			&object.UploadDate, object.Architecture, object.Type)
 		if err != nil {
-			return errors.Wrapf(err, "Fill image details")
+			return fmt.Errorf("Fill image details: %w", err)
 		}
 
 		err = tx.imageFillProfiles(object.ID, &image, profileProject)
 		if err != nil {
-			return errors.Wrapf(err, "Fill image profiles")
+			return fmt.Errorf("Fill image profiles: %w", err)
 		}
 
 		return nil
@@ -539,7 +538,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	err := c.Transaction(func(tx *ClusterTx) error {
 		images, err := tx.getImagesByFingerprintPrefix(fingerprint, ImageFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch images")
+			return fmt.Errorf("Failed to fetch images: %w", err)
 		}
 
 		if len(images) == 0 {
@@ -560,13 +559,13 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 			&object.CreationDate.Time, &object.ExpiryDate.Time, &object.LastUseDate.Time,
 			&object.UploadDate, object.Architecture, object.Type)
 		if err != nil {
-			return errors.Wrapf(err, "Fill image details")
+			return fmt.Errorf("Fill image details: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return -1, nil, errors.Wrapf(err, "Get image %q", fingerprint)
+		return -1, nil, fmt.Errorf("Get image %q: %w", fingerprint, err)
 	}
 
 	return object.ID, &image, nil
@@ -625,7 +624,7 @@ WHERE images.fingerprint LIKE ?
 	// Select.
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch images")
+		return nil, fmt.Errorf("Failed to fetch images: %w", err)
 	}
 
 	return objects, nil
@@ -730,7 +729,7 @@ SELECT images_aliases.name
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -763,7 +762,7 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -816,7 +815,7 @@ DELETE
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -850,7 +849,7 @@ INSERT INTO images_aliases (name, image_id, description, project_id)
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -1034,7 +1033,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		profileProject := project
 		enabled, err := tx.ProjectHasImages(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has images")
+			return fmt.Errorf("Check if project has images: %w", err)
 		}
 		if !enabled {
 			project = "default"

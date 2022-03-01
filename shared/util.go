@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/flosch/pongo2"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared/cancel"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -480,7 +479,7 @@ func DirCopy(source string, dest string) error {
 	// Get info about source.
 	info, err := os.Stat(source)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get source directory info")
+		return fmt.Errorf("failed to get source directory info: %w", err)
 	}
 
 	if !info.IsDir() {
@@ -491,20 +490,20 @@ func DirCopy(source string, dest string) error {
 	if PathExists(dest) {
 		err := os.RemoveAll(dest)
 		if err != nil {
-			return errors.Wrapf(err, "failed to remove destination directory %s", dest)
+			return fmt.Errorf("failed to remove destination directory %s: %w", dest, err)
 		}
 	}
 
 	// Create dest.
 	err = os.MkdirAll(dest, info.Mode())
 	if err != nil {
-		return errors.Wrapf(err, "failed to create destination directory %s", dest)
+		return fmt.Errorf("failed to create destination directory %s: %w", dest, err)
 	}
 
 	// Copy all files.
 	entries, err := ioutil.ReadDir(source)
 	if err != nil {
-		return errors.Wrapf(err, "failed to read source directory %s", source)
+		return fmt.Errorf("failed to read source directory %s: %w", source, err)
 	}
 
 	for _, entry := range entries {
@@ -515,12 +514,12 @@ func DirCopy(source string, dest string) error {
 		if entry.IsDir() {
 			err := DirCopy(sourcePath, destPath)
 			if err != nil {
-				return errors.Wrapf(err, "failed to copy sub-directory from %s to %s", sourcePath, destPath)
+				return fmt.Errorf("failed to copy sub-directory from %s to %s: %w", sourcePath, destPath, err)
 			}
 		} else {
 			err := FileCopy(sourcePath, destPath)
 			if err != nil {
-				return errors.Wrapf(err, "failed to copy file from %s to %s", sourcePath, destPath)
+				return fmt.Errorf("failed to copy file from %s to %s: %w", sourcePath, destPath, err)
 			}
 		}
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -19,7 +20,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 type heartbeatMode int
@@ -298,7 +298,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	raftNodes, err := g.currentRaftNodes()
 	if err != nil {
-		if errors.Cause(err) == ErrNotLeader {
+		if errors.Unwrap(err) == ErrNotLeader {
 			return
 		}
 
@@ -450,8 +450,8 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 				}
 
 				err := tx.SetNodeHeartbeat(node.Address, node.LastHeartbeat)
-				if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
-					return errors.Wrapf(err, "Failed updating heartbeat time for member %q", node.Address)
+				if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+					return fmt.Errorf("Failed updating heartbeat time for member %q: %w", node.Address, err)
 				}
 			}
 
@@ -523,7 +523,7 @@ func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.
 
 	response, err := client.Do(request)
 	if err != nil {
-		return errors.Wrap(err, "Failed to send heartbeat request")
+		return fmt.Errorf("Failed to send heartbeat request: %w", err)
 	}
 	defer response.Body.Close()
 

@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/digitalocean/go-smbios/smbios"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
@@ -87,7 +86,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 	// List all the caches
 	entries, err := ioutil.ReadDir(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list %q", path)
+		return nil, fmt.Errorf("Failed to list %q: %w", path, err)
 	}
 
 	// Iterate and add to our list
@@ -106,7 +105,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		// Get the cache level
 		cacheLevel, err := readUint(filepath.Join(entryPath, "level"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "level"))
+			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "level"), err)
 		}
 		cache.Level = cacheLevel
 
@@ -114,7 +113,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		content, err := ioutil.ReadFile(filepath.Join(entryPath, "size"))
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "size"))
+				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "size"), err)
 			}
 		} else {
 			cacheSizeStr := strings.TrimSpace(string(content))
@@ -128,7 +127,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 
 			cacheSize, err := strconv.ParseUint((cacheSizeStr), 10, 64)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse cache size")
+				return nil, fmt.Errorf("Failed to parse cache size: %w", err)
 			}
 
 			cache.Size = cacheSize * cacheSizeMultiplier
@@ -138,7 +137,7 @@ func getCPUCache(path string) ([]api.ResourcesCPUCache, error) {
 		cacheType, err := ioutil.ReadFile(filepath.Join(entryPath, "type"))
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "type"))
+				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "type"), err)
 			}
 		} else {
 			cache.Type = strings.TrimSpace(string(cacheType))
@@ -199,7 +198,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	// Open cpuinfo
 	f, err := os.Open("/proc/cpuinfo")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to open /proc/cpuinfo")
+		return nil, fmt.Errorf("Failed to open /proc/cpuinfo: %w", err)
 	}
 	defer f.Close()
 	cpuInfo := bufio.NewScanner(f)
@@ -207,7 +206,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	// List all the CPUs
 	entries, err := ioutil.ReadDir(sysDevicesCPU)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list %q", sysDevicesCPU)
+		return nil, fmt.Errorf("Failed to list %q: %w", sysDevicesCPU, err)
 	}
 
 	// Process all entries
@@ -224,17 +223,17 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Get topology
 		cpuSocket, err := readUint(filepath.Join(entryPath, "topology", "physical_package_id"))
 		if err != nil && !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "topology", "physical_package_id"))
+			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "topology", "physical_package_id"), err)
 		}
 
 		cpuCore, err := readUint(filepath.Join(entryPath, "topology", "core_id"))
 		if err != nil && !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "topology", "core_id"))
+			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "topology", "core_id"), err)
 		}
 
 		cpuDie, err := readInt(filepath.Join(entryPath, "topology", "die_id"))
 		if err != nil && !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "topology", "die_id"))
+			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "topology", "die_id"), err)
 		}
 
 		if cpuDie == -1 {
@@ -316,7 +315,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if sysfsExists(filepath.Join(entryPath, "cache")) {
 				socketCache, err := getCPUCache(filepath.Join(entryPath, "cache"))
 				if err != nil {
-					return nil, errors.Wrap(err, "Failed to get CPU cache information")
+					return nil, fmt.Errorf("Failed to get CPU cache information: %w", err)
 				}
 
 				resSocket.Cache = socketCache
@@ -326,14 +325,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq")) {
 				freqMinimum, err := readUint(filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"))
+					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "cpuinfo_min_freq"), err)
 				}
 
 				resSocket.FrequencyMinimum = freqMinimum / 1000
 			} else if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_min_freq")) {
 				freqMinimum, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_min_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "scaling_min_freq"))
+					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "scaling_min_freq"), err)
 				}
 
 				resSocket.FrequencyMinimum = freqMinimum / 1000
@@ -342,14 +341,14 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq")) {
 				freqTurbo, err := readUint(filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"))
+					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "cpuinfo_max_freq"), err)
 				}
 
 				resSocket.FrequencyTurbo = freqTurbo / 1000
 			} else if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_max_freq")) {
 				freqTurbo, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_max_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "scaling_max_freq"))
+					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "scaling_max_freq"), err)
 				}
 
 				resSocket.FrequencyTurbo = freqTurbo / 1000
@@ -376,7 +375,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			if sysfsExists(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq")) {
 				freqCurrent, err := readUint(filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"))
+					return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "cpufreq", "scaling_cur_freq"), err)
 				}
 
 				resCore.Frequency = freqCurrent / 1000
@@ -392,7 +391,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Grab thread data
 		threadNumber, err := strconv.ParseInt(strings.TrimPrefix(entryName, "cpu"), 10, 64)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to parse thread number")
+			return nil, fmt.Errorf("Failed to parse thread number: %w", err)
 		}
 
 		thread := api.ResourcesCPUThread{}
@@ -400,7 +399,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		if sysfsExists(filepath.Join(entryPath, "online")) {
 			online, err := readUint(filepath.Join(entryPath, "online"))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(entryPath, "online"))
+				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "online"), err)
 			}
 
 			if online == 0 {
@@ -414,7 +413,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// NUMA node
 		numaNode, err := sysfsNumaNode(entryPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to find NUMA node")
+			return nil, fmt.Errorf("Failed to find NUMA node: %w", err)
 		}
 
 		thread.NUMANode = numaNode
@@ -455,7 +454,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	uname := unix.Utsname{}
 	err = unix.Uname(&uname)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get uname")
+		return nil, fmt.Errorf("Failed to get uname: %w", err)
 	}
 
 	cpu.Architecture = strings.TrimRight(string(uname.Machine[:]), "\x00")

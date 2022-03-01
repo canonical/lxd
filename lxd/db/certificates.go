@@ -8,7 +8,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 // Code generation directives.
@@ -126,7 +125,7 @@ ORDER BY certificates.fingerprint
 
 		err = query.SelectObjects(stmt, dest, fingerprintPrefix+"%")
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch certificates")
+			return fmt.Errorf("Failed to fetch certificates: %w", err)
 		}
 
 		if len(objects) > 1 {

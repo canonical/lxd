@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/scrypt"
 
 	"github.com/lxc/lxd/lxd/config"
@@ -192,7 +191,7 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 
 	err = c.tx.UpdateClusterConfig(changed)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot persist configuration changes: %v")
+		return nil, fmt.Errorf("cannot persist configuration changes: %w", err)
 	}
 
 	return changed, nil

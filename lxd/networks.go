@@ -9,8 +9,9 @@ import (
 	"strings"
 	"sync"
 
+	"errors"
+
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -361,8 +362,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 					// Don't pass in any config, as these nodes don't have any node-specific
 					// config and we don't want to create duplicate global config.
 					err = tx.CreatePendingNetwork(node.Name, req.Name, netType.DBType(), nil)
-					if err != nil && errors.Cause(err) != db.ErrAlreadyDefined {
-						return errors.Wrapf(err, "Failed creating pending network for node %q", node.Name)
+					if err != nil && errors.Unwrap(err) != db.ErrAlreadyDefined {
+						return fmt.Errorf("Failed creating pending network for node %q: %w", node.Name, err)
 					}
 				}
 
@@ -398,7 +399,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	// Create the database entry.
 	_, err = d.cluster.CreateNetwork(req.Name, req.Description, netType.DBType(), req.Config)
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
+		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
 	}
 	revert.Add(func() { d.cluster.DeleteNetwork(req.Name) })
 
@@ -951,7 +952,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	// Check network isn't in use.
 	inUse, err := n.IsUsed()
 	if err != nil {
-		return response.InternalError(errors.Wrapf(err, "Failed checking network in use"))
+		return response.InternalError(fmt.Errorf("Failed checking network in use: %w", err))
 	}
 
 	if inUse {
@@ -1264,14 +1265,14 @@ func networkStartup(s *state.State) error {
 	// Get a list of managed networks.
 	networks, err := s.Cluster.GetCreatedNetworks()
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load networks")
+		return fmt.Errorf("Failed to load networks: %w", err)
 	}
 
 	// Bring them all up.
 	for _, name := range networks {
 		n, err := network.LoadByName(s, name)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load network %q", name)
+			return fmt.Errorf("Failed to load network %q: %w", name, err)
 		}
 
 		err = n.Validate(n.Config())

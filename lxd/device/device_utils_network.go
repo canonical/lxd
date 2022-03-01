@@ -2,6 +2,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/j-keck/arping"
 	"github.com/mdlayher/ndp"
-	"github.com/pkg/errors"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
@@ -274,7 +274,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	}
 	err := tuntap.Add()
 	if err != nil {
-		return 0, errors.Wrapf(err, "Failed to create the tap interfaces %q", hostName)
+		return 0, fmt.Errorf("Failed to create the tap interfaces %q: %w", hostName, err)
 	}
 
 	revert := revert.New()
@@ -283,7 +283,7 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	link := &ip.Link{Name: hostName}
 	err = link.SetUp()
 	if err != nil {
-		return 0, errors.Wrapf(err, "Failed to bring up the tap interface %q", hostName)
+		return 0, fmt.Errorf("Failed to bring up the tap interface %q: %w", hostName, err)
 	}
 	revert.Add(func() { network.InterfaceRemove(hostName) })
 
@@ -292,14 +292,14 @@ func networkCreateTap(hostName string, m deviceConfig.Device) (uint32, error) {
 	if m["mtu"] != "" {
 		nicMTU, err := strconv.ParseUint(m["mtu"], 10, 32)
 		if err != nil {
-			return 0, errors.Wrap(err, "Invalid MTU specified")
+			return 0, fmt.Errorf("Invalid MTU specified: %w", err)
 		}
 
 		mtu = uint32(nicMTU)
 	} else if m["parent"] != "" {
 		parentMTU, err := network.GetDevMTU(m["parent"])
 		if err != nil {
-			return 0, errors.Wrap(err, "Failed to get the parent MTU")
+			return 0, fmt.Errorf("Failed to get the parent MTU: %w", err)
 		}
 
 		mtu = parentMTU
@@ -342,7 +342,7 @@ func networkNICRouteAdd(routeDev string, routes ...string) error {
 		route := r // Local var for revert.
 		ipAddress, _, err := net.ParseCIDR(route)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid route %q", route)
+			return fmt.Errorf("Invalid route %q: %w", route, err)
 		}
 
 		ipVersion := ip.FamilyV4
@@ -774,7 +774,7 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 		link := &ip.Link{Name: hostName}
 		err := link.SetAddress(config["hwaddr"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed setting MAC address %q on %q", config["hwaddr"], hostName)
+			return fmt.Errorf("Failed setting MAC address %q on %q: %w", config["hwaddr"], hostName, err)
 		}
 	}
 
@@ -783,7 +783,7 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 		link := &ip.Link{Name: hostName}
 		err := link.SetMTU(config["mtu"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed setting MTU %q on %q", config["mtu"], hostName)
+			return fmt.Errorf("Failed setting MTU %q on %q: %w", config["mtu"], hostName, err)
 		}
 	}
 
@@ -792,7 +792,7 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 	err := link.SetUp()
 	if err != nil {
 		if config["hwaddr"] != "" {
-			return errors.Wrapf(err, "Failed to bring up VF interface %q", hostName)
+			return fmt.Errorf("Failed to bring up VF interface %q: %w", hostName, err)
 		}
 
 		upErr := err
@@ -802,29 +802,29 @@ func networkSRIOVSetupContainerVFNIC(hostName string, config map[string]string) 
 		// has an empty MAC and set a random one if needed.
 		vfIF, err := net.InterfaceByName(hostName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting interface info for VF %q", hostName)
+			return fmt.Errorf("Failed getting interface info for VF %q: %w", hostName, err)
 		}
 
 		// If the VF interface has a MAC already, something else prevented bringing interface up.
 		if vfIF.HardwareAddr.String() != "00:00:00:00:00:00" {
-			return errors.Wrapf(upErr, "Failed to bring up VF interface %q", hostName)
+			return fmt.Errorf("Failed to bring up VF interface %q: %w", hostName, upErr)
 		}
 
 		// Try using a random MAC address and bringing interface up.
 		randMAC, err := instance.DeviceNextInterfaceHWAddr()
 		if err != nil {
-			return errors.Wrapf(err, "Failed generating random MAC for VF %q", hostName)
+			return fmt.Errorf("Failed generating random MAC for VF %q: %w", hostName, err)
 		}
 
 		link := &ip.Link{Name: hostName}
 		err = link.SetAddress(randMAC)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to set random MAC address %q on %q", randMAC, hostName)
+			return fmt.Errorf("Failed to set random MAC address %q on %q: %w", randMAC, hostName, err)
 		}
 
 		err = link.SetUp()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to bring up VF interface %q", hostName)
+			return fmt.Errorf("Failed to bring up VF interface %q: %w", hostName, err)
 		}
 	}
 
@@ -849,7 +849,7 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 		arping.SetTimeout(timeout)
 		_, _, err := arping.PingOverIfaceByName(address, parentInterface)
 		if err != nil {
-			if errors.Cause(err) == arping.ErrTimeout {
+			if errors.Unwrap(err) == arping.ErrTimeout {
 				return false, nil
 			}
 

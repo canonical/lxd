@@ -14,7 +14,6 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
@@ -389,12 +388,12 @@ func LoadInstanceDatabaseObject(tx *db.ClusterTx, project, name string) (*db.Ins
 
 		instance, err := tx.GetInstance(project, instanceName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
+			return nil, fmt.Errorf("Failed to fetch instance %q in project %q: %w", name, project, err)
 		}
 
 		snapshot, err := tx.GetInstanceSnapshot(project, instanceName, snapshotName)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to fetch snapshot %q of instance %q in project %q", snapshotName, instanceName, project)
+			return nil, fmt.Errorf("Failed to fetch snapshot %q of instance %q in project %q: %w", snapshotName, instanceName, project, err)
 		}
 
 		c := db.InstanceSnapshotToInstance(instance, snapshot)
@@ -402,7 +401,7 @@ func LoadInstanceDatabaseObject(tx *db.ClusterTx, project, name string) (*db.Ins
 	} else {
 		container, err = tx.GetInstance(project, name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to fetch instance %q in project %q", name, project)
+			return nil, fmt.Errorf("Failed to fetch instance %q in project %q: %w", name, project, err)
 		}
 	}
 
@@ -420,7 +419,7 @@ func LoadByProjectAndName(s *state.State, project, name string) (Instance, error
 	args := db.InstanceToArgs(container)
 	inst, err := Load(s, args, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to load instance")
+		return nil, fmt.Errorf("Failed to load instance: %w", err)
 	}
 
 	return inst, nil
@@ -517,7 +516,7 @@ func LoadFromAllProjects(s *state.State) ([]Instance, error) {
 	for _, project := range projects {
 		projectInstances, err := LoadByProject(s, project)
 		if err != nil {
-			return nil, errors.Wrapf(nil, "Load instances in project %s", project)
+			return nil, fmt.Errorf("Load instances in project %s: %w", project, nil)
 		}
 		instances = append(instances, projectInstances...)
 	}
@@ -624,13 +623,13 @@ func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBac
 	// Get the backup database record
 	args, err := s.Cluster.GetInstanceBackup(project, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "Load backup from database")
+		return nil, fmt.Errorf("Load backup from database: %w", err)
 	}
 
 	// Load the instance it belongs to
 	instance, err := LoadByID(s, args.InstanceID)
 	if err != nil {
-		return nil, errors.Wrap(err, "Load instance from database")
+		return nil, fmt.Errorf("Load instance from database: %w", err)
 	}
 
 	return backup.NewInstanceBackup(s, instance, args.ID, name, args.CreationDate, args.ExpiryDate, args.InstanceOnly, args.OptimizedStorage), nil
@@ -848,7 +847,7 @@ func ValidName(instanceName string, isSnapshot bool) error {
 		parentName, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(instanceName)
 		err := validate.IsHostname(parentName)
 		if err != nil {
-			return errors.Wrap(err, "Invalid instance name")
+			return fmt.Errorf("Invalid instance name: %w", err)
 		}
 
 		// Snapshot part is more flexible, but doesn't allow space or / character.
@@ -862,7 +861,7 @@ func ValidName(instanceName string, isSnapshot bool) error {
 
 		err := validate.IsHostname(instanceName)
 		if err != nil {
-			return errors.Wrap(err, "Invalid instance name")
+			return fmt.Errorf("Invalid instance name: %w", err)
 		}
 	}
 
@@ -1000,13 +999,13 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 			}
 			_, err = tx.CreateInstanceSnapshot(snapshot)
 			if err != nil {
-				return errors.Wrap(err, "Add snapshot info to the database")
+				return fmt.Errorf("Add snapshot info to the database: %w", err)
 			}
 
 			// Read back the snapshot, to get ID and creation time.
 			s, err := tx.GetInstanceSnapshot(args.Project, instanceName, snapshotName)
 			if err != nil {
-				return errors.Wrap(err, "Fetch created snapshot from the database")
+				return fmt.Errorf("Fetch created snapshot from the database: %w", err)
 			}
 
 			dbInst = db.InstanceSnapshotToInstance(instance, s)
@@ -1035,19 +1034,19 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 
 		_, err = tx.CreateInstance(dbInst)
 		if err != nil {
-			return errors.Wrap(err, "Add instance info to the database")
+			return fmt.Errorf("Add instance info to the database: %w", err)
 		}
 
 		// Read back the instance, to get ID and creation time.
 		dbRow, err := tx.GetInstance(args.Project, args.Name)
 		if err != nil {
-			return errors.Wrap(err, "Fetch created instance from the database")
+			return fmt.Errorf("Fetch created instance from the database: %w", err)
 		}
 
 		dbInst = *dbRow
 
 		if dbInst.ID < 1 {
-			return errors.Wrapf(err, "Unexpected instance database ID %d", dbInst.ID)
+			return fmt.Errorf("Unexpected instance database ID %d: %w", dbInst.ID, err)
 		}
 
 		op, err = operationlock.Create(dbInst.Project, dbInst.Name, "create", false, false)
@@ -1078,7 +1077,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 	inst, err := Create(s, args, volumeConfig, revert)
 	if err != nil {
 		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
-		return nil, nil, errors.Wrap(err, "Failed initialising instance")
+		return nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
 	}
 
 	// Wipe any existing log for this instance name.

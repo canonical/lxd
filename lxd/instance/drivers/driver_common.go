@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -208,7 +207,7 @@ func (d *common) DeferTemplateApply(trigger instance.TemplateTrigger) error {
 
 	err := d.VolatileSet(map[string]string{"volatile.apply_template": string(trigger)})
 	if err != nil {
-		return errors.Wrap(err, "Failed to set apply_template volatile key")
+		return fmt.Errorf("Failed to set apply_template volatile key: %w", err)
 	}
 
 	return nil
@@ -276,7 +275,7 @@ func (d *common) VolatileSet(changes map[string]string) error {
 		})
 	}
 	if err != nil {
-		return errors.Wrap(err, "Failed to set volatile config")
+		return fmt.Errorf("Failed to set volatile config: %w", err)
 	}
 
 	// Apply the change locally.
@@ -442,7 +441,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 	// Setup a new operation for the stop/shutdown phase.
 	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestart, true, true)
 	if err != nil {
-		return errors.Wrap(err, "Create restart operation")
+		return fmt.Errorf("Create restart operation: %w", err)
 	}
 
 	// Handle ephemeral instances.
@@ -496,7 +495,7 @@ func (d *common) restartCommon(inst instance.Instance, timeout time.Duration) er
 	// Setup a new operation for the start phase.
 	op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestart, true, true)
 	if err != nil {
-		return errors.Wrap(err, "Create restart (for start) operation")
+		return fmt.Errorf("Create restart (for start) operation: %w", err)
 	}
 
 	err = inst.Start(false)
@@ -544,7 +543,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	// Create the snapshot.
 	snap, snapInstOp, err := instance.CreateInternal(d.state, args, true, nil, revert)
 	if err != nil {
-		return errors.Wrapf(err, "Failed creating instance snapshot record %q", name)
+		return fmt.Errorf("Failed creating instance snapshot record %q: %w", name, err)
 	}
 	defer snapInstOp.Done(err)
 
@@ -555,7 +554,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 
 	err = pool.CreateInstanceSnapshot(snap, inst, d.op)
 	if err != nil {
-		return errors.Wrap(err, "Create instance snapshot")
+		return fmt.Errorf("Create instance snapshot: %w", err)
 	}
 
 	revert.Add(func() { snap.Delete(true) })
@@ -563,7 +562,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	// Mount volume for backup.yaml writing.
 	_, err = pool.MountInstance(inst, d.op)
 	if err != nil {
-		return errors.Wrap(err, "Create instance snapshot (mount source)")
+		return fmt.Errorf("Create instance snapshot (mount source): %w", err)
 	}
 	defer pool.UnmountInstance(inst, d.op)
 
@@ -868,7 +867,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 
 		op, err = operationlock.Create(d.Project(), d.Name(), action, false, false)
 		if err != nil {
-			return nil, false, errors.Wrapf(err, "Failed creating %q operation", action)
+			return nil, false, fmt.Errorf("Failed creating %q operation: %w", action, err)
 		}
 	}
 
@@ -888,14 +887,14 @@ func (d *common) recordLastState() error {
 		// Record power state.
 		err = tx.UpdateInstancePowerState(d.id, "RUNNING")
 		if err != nil {
-			err = errors.Wrap(err, "Error updating instance power state")
+			err = fmt.Errorf("Error updating instance power state: %w", err)
 			return err
 		}
 
 		// Update time instance last started time.
 		err = tx.UpdateInstanceLastUsedDate(d.id, time.Now().UTC())
 		if err != nil {
-			err = errors.Wrap(err, "Error updating instance last used")
+			err = fmt.Errorf("Error updating instance last used: %w", err)
 			return err
 		}
 

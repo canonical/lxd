@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
@@ -192,7 +190,7 @@ func (v Volume) EnsureMountPath() error {
 
 		err := os.Mkdir(volPath, 0711)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create mount directory %q", volPath)
+			return fmt.Errorf("Failed to create mount directory %q: %w", volPath, err)
 		}
 		revert.Add(func() { os.Remove(volPath) })
 	}
@@ -205,7 +203,7 @@ func (v Volume) EnsureMountPath() error {
 
 	fInfo, err := os.Lstat(volPath)
 	if err != nil {
-		return errors.Wrapf(err, "Error getting mount directory info %q", volPath)
+		return fmt.Errorf("Error getting mount directory info %q: %w", volPath, err)
 	}
 
 	// We expect the mount path to be a directory, so use this for comparison.
@@ -219,7 +217,7 @@ func (v Volume) EnsureMountPath() error {
 		// If the volume is a snapshot, we must ignore the error as snapshots are readonly and cannot be
 		// modified after they are taken, such that any permission error is not fixable at mount time.
 		if err != nil && !v.IsSnapshot() {
-			return errors.Wrapf(err, "Failed to chmod mount directory %q (%04o)", volPath, mode)
+			return fmt.Errorf("Failed to chmod mount directory %q (%04o): %w", volPath, mode, err)
 		}
 	}
 

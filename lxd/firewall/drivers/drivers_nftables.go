@@ -11,7 +11,6 @@ import (
 	"text/template"
 
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared"
@@ -51,13 +50,13 @@ func (d Nftables) Compat() (bool, error) {
 		verErr := fmt.Errorf("Kernel version does not meet minimum requirement of 5.2")
 		releaseParts := strings.SplitN(uname.Release, ".", 3)
 		if len(releaseParts) < 2 {
-			return false, errors.Wrapf(err, "Failed parsing kernel version number into parts")
+			return false, fmt.Errorf("Failed parsing kernel version number into parts: %w", err)
 		}
 
 		majorVer := releaseParts[0]
 		majorVerInt, err := strconv.Atoi(majorVer)
 		if err != nil {
-			return false, errors.Wrapf(err, "Failed parsing kernel major version number %q", majorVer)
+			return false, fmt.Errorf("Failed parsing kernel major version number %q: %w", majorVer, err)
 		}
 
 		if majorVerInt < 5 {
@@ -68,7 +67,7 @@ func (d Nftables) Compat() (bool, error) {
 			minorVer := releaseParts[1]
 			minorVerInt, err := strconv.Atoi(minorVer)
 			if err != nil {
-				return false, errors.Wrapf(err, "Failed parsing kernel minor version number %q", minorVer)
+				return false, fmt.Errorf("Failed parsing kernel minor version number %q: %w", minorVer, err)
 			}
 
 			if minorVerInt < 2 {
@@ -86,7 +85,7 @@ func (d Nftables) Compat() (bool, error) {
 	// Get nftables version.
 	nftVersion, err := d.hostVersion()
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed detecting nft version")
+		return false, fmt.Errorf("Failed detecting nft version: %w", err)
 	}
 
 	// Check nft version meets minimum required.
@@ -100,18 +99,18 @@ func (d Nftables) Compat() (bool, error) {
 
 	_, err = shared.RunCommandCLocale("nft", "create", "table", testTable)
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to create a test table")
+		return false, fmt.Errorf("Failed to create a test table: %w", err)
 	}
 
 	_, err = shared.RunCommandCLocale("nft", "delete", "table", testTable)
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed to delete a test table")
+		return false, fmt.Errorf("Failed to delete a test table: %w", err)
 	}
 
 	// Check whether in use by parsing ruleset and looking for existing rules.
 	ruleset, err := d.nftParseRuleset()
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed parsing nftables existing ruleset")
+		return false, fmt.Errorf("Failed parsing nftables existing ruleset: %w", err)
 	}
 
 	for _, item := range ruleset {
@@ -182,7 +181,7 @@ func (d Nftables) nftParseRuleset() ([]nftGenericItem, error) {
 func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 	output, err := shared.RunCommandCLocale("nft", "--version")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to check nftables version")
+		return nil, fmt.Errorf("Failed to check nftables version: %w", err)
 	}
 
 	lines := strings.Split(string(output), " ")
@@ -220,7 +219,7 @@ func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *boo
 
 	err := d.applyNftConfig(nftablesNetForwardingPolicy, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding forwarding policy rules for network %q (%s)", networkName, tplFields["family"])
+		return fmt.Errorf("Failed adding forwarding policy rules for network %q (%s): %w", networkName, tplFields["family"], err)
 	}
 
 	return nil
@@ -252,7 +251,7 @@ func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, 
 
 	err := d.applyNftConfig(nftablesNetOutboundNAT, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding outbound NAT rules for network %q (%s)", networkName, tplFields["family"])
+		return fmt.Errorf("Failed adding outbound NAT rules for network %q (%s): %w", networkName, tplFields["family"], err)
 	}
 
 	return nil
@@ -280,7 +279,7 @@ func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersions [
 
 	err := d.applyNftConfig(nftablesNetICMPDHCPDNS, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding ICMP, DHCP and DNS access rules for network %q (%s)", networkName, tplFields["family"])
+		return fmt.Errorf("Failed adding ICMP, DHCP and DNS access rules for network %q (%s): %w", networkName, tplFields["family"], err)
 	}
 
 	return nil
@@ -336,7 +335,7 @@ func (d Nftables) NetworkClear(networkName string, _ bool, _ []uint) error {
 	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
 	err := d.removeChains([]string{"inet", "ip", "ip6"}, networkName, "fwd", "pstrt", "in", "out")
 	if err != nil {
-		return errors.Wrapf(err, "Failed clearing nftables rules for network %q", networkName)
+		return fmt.Errorf("Failed clearing nftables rules for network %q: %w", networkName, err)
 	}
 
 	return nil
@@ -391,7 +390,7 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 
 	err = d.applyNftConfig(nftablesInstanceBridgeFilter, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding bridge filter rules for instance device %q (%s)", deviceLabel, tplFields["family"])
+		return fmt.Errorf("Failed adding bridge filter rules for instance device %q (%s): %w", deviceLabel, tplFields["family"], err)
 	}
 
 	return nil
@@ -404,7 +403,7 @@ func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName str
 	// Remove chains created by bridge filter rules.
 	err := d.removeChains([]string{"bridge"}, deviceLabel, "in", "fwd")
 	if err != nil {
-		return errors.Wrapf(err, "Failed clearing bridge filter rules for instance device %q", deviceLabel)
+		return fmt.Errorf("Failed clearing bridge filter rules for instance device %q: %w", deviceLabel, err)
 	}
 
 	return nil
@@ -489,7 +488,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	config := &strings.Builder{}
 	err := nftablesNetProxyNAT.Execute(config, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed running %q template", nftablesNetProxyNAT.Name())
+		return fmt.Errorf("Failed running %q template: %w", nftablesNetProxyNAT.Name(), err)
 	}
 
 	_, err = shared.RunCommand("nft", config.String())
@@ -507,7 +506,7 @@ func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string,
 	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
 	err := d.removeChains([]string{"inet", "ip", "ip6"}, deviceLabel, "out", "prert", "pstrt")
 	if err != nil {
-		return errors.Wrapf(err, "Failed clearing proxy rules for instance device %q", deviceLabel)
+		return fmt.Errorf("Failed clearing proxy rules for instance device %q: %w", deviceLabel, err)
 	}
 
 	return nil
@@ -520,18 +519,18 @@ func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]in
 	// name so that the nftableContentTemplate template can use it with the generic name.
 	_, err := nftablesCommonTable.AddParseTree(nftablesContentTemplate, tpl.Tree)
 	if err != nil {
-		return errors.Wrapf(err, "Failed loading %q template", tpl.Name())
+		return fmt.Errorf("Failed loading %q template: %w", tpl.Name(), err)
 	}
 
 	config := &strings.Builder{}
 	err = nftablesCommonTable.Execute(config, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed running %q template", tpl.Name())
+		return fmt.Errorf("Failed running %q template: %w", tpl.Name(), err)
 	}
 
 	_, err = shared.RunCommand("nft", config.String())
 	if err != nil {
-		return errors.Wrapf(err, "Failed apply nftables config")
+		return fmt.Errorf("Failed apply nftables config: %w", err)
 	}
 
 	return nil
@@ -558,7 +557,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 			if item.ItemType == "chain" && item.Family == family && item.Table == nftablesNamespace && shared.StringInSlice(item.Name, fullChains) {
 				_, err = shared.RunCommand("nft", "flush", "chain", family, nftablesNamespace, item.Name, ";", "delete", "chain", family, nftablesNamespace, item.Name)
 				if err != nil {
-					return errors.Wrapf(err, "Failed deleting nftables chain %q (%s)", item.Name, family)
+					return fmt.Errorf("Failed deleting nftables chain %q (%s): %w", item.Name, family, err)
 				}
 			}
 		}
@@ -580,7 +579,7 @@ func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string,
 
 	err := d.applyNftConfig(nftablesInstanceRPFilter, tplFields)
 	if err != nil {
-		return errors.Wrapf(err, "Failed adding reverse path filter rules for instance device %q (%s)", deviceLabel, tplFields["family"])
+		return fmt.Errorf("Failed adding reverse path filter rules for instance device %q (%s): %w", deviceLabel, tplFields["family"], err)
 	}
 
 	return nil
@@ -593,7 +592,7 @@ func (d Nftables) InstanceClearRPFilter(projectName string, instanceName string,
 	// Remove from ip and ip6 tables to ensure cleanup for instances started before we moved to inet table.
 	err := d.removeChains([]string{"inet", "ip", "ip6"}, deviceLabel, "prert")
 	if err != nil {
-		return errors.Wrapf(err, "Failed clearing reverse path filter rules for instance device %q", deviceLabel)
+		return fmt.Errorf("Failed clearing reverse path filter rules for instance device %q: %w", deviceLabel, err)
 	}
 
 	return nil

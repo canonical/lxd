@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -123,13 +122,13 @@ func (d *btrfs) Create() error {
 
 		err = ensureSparseFile(d.config["source"], size)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create the sparse file")
+			return fmt.Errorf("Failed to create the sparse file: %w", err)
 		}
 
 		// Format the file.
 		_, err = makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
-			return errors.Wrap(err, "Failed to format sparse file")
+			return fmt.Errorf("Failed to format sparse file: %w", err)
 		}
 	} else if shared.IsBlockdevPath(d.config["source"]) {
 		// Unset size property since it's irrelevant.
@@ -138,7 +137,7 @@ func (d *btrfs) Create() error {
 		// Format the block device.
 		_, err := makeFSType(d.config["source"], "btrfs", &mkfsOptions{Label: d.name})
 		if err != nil {
-			return errors.Wrap(err, "Failed to format block device")
+			return fmt.Errorf("Failed to format block device: %w", err)
 		}
 
 		// Record the UUID as the source.
@@ -161,7 +160,7 @@ func (d *btrfs) Create() error {
 			// Existing btrfs subvolume.
 			subvols, err := d.getSubvolumes(hostPath)
 			if err != nil {
-				return errors.Wrap(err, "Could not determine if existing btrfs subvolume is empty")
+				return fmt.Errorf("Could not determine if existing btrfs subvolume is empty: %w", err)
 			}
 
 			// Check that the provided subvolume is empty.
@@ -193,7 +192,7 @@ func (d *btrfs) Create() error {
 				// Delete the current directory to replace by subvolume.
 				err := os.Remove(cleanSource)
 				if err != nil && !os.IsNotExist(err) {
-					return errors.Wrapf(err, "Failed to remove %q", cleanSource)
+					return fmt.Errorf("Failed to remove %q: %w", cleanSource, err)
 				}
 			}
 
@@ -240,7 +239,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 	mountPath := GetPoolMountPath(d.name)
 	err := wipeDirectory(mountPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed removing mount path %q", mountPath)
+		return fmt.Errorf("Failed removing mount path %q: %w", mountPath, err)
 	}
 
 	// Unmount the path.
@@ -259,7 +258,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 		// And re-create as an empty directory to make the backend happy.
 		err = os.Mkdir(mountPath, 0700)
 		if err != nil {
-			return errors.Wrapf(err, "Failed creating directory %q", mountPath)
+			return fmt.Errorf("Failed creating directory %q: %w", mountPath, err)
 		}
 	}
 
@@ -267,7 +266,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 	loopPath := loopFilePath(d.name)
 	err = os.Remove(loopPath)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed removing loop file %q", loopPath)
+		return fmt.Errorf("Failed removing loop file %q: %w", loopPath, err)
 	}
 
 	return nil

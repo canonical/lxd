@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -85,7 +84,7 @@ func validDevices(state *state.State, projectName string, instanceType instancet
 	for name, config := range instConf.localDevices {
 		err := device.Validate(instConf, state, name, config)
 		if err != nil {
-			return errors.Wrapf(err, "Device validation failed for %q", name)
+			return fmt.Errorf("Device validation failed for %q: %w", name, err)
 		}
 
 	}
@@ -94,7 +93,7 @@ func validDevices(state *state.State, projectName string, instanceType instancet
 	if expanded {
 		_, _, err := shared.GetRootDiskDevice(devices.CloneNative())
 		if err != nil {
-			return errors.Wrap(err, "Failed detecting root disk device")
+			return fmt.Errorf("Failed detecting root disk device: %w", err)
 		}
 	}
 

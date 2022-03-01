@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	pkgErrors "github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -19,7 +17,7 @@ var httpResponseErrors = map[int][]error{
 }
 
 // SmartError returns the right error message based on err.
-// It uses both the stdlib errors and the github.com/pkg/errors packages to unwrap the error and find the cause.
+// It uses the stdlib errors package to unwrap the error and find the cause.
 func SmartError(err error) Response {
 	if err == nil {
 		return EmptySyncResponse
@@ -31,7 +29,7 @@ func SmartError(err error) Response {
 
 	for httpStatusCode, checkErrs := range httpResponseErrors {
 		for _, checkErr := range checkErrs {
-			if errors.Is(err, checkErr) || pkgErrors.Cause(err) == checkErr {
+			if errors.Is(err, checkErr) || errors.Unwrap(err) == checkErr {
 				if err != checkErr {
 					// If the error has been wrapped return the top-level error message.
 					return &errorResponse{httpStatusCode, err.Error()}
