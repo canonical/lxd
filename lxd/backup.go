@@ -9,7 +9,6 @@ import (
 
 	"context"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
@@ -48,7 +47,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	// Get storage pool.
 	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
 	if err != nil {
-		return errors.Wrap(err, "Failed loading instance storage pool")
+		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	// Ignore requests for optimized backups when pool driver doesn't support it.
@@ -63,7 +62,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 			return fmt.Errorf("Backup %q already exists", args.Name)
 		}
 
-		return errors.Wrap(err, "Insert backup info into database")
+		return fmt.Errorf("Insert backup info into database: %w", err)
 	}
 
 	revert.Add(func() { s.Cluster.DeleteInstanceBackup(args.Name) })
@@ -71,7 +70,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	// Get the backup struct.
 	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
 	if err != nil {
-		return errors.Wrap(err, "Load backup object")
+		return fmt.Errorf("Load backup object: %w", err)
 	}
 
 	// Detect compression method.
@@ -113,7 +112,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
 	tarFileWriter, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return errors.Wrapf(err, "Error opening backup tarball for writing %q", target)
+		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
 	defer tarFileWriter.Close()
 	revert.Add(func() { os.Remove(target) })
@@ -124,7 +123,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		c := sourceInst.(instance.Container)
 		idmap, err = c.DiskIdmap()
 		if err != nil {
-			return errors.Wrap(err, "Error getting container IDMAP")
+			return fmt.Errorf("Error getting container IDMAP: %w", err)
 		}
 	}
 
@@ -181,29 +180,29 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 
 	// Check backupWriteIndex for errors.
 	if err != nil {
-		return errors.Wrapf(err, "Error writing backup index file")
+		return fmt.Errorf("Error writing backup index file: %w", err)
 	}
 
 	err = pool.BackupInstance(sourceInst, tarWriter, b.OptimizedStorage(), !b.InstanceOnly(), nil)
 	if err != nil {
-		return errors.Wrap(err, "Backup create")
+		return fmt.Errorf("Backup create: %w", err)
 	}
 
 	// Close off the tarball file.
 	err = tarWriter.Close()
 	if err != nil {
-		return errors.Wrap(err, "Error closing tarball writer")
+		return fmt.Errorf("Error closing tarball writer: %w", err)
 	}
 
 	// Close off the tarball pipe writer (this will end the go routine above).
 	err = tarPipeWriter.Close()
 	if err != nil {
-		return errors.Wrap(err, "Error closing tarball pipe writer")
+		return fmt.Errorf("Error closing tarball pipe writer: %w", err)
 	}
 
 	err = <-tarWriterRes
 	if err != nil {
-		return errors.Wrap(err, "Error writing tarball")
+		return fmt.Errorf("Error writing tarball: %w", err)
 	}
 
 	revert.Success()
@@ -311,19 +310,19 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	// Get the list of expired backups.
 	backups, err := d.cluster.GetExpiredInstanceBackups()
 	if err != nil {
-		return errors.Wrap(err, "Unable to retrieve the list of expired instance backups")
+		return fmt.Errorf("Unable to retrieve the list of expired instance backups: %w", err)
 	}
 
 	for _, b := range backups {
 		inst, err := instance.LoadByID(d.State(), b.InstanceID)
 		if err != nil {
-			return errors.Wrapf(err, "Error loading instance for deleting backup %q", b.Name)
+			return fmt.Errorf("Error loading instance for deleting backup %q: %w", b.Name, err)
 		}
 
 		instBackup := backup.NewInstanceBackup(d.State(), inst, b.ID, b.Name, b.CreationDate, b.ExpiryDate, b.InstanceOnly, b.OptimizedStorage)
 		err = instBackup.Delete()
 		if err != nil {
-			return errors.Wrapf(err, "Error deleting instance backup %q", b.Name)
+			return fmt.Errorf("Error deleting instance backup %q: %w", b.Name, err)
 		}
 	}
 
@@ -341,12 +340,12 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	// Get storage pool.
 	pool, err := storagePools.GetPoolByName(s, poolName)
 	if err != nil {
-		return errors.Wrapf(err, "Failed loading storage pool %q", poolName)
+		return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
 
 	_, vol, err := s.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
-		return errors.Wrapf(err, "Failed loading custom volume %q", volumeName)
+		return fmt.Errorf("Failed loading custom volume %q: %w", volumeName, err)
 	}
 
 	// Ignore requests for optimized backups when pool driver doesn't support it.
@@ -361,14 +360,14 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 			return fmt.Errorf("Backup %q already exists", args.Name)
 		}
 
-		return errors.Wrap(err, "Failed creating backup record")
+		return fmt.Errorf("Failed creating backup record: %w", err)
 	}
 
 	revert.Add(func() { s.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
 
 	backupRow, err := s.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, args.Name)
 	if err != nil {
-		return errors.Wrap(err, "Failed getting backup record")
+		return fmt.Errorf("Failed getting backup record: %w", err)
 	}
 
 	// Detect compression method.
@@ -402,7 +401,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
 	tarFileWriter, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return errors.Wrapf(err, "Error opening backup tarball for writing %q", target)
+		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
 	}
 	defer tarFileWriter.Close()
 	revert.Add(func() { os.Remove(target) })
@@ -443,29 +442,29 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 
 	// Check backupWriteIndex for errors.
 	if err != nil {
-		return errors.Wrapf(err, "Error writing backup index file")
+		return fmt.Errorf("Error writing backup index file: %w", err)
 	}
 
 	err = pool.BackupCustomVolume(projectName, volumeName, tarWriter, backupRow.OptimizedStorage, !backupRow.VolumeOnly, nil)
 	if err != nil {
-		return errors.Wrap(err, "Backup create")
+		return fmt.Errorf("Backup create: %w", err)
 	}
 
 	// Close off the tarball file.
 	err = tarWriter.Close()
 	if err != nil {
-		return errors.Wrap(err, "Error closing tarball writer")
+		return fmt.Errorf("Error closing tarball writer: %w", err)
 	}
 
 	// Close off the tarball pipe writer (this will end the go routine above).
 	err = tarPipeWriter.Close()
 	if err != nil {
-		return errors.Wrap(err, "Error closing tarball pipe writer")
+		return fmt.Errorf("Error closing tarball pipe writer: %w", err)
 	}
 
 	err = <-tarWriterRes
 	if err != nil {
-		return errors.Wrap(err, "Error writing tarball")
+		return fmt.Errorf("Error writing tarball: %w", err)
 	}
 
 	revert.Success()
@@ -512,14 +511,14 @@ func volumeBackupWriteIndex(s *state.State, projectName string, vol *api.Storage
 			snapVolName := storageDrivers.GetSnapshotVolumeName(vol.Name, snapName)
 			snapVolID, snapVol, err := s.Cluster.GetLocalStoragePoolVolume(projectName, snapVolName, db.StoragePoolVolumeTypeCustom, pool.ID())
 			if err != nil {
-				return errors.Wrapf(err, "Failed loading custom volume snapshot %q", snapVolName)
+				return fmt.Errorf("Failed loading custom volume snapshot %q: %w", snapVolName, err)
 			}
 
 			indexInfo.Snapshots = append(indexInfo.Snapshots, snapName)
 
 			snapExpiry, err := s.Cluster.GetStorageVolumeSnapshotExpiry(snapVolID)
 			if err != nil {
-				return errors.Wrapf(err, "Failed loading custom volume snapshot expiry for %q", snapVolName)
+				return fmt.Errorf("Failed loading custom volume snapshot expiry for %q: %w", snapVolName, err)
 			}
 
 			snapshot := api.StorageVolumeSnapshot{}

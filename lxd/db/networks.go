@@ -5,11 +5,10 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
@@ -321,7 +320,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	if networkID == 0 {
 		projectID, err := c.GetProjectID(projectName)
 		if err != nil {
-			return errors.Wrap(err, "Fetch project ID")
+			return fmt.Errorf("Fetch project ID: %w", err)
 		}
 
 		// No existing network with the given name was found, let's create one.

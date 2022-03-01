@@ -8,7 +8,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
 )
 
 // Schema captures the schema of a database in terms of a series of ordered
@@ -141,7 +140,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	err := query.Transaction(db, func(tx *sql.Tx) error {
 		err := execFromFile(tx, s.path, s.hook)
 		if err != nil {
-			return errors.Wrapf(err, "failed to execute queries from %s", s.path)
+			return fmt.Errorf("failed to execute queries from %s: %w", s.path, err)
 		}
 
 		err = ensureSchemaTableExists(tx)

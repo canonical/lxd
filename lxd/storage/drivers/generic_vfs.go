@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/archive"
@@ -73,7 +72,7 @@ func genericVFSRenameVolume(d Driver, vol Volume, newVolName string, op *operati
 	if shared.PathExists(srcVolumePath) {
 		err := os.Rename(srcVolumePath, dstVolumePath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to rename %q to %q", srcVolumePath, dstVolumePath)
+			return fmt.Errorf("Failed to rename %q to %q: %w", srcVolumePath, dstVolumePath, err)
 		}
 		revert.Add(func() { os.Rename(dstVolumePath, srcVolumePath) })
 	}
@@ -85,7 +84,7 @@ func genericVFSRenameVolume(d Driver, vol Volume, newVolName string, op *operati
 	if shared.PathExists(srcSnapshotDir) {
 		err := os.Rename(srcSnapshotDir, dstSnapshotDir)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to rename %q to %q", srcSnapshotDir, dstSnapshotDir)
+			return fmt.Errorf("Failed to rename %q to %q: %w", srcSnapshotDir, dstSnapshotDir, err)
 		}
 		revert.Add(func() { os.Rename(dstSnapshotDir, srcSnapshotDir) })
 	}
@@ -106,7 +105,7 @@ func genericVFSVolumeSnapshots(d Driver, vol Volume, op *operations.Operation) (
 			return snapshots, nil
 		}
 
-		return nil, errors.Wrapf(err, "Failed to list directory %q", snapshotDir)
+		return nil, fmt.Errorf("Failed to list directory %q: %w", snapshotDir, err)
 	}
 
 	for _, ent := range ents {
@@ -138,7 +137,7 @@ func genericVFSRenameVolumeSnapshot(d Driver, snapVol Volume, newSnapshotName st
 	if shared.PathExists(oldPath) {
 		err := os.Rename(oldPath, newPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to rename %q to %q", oldPath, newPath)
+			return fmt.Errorf("Failed to rename %q to %q: %w", oldPath, newPath, err)
 		}
 	}
 
@@ -194,12 +193,12 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 		path, err := d.GetVolumeDiskPath(vol)
 		if err != nil {
-			return errors.Wrapf(err, "Error getting VM block volume disk path")
+			return fmt.Errorf("Error getting VM block volume disk path: %w", err)
 		}
 
 		from, err := os.Open(path)
 		if err != nil {
-			return errors.Wrapf(err, "Error opening file for reading %q", path)
+			return fmt.Errorf("Error opening file for reading %q: %w", path, err)
 		}
 		defer from.Close()
 
@@ -215,7 +214,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 		d.Logger().Debug("Sending block volume", log.Ctx{"volName": vol.name, "path": path})
 		_, err = io.Copy(conn, fromPipe)
 		if err != nil {
-			return errors.Wrapf(err, "Error copying %q to migration connection", path)
+			return fmt.Errorf("Error copying %q to migration connection: %w", path, err)
 		}
 
 		return nil
@@ -314,7 +313,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 
 		to, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC, 0)
 		if err != nil {
-			return errors.Wrapf(err, "Error opening file for writing %q", path)
+			return fmt.Errorf("Error opening file for writing %q: %w", path, err)
 		}
 		defer to.Close()
 
@@ -330,7 +329,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		d.Logger().Debug("Receiving block volume", log.Ctx{"volName": volName, "path": path})
 		_, err = io.Copy(to, fromPipe)
 		if err != nil {
-			return errors.Wrapf(err, "Error copying from migration connection to %q", path)
+			return fmt.Errorf("Error copying from migration connection to %q: %w", path, err)
 		}
 
 		return nil
@@ -348,7 +347,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
 			pathBlock, err = d.GetVolumeDiskPath(vol)
 			if err != nil {
-				return errors.Wrapf(err, "Error getting VM block volume disk path")
+				return fmt.Errorf("Error getting VM block volume disk path: %w", err)
 			}
 		}
 
@@ -477,13 +476,13 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 						errMsg = "Error getting custom block volume disk path"
 					}
 
-					return errors.Wrapf(err, errMsg)
+					return fmt.Errorf(errMsg+": %w", err)
 				}
 
 				// Get size of disk block device for tarball header.
 				blockDiskSize, err := BlockDiskSizeBytes(blockPath)
 				if err != nil {
-					return errors.Wrapf(err, "Error getting block device size %q", blockPath)
+					return fmt.Errorf("Error getting block device size %q: %w", blockPath, err)
 				}
 
 				var exclude []string // Files to exclude from filesystem volume backup.
@@ -510,7 +509,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 						name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
 						err = tarWriter.WriteFile(name, srcPath, fi, false)
 						if err != nil {
-							return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
+							return fmt.Errorf("Error adding %q as %q to tarball: %w", srcPath, name, err)
 						}
 
 						return nil
@@ -530,7 +529,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
 				from, err := os.Open(blockPath)
 				if err != nil {
-					return errors.Wrapf(err, "Error opening file for reading %q", blockPath)
+					return fmt.Errorf("Error opening file for reading %q: %w", blockPath, err)
 				}
 				defer from.Close()
 
@@ -543,7 +542,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 
 				err = tarWriter.WriteFileFromReader(from, &fi)
 				if err != nil {
-					return errors.Wrapf(err, "Error copying %q as %q to tarball", blockPath, name)
+					return fmt.Errorf("Error copying %q as %q to tarball: %w", blockPath, name, err)
 				}
 			} else {
 				logMsg := "Copying container filesystem volume"
@@ -571,7 +570,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 							return nil
 						}
 
-						return errors.Wrapf(err, "Error walking file during export: %q", srcPath)
+						return fmt.Errorf("Error walking file during export: %q: %w", srcPath, err)
 					}
 
 					name := filepath.Join(prefix, strings.TrimPrefix(srcPath, mountPath))
@@ -581,7 +580,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					// This means that the file in the tarball may be inconsistent.
 					err = tarWriter.WriteFile(name, srcPath, fi, true)
 					if err != nil {
-						return errors.Wrapf(err, "Error adding %q as %q to tarball", srcPath, name)
+						return fmt.Errorf("Error adding %q as %q to tarball: %w", srcPath, name, err)
 					}
 
 					return nil
@@ -649,7 +648,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 		// Clear the volume ready for unpack.
 		err := wipeDirectory(mountPath)
 		if err != nil {
-			return errors.Wrapf(err, "Error clearing volume before unpack")
+			return fmt.Errorf("Error clearing volume before unpack: %w", err)
 		}
 
 		// Unpack the filesystem parts of the volume (for containers and custom filesystem volumes that is
@@ -687,7 +686,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 			f, err := os.OpenFile(mountPath, os.O_RDONLY, 0)
 			if err != nil {
-				return errors.Wrapf(err, "Error opening directory")
+				return fmt.Errorf("Error opening directory: %w", err)
 			}
 			defer f.Close()
 
@@ -698,7 +697,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 
 			err = archive.ExtractWithFds("tar", args, allowedCmds, ioutil.NopCloser(r), sysOS, f)
 			if err != nil {
-				return errors.Wrapf(err, "Error starting unpack")
+				return fmt.Errorf("Error starting unpack: %w", err)
 			}
 		}
 
@@ -732,7 +731,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 					// Open block file (use O_CREATE to support drivers that use image files).
 					to, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 					if err != nil {
-						return errors.Wrapf(err, "Error opening file for writing %q", targetPath)
+						return fmt.Errorf("Error opening file for writing %q: %w", targetPath, err)
 					}
 					defer to.Close()
 
@@ -1024,7 +1023,7 @@ func genericVFSListVolumes(d Driver) ([]Volume, error) {
 		volTypePath := filepath.Join(poolMountPath, BaseDirectories[volType][0])
 		ents, err := ioutil.ReadDir(volTypePath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to list directory %q for volume type %q", volTypePath, volType)
+			return nil, fmt.Errorf("Failed to list directory %q for volume type %q: %w", volTypePath, volType, err)
 		}
 
 		for _, ent := range ents {

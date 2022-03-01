@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -354,7 +353,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
 	err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, saveData["host_name"])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error setting up reverse path filter")
+		return nil, fmt.Errorf("Error setting up reverse path filter: %w", err)
 	}
 
 	// Perform host-side address configuration.
@@ -602,7 +601,7 @@ func (d *nicRouted) postStop() error {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			errs = append(errs, errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"]))
+			errs = append(errs, fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err))
 		}
 	}
 

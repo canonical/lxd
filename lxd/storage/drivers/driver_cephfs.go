@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
@@ -131,20 +129,20 @@ func (d *cephfs) Create() error {
 	// Create a temporary mountpoint.
 	mountPath, err := ioutil.TempDir("", "lxd_cephfs_")
 	if err != nil {
-		return errors.Wrap(err, "Failed to create temporary directory under")
+		return fmt.Errorf("Failed to create temporary directory under: %w", err)
 	}
 	defer os.RemoveAll(mountPath)
 
 	err = os.Chmod(mountPath, 0700)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod '%s'", mountPath)
+		return fmt.Errorf("Failed to chmod '%s': %w", mountPath, err)
 	}
 
 	mountPoint := filepath.Join(mountPath, "mount")
 
 	err = os.Mkdir(mountPoint, 0700)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create directory '%s'", mountPoint)
+		return fmt.Errorf("Failed to create directory '%s': %w", mountPoint, err)
 	}
 
 	// Get the credentials and host.
@@ -169,7 +167,7 @@ func (d *cephfs) Create() error {
 	// Create the path if missing.
 	err = os.MkdirAll(filepath.Join(mountPoint, fsPath), 0755)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create directory '%s'", filepath.Join(mountPoint, fsPath))
+		return fmt.Errorf("Failed to create directory '%s': %w", filepath.Join(mountPoint, fsPath), err)
 	}
 
 	// Check that the existing path is empty.
@@ -194,19 +192,19 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 	// Create a temporary mountpoint.
 	mountPath, err := ioutil.TempDir("", "lxd_cephfs_")
 	if err != nil {
-		return errors.Wrap(err, "Failed to create temporary directory under")
+		return fmt.Errorf("Failed to create temporary directory under: %w", err)
 	}
 	defer os.RemoveAll(mountPath)
 
 	err = os.Chmod(mountPath, 0700)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to chmod '%s'", mountPath)
+		return fmt.Errorf("Failed to chmod '%s': %w", mountPath, err)
 	}
 
 	mountPoint := filepath.Join(mountPath, "mount")
 	err = os.Mkdir(mountPoint, 0700)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create directory '%s'", mountPoint)
+		return fmt.Errorf("Failed to create directory '%s': %w", mountPoint, err)
 	}
 
 	// Get the credentials and host.
@@ -240,7 +238,7 @@ func (d *cephfs) Delete(op *operations.Operation) error {
 		if fsPath != "" && fsPath != "/" {
 			err = os.Remove(filepath.Join(mountPoint, fsPath))
 			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Failed to remove directory '%s'", filepath.Join(mountPoint, fsPath))
+				return fmt.Errorf("Failed to remove directory '%s': %w", filepath.Join(mountPoint, fsPath), err)
 			}
 		}
 	}

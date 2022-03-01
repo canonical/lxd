@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/operations"
@@ -32,7 +31,7 @@ func wipeDirectory(path string) error {
 			return nil
 		}
 
-		return errors.Wrapf(err, "Failed listing directory %q", path)
+		return fmt.Errorf("Failed listing directory %q: %w", path, err)
 	}
 
 	// Individually wipe all entries.
@@ -40,7 +39,7 @@ func wipeDirectory(path string) error {
 		entryPath := filepath.Join(path, entry.Name())
 		err := os.RemoveAll(entryPath)
 		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "Failed removing %q", entryPath)
+			return fmt.Errorf("Failed removing %q: %w", entryPath, err)
 		}
 	}
 
@@ -77,7 +76,7 @@ func forceUnmount(path string) (bool, error) {
 			// Fallback to lazy unmounting.
 			err = unix.Unmount(path, unix.MNT_DETACH)
 			if err != nil {
-				return false, errors.Wrapf(err, "Failed to unmount '%s'", path)
+				return false, fmt.Errorf("Failed to unmount '%s': %w", path, err)
 			}
 		}
 
@@ -166,7 +165,7 @@ func TryMount(src string, dst string, fs string, flags uintptr, options string) 
 	}
 
 	if err != nil {
-		return errors.Wrapf(err, "Failed to mount %q on %q using %q", src, dst, fs)
+		return fmt.Errorf("Failed to mount %q on %q using %q: %w", src, dst, fs, err)
 	}
 
 	return nil
@@ -186,7 +185,7 @@ func TryUnmount(path string, flags int) error {
 	}
 
 	if err != nil {
-		return errors.Wrapf(err, "Failed to unmount '%s'", path)
+		return fmt.Errorf("Failed to unmount '%s': %w", path, err)
 	}
 
 	return nil
@@ -261,7 +260,7 @@ func createParentSnapshotDirIfMissing(poolName string, volType VolumeType, volNa
 	if !shared.PathExists(snapshotsPath) {
 		err := os.Mkdir(snapshotsPath, 0700)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create parent snapshot directory %q", snapshotsPath)
+			return fmt.Errorf("Failed to create parent snapshot directory %q: %w", snapshotsPath, err)
 		}
 
 		return nil
@@ -285,7 +284,7 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 		if isEmpty {
 			err := os.Remove(snapshotsPath)
 			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Failed to remove '%s'", snapshotsPath)
+				return fmt.Errorf("Failed to remove '%s': %w", snapshotsPath, err)
 			}
 		}
 	}
@@ -298,13 +297,13 @@ func deleteParentSnapshotDirIfEmpty(poolName string, volType VolumeType, volName
 func ensureSparseFile(filePath string, sizeBytes int64) error {
 	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open %s", filePath)
+		return fmt.Errorf("Failed to open %s: %w", filePath, err)
 	}
 	defer f.Close()
 
 	err = f.Truncate(sizeBytes)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create sparse file %s", filePath)
+		return fmt.Errorf("Failed to create sparse file %s: %w", filePath, err)
 	}
 
 	return nil
@@ -367,7 +366,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 			}
 
 			if sizeBytes < oldSizeBytes {
-				return false, errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
+				return false, fmt.Errorf("Block volumes cannot be shrunk: %w", ErrCannotBeShrunk)
 			}
 
 			if vol.MountInUse() {
@@ -377,7 +376,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 
 		err = ensureSparseFile(path, sizeBytes)
 		if err != nil {
-			return false, errors.Wrapf(err, "Failed resizing disk image %q to size %d", path, sizeBytes)
+			return false, fmt.Errorf("Failed resizing disk image %q to size %d: %w", path, sizeBytes, err)
 		}
 
 		return true, nil
@@ -387,7 +386,7 @@ func ensureVolumeBlockFile(vol Volume, path string, sizeBytes int64, allowUnsafe
 	// So instead create an empty volume (use for PXE booting a VM).
 	err := ensureSparseFile(path, sizeBytes)
 	if err != nil {
-		return false, errors.Wrapf(err, "Failed creating disk image %q as size %d", path, sizeBytes)
+		return false, fmt.Errorf("Failed creating disk image %q as size %d: %w", path, sizeBytes, err)
 	}
 
 	return false, nil
@@ -540,7 +539,7 @@ func shrinkFileSystem(fsType string, devPath string, vol Volume, byteSize int64,
 				// this isn't an error and we can proceed.
 				if !exitCodeFSModified {
 					// e2fsck provides some context to errors on stdout.
-					return errors.Wrapf(err, "%s", strings.TrimSpace(output))
+					return fmt.Errorf("%s: %w", strings.TrimSpace(output), err)
 				}
 			}
 
@@ -674,19 +673,19 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 func copyDevice(inputPath, outputPath string) error {
 	from, err := os.Open(inputPath)
 	if err != nil {
-		return errors.Wrapf(err, "Error opening file for reading %q", inputPath)
+		return fmt.Errorf("Error opening file for reading %q: %w", inputPath, err)
 	}
 	defer from.Close()
 
 	to, err := os.OpenFile(outputPath, os.O_WRONLY, 0)
 	if err != nil {
-		return errors.Wrapf(err, "Error opening file for writing %q", outputPath)
+		return fmt.Errorf("Error opening file for writing %q: %w", outputPath, err)
 	}
 	defer to.Close()
 
 	_, err = io.Copy(to, from)
 	if err != nil {
-		return errors.Wrapf(err, "Error copying file %q to %q", inputPath, outputPath)
+		return fmt.Errorf("Error copying file %q to %q: %w", inputPath, outputPath, err)
 	}
 
 	return nil

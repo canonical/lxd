@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -46,7 +45,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 
 	storagePools, err := d.GetStoragePoolNames()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve list of storage pools")
+		return nil, fmt.Errorf("Failed to retrieve list of storage pools: %w", err)
 	}
 
 	if len(storagePools) > 0 && (c.flagStorageBackend != "" || c.flagStorageDevice != "" || c.flagStorageLoopSize != -1 || c.flagStoragePool != "") {
@@ -117,7 +116,7 @@ func (c *cmdInit) RunAuto(cmd *cobra.Command, args []string, d lxd.InstanceServe
 	// Network configuration
 	networks, err := d.GetNetworks()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve list of networks")
+		return nil, fmt.Errorf("Failed to retrieve list of networks: %w", err)
 	}
 
 	// Extract managed networks

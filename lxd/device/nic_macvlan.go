@@ -3,8 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -65,7 +63,7 @@ func (d *nicMACVLAN) validateConfig(instConf instance.ConfigReader) error {
 		// project.Default is used here as macvlan networks don't suppprt projects.
 		n, err := network.LoadByName(d.state, project.Default, d.config["network"])
 		if err != nil {
-			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
 		if n.Status() != api.NetworkStatusCreated {
@@ -197,7 +195,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		link := &ip.Link{Name: saveData["host_name"]}
 		err := link.SetMTU(d.config["mtu"])
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed setting MTU %q on %q", d.config["mtu"], saveData["host_name"])
+			return nil, fmt.Errorf("Failed setting MTU %q on %q: %w", d.config["mtu"], saveData["host_name"], err)
 		}
 	}
 

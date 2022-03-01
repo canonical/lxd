@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 // Code generation directives.
@@ -334,12 +333,12 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 		var err error
 		instances, err = tx.GetInstances(*filter)
 		if err != nil {
-			return errors.Wrap(err, "Failed loading instances")
+			return fmt.Errorf("Failed loading instances: %w", err)
 		}
 
 		projects, err := tx.GetProjects(ProjectFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Failed loading projects")
+			return fmt.Errorf("Failed loading projects: %w", err)
 		}
 
 		// Index of all projects by name and record which projects have the profiles feature.
@@ -350,7 +349,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 
 		profiles, err := tx.GetProfiles(ProfileFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Failed loading profiles")
+			return fmt.Errorf("Failed loading profiles: %w", err)
 		}
 
 		// Index of all profiles by project and name.
@@ -454,17 +453,17 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 	// volume.
 	poolName, err := c.GetInstancePool(project, oldName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get instance's storage pool name")
+		return fmt.Errorf("Failed to get instance's storage pool name: %w", err)
 	}
 
 	poolID, err := c.GetStoragePoolID(poolName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get instance's storage pool ID")
+		return fmt.Errorf("Failed to get instance's storage pool ID: %w", err)
 	}
 
 	poolDriver, err := c.GetStoragePoolDriver(poolID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get instance's storage pool driver")
+		return fmt.Errorf("Failed to get instance's storage pool driver: %w", err)
 	}
 
 	if poolDriver != "ceph" {
@@ -475,23 +474,23 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 	// ID they are associated with.
 	containerID, err := c.GetInstanceID(project, oldName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get instance's ID")
+		return fmt.Errorf("Failed to get instance's ID: %w", err)
 	}
 
 	node, err := c.GetNodeByName(newNode)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get new node's info")
+		return fmt.Errorf("Failed to get new node's info: %w", err)
 	}
 
 	stmt := "UPDATE instances SET node_id=?, name=? WHERE id=?"
 	result, err := c.tx.Exec(stmt, node.ID, newName, containerID)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update instance's name and node ID")
+		return fmt.Errorf("Failed to update instance's name and node ID: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Failed to get rows affected by instance update")
+		return fmt.Errorf("Failed to get rows affected by instance update: %w", err)
 	}
 
 	if n != 1 {
@@ -506,12 +505,12 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 	stmt = "UPDATE storage_volumes SET name=? WHERE name=? AND storage_pool_id=? AND type=?"
 	result, err = c.tx.Exec(stmt, newName, oldName, poolID, volumeType)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update instance's volume name")
+		return fmt.Errorf("Failed to update instance's volume name: %w", err)
 	}
 
 	n, err = result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Failed to get rows affected by instance volume update")
+		return fmt.Errorf("Failed to get rows affected by instance volume update: %w", err)
 	}
 
 	if n != 1 {
@@ -526,7 +525,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instance, error) {
 	node, err := c.GetLocalNodeName()
 	if err != nil {
-		return nil, errors.Wrap(err, "Local node name")
+		return nil, fmt.Errorf("Local node name: %w", err)
 	}
 
 	if node != "" {
@@ -936,7 +935,7 @@ func CreateInstanceConfig(tx *sql.Tx, id int, config map[string]string) error {
 
 		_, err := stmt.Exec(id, k, v)
 		if err != nil {
-			return errors.Wrapf(err, "Error adding configuration item %q = %q to instance %d", k, v, id)
+			return fmt.Errorf("Error adding configuration item %q = %q to instance %d: %w", k, v, id, err)
 		}
 	}
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -54,7 +53,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 	// Get list of existing storage pools to scan.
 	existingPools, err := d.GetStoragePools()
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting existing storage pools")
+		return fmt.Errorf("Failed getting existing storage pools: %w", err)
 	}
 
 	fmt.Print("This LXD server currently has the following storage pools:\n")
@@ -183,14 +182,14 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 	for {
 		resp, _, err := d.RawQuery("POST", "/internal/recover/validate", reqValidate, "")
 		if err != nil {
-			return errors.Wrapf(err, "Failed validation request")
+			return fmt.Errorf("Failed validation request: %w", err)
 		}
 
 		var res internalRecoverValidateResult
 
 		err = resp.MetadataAsStruct(&res)
 		if err != nil {
-			return errors.Wrapf(err, "Failed parsing validation response")
+			return fmt.Errorf("Failed parsing validation response: %w", err)
 		}
 
 		if len(res.UnknownVolumes) > 0 {
@@ -236,7 +235,7 @@ func (c *cmdRecover) Run(cmd *cobra.Command, args []string) error {
 
 	_, _, err = d.RawQuery("POST", "/internal/recover/import", reqImport, "")
 	if err != nil {
-		return errors.Wrapf(err, "Failed import request")
+		return fmt.Errorf("Failed import request: %w", err)
 	}
 
 	return nil

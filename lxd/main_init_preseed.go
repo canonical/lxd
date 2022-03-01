@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -15,14 +15,14 @@ func (c *cmdInit) RunPreseed(cmd *cobra.Command, args []string, d lxd.InstanceSe
 	// Read the YAML
 	bytes, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read from stdin")
+		return nil, fmt.Errorf("Failed to read from stdin: %w", err)
 	}
 
 	// Parse the YAML
 	config := cmdInitData{}
 	err = yaml.Unmarshal(bytes, &config)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse the preseed")
+		return nil, fmt.Errorf("Failed to parse the preseed: %w", err)
 	}
 
 	return &config, nil

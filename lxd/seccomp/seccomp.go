@@ -16,7 +16,6 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
@@ -2019,7 +2018,7 @@ func lxcSupportSeccompNotify(state *state.State) error {
 
 	err = c.SetConfigItem("lxc.seccomp.notify.proxy", fmt.Sprintf("unix:%s", shared.VarPath("seccomp.socket")))
 	if err != nil {
-		return errors.Wrap(err, "LXC doesn't support notify proxy")
+		return fmt.Errorf("LXC doesn't support notify proxy: %w", err)
 	}
 
 	c.Release()

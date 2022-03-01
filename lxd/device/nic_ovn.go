@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/mdlayher/netx/eui64"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -63,7 +62,7 @@ func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 func (d *nicOVN) getIntegrationBridgeName() (string, error) {
 	integrationBridge, err := cluster.ConfigGetString(d.state.Cluster, "network.ovn.integration_bridge")
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get OVN integration bridge name")
+		return "", fmt.Errorf("Failed to get OVN integration bridge name: %w", err)
 	}
 
 	return integrationBridge, nil
@@ -102,13 +101,13 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
 	networkProjectName, _, err := project.NetworkProject(d.state.Cluster, instConf.Project())
 	if err != nil {
-		return errors.Wrapf(err, "Failed loading network project name")
+		return fmt.Errorf("Failed loading network project name: %w", err)
 	}
 
 	// Lookup network settings and apply them to the device's config.
 	n, err := network.LoadByName(d.state, networkProjectName, d.config["network"])
 	if err != nil {
-		return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+		return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 	}
 
 	if n.Status() != api.NetworkStatusCreated {
@@ -142,7 +141,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 		ip, subnet, err := net.ParseCIDR(netConfig["ipv4.address"])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid network ipv4.address")
+			return fmt.Errorf("Invalid network ipv4.address: %w", err)
 		}
 
 		// Check the static IP supplied is valid for the linked network. It should be part of the
@@ -165,7 +164,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 		ip, subnet, err := net.ParseCIDR(netConfig["ipv6.address"])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid network ipv6.address")
+			return fmt.Errorf("Invalid network ipv6.address: %w", err)
 		}
 
 		// Check the static IP supplied is valid for the linked network. It should be part of the
@@ -257,7 +256,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 	uplinkNetworkName := d.network.Config()["network"]
 	_, uplink, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
+		return nil, fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
 	}
 
 	// Setup the network interface pair.
@@ -276,7 +275,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 		if d.inst.Type() == instancetype.VM {
 			err := util.LoadModule("vfio-pci")
 			if err != nil {
-				return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+				return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 			}
 		}
 
@@ -432,7 +431,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 			uplinkNetworkName := d.network.Config()["network"]
 			_, uplink, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to load uplink network %q", uplinkNetworkName)
+				return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
 			}
 
 			// Update OVN logical switch port for instance.
@@ -444,19 +443,19 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 				UplinkConfig: uplink.Config,
 			}, removedACLs)
 			if err != nil {
-				return errors.Wrapf(err, "Failed updating OVN port")
+				return fmt.Errorf("Failed updating OVN port: %w", err)
 			}
 		}
 
 		if len(removedACLs) > 0 {
 			client, err := openvswitch.NewOVN(d.state)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to get OVN client")
+				return fmt.Errorf("Failed to get OVN client: %w", err)
 			}
 
 			err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name, newACLs...)
 			if err != nil {
-				return errors.Wrapf(err, "Failed removing unused OVN port groups")
+				return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 			}
 		}
 	}
@@ -561,13 +560,13 @@ func (d *nicOVN) postStop() error {
 			link := &ip.Link{Name: d.config["host_name"]}
 			err = link.SetDown()
 			if err != nil {
-				return errors.Wrapf(err, "Failed to bring down the host interface %s", d.config["host_name"])
+				return fmt.Errorf("Failed to bring down the host interface %s: %w", d.config["host_name"], err)
 			}
 		} else {
 			// Removing host-side end of veth pair will delete the peer end too.
 			err := network.InterfaceRemove(d.config["host_name"])
 			if err != nil {
-				return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
+				return fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err)
 			}
 		}
 	}
@@ -582,12 +581,12 @@ func (d *nicOVN) Remove() error {
 	if len(securityACLs) > 0 {
 		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to get OVN client")
+			return fmt.Errorf("Failed to get OVN client: %w", err)
 		}
 
 		err = acl.OVNPortGroupDeleteIfUnused(d.state, d.logger, client, d.network.Project(), d.inst, d.name)
 		if err != nil {
-			return errors.Wrapf(err, "Failed removing unused OVN port groups")
+			return fmt.Errorf("Failed removing unused OVN port groups: %w", err)
 		}
 	}
 
@@ -694,7 +693,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 	// those counters need to be reversed below.
 	hostCounters, err := resources.GetNetworkCounters(d.config["host_name"])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting network interface counters")
+		return nil, fmt.Errorf("Failed getting network interface counters: %w", err)
 	}
 
 	network := api.InstanceStateNetwork{
@@ -748,7 +747,7 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 		UplinkConfig: uplink.Config,
 	}, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed setting up OVN port")
+		return fmt.Errorf("Failed setting up OVN port: %w", err)
 	}
 
 	revert.Add(func() {
@@ -783,7 +782,7 @@ func (d *nicOVN) setupHostNIC(revert *revert.Reverter, hostName string, uplink *
 	link := &ip.Link{Name: hostName}
 	err = link.SetUp()
 	if err != nil {
-		return errors.Wrapf(err, "Failed to bring up the host interface %s", hostName)
+		return fmt.Errorf("Failed to bring up the host interface %s: %w", hostName, err)
 	}
 
 	return nil

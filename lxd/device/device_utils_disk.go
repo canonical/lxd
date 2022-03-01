@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/instance"
@@ -121,13 +120,13 @@ func DiskMountClear(mntPath string) error {
 		if filesystem.IsMountPoint(mntPath) {
 			err := unix.Unmount(mntPath, unix.MNT_DETACH)
 			if err != nil {
-				return errors.Wrapf(err, "Failed unmounting %q", mntPath)
+				return fmt.Errorf("Failed unmounting %q: %w", mntPath, err)
 			}
 		}
 
 		err := os.Remove(mntPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed removing %q", mntPath)
+			return fmt.Errorf("Failed removing %q: %w", mntPath, err)
 		}
 	}
 
@@ -537,14 +536,14 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 
 	err = proc.StartWithFiles(fdFiles)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to start virtiofsd")
+		return nil, nil, fmt.Errorf("Failed to start virtiofsd: %w", err)
 	}
 
 	revert.Add(func() { proc.Stop() })
 
 	err = proc.Save(pidPath)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed to save virtiofsd state")
+		return nil, nil, fmt.Errorf("Failed to save virtiofsd state: %w", err)
 	}
 
 	revertExternal := revert.Clone()

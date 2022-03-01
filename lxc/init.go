@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -166,7 +165,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	if c.flagNetwork != "" {
 		network, _, err := d.GetNetwork(c.flagNetwork)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "Failed loading network %q", c.flagNetwork)
+			return nil, "", fmt.Errorf("Failed loading network %q: %w", c.flagNetwork, err)
 		}
 
 		// Prepare the instance's NIC device entry.
@@ -216,7 +215,7 @@ func (c *cmdInit) create(conf *config.Config, args []string) (lxd.InstanceServer
 	if c.flagStorage != "" {
 		_, _, err := d.GetStoragePool(c.flagStorage)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "Failed loading storage pool %q", c.flagStorage)
+			return nil, "", fmt.Errorf("Failed loading storage pool %q: %w", c.flagStorage, err)
 		}
 
 		devicesMap["root"] = map[string]string{

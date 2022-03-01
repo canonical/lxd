@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -182,7 +182,7 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 
 	err = d.cluster.UpsertWarning(req.Location, req.Project, req.EntityTypeCode, req.EntityID, db.WarningType(req.TypeCode), req.Message)
 	if err != nil {
-		return response.SmartError(errors.Wrap(err, "Failed to create warning"))
+		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))
 	}
 
 	return response.EmptySyncResponse
@@ -421,12 +421,12 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 
 	tx, err := db.BeginTx(r.Context(), nil)
 	if err != nil {
-		return response.SmartError(errors.Wrap(err, "failed to start transaction"))
+		return response.SmartError(fmt.Errorf("failed to start transaction: %w", err))
 	}
 	defer tx.Rollback()
 	dump, err := query.Dump(r.Context(), tx, schema, schemaOnly == 1)
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "failed dump database %s", database))
+		return response.SmartError(fmt.Errorf("failed dump database %s: %w", database, err))
 	}
 	return response.SyncResponse(true, internalSQLDump{Text: dump})
 }
@@ -502,14 +502,14 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 
 	rows, err := tx.Query(query)
 	if err != nil {
-		return errors.Wrap(err, "Failed to execute query")
+		return fmt.Errorf("Failed to execute query: %w", err)
 	}
 
 	defer rows.Close()
 
 	result.Columns, err = rows.Columns()
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch colume names")
+		return fmt.Errorf("Failed to fetch colume names: %w", err)
 	}
 
 	for rows.Next() {
@@ -521,7 +521,7 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 
 		err := rows.Scan(rowPointers...)
 		if err != nil {
-			return errors.Wrap(err, "Failed to scan row")
+			return fmt.Errorf("Failed to scan row: %w", err)
 		}
 
 		for i, column := range row {
@@ -538,7 +538,7 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 
 	err = rows.Err()
 	if err != nil {
-		return errors.Wrap(err, "Got a row error")
+		return fmt.Errorf("Got a row error: %w", err)
 	}
 
 	return nil
@@ -548,12 +548,12 @@ func internalSQLExec(tx *sql.Tx, query string, result *internalSQLResult) error 
 	result.Type = "exec"
 	r, err := tx.Exec(query)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to exec query")
+		return fmt.Errorf("Failed to exec query: %w", err)
 	}
 
 	result.RowsAffected, err = r.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch affected rows")
+		return fmt.Errorf("Failed to fetch affected rows: %w", err)
 	}
 
 	return nil
@@ -652,15 +652,15 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		// Create the storage pool db entry if it doesn't exist.
 		_, err = storagePoolDBCreate(d.State(), instancePoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
 		if err != nil {
-			return errors.Wrap(err, "Create storage pool database entry")
+			return fmt.Errorf("Create storage pool database entry: %w", err)
 		}
 
 		pool, err = storagePools.GetPoolByName(d.State(), instancePoolName)
 		if err != nil {
-			return errors.Wrap(err, "Load storage pool database entry")
+			return fmt.Errorf("Load storage pool database entry: %w", err)
 		}
 	} else if err != nil {
-		return errors.Wrap(err, "Find storage pool database entry")
+		return fmt.Errorf("Find storage pool database entry: %w", err)
 	}
 
 	if backupConf.Pool.Name != instancePoolName {
@@ -674,11 +674,11 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	// Check snapshots are consistent, and if not, if req.Force is true, then delete snapshots that do not exist in backup.yaml.
 	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, force, nil)
 	if err != nil {
-		if errors.Cause(err) == storagePools.ErrBackupSnapshotsMismatch {
+		if errors.Unwrap(err) == storagePools.ErrBackupSnapshotsMismatch {
 			return fmt.Errorf(`%s. Set "force" to discard non-existing snapshots`, err)
 		}
 
-		return errors.Wrap(err, "Checking snapshots")
+		return fmt.Errorf("Checking snapshots: %w", err)
 	}
 
 	// Check if a storage volume entry for the instance already exists.
@@ -737,7 +737,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	profiles, err := d.State().Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
 	if err != nil {
-		return errors.Wrapf(err, "Failed loading profiles for instance")
+		return fmt.Errorf("Failed loading profiles for instance: %w", err)
 	}
 
 	// Add root device if needed.
@@ -762,7 +762,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	_, instOp, err := instance.CreateInternal(d.State(), *instDBArgs, true, nil, revert)
 	if err != nil {
-		return errors.Wrap(err, "Failed creating instance record")
+		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
 	defer instOp.Done(err)
 
@@ -828,7 +828,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 		profiles, err := d.State().Cluster.GetProfiles(projectName, snap.Profiles)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading profiles for instance snapshot %q", snapInstName)
+			return fmt.Errorf("Failed loading profiles for instance snapshot %q: %w", snapInstName, err)
 		}
 
 		// Add root device if needed.
@@ -858,7 +858,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			Stateful:     snap.Stateful,
 		}, true, nil, revert)
 		if err != nil {
-			return errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name)
+			return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 		}
 		defer snapInstOp.Done(err)
 

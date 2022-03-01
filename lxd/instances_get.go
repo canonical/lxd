@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -258,7 +257,7 @@ func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
 	if filterStr != "" {
 		clauses, err = filter.Parse(filterStr)
 		if err != nil {
-			return nil, errors.Wrap(err, "Invalid filter")
+			return nil, fmt.Errorf("Invalid filter: %w", err)
 		}
 	}
 
@@ -529,14 +528,14 @@ func doContainersGetFromNode(projects []string, node, allProjects string, networ
 	f := func() ([]api.Instance, error) {
 		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
+			return nil, fmt.Errorf("Failed to connect to node %s: %w", node, err)
 		}
 
 		var containers []api.Instance
 		if allProjects == "true" {
 			containers, err = client.GetInstancesAllProjects(api.InstanceType(instanceType.String()))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+				return nil, fmt.Errorf("Failed to get instances from node %s: %w", node, err)
 			}
 
 		} else {
@@ -545,7 +544,7 @@ func doContainersGetFromNode(projects []string, node, allProjects string, networ
 
 				tmpContainers, err := client.GetInstances(api.InstanceType(instanceType.String()))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+					return nil, fmt.Errorf("Failed to get instances from node %s: %w", node, err)
 				}
 				containers = append(containers, tmpContainers...)
 			}
@@ -579,14 +578,14 @@ func doContainersFullGetFromNode(projects []string, node, allProjects string, ne
 	f := func() ([]api.InstanceFull, error) {
 		client, err := cluster.Connect(node, networkCert, serverCert, r, true)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to connect to node %s", node)
+			return nil, fmt.Errorf("Failed to connect to node %s: %w", node, err)
 		}
 
 		var instances []api.InstanceFull
 		if allProjects == "true" {
 			instances, err = client.GetInstancesFullAllProjects(api.InstanceType(instanceType.String()))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+				return nil, fmt.Errorf("Failed to get instances from node %s: %w", node, err)
 			}
 		} else {
 			for _, project := range projects {
@@ -594,7 +593,7 @@ func doContainersFullGetFromNode(projects []string, node, allProjects string, ne
 
 				tmpInstances, err := client.GetInstancesFull(api.InstanceType(instanceType.String()))
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to get instances from node %s", node)
+					return nil, fmt.Errorf("Failed to get instances from node %s: %w", node, err)
 				}
 
 				instances = append(instances, tmpInstances...)

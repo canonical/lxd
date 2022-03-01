@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
@@ -491,13 +491,13 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 	// Unshare a new mntns so our mounts don't leak
 	err = unix.Unshare(unix.CLONE_NEWNS)
 	if err != nil {
-		return errors.Wrap(err, "Failed to unshare mount namespace")
+		return fmt.Errorf("Failed to unshare mount namespace: %w", err)
 	}
 
 	// Prevent mount propagation back to initial namespace
 	err = unix.Mount("", "/", "", unix.MS_REC|unix.MS_PRIVATE, "")
 	if err != nil {
-		return errors.Wrap(err, "Failed to disable mount propagation")
+		return fmt.Errorf("Failed to disable mount propagation: %w", err)
 	}
 
 	// Create the temporary directory to be used for the mounts

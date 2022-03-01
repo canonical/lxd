@@ -1,7 +1,7 @@
 package resources
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -11,49 +11,49 @@ func GetResources() (*api.Resources, error) {
 	// Get CPU information
 	cpu, err := GetCPU()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve CPU information")
+		return nil, fmt.Errorf("Failed to retrieve CPU information: %w", err)
 	}
 
 	// Get memory information
 	memory, err := GetMemory()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve memory information")
+		return nil, fmt.Errorf("Failed to retrieve memory information: %w", err)
 	}
 
 	// Get GPU information
 	gpu, err := GetGPU()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve GPU information")
+		return nil, fmt.Errorf("Failed to retrieve GPU information: %w", err)
 	}
 
 	// Get network card information
 	network, err := GetNetwork()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve network information")
+		return nil, fmt.Errorf("Failed to retrieve network information: %w", err)
 	}
 
 	// Get storage information
 	storage, err := GetStorage()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve storage information")
+		return nil, fmt.Errorf("Failed to retrieve storage information: %w", err)
 	}
 
 	// Get USB information
 	usb, err := GetUSB()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve USB information")
+		return nil, fmt.Errorf("Failed to retrieve USB information: %w", err)
 	}
 
 	// Get PCI information
 	pci, err := GetPCI()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve PCI information")
+		return nil, fmt.Errorf("Failed to retrieve PCI information: %w", err)
 	}
 
 	// Get system information
 	system, err := GetSystem()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to retrieve system information")
+		return nil, fmt.Errorf("Failed to retrieve system information: %w", err)
 	}
 
 	// Build the final struct

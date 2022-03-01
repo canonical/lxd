@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/operations"
@@ -59,7 +58,7 @@ func (d *lvm) load() error {
 	if lvmVersion == "" {
 		output, err := shared.RunCommand("lvm", "version")
 		if err != nil {
-			return errors.Wrapf(err, "Error getting LVM version")
+			return fmt.Errorf("Error getting LVM version: %w", err)
 		}
 
 		lines := strings.Split(output, "\n")
@@ -132,7 +131,7 @@ func (d *lvm) Create() error {
 
 		err = ensureSparseFile(d.config["source"], size)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create sparse file %q", d.config["source"])
+			return fmt.Errorf("Failed to create sparse file %q: %w", d.config["source"], err)
 		}
 
 		revert.Add(func() { os.Remove(d.config["source"]) })
@@ -228,7 +227,7 @@ func (d *lvm) Create() error {
 		// The LV count returned includes both normal volumes and thin volumes.
 		lvCount, err := d.countLogicalVolumes(d.config["lvm.vg_name"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to determine whether the volume group %q is empty", d.config["lvm.vg_name"])
+			return fmt.Errorf("Failed to determine whether the volume group %q is empty: %w", d.config["lvm.vg_name"], err)
 		}
 
 		empty := false
@@ -237,7 +236,7 @@ func (d *lvm) Create() error {
 				// Always check if the thin pool exists as we may need to create it later.
 				thinPoolExists, err = d.thinpoolExists(d.config["lvm.vg_name"], d.thinpoolName())
 				if err != nil {
-					return errors.Wrapf(err, "Failed to determine whether thinpool %q exists in volume group %q", d.config["lvm.vg_name"], d.thinpoolName())
+					return fmt.Errorf("Failed to determine whether thinpool %q exists in volume group %q: %w", d.config["lvm.vg_name"], d.thinpoolName(), err)
 				}
 
 				// If the single volume is the storage pool's thin pool LV then we still consider
@@ -365,7 +364,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 						// other volumes, then just remove the thin pool volume.
 						err = d.removeLogicalVolume(d.lvmDevPath(d.config["lvm.vg_name"], "", "", d.thinpoolName()))
 						if err != nil {
-							return errors.Wrapf(err, "Failed to delete thin pool %q from volume group %q", d.thinpoolName(), d.config["lvm.vg_name"])
+							return fmt.Errorf("Failed to delete thin pool %q from volume group %q: %w", d.thinpoolName(), d.config["lvm.vg_name"], err)
 						}
 						d.logger.Debug("Thin pool removed", log.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool_name": d.thinpoolName()})
 					}
@@ -377,7 +376,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		if removeVg {
 			_, err := shared.TryRunCommand("vgremove", "-f", d.config["lvm.vg_name"])
 			if err != nil {
-				return errors.Wrapf(err, "Failed to delete the volume group for the lvm storage pool")
+				return fmt.Errorf("Failed to delete the volume group for the lvm storage pool: %w", err)
 			}
 			d.logger.Debug("Volume group removed", log.Ctx{"vg_name": d.config["lvm.vg_name"]})
 		} else {
@@ -385,7 +384,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 			if shared.StringInSlice(lvmVgPoolMarker, vgTags) {
 				_, err = shared.TryRunCommand("vgchange", "--deltag", lvmVgPoolMarker, d.config["lvm.vg_name"])
 				if err != nil {
-					return errors.Wrapf(err, "Failed to remove marker tag on volume group for the lvm storage pool")
+					return fmt.Errorf("Failed to remove marker tag on volume group for the lvm storage pool: %w", err)
 				}
 				d.logger.Debug("LXD marker tag removed from volume group", log.Ctx{"vg_name": d.config["lvm.vg_name"]})
 			}
@@ -413,7 +412,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		// This is a loop file so deconfigure the associated loop device.
 		err = os.Remove(d.config["source"])
 		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "Error removing LVM pool loop file %q", d.config["source"])
+			return fmt.Errorf("Error removing LVM pool loop file %q: %w", d.config["source"], err)
 		}
 		d.logger.Debug("Physical loop file removed", log.Ctx{"file_name": d.config["source"]})
 	}
@@ -468,7 +467,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 	if changedConfig["lvm.vg_name"] != "" {
 		_, err := shared.TryRunCommand("vgrename", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"])
 		if err != nil {
-			return errors.Wrapf(err, "Error renaming LVM volume group from %q to %q", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"])
+			return fmt.Errorf("Error renaming LVM volume group from %q to %q: %w", d.config["lvm.vg_name"], changedConfig["lvm.vg_name"], err)
 		}
 		d.logger.Debug("Volume group renamed", log.Ctx{"vg_name": d.config["lvm.vg_name"], "new_vg_name": changedConfig["lvm.vg_name"]})
 	}
@@ -476,7 +475,7 @@ func (d *lvm) Update(changedConfig map[string]string) error {
 	if changedConfig["lvm.thinpool_name"] != "" {
 		_, err := shared.TryRunCommand("lvrename", d.config["lvm.vg_name"], d.thinpoolName(), changedConfig["lvm.thinpool_name"])
 		if err != nil {
-			return errors.Wrapf(err, "Error renaming LVM thin pool from %q to %q", d.thinpoolName(), changedConfig["lvm.thinpool_name"])
+			return fmt.Errorf("Error renaming LVM thin pool from %q to %q: %w", d.thinpoolName(), changedConfig["lvm.thinpool_name"], err)
 		}
 		d.logger.Debug("Thin pool volume renamed", log.Ctx{"vg_name": d.config["lvm.vg_name"], "thinpool": d.thinpoolName(), "new_thinpool": changedConfig["lvm.thinpool_name"]})
 	}

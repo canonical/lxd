@@ -2,10 +2,10 @@ package resources
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"unsafe"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
@@ -149,7 +149,7 @@ func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	if err != nil {
-		return errors.Wrap(err, "Failed to open IPPROTO_IP socket")
+		return fmt.Errorf("Failed to open IPPROTO_IP socket: %w", err)
 	}
 	defer unix.Close(ethtoolFd)
 
@@ -164,7 +164,7 @@ func ethtoolAddCardInfo(name string, info *api.ResourcesNetworkCard) error {
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
-		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GDRVINFO")
+		return fmt.Errorf("Failed to ETHTOOL_GDRVINFO: %w", unix.Errno(errno))
 	}
 
 	info.FirmwareVersion = string(bytes.Trim(ethDrvInfo.fwVersion[:], "\x00"))
@@ -181,7 +181,7 @@ func ethtoolGset(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
 	if errno != 0 {
-		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GSET")
+		return fmt.Errorf("Failed to ETHTOOL_GSET: %w", unix.Errno(errno))
 	}
 
 	// Link negotiation
@@ -257,23 +257,23 @@ func ethtoolLink(ethtoolFd int, req *ethtoolReq, info *api.ResourcesNetworkCardP
 	// Retrieve size of masks
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
 	if errno != 0 {
-		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINKSETTINGS")
+		return fmt.Errorf("Failed to ETHTOOL_GLINKSETTINGS: %w", unix.Errno(errno))
 	}
 
 	// This insane interface gives us the size of the masks as a negative value.
 	if ethLinkSettings.linkModeMasksNwords >= 0 || ethLinkSettings.cmd != 0x0000004c {
-		return errors.Wrap(unix.Errno(unix.EINVAL), "Failed to ETHTOOL_GLINKSETTINGS")
+		return fmt.Errorf("Failed to ETHTOOL_GLINKSETTINGS: %w", unix.Errno(unix.EINVAL))
 	}
 
 	// Set the size of the masks we want to retrieve.
 	ethLinkSettings.linkModeMasksNwords = -ethLinkSettings.linkModeMasksNwords
 	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(req)))
 	if errno != 0 {
-		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINKSETTINGS")
+		return fmt.Errorf("Failed to ETHTOOL_GLINKSETTINGS: %w", unix.Errno(errno))
 	}
 
 	if ethLinkSettings.linkModeMasksNwords <= 0 || ethLinkSettings.cmd != 0x0000004c {
-		return errors.Wrap(unix.Errno(unix.EINVAL), "Failed to ETHTOOL_GLINKSETTINGS")
+		return fmt.Errorf("Failed to ETHTOOL_GLINKSETTINGS: %w", unix.Errno(unix.EINVAL))
 	}
 
 	// Copy the mode maps.
@@ -355,7 +355,7 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 	// Open FD
 	ethtoolFd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_IP)
 	if err != nil {
-		return errors.Wrap(err, "Failed to open IPPROTO_IP socket")
+		return fmt.Errorf("Failed to open IPPROTO_IP socket: %w", err)
 	}
 	defer unix.Close(ethtoolFd)
 
@@ -384,7 +384,7 @@ func ethtoolAddPortInfo(info *api.ResourcesNetworkCardPort) error {
 
 	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(ethtoolFd), unix.SIOCETHTOOL, uintptr(unsafe.Pointer(&req)))
 	if errno != 0 {
-		return errors.Wrap(unix.Errno(errno), "Failed to ETHTOOL_GLINK")
+		return fmt.Errorf("Failed to ETHTOOL_GLINK: %w", unix.Errno(errno))
 	}
 
 	info.LinkDetected = ethGlink.data == 1

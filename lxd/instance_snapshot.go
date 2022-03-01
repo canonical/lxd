@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -280,7 +279,7 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	// Validate the name
 	err = validate.IsURLSegmentSafe(req.Name)
 	if err != nil {
-		return response.BadRequest(errors.Wrap(err, "Invalid snapshot name"))
+		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
 
 	var expiry time.Time
@@ -683,7 +682,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 	// Validate the name
 	err = validate.IsURLSegmentSafe(newName)
 	if err != nil {
-		return response.BadRequest(errors.Wrap(err, "Invalid snapshot name"))
+		return response.BadRequest(fmt.Errorf("Invalid snapshot name: %w", err))
 	}
 
 	fullName := containerName + shared.SnapshotDelimiter + newName

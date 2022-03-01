@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/cluster"
 )
 
@@ -42,7 +40,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get images")
+			return "", fmt.Errorf("Failed to get images: %w", err)
 		}
 
 		for _, image := range images {
@@ -69,7 +67,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get profiles")
+			return "", fmt.Errorf("Failed to get profiles: %w", err)
 		}
 
 		for _, profile := range profiles {
@@ -96,7 +94,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get project names and IDs")
+			return "", fmt.Errorf("Failed to get project names and IDs: %w", err)
 		}
 
 		name, ok := projects[int64(entityID)]
@@ -117,7 +115,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get certificates")
+			return "", fmt.Errorf("Failed to get certificates: %w", err)
 		}
 
 		for _, cert := range certificates {
@@ -146,7 +144,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get instances")
+			return "", fmt.Errorf("Failed to get instances: %w", err)
 		}
 
 		for _, instance := range instances {
@@ -164,7 +162,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeInstanceBackup:
 		instanceBackup, err := c.GetInstanceBackupWithID(entityID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get instance backup")
+			return "", fmt.Errorf("Failed to get instance backup: %w", err)
 		}
 
 		var instances []Instance
@@ -178,7 +176,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get instances")
+			return "", fmt.Errorf("Failed to get instances: %w", err)
 		}
 
 		for _, instance := range instances {
@@ -205,7 +203,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get instance snapshots")
+			return "", fmt.Errorf("Failed to get instance snapshots: %w", err)
 		}
 
 		for _, snapshot := range snapshots {
@@ -223,14 +221,14 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeNetwork:
 		networkName, projectName, err := c.GetNetworkNameAndProjectWithID(entityID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get network name and project name")
+			return "", fmt.Errorf("Failed to get network name and project name: %w", err)
 		}
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], networkName, projectName)
 	case cluster.TypeNetworkACL:
 		networkACLName, projectName, err := c.GetNetworkACLNameAndProjectWithID(entityID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get network ACL name and project name")
+			return "", fmt.Errorf("Failed to get network ACL name and project name: %w", err)
 		}
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], networkACLName, projectName)
@@ -246,7 +244,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get node information")
+			return "", fmt.Errorf("Failed to get node information: %w", err)
 		}
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], nodeInfo.Name)
@@ -269,40 +267,40 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 			return nil
 		})
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get operation")
+			return "", fmt.Errorf("Failed to get operation: %w", err)
 		}
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], op.UUID)
 	case cluster.TypeStoragePool:
 		_, pool, _, err := c.GetStoragePoolWithID(entityID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get storage pool")
+			return "", fmt.Errorf("Failed to get storage pool: %w", err)
 		}
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], pool.Name)
 	case cluster.TypeStorageVolume:
 		args, err := c.GetStoragePoolVolumeWithID(entityID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get storage volume")
+			return "", fmt.Errorf("Failed to get storage volume: %w", err)
 		}
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], args.PoolName, args.TypeName, args.Name, args.ProjectName)
 	case cluster.TypeStorageVolumeBackup:
 		backup, err := c.GetStoragePoolVolumeBackupWithID(entityID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get volume backup")
+			return "", fmt.Errorf("Failed to get volume backup: %w", err)
 		}
 
 		instance, err := c.GetStoragePoolVolumeWithID(int(backup.ID))
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get storage volume")
+			return "", fmt.Errorf("Failed to get storage volume: %w", err)
 		}
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], instance.PoolName, instance.Name, backup.Name, instance.ProjectName)
 	case cluster.TypeStorageVolumeSnapshot:
 		snapshot, err := c.GetStorageVolumeSnapshotWithID(entityID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get volume snapshot")
+			return "", fmt.Errorf("Failed to get volume snapshot: %w", err)
 		}
 
 		fields := strings.Split(snapshot.Name, "/")

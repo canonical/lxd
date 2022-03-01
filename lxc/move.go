@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
-	"github.com/pkg/errors"
 )
 
 type cmdMove struct {
@@ -242,7 +241,7 @@ func (c *cmdMove) Run(cmd *cobra.Command, args []string) error {
 	del.flagForceProtected = true
 	err = del.Run(cmd, args[:1])
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete original instance after copying it")
+		return fmt.Errorf("Failed to delete original instance after copying it: %w", err)
 	}
 
 	return nil
@@ -275,7 +274,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 	// Connect to the source host
 	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
+		return fmt.Errorf(i18n.G("Failed to connect to cluster member: %w"), err)
 	}
 
 	// Check that it's a cluster
@@ -293,7 +292,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 
 	op, err := source.MigrateInstance(sourceName, req)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration API failure"))
+		return fmt.Errorf(i18n.G("Migration API failure: %w"), err)
 	}
 
 	// Watch the background operation
@@ -316,7 +315,7 @@ func moveClusterInstance(conf *config.Config, sourceResource string, destResourc
 
 	err = op.Wait()
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration operation failure"))
+		return fmt.Errorf(i18n.G("Migration operation failure: %w"), err)
 	}
 
 	return nil
@@ -349,7 +348,7 @@ func moveInstancePool(conf *config.Config, sourceResource string, destResource s
 	// Connect to the source host.
 	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
+		return fmt.Errorf(i18n.G("Failed to connect to cluster member: %w"), err)
 	}
 
 	// Pass the new pool to the migration API.
@@ -363,12 +362,12 @@ func moveInstancePool(conf *config.Config, sourceResource string, destResource s
 
 	op, err := source.MigrateInstance(sourceName, req)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration API failure"))
+		return fmt.Errorf(i18n.G("Migration API failure: %w"), err)
 	}
 
 	err = op.Wait()
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration operation failure"))
+		return fmt.Errorf(i18n.G("Migration operation failure: %w"), err)
 	}
 
 	return nil
@@ -401,7 +400,7 @@ func moveInstanceProject(conf *config.Config, sourceResource string, destResourc
 	// Connect to the source host.
 	source, err := conf.GetInstanceServer(sourceRemote)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Failed to connect to cluster member"))
+		return fmt.Errorf(i18n.G("Failed to connect to cluster member: %w"), err)
 	}
 
 	// Pass the new project to the migration API.
@@ -415,12 +414,12 @@ func moveInstanceProject(conf *config.Config, sourceResource string, destResourc
 
 	op, err := source.MigrateInstance(sourceName, req)
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration API failure"))
+		return fmt.Errorf(i18n.G("Migration API failure: %w"), err)
 	}
 
 	err = op.Wait()
 	if err != nil {
-		return errors.Wrap(err, i18n.G("Migration operation failure"))
+		return fmt.Errorf(i18n.G("Migration operation failure: %w"), err)
 	}
 
 	return nil

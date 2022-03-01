@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/version"
@@ -157,12 +155,12 @@ func deleteProfile(sysOS *sys.OS, fullName string, name string) error {
 
 	err = os.Remove(filepath.Join(cacheDir, name))
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove: %s", filepath.Join(cacheDir, name))
+		return fmt.Errorf("Failed to remove %s: %w", filepath.Join(cacheDir, name), err)
 	}
 
 	err = os.Remove(filepath.Join(aaPath, "profiles", name))
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove: %s", filepath.Join(aaPath, "profiles", name))
+		return fmt.Errorf("Failed to remove %s: %w", filepath.Join(aaPath, "profiles", name), err)
 	}
 
 	return nil

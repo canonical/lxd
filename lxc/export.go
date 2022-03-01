@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -78,7 +78,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 
 	op, err := d.CreateInstanceBackup(name, req)
 	if err != nil {
-		return errors.Wrap(err, "Create instance backup")
+		return fmt.Errorf("Create instance backup: %w", err)
 	}
 
 	// Watch the background operation
@@ -152,7 +152,7 @@ func (c *cmdExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		os.Remove(targetName)
 		progress.Done("")
-		return errors.Wrap(err, "Fetch instance backup file")
+		return fmt.Errorf("Fetch instance backup file: %w", err)
 	}
 
 	progress.Done(i18n.G("Backup exported successfully!"))

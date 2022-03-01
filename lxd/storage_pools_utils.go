@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -120,7 +119,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 		// Update the database entry for the storage pool.
 		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedReq.Config)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error updating storage pool config after local fill defaults for %q", req.Name)
+			return nil, fmt.Errorf("Error updating storage pool config after local fill defaults for %q: %w", req.Name, err)
 		}
 	}
 
@@ -159,7 +158,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 		// Update the database entry for the storage pool.
 		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, pool.Driver().Config())
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error updating storage pool config after local create for %q", req.Name)
+			return nil, fmt.Errorf("Error updating storage pool config after local create for %q: %w", req.Name, err)
 		}
 	}
 

@@ -5,11 +5,10 @@ package instancewriter
 
 import (
 	"archive/tar"
+	"fmt"
 	"io"
 	"os"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
@@ -52,7 +51,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 		link, err = os.Readlink(srcPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to resolve symlink for %q", srcPath)
+			return fmt.Errorf("Failed to resolve symlink for %q: %w", srcPath, err)
 		}
 	}
 
@@ -63,7 +62,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	hdr, err := tar.FileInfoHeader(fi, link)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create tar info header")
+		return fmt.Errorf("Failed to create tar info header: %w", err)
 	}
 
 	hdr.Name = name
@@ -75,7 +74,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	hdr.Uid, hdr.Gid, major, minor, ino, nlink, err = shared.GetFileStat(srcPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get file stat %q", srcPath)
+		return fmt.Errorf("Failed to get file stat %q: %w", srcPath, err)
 	}
 
 	// Unshift the id under rootfs/ for unpriv containers.
@@ -106,7 +105,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 	if link == "" {
 		xattrs, err := shared.GetAllXattr(srcPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to read xattr for %q", srcPath)
+			return fmt.Errorf("Failed to read xattr for %q: %w", srcPath, err)
 		}
 
 		hdr.PAXRecords = make(map[string]string, len(xattrs))
@@ -140,13 +139,13 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 	err = ctw.tarWriter.WriteHeader(hdr)
 	if err != nil {
-		return errors.Wrap(err, "Failed to write tar header")
+		return fmt.Errorf("Failed to write tar header: %w", err)
 	}
 
 	if hdr.Typeflag == tar.TypeReg {
 		f, err := os.Open(srcPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to open file %q", srcPath)
+			return fmt.Errorf("Failed to open file %q: %w", srcPath, err)
 		}
 		defer f.Close()
 
@@ -157,7 +156,7 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 
 		_, err = io.Copy(ctw.tarWriter, r)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to copy file content %q", srcPath)
+			return fmt.Errorf("Failed to copy file content %q: %w", srcPath, err)
 		}
 	}
 
@@ -169,12 +168,12 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 func (ctw *InstanceTarWriter) WriteFileFromReader(src io.Reader, fi os.FileInfo) error {
 	hdr, err := tar.FileInfoHeader(fi, "")
 	if err != nil {
-		return errors.Wrap(err, "Failed to create tar info header")
+		return fmt.Errorf("Failed to create tar info header: %w", err)
 	}
 
 	err = ctw.tarWriter.WriteHeader(hdr)
 	if err != nil {
-		return errors.Wrap(err, "Failed to write tar header")
+		return fmt.Errorf("Failed to write tar header: %w", err)
 	}
 
 	_, err = io.Copy(ctw.tarWriter, src)
@@ -185,7 +184,7 @@ func (ctw *InstanceTarWriter) WriteFileFromReader(src io.Reader, fi os.FileInfo)
 func (ctw *InstanceTarWriter) Close() error {
 	err := ctw.tarWriter.Close()
 	if err != nil {
-		return errors.Wrap(err, "Failed to close tar writer")
+		return fmt.Errorf("Failed to close tar writer: %w", err)
 	}
 	return nil
 }

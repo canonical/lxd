@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 
@@ -1982,7 +1981,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 
 	op, err := d.CreateStoragePoolVolumeBackup(name, volName, req)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create storage volume backup")
+		return fmt.Errorf("Failed to create storage volume backup: %w", err)
 	}
 
 	// Watch the background operation
@@ -2050,7 +2049,7 @@ func (c *cmdStorageVolumeExport) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		os.Remove(targetName)
 		progress.Done("")
-		return errors.Wrap(err, "Fetch storage volume backup file")
+		return fmt.Errorf("Fetch storage volume backup file: %w", err)
 	}
 
 	progress.Done(i18n.G("Backup exported successfully!"))

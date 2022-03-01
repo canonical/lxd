@@ -11,8 +11,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/client"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
@@ -142,7 +140,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 
 		remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(s, poolName, projectName, vol)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed checking if volume %q is available", volumeName)
+			return nil, fmt.Errorf("Failed checking if volume %q is available: %w", volumeName, err)
 		}
 
 		if remoteInstance != nil {
@@ -152,7 +150,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 				return err
 			})
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed getting cluster member info for %q", remoteInstance.Node)
+				return nil, fmt.Errorf("Failed getting cluster member info for %q: %w", remoteInstance.Node, err)
 			}
 
 			// Replace node list with instance's cluster member node (which might be local member).
@@ -194,12 +192,12 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 
 	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", targetAddress), args)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to target cluster node %q", targetAddress)
+		return fmt.Errorf("Failed to connect to target cluster node %q: %w", targetAddress, err)
 	}
 
 	cert, err := generateTrustCertificate(serverCert, serverName)
 	if err != nil {
-		return errors.Wrapf(err, "Failed generating trust certificate")
+		return fmt.Errorf("Failed generating trust certificate: %w", err)
 	}
 
 	post := api.CertificatesPost{
@@ -209,7 +207,7 @@ func SetupTrust(serverCert *shared.CertInfo, serverName string, targetAddress st
 
 	err = target.CreateCertificate(post)
 	if err != nil && err.Error() != ErrCertificateExists.Error() {
-		return errors.Wrap(err, "Failed to add server cert to cluster")
+		return fmt.Errorf("Failed to add server cert to cluster: %w", err)
 	}
 
 	return nil
@@ -231,17 +229,17 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 
 	target, err := lxd.ConnectLXD(fmt.Sprintf("https://%s", targetAddress), args)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to target cluster node %q", targetAddress)
+		return fmt.Errorf("Failed to connect to target cluster node %q: %w", targetAddress, err)
 	}
 
 	cert, err := generateTrustCertificate(serverCert, serverName)
 	if err != nil {
-		return errors.Wrapf(err, "Failed generating trust certificate")
+		return fmt.Errorf("Failed generating trust certificate: %w", err)
 	}
 
 	existingCert, _, err := target.GetCertificate(cert.Fingerprint)
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting existing certificate")
+		return fmt.Errorf("Failed getting existing certificate: %w", err)
 	}
 
 	if existingCert.Name != serverName && existingCert.Type == api.CertificateTypeServer {
@@ -254,7 +252,7 @@ func UpdateTrust(serverCert *shared.CertInfo, serverName string, targetAddress s
 		// server names to certificate names.
 		err = target.UpdateCertificate(cert.Fingerprint, cert.CertificatePut, "")
 		if err != nil {
-			return errors.Wrap(err, "Failed updating certificate name and type in trust store")
+			return fmt.Errorf("Failed updating certificate name and type in trust store: %w", err)
 		}
 	}
 
@@ -271,7 +269,7 @@ func generateTrustCertificate(serverCert *shared.CertInfo, serverName string) (*
 
 	fingerprint, err := shared.CertFingerprintStr(string(serverCert.PublicKey()))
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to calculate fingerprint")
+		return nil, fmt.Errorf("Failed to calculate fingerprint: %w", err)
 	}
 
 	certificate := base64.StdEncoding.EncodeToString(block.Bytes)

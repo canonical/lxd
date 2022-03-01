@@ -8,7 +8,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
 )
 
 // DoesSchemaTableExist return whether the schema table is present in the
@@ -89,13 +88,13 @@ func execFromFile(tx *sql.Tx, path string, hook Hook) error {
 
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		return errors.Wrap(err, "failed to read file")
+		return fmt.Errorf("failed to read file: %w", err)
 	}
 
 	if hook != nil {
 		err := hook(-1, tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to execute hook")
+			return fmt.Errorf("failed to execute hook: %w", err)
 		}
 	}
 
@@ -106,7 +105,7 @@ func execFromFile(tx *sql.Tx, path string, hook Hook) error {
 
 	err = os.Remove(path)
 	if err != nil {
-		return errors.Wrap(err, "failed to remove file")
+		return fmt.Errorf("failed to remove file: %w", err)
 	}
 
 	return nil

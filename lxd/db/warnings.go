@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -85,7 +84,7 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int,
 		return nil
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting local member name")
+		return fmt.Errorf("Failed getting local member name: %w", err)
 	}
 
 	if localName == "" {
@@ -101,7 +100,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 	// Validate
 	_, err := c.GetURIFromEntity(entityTypeCode, entityID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get URI for entity ID %d with entity type code %d", entityID, entityTypeCode)
+		return fmt.Errorf("Failed to get URI for entity ID %d with entity type code %d: %w", entityID, entityTypeCode, err)
 	}
 
 	_, ok := WarningTypeNames[typeCode]
@@ -122,7 +121,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 		warnings, err := tx.GetWarnings(filter)
 		if err != nil {
-			return errors.Wrap(err, "Failed to retrieve warnings")
+			return fmt.Errorf("Failed to retrieve warnings: %w", err)
 		}
 
 		if len(warnings) > 1 {
@@ -180,7 +179,7 @@ func (c *ClusterTx) UpdateWarningStatus(UUID string, status WarningStatus) error
 
 	_, err = stmt.Exec(status, time.Now(), UUID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to update warning status for warning %q", UUID)
+		return fmt.Errorf("Failed to update warning status for warning %q: %w", UUID, err)
 	}
 
 	return nil
@@ -199,7 +198,7 @@ func (c *ClusterTx) UpdateWarningState(UUID string, message string, status Warni
 
 	_, err = stmt.Exec(message, now, now, status, UUID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to update warning %q", UUID)
+		return fmt.Errorf("Failed to update warning %q: %w", UUID, err)
 	}
 
 	return nil
@@ -210,7 +209,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 	// Check if a warning with the same key exists.
 	exists, err := c.WarningExists(object.UUID)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to check for duplicates")
+		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
 	if exists {
 		return -1, fmt.Errorf("This warning already exists")
@@ -223,7 +222,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 		// Ensure node exists
 		_, err = c.GetNodeByName(object.Node)
 		if err != nil {
-			return -1, errors.Wrap(err, "Failed to get node")
+			return -1, fmt.Errorf("Failed to get node: %w", err)
 		}
 
 		args[0] = object.Node
@@ -233,7 +232,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 		// Ensure project exists
 		projects, err := c.GetProjectNames()
 		if err != nil {
-			return -1, errors.Wrap(err, "Failed to get project names")
+			return -1, fmt.Errorf("Failed to get project names: %w", err)
 		}
 
 		if !shared.StringInSlice(object.Project, projects) {
@@ -266,12 +265,12 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to create warning")
+		return -1, fmt.Errorf("Failed to create warning: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return -1, errors.Wrap(err, "Failed to fetch warning ID")
+		return -1, fmt.Errorf("Failed to fetch warning ID: %w", err)
 	}
 
 	return id, nil
