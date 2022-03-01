@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-02-23 10:25-0500\n"
+"POT-Creation-Date: 2022-03-18 17:58-0400\n"
 "PO-Revision-Date: 2019-01-04 18:07+0000\n"
 "Last-Translator: Deleted User <noreply+12102@weblate.org>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -368,7 +368,7 @@ msgstr ""
 msgid "--no-profiles cannot be used with --refresh"
 msgstr ""
 
-#: lxc/query.go:71
+#: lxc/query.go:72
 msgid "--project cannot be used with the query command"
 msgstr ""
 
@@ -473,7 +473,7 @@ msgstr "Accepter le certificat"
 msgid "Access the expanded configuration"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/query.go:42
+#: lxc/query.go:43
 msgid "Action (defaults to GET)"
 msgstr "Action (GET par défaut)"
 
@@ -555,7 +555,7 @@ msgstr "Architecture : %s"
 msgid "Architecture: %v"
 msgstr "Architecture : %s"
 
-#: lxc/console.go:359
+#: lxc/console.go:370
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
@@ -590,12 +590,12 @@ msgstr "Afficher la configuration étendue"
 msgid "Attach new storage volumes to profiles"
 msgstr ""
 
-#: lxc/console.go:35
+#: lxc/console.go:36
 #, fuzzy
 msgid "Attach to instance consoles"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 
-#: lxc/console.go:36
+#: lxc/console.go:37
 msgid ""
 "Attach to instance consoles\n"
 "\n"
@@ -679,7 +679,7 @@ msgstr "Octets émis"
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:239
+#: lxc/config_trust.go:235
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -789,7 +789,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr "Créé : %s"
 
-#: lxc/config_trust.go:444
+#: lxc/config_trust.go:440
 #, fuzzy, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "Le réseau %s a été supprimé"
@@ -805,7 +805,7 @@ msgstr ""
 msgid "Certificate fingerprint: %s"
 msgstr "Empreinte du certificat : %s"
 
-#: lxc/config_trust.go:158
+#: lxc/config_trust.go:154
 #, fuzzy, c-format
 msgid "Client %s certificate add token: %s"
 msgstr "Impossible d'assainir le chemin %s"
@@ -830,7 +830,7 @@ msgstr ""
 #: lxc/init.go:55 lxc/move.go:58 lxc/network.go:272 lxc/network.go:687
 #: lxc/network.go:745 lxc/network.go:1032 lxc/network.go:1099
 #: lxc/network.go:1161 lxc/storage.go:96 lxc/storage.go:340 lxc/storage.go:401
-#: lxc/storage.go:603 lxc/storage.go:675 lxc/storage.go:758
+#: lxc/storage.go:601 lxc/storage.go:673 lxc/storage.go:756
 #: lxc/storage_volume.go:310 lxc/storage_volume.go:494
 #: lxc/storage_volume.go:571 lxc/storage_volume.go:813
 #: lxc/storage_volume.go:1010 lxc/storage_volume.go:1263
@@ -894,7 +894,7 @@ msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 msgid "Config parsing error: %s"
 msgstr "Erreur lors de la lecture de la configuration : %s"
 
-#: lxc/console.go:143
+#: lxc/console.go:140
 msgid "Console log:"
 msgstr ""
 
@@ -1125,7 +1125,7 @@ msgid "DATABASE"
 msgstr ""
 
 #: lxc/image.go:1015 lxc/image_alias.go:237 lxc/list.go:433 lxc/network.go:885
-#: lxc/operation.go:163 lxc/storage.go:574 lxc/storage_volume.go:1187
+#: lxc/operation.go:163 lxc/storage.go:573 lxc/storage_volume.go:1187
 msgid "DESCRIPTION"
 msgstr "DESCRIPTION"
 
@@ -1133,7 +1133,7 @@ msgstr "DESCRIPTION"
 msgid "DISK USAGE"
 msgstr ""
 
-#: lxc/storage.go:575
+#: lxc/storage.go:574
 msgid "DRIVER"
 msgstr "PILOTE"
 
@@ -1206,8 +1206,8 @@ msgstr "Copie de l'image : %s"
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:29 lxc/config_trust.go:71
-#: lxc/config_trust.go:181 lxc/config_trust.go:260 lxc/config_trust.go:351
-#: lxc/config_trust.go:394 lxc/console.go:36 lxc/copy.go:41 lxc/delete.go:31
+#: lxc/config_trust.go:177 lxc/config_trust.go:256 lxc/config_trust.go:347
+#: lxc/config_trust.go:390 lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31
 #: lxc/exec.go:42 lxc/export.go:32 lxc/file.go:75 lxc/file.go:111
 #: lxc/file.go:160 lxc/file.go:223 lxc/file.go:418 lxc/image.go:38
 #: lxc/image.go:131 lxc/image.go:285 lxc/image.go:336 lxc/image.go:461
@@ -1228,12 +1228,12 @@ msgstr "Copie de l'image : %s"
 #: lxc/profile.go:824 lxc/profile.go:878 lxc/project.go:29 lxc/project.go:89
 #: lxc/project.go:154 lxc/project.go:217 lxc/project.go:337 lxc/project.go:387
 #: lxc/project.go:479 lxc/project.go:534 lxc/project.go:594 lxc/project.go:623
-#: lxc/project.go:676 lxc/publish.go:31 lxc/query.go:32 lxc/remote.go:33
+#: lxc/project.go:676 lxc/publish.go:31 lxc/query.go:33 lxc/remote.go:33
 #: lxc/remote.go:88 lxc/remote.go:571 lxc/remote.go:607 lxc/remote.go:687
 #: lxc/remote.go:749 lxc/remote.go:799 lxc/remote.go:837 lxc/rename.go:21
 #: lxc/restore.go:24 lxc/snapshot.go:28 lxc/storage.go:34 lxc/storage.go:93
 #: lxc/storage.go:167 lxc/storage.go:217 lxc/storage.go:337 lxc/storage.go:397
-#: lxc/storage.go:523 lxc/storage.go:597 lxc/storage.go:671 lxc/storage.go:755
+#: lxc/storage.go:523 lxc/storage.go:595 lxc/storage.go:669 lxc/storage.go:753
 #: lxc/storage_volume.go:39 lxc/storage_volume.go:149 lxc/storage_volume.go:222
 #: lxc/storage_volume.go:306 lxc/storage_volume.go:491
 #: lxc/storage_volume.go:568 lxc/storage_volume.go:644
@@ -1374,7 +1374,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr "ÉPHÉMÈRE"
 
-#: lxc/config_trust.go:241
+#: lxc/config_trust.go:237
 msgid "EXPIRY DATE"
 msgstr "DATE D'EXPIRATION"
 
@@ -1550,12 +1550,12 @@ msgstr "Import de l'image : %s"
 msgid "FILENAME"
 msgstr "NOM"
 
-#: lxc/config_trust.go:238 lxc/image.go:1012 lxc/image.go:1013
+#: lxc/config_trust.go:234 lxc/image.go:1012 lxc/image.go:1013
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "EMPREINTE"
 
-#: lxc/config_trust.go:155
+#: lxc/config_trust.go:151
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
@@ -1671,7 +1671,7 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:95 lxc/cluster.go:624
-#: lxc/config_template.go:241 lxc/config_trust.go:183 lxc/config_trust.go:262
+#: lxc/config_template.go:241 lxc/config_trust.go:179 lxc/config_trust.go:258
 #: lxc/image.go:1002 lxc/image_alias.go:158 lxc/list.go:121 lxc/network.go:826
 #: lxc/network.go:909 lxc/operation.go:107 lxc/profile.go:584
 #: lxc/project.go:389 lxc/remote.go:611 lxc/storage.go:525
@@ -1804,7 +1804,7 @@ msgstr "IPv4"
 msgid "IPV6"
 msgstr "IPv6"
 
-#: lxc/config_trust.go:240
+#: lxc/config_trust.go:236
 msgid "ISSUE DATE"
 msgstr "DATE D'ÉMISSION"
 
@@ -1905,7 +1905,7 @@ msgstr "Ignorer l'état du conteneur (seulement pour start)"
 msgid "Infiniband:"
 msgstr ""
 
-#: lxc/query.go:43
+#: lxc/query.go:44
 msgid "Input data"
 msgstr ""
 
@@ -1938,7 +1938,7 @@ msgstr "Schème d'URL invalide \"%s\" in \"%s\""
 msgid "Invalid argument %q"
 msgstr "Cible invalide %s"
 
-#: lxc/config_trust.go:222
+#: lxc/config_trust.go:218
 msgid "Invalid certificate"
 msgstr "Certificat invalide"
 
@@ -2059,7 +2059,7 @@ msgstr ""
 msgid "LXD - Command line client"
 msgstr ""
 
-#: lxc/console.go:358
+#: lxc/console.go:369
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
@@ -2095,7 +2095,7 @@ msgstr ""
 msgid "List aliases"
 msgstr "Alias :"
 
-#: lxc/config_trust.go:259 lxc/config_trust.go:260
+#: lxc/config_trust.go:255 lxc/config_trust.go:256
 #, fuzzy
 msgid "List all active certificate add tokens"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -2330,7 +2330,7 @@ msgid ""
 "that control which image attributes to output when displaying in table\n"
 "or csv format.\n"
 "\n"
-"Default column layout is: lfpdasu\n"
+"Default column layout is: tndcuL\n"
 "\n"
 "Column shorthand chars:\n"
 "\n"
@@ -2345,7 +2345,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:180 lxc/config_trust.go:181
+#: lxc/config_trust.go:176 lxc/config_trust.go:177
 msgid "List trusted clients"
 msgstr ""
 
@@ -2593,7 +2593,7 @@ msgid "Missing network name"
 msgstr "Nom du réseau"
 
 #: lxc/storage.go:191 lxc/storage.go:261 lxc/storage.go:362 lxc/storage.go:423
-#: lxc/storage.go:626 lxc/storage.go:703 lxc/storage_volume.go:173
+#: lxc/storage.go:624 lxc/storage.go:701 lxc/storage_volume.go:173
 #: lxc/storage_volume.go:246 lxc/storage_volume.go:516
 #: lxc/storage_volume.go:592 lxc/storage_volume.go:668
 #: lxc/storage_volume.go:750 lxc/storage_volume.go:849
@@ -2695,9 +2695,9 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster.go:151 lxc/cluster.go:704 lxc/config_trust.go:332
+#: lxc/cluster.go:151 lxc/cluster.go:704 lxc/config_trust.go:328
 #: lxc/list.go:440 lxc/network.go:882 lxc/profile.go:623 lxc/project.go:458
-#: lxc/remote.go:665 lxc/storage.go:573 lxc/storage_volume.go:1186
+#: lxc/remote.go:665 lxc/storage.go:572 lxc/storage_volume.go:1186
 msgid "NAME"
 msgstr "NOM"
 
@@ -2789,7 +2789,7 @@ msgstr "Nouvel alias à définir sur la cible"
 msgid "New key/value to apply to a specific device"
 msgstr "Clé/valeur de configuration à appliquer au nouveau conteneur"
 
-#: lxc/config_trust.go:451
+#: lxc/config_trust.go:447
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -2928,7 +2928,7 @@ msgstr ""
 msgid "Pid: %d"
 msgstr "Pid : %d"
 
-#: lxc/config_trust.go:115
+#: lxc/config_trust.go:110
 msgid "Please provide client name: "
 msgstr ""
 
@@ -2962,7 +2962,7 @@ msgstr ""
 msgid "Print help"
 msgstr ""
 
-#: lxc/query.go:41
+#: lxc/query.go:42
 msgid "Print the raw response"
 msgstr ""
 
@@ -3107,7 +3107,7 @@ msgstr "Création du conteneur"
 msgid "Pushing %s to %s: %%s"
 msgstr ""
 
-#: lxc/query.go:82
+#: lxc/query.go:83
 msgid "Query path must start with /"
 msgstr ""
 
@@ -3212,7 +3212,7 @@ msgstr "Création du conteneur"
 msgid "Remove remotes"
 msgstr ""
 
-#: lxc/config_trust.go:350 lxc/config_trust.go:351
+#: lxc/config_trust.go:346 lxc/config_trust.go:347
 msgid "Remove trusted clients"
 msgstr ""
 
@@ -3325,7 +3325,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/console.go:43
+#: lxc/console.go:44
 #, fuzzy
 msgid "Retrieve the instance's console log"
 msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
@@ -3335,7 +3335,7 @@ msgstr "Forcer l'arrêt du conteneur (seulement pour stop)"
 msgid "Retrieving image: %s"
 msgstr "Récupération de l'image : %s"
 
-#: lxc/config_trust.go:393 lxc/config_trust.go:394
+#: lxc/config_trust.go:389 lxc/config_trust.go:390
 #, fuzzy
 msgid "Revoke certificate add token"
 msgstr "Un certificat à ajouter n'a pas été fourni"
@@ -3357,7 +3357,7 @@ msgstr "TAILLE"
 msgid "SNAPSHOTS"
 msgstr "INSTANTANÉS"
 
-#: lxc/storage.go:580
+#: lxc/storage.go:577
 msgid "SOURCE"
 msgstr "SOURCE"
 
@@ -3365,7 +3365,7 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:154 lxc/list.go:445 lxc/network.go:889 lxc/storage.go:578
+#: lxc/cluster.go:154 lxc/list.go:445 lxc/network.go:889 lxc/storage.go:579
 msgid "STATE"
 msgstr "ÉTAT"
 
@@ -3387,7 +3387,7 @@ msgstr "ENSEMBLE DE STOCKAGE"
 msgid "STORAGE VOLUMES"
 msgstr "ENSEMBLE DE STOCKAGE"
 
-#: lxc/query.go:31 lxc/query.go:32
+#: lxc/query.go:32 lxc/query.go:33
 msgid "Send a raw query to LXD"
 msgstr ""
 
@@ -3493,12 +3493,12 @@ msgid ""
 "    lxc project set [<remote>:]<project> <key> <value>"
 msgstr ""
 
-#: lxc/storage.go:596
+#: lxc/storage.go:594
 #, fuzzy
 msgid "Set storage pool configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/storage.go:597
+#: lxc/storage.go:595
 msgid ""
 "Set storage pool configuration keys\n"
 "\n"
@@ -3611,7 +3611,7 @@ msgstr "Afficher la configuration étendue"
 msgid "Show project options"
 msgstr "Afficher la configuration étendue"
 
-#: lxc/storage.go:670 lxc/storage.go:671
+#: lxc/storage.go:668 lxc/storage.go:669
 msgid "Show storage pool configurations and resources"
 msgstr ""
 
@@ -3638,7 +3638,7 @@ msgstr "Afficher les 100 dernières lignes du journal du conteneur ?"
 msgid "Show the resources available to the server"
 msgstr ""
 
-#: lxc/storage.go:674
+#: lxc/storage.go:672
 msgid "Show the resources available to the storage pool"
 msgstr ""
 
@@ -3812,7 +3812,7 @@ msgstr "impossible de supprimer le serveur distant par défaut"
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:705 lxc/config_trust.go:333
+#: lxc/cluster.go:705 lxc/config_trust.go:329
 msgid "TOKEN"
 msgstr ""
 
@@ -3829,7 +3829,7 @@ msgstr ""
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/console.go:129
+#: lxc/console.go:126
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
@@ -3946,7 +3946,7 @@ msgstr "Pour attacher un réseau à un conteneur, utiliser : lxc network attach"
 msgid "To create a new network, use: lxc network create"
 msgstr "Pour créer un réseau, utiliser : lxc network create"
 
-#: lxc/console.go:204
+#: lxc/console.go:207
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
@@ -4000,7 +4000,7 @@ msgstr "Transfert de l'image : %s"
 msgid "Try `lxc info --show-log %s` for more info"
 msgstr "Essayer `lxc info --show-log %s` pour plus d'informations"
 
-#: lxc/console.go:44
+#: lxc/console.go:45
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
@@ -4024,7 +4024,7 @@ msgstr "DATE DE PUBLICATION"
 msgid "URL"
 msgstr "URL"
 
-#: lxc/network.go:886 lxc/profile.go:624 lxc/project.go:462 lxc/storage.go:582
+#: lxc/network.go:886 lxc/profile.go:624 lxc/project.go:462 lxc/storage.go:580
 #: lxc/storage_volume.go:1188
 msgid "USED BY"
 msgstr "UTILISÉ PAR"
@@ -4044,7 +4044,7 @@ msgstr ""
 msgid "Unknown column shorthand char '%c' in '%s'"
 msgstr ""
 
-#: lxc/console.go:160
+#: lxc/console.go:157
 #, c-format
 msgid "Unknown console type %q"
 msgstr ""
@@ -4054,7 +4054,7 @@ msgstr ""
 msgid "Unknown file type '%s'"
 msgstr ""
 
-#: lxc/console.go:112
+#: lxc/console.go:109
 #, c-format
 msgid "Unknown output type %q"
 msgstr ""
@@ -4089,7 +4089,7 @@ msgstr "Clé de configuration invalide"
 msgid "Unset project configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/storage.go:754 lxc/storage.go:755
+#: lxc/storage.go:752 lxc/storage.go:753
 #, fuzzy
 msgid "Unset storage pool configuration keys"
 msgstr "Clé de configuration invalide"
@@ -4173,7 +4173,7 @@ msgstr "Créé : %s"
 msgid "WWN: %s"
 msgstr "Nom : %s"
 
-#: lxc/query.go:40
+#: lxc/query.go:41
 msgid "Wait for the operation to complete"
 msgstr ""
 
@@ -4236,8 +4236,8 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster.go:90 lxc/cluster.go:621 lxc/config_trust.go:178
-#: lxc/config_trust.go:258 lxc/monitor.go:31 lxc/network.go:819
+#: lxc/cluster.go:90 lxc/cluster.go:621 lxc/config_trust.go:174
+#: lxc/config_trust.go:254 lxc/monitor.go:31 lxc/network.go:819
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:384
 #: lxc/storage.go:520 lxc/version.go:20
 #, fuzzy
@@ -4260,7 +4260,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config_trust.go:348
+#: lxc/config_trust.go:344
 #, fuzzy
 msgid "[<remote>:] <fingerprint>"
 msgstr ""
@@ -4284,7 +4284,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/config_trust.go:392
+#: lxc/config_trust.go:388
 #, fuzzy
 msgid "[<remote>:] <token>"
 msgstr ""
@@ -4324,7 +4324,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/query.go:30
+#: lxc/query.go:31
 #, fuzzy
 msgid "[<remote>:]<API path>"
 msgstr ""
@@ -4425,7 +4425,7 @@ msgstr ""
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #: lxc/config_device.go:277 lxc/config_device.go:646 lxc/config_metadata.go:53
-#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:34
+#: lxc/config_metadata.go:175 lxc/config_template.go:237 lxc/console.go:35
 #, fuzzy
 msgid "[<remote>:]<instance>"
 msgstr ""
@@ -4746,7 +4746,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/storage.go:164 lxc/storage.go:215 lxc/storage.go:395 lxc/storage.go:669
+#: lxc/storage.go:164 lxc/storage.go:215 lxc/storage.go:395 lxc/storage.go:667
 #: lxc/storage_volume.go:1098
 #, fuzzy
 msgid "[<remote>:]<pool>"
@@ -4763,7 +4763,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/storage.go:335 lxc/storage.go:753
+#: lxc/storage.go:335 lxc/storage.go:751
 #, fuzzy
 msgid "[<remote>:]<pool> <key>"
 msgstr ""
@@ -4771,7 +4771,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/storage.go:595
+#: lxc/storage.go:593
 #, fuzzy
 msgid "[<remote>:]<pool> <key> <value>"
 msgstr ""
@@ -5313,7 +5313,7 @@ msgid ""
 "    Update a project using the content of project.yaml"
 msgstr ""
 
-#: lxc/query.go:34
+#: lxc/query.go:35
 msgid ""
 "lxc query -X DELETE --wait /1.0/instances/c1\n"
 "    Delete local instance \"c1\"."
