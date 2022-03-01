@@ -9,23 +9,28 @@ import (
 	"unsafe"
 )
 
-// ExtractConn tries to extract the underlying net.TCPConn from a tls.Conn.
+// ExtractConn tries to extract the underlying net.TCPConn from a tls.Conn or net.Conn.
 func ExtractConn(conn net.Conn) (*net.TCPConn, error) {
+	var tcpConn *net.TCPConn
+
 	// Go doesn't currently expose the underlying TCP connection of a TLS connection, but we need it in order
 	// to set timeout properties on the connection. We use some reflect/unsafe magic to extract the private
 	// remote.conn field, which is indeed the underlying TCP connection.
 	tlsConn, ok := conn.(*tls.Conn)
-	if !ok {
-		return nil, fmt.Errorf("Connection is not a tls.Conn")
-	}
+	if ok {
+		field := reflect.ValueOf(tlsConn).Elem().FieldByName("conn")
+		field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
+		c := field.Interface()
 
-	field := reflect.ValueOf(tlsConn).Elem().FieldByName("conn")
-	field = reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem()
-	c := field.Interface()
-
-	tcpConn, ok := c.(*net.TCPConn)
-	if !ok {
-		return nil, fmt.Errorf("Connection is not a net.TCPConn")
+		tcpConn, ok = c.(*net.TCPConn)
+		if !ok {
+			return nil, fmt.Errorf("Underlying tls.Conn connection is not a net.TCPConn")
+		}
+	} else {
+		tcpConn, ok = conn.(*net.TCPConn)
+		if !ok {
+			return nil, fmt.Errorf("Connection is not a net.TCPConn")
+		}
 	}
 
 	return tcpConn, nil
