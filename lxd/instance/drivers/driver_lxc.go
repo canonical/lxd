@@ -5523,6 +5523,7 @@ func (d *lxc) FileSFTP() (*sftp.Client, error) {
 	// Get a SFTP client.
 	client, err := sftp.NewClientPipe(conn, conn)
 	if err != nil {
+		conn.Close()
 		return nil, err
 	}
 
