@@ -254,15 +254,10 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	return lxdParseResponse(resp)
 }
 
-func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
-	// Parse the full URI
-	fields, err := neturl.Parse(uri)
-	if err != nil {
-		return "", err
-	}
-
+// setURLQueryAttributes modifies the supplied URL's query string with the client's current target and project.
+func (r *ProtocolLXD) setURLQueryAttributes(apiURL *neturl.URL) {
 	// Extract query fields and update for cluster targeting or project
-	values := fields.Query()
+	values := apiURL.Query()
 	if r.clusterTarget != "" {
 		if values.Get("target") == "" {
 			values.Set("target", r.clusterTarget)
@@ -274,7 +269,18 @@ func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
 			values.Set("project", r.project)
 		}
 	}
-	fields.RawQuery = values.Encode()
+
+	apiURL.RawQuery = values.Encode()
+}
+
+func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
+	// Parse the full URI
+	fields, err := neturl.Parse(uri)
+	if err != nil {
+		return "", err
+	}
+
+	r.setURLQueryAttributes(fields)
 
 	return fields.String(), nil
 }
