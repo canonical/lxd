@@ -75,6 +75,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   mount fstype=sysfs -> /sys/,
   mount options=(rw,nosuid,nodev,noexec,remount) -> /sys/,
 
+  # Handle /run remounts.
+  mount options=(rw,nosuid,nodev,remount) -> /run/,
+
   # Handle tmpfs
   mount fstype=tmpfs,
 
