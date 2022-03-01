@@ -729,7 +729,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 			continue
 		}
 
-		return nil, fmt.Errorf("Invalid option option %q", k)
+		return nil, fmt.Errorf("Invalid option %q", k)
 	}
 
 	// Validate default target address.
@@ -977,7 +977,7 @@ func (n *common) peerValidate(peerName string, peer *api.NetworkPeerPut) error {
 			continue
 		}
 
-		return fmt.Errorf("Invalid option option %q", k)
+		return fmt.Errorf("Invalid option %q", k)
 	}
 
 	return nil
