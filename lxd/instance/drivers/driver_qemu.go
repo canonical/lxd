@@ -71,8 +71,11 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// qemuAsyncIO is used to indicate disk should use unsafe cache I/O.
+// qemuUnsafeIO is used to indicate disk should use unsafe cache I/O.
 const qemuUnsafeIO = "unsafeio"
+
+// qemuDirectIO is used to indicate disk should use direct I/O (and not try to use io_uring).
+const qemuDirectIO = "directio"
 
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
@@ -2875,12 +2878,17 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 		DevPath: mountInfo.DiskPath,
 	}
 
-	// If the storage pool is on ZFS and backed by a loop file and we can't use DirectIO, then resort to
-	// unsafe async I/O to avoid kernel lock up when running ZFS storage pools in an image file on another FS.
+	// Handle loop backed storage pools with limited or missing Direct I/O or io_uring support.
 	driverInfo := pool.Driver().Info()
 	driverConf := pool.Driver().Config()
-	if driverInfo.Name == "zfs" && !driverInfo.DirectIO && shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) {
-		driveConf.Opts = append(driveConf.Opts, qemuUnsafeIO)
+	if shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) {
+		if !driverInfo.DirectIO {
+			// Force unsafe I/O due to lack of direct I/O support.
+			driveConf.Opts = append(driveConf.Opts, qemuUnsafeIO)
+		} else {
+			// Force traditional (non-io_uring) direct I/O as io_uring doesn't work well on loops.
+			driveConf.Opts = append(driveConf.Opts, qemuDirectIO)
+		}
 	}
 
 	return d.addDriveConfig(sb, nil, bootIndexes, driveConf)
@@ -2981,7 +2989,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 	info := drivers[d.Type()]
 
 	// If possible, use io_uring for added performance.
-	if shared.StringInSlice("io_uring", info.Features) {
+	if shared.StringInSlice("io_uring", info.Features) && !shared.StringInSlice(qemuDirectIO, driveConf.Opts) {
 		aioMode = "io_uring"
 	}
 
@@ -5865,7 +5873,7 @@ func (d *qemu) Info() instance.Info {
 		data.Version = "unknown" // Not necessarily an error that should prevent us using driver.
 	}
 
-	// Check IO-uring support.
+	// Check io_uring support.
 	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
 	if err != nil {
 		data.Error = fmt.Errorf("QEMU failed to run a feature check: %w", err)
