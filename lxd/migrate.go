@@ -23,10 +23,10 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
+	"github.com/lxc/lxd/shared/tcp"
 )
 
 type migrationFields struct {
@@ -178,11 +178,11 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 		return err
 	}
 
-	remoteTCP, err := util.ExtractTCPConn(c.UnderlyingConn())
+	remoteTCP, err := tcp.ExtractConn(c.UnderlyingConn())
 	if err != nil {
 		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
 	} else {
-		err := util.SetTCPTimeouts(remoteTCP)
+		err := tcp.SetTimeouts(remoteTCP)
 		if err != nil {
 			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
 		}

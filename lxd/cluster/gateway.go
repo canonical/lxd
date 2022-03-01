@@ -28,6 +28,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
+	"github.com/lxc/lxd/shared/tcp"
 	"github.com/pkg/errors"
 )
 
@@ -994,11 +995,11 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	logger := logging.AddContext(logger.Log, log.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
 	logger.Info("Dqlite connected outbound")
 
-	remoteTCP, err := util.ExtractTCPConn(conn)
+	remoteTCP, err := tcp.ExtractConn(conn)
 	if err != nil {
 		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
 	} else {
-		err := util.SetTCPTimeouts(remoteTCP)
+		err := tcp.SetTimeouts(remoteTCP)
 		if err != nil {
 			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
 		}
@@ -1086,11 +1087,11 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 	logger.Info("Dqlite proxy started")
 	defer logger.Info("Dqlite proxy stopped")
 
-	remoteTCP, err := util.ExtractTCPConn(remote)
+	remoteTCP, err := tcp.ExtractConn(remote)
 	if err != nil {
 		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
 	} else {
-		err := util.SetTCPTimeouts(remoteTCP)
+		err := tcp.SetTimeouts(remoteTCP)
 		if err != nil {
 			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
 		}
