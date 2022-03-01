@@ -67,7 +67,7 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// qemuAsyncIO is used to indicate disk should use unsafe cache I/O.
+// qemuUnsafeIO is used to indicate disk should use unsafe cache I/O.
 const qemuUnsafeIO = "unsafeio"
 
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
