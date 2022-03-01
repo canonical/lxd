@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
@@ -436,7 +435,7 @@ func (d *proxy) setupNAT() error {
 		link := &ip.Link{Name: hostName}
 		err = link.BridgeLinkSetHairpin(true)
 		if err != nil {
-			return errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", hostName)
+			return fmt.Errorf("Error enabling hairpin mode on bridge port %q: %w", hostName, err)
 		}
 	}
 

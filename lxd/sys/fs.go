@@ -4,10 +4,9 @@
 package sys
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 // LocalDatabasePath returns the path of the local database file.
@@ -71,12 +70,12 @@ func (s *OS) initDirs() error {
 		err := os.Mkdir(dir.path, dir.mode)
 		if err != nil {
 			if !os.IsExist(err) {
-				return errors.Wrapf(err, "Failed to init dir %q", dir.path)
+				return fmt.Errorf("Failed to init dir %q: %w", dir.path, err)
 			}
 
 			err = os.Chmod(dir.path, dir.mode)
 			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Failed to chmod dir %q", dir.path)
+				return fmt.Errorf("Failed to chmod dir %q: %w", dir.path, err)
 			}
 		}
 	}
@@ -98,12 +97,12 @@ func (s *OS) initStorageDirs() error {
 		err := os.Mkdir(dir.path, dir.mode)
 		if err != nil {
 			if !os.IsExist(err) {
-				return errors.Wrapf(err, "Failed to init storage dir %q", dir.path)
+				return fmt.Errorf("Failed to init storage dir %q: %w", dir.path, err)
 			}
 
 			err = os.Chmod(dir.path, dir.mode)
 			if err != nil && !os.IsNotExist(err) {
-				return errors.Wrapf(err, "Failed to chmod storage dir %q", dir.path)
+				return fmt.Errorf("Failed to chmod storage dir %q: %w", dir.path, err)
 			}
 		}
 	}

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
@@ -31,7 +29,7 @@ func (d *pci) validateConfig(instConf instance.ConfigReader) error {
 
 	err := d.config.Validate(rules)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to validate config")
+		return fmt.Errorf("Failed to validate config: %w", err)
 	}
 
 	d.config["address"] = pcidev.NormaliseAddress(d.config["address"])
@@ -52,7 +50,7 @@ func (d *pci) validateEnvironment() error {
 func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 	err := d.validateEnvironment()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to validate environment")
+		return nil, fmt.Errorf("Failed to validate environment: %w", err)
 	}
 
 	runConf := deviceConfig.RunConfig{}
@@ -61,7 +59,7 @@ func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 	// Make sure that vfio-pci is loaded.
 	err = util.LoadModule("vfio-pci")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+		return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 	}
 
 	// Get PCI information about the device.
@@ -69,7 +67,7 @@ func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
 	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get PCI device info for %q", pciAddress)
+		return nil, fmt.Errorf("Failed to get PCI device info for %q: %w", pciAddress, err)
 	}
 
 	saveData["last_state.pci.slot.name"] = pciDev.SlotName
@@ -77,7 +75,7 @@ func (d *pci) Start() (*deviceConfig.RunConfig, error) {
 
 	err = pcidev.DeviceDriverOverride(pciDev, "vfio-pci")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to override IOMMU group driver")
+		return nil, fmt.Errorf("Failed to override IOMMU group driver: %w", err)
 	}
 
 	runConf.PCIDevice = append(runConf.PCIDevice,

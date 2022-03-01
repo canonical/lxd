@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 var storagePoolVolumeTypeCustomBackupsCmd = APIEndpoint{
@@ -383,7 +382,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 
 		err := volumeBackupCreate(d.State(), args, projectName, poolName, volumeName)
 		if err != nil {
-			return errors.Wrap(err, "Create volume backup")
+			return fmt.Errorf("Create volume backup: %w", err)
 		}
 
 		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupCreated.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), log.Ctx{"type": volumeTypeName}))

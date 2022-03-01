@@ -1,12 +1,11 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"io"
 	"math/rand"
-
-	"github.com/pkg/errors"
 )
 
 // GetStableRandomGenerator returns a stable random generator. Uses the FNV-1a hash algorithm to convert the seed
@@ -30,7 +29,7 @@ func GetStableRandomInt64FromList(seed int64, list []int64) (int64, error) {
 
 	r, err := GetStableRandomGenerator(fmt.Sprintf("%d", seed))
 	if err != nil {
-		return 0, errors.Wrap(err, "Failed to get stable random generator")
+		return 0, fmt.Errorf("Failed to get stable random generator: %w", err)
 	}
 
 	return list[r.Int63n(int64(len(list)))], nil

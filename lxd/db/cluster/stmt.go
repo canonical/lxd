@@ -2,8 +2,7 @@ package cluster
 
 import (
 	"database/sql"
-
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 // RegisterStmt register a SQL statement.
@@ -26,7 +25,7 @@ func PrepareStmts(db *sql.DB, skipErrors bool) (map[int]*sql.Stmt, error) {
 	for code, sql := range stmts {
 		stmt, err := db.Prepare(sql)
 		if err != nil && !skipErrors {
-			return nil, errors.Wrapf(err, "%q", sql)
+			return nil, fmt.Errorf("%q: %w", sql, err)
 		}
 		index[code] = stmt
 	}

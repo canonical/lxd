@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/osarch"
@@ -164,7 +162,7 @@ func (s *SimpleStreams) parseStream() (*Stream, error) {
 	stream := Stream{}
 	err = json.Unmarshal(body, &stream)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed decoding stream JSON from %q", path)
+		return nil, fmt.Errorf("Failed decoding stream JSON from %q: %w", path, err)
 	}
 
 	s.cachedStream = &stream
@@ -186,7 +184,7 @@ func (s *SimpleStreams) parseProducts(path string) (*Products, error) {
 	products := Products{}
 	err = json.Unmarshal(body, &products)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed decoding products JSON from %q", path)
+		return nil, fmt.Errorf("Failed decoding products JSON from %q: %w", path, err)
 	}
 
 	s.cachedProducts[path] = &products
@@ -284,7 +282,7 @@ func (s *SimpleStreams) getImages() ([]api.Image, []extendedAlias, error) {
 	// Load the stream data
 	stream, err := s.parseStream()
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed parsing stream")
+		return nil, nil, fmt.Errorf("Failed parsing stream: %w", err)
 	}
 
 	// Iterate through the various indices
@@ -301,7 +299,7 @@ func (s *SimpleStreams) getImages() ([]api.Image, []extendedAlias, error) {
 
 		products, err := s.parseProducts(entry.Path)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "Failed parsing products")
+			return nil, nil, fmt.Errorf("Failed parsing products: %w", err)
 		}
 
 		streamImages, _ := products.ToLXD()
@@ -311,7 +309,7 @@ func (s *SimpleStreams) getImages() ([]api.Image, []extendedAlias, error) {
 	// Setup the aliases
 	images, aliases, err := s.applyAliases(images)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Failed applying aliases")
+		return nil, nil, fmt.Errorf("Failed applying aliases: %w", err)
 	}
 
 	s.cachedImages = images

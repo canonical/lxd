@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -246,14 +245,14 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 	// Make sure that vfio-pci is loaded.
 	err = util.LoadModule("vfio-pci")
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+		return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 	}
 
 	// Get PCI information about the GPU device.
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
 	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", pciAddress)
+		return nil, fmt.Errorf("Failed to get PCI device info for GPU %q: %w", pciAddress, err)
 	}
 
 	saveData["last_state.pci.slot.name"] = pciDev.SlotName
@@ -261,7 +260,7 @@ func (d *gpuPhysical) startVM() (*deviceConfig.RunConfig, error) {
 
 	err = d.pciDeviceDriverOverrideIOMMU(pciDev, "vfio-pci", false)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to override IOMMU group driver")
+		return nil, fmt.Errorf("Failed to override IOMMU group driver: %w", err)
 	}
 
 	runConf.GPUDevice = append(runConf.GPUDevice,

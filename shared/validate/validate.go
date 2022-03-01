@@ -12,7 +12,6 @@ import (
 
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 
 	"github.com/lxc/lxd/shared/osarch"
@@ -694,7 +693,7 @@ func IsCron(aliases []string) func(value string) error {
 
 			_, err := cron.ParseStandard(value)
 			if err != nil {
-				return errors.Wrap(err, "Error parsing schedule")
+				return fmt.Errorf("Error parsing schedule: %w", err)
 			}
 
 			return nil

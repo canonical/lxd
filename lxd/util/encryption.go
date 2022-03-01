@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
 
 	"golang.org/x/crypto/scrypt"
 )
@@ -51,7 +50,7 @@ func LoadCert(dir string) (*shared.CertInfo, error) {
 
 	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load TLS certificate")
+		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 	}
 
 	return cert, nil
@@ -65,7 +64,7 @@ func LoadClusterCert(dir string) (*shared.CertInfo, error) {
 
 	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load cluster TLS certificate")
+		return nil, fmt.Errorf("failed to load cluster TLS certificate: %w", err)
 	}
 
 	return cert, nil
@@ -76,7 +75,7 @@ func LoadServerCert(dir string) (*shared.CertInfo, error) {
 	prefix := "server"
 	cert, err := shared.KeyPairAndCA(dir, prefix, shared.CertServer, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load TLS certificate")
+		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 	}
 
 	return cert, nil

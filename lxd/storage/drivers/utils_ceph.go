@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // CephMonitors gets the mon-host field for the relevant cluster and extracts the list of addresses and ports.
@@ -14,7 +12,7 @@ func CephMonitors(cluster string) ([]string, error) {
 	// Open the CEPH configuration.
 	cephConf, err := os.Open(fmt.Sprintf("/etc/ceph/%s.conf", cluster))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to open %q", fmt.Sprintf("/etc/ceph/%s.conf", cluster))
+		return nil, fmt.Errorf("Failed to open %q: %w", fmt.Sprintf("/etc/ceph/%s.conf", cluster), err)
 	}
 
 	// Locate the mon-host key and its values.
@@ -86,7 +84,7 @@ func CephKeyring(cluster string, client string) (string, error) {
 	// Open the CEPH keyring.
 	cephKeyring, err := os.Open(fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client))
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to open %q", fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client))
+		return "", fmt.Errorf("Failed to open %q: %w", fmt.Sprintf("/etc/ceph/%v.client.%v.keyring", cluster, client), err)
 	}
 
 	// Locate the keyring entry and its value.

@@ -5,11 +5,10 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
@@ -243,7 +242,7 @@ func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 	values := []interface{}{poolID, nodeID, storagePoolCreated}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
-		return errors.Wrap(err, "failed to add storage pools node entry")
+		return fmt.Errorf("failed to add storage pools node entry: %w", err)
 	}
 
 	return nil
@@ -257,7 +256,7 @@ func (c *ClusterTx) UpdateCephStoragePoolAfterNodeJoin(poolID, nodeID int64) err
 	stmt := "SELECT node_id FROM storage_pools_nodes WHERE storage_pool_id=?"
 	nodeIDs, err := query.SelectIntegers(c.tx, stmt, poolID)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch IDs of nodes with ceph pool")
+		return fmt.Errorf("failed to fetch IDs of nodes with ceph pool: %w", err)
 	}
 	if len(nodeIDs) == 0 {
 		return fmt.Errorf("ceph pool is not linked to any node")
@@ -271,7 +270,7 @@ INSERT INTO storage_volumes(name, storage_pool_id, node_id, type, description, p
     FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 `, nodeID, poolID, otherNodeID)
 	if err != nil {
-		return errors.Wrap(err, "failed to create node ceph volumes")
+		return fmt.Errorf("failed to create node ceph volumes: %w", err)
 	}
 
 	// Create entries of all the ceph volumes configs for the new node.
@@ -281,11 +280,11 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 `
 	volumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, nodeID)
 	if err != nil {
-		return errors.Wrap(err, "failed to get joining node's ceph volume IDs")
+		return fmt.Errorf("failed to get joining node's ceph volume IDs: %w", err)
 	}
 	otherVolumeIDs, err := query.SelectIntegers(c.tx, stmt, poolID, otherNodeID)
 	if err != nil {
-		return errors.Wrap(err, "failed to get other node's ceph volume IDs")
+		return fmt.Errorf("failed to get other node's ceph volume IDs: %w", err)
 	}
 	if len(volumeIDs) != len(otherVolumeIDs) { // Quick check.
 		return fmt.Errorf("not all ceph volumes were copied")
@@ -295,14 +294,14 @@ SELECT id FROM storage_volumes WHERE storage_pool_id=? AND node_id=?
 		config, err := query.SelectConfig(
 			c.tx, "storage_volumes_config", "storage_volume_id=?", otherVolumeID)
 		if err != nil {
-			return errors.Wrap(err, "failed to get storage volume config")
+			return fmt.Errorf("failed to get storage volume config: %w", err)
 		}
 		for key, value := range config {
 			_, err := c.tx.Exec(`
 INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?)
 `, volumeID, key, value)
 			if err != nil {
-				return errors.Wrap(err, "failed to copy volume config")
+				return fmt.Errorf("failed to copy volume config: %w", err)
 			}
 		}
 
@@ -318,12 +317,12 @@ INSERT INTO storage_volumes_config(storage_volume_id, key, value) VALUES(?, ?, ?
 			var snapshotID int64
 			_, err := c.tx.Exec("UPDATE sqlite_sequence SET seq = seq + 1 WHERE name = 'storage_volumes'")
 			if err != nil {
-				return errors.Wrap(err, "Increment storage volumes sequence")
+				return fmt.Errorf("Increment storage volumes sequence: %w", err)
 			}
 			row := c.tx.QueryRow("SELECT seq FROM sqlite_sequence WHERE name = 'storage_volumes' LIMIT 1")
 			err = row.Scan(&snapshotID)
 			if err != nil {
-				return errors.Wrap(err, "Fetch next storage volume ID")
+				return fmt.Errorf("Fetch next storage volume ID: %w", err)
 			}
 
 			_, err = c.tx.Exec(`
@@ -332,7 +331,7 @@ SELECT ?, ?, name, description
   FROM storage_volumes_snapshots WHERE id=?
 `, snapshotID, volumeID, otherSnapshotID)
 			if err != nil {
-				return errors.Wrap(err, "Copy volume snapshot")
+				return fmt.Errorf("Copy volume snapshot: %w", err)
 			}
 
 			_, err = c.tx.Exec(`
@@ -342,7 +341,7 @@ SELECT ?, key, value
  WHERE storage_volume_snapshot_id=?
 `, snapshotID, otherSnapshotID)
 			if err != nil {
-				return errors.Wrap(err, "Copy volume snapshot config")
+				return fmt.Errorf("Copy volume snapshot config: %w", err)
 			}
 		}
 	}

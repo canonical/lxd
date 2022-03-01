@@ -1,12 +1,12 @@
 package resources
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
@@ -30,14 +30,14 @@ func GetUSB() (*api.ResourcesUSB, error) {
 	// List all USB devices
 	entries, err := ioutil.ReadDir(sysBusUSB)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list %q", sysBusUSB)
+		return nil, fmt.Errorf("Failed to list %q: %w", sysBusUSB, err)
 	}
 
 	// Get uname for driver version
 	uname := unix.Utsname{}
 	err = unix.Uname(&uname)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get uname")
+		return nil, fmt.Errorf("Failed to get uname: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -53,12 +53,12 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		if sysfsExists(devClassFile) {
 			content, err := ioutil.ReadFile(devClassFile)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", devClassFile)
+				return nil, fmt.Errorf("Failed to read %q: %w", devClassFile, err)
 			}
 
 			devClass, err := strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse device class %q", content)
+				return nil, fmt.Errorf("Failed to parse device class %q: %w", content, err)
 			}
 
 			// Skip USB hubs
@@ -72,13 +72,13 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		// Get bus address
 		device.BusAddress, err = readUint(filepath.Join(devicePath, "busnum"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(devicePath, "busnum"))
+			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "busnum"), err)
 		}
 
 		// Get device address
 		device.DeviceAddress, err = readUint(filepath.Join(devicePath, "devnum"))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(devicePath, "devnum"))
+			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "devnum"), err)
 		}
 
 		// Get product ID
@@ -88,14 +88,14 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		if sysfsExists(deviceProductIDPath) {
 			content, err := ioutil.ReadFile(deviceProductIDPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", deviceProductIDPath)
+				return nil, fmt.Errorf("Failed to read %q: %w", deviceProductIDPath, err)
 			}
 
 			device.ProductID = strings.TrimPrefix(strings.TrimSpace(string(content)), "0x")
 
 			productID, err = strconv.ParseUint(device.ProductID, 16, 64)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse product ID %q", device.ProductID)
+				return nil, fmt.Errorf("Failed to parse product ID %q: %w", device.ProductID, err)
 			}
 		}
 
@@ -106,14 +106,14 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		if sysfsExists(deviceVendorIDPath) {
 			content, err := ioutil.ReadFile(deviceVendorIDPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", deviceVendorIDPath)
+				return nil, fmt.Errorf("Failed to read %q: %w", deviceVendorIDPath, err)
 			}
 
 			device.VendorID = strings.TrimPrefix(strings.TrimSpace(string(content)), "0x")
 
 			vendorID, err = strconv.ParseUint(device.VendorID, 16, 64)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse vendor ID %q", device.VendorID)
+				return nil, fmt.Errorf("Failed to parse vendor ID %q: %w", device.VendorID, err)
 			}
 		}
 
@@ -122,7 +122,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		if sysfsExists(deviceProductPath) {
 			content, err := ioutil.ReadFile(deviceProductPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", deviceProductPath)
+				return nil, fmt.Errorf("Failed to read %q: %w", deviceProductPath, err)
 			}
 
 			device.Product = strings.TrimSpace(string(content))
@@ -146,19 +146,19 @@ func GetUSB() (*api.ResourcesUSB, error) {
 		if sysfsExists(deviceSpeedPath) {
 			content, err := ioutil.ReadFile(deviceSpeedPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", deviceSpeedPath)
+				return nil, fmt.Errorf("Failed to read %q: %w", deviceSpeedPath, err)
 			}
 
 			device.Speed, err = strconv.ParseFloat(strings.TrimSpace(string(content)), 64)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse speed %q", content)
+				return nil, fmt.Errorf("Failed to parse speed %q: %w", content, err)
 			}
 		}
 
 		// List USB interfaces
 		subEntries, err := ioutil.ReadDir(devicePath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to list %q", devicePath)
+			return nil, fmt.Errorf("Failed to list %q: %w", devicePath, err)
 		}
 
 		for _, subEntry := range subEntries {
@@ -179,12 +179,12 @@ func GetUSB() (*api.ResourcesUSB, error) {
 			if sysfsExists(interfaceClassPath) {
 				content, err := ioutil.ReadFile(interfaceClassPath)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", interfaceClassPath)
+					return nil, fmt.Errorf("Failed to read %q: %w", interfaceClassPath, err)
 				}
 
 				iface.ClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to parse class ID %q", content)
+					return nil, fmt.Errorf("Failed to parse class ID %q: %w", content, err)
 				}
 
 				var ok bool
@@ -200,12 +200,12 @@ func GetUSB() (*api.ResourcesUSB, error) {
 			if sysfsExists(interfaceSubClassPath) {
 				content, err := ioutil.ReadFile(interfaceSubClassPath)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", interfaceSubClassPath)
+					return nil, fmt.Errorf("Failed to read %q: %w", interfaceSubClassPath, err)
 				}
 
 				iface.SubClassID, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to parse subclass ID %q", content)
+					return nil, fmt.Errorf("Failed to parse subclass ID %q: %w", content, err)
 				}
 
 				if iface.SubClassID > 0 && class != nil {
@@ -221,12 +221,12 @@ func GetUSB() (*api.ResourcesUSB, error) {
 			if sysfsExists(interfaceNumber) {
 				content, err := ioutil.ReadFile(interfaceNumber)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to read %q", interfaceNumber)
+					return nil, fmt.Errorf("Failed to read %q: %w", interfaceNumber, err)
 				}
 
 				iface.Number, err = strconv.ParseUint(strings.TrimSpace(string(content)), 16, 64)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to parse interface number %q", content)
+					return nil, fmt.Errorf("Failed to parse interface number %q: %w", content, err)
 				}
 			}
 
@@ -235,7 +235,7 @@ func GetUSB() (*api.ResourcesUSB, error) {
 			if sysfsExists(driverPath) {
 				linkTarget, err := filepath.EvalSymlinks(driverPath)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to get driver of %q", subDevicePath)
+					return nil, fmt.Errorf("Failed to get driver of %q: %w", subDevicePath, err)
 				}
 
 				iface.Driver = filepath.Base(linkTarget)

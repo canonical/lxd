@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -353,12 +352,12 @@ func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 
 	db, _, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open local database")
+		return fmt.Errorf("Failed to open local database: %w", err)
 	}
 
 	addresses, err := cluster.ListDatabaseNodes(db)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get database nodes")
+		return fmt.Errorf("Failed to get database nodes: %w", err)
 	}
 
 	columns := []string{"Address"}
@@ -407,7 +406,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 
 	db, _, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open local database")
+		return fmt.Errorf("Failed to open local database: %w", err)
 	}
 
 	return cluster.Recover(db)
@@ -476,7 +475,7 @@ func (c *cmdClusterRemoveRaftNode) Run(cmd *cobra.Command, args []string) error 
 
 	client, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to connect to LXD daemon")
+		return fmt.Errorf("Failed to connect to LXD daemon: %w", err)
 	}
 
 	endpoint := fmt.Sprintf("/internal/cluster/raft-node/%s", address)

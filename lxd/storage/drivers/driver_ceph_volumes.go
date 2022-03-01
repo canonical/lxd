@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -673,7 +672,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		_, err = d.deleteVolume(vol)
 		if err != nil {
-			return errors.Wrap(err, "Failed to delete volume")
+			return fmt.Errorf("Failed to delete volume: %w", err)
 		}
 	}
 
@@ -696,7 +695,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "Failed to remove '%s'", mountPath)
+			return fmt.Errorf("Failed to remove '%s': %w", mountPath, err)
 		}
 	}
 
@@ -883,7 +882,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 
 	oldSizeBytes, err := BlockDiskSizeBytes(devPath)
 	if err != nil {
-		return errors.Wrapf(err, "Error getting current size")
+		return fmt.Errorf("Error getting current size: %w", err)
 	}
 
 	// Do nothing if volume is already specified size (+/- 512 bytes).
@@ -906,7 +905,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 
 		if sizeBytes < oldSizeBytes {
 			if !filesystemTypeCanBeShrunk(fsType) {
-				return errors.Wrapf(ErrCannotBeShrunk, "Filesystem %q cannot be shrunk", fsType)
+				return fmt.Errorf("Filesystem %q cannot be shrunk: %w", fsType, ErrCannotBeShrunk)
 			}
 
 			if inUse {
@@ -943,7 +942,7 @@ func (d *ceph) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, o
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
 		if !allowUnsafeResize {
 			if sizeBytes < oldSizeBytes {
-				return errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
+				return fmt.Errorf("Block volumes cannot be shrunk: %w", ErrCannotBeShrunk)
 			}
 
 			if inUse {
@@ -1063,7 +1062,7 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 
 	err = cmd.Wait()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting volume list: %v", strings.TrimSpace(string(errMsg)))
+		return nil, fmt.Errorf("Failed getting volume list: %v: %w", strings.TrimSpace(string(errMsg)), err)
 	}
 
 	volList := make([]Volume, len(vols))
@@ -1104,7 +1103,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 			if vol.mountFilesystemProbe {
 				fsType, err = fsProbe(volDevPath)
 				if err != nil {
-					return errors.Wrapf(err, "Failed probing filesystem")
+					return fmt.Errorf("Failed probing filesystem: %w", err)
 				}
 			}
 
@@ -1455,7 +1454,7 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 
 	_, err = d.deleteVolumeSnapshot(parentVol, snapshotName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete volume snapshot")
+		return fmt.Errorf("Failed to delete volume snapshot: %w", err)
 	}
 
 	mountPath := snapVol.MountPath()
@@ -1468,7 +1467,7 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 
 		err = os.Remove(mountPath)
 		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "Failed to remove '%s'", mountPath)
+			return fmt.Errorf("Failed to remove '%s': %w", mountPath, err)
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/archive"
@@ -321,7 +321,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 		// as part of the operation below.
 		inst, instOp, err = instance.CreateInternal(d.State(), args, true, nil, revert)
 		if err != nil {
-			return response.InternalError(errors.Wrap(err, "Failed creating instance record"))
+			return response.InternalError(fmt.Errorf("Failed creating instance record: %w", err))
 		}
 		defer instOp.Done(err)
 	}
@@ -466,7 +466,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 			_, pool, _, err := d.cluster.GetStoragePoolInAnyState(sourcePoolName)
 			if err != nil {
-				err = errors.Wrap(err, "Failed to fetch instance's pool info")
+				err = fmt.Errorf("Failed to fetch instance's pool info: %w", err)
 				return response.SmartError(err)
 			}
 
@@ -675,23 +675,23 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 
 	// Check storage pool exists.
 	_, _, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
-	if errors.Cause(err) == db.ErrNoSuchObject {
+	if errors.Unwrap(err) == db.ErrNoSuchObject {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
 		// the backup then we cannot proceed so return an error.
 		if *bInfo.OptimizedStorage || pool != "" {
-			return response.InternalError(errors.Wrap(err, "Storage pool not found"))
+			return response.InternalError(fmt.Errorf("Storage pool not found: %w", err))
 		}
 
 		// Otherwise try and restore to the project's default profile pool.
 		_, profile, err := d.State().Cluster.GetProfile(bInfo.Project, "default")
 		if err != nil {
-			return response.InternalError(errors.Wrap(err, "Failed to get default profile"))
+			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
 		}
 
 		_, v, err := shared.GetRootDiskDevice(profile.Devices)
 		if err != nil {
-			return response.InternalError(errors.Wrap(err, "Failed to get root disk device"))
+			return response.InternalError(fmt.Errorf("Failed to get root disk device: %w", err))
 		}
 
 		// Use the default-profile's root pool.
@@ -724,18 +724,18 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		// process fails that will remove anything created thus far.
 		postHook, revertHook, err := pool.CreateInstanceFromBackup(*bInfo, backupFile, nil)
 		if err != nil {
-			return errors.Wrap(err, "Create instance from backup")
+			return fmt.Errorf("Create instance from backup: %w", err)
 		}
 		runRevert.Add(revertHook)
 
 		err = internalImportFromBackup(d, bInfo.Project, bInfo.Name, true, instanceName != "")
 		if err != nil {
-			return errors.Wrapf(err, "Failed importing backup")
+			return fmt.Errorf("Failed importing backup: %w", err)
 		}
 
 		inst, err := instance.LoadByProjectAndName(d.State(), bInfo.Project, bInfo.Name)
 		if err != nil {
-			return errors.Wrap(err, "Load instance")
+			return fmt.Errorf("Load instance: %w", err)
 		}
 
 		// Clean up created instance if the post hook fails below.
@@ -746,7 +746,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		if postHook != nil {
 			err = postHook(inst)
 			if err != nil {
-				return errors.Wrap(err, "Post hook failed")
+				return fmt.Errorf("Post hook failed: %w", err)
 			}
 		}
 
@@ -855,7 +855,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 	// Check if clustered.
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
-		return response.InternalError(errors.Wrap(err, "Failed to check for cluster state"))
+		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
 	if clustered && (targetNode == "" || strings.HasPrefix(targetNode, "@")) {
@@ -1024,7 +1024,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 
 				source, err := instance.LoadInstanceDatabaseObject(tx, req.Source.Project, req.Source.Source)
 				if err != nil {
-					return errors.Wrap(err, "Load source instance from database")
+					return fmt.Errorf("Load source instance from database: %w", err)
 				}
 
 				req.Type = api.InstanceType(source.Type.String())
@@ -1147,7 +1147,7 @@ func clusterCopyContainerInternal(d *Daemon, r *http.Request, source instance.In
 		// Load source node.
 		nodeAddress, err = tx.GetNodeAddressOfInstance(projectName, name, db.InstanceTypeFilter(source.Type()))
 		if err != nil {
-			return errors.Wrap(err, "Failed to get address of instance's member")
+			return fmt.Errorf("Failed to get address of instance's member: %w", err)
 		}
 
 		return nil

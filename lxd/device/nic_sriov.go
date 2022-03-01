@@ -3,8 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -63,7 +61,7 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 		// project.Default is used here as macvlan networks don't suppprt projects.
 		n, err := network.LoadByName(d.state, project.Default, d.config["network"])
 		if err != nil {
-			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
 		if n.Status() != api.NetworkStatusCreated {
@@ -134,7 +132,7 @@ func (d *nicSRIOV) Start() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM {
 		err = util.LoadModule("vfio-pci")
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+			return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 		}
 	}
 

@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -595,13 +593,13 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 			var err error
 			allowedIDMapHostUIDs, err = parseHostIDMapRange(true, false, restrictionValue)
 			if err != nil {
-				return fmt.Errorf(`Failed parsing "restricted.idmap.uid": %w`, err)
+				return fmt.Errorf("Failed parsing %q: %w", "restricted.idmap.uid", err)
 			}
 		case "restricted.idmap.gid":
 			var err error
 			allowedIDMapHostGIDs, err = parseHostIDMapRange(false, true, restrictionValue)
 			if err != nil {
-				return fmt.Errorf(`Failed parsing "restricted.idmap.uid": %w`, err)
+				return fmt.Errorf("Failed parsing %q: %w", "restricted.idmap.uid", err)
 			}
 		}
 	}
@@ -937,7 +935,7 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 
 			err := checkRestrictions(project, info.Instances, info.Profiles)
 			if err != nil {
-				return errors.Wrapf(err, "Conflict detected when changing %q in project %q", key, projectName)
+				return fmt.Errorf("Conflict detected when changing %q in project %q: %w", key, projectName, err)
 			}
 
 			continue
@@ -947,14 +945,14 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 		case "limits.instances":
 			err := validateTotalInstanceCountLimit(info.Instances, config[key], projectName)
 			if err != nil {
-				return errors.Wrapf(err, "Can't change limits.instances in project %q", projectName)
+				return fmt.Errorf("Can't change limits.instances in project %q: %w", projectName, err)
 			}
 		case "limits.containers":
 			fallthrough
 		case "limits.virtual-machines":
 			err := validateInstanceCountLimit(info.Instances, key, config[key], projectName)
 			if err != nil {
-				return errors.Wrapf(err, "Can't change %q in project %q", key, projectName)
+				return fmt.Errorf("Can't change %q in project %q: %w", key, projectName, err)
 			}
 		case "limits.processes":
 			fallthrough
@@ -1054,7 +1052,7 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 	parser := aggregateLimitConfigValueParsers[key]
 	limit, err := parser(value)
 	if err != nil {
-		errors.Wrapf(err, "Invalid value '%s' for limit %s", value, key)
+		return fmt.Errorf("Invalid value '%s' for limit %s: %w", value, key, err)
 	}
 
 	total := totals[key]
@@ -1099,7 +1097,7 @@ type projectInfo struct {
 func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
 	project, err := tx.GetProject(projectName)
 	if err != nil {
-		return nil, errors.Wrap(err, "Fetch project database object")
+		return nil, fmt.Errorf("Fetch project database object: %w", err)
 	}
 
 	if skipIfNoLimits && !projectHasLimitsOrRestrictions(project) {
@@ -1120,19 +1118,19 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 
 	profiles, err := tx.GetProfiles(profilesFilter)
 	if err != nil {
-		return nil, errors.Wrap(err, "Fetch profiles from database")
+		return nil, fmt.Errorf("Fetch profiles from database: %w", err)
 	}
 
 	instances, err := tx.GetInstances(db.InstanceFilter{
 		Project: &projectName,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "Fetch project instances from database")
+		return nil, fmt.Errorf("Fetch project instances from database: %w", err)
 	}
 
 	volumes, err := tx.GetCustomVolumesInProject(projectName)
 	if err != nil {
-		return nil, errors.Wrap(err, "Fetch project custom volumes from database")
+		return nil, fmt.Errorf("Fetch project custom volumes from database: %w", err)
 	}
 
 	info := &projectInfo{
@@ -1203,9 +1201,9 @@ func getTotalsAcrossProjectEntities(info *projectInfo, keys []string, skipUnset 
 
 				limit, err := units.ParseByteSizeString(value)
 				if err != nil {
-					return nil, errors.Wrapf(
-						err, "Parse 'size' for custom volume %s in project %s",
-						volume.Name, info.Project.Name)
+					return nil, fmt.Errorf(
+						"Parse 'size' for custom volume %s in project %s: %w",
+						volume.Name, info.Project.Name, err)
 				}
 				totals[key] += limit
 			}

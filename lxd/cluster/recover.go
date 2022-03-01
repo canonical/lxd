@@ -12,7 +12,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
-	"github.com/pkg/errors"
 )
 
 // ListDatabaseNodes returns a list of database node names.
@@ -24,7 +23,7 @@ func ListDatabaseNodes(database *db.Node) ([]string, error) {
 		return err
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list database nodes")
+		return nil, fmt.Errorf("Failed to list database nodes: %w", err)
 	}
 	addresses := make([]string, 0)
 	for _, node := range nodes {
@@ -46,7 +45,7 @@ func Recover(database *db.Node) error {
 		return err
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to determine node role")
+		return fmt.Errorf("Failed to determine node role: %w", err)
 	}
 
 	// If we're not a database node, return an error.
@@ -67,7 +66,7 @@ func Recover(database *db.Node) error {
 		dir,
 	)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create dqlite server")
+		return fmt.Errorf("Failed to create dqlite server: %w", err)
 	}
 
 	cluster := []dqlite.NodeInfo{
@@ -76,7 +75,7 @@ func Recover(database *db.Node) error {
 
 	err = server.Recover(cluster)
 	if err != nil {
-		return errors.Wrap(err, "Failed to recover database state")
+		return fmt.Errorf("Failed to recover database state: %w", err)
 	}
 
 	// Update the list of raft nodes.
@@ -94,7 +93,7 @@ func Recover(database *db.Node) error {
 		return tx.ReplaceRaftNodes(nodes)
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to update database nodes")
+		return fmt.Errorf("Failed to update database nodes: %w", err)
 	}
 
 	return nil
@@ -118,7 +117,7 @@ func updateLocalAddress(database *db.Node, address string) error {
 		return nil
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to update node configuration")
+		return fmt.Errorf("Failed to update node configuration: %w", err)
 	}
 
 	return nil
@@ -166,7 +165,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 	// Replace cluster configuration in dqlite.
 	err = dqlite.ReconfigureMembershipExt(dir, nodes)
 	if err != nil {
-		return errors.Wrap(err, "Failed to recover database state")
+		return fmt.Errorf("Failed to recover database state: %w", err)
 	}
 
 	// Replace cluster configuration in local raft_nodes database.
@@ -204,7 +203,7 @@ func Reconfigure(database *db.Node, raftNodes []db.RaftNode) error {
 func RemoveRaftNode(gateway *Gateway, address string) error {
 	nodes, err := gateway.currentRaftNodes()
 	if err != nil {
-		return errors.Wrap(err, "Failed to get current raft nodes")
+		return fmt.Errorf("Failed to get current raft nodes: %w", err)
 	}
 	var id uint64
 	for _, node := range nodes {
@@ -225,12 +224,12 @@ func RemoveRaftNode(gateway *Gateway, address string) error {
 		client.WithLogFunc(DqliteLog),
 	)
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to cluster leader")
+		return fmt.Errorf("Failed to connect to cluster leader: %w", err)
 	}
 	defer client.Close()
 	err = client.Remove(ctx, id)
 	if err != nil {
-		return errors.Wrap(err, "Failed to remove node")
+		return fmt.Errorf("Failed to remove node: %w", err)
 	}
 	return nil
 }

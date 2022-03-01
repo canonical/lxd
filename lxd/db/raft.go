@@ -8,7 +8,6 @@ import (
 
 	"github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db/query"
-	"github.com/pkg/errors"
 )
 
 // RaftNode holds information about a single node in the dqlite raft cluster.
@@ -46,7 +45,7 @@ func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	defer stmt.Close()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch raft nodes")
+		return nil, fmt.Errorf("Failed to fetch raft nodes: %w", err)
 	}
 	return nodes, nil
 }

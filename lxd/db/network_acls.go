@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
@@ -103,7 +101,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 
 		err = networkACLConfig(tx, id, &acl)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading config")
+			return fmt.Errorf("Failed loading config: %w", err)
 		}
 
 		return nil
@@ -120,7 +118,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 	if ingressJSON != "" {
 		err = json.Unmarshal([]byte(ingressJSON), &acl.Ingress)
 		if err != nil {
-			return -1, nil, errors.Wrapf(err, "Failed unmarshalling ingress rules")
+			return -1, nil, fmt.Errorf("Failed unmarshalling ingress rules: %w", err)
 		}
 	}
 
@@ -128,7 +126,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 	if egressJSON != "" {
 		err = json.Unmarshal([]byte(egressJSON), &acl.Egress)
 		if err != nil {
-			return -1, nil, errors.Wrapf(err, "Failed unmarshalling egress rules")
+			return -1, nil, fmt.Errorf("Failed unmarshalling egress rules: %w", err)
 		}
 	}
 
@@ -193,14 +191,14 @@ func (c *Cluster) CreateNetworkACL(projectName string, info *api.NetworkACLsPost
 	if info.Ingress != nil {
 		ingressJSON, err = json.Marshal(info.Ingress)
 		if err != nil {
-			return -1, errors.Wrapf(err, "Failed marshalling ingress rules")
+			return -1, fmt.Errorf("Failed marshalling ingress rules: %w", err)
 		}
 	}
 
 	if info.Egress != nil {
 		egressJSON, err = json.Marshal(info.Egress)
 		if err != nil {
-			return -1, errors.Wrapf(err, "Failed marshalling egress rules")
+			return -1, fmt.Errorf("Failed marshalling egress rules: %w", err)
 		}
 	}
 
@@ -249,7 +247,7 @@ func networkACLConfigAdd(tx *sql.Tx, id int64, config map[string]string) error {
 
 		_, err = stmt.Exec(id, k, v)
 		if err != nil {
-			return errors.Wrapf(err, "Failed inserting config")
+			return fmt.Errorf("Failed inserting config: %w", err)
 		}
 	}
 
@@ -264,14 +262,14 @@ func (c *Cluster) UpdateNetworkACL(id int64, config *api.NetworkACLPut) error {
 	if config.Ingress != nil {
 		ingressJSON, err = json.Marshal(config.Ingress)
 		if err != nil {
-			return errors.Wrapf(err, "Failed marshalling ingress rules")
+			return fmt.Errorf("Failed marshalling ingress rules: %w", err)
 		}
 	}
 
 	if config.Egress != nil {
 		egressJSON, err = json.Marshal(config.Egress)
 		if err != nil {
-			return errors.Wrapf(err, "Failed marshalling egress rules")
+			return fmt.Errorf("Failed marshalling egress rules: %w", err)
 		}
 	}
 

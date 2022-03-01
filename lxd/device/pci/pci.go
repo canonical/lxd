@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
@@ -66,7 +64,7 @@ func DeviceUnbind(pciDev Device) error {
 	err := ioutil.WriteFile(driverUnbindPath, []byte(pciDev.SlotName), 0600)
 	if err != nil {
 		if !os.IsNotExist(err) || !shared.PathExists(fmt.Sprintf("/sys/bus/pci/devices/%s/", pciDev.SlotName)) {
-			return errors.Wrapf(err, "Failed unbinding device %q via %q", pciDev.SlotName, driverUnbindPath)
+			return fmt.Errorf("Failed unbinding device %q via %q: %w", pciDev.SlotName, driverUnbindPath, err)
 		}
 	}
 
@@ -80,7 +78,7 @@ func DeviceSetDriverOverride(pciDev Device, driverOverride string) error {
 	// The "\n" at end is important to allow the driver override to be cleared by passing "" in.
 	err := ioutil.WriteFile(overridePath, []byte(fmt.Sprintf("%s\n", driverOverride)), 0600)
 	if err != nil {
-		return errors.Wrapf(err, "Failed setting driver override %q for device %q via %q", driverOverride, pciDev.SlotName, overridePath)
+		return fmt.Errorf("Failed setting driver override %q for device %q via %q: %w", driverOverride, pciDev.SlotName, overridePath, err)
 	}
 
 	return nil
@@ -91,7 +89,7 @@ func DeviceProbe(pciDev Device) error {
 	driveProbePath := "/sys/bus/pci/drivers_probe"
 	err := ioutil.WriteFile(driveProbePath, []byte(pciDev.SlotName), 0600)
 	if err != nil {
-		return errors.Wrapf(err, "Failed probing device %q via %q", pciDev.SlotName, driveProbePath)
+		return fmt.Errorf("Failed probing device %q via %q: %w", pciDev.SlotName, driveProbePath, err)
 	}
 
 	return nil
@@ -191,7 +189,7 @@ func DeviceIOMMUGroup(slotName string) (uint64, error) {
 	iommuGroupStr := filepath.Base(iommuGroupPath)
 	iommuGroup, err := strconv.ParseUint(iommuGroupStr, 10, 64)
 	if err != nil {
-		return 0, errors.Wrapf(err, "Failed to parse %q", iommuGroupStr)
+		return 0, fmt.Errorf("Failed to parse %q: %w", iommuGroupStr, err)
 	}
 
 	return iommuGroup, nil

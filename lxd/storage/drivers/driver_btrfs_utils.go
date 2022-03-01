@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
@@ -153,7 +152,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 
 	err := d.setSubvolumeReadonlyProperty(rootPath, false)
 	if err != nil {
-		return errors.Wrapf(err, "Failed setting subvolume writable %q", rootPath)
+		return fmt.Errorf("Failed setting subvolume writable %q: %w", rootPath, err)
 	}
 
 	// Attempt to delete the root subvol itself (short path).
@@ -176,7 +175,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 			subSubVolPath := filepath.Join(rootPath, subSubVol)
 			err = d.setSubvolumeReadonlyProperty(subSubVolPath, false)
 			if err != nil {
-				return errors.Wrapf(err, "Failed setting subvolume writable %q", subSubVolPath)
+				return fmt.Errorf("Failed setting subvolume writable %q: %w", subSubVolPath, err)
 			}
 		}
 
@@ -186,7 +185,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 			subSubVolPath := filepath.Join(rootPath, subSubVol)
 			err := destroy(subSubVolPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed deleting subvolume %q", subSubVolPath)
+				return fmt.Errorf("Failed deleting subvolume %q: %w", subSubVolPath, err)
 			}
 		}
 	}
@@ -194,7 +193,7 @@ func (d *btrfs) deleteSubvolume(rootPath string, recursion bool) error {
 	// Delete the root subvol itself.
 	err = destroy(rootPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed deleting subvolume %q", rootPath)
+		return fmt.Errorf("Failed deleting subvolume %q: %w", rootPath, err)
 	}
 
 	return nil
@@ -433,13 +432,13 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 			break // End of archive.
 		}
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error reading backup file for optimized backup header file")
+			return nil, fmt.Errorf("Error reading backup file for optimized backup header file: %w", err)
 		}
 
 		if hdr.Name == "backup/optimized_header.yaml" {
 			err = yaml.NewDecoder(tr).Decode(&header)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Error parsing optimized backup header file")
+				return nil, fmt.Errorf("Error parsing optimized backup header file: %w", err)
 			}
 
 			cancelFunc()
@@ -456,7 +455,7 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error
 	// Check target path is empty before receive.
 	files, err := ioutil.ReadDir(receivePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed listing contents of %q", receivePath)
+		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
 	}
 	if len(files) > 0 {
 		return "", fmt.Errorf("Target path is not empty %q", receivePath)
@@ -470,7 +469,7 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error
 	// Check contents of target path is expected after receive.
 	files, err = ioutil.ReadDir(receivePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed listing contents of %q", receivePath)
+		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
 	}
 
 	if len(files) != 1 {

@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -275,13 +275,13 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
 			_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
-				return errors.Wrapf(err, "Failed loading custom volume")
+				return fmt.Errorf("Failed loading custom volume: %w", err)
 			}
 
 			// Check storage volume is available to mount on this cluster member.
 			remoteInstance, err := storagePools.VolumeUsedByExclusiveRemoteInstancesWithProfiles(d.state, d.config["pool"], storageProjectName, vol)
 			if err != nil {
-				return errors.Wrapf(err, "Failed checking if custom volume is exclusively attached to another instance")
+				return fmt.Errorf("Failed checking if custom volume is exclusively attached to another instance: %w", err)
 			}
 
 			if remoteInstance != nil {
@@ -750,7 +750,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil
 				}()
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to setup virtfs-proxy-helper for device %q", d.name)
+					return nil, fmt.Errorf("Failed to setup virtfs-proxy-helper for device %q: %w", d.name, err)
 				}
 
 				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
@@ -798,7 +798,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil
 				}()
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to setup virtiofsd for device %q", d.name)
+					return nil, fmt.Errorf("Failed to setup virtiofsd for device %q: %w", d.name, err)
 				}
 			} else {
 				f, err := d.localSourceOpen(srcPath)
@@ -848,7 +848,7 @@ func (d *disk) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		expandedDevices := d.inst.ExpandedDevices()
 		newRootDiskDeviceKey, _, err := shared.GetRootDiskDevice(expandedDevices.CloneNative())
 		if err != nil {
-			return errors.Wrap(err, "Detect root disk device")
+			return fmt.Errorf("Detect root disk device: %w", err)
 		}
 
 		// Retrieve the first old root disk device key, even if there are duplicates.
@@ -927,7 +927,7 @@ func (d *disk) applyDeferredQuota() error {
 		// that cannot be done when the volume is in use.
 		err := d.applyQuota(true)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to apply deferred quota from %q", fmt.Sprintf("volatile.%s.apply_quota", d.name))
+			return fmt.Errorf("Failed to apply deferred quota from %q: %w", fmt.Sprintf("volatile.%s.apply_quota", d.name), err)
 		}
 
 		// Remove volatile apply_quota key if successful.
@@ -945,7 +945,7 @@ func (d *disk) applyDeferredQuota() error {
 func (d *disk) applyQuota(unmount bool) error {
 	rootDisk, _, err := shared.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
 	if err != nil {
-		return errors.Wrap(err, "Detect root disk device")
+		return fmt.Errorf("Detect root disk device: %w", err)
 	}
 
 	newSize := d.inst.ExpandedDevices()[rootDisk]["size"]
@@ -1116,20 +1116,20 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 
 	err = pool.MountCustomVolume(storageProjectName, volumeName, nil)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "Failed mounting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+		return nil, "", fmt.Errorf("Failed mounting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, pool.Name(), err)
 	}
 	revert.Add(func() { pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
 	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "Failed to fetch local storage volume record")
+		return nil, "", fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
 
 	if d.inst.Type() == instancetype.Container {
 		if vol.ContentType == db.StoragePoolVolumeContentTypeNameFS {
 			err = d.storagePoolVolumeAttachShift(storageProjectName, pool.Name(), volumeName, db.StoragePoolVolumeTypeCustom, srcPath)
 			if err != nil {
-				return nil, "", errors.Wrapf(err, "Failed shifting storage volume %q of type %q on storage pool %q", volumeName, volumeTypeName, pool.Name())
+				return nil, "", fmt.Errorf("Failed shifting storage volume %q of type %q on storage pool %q: %w", volumeName, volumeTypeName, pool.Name(), err)
 			}
 		} else {
 			return nil, "", fmt.Errorf("Only filesystem volumes are supported for containers")
@@ -1139,7 +1139,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	if vol.ContentType == db.StoragePoolVolumeContentTypeNameBlock {
 		srcPath, err = pool.GetCustomVolumeDisk(storageProjectName, volumeName)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "Failed to get disk path")
+			return nil, "", fmt.Errorf("Failed to get disk path: %w", err)
 		}
 	}
 
@@ -1524,13 +1524,13 @@ func (d *disk) stopVM() (*deviceConfig.RunConfig, error) {
 	// Stop the virtfs-proxy-helper process and clean up.
 	err := DiskVMVirtfsProxyStop(d.vmVirtfsProxyHelperPaths())
 	if err != nil {
-		return &deviceConfig.RunConfig{}, errors.Wrapf(err, "Failed cleaning up virtfs-proxy-helper")
+		return &deviceConfig.RunConfig{}, fmt.Errorf("Failed cleaning up virtfs-proxy-helper: %w", err)
 	}
 
 	// Stop the virtiofsd process and clean up.
 	err = DiskVMVirtiofsdStop(d.vmVirtiofsdPaths())
 	if err != nil {
-		return &deviceConfig.RunConfig{}, errors.Wrapf(err, "Failed cleaning up virtiofsd")
+		return &deviceConfig.RunConfig{}, fmt.Errorf("Failed cleaning up virtiofsd: %w", err)
 	}
 
 	runConf := deviceConfig.RunConfig{
@@ -1887,7 +1887,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 			// Fallback to using device path to support BTRFS on block volumes (like LVM).
 			_, major, minor, errFallback := unixDeviceAttributes(dev[1])
 			if errFallback != nil {
-				return nil, errors.Wrapf(err, "Failed to query btrfs filesystem information for %q", dev[1])
+				return nil, fmt.Errorf("Failed to query btrfs filesystem information for %q: %w", dev[1], err)
 			}
 
 			devices = append(devices, fmt.Sprintf("%d:%d", major, minor))

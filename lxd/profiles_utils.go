@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -38,7 +36,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 	insts, err := getProfileInstancesInfo(d.cluster, projectName, name)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to query instances associated with profile %q", name)
+		return fmt.Errorf("Failed to query instances associated with profile %q: %w", name, err)
 	}
 
 	// Check if the root disk device's pool is supposed to be changed or removed and prevent that if there are
@@ -104,7 +102,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 		return err
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to query local cluster member name")
+		return fmt.Errorf("Failed to query local cluster member name: %w", err)
 	}
 
 	failures := map[*db.InstanceArgs]error{}
@@ -138,12 +136,12 @@ func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.
 		return err
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to query local cluster member name")
+		return fmt.Errorf("Failed to query local cluster member name: %w", err)
 	}
 
 	insts, err := getProfileInstancesInfo(d.cluster, projectName, name)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to query instances associated with profile %q", name)
+		return fmt.Errorf("Failed to query instances associated with profile %q: %w", name, err)
 	}
 
 	failures := map[*db.InstanceArgs]error{}
@@ -213,7 +211,7 @@ func getProfileInstancesInfo(cluster *db.Cluster, projectName string, profileNam
 	// Query the db for information about instances associated with the given profile.
 	projectInstNames, err := cluster.GetInstancesWithProfile(projectName, profileName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to query instances with profile %q", profileName)
+		return nil, fmt.Errorf("Failed to query instances with profile %q: %w", profileName, err)
 	}
 
 	instances := []db.InstanceArgs{}
@@ -232,7 +230,7 @@ func getProfileInstancesInfo(cluster *db.Cluster, projectName string, profileNam
 		return nil
 	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to fetch instances")
+		return nil, fmt.Errorf("Failed to fetch instances: %w", err)
 	}
 
 	return instances, nil

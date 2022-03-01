@@ -2,13 +2,13 @@ package query
 
 import (
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/Rican7/retry/jitter"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -26,7 +26,7 @@ func Retry(f func() error) error {
 		err = f()
 		if err != nil {
 			// No point in re-trying or logging a no-row error.
-			if errors.Cause(err) == sql.ErrNoRows {
+			if errors.Unwrap(err) == sql.ErrNoRows {
 				break
 			}
 
@@ -52,7 +52,7 @@ func Retry(f func() error) error {
 // IsRetriableError returns true if the given error might be transient and the
 // interaction can be safely retried.
 func IsRetriableError(err error) bool {
-	err = errors.Cause(err)
+	err = errors.Unwrap(err)
 	if err == nil {
 		return false
 	}

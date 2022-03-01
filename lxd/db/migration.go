@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 // LoadPreClusteringData loads all the data that before the introduction of
@@ -42,7 +41,7 @@ DELETE FROM storage_volumes WHERE storage_pool_id NOT IN (SELECT id FROM storage
 DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FROM storage_volumes);
 `)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to sanitize broken foreign key references")
+		return nil, fmt.Errorf("failed to sanitize broken foreign key references: %w", err)
 	}
 
 	// Dump all tables.
@@ -57,13 +56,13 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 
 		rows, err := tx.Query(stmt)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to fetch rows from %s", table)
+			return nil, fmt.Errorf("failed to fetch rows from %s: %w", table, err)
 		}
 
 		columns, err := rows.Columns()
 		if err != nil {
 			rows.Close()
-			return nil, errors.Wrapf(err, "failed to get columns of %s", table)
+			return nil, fmt.Errorf("failed to get columns of %s: %w", table, err)
 		}
 		dump.Schema[table] = columns
 
@@ -76,14 +75,14 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 			err := rows.Scan(row...)
 			if err != nil {
 				rows.Close()
-				return nil, errors.Wrapf(err, "failed to scan row from %s", table)
+				return nil, fmt.Errorf("failed to scan row from %s: %w", table, err)
 			}
 			data = append(data, values)
 		}
 		err = rows.Err()
 		if err != nil {
 			rows.Close()
-			return nil, errors.Wrapf(err, "error while fetching rows from %s", table)
+			return nil, fmt.Errorf("error while fetching rows from %s: %w", table, err)
 		}
 		rows.Close()
 
@@ -109,7 +108,7 @@ func importPreClusteringData(tx *sql.Tx, dump *Dump) error {
 	// Create version 14 of the cluster database schema.
 	_, err := tx.Exec(clusterSchemaVersion14)
 	if err != nil {
-		return errors.Wrap(err, "Create cluster database schema version 14")
+		return fmt.Errorf("Create cluster database schema version 14: %w", err)
 	}
 
 	// Insert an entry for node 1.
@@ -233,11 +232,11 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 			stmt += fmt.Sprintf(" VALUES %s", query.Params(len(columns)))
 			result, err := tx.Exec(stmt, row...)
 			if err != nil {
-				return errors.Wrapf(err, "failed to insert row %d into %s", i, table)
+				return fmt.Errorf("failed to insert row %d into %s: %w", i, table, err)
 			}
 			n, err := result.RowsAffected()
 			if err != nil {
-				return errors.Wrapf(err, "no result count for row %d of %s", i, table)
+				return fmt.Errorf("no result count for row %d of %s: %w", i, table, err)
 			}
 			if n != 1 {
 				return fmt.Errorf("could not insert %d int %s", i, table)
@@ -271,7 +270,7 @@ func importNodeAssociation(entity string, columns []string, row []interface{}, t
 	}
 	_, err := tx.Exec(stmt, id)
 	if err != nil {
-		return errors.Wrapf(err, "failed to associate %s to node", entity)
+		return fmt.Errorf("failed to associate %s to node: %w", entity, err)
 	}
 	return nil
 }

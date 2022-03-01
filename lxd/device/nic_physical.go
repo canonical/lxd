@@ -3,8 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
 	"github.com/lxc/lxd/lxd/instance"
@@ -92,7 +90,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 	if d.inst.Type() == instancetype.VM {
 		err = util.LoadModule("vfio-pci")
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error loading %q module", "vfio-pci")
+			return nil, fmt.Errorf("Error loading %q module: %w", "vfio-pci", err)
 		}
 	}
 
@@ -137,7 +135,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 			link := &ip.Link{Name: saveData["host_name"]}
 			err := link.SetMTU(d.config["mtu"])
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed setting MTU %q on %q", d.config["mtu"], saveData["host_name"])
+				return nil, fmt.Errorf("Failed setting MTU %q on %q: %w", d.config["mtu"], saveData["host_name"], err)
 			}
 		}
 	} else if d.inst.Type() == instancetype.VM {
@@ -145,7 +143,7 @@ func (d *nicPhysical) Start() (*deviceConfig.RunConfig, error) {
 		ueventPath := fmt.Sprintf("/sys/class/net/%s/device/uevent", saveData["host_name"])
 		pciDev, err := pcidev.ParseUeventFile(ueventPath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get PCI device info for %q", saveData["host_name"])
+			return nil, fmt.Errorf("Failed to get PCI device info for %q: %w", saveData["host_name"], err)
 		}
 
 		saveData["last_state.pci.slot.name"] = pciDev.SlotName

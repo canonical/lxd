@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 )
 
@@ -23,7 +21,7 @@ func ResolveWarningsByLocalNodeOlderThan(cluster *db.Cluster, date time.Time) er
 		return nil
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting local member name")
+		return fmt.Errorf("Failed getting local member name: %w", err)
 	}
 
 	if localName == "" {
@@ -52,7 +50,7 @@ func ResolveWarningsByLocalNodeOlderThan(cluster *db.Cluster, date time.Time) er
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to resolve warnings")
+		return fmt.Errorf("Failed to resolve warnings: %w", err)
 	}
 
 	return nil
@@ -73,7 +71,7 @@ func ResolveWarningsByLocalNodeAndType(cluster *db.Cluster, typeCode db.WarningT
 		return nil
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting local member name")
+		return fmt.Errorf("Failed getting local member name: %w", err)
 	}
 
 	if localName == "" {
@@ -106,7 +104,7 @@ func ResolveWarningsByNodeAndType(cluster *db.Cluster, nodeName string, typeCode
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to resolve warnings")
+		return fmt.Errorf("Failed to resolve warnings: %w", err)
 	}
 
 	return nil
@@ -136,7 +134,7 @@ func ResolveWarningsByNodeAndProjectAndType(cluster *db.Cluster, nodeName string
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to resolve warnings")
+		return fmt.Errorf("Failed to resolve warnings: %w", err)
 	}
 
 	return nil
@@ -156,7 +154,7 @@ func ResolveWarningsByLocalNodeAndProjectAndType(cluster *db.Cluster, projectNam
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed getting local member name")
+		return fmt.Errorf("Failed getting local member name: %w", err)
 	}
 
 	if localName == "" {
@@ -192,7 +190,7 @@ func ResolveWarningsByNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, nodeNa
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to resolve warnings")
+		return fmt.Errorf("Failed to resolve warnings: %w", err)
 	}
 
 	return nil
@@ -212,7 +210,7 @@ func ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, p
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed getting local member name")
+		return fmt.Errorf("Failed getting local member name: %w", err)
 	}
 
 	if localName == "" {
@@ -248,7 +246,7 @@ func DeleteWarningsByNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, nodeNam
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete warnings")
+		return fmt.Errorf("Failed to delete warnings: %w", err)
 	}
 
 	return nil
@@ -268,7 +266,7 @@ func DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, pr
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed getting local member name")
+		return fmt.Errorf("Failed getting local member name: %w", err)
 	}
 
 	if localName == "" {
