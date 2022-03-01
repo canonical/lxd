@@ -1218,7 +1218,7 @@ The -c option takes a (optionally comma-separated) list of arguments
 that control which image attributes to output when displaying in table
 or csv format.
 
-Default column layout is: lfpdasu
+Default column layout is: tndcuL
 
 Column shorthand chars:
 
