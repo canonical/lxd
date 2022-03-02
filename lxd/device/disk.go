@@ -49,6 +49,12 @@ const DiskVirtiofsdSockMountOpt = "virtiofsdSock"
 // instance.
 const DiskFileDescriptorMountPrefix = "fd"
 
+// DiskDirectIO is used to indicate disk should use direct I/O.
+const DiskDirectIO = "directio"
+
+// DiskLoopBacked is used to indicate disk is backed onto a loop device.
+const DiskLoopBacked = "loop"
+
 type diskBlockLimit struct {
 	readBps   int64
 	readIops  int64
@@ -593,6 +599,24 @@ func (d *disk) vmVirtiofsdPaths() (string, string) {
 	return sockPath, pidPath
 }
 
+func (d *disk) detectVMPoolMountOpts() []string {
+	var opts []string
+
+	driverConf := d.pool.Driver().Config()
+
+	// If the pool's source is a normal file, rather than a block device or directory, then we consider it to
+	// be a loop backed stored pool.
+	if shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) && !shared.IsDir(driverConf["source"]) {
+		opts = append(opts, DiskLoopBacked)
+	}
+
+	if d.pool.Driver().Info().DirectIO {
+		opts = append(opts, DiskDirectIO)
+	}
+
+	return opts
+}
+
 // startVM starts the disk device for a virtual machine instance.
 func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 	runConf := deviceConfig.RunConfig{
@@ -610,6 +634,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			{
 				TargetPath: d.config["path"], // Indicator used that this is the root device.
 				DevName:    d.name,
+				Opts:       d.detectVMPoolMountOpts(),
 			},
 		}
 
@@ -657,8 +682,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				},
 			}
 		} else {
-			srcPath := shared.HostPath(d.config["source"])
 			var err error
+
+			// Default to block device or image file passthrough first.
+			mount := deviceConfig.MountEntryItem{
+				DevPath: shared.HostPath(d.config["source"]),
+				DevName: d.name,
+			}
 
 			// Mount the pool volume and update srcPath to mount path so it can be recognised as dir
 			// if the volume is a filesystem volume type (if it is a block volume the srcPath will
@@ -666,17 +696,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			if d.config["pool"] != "" {
 				var revertFunc func()
 
-				revertFunc, srcPath, err = d.mountPoolVolume()
+				revertFunc, mount.DevPath, err = d.mountPoolVolume()
 				if err != nil {
 					return nil, diskSourceNotFoundError{msg: "Failed mounting volume", err: err}
 				}
 				revert.Add(revertFunc)
-			}
 
-			// Default to block device or image file passthrough first.
-			mount := deviceConfig.MountEntryItem{
-				DevPath: srcPath,
-				DevName: d.name,
+				mount.Opts = d.detectVMPoolMountOpts()
 			}
 
 			if shared.IsTrue(d.config["readonly"]) {
@@ -686,13 +712,13 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			// If the source being added is a directory or cephfs share, then we will use the lxd-agent
 			// directory sharing feature to mount the directory inside the VM, and as such we need to
 			// indicate to the VM the target path to mount to.
-			if shared.IsDir(srcPath) || strings.HasPrefix(d.config["source"], "cephfs:") {
+			if shared.IsDir(mount.DevPath) || strings.HasPrefix(d.config["source"], "cephfs:") {
 				// Mount the source in the instance devices directory.
 				// This will ensure that if the exported directory configured as readonly that this
 				// takes effect event if using virtio-fs (which doesn't support read only mode) by
 				// having the underlying mount setup as readonly.
 				var revertFunc func()
-				revertFunc, srcPath, _, err = d.createDevice(srcPath)
+				revertFunc, mount.DevPath, _, err = d.createDevice(mount.DevPath)
 				if err != nil {
 					return nil, err
 				}
@@ -717,7 +743,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 
 				// Start virtfs-proxy-helper for 9p share.
 				err = func() error {
-					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), srcPath, rawIDMaps)
+					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
 					if err != nil {
 						return err
 					}
@@ -742,7 +768,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					logPath := filepath.Join(d.inst.LogPath(), fmt.Sprintf("disk.%s.log", d.name))
 					os.Remove(logPath) // Remove old log if needed.
 
-					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.ExecPath, d.inst, sockPath, pidPath, logPath, srcPath, rawIDMaps)
+					revertFunc, unixListener, err := DiskVMVirtiofsdStart(d.state.OS.ExecPath, d.inst, sockPath, pidPath, logPath, mount.DevPath, rawIDMaps)
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
@@ -783,7 +809,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("Failed to setup virtiofsd for device %q: %w", d.name, err)
 				}
 			} else {
-				f, err := d.localSourceOpen(srcPath)
+				f, err := d.localSourceOpen(mount.DevPath)
 				if err != nil {
 					return nil, err
 				}
@@ -792,7 +818,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				runConf.Revert.Add(func() { f.Close() }) // Close file on VM start failure.
 
 				// Encode the file descriptor and original srcPath into the DevPath field.
-				mount.DevPath = fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), srcPath)
+				mount.DevPath = fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), mount.DevPath)
 			}
 
 			// Add successfully setup mount config to runConf.
