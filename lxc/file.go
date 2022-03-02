@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -90,6 +92,10 @@ func (c *cmdFile) Command() *cobra.Command {
 	// Edit
 	fileEditCmd := cmdFileEdit{global: c.global, file: c, filePull: &filePullCmd, filePush: &filePushCmd}
 	cmd.AddCommand(fileEditCmd.Command())
+
+	// Mount
+	fileMountCmd := cmdFileMount{global: c.global, file: c}
+	cmd.AddCommand(fileMountCmd.Command())
 
 	// Workaround for subcommand usage errors. See: https://github.com/spf13/cobra/issues/706
 	cmd.Args = cobra.NoArgs
@@ -884,6 +890,142 @@ func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, inst string, p string, mo
 			return err
 		}
 	}
+
+	return nil
+}
+
+// Mount
+type cmdFileMount struct {
+	global *cmdGlobal
+	file   *cmdFile
+}
+
+func (c *cmdFileMount) Command() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Use = usage("mount", i18n.G("[<remote>:]<instance>/<path> <target path>"))
+	cmd.Short = i18n.G("Mount files from instances")
+	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
+		`Mount files from instances`))
+	cmd.Example = cli.FormatSection("", i18n.G(
+		`lxc file mount foo/root fooroot
+   To mount /root from the instance and onto the local fooroot directory.`))
+
+	cmd.RunE = c.Run
+
+	return cmd
+}
+
+func (c *cmdFileMount) Run(cmd *cobra.Command, args []string) error {
+	// Quick checks.
+	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	if exit {
+		return err
+	}
+
+	// Determine the target.
+	targetPath := shared.HostPathFollow(filepath.Clean(args[len(args)-1]))
+	sb, err := os.Stat(targetPath)
+	if err != nil {
+		return err
+	}
+	if !sb.IsDir() {
+		return fmt.Errorf(i18n.G("Target path must be a directory"))
+	}
+
+	// Parse remote.
+	resources, err := c.global.ParseServers(args[:len(args)-1]...)
+	if err != nil {
+		return err
+	}
+
+	resource := resources[0]
+
+	pathSpec := strings.SplitN(resource.name, "/", 2)
+	if len(pathSpec) != 2 {
+		return fmt.Errorf(i18n.G("Invalid source %s"), resource.name)
+	}
+
+	instName := pathSpec[0]
+
+	// Setup sourcePath with leading / to ensure we reference the specified source path from / location.
+	sourcePath := filepath.Join(string(filepath.Separator), filepath.Clean(pathSpec[1]))
+
+	// Use the format "lxd.<instance_name>" as the source "host" (although not used for communication)
+	// so that the mount can be seen to be associated with LXD and the instance in the local mount table.
+	sourceURL := fmt.Sprintf("lxd.%s:%s", instName, sourcePath)
+
+	sftpConn, err := resource.server.GetInstanceFileSFTPConn(instName)
+	if err != nil {
+		return err
+	}
+	defer sftpConn.Close()
+
+	// Setup sshfs command.
+	sshfsPath, err := exec.LookPath("sshfs")
+	if err != nil {
+		return fmt.Errorf(i18n.G("Failed finding sshfs: %w"), err)
+	}
+
+	sshfsCmd := exec.Command(sshfsPath, "-o", "slave", sourceURL, targetPath)
+
+	// Setup pipes.
+	stdin, err := sshfsCmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	stdout, err := sshfsCmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	sshfsCmd.Stderr = os.Stderr
+
+	err = sshfsCmd.Start()
+	if err != nil {
+		return fmt.Errorf(i18n.G("Failed starting sshfs: %w"), err)
+	}
+
+	fmt.Printf(i18n.G("sshfs has mounted %q on %q")+"\n", fmt.Sprintf("%s:%s", instName, sourcePath), targetPath)
+	fmt.Println(i18n.G("Press ctlc+c to finish"))
+
+	ctx, cancel := context.WithCancel(cmd.Context())
+	chSignal := make(chan os.Signal, 1)
+	signal.Notify(chSignal, os.Interrupt)
+	go func() {
+		select {
+		case <-chSignal:
+		case <-ctx.Done():
+		}
+
+		cancel()                              // Prevents error output when the io.Copy functions finish.
+		sshfsCmd.Process.Signal(os.Interrupt) // This will cause sshfs to unmount.
+	}()
+
+	go func() {
+		_, err := io.Copy(stdin, sftpConn)
+		if ctx.Err() == nil {
+			if err != nil {
+				fmt.Fprintf(os.Stderr, i18n.G("I/O copy from remote to sshfs failed: %v")+"\n", err)
+			} else {
+				fmt.Println(i18n.G("Remote disconnected"))
+			}
+		}
+		cancel() // Ask sshfs to end.
+	}()
+
+	_, err = io.Copy(sftpConn, stdout)
+	if err != nil && ctx.Err() == nil {
+		fmt.Fprintf(os.Stderr, i18n.G("I/O copy from sshfs to remote failed: %v")+"\n", err)
+	}
+	cancel() // Ask sshfs to end.
+
+	err = sshfsCmd.Wait()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(i18n.G("sshfs has stopped"))
 
 	return nil
 }

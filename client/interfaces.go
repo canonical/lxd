@@ -2,9 +2,11 @@ package lxd
 
 import (
 	"io"
+	"net"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/sftp"
 
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/cancel"
@@ -174,6 +176,9 @@ type InstanceServer interface {
 	GetInstanceFile(instanceName string, path string) (content io.ReadCloser, resp *InstanceFileResponse, err error)
 	CreateInstanceFile(instanceName string, path string, args InstanceFileArgs) (err error)
 	DeleteInstanceFile(instanceName string, path string) (err error)
+
+	GetInstanceFileSFTPConn(instanceName string) (net.Conn, error)
+	GetInstanceFileSFTP(instanceName string) (*sftp.Client, error)
 
 	GetInstanceSnapshotNames(instanceName string) (names []string, err error)
 	GetInstanceSnapshots(instanceName string) (snapshots []api.InstanceSnapshot, err error)
