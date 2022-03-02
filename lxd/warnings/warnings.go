@@ -222,61 +222,6 @@ func ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, p
 	return ResolveWarningsByNodeAndProjectAndTypeAndEntity(cluster, localName, projectName, typeCode, entityTypeCode, entityID)
 }
 
-// DeleteWarningsByNodeAndProjectAndEntity deletes warnings with the given node, project, and entity.
-func DeleteWarningsByNodeAndProjectAndEntity(cluster *db.Cluster, nodeName string, projectName string, entityTypeCode int, entityID int) error {
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.WarningFilter{
-			Node:           &nodeName,
-			Project:        &projectName,
-			EntityTypeCode: &entityTypeCode,
-			EntityID:       &entityID,
-		}
-
-		warnings, err := tx.GetWarnings(filter)
-		if err != nil {
-			return err
-		}
-
-		for _, w := range warnings {
-			err = tx.DeleteWarning(w.UUID)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed to resolve warnings")
-	}
-
-	return nil
-}
-
-// DeleteWarningsByLocalNodeAndProjectAndEntity deletes warnings with the given project, and entity.
-func DeleteWarningsByLocalNodeAndProjectAndEntity(cluster *db.Cluster, projectName string, entityTypeCode int, entityID int) error {
-	var err error
-	var localName string
-
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		localName, err = tx.GetLocalNodeName()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return errors.Wrap(err, "Failed getting local member name")
-	}
-
-	if localName == "" {
-		return fmt.Errorf("Local member name not available")
-	}
-
-	return DeleteWarningsByNodeAndProjectAndEntity(cluster, localName, projectName, entityTypeCode, entityID)
-}
-
 // DeleteWarningsByNodeAndProjectAndTypeAndEntity deletes warnings with the given node, project, type code, and entity.
 func DeleteWarningsByNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, nodeName string, projectName string, typeCode db.WarningType, entityTypeCode int, entityID int) error {
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
