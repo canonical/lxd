@@ -2,18 +2,21 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -78,14 +81,19 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 	// Update the storage drivers supported and used cache in api_1.0.go.
 	storagePoolDriversCacheUpdate(s)
 
-	pools, err := s.Cluster.GetCreatedStoragePoolNames()
+	poolNames, err := s.Cluster.GetCreatedStoragePoolNames()
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if errors.Is(err, db.ErrNoSuchObject) {
 			logger.Debug("No existing storage pools detected")
 			return nil
 		}
 
-		return errors.Wrapf(err, "Failed loading existing storage pools")
+		return fmt.Errorf("Failed loading existing storage pools: %w", err)
+	}
+
+	initPools := make(map[string]struct{}, len(poolNames))
+	for _, poolName := range poolNames {
+		initPools[poolName] = struct{}{}
 	}
 
 	// In case the daemon got killed during upgrade we will already have a
@@ -94,7 +102,7 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 	// looking at the patches db: If we already have a storage pool defined
 	// but the upgrade somehow got messed up then there will be no
 	// "storage_api" entry in the db.
-	if len(pools) > 0 && !forceCheck {
+	if len(initPools) > 0 && !forceCheck {
 		appliedPatches, err := s.Node.GetAppliedPatches()
 		if err != nil {
 			return err
@@ -104,22 +112,77 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 			logger.Warn(`Incorrectly applied "storage_api" patch, skipping storage pool initialization as it might be corrupt`)
 			return nil
 		}
-
 	}
 
-	for _, poolName := range pools {
-		logger.Debug("Initializing and checking storage pool", log.Ctx{"pool": poolName})
-		errPrefix := fmt.Sprintf("Failed initializing storage pool %q", poolName)
+	initPool := func(poolName string) bool {
+		logger.Debug("Initializing storage pool", log.Ctx{"pool": poolName})
 
 		pool, err := storagePools.GetPoolByName(s, poolName)
 		if err != nil {
-			return errors.Wrap(err, errPrefix)
+			if errors.Is(err, db.ErrNoSuchObject) {
+				return true // Nothing to activate as pool has been deleted.
+			}
+
+			logger.Warn("Failed loading storage pool", log.Ctx{"pool": poolName, "err": err})
+
+			return false
 		}
 
 		_, err = pool.Mount()
 		if err != nil {
-			return errors.Wrap(err, errPrefix)
+			logger.Warn("Failed mounting storage pool", log.Ctx{"pool": poolName, "err": err})
+			s.Cluster.UpsertWarningLocalNode("", cluster.TypeStoragePool, int(pool.ID()), db.WarningStoragePoolUnvailable, err.Error())
+
+			return false
 		}
+
+		logger.Info("Initialized storage pool", log.Ctx{"pool": poolName})
+		warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, "", db.WarningStoragePoolUnvailable, cluster.TypeStoragePool, int(pool.ID()))
+
+		return true
+	}
+
+	// Try initializing storage pools in random order.
+	for poolName := range initPools {
+		if initPool(poolName) {
+			// Storage pool initialized successfully then remove it from the list so its not retried.
+			delete(initPools, poolName)
+		}
+	}
+
+	// For any remaining storage pools that were not successfully initialised, we now start a go routine to
+	// periodically try to initialize them again in the background.
+	if len(initPools) > 0 {
+		go func() {
+			for {
+				t := time.NewTimer(time.Duration(time.Minute))
+
+				select {
+				case <-s.Context.Done():
+					t.Stop()
+					return
+				case <-t.C:
+					t.Stop()
+
+					// Try initializing remaining storage pools in random order.
+					for poolName := range initPools {
+						if initPool(poolName) {
+							// Storage pool initialized successfully then remove it
+							// from the list so its not retried.
+							delete(initPools, poolName)
+						}
+					}
+
+					if len(initPools) <= 0 {
+						logger.Info("All storage pools initialized")
+
+						return // Our job here is done.
+					}
+				}
+			}
+		}()
+	} else {
+		logger.Info("All storage pools initialized")
 	}
 
 	return nil

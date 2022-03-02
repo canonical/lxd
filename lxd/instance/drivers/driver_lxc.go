@@ -48,7 +48,6 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
@@ -7004,7 +7003,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 		if dev["pool"] != "" {
 			// Storage pool volume.
-			pool, err := storage.GetPoolByName(d.state, dev["pool"])
+			pool, err := storagePools.GetPoolByName(d.state, dev["pool"])
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get pool")
 			}

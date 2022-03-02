@@ -29,6 +29,7 @@ type Pool interface {
 	Description() string
 	Status() string
 	LocalStatus() string
+	ToAPI() api.StoragePool
 
 	GetResources() (*api.ResourcesStoragePool, error)
 	IsUsed() (bool, error)

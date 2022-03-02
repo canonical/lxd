@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -252,4 +253,47 @@ func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	// Return drivers not supported error for consistency with predefined errors returned by
 	// GetPoolByName (which can return drivers.ErrUnknownDriver).
 	return nil, drivers.ErrNotSupported
+}
+
+// Patch applies specified patch to all storage pools.
+// All storage pools must be available locally before any storage pools are patched.
+func Patch(s *state.State, patchName string) error {
+	unavailablePoolsMu.Lock()
+	if len(unavailablePools) > 0 {
+		unavailablePoolNames := make([]string, 0, len(unavailablePools))
+		for unavailablePoolName := range unavailablePools {
+			unavailablePoolNames = append(unavailablePoolNames, unavailablePoolName)
+		}
+
+		unavailablePoolsMu.Unlock()
+
+		return fmt.Errorf("Unvailable storage pools %v", unavailablePoolNames)
+	}
+	unavailablePoolsMu.Unlock()
+
+	// Load all the pools.
+	pools, err := s.Cluster.GetStoragePoolNames()
+	if err != nil {
+		if errors.Is(err, db.ErrNoSuchObject) {
+			return nil
+		}
+
+		return fmt.Errorf("Failed loading storage pool names: %w", err)
+	}
+
+	for _, poolName := range pools {
+		pool, err := GetPoolByName(s, poolName)
+		if err != nil {
+			if err == drivers.ErrUnknownDriver {
+				continue
+			}
+
+			err = pool.ApplyPatch(patchName)
+			if err != nil {
+				return fmt.Errorf("Failed applying patch to pool %q: %w", poolName, err)
+			}
+		}
+	}
+
+	return nil
 }
