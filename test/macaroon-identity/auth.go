@@ -75,7 +75,7 @@ func (s *authService) thirdPartyChecker(ctx context.Context, req *http.Request, 
 
 	_, _, err := checkers.ParseCaveat(string(info.Condition))
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse caveat %q: %s", info.Condition, err)
+		return nil, fmt.Errorf("cannot parse caveat %q: %w", info.Condition, err)
 	}
 
 	return []checkers.Caveat{

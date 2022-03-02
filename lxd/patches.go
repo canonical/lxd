@@ -4210,7 +4210,7 @@ func patchUpdateFromV15(tx *sql.Tx) error {
 
 		_, err := shared.RunCommand("lvrename", vgName, cName, newLVName)
 		if err != nil {
-			return fmt.Errorf("Could not rename LV '%s' to '%s': %v", cName, newLVName, err)
+			return fmt.Errorf("Could not rename LV '%s' to '%s': %w", cName, newLVName, err)
 		}
 
 		if err := os.Remove(lvLinkPath); err != nil {

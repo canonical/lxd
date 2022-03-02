@@ -172,7 +172,7 @@ func storagePoolFillDefault(name string, driver string, config map[string]string
 			st := unix.Statfs_t{}
 			err := unix.Statfs(shared.VarPath(), &st)
 			if err != nil {
-				return fmt.Errorf("Couldn't statfs %s: %s", shared.VarPath(), err)
+				return fmt.Errorf("Couldn't statfs %s: %w", shared.VarPath(), err)
 			}
 
 			/* choose 5 GB < x < 30GB, where x is 20% of the disk size */

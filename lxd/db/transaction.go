@@ -58,7 +58,7 @@ func (c *ClusterTx) stmt(code int) *sql.Stmt {
 func (c *ClusterTx) prepare(sql string) (*sql.Stmt, error) {
 	stmt, err := c.tx.Prepare(sql)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to prepare statement with error: %v", err)
+		return nil, fmt.Errorf("Unable to prepare statement with error: %w", err)
 	}
 
 	return stmt, nil

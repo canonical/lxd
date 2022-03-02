@@ -526,7 +526,7 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		// Setup the source (mounts)
 		err = setupSource(fullPath, config.Mounts)
 		if err != nil {
-			return fmt.Errorf("Failed to setup the source: %v", err)
+			return fmt.Errorf("Failed to setup the source: %w", err)
 		}
 	} else {
 		fullPath = path
@@ -540,13 +540,13 @@ func (c *cmdMigrate) Run(cmd *cobra.Command, args []string) error {
 		// Mount the path
 		err = unix.Mount(config.SourcePath, target, "none", unix.MS_BIND, "")
 		if err != nil {
-			return fmt.Errorf("Failed to mount %s: %v", config.SourcePath, err)
+			return fmt.Errorf("Failed to mount %s: %w", config.SourcePath, err)
 		}
 
 		// Make it read-only
 		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 		if err != nil {
-			return fmt.Errorf("Failed to make %s read-only: %v", config.SourcePath, err)
+			return fmt.Errorf("Failed to make %s read-only: %w", config.SourcePath, err)
 		}
 	}
 

@@ -1564,7 +1564,7 @@ func (d *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 	// Add the interface to the container.
 	err = d.c.AttachInterface(devName, configCopy["name"])
 	if err != nil {
-		return fmt.Errorf("Failed to attach interface: %s to %s: %s", devName, configCopy["name"], err)
+		return fmt.Errorf("Failed to attach interface: %s to %s: %w", devName, configCopy["name"], err)
 	}
 
 	return nil
@@ -1605,7 +1605,7 @@ func (d *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, insta
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if dev == nil {
-			return fmt.Errorf("Device stop validation failed for %q: %v", deviceName, err)
+			return fmt.Errorf("Device stop validation failed for %q: %w", deviceName, err)
 		}
 
 		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
@@ -1685,7 +1685,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 		// Get interfaces inside container.
 		ifaces, err := cc.Interfaces()
 		if err != nil {
-			return fmt.Errorf("Failed to list network interfaces: %v", err)
+			return fmt.Errorf("Failed to list network interfaces: %w", err)
 		}
 
 		// If interface doesn't exist inside container, cannot proceed.
@@ -1801,7 +1801,7 @@ func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, ins
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if dev == nil {
-			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
+			return fmt.Errorf("Device remove validation failed for %q: %w", deviceName, err)
 		}
 
 		logger.Error("Device remove validation failed", log.Ctx{"err": err})
@@ -1989,7 +1989,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			module = strings.TrimPrefix(module, " ")
 			err := util.LoadModule(module)
 			if err != nil {
-				return "", nil, fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
+				return "", nil, fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
 			}
 		}
 	}
@@ -3932,7 +3932,7 @@ func (d *lxc) CGroupSet(key string, value string) error {
 
 	err = d.c.SetCgroupItem(key, value)
 	if err != nil {
-		return fmt.Errorf("Failed to set cgroup %s=\"%s\": %s", key, value, err)
+		return fmt.Errorf("Failed to set cgroup %s=\"%s\": %w", key, value, err)
 	}
 
 	return nil
@@ -4280,7 +4280,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 					module = strings.TrimPrefix(module, " ")
 					err := util.LoadModule(module)
 					if err != nil {
-						return fmt.Errorf("Failed to load kernel module '%s': %s", module, err)
+						return fmt.Errorf("Failed to load kernel module '%s': %w", module, err)
 					}
 				}
 			} else if key == "limits.disk.priority" {

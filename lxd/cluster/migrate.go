@@ -108,7 +108,7 @@ func decodeLegacyRaftConfiguration(buf []byte) raft.Configuration {
 	dec := codec.NewDecoder(r, &hd)
 	err := dec.Decode(&configuration)
 	if err != nil {
-		panic(fmt.Errorf("Failed to decode configuration: %v", err))
+		panic(fmt.Errorf("Failed to decode configuration: %w", err))
 	}
 	return configuration
 }

@@ -252,14 +252,14 @@ func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 
 	certOut, err := os.Create(certf)
 	if err != nil {
-		return fmt.Errorf("Failed to open %s for writing: %v", certf, err)
+		return fmt.Errorf("Failed to open %s for writing: %w", certf, err)
 	}
 	certOut.Write(certBytes)
 	certOut.Close()
 
 	keyOut, err := os.OpenFile(keyf, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return fmt.Errorf("Failed to open %s for writing: %v", keyf, err)
+		return fmt.Errorf("Failed to open %s for writing: %w", keyf, err)
 	}
 	keyOut.Write(keyBytes)
 	keyOut.Close()
@@ -271,7 +271,7 @@ func GenCert(certf string, keyf string, certtype bool, addHosts bool) error {
 func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 	privk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate key: %v", err)
+		return nil, nil, fmt.Errorf("Failed to generate key: %w", err)
 	}
 
 	validFrom := time.Now()
@@ -280,7 +280,7 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate serial number: %v", err)
+		return nil, nil, fmt.Errorf("Failed to generate serial number: %w", err)
 	}
 
 	userEntry, err := user.Current()
@@ -321,7 +321,7 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 	if addHosts {
 		hosts, err := mynames()
 		if err != nil {
-			return nil, nil, fmt.Errorf("Failed to get my hostname: %v", err)
+			return nil, nil, fmt.Errorf("Failed to get my hostname: %w", err)
 		}
 
 		for _, h := range hosts {
@@ -339,7 +339,7 @@ func GenerateMemCert(client bool, addHosts bool) ([]byte, []byte, error) {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privk.PublicKey, privk)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create certificate: %v", err)
+		return nil, nil, fmt.Errorf("Failed to create certificate: %w", err)
 	}
 
 	data, err := x509.MarshalECPrivateKey(privk)

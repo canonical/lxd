@@ -326,13 +326,13 @@ func setupSource(path string, mounts []string) error {
 		// Mount the path
 		err := unix.Mount(mount, target, "none", unix.MS_BIND, "")
 		if err != nil {
-			return fmt.Errorf("Failed to mount %s: %v", mount, err)
+			return fmt.Errorf("Failed to mount %s: %w", mount, err)
 		}
 
 		// Make it read-only
 		err = unix.Mount("", target, "none", unix.MS_BIND|unix.MS_RDONLY|unix.MS_REMOUNT, "")
 		if err != nil {
-			return fmt.Errorf("Failed to make %s read-only: %v", mount, err)
+			return fmt.Errorf("Failed to make %s read-only: %w", mount, err)
 		}
 	}
 

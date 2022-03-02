@@ -403,12 +403,12 @@ func (r *ProtocolLXD) CopyStoragePoolVolume(pool string, source InstanceServer, 
 
 	sourceInfo, err := source.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get source connection info: %v", err)
+		return nil, fmt.Errorf("Failed to get source connection info: %w", err)
 	}
 
 	destInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get destination connection info: %v", err)
+		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
 	}
 
 	if destInfo.URL == sourceInfo.URL && destInfo.SocketPath == sourceInfo.SocketPath && volume.Location == r.clusterTarget {

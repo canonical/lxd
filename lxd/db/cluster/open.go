@@ -40,7 +40,7 @@ func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.D
 	}
 	db, err := sql.Open(driverName, name)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open cluster database: %v", err)
+		return nil, fmt.Errorf("cannot open cluster database: %w", err)
 	}
 
 	return db, nil

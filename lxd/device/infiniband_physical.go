@@ -164,7 +164,7 @@ func (d *infinibandPhysical) postStop() error {
 	// Remove infiniband host files for this device.
 	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")
 	if err != nil {
-		return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
+		return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
 	}
 
 	// Restpre hwaddr and mtu.

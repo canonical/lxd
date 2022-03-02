@@ -344,12 +344,12 @@ func (r *ProtocolLXD) CopyContainer(source InstanceServer, container api.Contain
 
 	sourceInfo, err := source.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get source connection info: %v", err)
+		return nil, fmt.Errorf("Failed to get source connection info: %w", err)
 	}
 
 	destInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get destination connection info: %v", err)
+		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
 	}
 
 	// Optimization for the local copy case
@@ -1015,17 +1015,17 @@ func (r *ProtocolLXD) CopyContainerSnapshot(source InstanceServer, containerName
 
 	sourceInfo, err := source.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get source connection info: %v", err)
+		return nil, fmt.Errorf("Failed to get source connection info: %w", err)
 	}
 
 	destInfo, err := r.GetConnectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get destination connection info: %v", err)
+		return nil, fmt.Errorf("Failed to get destination connection info: %w", err)
 	}
 
 	container, _, err := source.GetContainer(cName)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get container info: %v", err)
+		return nil, fmt.Errorf("Failed to get container info: %w", err)
 	}
 
 	// Optimization for the local copy case

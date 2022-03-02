@@ -360,7 +360,7 @@ func (d *gpuPhysical) postStop() error {
 		// Remove host files for this device.
 		err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), "unix", d.name, "")
 		if err != nil {
-			return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
+			return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
 		}
 	}
 

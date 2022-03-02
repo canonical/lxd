@@ -85,7 +85,7 @@ func unixUnregisterHandler(s *state.State, inst instance.Instance, deviceName st
 
 	err := s.DevMonitor.Unwatch(sub.Path, identifier)
 	if err != nil {
-		return fmt.Errorf("Failed to remove %q from inotify targets: %s", sub.Path, err)
+		return fmt.Errorf("Failed to remove %q from inotify targets: %w", sub.Path, err)
 	}
 
 	return nil

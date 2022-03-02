@@ -1976,12 +1976,12 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 
 	certBlock, _ := pem.Decode(certBytes)
 	if certBlock == nil {
-		return response.BadRequest(fmt.Errorf("Certificate must be base64 encoded PEM certificate: %v", err))
+		return response.BadRequest(fmt.Errorf("Certificate must be base64 encoded PEM certificate: %w", err))
 	}
 
 	keyBlock, _ := pem.Decode(keyBytes)
 	if keyBlock == nil {
-		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %v", err))
+		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %w", err))
 	}
 
 	// First node forwards request to all other cluster nodes
@@ -2465,7 +2465,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			exclude := db.StoragePoolNodeConfigKeys
 			err = util.CompareConfigs(pool.Config, reqPool.Config, exclude)
 			if err != nil {
-				return fmt.Errorf("Mismatching config for storage pool %s: %v", name, err)
+				return fmt.Errorf("Mismatching config for storage pool %s: %w", name, err)
 			}
 			break
 		}

@@ -190,7 +190,7 @@ func (e *Endpoints) up(config *Config) error {
 
 		e.listeners[local], err = localCreateListener(config.UnixSocket, config.LocalUnixSocketGroup)
 		if err != nil {
-			return fmt.Errorf("local endpoint: %v", err)
+			return fmt.Errorf("local endpoint: %w", err)
 		}
 	}
 

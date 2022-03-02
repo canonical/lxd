@@ -171,7 +171,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 		if current == 0 && s.fresh != "" {
 			_, err = tx.Exec(s.fresh)
 			if err != nil {
-				return fmt.Errorf("cannot apply fresh schema: %v", err)
+				return fmt.Errorf("cannot apply fresh schema: %w", err)
 			}
 		} else {
 			err = ensureUpdatesAreApplied(tx, current, s.updates, s.hook)
@@ -246,14 +246,14 @@ func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error
 	// Create an in-memory database.
 	db, err := sql.Open("sqlite3", ":memory:?_foreign_keys=1")
 	if err != nil {
-		return nil, fmt.Errorf("failed to open memory database: %v", err)
+		return nil, fmt.Errorf("failed to open memory database: %w", err)
 	}
 
 	// Apply all updates to the given version, excluded.
 	trimmed := s.Trim(version - 1)
 	_, err = s.Ensure(db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to apply previous updates: %v", err)
+		return nil, fmt.Errorf("failed to apply previous updates: %w", err)
 	}
 
 	// Execute the optional hook.
@@ -265,7 +265,7 @@ func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error
 	s.Add(trimmed[0])
 	_, err = s.Ensure(db)
 	if err != nil {
-		return nil, fmt.Errorf("failed to apply given update: %v", err)
+		return nil, fmt.Errorf("failed to apply given update: %w", err)
 	}
 
 	return db, nil
@@ -275,12 +275,12 @@ func (s *Schema) ExerciseUpdate(version int, hook func(*sql.DB)) (*sql.DB, error
 func ensureSchemaTableExists(tx *sql.Tx) error {
 	exists, err := DoesSchemaTableExist(tx)
 	if err != nil {
-		return fmt.Errorf("failed to check if schema table is there: %v", err)
+		return fmt.Errorf("failed to check if schema table is there: %w", err)
 	}
 	if !exists {
 		err := createSchemaTable(tx)
 		if err != nil {
-			return fmt.Errorf("failed to create schema table: %v", err)
+			return fmt.Errorf("failed to create schema table: %w", err)
 		}
 	}
 	return nil
@@ -291,7 +291,7 @@ func ensureSchemaTableExists(tx *sql.Tx) error {
 func queryCurrentVersion(tx *sql.Tx) (int, error) {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
-		return -1, fmt.Errorf("failed to fetch update versions: %v", err)
+		return -1, fmt.Errorf("failed to fetch update versions: %w", err)
 	}
 
 	// Fix bad upgrade code between 30 and 32
@@ -304,7 +304,7 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 
 		versions, err = selectSchemaVersions(tx)
 		if err != nil {
-			return -1, fmt.Errorf("failed to fetch update versions: %v", err)
+			return -1, fmt.Errorf("failed to fetch update versions: %w", err)
 		}
 	}
 
@@ -312,7 +312,7 @@ func queryCurrentVersion(tx *sql.Tx) (int, error) {
 	if hasVersion(37) && !hasVersion(38) {
 		count, err := query.Count(tx, "config", "key = 'cluster.https_address'")
 		if err != nil {
-			return -1, fmt.Errorf("Failed to check if cluster.https_address is set: %v", err)
+			return -1, fmt.Errorf("Failed to check if cluster.https_address is set: %w", err)
 		}
 		if count == 1 {
 			// Insert the missing version.
@@ -360,7 +360,7 @@ func ensureUpdatesAreApplied(tx *sql.Tx, current int, updates []Update, hook Hoo
 		}
 		err := update(tx)
 		if err != nil {
-			return fmt.Errorf("failed to apply update %d: %v", current, err)
+			return fmt.Errorf("failed to apply update %d: %w", current, err)
 		}
 		current++
 
@@ -389,7 +389,7 @@ func checkSchemaVersionsHaveNoHoles(versions []int) error {
 func checkAllUpdatesAreApplied(tx *sql.Tx, updates []Update) error {
 	versions, err := selectSchemaVersions(tx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch update versions: %v", err)
+		return fmt.Errorf("failed to fetch update versions: %w", err)
 	}
 
 	if len(versions) == 0 {

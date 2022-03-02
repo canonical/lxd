@@ -17,14 +17,14 @@ func LoadConfig(path string) (*Config, error) {
 	// Open the config file
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to read the configuration file: %v", err)
+		return nil, fmt.Errorf("Unable to read the configuration file: %w", err)
 	}
 
 	// Decode the YAML document
 	c := NewConfig(filepath.Dir(path), false)
 	err = yaml.Unmarshal(content, &c)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to decode the configuration: %v", err)
+		return nil, fmt.Errorf("Unable to decode the configuration: %w", err)
 	}
 
 	for k, r := range c.Remotes {
@@ -40,7 +40,7 @@ func LoadConfig(path string) (*Config, error) {
 	if err == nil {
 		err = yaml.Unmarshal(content, &globalConf)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to decode the configuration: %v", err)
+			return nil, fmt.Errorf("Unable to decode the configuration: %w", err)
 		}
 		for k, r := range globalConf.Remotes {
 			if _, ok := c.Remotes[k]; !ok {
@@ -90,7 +90,7 @@ func (c *Config) SaveConfig(path string) error {
 	conf := Config{}
 	err := shared.DeepCopy(c, &conf)
 	if err != nil {
-		return fmt.Errorf("Unable to copy the configuration: %v", err)
+		return fmt.Errorf("Unable to copy the configuration: %w", err)
 	}
 
 	// Remove the global remotes
@@ -112,19 +112,19 @@ func (c *Config) SaveConfig(path string) error {
 	// Create the config file (or truncate an existing one)
 	f, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("Unable to create the configuration file: %v", err)
+		return fmt.Errorf("Unable to create the configuration file: %w", err)
 	}
 	defer f.Close()
 
 	// Write the new config
 	data, err := yaml.Marshal(conf)
 	if err != nil {
-		return fmt.Errorf("Unable to marshal the configuration: %v", err)
+		return fmt.Errorf("Unable to marshal the configuration: %w", err)
 	}
 
 	_, err = f.Write(data)
 	if err != nil {
-		return fmt.Errorf("Unable to write the configuration: %v", err)
+		return fmt.Errorf("Unable to write the configuration: %w", err)
 	}
 
 	return nil

@@ -98,7 +98,7 @@ func ProxyFromConfig(httpsProxy string, httpProxy string, noProxy string) func(r
 			}
 		}
 		if err != nil {
-			return nil, fmt.Errorf("invalid proxy address %q: %v", proxy, err)
+			return nil, fmt.Errorf("invalid proxy address %q: %w", proxy, err)
 		}
 		return proxyURL, nil
 	}
