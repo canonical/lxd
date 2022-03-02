@@ -1,4 +1,6 @@
-# Network ACL configuration
+# How to configure network ACLs
+
+(note)
 
 Network Access Control Lists (ACLs) define traffic rules that can then be applied to certain types of Instance NIC devices.
 This provides the ability to control network access between different instances connected to the same network and control access to and from other networks.
@@ -7,6 +9,8 @@ Network ACLs can either be applied directly to the desired NICs or can be applie
 
 The Instance NICs that have a particular ACL applied (either explicitly or implicitly from the network) make up a logical group that can be referenced from other rules as a source or destination.
 
+## Create an ACL
+
 Valid Network ACL names must:
 
 - Be between 1 and 63 characters long
@@ -14,7 +18,8 @@ Valid Network ACL names must:
 - Not start with a digit or a dash
 - Not end with a dash
 
-## Properties
+### ACL properties
+
 The following are ACL properties:
 
 Property         | Type       | Required | Description
@@ -25,10 +30,12 @@ ingress          | rule list  | no       | Ingress traffic rules
 egress           | rule list  | no       | Egress traffic rules
 config           | string set | no       | Config key/value pairs (Only `user.*` custom keys supported)
 
+## Add or remove rules
+
 Rules are defined for a particular direction (ingress or egress) in relation to the Instance NIC.
 Ingress rules apply to traffic going towards the NIC, and egress rules apply to traffic leaving the NIC.
 
-## Rule ordering and priorities
+### Rule ordering and priorities
 
 Rules are provided as lists, however the order of the rules in the list is not important and does not affect filtering.
 See [Rule ordering and priorities](#rule-ordering-and-priorities).
@@ -43,6 +50,8 @@ However LXD will order the rules based on the `action` property as follows:
 
 This means that multiple ACLs can be applied to a NIC without having to specify the combined rule ordering.
 As soon as one of the rules in the ACLs matches then that action is taken and no other rules are considered.
+
+### Rule properties
 
 ACL rules have the following properties:
 
@@ -59,7 +68,7 @@ destination\_port | string     | no       | If Protocol is `udp` or `tcp`, then 
 icmp\_type        | string     | no       | If Protocol is `icmp4` or `icmp6`, then ICMP Type number, or empty for any
 icmp\_code        | string     | no       | If Protocol is `icmp4` or `icmp6`, then ICMP Code number, or empty for any
 
-## Subject name selectors
+### Use selectors in rules
 
 Subject name selectors can be used in the `source` field for ingress rules and in the `destination` field for egress rules.
 
