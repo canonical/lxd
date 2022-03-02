@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-18 17:58-0400\n"
+"POT-Creation-Date: 2022-03-18 18:44-0400\n"
 "PO-Revision-Date: 2019-12-12 14:53+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -290,7 +290,7 @@ msgstr ""
 "###\n"
 "### Der Name wird zwar angezeigt, lässt sich jedoch nicht ändern.\n"
 
-#: lxc/cluster.go:452
+#: lxc/cluster.go:451
 msgid ""
 "### This is a yaml representation of the cluster member.\n"
 "### Any line starting with a '# will be ignored."
@@ -360,7 +360,7 @@ msgstr "--refresh kann nur mit Containern verwendet werden"
 msgid "--console only works with a single instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/init.go:124
+#: lxc/init.go:123
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
@@ -462,7 +462,7 @@ msgstr "ALIAS"
 msgid "ALIASES"
 msgstr "ALIASES"
 
-#: lxc/cluster.go:156 lxc/image.go:1016 lxc/list.go:430
+#: lxc/cluster.go:155 lxc/image.go:1016 lxc/list.go:430
 msgid "ARCHITECTURE"
 msgstr "ARCHITEKTUR"
 
@@ -566,7 +566,7 @@ msgstr "Architektur: %s\n"
 msgid "As neither could be found, the raw SPICE socket can be found at:"
 msgstr ""
 
-#: lxc/init.go:298
+#: lxc/init.go:297
 msgid "Asked for a VM but image is of type container"
 msgstr ""
 
@@ -650,7 +650,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:128 lxc/init.go:208 lxc/project.go:124 lxc/publish.go:175
+#: lxc/copy.go:128 lxc/init.go:207 lxc/project.go:124 lxc/publish.go:175
 #: lxc/storage.go:127 lxc/storage_volume.go:533
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -746,7 +746,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/move.go:109
+#: lxc/move.go:108
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -758,9 +758,9 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/utils.go:239 lxc/utils.go:259
+#: lxc/utils.go:238 lxc/utils.go:258
 #, c-format
-msgid "Can't read from stdin: %s"
+msgid "Can't read from stdin: %w"
 msgstr ""
 
 #: lxc/remote.go:777
@@ -837,14 +837,14 @@ msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
 msgid "Client version: %s\n"
 msgstr ""
 
-#: lxc/cluster.go:779
+#: lxc/cluster.go:778
 #, c-format
 msgid "Cluster join token for %s:%s deleted"
 msgstr ""
 
-#: lxc/cluster.go:554 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
+#: lxc/cluster.go:553 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
 #: lxc/config.go:617 lxc/config.go:736 lxc/copy.go:53 lxc/info.go:46
-#: lxc/init.go:55 lxc/move.go:58 lxc/network.go:272 lxc/network.go:687
+#: lxc/init.go:54 lxc/move.go:57 lxc/network.go:272 lxc/network.go:687
 #: lxc/network.go:745 lxc/network.go:1032 lxc/network.go:1099
 #: lxc/network.go:1161 lxc/storage.go:96 lxc/storage.go:340 lxc/storage.go:401
 #: lxc/storage.go:601 lxc/storage.go:673 lxc/storage.go:756
@@ -857,7 +857,7 @@ msgstr ""
 msgid "Cluster member name"
 msgstr ""
 
-#: lxc/cluster.go:426
+#: lxc/cluster.go:425
 msgid "Clustering enabled"
 msgstr ""
 
@@ -881,7 +881,7 @@ msgstr ""
 msgid "Compression algorithm to use (`none` for uncompressed)"
 msgstr ""
 
-#: lxc/copy.go:45 lxc/init.go:49
+#: lxc/copy.go:45 lxc/init.go:48
 #, fuzzy
 msgid "Config key/value to apply to the new instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -891,12 +891,12 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Config key/value to apply to the new project"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/move.go:50
+#: lxc/move.go:49
 #, fuzzy
 msgid "Config key/value to apply to the target instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/cluster.go:521 lxc/config.go:258 lxc/config.go:331
+#: lxc/cluster.go:520 lxc/config.go:258 lxc/config.go:331
 #: lxc/config_metadata.go:145 lxc/image.go:429 lxc/network.go:655
 #: lxc/profile.go:501 lxc/project.go:307 lxc/storage.go:307
 #: lxc/storage_volume.go:946 lxc/storage_volume.go:976
@@ -913,7 +913,7 @@ msgstr ""
 msgid "Control: %s (%s)"
 msgstr ""
 
-#: lxc/copy.go:51 lxc/move.go:56
+#: lxc/copy.go:51 lxc/move.go:55
 msgid "Copy a stateful instance stateless"
 msgstr ""
 
@@ -961,7 +961,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Copy the volume without its snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/copy.go:54 lxc/move.go:59 lxc/storage_volume.go:313
+#: lxc/copy.go:54 lxc/move.go:58 lxc/storage_volume.go:313
 msgid "Copy to a project different from the source"
 msgstr ""
 
@@ -993,32 +993,32 @@ msgstr "Fehler: %v\n"
 msgid "Could not create server cert dir"
 msgstr "Kann Verzeichnis für Zertifikate auf dem Server nicht erstellen"
 
-#: lxc/cluster.go:843
+#: lxc/cluster.go:842
 #, fuzzy, c-format
 msgid "Could not find certificate file path: %s"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
 
-#: lxc/cluster.go:847
+#: lxc/cluster.go:846
 #, c-format
 msgid "Could not find certificate key file path: %s"
 msgstr ""
 
-#: lxc/cluster.go:852
+#: lxc/cluster.go:851
 #, fuzzy, c-format
 msgid "Could not read certificate file: %s with error: %v"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
 
-#: lxc/cluster.go:857
+#: lxc/cluster.go:856
 #, fuzzy, c-format
 msgid "Could not read certificate key file: %s with error: %v"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
 
-#: lxc/cluster.go:874
+#: lxc/cluster.go:873
 #, c-format
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
 
-#: lxc/init.go:58
+#: lxc/init.go:57
 #, fuzzy
 msgid "Create a virtual machine"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1027,7 +1027,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Create aliases for existing images"
 msgstr ""
 
-#: lxc/init.go:57
+#: lxc/init.go:56
 #, fuzzy
 msgid "Create an empty instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1054,7 +1054,7 @@ msgid ""
 "running state, including process memory state, TCP connections, ..."
 msgstr ""
 
-#: lxc/init.go:40 lxc/init.go:41
+#: lxc/init.go:39 lxc/init.go:40
 #, fuzzy
 msgid "Create instances from images"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1088,7 +1088,7 @@ msgstr "Fehlerhafte Profil URL %s"
 msgid "Create storage pools"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/copy.go:55 lxc/init.go:56
+#: lxc/copy.go:55 lxc/init.go:55
 #, fuzzy
 msgid "Create the instance with no profiles applied"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -1098,12 +1098,12 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Created: %s"
 msgstr "Erstellt: %s"
 
-#: lxc/init.go:156
+#: lxc/init.go:155
 #, c-format
 msgid "Creating %s"
 msgstr "Erstelle %s"
 
-#: lxc/init.go:154
+#: lxc/init.go:153
 #, fuzzy
 msgid "Creating the instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -1113,7 +1113,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Current number of VFs: %d"
 msgstr ""
 
-#: lxc/cluster.go:153
+#: lxc/cluster.go:152
 msgid "DATABASE"
 msgstr ""
 
@@ -1185,9 +1185,9 @@ msgstr "Kein Zertifikat für diese Verbindung"
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147
-#: lxc/alias.go:198 lxc/cluster.go:31 lxc/cluster.go:93 lxc/cluster.go:172
-#: lxc/cluster.go:222 lxc/cluster.go:272 lxc/cluster.go:355 lxc/cluster.go:440
-#: lxc/cluster.go:553 lxc/cluster.go:623 lxc/cluster.go:721 lxc/cluster.go:800
+#: lxc/alias.go:198 lxc/cluster.go:30 lxc/cluster.go:92 lxc/cluster.go:171
+#: lxc/cluster.go:221 lxc/cluster.go:271 lxc/cluster.go:354 lxc/cluster.go:439
+#: lxc/cluster.go:552 lxc/cluster.go:622 lxc/cluster.go:720 lxc/cluster.go:799
 #: lxc/config.go:30 lxc/config.go:92 lxc/config.go:363 lxc/config.go:455
 #: lxc/config.go:613 lxc/config.go:733 lxc/config_device.go:24
 #: lxc/config_device.go:78 lxc/config_device.go:196 lxc/config_device.go:274
@@ -1206,9 +1206,9 @@ msgstr "Kein Zertifikat für diese Verbindung"
 #: lxc/image.go:620 lxc/image.go:841 lxc/image.go:976 lxc/image.go:1274
 #: lxc/image.go:1353 lxc/image_alias.go:25 lxc/image_alias.go:61
 #: lxc/image_alias.go:108 lxc/image_alias.go:153 lxc/image_alias.go:255
-#: lxc/import.go:28 lxc/info.go:34 lxc/init.go:41 lxc/launch.go:25
+#: lxc/import.go:28 lxc/info.go:34 lxc/init.go:40 lxc/launch.go:25
 #: lxc/list.go:46 lxc/main.go:80 lxc/manpage.go:22 lxc/monitor.go:33
-#: lxc/move.go:37 lxc/network.go:32 lxc/network.go:111 lxc/network.go:196
+#: lxc/move.go:36 lxc/network.go:32 lxc/network.go:111 lxc/network.go:196
 #: lxc/network.go:269 lxc/network.go:341 lxc/network.go:391 lxc/network.go:476
 #: lxc/network.go:561 lxc/network.go:684 lxc/network.go:742 lxc/network.go:822
 #: lxc/network.go:907 lxc/network.go:976 lxc/network.go:1026
@@ -1276,7 +1276,7 @@ msgstr "Gerät %s wurde von %s entfernt\n"
 msgid "Device %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/utils.go:144 lxc/utils.go:168
+#: lxc/utils.go:143 lxc/utils.go:167
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "entfernte Instanz %s existiert bereits"
@@ -1312,7 +1312,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/init.go:357
+#: lxc/init.go:356
 #, fuzzy
 msgid "Didn't get any affected image, instance or snapshot from server"
 msgstr ""
@@ -1354,7 +1354,7 @@ msgstr " Prozessorauslastung:"
 msgid "Disks:"
 msgstr " Prozessorauslastung:"
 
-#: lxc/cluster.go:277
+#: lxc/cluster.go:276
 msgid "Don't require user confirmation for using --force"
 msgstr ""
 
@@ -1381,7 +1381,7 @@ msgid ""
 "(interrupt two more times to force)"
 msgstr ""
 
-#: lxc/cluster.go:439 lxc/cluster.go:440
+#: lxc/cluster.go:438 lxc/cluster.go:439
 #, fuzzy
 msgid "Edit cluster member configurations as YAML"
 msgstr "Alternatives config Verzeichnis."
@@ -1435,11 +1435,11 @@ msgstr ""
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 
-#: lxc/cluster.go:354
+#: lxc/cluster.go:353
 msgid "Enable clustering on a single non-clustered LXD server"
 msgstr ""
 
-#: lxc/cluster.go:355
+#: lxc/cluster.go:354
 msgid ""
 "Enable clustering on a single non-clustered LXD server\n"
 "\n"
@@ -1458,7 +1458,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:48 lxc/init.go:51
+#: lxc/copy.go:48 lxc/init.go:50
 #, fuzzy
 msgid "Ephemeral instance"
 msgstr "Flüchtiger Container"
@@ -1553,9 +1553,9 @@ msgstr ""
 msgid "Failed to add remote"
 msgstr ""
 
-#: lxc/move.go:240
-#, fuzzy
-msgid "Failed to connect to cluster member"
+#: lxc/move.go:239
+#, fuzzy, c-format
+msgid "Failed to connect to cluster member: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/remote.go:195
@@ -1563,7 +1563,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:214
+#: lxc/utils.go:213
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -1588,7 +1588,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/utils.go:203
+#: lxc/utils.go:202
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -1618,7 +1618,7 @@ msgstr "Fingerabdruck: %s\n"
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/cluster.go:276
+#: lxc/cluster.go:275
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
@@ -1635,7 +1635,7 @@ msgstr ""
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/cluster.go:284
+#: lxc/cluster.go:283
 #, c-format
 msgid ""
 "Forcefully removing a server from the cluster should only be done as a last\n"
@@ -1659,7 +1659,7 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:105 lxc/cluster.go:95 lxc/cluster.go:624
+#: lxc/alias.go:105 lxc/cluster.go:94 lxc/cluster.go:623
 #: lxc/config_template.go:241 lxc/config_trust.go:179 lxc/config_trust.go:258
 #: lxc/image.go:1002 lxc/image_alias.go:158 lxc/list.go:121 lxc/network.go:826
 #: lxc/network.go:909 lxc/operation.go:107 lxc/profile.go:584
@@ -1812,7 +1812,7 @@ msgstr ""
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr ""
 
-#: lxc/copy.go:57 lxc/move.go:60
+#: lxc/copy.go:57 lxc/move.go:59
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
@@ -1893,7 +1893,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr ""
 
-#: lxc/copy.go:418 lxc/init.go:364
+#: lxc/copy.go:418 lxc/init.go:363
 #, c-format
 msgid "Instance name is: %s"
 msgstr ""
@@ -1903,7 +1903,7 @@ msgstr ""
 msgid "Instance published with fingerprint: %s"
 msgstr "Abbild mit Fingerabdruck %s importiert\n"
 
-#: lxc/init.go:54
+#: lxc/init.go:53
 msgid "Instance type"
 msgstr ""
 
@@ -1947,9 +1947,9 @@ msgstr "Ungültiges Ziel %s"
 msgid "Invalid instance name: %s"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/utils.go:253
+#: lxc/utils.go:252
 #, fuzzy, c-format
-msgid "Invalid key=value configuration: %s"
+msgid "Invalid key=value configuration: %w"
 msgstr "Alternatives config Verzeichnis."
 
 #: lxc/list.go:528
@@ -1968,12 +1968,12 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/move.go:127 lxc/storage_volume.go:1343
+#: lxc/move.go:126 lxc/storage_volume.go:1343
 #, fuzzy
 msgid "Invalid new snapshot name"
 msgstr "'/' ist kein gültiges Zeichen im Namen eines Sicherungspunktes\n"
 
-#: lxc/move.go:123
+#: lxc/move.go:122
 msgid "Invalid new snapshot name, parent must be the same as source"
 msgstr ""
 
@@ -2047,7 +2047,7 @@ msgstr ""
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
-#: lxc/cluster.go:129 lxc/cluster.go:658 lxc/cluster.go:748 lxc/cluster.go:839
+#: lxc/cluster.go:128 lxc/cluster.go:657 lxc/cluster.go:747 lxc/cluster.go:838
 msgid "LXD server isn't part of a cluster"
 msgstr ""
 
@@ -2084,12 +2084,12 @@ msgstr "Aliasse:\n"
 msgid "List all active certificate add tokens"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:622 lxc/cluster.go:623
+#: lxc/cluster.go:621 lxc/cluster.go:622
 #, fuzzy
 msgid "List all active cluster member join tokens"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:92 lxc/cluster.go:93
+#: lxc/cluster.go:91 lxc/cluster.go:92
 msgid "List all the cluster members"
 msgstr ""
 
@@ -2332,7 +2332,7 @@ msgstr ""
 msgid "MEMORY USAGE%"
 msgstr ""
 
-#: lxc/cluster.go:155
+#: lxc/cluster.go:154
 msgid "MESSAGE"
 msgstr ""
 
@@ -2354,7 +2354,7 @@ msgstr "Veröffentliche Abbild"
 msgid "Manage and attach instances to networks"
 msgstr ""
 
-#: lxc/cluster.go:30 lxc/cluster.go:31
+#: lxc/cluster.go:29 lxc/cluster.go:30
 msgid "Manage cluster members"
 msgstr ""
 
@@ -2463,17 +2463,17 @@ msgstr ""
 msgid "Mdev profiles:"
 msgstr "Fehlerhafte Profil URL %s"
 
-#: lxc/cluster.go:604
+#: lxc/cluster.go:603
 #, fuzzy, c-format
 msgid "Member %s join token:"
 msgstr "Profil %s wurde auf %s angewandt\n"
 
-#: lxc/cluster.go:339
+#: lxc/cluster.go:338
 #, fuzzy, c-format
 msgid "Member %s removed"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/cluster.go:252
+#: lxc/cluster.go:251
 #, fuzzy, c-format
 msgid "Member %s renamed to %s"
 msgstr "Profil %s wurde auf %s angewandt\n"
@@ -2494,19 +2494,21 @@ msgstr ""
 msgid "Memory:"
 msgstr ""
 
-#: lxc/move.go:253
-msgid "Migration API failure"
+#: lxc/move.go:252
+#, c-format
+msgid "Migration API failure: %w"
 msgstr ""
 
-#: lxc/move.go:258
-msgid "Migration operation failure"
+#: lxc/move.go:257
+#, c-format
+msgid "Migration operation failure: %w"
 msgstr ""
 
 #: lxc/monitor.go:52
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/cluster.go:473
+#: lxc/cluster.go:472
 #, fuzzy
 msgid "Missing cluster member name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -2602,7 +2604,7 @@ msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Mehr als eine Datei herunterzuladen, aber das Ziel ist kein Verzeichnis"
 
-#: lxc/move.go:36 lxc/move.go:37
+#: lxc/move.go:35 lxc/move.go:36
 #, fuzzy
 msgid "Move instances within or in between LXD servers"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -2612,7 +2614,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Move storage volumes between pools"
 msgstr "Kein Zertifikat für diese Verbindung"
 
-#: lxc/move.go:54
+#: lxc/move.go:53
 #, fuzzy
 msgid "Move the instance without its snapshots"
 msgstr "Herunterfahren des Containers erzwingen."
@@ -2635,7 +2637,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/cluster.go:151 lxc/cluster.go:704 lxc/config_trust.go:328
+#: lxc/cluster.go:150 lxc/cluster.go:703 lxc/config_trust.go:328
 #: lxc/list.go:440 lxc/network.go:882 lxc/profile.go:623 lxc/project.go:458
 #: lxc/remote.go:665 lxc/storage.go:572 lxc/storage_volume.go:1186
 msgid "NAME"
@@ -2706,7 +2708,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Network %s renamed to %s"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/init.go:52
+#: lxc/init.go:51
 msgid "Network name"
 msgstr ""
 
@@ -2723,7 +2725,7 @@ msgstr ""
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/copy.go:46 lxc/move.go:51
+#: lxc/copy.go:46 lxc/move.go:50
 #, fuzzy
 msgid "New key/value to apply to a specific device"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -2733,7 +2735,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
 
-#: lxc/cluster.go:786
+#: lxc/cluster.go:785
 #, c-format
 msgid "No cluster join token for member %s on remote: %s"
 msgstr ""
@@ -2864,7 +2866,7 @@ msgstr ""
 msgid "Please provide client name: "
 msgstr ""
 
-#: lxc/cluster.go:578
+#: lxc/cluster.go:577
 #, fuzzy
 msgid "Please provide cluster member name: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -2878,7 +2880,7 @@ msgstr "Erstellt: %s"
 msgid "Ports:"
 msgstr ""
 
-#: lxc/cluster.go:522 lxc/config.go:259 lxc/config.go:332
+#: lxc/cluster.go:521 lxc/config.go:259 lxc/config.go:332
 #: lxc/config_metadata.go:146 lxc/config_template.go:206 lxc/image.go:430
 #: lxc/network.go:656 lxc/profile.go:502 lxc/project.go:308 lxc/storage.go:308
 #: lxc/storage_volume.go:947 lxc/storage_volume.go:977
@@ -2946,12 +2948,12 @@ msgstr "Gerät %s wurde von %s entfernt\n"
 msgid "Profile %s renamed to %s"
 msgstr "Profil %s wurde auf %s angewandt\n"
 
-#: lxc/copy.go:47 lxc/init.go:50
+#: lxc/copy.go:47 lxc/init.go:49
 #, fuzzy
 msgid "Profile to apply to the new instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/move.go:52
+#: lxc/move.go:51
 #, fuzzy
 msgid "Profile to apply to the target instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
@@ -3119,7 +3121,7 @@ msgstr ""
 msgid "Remove %s (yes/no): "
 msgstr ""
 
-#: lxc/cluster.go:271 lxc/cluster.go:272
+#: lxc/cluster.go:270 lxc/cluster.go:271
 msgid "Remove a member from the cluster"
 msgstr ""
 
@@ -3146,7 +3148,7 @@ msgstr ""
 msgid "Remove trusted clients"
 msgstr ""
 
-#: lxc/cluster.go:221 lxc/cluster.go:222
+#: lxc/cluster.go:220 lxc/cluster.go:221
 msgid "Rename a cluster member"
 msgstr ""
 
@@ -3198,7 +3200,7 @@ msgstr ""
 msgid "Render: %s (%s)"
 msgstr ""
 
-#: lxc/cluster.go:552 lxc/cluster.go:553
+#: lxc/cluster.go:551 lxc/cluster.go:552
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
@@ -3244,7 +3246,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Retrieve the instance's console log"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/init.go:312
+#: lxc/init.go:311
 #, c-format
 msgid "Retrieving image: %s"
 msgstr ""
@@ -3254,7 +3256,7 @@ msgstr ""
 msgid "Revoke certificate add token"
 msgstr "Kein Zertifikat zum hinzufügen bereitgestellt"
 
-#: lxc/cluster.go:720
+#: lxc/cluster.go:719
 #, fuzzy
 msgid "Revoke cluster member join token"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -3279,7 +3281,7 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/cluster.go:154 lxc/list.go:445 lxc/network.go:889 lxc/storage.go:579
+#: lxc/cluster.go:153 lxc/list.go:445 lxc/network.go:889 lxc/storage.go:579
 msgid "STATE"
 msgstr ""
 
@@ -3460,7 +3462,7 @@ msgstr ""
 msgid "Show content of instance file templates"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/cluster.go:171 lxc/cluster.go:172
+#: lxc/cluster.go:170 lxc/cluster.go:171
 msgid "Show details of a cluster member"
 msgstr ""
 
@@ -3649,7 +3651,7 @@ msgstr "Profil %s gelöscht\n"
 msgid "Storage pool %s pending on member %s"
 msgstr "Profil %s erstellt\n"
 
-#: lxc/copy.go:52 lxc/import.go:35 lxc/init.go:53 lxc/move.go:57
+#: lxc/copy.go:52 lxc/import.go:35 lxc/init.go:52 lxc/move.go:56
 #, fuzzy
 msgid "Storage pool name"
 msgstr "Profilname kann nicht geändert werden"
@@ -3679,7 +3681,7 @@ msgstr "Profil %s erstellt\n"
 msgid "Store the instance state"
 msgstr "Herunterfahren des Containers erzwingen."
 
-#: lxc/cluster.go:879
+#: lxc/cluster.go:878
 #, c-format
 msgid "Successfully updated cluster certificates for remote %s"
 msgstr ""
@@ -3714,7 +3716,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:705 lxc/config_trust.go:329
+#: lxc/cluster.go:704 lxc/config_trust.go:329
 msgid "TOKEN"
 msgstr ""
 
@@ -3723,11 +3725,11 @@ msgstr ""
 msgid "TYPE"
 msgstr ""
 
-#: lxc/move.go:162
+#: lxc/move.go:161
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:166
+#: lxc/move.go:165
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
@@ -3735,11 +3737,11 @@ msgstr ""
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
-#: lxc/move.go:158
+#: lxc/move.go:157
 msgid "The --stateless flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:178
+#: lxc/move.go:177
 msgid "The destination LXD server is not clustered"
 msgstr ""
 
@@ -3758,16 +3760,16 @@ msgid ""
 "restarted"
 msgstr ""
 
-#: lxc/init.go:415
+#: lxc/init.go:414
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
-#: lxc/init.go:399
+#: lxc/init.go:398
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
 msgstr ""
 
-#: lxc/init.go:395
+#: lxc/init.go:394
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
 msgstr ""
@@ -3781,7 +3783,7 @@ msgstr "entfernte Instanz %s existiert nicht"
 msgid "The server doesn't implement the newer v2 resources API"
 msgstr ""
 
-#: lxc/move.go:245
+#: lxc/move.go:244
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -3800,11 +3802,11 @@ msgstr "entfernte Instanz %s existiert nicht"
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/cluster.go:409
+#: lxc/cluster.go:408
 msgid "This LXD server is already clustered"
 msgstr ""
 
-#: lxc/cluster.go:399
+#: lxc/cluster.go:398
 msgid "This LXD server is not available on the network"
 msgstr ""
 
@@ -3834,11 +3836,11 @@ msgstr "Wartezeit bevor der Container gestoppt wird."
 msgid "Timestamps:"
 msgstr "Zeitstempel:\n"
 
-#: lxc/init.go:417
+#: lxc/init.go:416
 msgid "To attach a network to an instance, use: lxc network attach"
 msgstr ""
 
-#: lxc/init.go:416
+#: lxc/init.go:415
 msgid "To create a new network, use: lxc network create"
 msgstr ""
 
@@ -3875,7 +3877,7 @@ msgstr ""
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr ""
 
-#: lxc/move.go:55 lxc/storage_volume.go:309
+#: lxc/move.go:54 lxc/storage_volume.go:309
 msgid "Transfer mode. One of pull (default), push or relay."
 msgstr ""
 
@@ -3914,7 +3916,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:152 lxc/remote.go:666
+#: lxc/cluster.go:151 lxc/remote.go:666
 msgid "URL"
 msgstr ""
 
@@ -3953,7 +3955,7 @@ msgstr "Unbekannter Befehl %s für Abbild"
 msgid "Unknown output type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/move.go:53
+#: lxc/move.go:52
 #, fuzzy
 msgid "Unset all profiles on the target instance"
 msgstr "nicht alle Profile der Quelle sind am Ziel vorhanden."
@@ -3995,12 +3997,12 @@ msgstr "Alternatives config Verzeichnis."
 msgid "Unsupported instance type: %s"
 msgstr ""
 
-#: lxc/cluster.go:799
+#: lxc/cluster.go:798
 #, fuzzy
 msgid "Update cluster certificate"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/cluster.go:801
+#: lxc/cluster.go:800
 msgid ""
 "Update cluster certificate with PEM certificate and key read from input "
 "files."
@@ -4029,7 +4031,7 @@ msgstr ""
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/cluster.go:303 lxc/delete.go:48
+#: lxc/cluster.go:302 lxc/delete.go:48
 msgid "User aborted delete operation"
 msgstr ""
 
@@ -4109,7 +4111,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "You must specify a destination instance name when using --target"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/copy.go:77 lxc/move.go:229
+#: lxc/copy.go:77 lxc/move.go:228
 #, fuzzy
 msgid "You must specify a source instance name"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -4130,7 +4132,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/cluster.go:90 lxc/cluster.go:621 lxc/config_trust.go:174
+#: lxc/cluster.go:89 lxc/cluster.go:620 lxc/config_trust.go:174
 #: lxc/config_trust.go:254 lxc/monitor.go:31 lxc/network.go:819
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:384
 #: lxc/storage.go:520 lxc/version.go:20
@@ -4149,7 +4151,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/cluster.go:797
+#: lxc/cluster.go:796
 #, fuzzy
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr ""
@@ -4166,7 +4168,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/cluster.go:353
+#: lxc/cluster.go:352
 #, fuzzy
 msgid "[<remote>:] <name>"
 msgstr ""
@@ -4244,7 +4246,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/cluster.go:438
+#: lxc/cluster.go:437
 #, fuzzy
 msgid "[<remote>:]<cluster member>"
 msgstr ""
@@ -4460,7 +4462,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/move.go:34
+#: lxc/move.go:33
 #, fuzzy
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
@@ -4479,7 +4481,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/cluster.go:170 lxc/cluster.go:269 lxc/cluster.go:719
+#: lxc/cluster.go:169 lxc/cluster.go:268 lxc/cluster.go:718
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr ""
@@ -4488,7 +4490,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/cluster.go:219
+#: lxc/cluster.go:218
 #, fuzzy
 msgid "[<remote>:]<member> <new-name>"
 msgstr ""
@@ -4855,7 +4857,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/init.go:39
+#: lxc/init.go:38
 #, fuzzy
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr ""
@@ -4863,7 +4865,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/cluster.go:551
+#: lxc/cluster.go:550
 #, fuzzy
 msgid "[[<remote>:]<member>]"
 msgstr ""
@@ -4924,7 +4926,7 @@ msgid ""
 "    Rename existing alias \"list\" to \"my-list\"."
 msgstr ""
 
-#: lxc/cluster.go:442
+#: lxc/cluster.go:441
 msgid ""
 "lxc cluster edit <cluster member> < member.yaml\n"
 "    Update a cluster member using the content of member.yaml"
@@ -4998,7 +5000,7 @@ msgid ""
 "    For LXD server information."
 msgstr ""
 
-#: lxc/init.go:42
+#: lxc/init.go:41
 msgid ""
 "lxc init ubuntu:20.04 u1\n"
 "\n"
@@ -5043,7 +5045,7 @@ msgid ""
 "    Only show lifecycle events."
 msgstr ""
 
-#: lxc/move.go:39
+#: lxc/move.go:38
 #, fuzzy
 msgid ""
 "lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--"
@@ -5192,7 +5194,7 @@ msgstr ""
 msgid "y"
 msgstr ""
 
-#: lxc/cluster.go:302 lxc/delete.go:47 lxc/image.go:882 lxc/image.go:887
+#: lxc/cluster.go:301 lxc/delete.go:47 lxc/image.go:882 lxc/image.go:887
 #: lxc/image.go:1070
 msgid "yes"
 msgstr ""
