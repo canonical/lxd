@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
 )
@@ -75,7 +73,7 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 
 	project, err := c.GetProject(projectName)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to load project %q", projectName)
+		return "", fmt.Errorf("Failed to load project %q: %w", projectName, err)
 	}
 
 	return StorageVolumeProjectFromRecord(project, volumeType), nil
@@ -107,7 +105,7 @@ func StorageVolumeProjectFromRecord(p *db.Project, volumeType int) string {
 func NetworkProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
 	p, err := c.GetProject(projectName)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "Failed to load project %q", projectName)
+		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
 	}
 
 	projectName = NetworkProjectFromRecord(p)
@@ -139,7 +137,7 @@ func NetworkProjectFromRecord(p *db.Project) string {
 func ProfileProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
 	p, err := c.GetProject(projectName)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "Failed to load project %q", projectName)
+		return "", nil, fmt.Errorf("Failed to load project %q: %w", projectName, err)
 	}
 
 	projectName = ProfileProjectFromRecord(p)

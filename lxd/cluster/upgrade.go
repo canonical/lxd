@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 // NotifyUpgradeCompleted sends a notification to all other nodes in the
@@ -33,25 +32,25 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 	return notifier(func(client lxd.InstanceServer) error {
 		info, err := client.GetConnectionInfo()
 		if err != nil {
-			return errors.Wrap(err, "failed to get connection info")
+			return fmt.Errorf("failed to get connection info: %w", err)
 		}
 
 		url := fmt.Sprintf("%s%s", info.Addresses[0], databaseEndpoint)
 		request, err := http.NewRequest("PATCH", url, nil)
 		if err != nil {
-			return errors.Wrap(err, "failed to create database notify upgrade request")
+			return fmt.Errorf("failed to create database notify upgrade request: %w", err)
 		}
 		setDqliteVersionHeader(request)
 
 		httpClient, err := client.GetHTTPClient()
 		if err != nil {
-			return errors.Wrap(err, "failed to get HTTP client")
+			return fmt.Errorf("failed to get HTTP client: %w", err)
 		}
 
 		httpClient.Timeout = 5 * time.Second
 		response, err := httpClient.Do(request)
 		if err != nil {
-			return errors.Wrap(err, "failed to notify node about completed upgrade")
+			return fmt.Errorf("failed to notify node about completed upgrade: %w", err)
 		}
 
 		if response.StatusCode != http.StatusOK {
@@ -68,7 +67,7 @@ func MaybeUpdate(state *state.State) error {
 
 	enabled, err := Enabled(state.Node)
 	if err != nil {
-		return errors.Wrap(err, "Failed to check clustering is enabled")
+		return fmt.Errorf("Failed to check clustering is enabled: %w", err)
 	}
 	if !enabled {
 		return nil
@@ -89,7 +88,7 @@ func MaybeUpdate(state *state.State) error {
 
 	if err != nil {
 		// Just log the error and return.
-		return errors.Wrap(err, "Failed to check if this node is out-of-date")
+		return fmt.Errorf("Failed to check if this node is out-of-date: %w", err)
 	}
 
 	if !shouldUpdate {

@@ -1002,7 +1002,7 @@ func getListenerFile(protocol string, addr string) (*os.File, error) {
 
 	listener, err := tryListen(protocol, addr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to listen on %s: %v", addr, err)
+		return nil, fmt.Errorf("Failed to listen on %s: %w", addr, err)
 	}
 
 	file := &os.File{}
@@ -1015,7 +1015,7 @@ func getListenerFile(protocol string, addr string) (*os.File, error) {
 		file, err = unixListener.File()
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get file from listener: %v", err)
+		return nil, fmt.Errorf("Failed to get file from listener: %w", err)
 	}
 
 	return file, nil

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -158,7 +157,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	if filterStr != "" {
 		clauses, err = filter.Parse(filterStr)
 		if err != nil {
-			return response.SmartError(errors.Wrap(err, "Failed to filter warnings"))
+			return response.SmartError(fmt.Errorf("Failed to filter warnings: %w", err))
 		}
 	}
 
@@ -179,7 +178,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 		if err != nil {
-			return errors.Wrap(err, "Failed to get warnings")
+			return fmt.Errorf("Failed to get warnings: %w", err)
 		}
 
 		return nil
@@ -441,7 +440,7 @@ func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 
 		warnings, err := tx.GetWarnings(filter)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get resolved warnings")
+			return fmt.Errorf("Failed to get resolved warnings: %w", err)
 		}
 
 		for _, w := range warnings {
@@ -457,7 +456,7 @@ func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete warnings")
+		return fmt.Errorf("Failed to delete warnings: %w", err)
 	}
 
 	return nil

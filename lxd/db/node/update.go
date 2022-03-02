@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
@@ -153,7 +151,7 @@ func updateFromV39(tx *sql.Tx) error {
 
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
-		return errors.Wrap(err, "Failed to fetch raft nodes")
+		return fmt.Errorf("Failed to fetch raft nodes: %w", err)
 	}
 
 	if len(nodes) != 1 {
@@ -195,7 +193,7 @@ ALTER TABLE raft_nodes ADD COLUMN role INTEGER NOT NULL DEFAULT 0;
 func updateFromV37(tx *sql.Tx) error {
 	count, err := query.Count(tx, "raft_nodes", "")
 	if err != nil {
-		return errors.Wrap(err, "Fetch count of Raft nodes")
+		return fmt.Errorf("Fetch count of Raft nodes: %w", err)
 	}
 
 	if count == 0 {
@@ -209,7 +207,7 @@ INSERT INTO config (key, value)
   SELECT 'cluster.https_address', value FROM config WHERE key = 'core.https_address'
 `)
 	if err != nil {
-		return errors.Wrap(err, "Insert cluster.https_address config")
+		return fmt.Errorf("Insert cluster.https_address config: %w", err)
 	}
 
 	return nil

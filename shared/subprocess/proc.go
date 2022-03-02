@@ -13,7 +13,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/shared"
@@ -102,7 +101,7 @@ func (p *Process) Stop() error {
 		return ErrNotRunning
 	}
 
-	return errors.Wrapf(err, "Could not kill process")
+	return fmt.Errorf("Could not kill process: %w", err)
 }
 
 // Start will start the given process object
@@ -150,7 +149,7 @@ func (p *Process) start(fds []*os.File) error {
 	// Start the process.
 	err := cmd.Start()
 	if err != nil {
-		return errors.Wrapf(err, "Unable to start process")
+		return fmt.Errorf("Unable to start process: %w", err)
 	}
 
 	p.PID = int64(cmd.Process.Pid)
@@ -187,12 +186,12 @@ func (p *Process) start(fds []*os.File) error {
 func (p *Process) Restart() error {
 	err := p.Stop()
 	if err != nil {
-		return errors.Wrapf(err, "Unable to stop process")
+		return fmt.Errorf("Unable to stop process: %w", err)
 	}
 
 	err = p.Start()
 	if err != nil {
-		return errors.Wrapf(err, "Unable to start process")
+		return fmt.Errorf("Unable to start process: %w", err)
 	}
 
 	return nil
@@ -205,26 +204,26 @@ func (p *Process) Reload() error {
 	if err == nil {
 		err = pr.Signal(syscall.SIGHUP)
 		if err != nil {
-			return errors.Wrapf(err, "Could not reload process")
+			return fmt.Errorf("Could not reload process: %w", err)
 		}
 		return nil
 	} else if strings.Contains(err.Error(), "process already finished") {
 		return ErrNotRunning
 	}
 
-	return errors.Wrapf(err, "Could not reload process")
+	return fmt.Errorf("Could not reload process: %w", err)
 }
 
 // Save will save the given process object to a YAML file. Can be imported at a later point.
 func (p *Process) Save(path string) error {
 	dat, err := yaml.Marshal(p)
 	if err != nil {
-		return errors.Wrapf(err, "Unable to serialize process struct to YAML")
+		return fmt.Errorf("Unable to serialize process struct to YAML: %w", err)
 	}
 
 	err = ioutil.WriteFile(path, dat, 0644)
 	if err != nil {
-		return errors.Wrapf(err, "Unable to write to file '%s'", path)
+		return fmt.Errorf("Unable to write to file '%s': %w", path, err)
 	}
 
 	return nil
@@ -237,14 +236,14 @@ func (p *Process) Signal(signal int64) error {
 	if err == nil {
 		err = pr.Signal(syscall.Signal(signal))
 		if err != nil {
-			return errors.Wrapf(err, "Could not signal process")
+			return fmt.Errorf("Could not signal process: %w", err)
 		}
 		return nil
 	} else if strings.Contains(err.Error(), "process already finished") {
 		return ErrNotRunning
 	}
 
-	return errors.Wrapf(err, "Could not signal process")
+	return fmt.Errorf("Could not signal process: %w", err)
 }
 
 // Wait will wait for the given process object exit code

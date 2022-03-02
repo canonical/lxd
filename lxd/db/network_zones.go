@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -142,7 +140,7 @@ func (c *Cluster) GetNetworkZone(name string) (int64, string, *api.NetworkZone, 
 
 		err = networkZoneConfig(tx, id, &zone)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading config")
+			return fmt.Errorf("Failed loading config: %w", err)
 		}
 
 		return nil
@@ -181,7 +179,7 @@ func (c *Cluster) GetNetworkZoneByProject(projectName string, name string) (int6
 
 		err = networkZoneConfig(tx, id, &zone)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading config")
+			return fmt.Errorf("Failed loading config: %w", err)
 		}
 
 		return nil
@@ -275,7 +273,7 @@ func networkzoneConfigAdd(tx *sql.Tx, id int64, config map[string]string) error 
 
 		_, err = stmt.Exec(id, k, v)
 		if err != nil {
-			return errors.Wrapf(err, "Failed inserting config")
+			return fmt.Errorf("Failed inserting config: %w", err)
 		}
 	}
 
@@ -369,7 +367,7 @@ func (c *Cluster) GetNetworkZoneRecord(zone int64, name string) (int64, *api.Net
 
 		err = networkZoneRecordConfig(tx, id, &record)
 		if err != nil {
-			return errors.Wrapf(err, "Failed loading config")
+			return fmt.Errorf("Failed loading config: %w", err)
 		}
 
 		return nil
@@ -475,7 +473,7 @@ func networkZoneRecordConfigAdd(tx *sql.Tx, id int64, config map[string]string) 
 
 		_, err = stmt.Exec(id, k, v)
 		if err != nil {
-			return errors.Wrapf(err, "Failed inserting config")
+			return fmt.Errorf("Failed inserting config: %w", err)
 		}
 	}
 

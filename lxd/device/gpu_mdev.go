@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -129,7 +128,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 					return nil, fmt.Errorf("The requested profile %q does not exist", d.config["mdev"])
 				}
 
-				return nil, errors.Wrapf(err, "Failed to create virtual gpu %q", mdevUUID)
+				return nil, fmt.Errorf("Failed to create virtual gpu %q: %w", mdevUUID, err)
 			}
 
 			revert.Add(func() {
@@ -153,7 +152,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 	devicePath := filepath.Join("/sys/bus/pci/devices", pciAddress)
 	pciDev, err := pcidev.ParseUeventFile(filepath.Join(devicePath, "uevent"))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get PCI device info for GPU %q", pciAddress)
+		return nil, fmt.Errorf("Failed to get PCI device info for GPU %q: %w", pciAddress, err)
 	}
 
 	// Prepare the new volatile keys.

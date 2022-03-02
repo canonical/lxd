@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
@@ -99,7 +98,7 @@ func (c *cmdInit) RunInteractive(cmd *cobra.Command, args []string, d lxd.Instan
 
 		out, err := yaml.Marshal(object)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to render the config")
+			return nil, fmt.Errorf("Failed to render the config: %w", err)
 		}
 
 		fmt.Printf("%s\n", out)
@@ -152,7 +151,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 
 			listener, err := net.Listen("tcp", address)
 			if err != nil {
-				return errors.Wrapf(err, "Can't bind address %q", address)
+				return fmt.Errorf("Can't bind address %q: %w", address, err)
 			}
 
 			listener.Close()
@@ -186,7 +185,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 			validJoinToken := func(input string) error {
 				j, err := clusterMemberJoinTokenDecode(input)
 				if err != nil {
-					return errors.Wrapf(err, "Invalid join token")
+					return fmt.Errorf("Invalid join token: %w", err)
 				}
 
 				joinToken = j // Store valid decoded join token
@@ -323,7 +322,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 
 			err = cluster.SetupTrust(serverCert, serverName, config.Cluster.ClusterAddress, config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
 			if err != nil {
-				return errors.Wrap(err, "Failed to setup trust relationship with cluster")
+				return fmt.Errorf("Failed to setup trust relationship with cluster: %w", err)
 			}
 
 			// Now we have setup trust, don't send to server, othwerwise it will try and setup trust
@@ -346,7 +345,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 			// Get the list of required member config keys.
 			cluster, _, err := client.GetCluster()
 			if err != nil {
-				return errors.Wrap(err, "Failed to retrieve cluster information")
+				return fmt.Errorf("Failed to retrieve cluster information: %w", err)
 			}
 
 			for i, config := range cluster.MemberConfig {
@@ -858,7 +857,7 @@ func (c *cmdInit) askStoragePool(config *cmdInitData, d lxd.InstanceServer, serv
 					st := unix.Statfs_t{}
 					err := unix.Statfs(shared.VarPath(), &st)
 					if err != nil {
-						return errors.Wrapf(err, "Couldn't statfs %s", shared.VarPath())
+						return fmt.Errorf("Couldn't statfs %s: %w", shared.VarPath(), err)
 					}
 
 					/* choose 5 GB < x < 30GB, where x is 20% of the disk size */
@@ -1022,7 +1021,7 @@ they otherwise would.
 
 				listener, err := net.Listen("tcp", address)
 				if err != nil {
-					return fmt.Errorf("Can't bind address %q: %v", address, err)
+					return fmt.Errorf("Can't bind address %q: %w", address, err)
 				}
 
 				listener.Close()

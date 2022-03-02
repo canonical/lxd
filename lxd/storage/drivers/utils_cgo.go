@@ -8,8 +8,6 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/pkg/errors"
-
 	// Used by cgo
 	_ "github.com/lxc/lxd/lxd/include"
 )
@@ -313,7 +311,7 @@ func PrepareLoopDev(source string, flags int) (*os.File, error) {
 	loopFd, err := C.prepare_loop_dev_retry(cSource, (*C.char)(cLoopDev), C.int(flags))
 	if loopFd < 0 {
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to prepare loop device for %q", source)
+			return nil, fmt.Errorf("Failed to prepare loop device for %q: %w", source, err)
 		}
 
 		return nil, fmt.Errorf("Failed to prepare loop device for %q", source)

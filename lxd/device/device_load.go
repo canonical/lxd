@@ -3,8 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/device/nictype"
 	"github.com/lxc/lxd/lxd/instance"
@@ -95,7 +93,7 @@ func load(inst instance.Instance, state *state.State, projectName string, name s
 	// Warning: When validating a profile, inst is expected to be provided as nil.
 	dev, err := newByType(state, projectName, conf)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed loading device %q", name)
+		return nil, fmt.Errorf("Failed loading device %q: %w", name, err)
 	}
 
 	// Setup the device's internal variables.
@@ -154,7 +152,7 @@ func Validate(instConfig instance.ConfigReader, state *state.State, name string,
 func LoadByType(state *state.State, projectName string, conf deviceConfig.Device) (Type, error) {
 	dev, err := newByType(state, projectName, conf)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed loading device type")
+		return nil, fmt.Errorf("Failed loading device type: %w", err)
 	}
 
 	return dev, nil

@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,7 +35,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 var storagePoolVolumesCmd = APIEndpoint{
@@ -188,7 +188,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 		var err error
 		clauses, err = filter.Parse(filterStr)
 		if err != nil {
-			return response.SmartError(errors.Wrap(err, "Invalid filter"))
+			return response.SmartError(fmt.Errorf("Invalid filter: %w", err))
 		}
 	}
 
@@ -1785,23 +1785,23 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 
 	// Check storage pool exists.
 	_, _, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
-	if errors.Cause(err) == db.ErrNoSuchObject {
+	if errors.Is(err, db.ErrNoSuchObject) {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
 		// the backup then we cannot proceed so return an error.
 		if *bInfo.OptimizedStorage || pool != "" {
-			return response.InternalError(errors.Wrap(err, "Storage pool not found"))
+			return response.InternalError(fmt.Errorf("Storage pool not found: %w", err))
 		}
 
 		// Otherwise try and restore to the project's default profile pool.
 		_, profile, err := d.State().Cluster.GetProfile(bInfo.Project, "default")
 		if err != nil {
-			return response.InternalError(errors.Wrap(err, "Failed to get default profile"))
+			return response.InternalError(fmt.Errorf("Failed to get default profile: %w", err))
 		}
 
 		_, v, err := shared.GetRootDiskDevice(profile.Devices)
 		if err != nil {
-			return response.InternalError(errors.Wrap(err, "Failed to get root disk device"))
+			return response.InternalError(fmt.Errorf("Failed to get root disk device: %w", err))
 		}
 
 		// Use the default-profile's root pool.
@@ -1830,7 +1830,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		// Dump tarball to storage.
 		err = pool.CreateCustomVolumeFromBackup(*bInfo, backupFile, nil)
 		if err != nil {
-			return errors.Wrap(err, "Create custom volume from backup")
+			return fmt.Errorf("Create custom volume from backup: %w", err)
 		}
 
 		runRevert.Success()

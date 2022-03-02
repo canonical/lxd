@@ -1,12 +1,12 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -73,7 +73,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		// Ignore ErrCannotBeShrunk when setting size this just means the filler run above has needed to
 		// increase the volume size beyond the default block volume size.
 		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, false)
-		if err != nil && errors.Cause(err) != ErrCannotBeShrunk {
+		if err != nil && !errors.Is(err, ErrCannotBeShrunk) {
 			return err
 		}
 
@@ -189,7 +189,7 @@ func (d *dir) DeleteVolume(vol Volume, op *operations.Operation) error {
 	// Remove the volume from the storage device.
 	err = forceRemoveAll(volPath)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove '%s'", volPath)
+		return fmt.Errorf("Failed to remove '%s': %w", volPath, err)
 	}
 
 	// Although the volume snapshot directory should already be removed, lets remove it here
@@ -421,7 +421,7 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	// Remove the snapshot from the storage device.
 	err := forceRemoveAll(snapPath)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove '%s'", snapPath)
+		return fmt.Errorf("Failed to remove '%s': %w", snapPath, err)
 	}
 
 	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
@@ -481,7 +481,7 @@ func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 	bwlimit := d.config["rsync.bwlimit"]
 	_, err := rsync.LocalCopy(srcPath, volPath, bwlimit, true)
 	if err != nil {
-		return errors.Wrap(err, "Failed to rsync volume")
+		return fmt.Errorf("Failed to rsync volume: %w", err)
 	}
 
 	return nil

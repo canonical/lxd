@@ -13,7 +13,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 // GetStoragePoolVolumesNames gets the names of all storage volumes attached to
@@ -200,13 +199,13 @@ func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, vo
 	for _, volumeType := range volumeTypes {
 		volumeNames, err := c.storagePoolVolumesGetType(project, volumeType, poolID, nodeID)
 		if err != nil && err != sql.ErrNoRows {
-			return nil, errors.Wrap(err, "Failed to fetch volume types")
+			return nil, fmt.Errorf("Failed to fetch volume types: %w", err)
 		}
 
 		for _, volumeName := range volumeNames {
 			_, volume, err := c.storagePoolVolumeGetType(project, volumeName, volumeType, poolID, nodeID)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to fetch volume type")
+				return nil, fmt.Errorf("Failed to fetch volume type: %w", err)
 			}
 			result = append(result, volume)
 		}
@@ -536,7 +535,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 
 		err = storageVolumeConfigAdd(tx.tx, volumeID, volumeConfig, false)
 		if err != nil {
-			return errors.Wrap(err, "Insert storage volume configuration")
+			return fmt.Errorf("Insert storage volume configuration: %w", err)
 		}
 
 		return nil
@@ -1045,13 +1044,13 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 
 	err = query.SelectObjects(stmt, dest, StoragePoolVolumeTypeCustom, project)
 	if err != nil {
-		return nil, errors.Wrap(err, "Fetch custom volumes")
+		return nil, fmt.Errorf("Fetch custom volumes: %w", err)
 	}
 
 	for i, volume := range volumes {
 		config, err := query.SelectConfig(c.tx, "storage_volumes_config", "storage_volume_id=?", volume.ID)
 		if err != nil {
-			return nil, errors.Wrap(err, "Fetch custom volume config")
+			return nil, fmt.Errorf("Fetch custom volume config: %w", err)
 		}
 		volumes[i].Config = config
 	}

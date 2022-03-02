@@ -15,7 +15,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/netx/eui64"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -125,7 +124,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			ip, _, err := net.ParseCIDR(parentAddress)
 			if err != nil {
-				return errors.Wrapf(err, "Invalid network ipv4.address")
+				return fmt.Errorf("Invalid network ipv4.address: %w", err)
 			}
 
 			if d.config["ipv4.address"] == "none" && shared.IsFalseOrEmpty(d.config["security.ipv4_filtering"]) {
@@ -160,7 +159,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			ip, _, err := net.ParseCIDR(parentAddress)
 			if err != nil {
-				return errors.Wrapf(err, "Invalid network ipv6.address")
+				return fmt.Errorf("Invalid network ipv6.address: %w", err)
 			}
 
 			if d.config["ipv6.address"] == "none" && shared.IsFalseOrEmpty(d.config["security.ipv6_filtering"]) {
@@ -213,7 +212,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		var err error
 		d.network, err = network.LoadByName(d.state, project.Default, d.config["network"])
 		if err != nil {
-			return errors.Wrapf(err, "Error loading network config for %q", d.config["network"])
+			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
 		// Validate NIC settings with managed network.
@@ -609,7 +608,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 				link := &ip.Link{Name: saveData["host_name"]}
 				err = link.BridgeLinkSetHairpin(true)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Error enabling hairpin mode on bridge port %q", link.Name)
+					return nil, fmt.Errorf("Error enabling hairpin mode on bridge port %q: %w", link.Name, err)
 				}
 				d.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"dev": link.Name})
 			}
@@ -790,13 +789,13 @@ func (d *nicBridged) postStop() error {
 		// Detach host-side end of veth pair from bridge (required for openvswitch particularly).
 		err := network.DetachInterface(d.config["parent"], d.config["host_name"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to detach interface %q from %q", d.config["host_name"], d.config["parent"])
+			return fmt.Errorf("Failed to detach interface %q from %q: %w", d.config["host_name"], d.config["parent"], err)
 		}
 
 		// Removing host-side end of veth pair will delete the peer end too.
 		err = network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"])
+			return fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err)
 		}
 	}
 
@@ -824,7 +823,7 @@ func (d *nicBridged) Remove() error {
 		if network.InterfaceExists(d.config["parent"]) {
 			err := d.networkClearLease(d.inst.Name(), d.config["parent"], d.config["hwaddr"], clearLeaseAll)
 			if err != nil {
-				return errors.Wrapf(err, "Failed clearing leases")
+				return fmt.Errorf("Failed clearing leases: %w", err)
 			}
 		}
 
@@ -1018,7 +1017,7 @@ func (d *nicBridged) setFilters() (err error) {
 	// Parse device config.
 	mac, err := net.ParseMAC(d.config["hwaddr"])
 	if err != nil {
-		return errors.Wrapf(err, "Invalid hwaddr")
+		return fmt.Errorf("Invalid hwaddr: %w", err)
 	}
 
 	// Parse static IPs, relies on invalid IPs being set to nil.
@@ -1119,13 +1118,13 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 
 	iface, err := net.InterfaceByName(network)
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting bridge interface state for %q", network)
+		return fmt.Errorf("Failed getting bridge interface state for %q: %w", network, err)
 	}
 
 	// Get IPv4 and IPv6 address of interface running dnsmasq on host.
 	addrs, err := iface.Addrs()
 	if err != nil {
-		return errors.Wrapf(err, "Failed getting bridge interface addresses for %q", network)
+		return fmt.Errorf("Failed getting bridge interface addresses for %q: %w", network, err)
 	}
 
 	var dstIPv4, dstIPv6 net.IP
@@ -1194,7 +1193,7 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 
 				err = d.networkDHCPv6Release(DUID, IAID, srcIP, dstIPv6, dstDUID)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("Failed to release DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %v", name, srcIP, DUID, IAID, err))
+					errs = append(errs, fmt.Errorf("Failed to release DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %w", name, srcIP, DUID, IAID, err))
 				}
 			}
 		} else if fieldsLen == 2 && fields[0] == "duid" {
@@ -1590,7 +1589,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 	// those counters need to be reversed below.
 	hostCounters, err := resources.GetNetworkCounters(d.config["host_name"])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting network interface counters")
+		return nil, fmt.Errorf("Failed getting network interface counters: %w", err)
 	}
 
 	network := api.InstanceStateNetwork{

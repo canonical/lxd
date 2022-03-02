@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/lxc/lxd/lxd/config"
 	"github.com/lxc/lxd/lxd/db"
@@ -23,12 +23,12 @@ func ConfigLoad(tx *db.NodeTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config()
 	if err != nil {
-		return nil, errors.Wrap(err, "Cannot fetch node config from database")
+		return nil, fmt.Errorf("Cannot fetch node config from database: %w", err)
 	}
 
 	m, err := config.SafeLoad(ConfigSchema, values)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to load node config")
+		return nil, fmt.Errorf("Failed to load node config: %w", err)
 	}
 
 	return &Config{tx: tx, m: m}, nil
@@ -248,7 +248,7 @@ func (c *Config) update(values map[string]interface{}) (map[string]string, error
 
 	err = c.tx.UpdateConfig(changed)
 	if err != nil {
-		return nil, errors.Wrap(err, "Cannot persist local configuration changes")
+		return nil, fmt.Errorf("Cannot persist local configuration changes: %w", err)
 	}
 
 	return changed, nil

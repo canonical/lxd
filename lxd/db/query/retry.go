@@ -2,13 +2,13 @@ package query
 
 import (
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/Rican7/retry/jitter"
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -26,7 +26,7 @@ func Retry(f func() error) error {
 		err = f()
 		if err != nil {
 			// No point in re-trying or logging a no-row error.
-			if errors.Cause(err) == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				break
 			}
 
@@ -52,33 +52,33 @@ func Retry(f func() error) error {
 // IsRetriableError returns true if the given error might be transient and the
 // interaction can be safely retried.
 func IsRetriableError(err error) bool {
-	err = errors.Cause(err)
-	if err == nil {
-		return false
-	}
+	var dErr *driver.Error
 
-	if err, ok := err.(driver.Error); ok && err.Code == driver.ErrBusy {
+	if errors.As(err, &dErr) && dErr.Code == driver.ErrBusy {
 		return true
 	}
 
-	if err == sqlite3.ErrLocked || err == sqlite3.ErrBusy {
+	if errors.Is(err, sqlite3.ErrLocked) || errors.Is(err, sqlite3.ErrBusy) {
 		return true
 	}
 
-	if strings.Contains(err.Error(), "database is locked") {
-		return true
-	}
+	// Unwrap errors one at a time.
+	for ; err != nil; err = errors.Unwrap(err) {
+		if strings.Contains(err.Error(), "database is locked") {
+			return true
+		}
 
-	if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
-		return true
-	}
+		if strings.Contains(err.Error(), "cannot start a transaction within a transaction") {
+			return true
+		}
 
-	if strings.Contains(err.Error(), "bad connection") {
-		return true
-	}
+		if strings.Contains(err.Error(), "bad connection") {
+			return true
+		}
 
-	if strings.Contains(err.Error(), "checkpoint in progress") {
-		return true
+		if strings.Contains(err.Error(), "checkpoint in progress") {
+			return true
+		}
 	}
 
 	return false

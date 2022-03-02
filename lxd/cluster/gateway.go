@@ -29,7 +29,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/tcp"
-	"github.com/pkg/errors"
 )
 
 // NewGateway creates a new Gateway for managing access to the dqlite cluster.
@@ -293,7 +292,7 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
-			message := errors.Wrap(err, "Failed to hijack connection").Error()
+			message := fmt.Errorf("Failed to hijack connection: %w", err).Error()
 			http.Error(w, message, http.StatusInternalServerError)
 			return
 		}
@@ -393,17 +392,17 @@ func (g *Gateway) raftDial() client.DialFunc {
 
 		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create unix listener")
+			return nil, fmt.Errorf("Failed to create unix listener: %w", err)
 		}
 
 		goUnix, err := net.Dial("unix", listener.Addr().String())
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to connect to unix listener")
+			return nil, fmt.Errorf("Failed to connect to unix listener: %w", err)
 		}
 
 		cUnix, err := listener.Accept()
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to connect to unix listener")
+			return nil, fmt.Errorf("Failed to connect to unix listener: %w", err)
 		}
 
 		listener.Close()
@@ -481,7 +480,7 @@ func (g *Gateway) TransferLeadership() error {
 func (g *Gateway) DemoteOfflineNode(raftID uint64) error {
 	cli, err := g.getClient()
 	if err != nil {
-		return errors.Wrap(err, "Connect to local dqlite node")
+		return fmt.Errorf("Connect to local dqlite node: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -647,7 +646,7 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to fetch raft nodes addresses")
+		return "", fmt.Errorf("Failed to fetch raft nodes addresses: %w", err)
 	}
 
 	if len(addresses) == 0 {
@@ -716,18 +715,18 @@ func (g *Gateway) init(bootstrap bool) error {
 
 	info, err := loadInfo(g.db, g.networkCert)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create raft factory")
+		return fmt.Errorf("Failed to create raft factory: %w", err)
 	}
 
 	dir := filepath.Join(g.db.Dir(), "global")
 	if shared.PathExists(filepath.Join(dir, "logs.db")) {
 		err := shared.DirCopy(dir, dir+".bak")
 		if err != nil {
-			return errors.Wrap(err, "Failed to backup global database")
+			return fmt.Errorf("Failed to backup global database: %w", err)
 		}
 		err = MigrateToDqlite10(dir)
 		if err != nil {
-			return errors.Wrap(err, "Failed to migrate to dqlite 1.0")
+			return fmt.Errorf("Failed to migrate to dqlite 1.0: %w", err)
 		}
 		os.Remove(filepath.Join(dir, "logs.db"))
 		os.RemoveAll(filepath.Join(dir, "snapshots"))
@@ -741,7 +740,7 @@ func (g *Gateway) init(bootstrap bool) error {
 		// random unused address.
 		listener, err := net.Listen("unix", "")
 		if err != nil {
-			return errors.Wrap(err, "Failed to autobind unix socket")
+			return fmt.Errorf("Failed to autobind unix socket: %w", err)
 		}
 		g.bindAddress = listener.Addr().String()
 		listener.Close()
@@ -770,7 +769,7 @@ func (g *Gateway) init(bootstrap bool) error {
 			options...,
 		)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create dqlite server")
+			return fmt.Errorf("Failed to create dqlite server: %w", err)
 		}
 
 		// Force the correct configuration into the bootstrap node, this is needed
@@ -784,13 +783,13 @@ func (g *Gateway) init(bootstrap bool) error {
 			}
 			err = server.Recover(cluster)
 			if err != nil {
-				return errors.Wrap(err, "Failed to recover database state")
+				return fmt.Errorf("Failed to recover database state: %w", err)
 			}
 		}
 
 		err = server.Start()
 		if err != nil {
-			return errors.Wrap(err, "Failed to start dqlite server")
+			return fmt.Errorf("Failed to start dqlite server: %w", err)
 		}
 
 		g.lock.Lock()
@@ -841,12 +840,12 @@ func (g *Gateway) isLeader() (bool, error) {
 	}
 	client, err := g.getClient()
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to get dqlite client")
+		return false, fmt.Errorf("Failed to get dqlite client: %w", err)
 	}
 	defer client.Close()
 	leader, err := client.Leader(context.Background())
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to get leader address")
+		return false, fmt.Errorf("Failed to get leader address: %w", err)
 	}
 	return leader != nil && leader.ID == g.info.ID, nil
 }
@@ -887,7 +886,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 	for i, server := range servers {
 		address, err := g.nodeAddress(server.Address)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to fetch raft server address")
+			return nil, fmt.Errorf("Failed to fetch raft server address: %w", err)
 		}
 		servers[i].Address = address
 
@@ -939,7 +938,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 		address, err = tx.GetRaftNodeAddress(1)
 		if err != nil {
 			if err != db.ErrNoSuchObject {
-				return errors.Wrap(err, "Failed to fetch raft server address")
+				return fmt.Errorf("Failed to fetch raft server address: %w", err)
 			}
 			// Use the initial address as fallback. This is an edge
 			// case that happens when listing members on a
@@ -1123,21 +1122,21 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 		<-localToRemote
 	case err := <-remoteToLocal:
 		if err != nil {
-			errs[0] = fmt.Errorf("remote -> local: %v", err)
+			errs[0] = fmt.Errorf("remote -> local: %w", err)
 		}
 		local.(*net.UnixConn).CloseRead()
 		if err := <-localToRemote; err != nil {
-			errs[1] = fmt.Errorf("local -> remote: %v", err)
+			errs[1] = fmt.Errorf("local -> remote: %w", err)
 		}
 		remote.Close()
 		local.Close()
 	case err := <-localToRemote:
 		if err != nil {
-			errs[0] = fmt.Errorf("local -> remote: %v", err)
+			errs[0] = fmt.Errorf("local -> remote: %w", err)
 		}
 		remoteTCP.CloseRead()
 		if err := <-remoteToLocal; err != nil {
-			errs[1] = fmt.Errorf("remote -> local: %v", err)
+			errs[1] = fmt.Errorf("remote -> local: %w", err)
 		}
 		local.Close()
 		remote.Close()

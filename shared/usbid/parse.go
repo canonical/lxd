@@ -101,7 +101,7 @@ func ParseIDs(r io.Reader) (map[ID]*Vendor, map[ClassCode]*Class, error) {
 		// Parse the ID
 		i, err := strconv.ParseUint(pieces[0], 16, 16)
 		if err != nil {
-			err = fmt.Errorf("malformatted id %q: %s", pieces[0], err)
+			err = fmt.Errorf("malformatted id %q: %w", pieces[0], err)
 			return
 		}
 		id = i
@@ -221,7 +221,7 @@ parseLines:
 
 		k, level, id, name, err := split(line)
 		if err != nil {
-			return nil, nil, fmt.Errorf("line %d: %s", lineno, err)
+			return nil, nil, fmt.Errorf("line %d: %w", lineno, err)
 		}
 		if k != "" {
 			kind = k
@@ -234,7 +234,7 @@ parseLines:
 			err = parseClass(level, id, name)
 		}
 		if err != nil {
-			return nil, nil, fmt.Errorf("line %d: %s", lineno, err)
+			return nil, nil, fmt.Errorf("line %d: %w", lineno, err)
 		}
 	}
 

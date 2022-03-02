@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/util"
@@ -87,18 +85,18 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 		// Get offline threshold.
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
-			return errors.Wrap(err, "Load offline threshold config")
+			return fmt.Errorf("Load offline threshold config: %w", err)
 		}
 
 		// Get failure domains.
 		nodesDomains, err := tx.GetNodesFailureDomains()
 		if err != nil {
-			return errors.Wrap(err, "Load nodes failure domains")
+			return fmt.Errorf("Load nodes failure domains: %w", err)
 		}
 
 		domainsNames, err := tx.GetFailureDomainsNames()
 		if err != nil {
-			return errors.Wrap(err, "Load failure domains names")
+			return fmt.Errorf("Load failure domains names: %w", err)
 		}
 
 		domainID := nodesDomains[n.Address]
@@ -107,7 +105,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 		// Get the highest schema and API versions.
 		maxVersion, err = tx.GetNodeMaxVersion()
 		if err != nil {
-			return errors.Wrap(err, "Get max version")
+			return fmt.Errorf("Get max version: %w", err)
 		}
 
 		return nil
@@ -121,7 +119,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	err = node.Transaction(func(tx *NodeTx) error {
 		nodes, err := tx.GetRaftNodes()
 		if err != nil {
-			return errors.Wrap(err, "Load offline threshold config")
+			return fmt.Errorf("Load offline threshold config: %w", err)
 		}
 
 		for _, node := range nodes {
@@ -338,7 +336,7 @@ func (c *ClusterTx) GetLocalNodeAddress() (string, error) {
 func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 	nodes, err := c.nodes(false /* not pending */, "")
 	if err != nil {
-		return false, errors.Wrap(err, "Failed to fetch nodes")
+		return false, fmt.Errorf("Failed to fetch nodes: %w", err)
 	}
 
 	// Figure our own version.
@@ -359,7 +357,7 @@ func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 		}
 		n, err := util.CompareVersions(node.Version(), version)
 		if err != nil {
-			errors.Wrapf(err, "Failed to compare with version of node %s", node.Name)
+			return false, fmt.Errorf("Failed to compare with version of node %s: %w", node.Name, err)
 		}
 
 		if n == 1 {
@@ -386,7 +384,7 @@ func (c *ClusterTx) GetNodes() ([]NodeInfo, error) {
 func (c *ClusterTx) GetNodesCount() (int, error) {
 	count, err := query.Count(c.tx, "nodes", "")
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to count existing nodes")
+		return 0, fmt.Errorf("failed to count existing nodes: %w", err)
 	}
 	return count, nil
 }
@@ -397,7 +395,7 @@ func (c *ClusterTx) GetNodesCount() (int, error) {
 func (c *ClusterTx) RenameNode(old, new string) error {
 	count, err := query.Count(c.tx, "nodes", "name=?", new)
 	if err != nil {
-		return errors.Wrap(err, "failed to check existing nodes")
+		return fmt.Errorf("failed to check existing nodes: %w", err)
 	}
 	if count != 0 {
 		return ErrAlreadyDefined
@@ -405,11 +403,11 @@ func (c *ClusterTx) RenameNode(old, new string) error {
 	stmt := `UPDATE nodes SET name=? WHERE name=?`
 	result, err := c.tx.Exec(stmt, new, old)
 	if err != nil {
-		return errors.Wrap(err, "failed to update node name")
+		return fmt.Errorf("failed to update node name: %w", err)
 	}
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "failed to get rows count")
+		return fmt.Errorf("failed to get rows count: %w", err)
 	}
 	if n != 1 {
 		return fmt.Errorf("expected to update one row, not %d", n)
@@ -422,12 +420,12 @@ func (c *ClusterTx) SetDescription(id int64, description string) error {
 	stmt := `UPDATE nodes SET description=? WHERE id=?`
 	result, err := c.tx.Exec(stmt, description, id)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update node name")
+		return fmt.Errorf("Failed to update node name: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Failed to get rows count")
+		return fmt.Errorf("Failed to get rows count: %w", err)
 	}
 
 	if n != 1 {
@@ -556,7 +554,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 
 	err = query.SelectObjects(stmt, dest, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch nodes")
+		return nil, fmt.Errorf("Failed to fetch nodes: %w", err)
 	}
 
 	// Add the roles
@@ -761,15 +759,15 @@ func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
 		err := row.Scan(&domainID)
 		if err != nil {
 			if err != sql.ErrNoRows {
-				return errors.Wrapf(err, "Load failure domain name")
+				return fmt.Errorf("Load failure domain name: %w", err)
 			}
 			result, err := c.tx.Exec("INSERT INTO nodes_failure_domains (name) VALUES (?)", domain)
 			if err != nil {
-				return errors.Wrapf(err, "Create new failure domain")
+				return fmt.Errorf("Create new failure domain: %w", err)
 			}
 			domainID, err = result.LastInsertId()
 			if err != nil {
-				return errors.Wrapf(err, "Get last inserted ID")
+				return fmt.Errorf("Get last inserted ID: %w", err)
 			}
 		}
 	}
@@ -940,7 +938,7 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 	// Check if the node has any instances.
 	containers, err := query.SelectStrings(c.tx, "SELECT name FROM instances WHERE node_id=?", id)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get instances for node %d", id)
+		return "", fmt.Errorf("Failed to get instances for node %d: %w", id, err)
 	}
 	if len(containers) > 0 {
 		message := fmt.Sprintf(
@@ -969,7 +967,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 	defer stmt.Close()
 	err = query.SelectObjects(stmt, dest)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get image list for node %d", id)
+		return "", fmt.Errorf("Failed to get image list for node %d: %w", id, err)
 	}
 	index := map[string][]int64{} // Map fingerprints to IDs of nodes
 	for _, image := range images {
@@ -997,7 +995,7 @@ SELECT fingerprint, node_id FROM images JOIN images_nodes ON images.id=images_no
 		c.tx, "SELECT storage_volumes.name FROM storage_volumes JOIN storage_pools ON storage_volumes.storage_pool_id=storage_pools.id WHERE storage_volumes.node_id=? AND storage_volumes.type=? AND storage_pools.driver NOT IN ('ceph', 'cephfs')",
 		id, StoragePoolVolumeTypeCustom)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get custom volumes for node %d", id)
+		return "", fmt.Errorf("Failed to get custom volumes for node %d: %w", id, err)
 	}
 	if len(volumes) > 0 {
 		message := fmt.Sprintf(
@@ -1072,12 +1070,12 @@ func (c *ClusterTx) GetNodeOfflineThreshold() (time.Duration, error) {
 func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, group string, allowedGroups []string) (string, error) {
 	threshold, err := c.GetNodeOfflineThreshold()
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get offline threshold")
+		return "", fmt.Errorf("Failed to get offline threshold: %w", err)
 	}
 
 	nodes, err := c.GetNodes()
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get current cluster members")
+		return "", fmt.Errorf("Failed to get current cluster members: %w", err)
 	}
 
 	name := ""
@@ -1148,14 +1146,14 @@ func (c *ClusterTx) GetNodeWithLeastInstances(archs []int, defaultArch int, grou
 		// Fetch the number of instances already created on this node.
 		created, err := query.Count(c.tx, "instances", "node_id=?", node.ID)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get instances count")
+			return "", fmt.Errorf("Failed to get instances count: %w", err)
 		}
 
 		// Fetch the number of instances currently being created on this node.
 		pending, err := query.Count(
 			c.tx, "operations", "node_id=? AND type=?", node.ID, OperationInstanceCreate)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to get pending instances count")
+			return "", fmt.Errorf("Failed to get pending instances count: %w", err)
 		}
 
 		count := created + pending
@@ -1178,12 +1176,12 @@ func (c *ClusterTx) SetNodeVersion(id int64, version [2]int) error {
 
 	result, err := c.tx.Exec(stmt, version[0], version[1], id)
 	if err != nil {
-		return errors.Wrap(err, "Failed to update nodes table")
+		return fmt.Errorf("Failed to update nodes table: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Failed to get affected rows")
+		return fmt.Errorf("Failed to get affected rows: %w", err)
 	}
 
 	if n != 1 {

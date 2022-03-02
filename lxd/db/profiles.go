@@ -8,7 +8,6 @@ import (
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pkg/errors"
 )
 
 // Code generation directives.
@@ -134,7 +133,7 @@ func (c *Cluster) GetProfileNames(project string) ([]string, error) {
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has profiles")
+			return fmt.Errorf("Check if project has profiles: %w", err)
 		}
 		if !enabled {
 			project = "default"
@@ -191,7 +190,7 @@ func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error
 
 	enabled, err := c.ProjectHasProfiles(project)
 	if err != nil {
-		return -1, nil, errors.Wrap(err, "Check if project has profiles")
+		return -1, nil, fmt.Errorf("Check if project has profiles: %w", err)
 	}
 	if !enabled {
 		project = "default"
@@ -215,7 +214,7 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(projectName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed checking if project %q has profiles", projectName)
+			return fmt.Errorf("Failed checking if project %q has profiles: %w", projectName, err)
 		}
 
 		if !enabled {
@@ -225,7 +224,7 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 		for i, profileName := range profileNames {
 			profile, err := tx.GetProfile(projectName, profileName)
 			if err != nil {
-				return errors.Wrapf(err, "Failed loading profile %q", profileName)
+				return fmt.Errorf("Failed loading profile %q: %w", profileName, err)
 			}
 
 			profiles[i] = *ProfileToAPI(profile)
@@ -246,7 +245,7 @@ func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][
 	err := c.Transaction(func(tx *ClusterTx) error {
 		enabled, err := tx.ProjectHasProfiles(project)
 		if err != nil {
-			return errors.Wrap(err, "Check if project has profiles")
+			return fmt.Errorf("Check if project has profiles: %w", err)
 		}
 		if !enabled {
 			project = "default"

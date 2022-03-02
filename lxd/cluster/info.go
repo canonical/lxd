@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 // Load information about the dqlite node associated with this LXD member
@@ -50,7 +49,7 @@ func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 		logger.Info("Renaming global database directory from raft/ to database/global/")
 		err := os.Rename(legacyDir, dir)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to rename legacy global database directory")
+			return nil, fmt.Errorf("failed to rename legacy global database directory: %w", err)
 		}
 	}
 

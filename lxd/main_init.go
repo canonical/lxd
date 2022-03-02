@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/lxc/lxd/client"
@@ -100,12 +99,12 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	// Connect to LXD
 	d, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to local LXD")
+		return fmt.Errorf("Failed to connect to local LXD: %w", err)
 	}
 
 	server, _, err := d.GetServer()
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to get LXD server info")
+		return fmt.Errorf("Failed to connect to get LXD server info: %w", err)
 	}
 
 	// Dump mode
@@ -162,7 +161,7 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 	if config.Cluster != nil && config.Cluster.ClusterToken != "" {
 		joinToken, err := clusterMemberJoinTokenDecode(config.Cluster.ClusterToken)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid cluster join token")
+			return fmt.Errorf("Invalid cluster join token: %w", err)
 		}
 
 		// Set server name from join token
@@ -216,11 +215,11 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 		op, err := d.UpdateCluster(config.Cluster.ClusterPut, "")
 		if err != nil {
-			return errors.Wrap(err, "Failed to join cluster")
+			return fmt.Errorf("Failed to join cluster: %w", err)
 		}
 		err = op.Wait()
 		if err != nil {
-			return errors.Wrap(err, "Failed to join cluster")
+			return fmt.Errorf("Failed to join cluster: %w", err)
 		}
 		return nil
 	}

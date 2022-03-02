@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 // NetworkPublicKey returns the public key of the TLS certificate used by the
@@ -194,7 +193,7 @@ func networkCreateListener(address string, cert *shared.CertInfo) (net.Listener,
 
 	listener, err := net.Listen(protocol, listenAddress)
 	if err != nil {
-		return nil, errors.Wrap(err, "Bind network address")
+		return nil, fmt.Errorf("Bind network address: %w", err)
 	}
 	return listeners.NewFancyTLSListener(listener, cert), nil
 }

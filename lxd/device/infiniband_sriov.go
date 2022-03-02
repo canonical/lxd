@@ -3,8 +3,6 @@ package device
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -126,7 +124,7 @@ func (d *infinibandSRIOV) Start() (*deviceConfig.RunConfig, error) {
 		link := &ip.Link{Name: saveData["host_name"]}
 		err := link.SetMTU(d.config["mtu"])
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed setting MTU %q on %q", d.config["mtu"], saveData["host_name"])
+			return nil, fmt.Errorf("Failed setting MTU %q on %q: %w", d.config["mtu"], saveData["host_name"], err)
 		}
 	}
 
@@ -180,7 +178,7 @@ func (d *infinibandSRIOV) postStop() error {
 	// Remove infiniband host files for this device.
 	err := unixDeviceDeleteFiles(d.state, d.inst.DevicesPath(), IBDevPrefix, d.name, "")
 	if err != nil {
-		return fmt.Errorf("Failed to delete files for device '%s': %v", d.name, err)
+		return fmt.Errorf("Failed to delete files for device '%s': %w", d.name, err)
 	}
 
 	// Restore hwaddr and mtu.

@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // Dump returns a SQL text dump of all rows across all tables, similar to
@@ -24,7 +22,7 @@ BEGIN TRANSACTION;
 	// Schema table
 	tableDump, err := dumpTable(ctx, tx, "schema", dumpSchemaTable)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to dump table schema")
+		return "", fmt.Errorf("failed to dump table schema: %w", err)
 	}
 	dump += tableDump
 
@@ -42,7 +40,7 @@ BEGIN TRANSACTION;
 		}
 		tableDump, err := dumpTable(ctx, tx, table, schemas[table])
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to dump table %s", table)
+			return "", fmt.Errorf("failed to dump table %s: %w", table, err)
 		}
 		dump += tableDump
 	}
@@ -51,7 +49,7 @@ BEGIN TRANSACTION;
 	if !schemaOnly {
 		tableDump, err = dumpTable(ctx, tx, "sqlite_sequence", "DELETE FROM sqlite_sequence;")
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to dump table sqlite_sequence")
+			return "", fmt.Errorf("failed to dump table sqlite_sequence: %w", err)
 		}
 		dump += tableDump
 	}
@@ -85,14 +83,14 @@ func dumpTable(ctx context.Context, tx *sql.Tx, table, schema string) (string, e
 	// Query all rows.
 	rows, err := tx.QueryContext(ctx, fmt.Sprintf("SELECT * FROM %s ORDER BY rowid", table))
 	if err != nil {
-		return "", errors.Wrap(err, "failed to fetch rows")
+		return "", fmt.Errorf("failed to fetch rows: %w", err)
 	}
 	defer rows.Close()
 
 	// Figure column names
 	columns, err := rows.Columns()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get columns")
+		return "", fmt.Errorf("failed to get columns: %w", err)
 	}
 
 	// Generate an INSERT statement for each row.
@@ -104,7 +102,7 @@ func dumpTable(ctx context.Context, tx *sql.Tx, table, schema string) (string, e
 		}
 		err := rows.Scan(row...)
 		if err != nil {
-			return "", errors.Wrapf(err, "failed to scan row %d", i)
+			return "", fmt.Errorf("failed to scan row %d: %w", i, err)
 		}
 		values := make([]string, len(columns))
 		for j, v := range raw {

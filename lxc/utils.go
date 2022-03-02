@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/fvbommel/sortorder"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -236,7 +235,7 @@ func getConfig(args ...string) (map[string]string, error) {
 		if args[1] == "-" && !termios.IsTerminal(getStdinFd()) {
 			buf, err := ioutil.ReadAll(os.Stdin)
 			if err != nil {
-				return nil, errors.Wrap(err, i18n.G("Can't read from stdin: %s"))
+				return nil, fmt.Errorf(i18n.G("Can't read from stdin: %w"), err)
 			}
 
 			args[1] = string(buf[:])
@@ -250,13 +249,13 @@ func getConfig(args ...string) (map[string]string, error) {
 	for _, arg := range args {
 		fields := strings.SplitN(arg, "=", 2)
 		if len(fields) != 2 {
-			return nil, fmt.Errorf(i18n.G("Invalid key=value configuration: %s"), arg)
+			return nil, fmt.Errorf(i18n.G("Invalid key=value configuration: %w"), arg)
 		}
 
 		if fields[1] == "-" && !termios.IsTerminal(getStdinFd()) {
 			buf, err := ioutil.ReadAll(os.Stdin)
 			if err != nil {
-				return nil, fmt.Errorf(i18n.G("Can't read from stdin: %s"), err)
+				return nil, fmt.Errorf(i18n.G("Can't read from stdin: %w"), err)
 			}
 
 			fields[1] = string(buf[:])

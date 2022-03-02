@@ -3,8 +3,6 @@ package query
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/pkg/errors"
 )
 
 // Count returns the number of rows in the given table.
@@ -44,14 +42,14 @@ func Count(tx *sql.Tx, table string, where string, args ...interface{}) (int, er
 func CountAll(tx *sql.Tx) (map[string]int, error) {
 	tables, err := SelectStrings(tx, "SELECT name FROM sqlite_master WHERE type = 'table'")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch table names")
+		return nil, fmt.Errorf("Failed to fetch table names: %w", err)
 	}
 
 	counts := map[string]int{}
 	for _, table := range tables {
 		count, err := Count(tx, table, "")
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to count rows of %s", table)
+			return nil, fmt.Errorf("Failed to count rows of %s: %w", table, err)
 		}
 		counts[table] = count
 	}

@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/project"
@@ -53,7 +51,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 		// Mount volume.
 		_, err = pool.UnmountCustomVolume(project.Default, volumeName, nil)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to unmount storage volume %q", source)
+			return fmt.Errorf("Failed to unmount storage volume %q: %w", source, err)
 		}
 
 		return nil
@@ -62,14 +60,14 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 	if storageBackups != "" {
 		err := unmount("backups", storageBackups)
 		if err != nil {
-			return errors.Wrap(err, "Failed to unmount backups storage")
+			return fmt.Errorf("Failed to unmount backups storage: %w", err)
 		}
 	}
 
 	if storageImages != "" {
 		err := unmount("images", storageImages)
 		if err != nil {
-			return errors.Wrap(err, "Failed to unmount images storage")
+			return fmt.Errorf("Failed to unmount images storage: %w", err)
 		}
 	}
 
@@ -109,7 +107,7 @@ func daemonStorageMount(s *state.State) error {
 		// Mount volume.
 		err = pool.MountCustomVolume(project.Default, volumeName, nil)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to mount storage volume %q", source)
+			return fmt.Errorf("Failed to mount storage volume %q: %w", source, err)
 		}
 
 		return nil
@@ -118,14 +116,14 @@ func daemonStorageMount(s *state.State) error {
 	if storageBackups != "" {
 		err := mount("backups", storageBackups)
 		if err != nil {
-			return errors.Wrap(err, "Failed to mount backups storage")
+			return fmt.Errorf("Failed to mount backups storage: %w", err)
 		}
 	}
 
 	if storageImages != "" {
 		err := mount("images", storageImages)
 		if err != nil {
-			return errors.Wrap(err, "Failed to mount images storage")
+			return fmt.Errorf("Failed to mount images storage: %w", err)
 		}
 	}
 
@@ -158,18 +156,18 @@ func daemonStorageValidate(s *state.State, target string) error {
 	// Validate pool exists.
 	poolID, _, _, err := s.Cluster.GetStoragePool(poolName)
 	if err != nil {
-		return errors.Wrapf(err, "Unable to load storage pool %q", poolName)
+		return fmt.Errorf("Unable to load storage pool %q: %w", poolName, err)
 	}
 
 	// Confirm volume exists.
 	_, _, err = s.Cluster.GetLocalStoragePoolVolume(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
-		return errors.Wrapf(err, "Unable to load storage volume %q", target)
+		return fmt.Errorf("Unable to load storage volume %q: %w", target, err)
 	}
 
 	snapshots, err := s.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
-		return errors.Wrapf(err, "Unable to load storage volume snapshots %q", target)
+		return fmt.Errorf("Unable to load storage volume snapshots %q: %w", target, err)
 	}
 
 	if len(snapshots) != 0 {
@@ -184,7 +182,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 	// Mount volume.
 	err = pool.MountCustomVolume(project.Default, volumeName, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to mount storage volume %q", target)
+		return fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
 	}
 	defer pool.UnmountCustomVolume(project.Default, volumeName, nil)
 
@@ -194,7 +192,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 
 	entries, err := ioutil.ReadDir(mountpoint)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list %q", mountpoint)
+		return fmt.Errorf("Failed to list %q: %w", mountpoint, err)
 	}
 
 	for _, entry := range entries {
@@ -265,19 +263,19 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		// Remove the symlink.
 		err = os.Remove(destPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to delete storage symlink at %q", destPath)
+			return fmt.Errorf("Failed to delete storage symlink at %q: %w", destPath, err)
 		}
 
 		// Re-create as a directory.
 		err = os.MkdirAll(destPath, 0700)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create directory %q", destPath)
+			return fmt.Errorf("Failed to create directory %q: %w", destPath, err)
 		}
 
 		// Move the data across.
 		err = moveContent(sourcePath, destPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to move data over to directory %q", destPath)
+			return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
 		}
 
 		pool, err := storagePools.GetPoolByName(s, sourcePool)
@@ -289,7 +287,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
 		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
 		if err != nil {
-			return errors.Wrapf(err, `Failed to umount storage volume "%s/%s"`, sourcePool, sourceVolumeName)
+			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}
 
 		return nil
@@ -309,7 +307,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	// Mount volume.
 	err = pool.MountCustomVolume(project.Default, volumeName, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to mount storage volume %q", target)
+		return fmt.Errorf("Failed to mount storage volume %q: %w", target, err)
 	}
 
 	// Set ownership & mode.
@@ -319,12 +317,12 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 
 	err = os.Chmod(mountpoint, 0700)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to set permissions on %q", mountpoint)
+		return fmt.Errorf("Failed to set permissions on %q: %w", mountpoint, err)
 	}
 
 	err = os.Chown(mountpoint, 0, 0)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to set ownership on %q", mountpoint)
+		return fmt.Errorf("Failed to set ownership on %q: %w", mountpoint, err)
 	}
 
 	// Handle changes.
@@ -332,19 +330,19 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		// Remove the symlink.
 		err := os.Remove(shared.VarPath(storageType))
 		if err != nil {
-			return errors.Wrapf(err, "Failed to remove the new symlink at %q", shared.VarPath(storageType))
+			return fmt.Errorf("Failed to remove the new symlink at %q: %w", shared.VarPath(storageType), err)
 		}
 
 		// Create the new symlink.
 		err = os.Symlink(destPath, shared.VarPath(storageType))
 		if err != nil {
-			return errors.Wrapf(err, "Failed to create the new symlink at %q", shared.VarPath(storageType))
+			return fmt.Errorf("Failed to create the new symlink at %q: %w", shared.VarPath(storageType), err)
 		}
 
 		// Move the data across.
 		err = moveContent(sourcePath, destPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to move data over to directory %q", destPath)
+			return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
 		}
 
 		pool, err := storagePools.GetPoolByName(s, sourcePool)
@@ -356,7 +354,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		projectName, sourceVolumeName := project.StorageVolumeParts(sourceVolume)
 		_, err = pool.UnmountCustomVolume(projectName, sourceVolumeName, nil)
 		if err != nil {
-			return errors.Wrapf(err, `Failed to umount storage volume "%s/%s"`, sourcePool, sourceVolumeName)
+			return fmt.Errorf(`Failed to umount storage volume "%s/%s": %w`, sourcePool, sourceVolumeName, err)
 		}
 
 		return nil
@@ -367,25 +365,25 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 	// Rename the existing storage.
 	err = os.Rename(shared.VarPath(storageType), sourcePath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to rename existing storage %q", shared.VarPath(storageType))
+		return fmt.Errorf("Failed to rename existing storage %q: %w", shared.VarPath(storageType), err)
 	}
 
 	// Create the new symlink.
 	err = os.Symlink(destPath, shared.VarPath(storageType))
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create the new symlink at %q", shared.VarPath(storageType))
+		return fmt.Errorf("Failed to create the new symlink at %q: %w", shared.VarPath(storageType), err)
 	}
 
 	// Move the data across.
 	err = moveContent(sourcePath, destPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to move data over to directory %q", destPath)
+		return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
 	}
 
 	// Remove the old data.
 	err = os.RemoveAll(sourcePath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to cleanup old directory %q", sourcePath)
+		return fmt.Errorf("Failed to cleanup old directory %q: %w", sourcePath, err)
 	}
 
 	return nil

@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 var sysBusPci = "/sys/bus/pci/devices"
@@ -137,13 +135,13 @@ func pciAddress(devicePath string) (string, error) {
 	// Track down the device.
 	linkTarget, err := filepath.EvalSymlinks(devicePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to find %q", devicePath)
+		return "", fmt.Errorf("Failed to find %q: %w", devicePath, err)
 	}
 
 	// Extract the subsystem.
 	subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to find %q", filepath.Join(devicePath, "subsystem"))
+		return "", fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "subsystem"), err)
 	}
 	subsystem := filepath.Base(subsystemTarget)
 
@@ -152,7 +150,7 @@ func pciAddress(devicePath string) (string, error) {
 		linkTarget = filepath.Dir(linkTarget)
 		subsystemTarget, err := filepath.EvalSymlinks(filepath.Join(linkTarget, "subsystem"))
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to find %q", filepath.Join(devicePath, "subsystem"))
+			return "", fmt.Errorf("Failed to find %q: %w", filepath.Join(devicePath, "subsystem"), err)
 		}
 
 		subsystem = filepath.Base(subsystemTarget)
@@ -171,7 +169,7 @@ func usbAddress(devicePath string) (string, error) {
 	// Resolve symlink.
 	devicePath, err := filepath.EvalSymlinks(devicePath)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to resolve device symlink")
+		return "", fmt.Errorf("Failed to resolve device symlink: %w", err)
 	}
 
 	// Check if it looks like a USB device.
@@ -195,13 +193,13 @@ func usbAddress(devicePath string) (string, error) {
 		// Bus address.
 		bus, err := readUint(filepath.Join(path, "busnum"))
 		if err != nil {
-			return "", errors.Wrap(err, "Unable to parse USB bus addr")
+			return "", fmt.Errorf("Unable to parse USB bus addr: %w", err)
 		}
 
 		// Device address.
 		dev, err := readUint(filepath.Join(path, "devnum"))
 		if err != nil {
-			return "", errors.Wrap(err, "Unable to parse USB device addr")
+			return "", fmt.Errorf("Unable to parse USB device addr: %w", err)
 		}
 
 		return fmt.Sprintf("%d:%d", bus, dev), nil

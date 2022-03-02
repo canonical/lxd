@@ -29,15 +29,14 @@ require (
 	github.com/juju/schema v1.0.1-0.20190814234152-1f8aaeef0989
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mattn/go-colorable v0.1.12
-	github.com/mattn/go-sqlite3 v1.14.11
+	github.com/mattn/go-sqlite3 v1.14.12
 	github.com/mdlayher/ndp v0.0.0-20220213140253-2a2b53cd2045
 	github.com/mdlayher/netx v0.0.0-20200512211805-669a06fde734
-	github.com/mdlayher/vsock v1.1.0
+	github.com/mdlayher/vsock v1.1.1
 	github.com/miekg/dns v1.1.46
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/osrg/gobgp/v3 v3.0.0-rc4
+	github.com/osrg/gobgp/v3 v3.0.0
 	github.com/pborman/uuid v1.2.1
-	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.4
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rogpeppe/fastuuid v1.2.0
@@ -47,7 +46,7 @@ require (
 	github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
+	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20200109203555-b30bc20e4fd1
@@ -85,13 +84,14 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/k-sone/critbitgo v1.4.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
-	github.com/magiconair/properties v1.8.5 // indirect
+	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/mdlayher/socket v0.2.0 // indirect
+	github.com/mdlayher/socket v0.2.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -105,12 +105,12 @@ require (
 	github.com/vishvananda/netns v0.0.0-20211101163701-50045581ed74 // indirect
 	gitlab.com/golang-commonmark/puny v0.0.0-20191124015043-9f83538fa04f // indirect
 	golang.org/x/mod v0.5.1 // indirect
-	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
+	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.9 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	google.golang.org/genproto v0.0.0-20220216160803-4663080d8bc8 // indirect
+	google.golang.org/genproto v0.0.0-20220302033224-9aa15565e42a // indirect
 	google.golang.org/grpc v1.44.0 // indirect
 	google.golang.org/grpc/naming v0.0.0-00010101000000-000000000000 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect

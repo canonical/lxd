@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -89,7 +88,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			// Setup LXD client
 			remote, err = lxd.ConnectPublicLXD(args.Server, clientArgs)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to connect to LXD server %q", args.Server)
+				return nil, fmt.Errorf("Failed to connect to LXD server %q: %w", args.Server, err)
 			}
 			server, ok := remote.(lxd.InstanceServer)
 			if ok {
@@ -99,7 +98,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			// Setup simplestreams client
 			remote, err = lxd.ConnectSimpleStreams(args.Server, clientArgs)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to connect to simple streams server %q", args.Server)
+				return nil, fmt.Errorf("Failed to connect to simple streams server %q: %w", args.Server, err)
 			}
 		}
 
@@ -114,7 +113,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			// Expand partial fingerprints
 			info, _, err = remote.GetImage(fp)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed getting remote image info")
+				return nil, fmt.Errorf("Failed getting remote image info: %w", err)
 			}
 
 			fp = info.Fingerprint
@@ -150,20 +149,20 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		// Check if the image is available locally or it's on another node.
 		nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed locating image %q in the cluster", imgInfo.Fingerprint)
+			return nil, fmt.Errorf("Failed locating image %q in the cluster: %w", imgInfo.Fingerprint, err)
 		}
 
 		if nodeAddress != "" {
 			// The image is available from another node, let's try to import it.
 			err = instanceImageTransfer(d, r, args.ProjectName, imgInfo.Fingerprint, nodeAddress)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed transferring image %q from %q", imgInfo.Fingerprint, nodeAddress)
+				return nil, fmt.Errorf("Failed transferring image %q from %q: %w", imgInfo.Fingerprint, nodeAddress, err)
 			}
 
 			// As the image record already exists in the project, just add the node ID to the image.
 			err = d.cluster.AddImageToLocalNode(args.ProjectName, imgInfo.Fingerprint)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed adding transferred image %q to local cluster member", imgInfo.Fingerprint)
+				return nil, fmt.Errorf("Failed adding transferred image %q to local cluster member: %w", imgInfo.Fingerprint, err)
 			}
 		}
 	} else if err == db.ErrNoSuchObject {
@@ -174,7 +173,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			// the missing DB record so we don't include ourself in the search results.
 			nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Locate image %q in the cluster", imgInfo.Fingerprint)
+				return nil, fmt.Errorf("Locate image %q in the cluster: %w", imgInfo.Fingerprint, err)
 			}
 
 			// We need to insert the database entry for this project, including the node ID entry.
@@ -199,7 +198,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 				// The image is available from another node, let's try to import it.
 				err = instanceImageTransfer(d, r, args.ProjectName, info.Fingerprint, nodeAddress)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed transferring image")
+					return nil, fmt.Errorf("Failed transferring image: %w", err)
 				}
 			}
 		}
@@ -241,7 +240,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		if err != nil {
 			ctxMap["err"] = err
 			logger.Debug("Failed to create image on storage pool", ctxMap)
-			return nil, errors.Wrapf(err, "Failed to create image %q on storage pool %q", info.Fingerprint, args.StoragePool)
+			return nil, fmt.Errorf("Failed to create image %q on storage pool %q: %w", info.Fingerprint, args.StoragePool, err)
 		}
 
 		logger.Debug("Created image on storage pool", ctxMap)

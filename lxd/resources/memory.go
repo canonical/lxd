@@ -2,13 +2,12 @@ package resources
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/units"
@@ -34,7 +33,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 	// Open meminfo
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to open %q", path)
+		return nil, fmt.Errorf("Failed to open %q: %w", path, err)
 	}
 	defer f.Close()
 	memInfo := bufio.NewScanner(f)
@@ -54,7 +53,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "MemTotal" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse MemTotal")
+				return nil, fmt.Errorf("Failed to parse MemTotal: %w", err)
 			}
 
 			memory.Total = uint64(bytes)
@@ -64,7 +63,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "MemFree" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse MemFree")
+				return nil, fmt.Errorf("Failed to parse MemFree: %w", err)
 			}
 
 			memory.Free = uint64(bytes)
@@ -74,7 +73,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "MemUsed" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse MemUsed")
+				return nil, fmt.Errorf("Failed to parse MemUsed: %w", err)
 			}
 
 			memory.Used = uint64(bytes)
@@ -84,7 +83,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "Cached" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse Cached")
+				return nil, fmt.Errorf("Failed to parse Cached: %w", err)
 			}
 
 			memory.Cached = uint64(bytes)
@@ -94,7 +93,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "Buffers" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse Buffers")
+				return nil, fmt.Errorf("Failed to parse Buffers: %w", err)
 			}
 
 			memory.Buffers = uint64(bytes)
@@ -104,7 +103,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "HugePages_Total" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse HugePages_Total")
+				return nil, fmt.Errorf("Failed to parse HugePages_Total: %w", err)
 			}
 
 			memory.HugepagesTotal = uint64(bytes)
@@ -114,7 +113,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "HugePages_Free" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse HugePages_Free")
+				return nil, fmt.Errorf("Failed to parse HugePages_Free: %w", err)
 			}
 
 			memory.HugepagesFree = uint64(bytes)
@@ -124,7 +123,7 @@ func parseMeminfo(path string) (*meminfo, error) {
 		if key == "Hugepagesize" {
 			bytes, err := units.ParseByteSizeString(value)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to parse Hugepagesize")
+				return nil, fmt.Errorf("Failed to parse Hugepagesize: %w", err)
 			}
 
 			memory.HugepagesSize = uint64(bytes)
@@ -204,7 +203,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 	// Parse main meminfo
 	info, err := parseMeminfo("/proc/meminfo")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse /proc/meminfo")
+		return nil, fmt.Errorf("Failed to parse /proc/meminfo: %w", err)
 	}
 
 	// Calculate the total memory from /sys/devices/system/memory, as the previously determined
@@ -230,7 +229,7 @@ func GetMemory() (*api.ResourcesMemory, error) {
 		// List all the nodes
 		entries, err := ioutil.ReadDir(sysDevicesNode)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to list %q", sysDevicesNode)
+			return nil, fmt.Errorf("Failed to list %q: %w", sysDevicesNode, err)
 		}
 
 		// Iterate and add to our list
@@ -246,13 +245,13 @@ func GetMemory() (*api.ResourcesMemory, error) {
 			nodeName := strings.TrimPrefix(entryName, "node")
 			nodeNumber, err := strconv.ParseUint(nodeName, 10, 64)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to find NUMA node")
+				return nil, fmt.Errorf("Failed to find NUMA node: %w", err)
 			}
 
 			// Parse NUMA meminfo
 			info, err := parseMeminfo(filepath.Join(entryPath, "meminfo"))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse %q", filepath.Join(entryPath, "meminfo"))
+				return nil, fmt.Errorf("Failed to parse %q: %w", filepath.Join(entryPath, "meminfo"), err)
 			}
 
 			// Setup the entry

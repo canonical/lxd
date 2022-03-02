@@ -167,7 +167,7 @@ func remoteOperationError(msg string, errors []remoteOperationResult) error {
 
 	// Check if successful
 	if err != nil {
-		return fmt.Errorf("%s: %s", msg, err)
+		return fmt.Errorf("%s: %w", msg, err)
 	}
 
 	return nil

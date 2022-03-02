@@ -204,7 +204,7 @@ func (d *nicP2P) postStop() error {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			return fmt.Errorf("Failed to remove interface %s: %s", d.config["host_name"], err)
+			return fmt.Errorf("Failed to remove interface %s: %w", d.config["host_name"], err)
 		}
 	}
 
