@@ -71,12 +71,6 @@ import (
 	"github.com/lxc/lxd/shared/version"
 )
 
-// qemuUnsafeIO is used to indicate disk should use unsafe cache I/O.
-const qemuUnsafeIO = "unsafeio"
-
-// qemuDirectIO is used to indicate disk should use direct I/O (and not try to use io_uring).
-const qemuDirectIO = "directio"
-
 // qemuSerialChardevName is used to communicate state via qmp between Qemu and LXD.
 const qemuSerialChardevName = "qemu_serial-chardev"
 
@@ -2863,11 +2857,6 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 		return fmt.Errorf("Non-root drive config supplied")
 	}
 
-	pool, err := d.getStoragePool()
-	if err != nil {
-		return err
-	}
-
 	if mountInfo.DiskPath == "" {
 		return fmt.Errorf("No disk path available from mount")
 	}
@@ -2876,19 +2865,7 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 	driveConf := deviceConfig.MountEntryItem{
 		DevName: rootDriveConf.DevName,
 		DevPath: mountInfo.DiskPath,
-	}
-
-	// Handle loop backed storage pools with limited or missing Direct I/O or io_uring support.
-	driverInfo := pool.Driver().Info()
-	driverConf := pool.Driver().Config()
-	if shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) {
-		if !driverInfo.DirectIO {
-			// Force unsafe I/O due to lack of direct I/O support.
-			driveConf.Opts = append(driveConf.Opts, qemuUnsafeIO)
-		} else {
-			// Force traditional (non-io_uring) direct I/O as io_uring doesn't work well on loops.
-			driveConf.Opts = append(driveConf.Opts, qemuDirectIO)
-		}
+		Opts:    rootDriveConf.Opts,
 	}
 
 	return d.addDriveConfig(sb, nil, bootIndexes, driveConf)
@@ -2988,8 +2965,9 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 	drivers, _ := SupportedInstanceTypes()
 	info := drivers[d.Type()]
 
-	// If possible, use io_uring for added performance.
-	if shared.StringInSlice("io_uring", info.Features) && !shared.StringInSlice(qemuDirectIO, driveConf.Opts) {
+	// If supported by QEMU and disk not backed by loop device, use io_uring over native for added performance.
+	// We've seen issues starting VMs when running with io_ring AIO mode on loop backed disks.
+	if shared.StringInSlice("io_uring", info.Features) && !shared.StringInSlice(device.DiskLoopBacked, driveConf.Opts) {
 		aioMode = "io_uring"
 	}
 
@@ -3018,12 +2996,12 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 		}
 
 		// If drive config indicates we need to use unsafe I/O then use it.
-		if shared.StringInSlice(qemuUnsafeIO, driveConf.Opts) {
+		if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
 			d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": srcDevPath})
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 		} else if shared.PathExists(srcDevPath) && !shared.IsBlockdevPath(srcDevPath) {
-			// Disk dev path is a file, check whether it is located on a ZFS filesystem.
+			// Disk dev path is a file, check what the backing filesystem is.
 			fsType, err := filesystem.Detect(driveConf.DevPath)
 			if err != nil {
 				return fmt.Errorf("Failed detecting filesystem type of %q: %w", srcDevPath, err)
