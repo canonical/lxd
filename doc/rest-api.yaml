@@ -8615,6 +8615,27 @@ paths:
       summary: Create or replace a template file
       tags:
       - instances
+  /1.0/instances/{name}/sftp:
+    get:
+      description: Upgrades the request to an SFTP connection of the instance's filesystem.
+      operationId: instance_sftp
+      produces:
+      - application/json
+      - application/octet-stream
+      responses:
+        "101":
+          description: Switching protocols to SFTP
+        "400":
+          $ref: '#/responses/BadRequest'
+        "403":
+          $ref: '#/responses/Forbidden'
+        "404":
+          $ref: '#/responses/NotFound'
+        "500":
+          $ref: '#/responses/InternalServerError'
+      summary: Get the instance SFTP connection
+      tags:
+      - instances
   /1.0/instances/{name}/snapshots:
     get:
       description: Returns a list of instance snapshots (URLs).
