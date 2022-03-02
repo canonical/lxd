@@ -2737,12 +2737,6 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 		return err
 	}
 
-	// Refresh exported BGP prefixes on local member.
-	err = n.forwardBGPSetupPrefixes()
-	if err != nil {
-		return fmt.Errorf("Failed applying BGP prefixes for address forwards: %w", err)
-	}
-
 	revert.Success()
 	return nil
 }
