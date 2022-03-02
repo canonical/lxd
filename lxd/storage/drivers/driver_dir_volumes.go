@@ -73,7 +73,7 @@ func (d *dir) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Oper
 		// Ignore ErrCannotBeShrunk when setting size this just means the filler run above has needed to
 		// increase the volume size beyond the default block volume size.
 		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, false)
-		if err != nil && errors.Unwrap(err) != ErrCannotBeShrunk {
+		if err != nil && !errors.Is(err, ErrCannotBeShrunk) {
 			return err
 		}
 

@@ -4613,7 +4613,7 @@ func (d *qemu) Delete(force bool) error {
 
 	// Attempt to initialize storage interface for the instance.
 	pool, err := d.getStoragePool()
-	if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
@@ -5417,7 +5417,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	status.Status = statusCode.String()
 	status.StatusCode = statusCode
 	status.Disk, err = d.diskState()
-	if err != nil && errors.Unwrap(err) != storageDrivers.ErrNotSupported {
+	if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
 		d.logger.Warn("Error getting disk usage", log.Ctx{"err": err})
 	}
 

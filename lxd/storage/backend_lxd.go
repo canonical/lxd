@@ -822,7 +822,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				// if the restored volume is larger than the config's size and it cannot be shrunk
 				// to the equivalent size on the target storage driver, don't fail as the backup
 				// has still been restored successfully.
-				if errors.Unwrap(err) == drivers.ErrCannotBeShrunk {
+				if errors.Is(err, drivers.ErrCannotBeShrunk) {
 					logger.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
 				} else {
 					return fmt.Errorf("Failed applying volume quota to root disk: %w", err)
@@ -846,7 +846,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 				fsVol := vol.NewVMBlockFilesystemVolume()
 				err := b.driver.SetVolumeQuota(fsVol, vmStateSize, allowUnsafeResize, op)
-				if errors.Unwrap(err) == drivers.ErrCannotBeShrunk {
+				if errors.Is(err, drivers.ErrCannotBeShrunk) {
 					logger.Warn("Could not apply VM filesystem volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
 				} else if err != nil {
 					return fmt.Errorf("Failed applying filesystem volume quota to root disk: %w", err)
@@ -1545,7 +1545,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// So we unpack the image directly into a new volume rather than use the optimized snapsot.
 		// This is slower but allows for individual volumes to be created from an image that are smaller
 		// than the pool's volume settings.
-		if errors.Unwrap(err) == drivers.ErrCannotBeShrunk {
+		if errors.Is(err, drivers.ErrCannotBeShrunk) {
 			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
 
 			volFiller := drivers.VolumeFiller{
@@ -1887,7 +1887,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 
 	// Remove the volume record from the database.
 	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
-	if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 		return fmt.Errorf("Error deleting storage volume from database: %w", err)
 	}
 
@@ -2741,7 +2741,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 			// driver should make no changes, and if not then attempt to resize it to the new policy.
 			logger.Debug("Setting image volume size", "size", imgVol.ConfigSize())
 			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), false, op)
-			if errors.Unwrap(err) == drivers.ErrCannotBeShrunk || errors.Unwrap(err) == drivers.ErrNotSupported {
+			if errors.Is(err, drivers.ErrCannotBeShrunk) || errors.Is(err, drivers.ErrNotSupported) {
 				// If the driver cannot resize the existing image volume to the new policy size
 				// then delete the image volume and try to recreate using the new policy settings.
 				logger.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
@@ -4358,7 +4358,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 
 	// Check if an entry for the instance already exists in the DB.
 	instID, err := b.state.Cluster.GetInstanceID(projectName, instName)
-	if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 		return err
 	}
 
@@ -4370,7 +4370,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 	// Check if any entry for the instance volume already exists in the DB.
 	// This will return no record for any temporary pool structs being used (as ID is -1).
 	volID, _, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, instName, volDBType, b.ID())
-	if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 		return err
 	}
 
@@ -4488,7 +4488,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 		// Check if any entry for the instance snapshot volume already exists in the DB.
 		// This will return no record for any temporary pool structs being used (as ID is -1).
 		volID, _, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volDBType, b.ID())
-		if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+		if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 			return err
 		}
 
@@ -4516,7 +4516,7 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 	// Check if any entry for the custom volume already exists in the DB.
 	// This will return no record for any temporary pool structs being used (as ID is -1).
 	volID, _, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, volDBType, b.ID())
-	if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 		return err
 	}
 
