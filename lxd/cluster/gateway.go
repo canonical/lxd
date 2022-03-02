@@ -1122,21 +1122,21 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 		<-localToRemote
 	case err := <-remoteToLocal:
 		if err != nil {
-			errs[0] = fmt.Errorf("remote -> local: %v", err)
+			errs[0] = fmt.Errorf("remote -> local: %w", err)
 		}
 		local.(*net.UnixConn).CloseRead()
 		if err := <-localToRemote; err != nil {
-			errs[1] = fmt.Errorf("local -> remote: %v", err)
+			errs[1] = fmt.Errorf("local -> remote: %w", err)
 		}
 		remote.Close()
 		local.Close()
 	case err := <-localToRemote:
 		if err != nil {
-			errs[0] = fmt.Errorf("local -> remote: %v", err)
+			errs[0] = fmt.Errorf("local -> remote: %w", err)
 		}
 		remoteTCP.CloseRead()
 		if err := <-remoteToLocal; err != nil {
-			errs[1] = fmt.Errorf("remote -> local: %v", err)
+			errs[1] = fmt.Errorf("remote -> local: %w", err)
 		}
 		local.Close()
 		remote.Close()

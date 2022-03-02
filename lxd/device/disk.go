@@ -238,7 +238,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		if d.inst != nil && !d.inst.IsSnapshot() {
 			_, pool, _, err := d.state.Cluster.GetStoragePoolInAnyState(d.config["pool"])
 			if err != nil {
-				return fmt.Errorf("Failed to get storage pool %q: %s", d.config["pool"], err)
+				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
 			}
 
 			if pool.Status == "Pending" {
@@ -1711,7 +1711,7 @@ func (d *disk) getParentBlocks(path string) ([]string, error) {
 
 		output, err := shared.RunCommand("zpool", "status", "-P", "-L", poolName)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to query zfs filesystem information for %q: %v", dev[1], err)
+			return nil, fmt.Errorf("Failed to query zfs filesystem information for %q: %w", dev[1], err)
 		}
 
 		header := true

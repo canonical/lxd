@@ -87,7 +87,7 @@ func NewFileSnapshotStoreWithLogger(base string, retain int, logger *log.Logger)
 	// Ensure our path exists
 	path := filepath.Join(base, snapPath)
 	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
-		return nil, fmt.Errorf("snapshot path not accessible: %v", err)
+		return nil, fmt.Errorf("snapshot path not accessible: %w", err)
 	}
 
 	// Setup the store
@@ -99,7 +99,7 @@ func NewFileSnapshotStoreWithLogger(base string, retain int, logger *log.Logger)
 
 	// Do a permissions test
 	if err := store.testPermissions(); err != nil {
-		return nil, fmt.Errorf("permissions test failed: %v", err)
+		return nil, fmt.Errorf("permissions test failed: %w", err)
 	}
 	return store, nil
 }
@@ -541,7 +541,7 @@ func encodePeers(configuration Configuration, trans Transport) []byte {
 	// Encode the entire array.
 	buf, err := encodeMsgPack(encPeers)
 	if err != nil {
-		panic(fmt.Errorf("failed to encode peers: %v", err))
+		panic(fmt.Errorf("failed to encode peers: %w", err))
 	}
 
 	return buf.Bytes()

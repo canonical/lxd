@@ -1399,7 +1399,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		// Start dnsmasq.
 		err = p.Start()
 		if err != nil {
-			return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(dnsmasqCmd, " "), err)
+			return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(dnsmasqCmd, " "), err)
 		}
 
 		// Check dnsmasq started OK.
@@ -1676,7 +1676,7 @@ func (n *bridge) spawnForkDNS(listenAddress string) error {
 
 	err = p.Start()
 	if err != nil {
-		return fmt.Errorf("Failed to run: %s %s: %v", command, strings.Join(forkdnsargs, " "), err)
+		return fmt.Errorf("Failed to run: %s %s: %w", command, strings.Join(forkdnsargs, " "), err)
 	}
 
 	err = p.Save(shared.VarPath("networks", n.name, "forkdns.pid"))

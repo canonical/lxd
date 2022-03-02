@@ -991,7 +991,7 @@ they otherwise would.
 
 				listener, err := net.Listen("tcp", address)
 				if err != nil {
-					return fmt.Errorf("Can't bind address %q: %v", address, err)
+					return fmt.Errorf("Can't bind address %q: %w", address, err)
 				}
 
 				listener.Close()

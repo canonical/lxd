@@ -15,7 +15,7 @@ func Open(dir string) (*sql.DB, error) {
 	path := filepath.Join(dir, "local.db")
 	db, err := sqliteOpen(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open node database: %v", err)
+		return nil, fmt.Errorf("cannot open node database: %w", err)
 	}
 
 	return db, nil

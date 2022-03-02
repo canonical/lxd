@@ -19,12 +19,12 @@ import (
 func socketUnixListen(path string) (*net.UnixListener, error) {
 	addr, err := net.ResolveUnixAddr("unix", path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot resolve socket address: %v", err)
+		return nil, fmt.Errorf("cannot resolve socket address: %w", err)
 	}
 
 	listener, err := net.ListenUnix("unix", addr)
 	if err != nil {
-		return nil, fmt.Errorf("cannot bind socket: %v", err)
+		return nil, fmt.Errorf("cannot bind socket: %w", err)
 	}
 
 	return listener, err
@@ -71,7 +71,7 @@ func socketUnixRemoveStale(path string) error {
 	logger.Debugf("Detected stale unix socket, deleting")
 	err := os.Remove(path)
 	if err != nil {
-		return fmt.Errorf("could not delete stale local socket: %v", err)
+		return fmt.Errorf("could not delete stale local socket: %w", err)
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func socketUnixRemoveStale(path string) error {
 func socketUnixSetPermissions(path string, mode os.FileMode) error {
 	err := os.Chmod(path, mode)
 	if err != nil {
-		return fmt.Errorf("cannot set permissions on local socket: %v", err)
+		return fmt.Errorf("cannot set permissions on local socket: %w", err)
 	}
 	return nil
 }
@@ -94,7 +94,7 @@ func socketUnixSetOwnership(path string, groupName string) error {
 	if groupName != "" {
 		g, err := user.LookupGroup(groupName)
 		if err != nil {
-			return fmt.Errorf("cannot get group ID of '%s': %v", groupName, err)
+			return fmt.Errorf("cannot get group ID of '%s': %w", groupName, err)
 		}
 
 		gid, err = strconv.Atoi(g.Gid)
@@ -107,7 +107,7 @@ func socketUnixSetOwnership(path string, groupName string) error {
 
 	err = os.Chown(path, os.Getuid(), gid)
 	if err != nil {
-		return fmt.Errorf("cannot change ownership on local socket: %v", err)
+		return fmt.Errorf("cannot change ownership on local socket: %w", err)
 
 	}
 

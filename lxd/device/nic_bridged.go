@@ -983,7 +983,7 @@ func (d *nicBridged) networkClearLease(name string, network string, hwaddr strin
 
 				err = d.networkDHCPv6Release(DUID, IAID, srcIP, dstIPv6, dstDUID)
 				if err != nil {
-					errs = append(errs, fmt.Errorf("Failed to release DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %v", name, srcIP, DUID, IAID, err))
+					errs = append(errs, fmt.Errorf("Failed to release DHCPv6 lease for instance %q, IP %q, DUID %q, IAID %q: %w", name, srcIP, DUID, IAID, err))
 				}
 			}
 		} else if fieldsLen == 2 && fields[0] == "duid" {

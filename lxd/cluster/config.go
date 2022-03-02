@@ -27,12 +27,12 @@ func ConfigLoad(tx *db.ClusterTx) (*Config, error) {
 	// Load current raw values from the database, any error is fatal.
 	values, err := tx.Config()
 	if err != nil {
-		return nil, fmt.Errorf("cannot fetch node config from database: %v", err)
+		return nil, fmt.Errorf("cannot fetch node config from database: %w", err)
 	}
 
 	m, err := config.SafeLoad(ConfigSchema, values)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load node config: %v", err)
+		return nil, fmt.Errorf("failed to load node config: %w", err)
 	}
 
 	return &Config{tx: tx, m: m}, nil
