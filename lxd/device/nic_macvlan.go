@@ -204,7 +204,7 @@ func (d *nicMACVLAN) Start() (*deviceConfig.RunConfig, error) {
 		link := &ip.Link{Name: saveData["host_name"]}
 		err := link.SetUp()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to bring up interface %s: %v", saveData["host_name"], err)
+			return nil, fmt.Errorf("Failed to bring up interface %s: %w", saveData["host_name"], err)
 		}
 	}
 

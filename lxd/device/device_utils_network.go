@@ -172,19 +172,19 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 	link := &ip.Link{Name: hostName}
 	err := link.SetDown()
 	if err != nil {
-		return fmt.Errorf("Failed to bring down \"%s\": %v", hostName, err)
+		return fmt.Errorf("Failed to bring down \"%s\": %w", hostName, err)
 	}
 
 	// If MTU value is specified then there is an original MTU that needs restoring.
 	if volatile["last_state.mtu"] != "" {
 		mtuInt, err := strconv.ParseUint(volatile["last_state.mtu"], 10, 32)
 		if err != nil {
-			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %v", hostName, volatile["last_state.mtu"], err)
+			return fmt.Errorf("Failed to convert mtu for \"%s\" mtu \"%s\": %w", hostName, volatile["last_state.mtu"], err)
 		}
 
 		err = NetworkSetDevMTU(hostName, uint32(mtuInt))
 		if err != nil {
-			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %v", hostName, mtuInt, err)
+			return fmt.Errorf("Failed to restore physical dev \"%s\" mtu to \"%d\": %w", hostName, mtuInt, err)
 		}
 	}
 
@@ -192,7 +192,7 @@ func networkRestorePhysicalNIC(hostName string, volatile map[string]string) erro
 	if volatile["last_state.hwaddr"] != "" {
 		err := NetworkSetDevMAC(hostName, volatile["last_state.hwaddr"])
 		if err != nil {
-			return fmt.Errorf("Failed to restore physical dev \"%s\" mac to \"%s\": %v", hostName, volatile["last_state.hwaddr"], err)
+			return fmt.Errorf("Failed to restore physical dev \"%s\" mac to \"%s\": %w", hostName, volatile["last_state.hwaddr"], err)
 		}
 	}
 
@@ -214,7 +214,7 @@ func networkCreateVethPair(hostName string, m deviceConfig.Device) (string, uint
 	}
 	err := veth.Add()
 	if err != nil {
-		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %v", hostName, peerName, err)
+		return "", 0, fmt.Errorf("Failed to create the veth interfaces %q and %q: %w", hostName, peerName, err)
 	}
 
 	err = veth.SetUp()

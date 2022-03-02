@@ -109,7 +109,7 @@ func Kill(name string, reload bool) error {
 func GetVersion() (*version.DottedVersion, error) {
 	output, err := shared.RunCommandCLocale("dnsmasq", "--version")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to check dnsmasq version: %v", err)
+		return nil, fmt.Errorf("Failed to check dnsmasq version: %w", err)
 	}
 
 	lines := strings.Split(string(output), " ")

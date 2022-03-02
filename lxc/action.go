@@ -312,7 +312,7 @@ func (c *cmdAction) Run(cmd *cobra.Command, args []string) error {
 			if resource.server.HasExtension("instance_bulk_state_change") {
 				err = c.doActionAll(cmd.Name(), resource)
 				if err != nil {
-					return fmt.Errorf("%s: %v", resource.remote, err)
+					return fmt.Errorf("%s: %w", resource.remote, err)
 				}
 
 				continue

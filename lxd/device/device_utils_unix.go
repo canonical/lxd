@@ -119,7 +119,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		// If no major and minor are set, use those from the device on the host.
 		_, d.Major, d.Minor, err = unixDeviceAttributes(srcPath)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to get device attributes for %s: %s", srcPath, err)
+			return nil, fmt.Errorf("Failed to get device attributes for %s: %w", srcPath, err)
 		}
 	} else if m["major"] == "" || m["minor"] == "" {
 		return nil, fmt.Errorf("Both major and minor must be supplied for device: %s", srcPath)
@@ -152,7 +152,7 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		if err != nil {
 			errno, isErrno := shared.GetErrno(err)
 			if !isErrno || errno != unix.ENOENT {
-				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %s", srcPath, err)
+				return nil, fmt.Errorf("Failed to retrieve mode of device %s: %w", srcPath, err)
 			}
 			d.Mode = os.FileMode(unixDefaultMode)
 		}
@@ -203,18 +203,18 @@ func UnixDeviceCreate(s *state.State, idmapSet *idmap.IdmapSet, devicesPath stri
 		devNum := int(unix.Mkdev(d.Major, d.Minor))
 		err := unix.Mknod(devPath, uint32(d.Mode), devNum)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create device %s for %s: %s", devPath, srcPath, err)
+			return nil, fmt.Errorf("Failed to create device %s for %s: %w", devPath, srcPath, err)
 		}
 
 		err = os.Chown(devPath, d.UID, d.GID)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to chown device %s: %s", devPath, err)
+			return nil, fmt.Errorf("Failed to chown device %s: %w", devPath, err)
 		}
 
 		// Needed as mknod respects the umask.
 		err = os.Chmod(devPath, d.Mode)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to chmod device %s: %s", devPath, err)
+			return nil, fmt.Errorf("Failed to chmod device %s: %w", devPath, err)
 		}
 
 		if idmapSet != nil {
@@ -455,7 +455,7 @@ func unixDeviceRemove(devicesPath string, typePrefix string, deviceName string, 
 		absDevPath := filepath.Join(devicesPath, ourDev)
 		dType, dMajor, dMinor, err := unixDeviceAttributes(absDevPath)
 		if err != nil {
-			return fmt.Errorf("Failed to get UNIX device attributes for '%s': %v", absDevPath, err)
+			return fmt.Errorf("Failed to get UNIX device attributes for '%s': %w", absDevPath, err)
 		}
 
 		// Append a deny cgroup fule for this device.

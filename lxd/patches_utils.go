@@ -158,7 +158,7 @@ func btrfsSnapshot(s *state.State, source string, dest string, readonly bool) er
 func lvmLVRename(vgName string, oldName string, newName string) error {
 	_, err := shared.TryRunCommand("lvrename", vgName, oldName, newName)
 	if err != nil {
-		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %v", oldName, newName, err)
+		return fmt.Errorf("could not rename volume group from \"%s\" to \"%s\": %w", oldName, newName, err)
 	}
 
 	return nil
@@ -187,7 +187,7 @@ func lvmLVExists(lvName string) (bool, error) {
 func lvmVGActivate(lvmVolumePath string) error {
 	_, err := shared.TryRunCommand("vgchange", "-ay", lvmVolumePath)
 	if err != nil {
-		return fmt.Errorf("could not activate volume group \"%s\": %v", lvmVolumePath, err)
+		return fmt.Errorf("could not activate volume group \"%s\": %w", lvmVolumePath, err)
 	}
 
 	return nil
@@ -210,7 +210,7 @@ func lvmDevPath(projectName, lvmPool string, volumeType string, lvmVolume string
 func lvmGetLVSize(lvPath string) (string, error) {
 	msg, err := shared.TryRunCommand("lvs", "--noheadings", "-o", "size", "--nosuffix", "--units", "b", lvPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to retrieve size of logical volume: %s: %s", string(msg), err)
+		return "", fmt.Errorf("failed to retrieve size of logical volume: %s: %w", string(msg), err)
 	}
 
 	sizeString := string(msg)

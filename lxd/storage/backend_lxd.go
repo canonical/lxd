@@ -970,7 +970,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		offerHeader := migration.TypesToHeader(offeredTypes...)
 		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false))
 		if err != nil {
-			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
+			return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 		}
 
 		var srcVolumeSize int64
@@ -1202,7 +1202,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		offerHeader := migration.TypesToHeader(offeredTypes...)
 		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true))
 		if err != nil {
-			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
+			return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 		}
 
 		var volSize int64
@@ -1371,7 +1371,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		offerHeader := migration.TypesToHeader(offeredTypes...)
 		migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, true))
 		if err != nil {
-			return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
+			return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -3134,7 +3134,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	offerHeader := migration.TypesToHeader(offeredTypes...)
 	migrationTypes, err := migration.MatchTypes(offerHeader, FallbackMigrationType(contentType), b.MigrationTypes(contentType, false))
 	if err != nil {
-		return fmt.Errorf("Failed to negotiate copy migration type: %v", err)
+		return fmt.Errorf("Failed to negotiate copy migration type: %w", err)
 	}
 
 	// If we're copying block volumes, the target block volume needs to be
@@ -4473,7 +4473,7 @@ func (b *lxdBackend) detectUnknownInstanceVolume(vol *drivers.Volume, projectVol
 	// Check snapshots are consistent between storage layer and backup config file.
 	_, err = b.CheckInstanceBackupFileSnapshots(backupConf, projectName, false, nil)
 	if err != nil {
-		return fmt.Errorf("Instance %q in project %q has snapshot inconsistency: %v", instName, projectName, err)
+		return fmt.Errorf("Instance %q in project %q has snapshot inconsistency: %w", instName, projectName, err)
 	}
 
 	// Check there are no existing DB records present for snapshots.

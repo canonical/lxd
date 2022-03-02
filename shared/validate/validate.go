@@ -77,7 +77,7 @@ func IsUint8(value string) error {
 func IsUint32(value string) error {
 	_, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
-		return fmt.Errorf("Invalid value for uint32 %q: %v", value, err)
+		return fmt.Errorf("Invalid value for uint32 %q: %w", value, err)
 	}
 
 	return nil

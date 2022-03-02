@@ -1854,7 +1854,7 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if dev == nil {
-			return fmt.Errorf("Device stop validation failed for %q: %v", deviceName, err)
+			return fmt.Errorf("Device stop validation failed for %q: %w", deviceName, err)
 		}
 
 		logger.Error("Device stop validation failed", log.Ctx{"err": err})
@@ -2810,7 +2810,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
 	if err != nil {
-		return -1, fmt.Errorf("limits.memory invalid: %v", err)
+		return -1, fmt.Errorf("limits.memory invalid: %w", err)
 	}
 
 	ctx["hugepages"] = ""
@@ -4736,7 +4736,7 @@ func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, in
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if dev == nil {
-			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
+			return fmt.Errorf("Device remove validation failed for %q: %w", deviceName, err)
 		}
 
 		logger.Error("Device remove validation failed", log.Ctx{"err": err})
@@ -4954,7 +4954,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
 	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", mountInfo.DiskPath, fPath)
 	if err != nil {
-		return meta, fmt.Errorf("Failed converting image to qcow2: %v", err)
+		return meta, fmt.Errorf("Failed converting image to qcow2: %w", err)
 	}
 
 	fi, err := os.Lstat(fPath)
