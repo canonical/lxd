@@ -55,6 +55,8 @@ const (
 	WarningInstanceAutostartFailure
 	//WarningInstanceTypeNotOperational represents the lack of support for an instance driver
 	WarningInstanceTypeNotOperational
+	//WarningStoragePoolUnvailable represents a storage poolthat cannot be initialized on the local server.
+	WarningStoragePoolUnvailable
 )
 
 // WarningTypeNames associates a warning code to its name.
@@ -83,6 +85,7 @@ var WarningTypeNames = map[WarningType]string{
 	WarningOfflineClusterMember:                   "Offline cluster member",
 	WarningInstanceAutostartFailure:               "Failed to autostart instance",
 	WarningInstanceTypeNotOperational:             "Instance type not operational",
+	WarningStoragePoolUnvailable:                  "Storage pool unavailable",
 }
 
 // Severity returns the severity of the warning type.
@@ -136,6 +139,8 @@ func (t WarningType) Severity() WarningSeverity {
 		return WarningSeverityLow
 	case WarningInstanceTypeNotOperational:
 		return WarningSeverityLow
+	case WarningStoragePoolUnvailable:
+		return WarningSeverityHigh
 	}
 
 	return WarningSeverityLow
