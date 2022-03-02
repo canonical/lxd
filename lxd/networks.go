@@ -398,7 +398,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 					// Don't pass in any config, as these nodes don't have any node-specific
 					// config and we don't want to create duplicate global config.
 					err = tx.CreatePendingNetwork(node.Name, projectName, req.Name, netType.DBType(), nil)
-					if err != nil && errors.Unwrap(err) != db.ErrAlreadyDefined {
+					if err != nil && !errors.Is(err, db.ErrAlreadyDefined) {
 						return fmt.Errorf("Failed creating pending network for node %q: %w", node.Name, err)
 					}
 				}
