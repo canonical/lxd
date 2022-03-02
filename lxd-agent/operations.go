@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/response"
@@ -63,7 +63,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 
 	_, body, err = op.Render()
 	if err != nil {
-		log.Println(errors.Wrap(err, "Failed to handle operations request"))
+		log.Println(fmt.Errorf("Failed to handle operations request: %w", err))
 	}
 
 	return response.SyncResponse(true, body)

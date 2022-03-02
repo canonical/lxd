@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -264,7 +264,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 		return err
 	})
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
+		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
 	}
 
 	requestor := request.CreateRequestor(r)
@@ -326,7 +326,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		profile, err := tx.GetProfile(projectName, name)
 		if err != nil {
-			return errors.Wrap(err, "Fetch profile")
+			return fmt.Errorf("Fetch profile: %w", err)
 		}
 
 		resp = db.ProfileToAPI(profile)
@@ -403,7 +403,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		current, err := tx.GetProfile(projectName, name)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to retrieve profile %q", name)
+			return fmt.Errorf("Failed to retrieve profile %q: %w", name, err)
 		}
 
 		profile = db.ProfileToAPI(current)
@@ -498,7 +498,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		current, err := tx.GetProfile(projectName, name)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to retrieve profile=%q", name)
+			return fmt.Errorf("Failed to retrieve profile=%q: %w", name, err)
 		}
 
 		profile = db.ProfileToAPI(current)

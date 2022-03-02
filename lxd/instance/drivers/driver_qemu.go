@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,7 +28,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -224,18 +224,18 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 	// Load the config.
 	err = d.init()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to expand config")
+		return nil, fmt.Errorf("Failed to expand config: %w", err)
 	}
 
 	// Validate expanded config (allows mixed instance types for profiles).
 	err = instance.ValidConfig(s.OS, d.expandedConfig, true, instancetype.Any)
 	if err != nil {
-		return nil, errors.Wrap(err, "Invalid config")
+		return nil, fmt.Errorf("Invalid config: %w", err)
 	}
 
 	err = instance.ValidDevices(s, d.Project(), d.Type(), d.expandedDevices, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "Invalid devices")
+		return nil, fmt.Errorf("Invalid devices: %w", err)
 	}
 
 	// Retrieve the container's storage pool.
@@ -251,7 +251,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 	// Initialize the storage pool.
 	d.storagePool, err = storagePools.GetPoolByName(d.state, rootDiskDevice["pool"])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed loading storage pool")
+		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
 
 	volType, err := storagePools.InstanceTypeToVolumeType(d.Type())
@@ -277,12 +277,12 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(args.Name)
 		_, parentVol, err := s.Cluster.GetLocalStoragePoolVolume(args.Project, parentName, db.StoragePoolVolumeTypeVM, d.storagePool.ID())
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed loading source volume for snapshot")
+			return nil, fmt.Errorf("Failed loading source volume for snapshot: %w", err)
 		}
 
 		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, d.storagePool.ID(), parentVol.Config, time.Time{})
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed creating storage record for snapshot")
+			return nil, fmt.Errorf("Failed creating storage record for snapshot: %w", err)
 		}
 	} else {
 		// Fill default config for new instances.
@@ -292,12 +292,12 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 
 		err = d.storagePool.FillInstanceConfig(d, volumeConfig)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed filling default config")
+			return nil, fmt.Errorf("Failed filling default config: %w", err)
 		}
 
 		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, d.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeBlock)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed creating storage record")
+			return nil, fmt.Errorf("Failed creating storage record: %w", err)
 		}
 	}
 
@@ -312,7 +312,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 			devConfig := m
 			err = d.deviceAdd(devName, devConfig, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return nil, errors.Wrapf(err, "Failed to add device %q", devName)
+				return nil, fmt.Errorf("Failed to add device %q: %w", devName, err)
 			}
 
 			revert.Add(func() { d.deviceRemove(devName, devConfig, false) })
@@ -1026,7 +1026,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Ensure secureboot is turned off for images that are not secureboot enabled
 	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		return errors.Errorf("The image used by this instance is incompatible with secureboot")
+		return fmt.Errorf("The image used by this instance is incompatible with secureboot")
 	}
 
 	// Setup a new operation.
@@ -1037,7 +1037,7 @@ func (d *qemu) Start(stateful bool) error {
 			return nil
 		}
 
-		return errors.Wrap(err, "Create instance start operation")
+		return fmt.Errorf("Create instance start operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -1070,7 +1070,7 @@ func (d *qemu) Start(stateful bool) error {
 		err = os.Remove(d.pidFilePath())
 		if err != nil {
 			op.Done(err)
-			return errors.Wrapf(err, "Failed removing old PID file %q", d.pidFilePath())
+			return fmt.Errorf("Failed removing old PID file %q: %w", d.pidFilePath(), err)
 		}
 	}
 
@@ -1102,7 +1102,7 @@ func (d *qemu) Start(stateful bool) error {
 	// Apply any volatile changes that need to be made.
 	err = d.VolatileSet(volatileSet)
 	if err != nil {
-		return errors.Wrapf(err, "Failed setting volatile keys")
+		return fmt.Errorf("Failed setting volatile keys: %w", err)
 	}
 
 	// Generate the config drive.
@@ -1152,7 +1152,7 @@ func (d *qemu) Start(stateful bool) error {
 		runConf, err := d.deviceStart(dev.Name, dev.Config, false)
 		if err != nil {
 			op.Done(err)
-			return errors.Wrapf(err, "Failed to start device %q", dev.Name)
+			return fmt.Errorf("Failed to start device %q: %w", dev.Name, err)
 		}
 
 		revert.Add(func() {
@@ -1183,12 +1183,12 @@ func (d *qemu) Start(stateful bool) error {
 	configMntPath := d.configDriveMountPath()
 	err = d.configDriveMountPathClear()
 	if err != nil {
-		return errors.Wrapf(err, "Failed cleaning config drive mount path %q", configMntPath)
+		return fmt.Errorf("Failed cleaning config drive mount path %q: %w", configMntPath, err)
 	}
 
 	err = os.Mkdir(configMntPath, 0700)
 	if err != nil {
-		return errors.Wrapf(err, "Failed creating device mount path %q for config drive", configMntPath)
+		return fmt.Errorf("Failed creating device mount path %q for config drive: %w", configMntPath, err)
 	}
 	revert.Add(func() { d.configDriveMountPathClear() })
 
@@ -1197,7 +1197,7 @@ func (d *qemu) Start(stateful bool) error {
 	configSrcPath := filepath.Join(d.Path(), "config")
 	err = device.DiskMount(configSrcPath, configMntPath, true, false, "", nil, "none")
 	if err != nil {
-		return errors.Wrapf(err, "Failed mounting device mount path %q for config drive", configMntPath)
+		return fmt.Errorf("Failed mounting device mount path %q for config drive: %w", configMntPath, err)
 	}
 
 	// Setup virtiofsd for the config drive mount path.
@@ -1221,7 +1221,7 @@ func (d *qemu) Start(stateful bool) error {
 			// Resolve previous warning.
 			warnings.ResolveWarningsByNodeAndProjectAndType(d.state.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			op.Done(err)
-			return errors.Wrapf(err, "Failed to setup virtiofsd for config drive")
+			return fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
 		}
 	} else {
 		revert.Add(revertFunc)
@@ -1328,7 +1328,7 @@ func (d *qemu) Start(stateful bool) error {
 		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
-			return errors.Wrap(err, "Error updating instance stateful flag")
+			return fmt.Errorf("Error updating instance stateful flag: %w", err)
 		}
 	}
 
@@ -1440,7 +1440,7 @@ func (d *qemu) Start(stateful bool) error {
 	_, err = p.Wait(context.Background())
 	if err != nil {
 		stderr, _ := ioutil.ReadFile(d.EarlyLogFilePath())
-		err = errors.Wrapf(err, "Failed to run: %s: %s", strings.Join(p.Args, " "), string(stderr))
+		err = fmt.Errorf("Failed to run: %s: %s: %w", strings.Join(p.Args, " "), string(stderr), err)
 		op.Done(err)
 		return err
 	}
@@ -1515,7 +1515,7 @@ func (d *qemu) Start(stateful bool) error {
 		err = monHook(monitor)
 		if err != nil {
 			op.Done(err)
-			return errors.Wrapf(err, "Failed setting up device via monitor")
+			return fmt.Errorf("Failed setting up device via monitor: %w", err)
 		}
 	}
 
@@ -1554,7 +1554,7 @@ func (d *qemu) Start(stateful bool) error {
 		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
-			return errors.Wrap(err, "Error updating instance stateful flag")
+			return fmt.Errorf("Error updating instance stateful flag: %w", err)
 		}
 	}
 
@@ -1610,7 +1610,7 @@ func (d *qemu) setupNvram() error {
 
 	srcOvmfFile, err = filepath.EvalSymlinks(srcOvmfFile)
 	if err != nil {
-		return errors.Wrapf(err, "Failed resolving EFI firmware symlink %q", srcOvmfFile)
+		return fmt.Errorf("Failed resolving EFI firmware symlink %q: %w", srcOvmfFile, err)
 	}
 
 	if !shared.PathExists(srcOvmfFile) {
@@ -1854,7 +1854,7 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if dev == nil {
-			return fmt.Errorf("Device stop validation failed for %q: %v", deviceName, err)
+			return fmt.Errorf("Device stop validation failed for %q: %w", deviceName, err)
 		}
 
 		logger.Error("Device stop validation failed", log.Ctx{"err": err})
@@ -1938,7 +1938,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 		for {
 			devExists, err := pciDeviceExists(deviceID)
 			if err != nil {
-				return errors.Wrapf(err, "Failed getting PCI devices to check for NIC detach")
+				return fmt.Errorf("Failed getting PCI devices to check for NIC detach: %w", err)
 			}
 
 			if !devExists {
@@ -1947,7 +1947,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 			}
 
 			if time.Now().After(waitUntil) {
-				return errors.Wrapf(err, "Failed to detach NIC after %v", waitDuration)
+				return fmt.Errorf("Failed to detach NIC after %v: %w", waitDuration, err)
 			}
 
 			d.logger.Debug("Waiting for NIC device to be detached", log.Ctx{"device": deviceName})
@@ -2001,7 +2001,7 @@ func (d *qemu) generateConfigShare() error {
 
 		lxdAgentSrcInfo, err := os.Stat(lxdAgentSrcPath)
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting info for lxd-agent source %q", lxdAgentSrcPath)
+			return fmt.Errorf("Failed getting info for lxd-agent source %q: %w", lxdAgentSrcPath, err)
 		}
 
 		lxdAgentInstallPath := filepath.Join(configDrivePath, "lxd-agent")
@@ -2010,7 +2010,7 @@ func (d *qemu) generateConfigShare() error {
 		if shared.PathExists(lxdAgentInstallPath) {
 			lxdAgentInstallInfo, err := os.Stat(lxdAgentInstallPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed getting info for existing lxd-agent install %q", lxdAgentInstallPath)
+				return fmt.Errorf("Failed getting info for existing lxd-agent install %q: %w", lxdAgentInstallPath, err)
 			}
 
 			if lxdAgentInstallInfo.ModTime() == lxdAgentSrcInfo.ModTime() && lxdAgentInstallInfo.Size() == lxdAgentSrcInfo.Size() {
@@ -2040,7 +2040,7 @@ func (d *qemu) generateConfigShare() error {
 			// Ensure we copy the source file's timestamps so they can be used for comparison later.
 			err = os.Chtimes(lxdAgentInstallPath, lxdAgentSrcInfo.ModTime(), lxdAgentSrcInfo.ModTime())
 			if err != nil {
-				return errors.Wrapf(err, "Failed setting lxd-agent timestamps")
+				return fmt.Errorf("Failed setting lxd-agent timestamps: %w", err)
 			}
 		} else {
 			d.logger.Debug("Skipping lxd-agent install as unchanged", log.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
@@ -2259,13 +2259,13 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 	// Parse the metadata.
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read metadata")
+		return fmt.Errorf("Failed to read metadata: %w", err)
 	}
 
 	metadata := new(api.ImageMetadata)
 	err = yaml.Unmarshal(content, &metadata)
 	if err != nil {
-		return errors.Wrapf(err, "Could not parse %s", fname)
+		return fmt.Errorf("Could not parse %s: %w", fname, err)
 	}
 
 	// Figure out the instance architecture.
@@ -2273,7 +2273,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 	if err != nil {
 		arch, err = osarch.ArchitectureName(d.state.OS.Architectures[0])
 		if err != nil {
-			return errors.Wrap(err, "Failed to detect system architecture")
+			return fmt.Errorf("Failed to detect system architecture: %w", err)
 		}
 	}
 
@@ -2320,14 +2320,14 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 			// Read the template.
 			tplString, err := ioutil.ReadFile(filepath.Join(d.TemplatesPath(), tpl.Template))
 			if err != nil {
-				return errors.Wrap(err, "Failed to read template file")
+				return fmt.Errorf("Failed to read template file: %w", err)
 			}
 
 			// Restrict filesystem access to within the container's rootfs.
 			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", d.name, tpl.Template), pongoTemplate.ChrootLoader{Path: d.TemplatesPath()})
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
-				return errors.Wrap(err, "Failed to render template")
+				return fmt.Errorf("Failed to render template: %w", err)
 			}
 
 			configGet := func(confKey, confDefault *pongo2.Value) *pongo2.Value {
@@ -2378,7 +2378,7 @@ func (d *qemu) deviceBootPriorities() (map[string]int, error) {
 		if dev.Config["boot.priority"] != "" {
 			prio, err := strconv.ParseInt(dev.Config["boot.priority"], 10, 32)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Invalid boot.priority for device %q", dev.Name)
+				return nil, fmt.Errorf("Invalid boot.priority for device %q: %w", dev.Name, err)
 			}
 			bootPrio = uint32(prio)
 		} else if dev.Config["path"] == "/" {
@@ -2603,7 +2603,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Dynamic devices.
 	bootIndexes, err := d.deviceBootPriorities()
 	if err != nil {
-		return "", nil, errors.Wrap(err, "Error calculating boot indexes")
+		return "", nil, fmt.Errorf("Error calculating boot indexes: %w", err)
 	}
 
 	// Record the mounts we are going to do inside the VM using the agent.
@@ -2697,13 +2697,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Write the agent mount config.
 	agentMountJSON, err := json.Marshal(agentMounts)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "Failed marshalling agent mounts to JSON")
+		return "", nil, fmt.Errorf("Failed marshalling agent mounts to JSON: %w", err)
 	}
 
 	agentMountFile := filepath.Join(d.Path(), "config", "agent-mounts.json")
 	err = ioutil.WriteFile(agentMountFile, agentMountJSON, 0400)
 	if err != nil {
-		return "", nil, errors.Wrapf(err, "Failed writing agent mounts file")
+		return "", nil, fmt.Errorf("Failed writing agent mounts file: %w", err)
 	}
 
 	// Write the config file to disk.
@@ -2810,7 +2810,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 
 	memSizeBytes, err := units.ParseByteSizeString(memSize)
 	if err != nil {
-		return -1, fmt.Errorf("limits.memory invalid: %v", err)
+		return -1, fmt.Errorf("limits.memory invalid: %w", err)
 	}
 
 	ctx["hugepages"] = ""
@@ -3026,7 +3026,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 			// Disk dev path is a file, check whether it is located on a ZFS filesystem.
 			fsType, err := filesystem.Detect(driveConf.DevPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed detecting filesystem type of %q", srcDevPath)
+				return fmt.Errorf("Failed detecting filesystem type of %q: %w", srcDevPath, err)
 			}
 
 			// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
@@ -3112,12 +3112,12 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 	if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/macvtap", nicName)) {
 		content, err := ioutil.ReadFile(fmt.Sprintf("/sys/class/net/%s/ifindex", nicName))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error getting tap device ifindex")
+			return nil, fmt.Errorf("Error getting tap device ifindex: %w", err)
 		}
 
 		ifindex, err := strconv.Atoi(strings.TrimSpace(string(content)))
 		if err != nil {
-			return nil, errors.Wrapf(err, "Error parsing tap device ifindex")
+			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
 		}
 
 		qemuNetDev = map[string]interface{}{
@@ -3191,7 +3191,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			vfioGroupFile := fmt.Sprintf("/dev/vfio/%s", pciIOMMUGroup)
 			err := os.Chown(vfioGroupFile, int(d.state.OS.UnprivUID), -1)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to chown vfio group device %q", vfioGroupFile)
+				return nil, fmt.Errorf("Failed to chown vfio group device %q: %w", vfioGroupFile, err)
 			}
 			revert.Add(func() { os.Chown(vfioGroupFile, 0, -1) })
 		}
@@ -3205,19 +3205,19 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 
 				f, err := os.OpenFile(fileName, os.O_RDWR, 0)
 				if err != nil {
-					return errors.Wrapf(err, "Error opening exta file %q", fileName)
+					return fmt.Errorf("Error opening exta file %q: %w", fileName, err)
 				}
 				defer f.Close() // Close file after device has been added.
 
 				err = m.SendFile(fileName, f)
 				if err != nil {
-					return errors.Wrapf(err, "Error sending exta file %q", fileName)
+					return fmt.Errorf("Error sending exta file %q: %w", fileName, err)
 				}
 			}
 
 			err := m.AddNIC(qemuNetDev, qemuDev)
 			if err != nil {
-				return errors.Wrapf(err, "Failed setting up device %q", devName)
+				return fmt.Errorf("Failed setting up device %q: %w", devName, err)
 			}
 
 			return nil
@@ -3484,7 +3484,7 @@ func (d *qemu) forceStop() error {
 	if pid > 0 {
 		err := d.killQemuProcess(pid)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to stop VM process %d", pid)
+			return fmt.Errorf("Failed to stop VM process %d: %w", pid, err)
 		}
 
 		// Wait for QEMU process to exit and perform device cleanup.
@@ -3682,7 +3682,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return errors.Wrap(err, "Create restore operation")
+		return fmt.Errorf("Create restore operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -3731,7 +3731,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return errors.Wrap(err, "Create restore operation")
+			return fmt.Errorf("Create restore operation: %w", err)
 		}
 		defer op.Done(nil)
 
@@ -3822,19 +3822,19 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
 	if err != nil {
-		return errors.Wrap(err, "Failed loading instance storage pool")
+		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	if d.IsSnapshot() {
 		_, newSnapName, _ := shared.InstanceGetParentAndSnapshotName(newName)
 		err = pool.RenameInstanceSnapshot(d, newSnapName, nil)
 		if err != nil {
-			return errors.Wrap(err, "Rename instance snapshot")
+			return fmt.Errorf("Rename instance snapshot: %w", err)
 		}
 	} else {
 		err = pool.RenameInstance(d, newName, nil)
 		if err != nil {
-			return errors.Wrap(err, "Rename instance")
+			return fmt.Errorf("Rename instance: %w", err)
 		}
 
 		if applyTemplateTrigger {
@@ -3850,7 +3850,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get instance snapshots", ctxMap)
-			return errors.Wrapf(err, "Failed to get instance snapshots")
+			return fmt.Errorf("Failed to get instance snapshots: %w", err)
 		}
 
 		for _, sname := range results {
@@ -3978,20 +3978,20 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Validate the new config.
 		err := instance.ValidConfig(d.state.OS, args.Config, false, d.dbType)
 		if err != nil {
-			return errors.Wrap(err, "Invalid config")
+			return fmt.Errorf("Invalid config: %w", err)
 		}
 
 		// Validate the new devices without using expanded devices validation (expensive checks disabled).
 		err = instance.ValidDevices(d.state, d.Project(), d.Type(), args.Devices, false)
 		if err != nil {
-			return errors.Wrap(err, "Invalid devices")
+			return fmt.Errorf("Invalid devices: %w", err)
 		}
 	}
 
 	// Validate the new profiles.
 	profiles, err := d.state.Cluster.GetProfileNames(args.Project)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get profiles")
+		return fmt.Errorf("Failed to get profiles: %w", err)
 	}
 
 	checkedProfiles := []string{}
@@ -4130,13 +4130,13 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		// Do some validation of the config diff (allows mixed instance types for profiles).
 		err = instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any)
 		if err != nil {
-			return errors.Wrap(err, "Invalid expanded config")
+			return fmt.Errorf("Invalid expanded config: %w", err)
 		}
 
 		// Do full expanded validation of the devices diff.
 		err = instance.ValidDevices(d.state, d.Project(), d.Type(), d.expandedDevices, true)
 		if err != nil {
-			return errors.Wrap(err, "Invalid expanded devices")
+			return fmt.Errorf("Invalid expanded devices: %w", err)
 		}
 	}
 
@@ -4144,7 +4144,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	if shared.StringInSlice("raw.apparmor", changedConfig) {
 		err = apparmor.InstanceValidate(d.state.OS, d)
 		if err != nil {
-			return errors.Wrap(err, "Parse AppArmor profile")
+			return fmt.Errorf("Parse AppArmor profile: %w", err)
 		}
 	}
 
@@ -4215,7 +4215,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				err = d.updateMemoryLimit(value)
 				if err != nil {
 					if err != nil {
-						return errors.Wrapf(err, "Failed updating memory limit")
+						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
 			}
@@ -4275,12 +4275,12 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		return tx.UpdateInstance(d.project, d.name, *object)
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to update database")
+		return fmt.Errorf("Failed to update database: %w", err)
 	}
 
 	err = d.UpdateBackupFile()
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "Failed to write backup file")
+		return fmt.Errorf("Failed to write backup file: %w", err)
 	}
 
 	// Changes have been applied and recorded, do not revert if an error occurs from here.
@@ -4289,7 +4289,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	if isRunning {
 		err = d.writeInstanceData()
 		if err != nil {
-			return errors.Wrap(err, "Failed to write instance-data file")
+			return fmt.Errorf("Failed to write instance-data file: %w", err)
 		}
 
 		// Send devlxd notifications only for user.* key changes
@@ -4335,7 +4335,7 @@ func (d *qemu) updateMemoryLimit(newLimit string) error {
 	// Check new size string is valid and convert to bytes.
 	newSizeBytes, err := units.ParseByteSizeString(newLimit)
 	if err != nil {
-		return errors.Wrapf(err, "Invalid memory size")
+		return fmt.Errorf("Invalid memory size: %w", err)
 	}
 	newSizeMB := newSizeBytes / 1024 / 1024
 
@@ -4406,13 +4406,13 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 			if err == device.ErrUnsupportedDevType {
 				continue // No point in trying to remove device below.
 			} else if err != nil {
-				return errors.Wrapf(err, "Failed to stop device %q", dev.Name)
+				return fmt.Errorf("Failed to stop device %q: %w", dev.Name, err)
 			}
 		}
 
 		err := d.deviceRemove(dev.Name, dev.Config, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to remove device %q", dev.Name)
+			return fmt.Errorf("Failed to remove device %q: %w", dev.Name, err)
 		}
 
 		// Check whether we are about to add the same device back with updated config and
@@ -4420,7 +4420,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 		// this device (as its an actual removal or a device type change).
 		err = d.deviceVolatileReset(dev.Name, dev.Config, addDevices[dev.Name])
 		if err != nil {
-			return errors.Wrapf(err, "Failed to reset volatile data for device %q", dev.Name)
+			return fmt.Errorf("Failed to reset volatile data for device %q: %w", dev.Name, err)
 		}
 	}
 
@@ -4432,7 +4432,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 			continue // No point in trying to start device below.
 		} else if err != nil {
 			if userRequested {
-				return errors.Wrapf(err, "Failed to add device %q", dev.Name)
+				return fmt.Errorf("Failed to add device %q: %w", dev.Name, err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
@@ -4446,7 +4446,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 		if instanceRunning {
 			_, err := d.deviceStart(dev.Name, dev.Config, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return errors.Wrapf(err, "Failed to start device %q", dev.Name)
+				return fmt.Errorf("Failed to start device %q: %w", dev.Name, err)
 			}
 
 			revert.Add(func() { d.deviceStop(dev.Name, dev.Config, instanceRunning) })
@@ -4456,7 +4456,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 	for _, dev := range updateDevices.Sorted() {
 		err := d.deviceUpdate(dev.Name, dev.Config, oldExpandedDevices, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return errors.Wrapf(err, "Failed to update device %q", dev.Name)
+			return fmt.Errorf("Failed to update device %q: %w", dev.Name, err)
 		}
 	}
 
@@ -4613,7 +4613,7 @@ func (d *qemu) Delete(force bool) error {
 
 	// Attempt to initialize storage interface for the instance.
 	pool, err := d.getStoragePool()
-	if err != nil && errors.Cause(err) != db.ErrNoSuchObject {
+	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
@@ -4665,7 +4665,7 @@ func (d *qemu) Delete(force bool) error {
 		for k, m := range d.expandedDevices {
 			err = d.deviceRemove(k, m, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return errors.Wrapf(err, "Failed to remove device %q", k)
+				return fmt.Errorf("Failed to remove device %q: %w", k, err)
 			}
 		}
 
@@ -4686,7 +4686,7 @@ func (d *qemu) Delete(force bool) error {
 		// Load the parent.
 		parent, err := instance.LoadByProjectAndName(d.state, d.project, parentName)
 		if err != nil {
-			return errors.Wrap(err, "Invalid parent")
+			return fmt.Errorf("Invalid parent: %w", err)
 		}
 
 		// Update the backup file.
@@ -4736,7 +4736,7 @@ func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, in
 	if err != nil {
 		// If there is no device returned, then we cannot proceed, so return as error.
 		if dev == nil {
-			return fmt.Errorf("Device remove validation failed for %q: %v", deviceName, err)
+			return fmt.Errorf("Device remove validation failed for %q: %w", deviceName, err)
 		}
 
 		logger.Error("Device remove validation failed", log.Ctx{"err": err})
@@ -4954,7 +4954,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
 	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", mountInfo.DiskPath, fPath)
 	if err != nil {
-		return meta, fmt.Errorf("Failed converting image to qcow2: %v", err)
+		return meta, fmt.Errorf("Failed converting image to qcow2: %w", err)
 	}
 
 	fi, err := os.Lstat(fPath)
@@ -5146,12 +5146,12 @@ func (d *qemu) vga() (*os.File, chan error, error) {
 	// Open the spice socket
 	conn, err := net.Dial("unix", d.spicePath())
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Connect to SPICE socket %q", d.spicePath())
+		return nil, nil, fmt.Errorf("Connect to SPICE socket %q: %w", d.spicePath(), err)
 	}
 
 	file, err := (conn.(*net.UnixConn)).File()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Get socket file")
+		return nil, nil, fmt.Errorf("Get socket file: %w", err)
 	}
 	conn.Close()
 
@@ -5418,7 +5418,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	status.Status = statusCode.String()
 	status.StatusCode = statusCode
 	status.Disk, err = d.diskState()
-	if err != nil && errors.Cause(err) != storageDrivers.ErrNotSupported {
+	if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
 		d.logger.Warn("Error getting disk usage", log.Ctx{"err": err})
 	}
 
@@ -5463,7 +5463,7 @@ func (d *qemu) agentGetState() (*api.InstanceState, error) {
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed connecting to agent")
+		return nil, fmt.Errorf("Failed connecting to agent: %w", err)
 	}
 	defer agent.Disconnect()
 
@@ -5605,13 +5605,13 @@ func (d *qemu) FillNetworkDevice(name string, m deviceConfig.Device) (deviceConf
 			// Generate a new MAC address.
 			volatileHwaddr, err = instance.DeviceNextInterfaceHWAddr()
 			if err != nil || volatileHwaddr == "" {
-				return nil, errors.Wrapf(err, "Failed generating %q", configKey)
+				return nil, fmt.Errorf("Failed generating %q: %w", configKey, err)
 			}
 
 			// Update the database and update volatileHwaddr with stored value.
 			volatileHwaddr, err = d.insertConfigkey(configKey, volatileHwaddr)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed storing generated config key %q", configKey)
+				return nil, fmt.Errorf("Failed storing generated config key %q: %w", configKey, err)
 			}
 
 			// Set stored value into current instance config.
@@ -6000,7 +6000,7 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 
 		network, err := nic.State()
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed getting NIC state for %q", k)
+			return nil, fmt.Errorf("Failed getting NIC state for %q: %w", k, err)
 		}
 
 		if network != nil {

@@ -7,8 +7,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -76,7 +74,7 @@ func (c *ClusterTx) GetProjectNames() ([]string, error) {
 
 	names, err := query.SelectStrings(c.tx, stmt)
 	if err != nil {
-		return nil, errors.Wrap(err, "Fetch project names")
+		return nil, fmt.Errorf("Fetch project names: %w", err)
 	}
 
 	return names, nil
@@ -123,7 +121,7 @@ SELECT projects_config.value
 `
 	values, err := query.SelectStrings(tx, stmt, name)
 	if err != nil {
-		return false, errors.Wrap(err, "Fetch project config")
+		return false, fmt.Errorf("Fetch project config: %w", err)
 	}
 
 	if len(values) == 0 {
@@ -138,7 +136,7 @@ SELECT projects_config.value
 func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 	project, err := c.GetProject(name)
 	if err != nil {
-		return false, errors.Wrap(err, "fetch project")
+		return false, fmt.Errorf("fetch project: %w", err)
 	}
 
 	enabled := shared.IsTrue(project.Config["features.images"])
@@ -150,18 +148,18 @@ func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 func (c *ClusterTx) UpdateProject(name string, object api.ProjectPut) error {
 	id, err := c.GetProjectID(name)
 	if err != nil {
-		return errors.Wrap(err, "Fetch project ID")
+		return fmt.Errorf("Fetch project ID: %w", err)
 	}
 
 	stmt := c.stmt(projectUpdate)
 	result, err := stmt.Exec(object.Description, id)
 	if err != nil {
-		return errors.Wrap(err, "Update project")
+		return fmt.Errorf("Update project: %w", err)
 	}
 
 	n, err := result.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "Fetch affected rows")
+		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
@@ -172,7 +170,7 @@ func (c *ClusterTx) UpdateProject(name string, object api.ProjectPut) error {
 DELETE FROM projects_config WHERE projects_config.project_id = ?
 `, id)
 	if err != nil {
-		return errors.Wrap(err, "Delete project config")
+		return fmt.Errorf("Delete project config: %w", err)
 	}
 
 	err = c.UpdateConfig("project", int(id), object.Config)
@@ -189,7 +187,7 @@ DELETE FROM projects_config WHERE projects_config.project_id = ?
 func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	defaultProfileID, err := c.GetProfileID(project, "default")
 	if err != nil {
-		return errors.Wrap(err, "Fetch project ID")
+		return fmt.Errorf("Fetch project ID: %w", err)
 	}
 	stmt := `INSERT INTO images_profiles (image_id, profile_id)
 	SELECT images.id, ? FROM images WHERE project_id=1`

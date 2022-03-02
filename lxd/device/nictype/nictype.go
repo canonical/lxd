@@ -5,8 +5,6 @@ package nictype
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -23,12 +21,12 @@ func NICType(s *state.State, deviceProjectName string, d deviceConfig.Device) (s
 			// Translate device's project name into a network project name.
 			networkProjectName, _, err := project.NetworkProject(s.Cluster, deviceProjectName)
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed to translate device project %q into network project", deviceProjectName)
+				return "", fmt.Errorf("Failed to translate device project %q into network project: %w", deviceProjectName, err)
 			}
 
 			_, netInfo, _, err := s.Cluster.GetNetworkInAnyState(networkProjectName, d["network"])
 			if err != nil {
-				return "", errors.Wrapf(err, "Failed to load network %q for project %q", d["network"], networkProjectName)
+				return "", fmt.Errorf("Failed to load network %q for project %q: %w", d["network"], networkProjectName, err)
 			}
 
 			var nicType string

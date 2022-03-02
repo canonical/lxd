@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -115,7 +115,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		return nil
 	})
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Failed getting validate dependency check info"))
+		return response.SmartError(fmt.Errorf("Failed getting validate dependency check info: %w", err))
 	}
 
 	isClustered, err := cluster.Enabled(d.db)
@@ -147,7 +147,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 	for _, p := range userPools {
 		pool, err := storagePools.GetPoolByName(d.State(), p.Name)
 		if err != nil {
-			if errors.Cause(err) == db.ErrNoSuchObject {
+			if errors.Is(err, db.ErrNoSuchObject) {
 				// If the pool DB record doesn't exist, and we are clustered, then don't proceed
 				// any further as we do not support pool DB record recovery when clustered.
 				if isClustered {
@@ -164,15 +164,15 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 				pool, err = storagePools.NewTemporary(d.State(), &poolInfo)
 				if err != nil {
-					return response.SmartError(errors.Wrapf(err, "Failed to initialise unknown pool %q", p.Name))
+					return response.SmartError(fmt.Errorf("Failed to initialise unknown pool %q: %w", p.Name, err))
 				}
 
 				err = pool.Driver().Validate(poolInfo.Config)
 				if err != nil {
-					return response.SmartError(errors.Wrapf(err, "Failed config validation for unknown pool %q", p.Name))
+					return response.SmartError(fmt.Errorf("Failed config validation for unknown pool %q: %w", p.Name, err))
 				}
 			} else {
-				return response.SmartError(errors.Wrapf(err, "Failed loading existing pool %q", p.Name))
+				return response.SmartError(fmt.Errorf("Failed loading existing pool %q: %w", p.Name, err))
 			}
 		}
 
@@ -182,7 +182,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		// Try to mount the pool.
 		ourMount, err := pool.Mount()
 		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed mounting pool %q", pool.Name()))
+			return response.SmartError(fmt.Errorf("Failed mounting pool %q: %w", pool.Name(), err))
 		}
 
 		// Unmount pool when done if not existing in DB after function has finished.
@@ -205,7 +205,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		// Get list of unknown volumes on pool.
 		poolProjectVols, err := pool.ListUnknownVolumes(nil)
 		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed checking volumes on pool %q", pool.Name()))
+			return response.SmartError(fmt.Errorf("Failed checking volumes on pool %q: %w", pool.Name(), err))
 		}
 
 		// Store for consumption after validation scan to avoid needing to reprocess.
@@ -342,7 +342,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					logger.Info("Creating storage pool DB record from instance config", log.Ctx{"name": instPoolVol.Pool.Name, "description": instPoolVol.Pool.Description, "driver": instPoolVol.Pool.Driver, "config": instPoolVol.Pool.Config})
 					poolID, err = dbStoragePoolCreateAndUpdateCache(d.State(), instPoolVol.Pool.Name, instPoolVol.Pool.Description, instPoolVol.Pool.Driver, instPoolVol.Pool.Config)
 					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed creating storage pool %q database entry", pool.Name()))
+						return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
 					}
 				} else {
 					// Create storage pool DB record from config supplied by user if not
@@ -352,7 +352,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					logger.Info("Creating storage pool DB record from user config", log.Ctx{"name": pool.Name(), "driver": poolDriverName, "config": poolDriverConfig})
 					poolID, err = dbStoragePoolCreateAndUpdateCache(d.State(), pool.Name(), "", poolDriverName, poolDriverConfig)
 					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed creating storage pool %q database entry", pool.Name()))
+						return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
 					}
 				}
 
@@ -366,13 +366,13 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					return tx.StoragePoolNodeCreated(poolID)
 				})
 				if err != nil {
-					return response.SmartError(errors.Wrapf(err, "Failed marking storage pool %q local status as created", pool.Name()))
+					return response.SmartError(fmt.Errorf("Failed marking storage pool %q local status as created: %w", pool.Name(), err))
 				}
 				logger.Debug("Marked storage pool local status as created", log.Ctx{"pool": pool.Name()})
 
 				newPool, err := storagePools.GetPoolByName(d.State(), pool.Name())
 				if err != nil {
-					return response.SmartError(errors.Wrapf(err, "Failed loading created storage pool %q", pool.Name()))
+					return response.SmartError(fmt.Errorf("Failed loading created storage pool %q: %w", pool.Name(), err))
 				}
 
 				// Record this newly created pool so that defer doesn't unmount on return.
@@ -392,7 +392,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				// Import custom volume and any snapshots.
 				err = pool.ImportCustomVolume(customStorageProjectName, *poolVol, nil)
 				if err != nil {
-					return response.SmartError(errors.Wrapf(err, "Failed importing custom volume %q in project %q", poolVol.Volume.Name, projectName))
+					return response.SmartError(fmt.Errorf("Failed importing custom volume %q in project %q: %w", poolVol.Volume.Name, projectName, err))
 				}
 			}
 
@@ -414,7 +414,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 				inst, err := internalRecoverImportInstance(d.State(), pool, projectName, poolVol, profiles, revert)
 				if err != nil {
-					return response.SmartError(errors.Wrapf(err, "Failed creating instance %q record in project %q", poolVol.Container.Name, projectName))
+					return response.SmartError(fmt.Errorf("Failed creating instance %q record in project %q: %w", poolVol.Container.Name, projectName, err))
 				}
 
 				// Recover instance volume snapshots.
@@ -430,14 +430,14 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 					err = internalRecoverImportInstanceSnapshot(d.State(), pool, projectName, poolVol, poolInstSnap, profiles, revert)
 					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed creating instance %q snapshot %q record in project %q", poolVol.Container.Name, poolInstSnap.Name, projectName))
+						return response.SmartError(fmt.Errorf("Failed creating instance %q snapshot %q record in project %q: %w", poolVol.Container.Name, poolInstSnap.Name, projectName, err))
 					}
 				}
 
 				// Recreate instance mount path and symlinks (must come after snapshot recovery).
 				err = pool.ImportInstance(inst, nil)
 				if err != nil {
-					return response.SmartError(errors.Wrapf(err, "Failed importing instance %q in project %q", poolVol.Container.Name, projectName))
+					return response.SmartError(fmt.Errorf("Failed importing instance %q in project %q: %w", poolVol.Container.Name, projectName, err))
 				}
 
 				// Reinitialise the instance's root disk quota even if no size specified (allows the storage driver the
@@ -446,7 +446,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				if err == nil {
 					err = pool.SetInstanceQuota(inst, rootConfig["size"], rootConfig["size.state"], nil)
 					if err != nil {
-						return response.SmartError(errors.Wrapf(err, "Failed reinitializing root disk quota %q for instance %q in project %q", rootConfig["size"], poolVol.Container.Name, projectName))
+						return response.SmartError(fmt.Errorf("Failed reinitializing root disk quota %q for instance %q in project %q: %w", rootConfig["size"], poolVol.Container.Name, projectName, err))
 					}
 				}
 			}
@@ -488,7 +488,7 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 
 	inst, instOp, err := instance.CreateInternal(s, *dbInst, false, volConfig, revert)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating instance record")
+		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
 	defer instOp.Done(err)
 
@@ -538,7 +538,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		Stateful:     snap.Stateful,
 	}, false, nil, revert)
 	if err != nil {
-		return errors.Wrapf(err, "Failed creating instance snapshot record %q", snap.Name)
+		return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 	}
 	defer snapInstOp.Done(err)
 

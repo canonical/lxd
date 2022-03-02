@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -255,7 +254,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		id, err = tx.CreateProject(project)
 		if err != nil {
-			return errors.Wrap(err, "Failed adding database record")
+			return fmt.Errorf("Failed adding database record: %w", err)
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
@@ -275,7 +274,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Failed creating project %q", project.Name))
+		return response.SmartError(fmt.Errorf("Failed creating project %q: %w", project.Name, err))
 	}
 
 	if d.rbac != nil {
@@ -301,7 +300,7 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 
 	_, err := tx.CreateProfile(profile)
 	if err != nil {
-		return errors.Wrap(err, "Add default profile to database")
+		return fmt.Errorf("Add default profile to database: %w", err)
 	}
 	return nil
 }
@@ -574,7 +573,7 @@ func projectChange(d *Daemon, project *db.Project, req api.ProjectPut) response.
 
 		err = tx.UpdateProject(project.Name, req)
 		if err != nil {
-			return errors.Wrap(err, "Persist profile changes")
+			return fmt.Errorf("Persist profile changes: %w", err)
 		}
 
 		if shared.StringInSlice("features.profiles", configChanged) {
@@ -587,7 +586,7 @@ func projectChange(d *Daemon, project *db.Project, req api.ProjectPut) response.
 				// Delete the project-specific default profile.
 				err = tx.DeleteProfile(project.Name, projecthelpers.Default)
 				if err != nil {
-					return errors.Wrap(err, "Delete project default profile")
+					return fmt.Errorf("Delete project default profile: %w", err)
 				}
 			}
 		}
@@ -651,7 +650,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			project, err := tx.GetProject(req.Name)
 			if err != nil && err != db.ErrNoSuchObject {
-				return errors.Wrapf(err, "Failed checking if project %q exists", req.Name)
+				return fmt.Errorf("Failed checking if project %q exists: %w", req.Name, err)
 			}
 
 			if project != nil {
@@ -660,7 +659,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 			project, err = tx.GetProject(name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed loading project %q", name)
+				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
 			if !projectIsEmpty(project) {
@@ -669,7 +668,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 
 			id, err = tx.GetProjectID(name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed getting project ID for project %q", name)
+				return fmt.Errorf("Failed getting project ID for project %q: %w", name, err)
 			}
 
 			err = projectValidateName(req.Name)
@@ -734,7 +733,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		project, err := tx.GetProject(name)
 		if err != nil {
-			return errors.Wrapf(err, "Fetch project %q", name)
+			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
 		if !projectIsEmpty(project) {
 			return fmt.Errorf("Only empty projects can be removed")
@@ -742,7 +741,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 
 		id, err = tx.GetProjectID(name)
 		if err != nil {
-			return errors.Wrapf(err, "Fetch project id %q", name)
+			return fmt.Errorf("Fetch project id %q: %w", name, err)
 		}
 
 		return tx.DeleteProject(name)
@@ -913,7 +912,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 
 		err := validator(v)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid project configuration key %q value", k)
+			return fmt.Errorf("Invalid project configuration key %q value: %w", k, err)
 		}
 	}
 
@@ -983,7 +982,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 		// Check uplink exists and load config to compare subnets.
 		_, uplink, _, err := s.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
 		if err != nil {
-			return errors.Wrapf(err, "Invalid uplink network %q", uplinkName)
+			return fmt.Errorf("Invalid uplink network %q: %w", uplinkName, err)
 		}
 
 		// Parse uplink route subnets.

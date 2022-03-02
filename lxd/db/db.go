@@ -6,6 +6,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -17,7 +18,6 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/driver"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -163,7 +163,7 @@ type Cluster struct {
 func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore, address, dir string, timeout time.Duration, dump *Dump, options ...driver.Option) (*Cluster, error) {
 	db, err := cluster.Open(name, store, options...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to open database")
+		return nil, fmt.Errorf("Failed to open database: %w", err)
 	}
 
 	db.SetMaxOpenConns(1)
@@ -216,7 +216,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 	// FIXME: https://github.com/canonical/dqlite/issues/163
 	_, err = db.Exec("PRAGMA cache_size=-50000")
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to set page cache size")
+		return nil, fmt.Errorf("Failed to set page cache size: %w", err)
 	}
 
 	if dump != nil {
@@ -239,13 +239,13 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 				logger.Errorf("Failed to cleanup global database: %v", rmErr)
 			}
 
-			return nil, errors.Wrap(err, "Failed to migrate data to global database")
+			return nil, fmt.Errorf("Failed to migrate data to global database: %w", err)
 		}
 	}
 
 	nodesVersionsMatch, err := cluster.EnsureSchema(db, address, dir)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to ensure schema")
+		return nil, fmt.Errorf("failed to ensure schema: %w", err)
 	}
 
 	if !nodesVersionsMatch {
@@ -260,7 +260,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	stmts, err := cluster.PrepareStmts(db, false)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to prepare statements")
+		return nil, fmt.Errorf("Failed to prepare statements: %w", err)
 	}
 
 	cluster := &Cluster{
@@ -273,7 +273,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		// Figure out the ID of this node.
 		nodes, err := tx.GetNodes()
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch nodes")
+			return fmt.Errorf("Failed to fetch nodes: %w", err)
 		}
 
 		nodeID := int64(-1)
@@ -332,7 +332,7 @@ func ForLocalInspectionWithPreparedStmts(db *sql.DB) (*Cluster, error) {
 
 	stmts, err := cluster.PrepareStmts(c.db, true)
 	if err != nil {
-		return nil, errors.Wrap(err, "Prepare database statements")
+		return nil, fmt.Errorf("Prepare database statements: %w", err)
 	}
 
 	c.stmts = stmts

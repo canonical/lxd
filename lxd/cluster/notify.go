@@ -11,7 +11,6 @@ import (
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/pkg/errors"
 )
 
 // Notifier is a function that invokes the given function against each node in
@@ -34,7 +33,7 @@ const (
 func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
 	address, err := node.ClusterAddress(state.Node)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to fetch node address")
+		return nil, fmt.Errorf("failed to fetch node address: %w", err)
 	}
 
 	// Fast-track the case where we're not clustered at all.
@@ -95,12 +94,12 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 				defer wg.Done()
 				client, err := Connect(address, networkCert, serverCert, nil, true)
 				if err != nil {
-					errs[i] = errors.Wrapf(err, "failed to connect to peer %s", address)
+					errs[i] = fmt.Errorf("failed to connect to peer %s: %w", address, err)
 					return
 				}
 				err = hook(client)
 				if err != nil {
-					errs[i] = errors.Wrapf(err, "failed to notify peer %s", address)
+					errs[i] = fmt.Errorf("failed to notify peer %s: %w", address, err)
 				}
 			}(i, address)
 		}

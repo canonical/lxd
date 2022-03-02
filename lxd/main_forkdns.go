@@ -361,7 +361,7 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 	path := shared.VarPath("networks", networkName, network.ForkdnsServersListPath)
 	err = watcher.Add(path)
 	if err != nil {
-		return fmt.Errorf("Unable to setup fsnotify watch on %s: %s", path, err)
+		return fmt.Errorf("Unable to setup fsnotify watch on %s: %w", path, err)
 	}
 
 	// Run the server list monitor concurrently waiting for file changes.

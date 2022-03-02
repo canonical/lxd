@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/lxc/lxd/lxd/cluster/raft"
 	"github.com/lxc/lxd/shared"
-	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -36,7 +35,7 @@ func MigrateToDqlite10(dir string) error {
 
 	metas, err := snaps.List()
 	if err != nil {
-		return errors.Wrapf(err, "List snapshots")
+		return fmt.Errorf("List snapshots: %w", err)
 	}
 
 	if len(metas) > 0 {
@@ -47,7 +46,7 @@ func MigrateToDqlite10(dir string) error {
 
 	lastIndex, err := logs.LastIndex()
 	if err != nil {
-		return errors.Wrapf(err, "Find last log")
+		return fmt.Errorf("Find last log: %w", err)
 	}
 
 	// Scan through the log for any configuration change entries.
@@ -55,7 +54,7 @@ func MigrateToDqlite10(dir string) error {
 		var entry raft.Log
 		err := logs.GetLog(index, &entry)
 		if err != nil {
-			return errors.Wrapf(err, "Get log at %d", index)
+			return fmt.Errorf("Get log at %d: %w", index, err)
 		}
 		if entry.Type == raft.LogConfiguration {
 			conf = decodeLegacyRaftConfiguration(entry.Data)
@@ -64,17 +63,17 @@ func MigrateToDqlite10(dir string) error {
 
 	err = writeRaftMetadata(dir)
 	if err != nil {
-		return errors.Wrap(err, "Write raft metadata")
+		return fmt.Errorf("Write raft metadata: %w", err)
 	}
 
 	err = writeRaftSnapshotMetadata(dir, lastIndex, conf)
 	if err != nil {
-		return errors.Wrap(err, "Write raft snapshot metadata")
+		return fmt.Errorf("Write raft snapshot metadata: %w", err)
 	}
 
 	err = writeRaftSnapshot(dir, lastIndex)
 	if err != nil {
-		return errors.Wrap(err, "Write dqlite snapshot")
+		return fmt.Errorf("Write dqlite snapshot: %w", err)
 	}
 
 	return nil
@@ -88,12 +87,12 @@ func openLegacyRaftStore(dir string) (*raft.BoltStore, raft.SnapshotStore, error
 	}
 	logs, err := raft.New(options)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Open boltdb file")
+		return nil, nil, fmt.Errorf("Open boltdb file: %w", err)
 	}
 
 	snaps, err := raft.NewFileSnapshotStore(dir, 1, ioutil.Discard)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Open snapshot store")
+		return nil, nil, fmt.Errorf("Open snapshot store: %w", err)
 	}
 
 	return logs, snaps, nil
@@ -109,7 +108,7 @@ func decodeLegacyRaftConfiguration(buf []byte) raft.Configuration {
 	dec := codec.NewDecoder(r, &hd)
 	err := dec.Decode(&configuration)
 	if err != nil {
-		panic(fmt.Errorf("Failed to decode configuration: %v", err))
+		panic(fmt.Errorf("Failed to decode configuration: %w", err))
 	}
 	return configuration
 }

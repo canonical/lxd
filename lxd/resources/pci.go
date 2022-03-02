@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -8,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/jaypipes/pcidb"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/shared/api"
@@ -33,13 +33,13 @@ func GetPCI() (*api.ResourcesPCI, error) {
 	uname := unix.Utsname{}
 	err = unix.Uname(&uname)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get uname")
+		return nil, fmt.Errorf("Failed to get uname: %w", err)
 	}
 
 	// List all PCI devices
 	entries, err := ioutil.ReadDir(sysBusPci)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to list %q", sysBusPci)
+		return nil, fmt.Errorf("Failed to list %q: %w", sysBusPci, err)
 	}
 
 	for _, entry := range entries {
@@ -53,7 +53,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		if sysfsExists(driverPath) {
 			linkTarget, err := filepath.EvalSymlinks(driverPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to get driver of %q", devicePath)
+				return nil, fmt.Errorf("Failed to get driver of %q: %w", devicePath, err)
 			}
 
 			device.Driver = filepath.Base(linkTarget)
@@ -71,7 +71,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		if sysfsExists(filepath.Join(devicePath, "numa_node")) {
 			numaNode, err := readInt(filepath.Join(devicePath, "numa_node"))
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", filepath.Join(devicePath, "numa_node"))
+				return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(devicePath, "numa_node"), err)
 			}
 
 			if numaNode > 0 {
@@ -87,7 +87,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		if sysfsExists(deviceDevicePath) {
 			id, err := ioutil.ReadFile(deviceDevicePath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", deviceDevicePath)
+				return nil, fmt.Errorf("Failed to read %q: %w", deviceDevicePath, err)
 			}
 
 			device.ProductID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
@@ -98,7 +98,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		if sysfsExists(deviceVendorPath) {
 			id, err := ioutil.ReadFile(deviceVendorPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to read %q", deviceVendorPath)
+				return nil, fmt.Errorf("Failed to read %q: %w", deviceVendorPath, err)
 			}
 
 			device.VendorID = strings.TrimPrefix(strings.TrimSpace(string(id)), "0x")
@@ -124,13 +124,13 @@ func GetPCI() (*api.ResourcesPCI, error) {
 		if sysfsExists(iommuGroupSymPath) {
 			iommuGroupPath, err := os.Readlink(iommuGroupSymPath)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to readlink %q", iommuGroupSymPath)
+				return nil, fmt.Errorf("Failed to readlink %q: %w", iommuGroupSymPath, err)
 			}
 
 			iommuGroup := filepath.Base(iommuGroupPath)
 			device.IOMMUGroup, err = strconv.ParseUint(iommuGroup, 10, 64)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to parse %q", iommuGroup)
+				return nil, fmt.Errorf("Failed to parse %q: %w", iommuGroup, err)
 			}
 		} else {
 			device.IOMMUGroup = 0

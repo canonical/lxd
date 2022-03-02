@@ -5,7 +5,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/migration"
@@ -55,7 +54,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid value for pool %q option %q", d.name, k)
+			return fmt.Errorf("Invalid value for pool %q option %q: %w", d.name, k, err)
 		}
 	}
 
@@ -102,7 +101,7 @@ func (d *common) validateVolume(vol Volume, driverRules map[string]func(value st
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(vol.config[k])
 		if err != nil {
-			return errors.Wrapf(err, "Invalid value for volume %q option %q", vol.name, k)
+			return fmt.Errorf("Invalid value for volume %q option %q: %w", vol.name, k, err)
 		}
 	}
 

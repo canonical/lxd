@@ -1,9 +1,9 @@
 package storage
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -37,7 +37,7 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 	// At this time, all custom volumes are in the default project.
 	volumes, err := b.state.Cluster.GetLocalStoragePoolVolumes(project.Default, b.ID(), []int{db.StoragePoolVolumeTypeCustom})
 	if err != nil && err != db.ErrNoSuchObject {
-		return errors.Wrapf(err, "Failed getting custom volumes for default project")
+		return fmt.Errorf("Failed getting custom volumes for default project: %w", err)
 	}
 
 	revert := revert.New()
@@ -110,7 +110,7 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 							os.Remove(symlinkPath)
 							err = os.Symlink(newDestPath, symlinkPath)
 							if err != nil {
-								return errors.Wrapf(err, "Failed to create the new symlink at %q to %q", symlinkPath, newDestPath)
+								return fmt.Errorf("Failed to create the new symlink at %q to %q: %w", symlinkPath, newDestPath, err)
 							}
 
 							revert.Add(func() {

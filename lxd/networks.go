@@ -10,8 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"errors"
+
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -306,12 +307,12 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	if projectName != project.Default && projectConfig != nil && projectConfig["limits.networks"] != "" {
 		networksLimit, err := strconv.Atoi(projectConfig["limits.networks"])
 		if err != nil {
-			return response.InternalError(errors.Wrapf(err, "Invalid project limits.network value"))
+			return response.InternalError(fmt.Errorf("Invalid project limits.network value: %w", err))
 		}
 
 		networks, err := d.cluster.GetNetworks(projectName)
 		if err != nil {
-			return response.InternalError(errors.Wrapf(err, "Failed loading project's networks for limits check"))
+			return response.InternalError(fmt.Errorf("Failed loading project's networks for limits check: %w", err))
 		}
 
 		// Only check network limits if the new network name doesn't exist already in networks list.
@@ -397,8 +398,8 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 					// Don't pass in any config, as these nodes don't have any node-specific
 					// config and we don't want to create duplicate global config.
 					err = tx.CreatePendingNetwork(node.Name, projectName, req.Name, netType.DBType(), nil)
-					if err != nil && errors.Cause(err) != db.ErrAlreadyDefined {
-						return errors.Wrapf(err, "Failed creating pending network for node %q", node.Name)
+					if err != nil && !errors.Is(err, db.ErrAlreadyDefined) {
+						return fmt.Errorf("Failed creating pending network for node %q: %w", node.Name, err)
 					}
 				}
 
@@ -434,7 +435,7 @@ func networksPost(d *Daemon, r *http.Request) response.Response {
 	// Create the database entry.
 	_, err = d.cluster.CreateNetwork(projectName, req.Name, req.Description, netType.DBType(), req.Config)
 	if err != nil {
-		return response.SmartError(errors.Wrapf(err, "Error inserting %q into database", req.Name))
+		return response.SmartError(fmt.Errorf("Error inserting %q into database: %w", req.Name, err))
 	}
 	revert.Add(func() { d.cluster.DeleteNetwork(projectName, req.Name) })
 
@@ -1004,7 +1005,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	// Check network isn't in use.
 	inUse, err := n.IsUsed()
 	if err != nil {
-		return response.InternalError(errors.Wrapf(err, "Failed checking network in use"))
+		return response.InternalError(fmt.Errorf("Failed checking network in use: %w", err))
 	}
 
 	if inUse {
@@ -1330,7 +1331,7 @@ func networkStartup(s *state.State) error {
 		return err
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load projects")
+		return fmt.Errorf("Failed to load projects: %w", err)
 	}
 
 	// Record of networks that need to be started later keyed on project name.
@@ -1342,14 +1343,14 @@ func networkStartup(s *state.State) error {
 		// Get a list of managed networks.
 		networks, err := s.Cluster.GetCreatedNetworks(projectName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load networks for project %q", projectName)
+			return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
 		}
 
 		// Bring them all up.
 		for _, name := range networks {
 			n, err := network.LoadByName(s, projectName, name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
+				return fmt.Errorf("Failed to load network %q in project %q: %w", name, projectName, err)
 			}
 
 			netConfig := n.Config()
@@ -1401,21 +1402,21 @@ func networkShutdown(s *state.State) error {
 		return err
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load projects")
+		return fmt.Errorf("Failed to load projects: %w", err)
 	}
 
 	for _, projectName := range projectNames {
 		// Get a list of managed networks.
 		networks, err := s.Cluster.GetNetworks(projectName)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load networks for project %q", projectName)
+			return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
 		}
 
 		// Bring them all down.
 		for _, name := range networks {
 			n, err := network.LoadByName(s, projectName, name)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to load network %q in project %q", name, projectName)
+				return fmt.Errorf("Failed to load network %q in project %q: %w", name, projectName, err)
 			}
 
 			err = n.Stop()

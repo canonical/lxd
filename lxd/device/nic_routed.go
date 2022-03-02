@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -153,7 +152,7 @@ func (d *nicRouted) validateEnvironment() error {
 			ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", "all")
 			sysctlVal, err := util.SysctlGet(ipv6FwdPath)
 			if err != nil {
-				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6FwdPath, err)
 			}
 			if sysctlVal != "1\n" {
 				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.forwarding=1", "all")
@@ -165,7 +164,7 @@ func (d *nicRouted) validateEnvironment() error {
 			ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", "all")
 			sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
 			if err != nil {
-				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6ProxyNdpPath, err)
 			}
 			if sysctlVal != "1\n" {
 				return fmt.Errorf("Routed mode requires sysctl net.ipv6.conf.%s.proxy_ndp=1", "all")
@@ -177,7 +176,7 @@ func (d *nicRouted) validateEnvironment() error {
 			ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", d.effectiveParentName)
 			sysctlVal, err := util.SysctlGet(ipv4FwdPath)
 			if err != nil {
-				return fmt.Errorf("Error reading net sysctl %s: %v", ipv4FwdPath, err)
+				return fmt.Errorf("Error reading net sysctl %s: %w", ipv4FwdPath, err)
 			}
 			if sysctlVal != "1\n" {
 				// Replace . in parent name with / for sysctl formatting.
@@ -190,7 +189,7 @@ func (d *nicRouted) validateEnvironment() error {
 			ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", d.effectiveParentName)
 			sysctlVal, err := util.SysctlGet(ipv6FwdPath)
 			if err != nil {
-				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6FwdPath, err)
+				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6FwdPath, err)
 			}
 			if sysctlVal != "1\n" {
 				// Replace . in parent name with / for sysctl formatting.
@@ -200,7 +199,7 @@ func (d *nicRouted) validateEnvironment() error {
 			ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", d.effectiveParentName)
 			sysctlVal, err = util.SysctlGet(ipv6ProxyNdpPath)
 			if err != nil {
-				return fmt.Errorf("Error reading net sysctl %s: %v", ipv6ProxyNdpPath, err)
+				return fmt.Errorf("Error reading net sysctl %s: %w", ipv6ProxyNdpPath, err)
 			}
 			if sysctlVal != "1\n" {
 				// Replace . in parent name with / for sysctl formatting.
@@ -354,7 +353,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 	// Apply firewall rules for reverse path filtering of IPv4 and IPv6.
 	err = d.state.Firewall.InstanceSetupRPFilter(d.inst.Project(), d.inst.Name(), d.name, saveData["host_name"])
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error setting up reverse path filter")
+		return nil, fmt.Errorf("Error setting up reverse path filter: %w", err)
 	}
 
 	// Perform host-side address configuration.
@@ -525,7 +524,7 @@ func (d *nicRouted) setupParentSysctls(parentName string) error {
 		ipv4FwdPath := fmt.Sprintf("net/ipv4/conf/%s/forwarding", parentName)
 		err := util.SysctlSet(ipv4FwdPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error setting net sysctl %s: %v", ipv4FwdPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %w", ipv4FwdPath, err)
 		}
 	}
 
@@ -534,13 +533,13 @@ func (d *nicRouted) setupParentSysctls(parentName string) error {
 		ipv6FwdPath := fmt.Sprintf("net/ipv6/conf/%s/forwarding", parentName)
 		err := util.SysctlSet(ipv6FwdPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6FwdPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %w", ipv6FwdPath, err)
 		}
 
 		ipv6ProxyNdpPath := fmt.Sprintf("net/ipv6/conf/%s/proxy_ndp", parentName)
 		err = util.SysctlSet(ipv6ProxyNdpPath, "1")
 		if err != nil {
-			return fmt.Errorf("Error setting net sysctl %s: %v", ipv6ProxyNdpPath, err)
+			return fmt.Errorf("Error setting net sysctl %s: %w", ipv6ProxyNdpPath, err)
 		}
 	}
 
@@ -602,7 +601,7 @@ func (d *nicRouted) postStop() error {
 		// Removing host-side end of veth pair will delete the peer end too.
 		err := network.InterfaceRemove(d.config["host_name"])
 		if err != nil {
-			errs = append(errs, errors.Wrapf(err, "Failed to remove interface %q", d.config["host_name"]))
+			errs = append(errs, fmt.Errorf("Failed to remove interface %q: %w", d.config["host_name"], err))
 		}
 	}
 

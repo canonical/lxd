@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
@@ -36,18 +36,18 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	// Create the instance record.
 	inst, instOp, err := instance.CreateInternal(d.State(), args, true, nil, revert)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating instance record")
+		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
 	defer instOp.Done(err)
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed loading instance storage pool")
+		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	err = pool.CreateInstance(inst, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating instance")
+		return nil, fmt.Errorf("Failed creating instance: %w", err)
 	}
 
 	revert.Add(func() { inst.Delete(true) })
@@ -89,7 +89,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	// Get the image properties.
 	_, img, err := s.Cluster.GetImage(hash, db.ImageFilter{Project: &args.Project})
 	if err != nil {
-		return nil, errors.Wrapf(err, "Fetch image %s from database", hash)
+		return nil, fmt.Errorf("Fetch image %s from database: %w", hash, err)
 	}
 
 	// Set the default profiles if necessary.
@@ -117,7 +117,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	nodeAddress, err := s.Cluster.LocateImage(hash)
 	if err != nil {
 		unlock()
-		return nil, errors.Wrapf(err, "Locate image %q in the cluster", hash)
+		return nil, fmt.Errorf("Locate image %q in the cluster: %w", hash, err)
 	}
 
 	if nodeAddress != "" {
@@ -125,14 +125,14 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 		err = instanceImageTransfer(d, r, args.Project, img.Fingerprint, nodeAddress)
 		if err != nil {
 			unlock()
-			return nil, errors.Wrapf(err, "Failed transferring image %q from %q", img.Fingerprint, nodeAddress)
+			return nil, fmt.Errorf("Failed transferring image %q from %q: %w", img.Fingerprint, nodeAddress, err)
 		}
 
 		// As the image record already exists in the project, just add the node ID to the image.
 		err = d.cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
 		if err != nil {
 			unlock()
-			return nil, errors.Wrapf(err, "Failed adding transferred image %q record to local cluster member", img.Fingerprint)
+			return nil, fmt.Errorf("Failed adding transferred image %q record to local cluster member: %w", img.Fingerprint, err)
 		}
 	}
 
@@ -151,7 +151,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	// Create the instance.
 	inst, instOp, err := instance.CreateInternal(s, args, true, nil, revert)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating instance record")
+		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
 	defer instOp.Done(nil)
 
@@ -162,12 +162,12 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 
 	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed loading instance storage pool")
+		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	err = pool.CreateInstanceFromImage(inst, hash, op)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed creating instance from image")
+		return nil, fmt.Errorf("Failed creating instance from image: %w", err)
 	}
 
 	revert.Add(func() { inst.Delete(true) })
@@ -217,14 +217,14 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		// Create the instance.
 		inst, instOp, err = instance.CreateInternal(s, opts.targetInstance, true, nil, revert)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed creating instance record")
+			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
 		defer instOp.Done(err)
 
 		// Override the storage volume to match the source (if exists on the same pool).
 		pool, err := storagePools.GetPoolByInstance(s, inst)
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed loading instance storage pool")
+			return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 		}
 
 		volType, err := storagePools.InstanceTypeToVolumeType(inst.Type())
@@ -242,7 +242,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 		if err == nil {
 			err = s.Cluster.UpdateStoragePoolVolume(inst.Project(), inst.Name(), volDBType, pool.ID(), srcVol.Description, srcVol.Config)
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to update instance volume config")
+				return nil, fmt.Errorf("Failed to update instance volume config: %w", err)
 			}
 		}
 	}
@@ -306,7 +306,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 						}
 					}
 				}
-			} else if errors.Cause(err) == shared.ErrNoRootDisk {
+			} else if errors.Is(err, shared.ErrNoRootDisk) {
 				// If no root disk defined in either local devices or profiles, then add one to the
 				// snapshot local devices using the same device name from the parent instance.
 				snapLocalDevices[instRootDiskDeviceKey] = map[string]string{
@@ -338,7 +338,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			// Create the snapshots.
 			snapInst, snapInstOp, err := instance.CreateInternal(s, snapInstArgs, true, nil, revert)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed creating instance snapshot record %q", newSnapName)
+				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
 			defer snapInstOp.Done(err)
 
@@ -355,18 +355,18 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	// Copy the storage volume.
 	pool, err := storagePools.GetPoolByInstance(s, inst)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed loading instance storage pool")
+		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
 
 	if opts.refresh {
 		err = pool.RefreshInstance(inst, opts.sourceInstance, snapshots, opts.allowInconsistent, op)
 		if err != nil {
-			return nil, errors.Wrap(err, "Refresh instance")
+			return nil, fmt.Errorf("Refresh instance: %w", err)
 		}
 	} else {
 		err = pool.CreateInstanceFromCopy(inst, opts.sourceInstance, !opts.instanceOnly, opts.allowInconsistent, op)
 		if err != nil {
-			return nil, errors.Wrap(err, "Create instance from copy")
+			return nil, fmt.Errorf("Create instance from copy: %w", err)
 		}
 
 		revert.Add(func() { inst.Delete(true) })
@@ -616,7 +616,7 @@ func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []
 	for _, snapshot := range snapshots {
 		err := snapshot.Delete(true)
 		if err != nil {
-			return errors.Wrapf(err, "Failed to delete expired instance snapshot '%s' in project '%s'", snapshot.Name(), snapshot.Project())
+			return fmt.Errorf("Failed to delete expired instance snapshot '%s' in project '%s': %w", snapshot.Name(), snapshot.Project(), err)
 		}
 	}
 

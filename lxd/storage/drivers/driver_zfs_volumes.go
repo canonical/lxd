@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -830,13 +829,13 @@ func (d *zfs) DeleteVolume(vol Volume, op *operations.Operation) error {
 		// Delete the mountpoint if present.
 		err := os.Remove(vol.MountPath())
 		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "Failed to remove '%s'", vol.MountPath())
+			return fmt.Errorf("Failed to remove '%s': %w", vol.MountPath(), err)
 		}
 
 		// Delete the snapshot storage.
 		err = os.RemoveAll(GetVolumeSnapshotDir(d.name, vol.volType, vol.name))
 		if err != nil && !os.IsNotExist(err) {
-			return errors.Wrapf(err, "Failed to remove '%s'", GetVolumeSnapshotDir(d.name, vol.volType, vol.name))
+			return fmt.Errorf("Failed to remove '%s': %w", GetVolumeSnapshotDir(d.name, vol.volType, vol.name), err)
 		}
 	}
 
@@ -994,7 +993,7 @@ func (d *zfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		// In unsafe mode we expect the caller to know what they are doing and understand the risks.
 		if !allowUnsafeResize {
 			if sizeBytes < oldVolSizeBytes {
-				return errors.Wrap(ErrCannotBeShrunk, "Block volumes cannot be shrunk")
+				return fmt.Errorf("Block volumes cannot be shrunk: %w", ErrCannotBeShrunk)
 			}
 
 			if vol.MountInUse() {
@@ -1083,7 +1082,7 @@ func (d *zfs) GetVolumeDiskPath(vol Volume) (string, error) {
 	// List all the device nodes.
 	entries, err := ioutil.ReadDir("/dev")
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to read /dev")
+		return "", fmt.Errorf("Failed to read /dev: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -1201,7 +1200,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 
 	err = cmd.Wait()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed getting volume list: %v", strings.TrimSpace(string(errMsg)))
+		return nil, fmt.Errorf("Failed getting volume list: %v: %w", strings.TrimSpace(string(errMsg)), err)
 	}
 
 	volList := make([]Volume, len(vols))
@@ -1334,7 +1333,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 				devPath, _ := d.GetVolumeDiskPath(vol)
 				if err != nil {
-					return false, errors.Wrapf(err, "Failed locating zvol for deactivation")
+					return false, fmt.Errorf("Failed locating zvol for deactivation: %w", err)
 				}
 
 				// We cannot wait longer than the operationlock.TimeoutSeconds to avoid continuing
@@ -1645,7 +1644,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		backupsPath := shared.VarPath("backups")
 		tmpFile, err := ioutil.TempFile(backupsPath, fmt.Sprintf("%s_zfs", backup.WorkingDirPrefix))
 		if err != nil {
-			return errors.Wrapf(err, "Failed to open temporary file for ZFS backup")
+			return fmt.Errorf("Failed to open temporary file for ZFS backup: %w", err)
 		}
 		defer tmpFile.Close()
 		defer os.Remove(tmpFile.Name())
@@ -1808,7 +1807,7 @@ func (d *zfs) DeleteVolumeSnapshot(vol Volume, op *operations.Operation) error {
 	// Delete the mountpoint.
 	err = os.Remove(vol.MountPath())
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove '%s'", vol.MountPath())
+		return fmt.Errorf("Failed to remove '%s': %w", vol.MountPath(), err)
 	}
 
 	// Remove the parent snapshot directory if this is the last snapshot being removed.

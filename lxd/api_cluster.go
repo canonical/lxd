@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
@@ -203,12 +203,12 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 		pools, err = tx.GetStoragePoolsLocalConfig()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to fetch storage pools configuration")
+			return fmt.Errorf("Failed to fetch storage pools configuration: %w", err)
 		}
 
 		networks, err = tx.GetNetworksLocalConfig()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to fetch networks configuration")
+			return fmt.Errorf("Failed to fetch networks configuration: %w", err)
 		}
 
 		return nil
@@ -357,7 +357,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 	err := d.db.Transaction(func(tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
-			return errors.Wrap(err, "Failed to fetch member configuration")
+			return fmt.Errorf("Failed to fetch member configuration: %w", err)
 		}
 
 		clusterAddress := config.ClusterAddress()
@@ -375,7 +375,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			"cluster.https_address": address,
 		})
 		if err != nil {
-			return errors.Wrap(err, "Copy core.https_address to cluster.https_address")
+			return fmt.Errorf("Copy core.https_address to cluster.https_address: %w", err)
 		}
 
 		return nil
@@ -438,7 +438,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		err := d.db.Transaction(func(tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
-				return errors.Wrap(err, "Failed to load cluster config")
+				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
 
 			_, err = config.Patch(map[string]interface{}{
@@ -468,7 +468,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		err := d.db.Transaction(func(tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
-				return errors.Wrap(err, "Failed to load cluster config")
+				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
 			_, err = config.Patch(map[string]interface{}{
 				"cluster.https_address": address,
@@ -498,7 +498,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		if req.ClusterPassword != "" {
 			err = cluster.SetupTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate, req.ClusterPassword)
 			if err != nil {
-				return errors.Wrap(err, "Failed to setup cluster trust")
+				return fmt.Errorf("Failed to setup cluster trust: %w", err)
 			}
 		}
 
@@ -506,7 +506,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// to associate our member name to the server certificate.
 		err = cluster.UpdateTrust(serverCert, req.ServerName, req.ClusterAddress, req.ClusterCertificate)
 		if err != nil {
-			return errors.Wrap(err, "Failed to update cluster trust")
+			return fmt.Errorf("Failed to update cluster trust: %w", err)
 		}
 
 		// Connect to the target cluster node.
@@ -520,7 +520,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Connect to ourselves to initialize storage pools and networks using the API.
 		localClient, err := lxd.ConnectLXDUnix(d.UnixSocket(), &lxd.ConnectionArgs{UserAgent: clusterRequest.UserAgentJoiner})
 		if err != nil {
-			return errors.Wrap(err, "Failed to connect to local LXD")
+			return fmt.Errorf("Failed to connect to local LXD: %w", err)
 		}
 
 		revert := revert.New()
@@ -528,7 +528,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		localRevert, err := clusterInitMember(localClient, client, req.MemberConfig)
 		if err != nil {
-			return errors.Wrap(err, "Failed to initialize member")
+			return fmt.Errorf("Failed to initialize member: %w", err)
 		}
 		revert.Add(localRevert)
 
@@ -555,7 +555,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return err
 		})
 		if err != nil {
-			return errors.Wrapf(err, "Failed to load projects for networks")
+			return fmt.Errorf("Failed to load projects for networks: %w", err)
 		}
 
 		networks := []internalClusterPostNetwork{}
@@ -587,18 +587,18 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Now request for this node to be added to the list of cluster nodes.
 		info, err := clusterAcceptMember(client, req.ServerName, address, cluster.SchemaVersion, version.APIExtensionsCount(), pools, networks)
 		if err != nil {
-			return errors.Wrap(err, "Failed request to add member")
+			return fmt.Errorf("Failed request to add member: %w", err)
 		}
 
 		// Update our TLS configuration using the returned cluster certificate.
 		err = util.WriteCert(d.os.VarDir, "cluster", []byte(req.ClusterCertificate), info.PrivateKey, nil)
 		if err != nil {
-			return errors.Wrap(err, "Failed to save cluster certificate")
+			return fmt.Errorf("Failed to save cluster certificate: %w", err)
 		}
 
 		networkCert, err := util.LoadClusterCert(d.os.VarDir)
 		if err != nil {
-			return errors.Wrap(err, "Failed to parse cluster certificate")
+			return fmt.Errorf("Failed to parse cluster certificate: %w", err)
 		}
 
 		d.endpoints.NetworkUpdateCert(networkCert)
@@ -606,7 +606,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Add trusted certificates of other members to local trust store.
 		trustedCerts, err := client.GetCertificates()
 		if err != nil {
-			return errors.Wrap(err, "Failed to get trusted certificates")
+			return fmt.Errorf("Failed to get trusted certificates: %w", err)
 		}
 
 		for _, trustedCert := range trustedCerts {
@@ -629,7 +629,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
 				_, err = d.cluster.CreateCertificate(dbCert)
 				if err != nil && err.Error() != "This certificate already exists" {
-					return errors.Wrapf(err, "Failed adding local trusted certificate %q (%s)", trustedCert.Name, trustedCert.Fingerprint)
+					return fmt.Errorf("Failed adding local trusted certificate %q (%s): %w", trustedCert.Name, trustedCert.Fingerprint, err)
 				}
 			}
 		}
@@ -787,7 +787,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 
 	networkCert, err := util.LoadCert(d.os.VarDir)
 	if err != nil {
-		return response.InternalError(errors.Wrap(err, "Failed to parse member certificate"))
+		return response.InternalError(fmt.Errorf("Failed to parse member certificate: %w", err))
 	}
 
 	// Reset the cluster database and make it local to this node.
@@ -849,7 +849,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 	// Fetch all pools currently defined in the cluster.
 	pools, err := client.GetStoragePools()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch information about cluster storage pools")
+		return nil, fmt.Errorf("Failed to fetch information about cluster storage pools: %w", err)
 	}
 
 	// Merge the returned storage pools configs with the node-specific
@@ -895,7 +895,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 
 	projects, err := client.GetProjects()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to fetch project information about cluster networks")
+		return nil, fmt.Errorf("Failed to fetch project information about cluster networks: %w", err)
 	}
 
 	for _, p := range projects {
@@ -908,7 +908,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 		// Fetch all networks currently defined in the cluster for the project.
 		networks, err := client.UseProject(p.Name).GetNetworks()
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to fetch network information about cluster networks in project %q", p.Name)
+			return nil, fmt.Errorf("Failed to fetch network information about cluster networks in project %q: %w", p.Name, err)
 		}
 
 		if len(networks) > 0 {
@@ -923,7 +923,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 					},
 				})
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to create local node project %q", p.Name)
+					return nil, fmt.Errorf("Failed to create local node project %q: %w", p.Name, err)
 				}
 			} else if p.Name != project.Default {
 				// Update project features if not default project.
@@ -932,7 +932,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 					Config:      p.Config,
 				}, localProjectEtag)
 				if err != nil {
-					return nil, errors.Wrapf(err, "Failed to update local node project %q", p.Name)
+					return nil, fmt.Errorf("Failed to update local node project %q: %w", p.Name, err)
 				}
 			}
 		}
@@ -980,7 +980,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 
 	revert, err := initDataNodeApply(d, data)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize storage pools and networks")
+		return nil, fmt.Errorf("Failed to initialize storage pools and networks: %w", err)
 	}
 
 	return revert, nil
@@ -1202,7 +1202,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		// Get the offline threshold.
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
-			return errors.Wrap(err, "Failed to load LXD config")
+			return fmt.Errorf("Failed to load LXD config: %w", err)
 		}
 
 		// Get the nodes.
@@ -1240,7 +1240,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	// This also ensures any historically unused (but potentially published) join tokens are removed.
 	ops, err := operationsGetByType(d, r, project.Default, db.OperationClusterJoinToken)
 	if err != nil {
-		return response.InternalError(errors.Wrapf(err, "Failed getting cluster join token operations"))
+		return response.InternalError(fmt.Errorf("Failed getting cluster join token operations: %w", err))
 	}
 
 	for _, op := range ops {
@@ -1258,7 +1258,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 			logger.Warn("Cancelling duplicate join token operation", log.Ctx{"operation": op.ID, "serverName": opServerName})
 			err = operationCancel(d, r, project.Default, op)
 			if err != nil {
-				return response.InternalError(errors.Wrapf(err, "Failed to cancel operation %q", op.ID))
+				return response.InternalError(fmt.Errorf("Failed to cancel operation %q: %w", op.ID, err))
 			}
 		}
 	}
@@ -1505,7 +1505,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		nodeInfo, err := tx.GetNodeByName(name)
 		if err != nil {
-			return errors.Wrap(err, "Loading node information")
+			return fmt.Errorf("Loading node information: %w", err)
 		}
 
 		err = clusterValidateConfig(req.Config)
@@ -1536,19 +1536,19 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		if req.Description != member.Description {
 			err = tx.SetDescription(nodeInfo.ID, req.Description)
 			if err != nil {
-				return errors.Wrap(err, "Update description")
+				return fmt.Errorf("Update description: %w", err)
 			}
 		}
 
 		// Update the roles.
 		err = tx.UpdateNodeRoles(nodeInfo.ID, newRoles)
 		if err != nil {
-			return errors.Wrap(err, "Update roles")
+			return fmt.Errorf("Update roles: %w", err)
 		}
 
 		err = tx.UpdateNodeFailureDomain(nodeInfo.ID, req.FailureDomain)
 		if err != nil {
-			return errors.Wrap(err, "Update failure domain")
+			return fmt.Errorf("Update failure domain: %w", err)
 		}
 
 		// Update the cluster groups.
@@ -1743,7 +1743,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		return err
 	})
 	if err != nil {
-		return response.SmartError(errors.Wrap(err, "Unable to get raft nodes"))
+		return response.SmartError(fmt.Errorf("Unable to get raft nodes: %w", err))
 	}
 
 	if localAddress != leader {
@@ -1814,7 +1814,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 				nodes[i].Role = db.RaftVoter
 				err := changeMemberRole(d, r, nodes[i].Address, nodes)
 				if err != nil {
-					return response.SmartError(errors.Wrap(err, "Unable to promote remaining cluster member to leader"))
+					return response.SmartError(fmt.Errorf("Unable to promote remaining cluster member to leader: %w", err))
 				}
 
 				break
@@ -1827,7 +1827,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	err = autoSyncImages(d.shutdownCtx, d)
 	if err != nil {
 		if force == 0 {
-			return response.SmartError(errors.Wrap(err, "Failed to sync images"))
+			return response.SmartError(fmt.Errorf("Failed to sync images: %w", err))
 		}
 
 		// If force is set, only show a warning instead of returning an error.
@@ -1857,7 +1857,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		})
 		if err != nil {
-			return response.SmartError(errors.Wrapf(err, "Failed to load projects for networks"))
+			return response.SmartError(fmt.Errorf("Failed to load projects for networks: %w", err))
 		}
 
 		for _, networkProjectName := range networkProjectNames {
@@ -1891,7 +1891,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	// Remove node from the database
 	err = cluster.Purge(d.cluster, name)
 	if err != nil {
-		return response.SmartError(errors.Wrap(err, "Failed to remove member from database"))
+		return response.SmartError(fmt.Errorf("Failed to remove member from database: %w", err))
 	}
 
 	err = rebalanceMemberRoles(d, r, nil)
@@ -1913,7 +1913,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		put.Enabled = false
 		_, err = client.UpdateCluster(put, "")
 		if err != nil {
-			return response.SmartError(errors.Wrap(err, "Failed to cleanup the member"))
+			return response.SmartError(fmt.Errorf("Failed to cleanup the member: %w", err))
 		}
 	}
 
@@ -1976,12 +1976,12 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 
 	certBlock, _ := pem.Decode(certBytes)
 	if certBlock == nil {
-		return response.BadRequest(fmt.Errorf("Certificate must be base64 encoded PEM certificate: %v", err))
+		return response.BadRequest(fmt.Errorf("Certificate must be base64 encoded PEM certificate: %w", err))
 	}
 
 	keyBlock, _ := pem.Decode(keyBytes)
 	if keyBlock == nil {
-		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %v", err))
+		return response.BadRequest(fmt.Errorf("Private key must be base64 encoded PEM key: %w", err))
 	}
 
 	// First node forwards request to all other cluster nodes
@@ -2201,7 +2201,7 @@ again:
 		logger.Info("Demoting offline member during rebalance", log.Ctx{"candidateAddress": node.Address})
 		err := d.gateway.DemoteOfflineNode(node.ID)
 		if err != nil {
-			return errors.Wrapf(err, "Demote offline node %s", node.Address)
+			return fmt.Errorf("Demote offline node %s: %w", node.Address, err)
 		}
 
 		goto again
@@ -2235,7 +2235,7 @@ func upgradeNodesWithoutRaftRole(d *Daemon) error {
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "Failed to get current cluster nodes")
+		return fmt.Errorf("Failed to get current cluster nodes: %w", err)
 
 	}
 	return cluster.UpgradeMembersWithoutRole(d.gateway, allNodes)
@@ -2304,7 +2304,7 @@ findLeader:
 		logger.Info("Transferring leadership", logCtx)
 		err := d.gateway.TransferLeadership()
 		if err != nil {
-			return errors.Wrapf(err, "Failed to transfer leadership")
+			return fmt.Errorf("Failed to transfer leadership: %w", err)
 		}
 		goto findLeader
 	}
@@ -2312,7 +2312,7 @@ findLeader:
 	logger.Info("Handing over cluster member role", logCtx)
 	client, err := cluster.Connect(leader, d.endpoints.NetworkCert(), d.serverCert(), nil, true)
 	if err != nil {
-		return errors.Wrapf(err, "Failed handing over cluster member role")
+		return fmt.Errorf("Failed handing over cluster member role: %w", err)
 	}
 
 	_, _, err = client.RawQuery("POST", "/internal/cluster/handover", post, "")
@@ -2465,7 +2465,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 			exclude := db.StoragePoolNodeConfigKeys
 			err = util.CompareConfigs(pool.Config, reqPool.Config, exclude)
 			if err != nil {
-				return fmt.Errorf("Mismatching config for storage pool %s: %v", name, err)
+				return fmt.Errorf("Mismatching config for storage pool %s: %w", name, err)
 			}
 			break
 		}
@@ -2487,7 +2487,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 		return err
 	})
 	if err != nil {
-		return errors.Wrapf(err, "Failed to load projects for networks")
+		return fmt.Errorf("Failed to load projects for networks: %w", err)
 	}
 
 	for _, networkProjectName := range networkProjectNames {
@@ -2519,7 +2519,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 				exclude := db.NodeSpecificNetworkConfig
 				err = util.CompareConfigs(network.Config, reqNetwork.Config, exclude)
 				if err != nil {
-					return errors.Wrapf(err, "Mismatching config for network %q in project %q", networkName, networkProjectName)
+					return fmt.Errorf("Mismatching config for network %q in project %q: %w", networkName, networkProjectName, err)
 				}
 
 				break
@@ -2543,7 +2543,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 	}
 
 	err = rebalanceMemberRoles(d, r, nil)
-	if err != nil && errors.Cause(err) != cluster.ErrNotLeader {
+	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", log.Ctx{"err": err})
 	}
 
@@ -2607,7 +2607,7 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 		// Get the node.
 		node, err := tx.GetNodeByName(name)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get cluster member by name")
+			return fmt.Errorf("Failed to get cluster member by name: %w", err)
 		}
 
 		if node.State == db.ClusterMemberStatePending {
@@ -2628,7 +2628,7 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 		// Set node status to requested value.
 		err = tx.UpdateNodeStatus(node.ID, state)
 		if err != nil {
-			return errors.Wrap(err, "Failed to update cluster member status")
+			return fmt.Errorf("Failed to update cluster member status: %w", err)
 		}
 
 		return nil
@@ -2650,7 +2650,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{Node: &nodeName})
 		if err != nil {
-			return errors.Wrap(err, "Failed to get instances")
+			return fmt.Errorf("Failed to get instances: %w", err)
 		}
 
 		return nil
@@ -2664,7 +2664,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 	for i, dbInst := range dbInstances {
 		inst, err := instance.LoadByProjectAndName(d.State(), dbInst.Project, dbInst.Name)
 		if err != nil {
-			return response.SmartError(errors.Wrap(err, "Failed to load instance"))
+			return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
 		}
 
 		instances[i] = inst
@@ -2713,8 +2713,8 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 				if err != nil {
 					// Fallback to forced stop.
 					err = inst.Stop(false)
-					if err != nil && errors.Cause(err) != drivers.ErrInstanceIsStopped {
-						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+					if err != nil && !errors.Is(err, drivers.ErrInstanceIsStopped) {
+						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 					}
 				}
 
@@ -2769,7 +2769,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			err = migrateInstance(d, r, inst, targetNodeName, false, req, op)
 			if err != nil {
-				return errors.Wrap(err, "Failed to migrate instance")
+				return fmt.Errorf("Failed to migrate instance: %w", err)
 			}
 
 			if !isRunning || live {
@@ -2779,7 +2779,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			// Start it back up on target.
 			dest, err := cluster.Connect(targetNode.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
-				return errors.Wrap(err, "Failed to connect to destination")
+				return fmt.Errorf("Failed to connect to destination: %w", err)
 			}
 			dest = dest.UseProject(inst.Project())
 
@@ -2818,7 +2818,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{})
 		if err != nil {
-			return errors.Wrap(err, "Failed to get instances")
+			return fmt.Errorf("Failed to get instances: %w", err)
 		}
 
 		return nil
@@ -2834,7 +2834,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		if dbInst.Node == originName {
 			inst, err := instance.LoadByProjectAndName(d.State(), dbInst.Project, dbInst.Name)
 			if err != nil {
-				return response.SmartError(errors.Wrap(err, "Failed to load instance"))
+				return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
 			}
 
 			localInstances = append(localInstances, inst)
@@ -2849,7 +2849,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 		inst, err := instance.LoadByProjectAndName(d.State(), dbInst.Project, dbInst.Name)
 		if err != nil {
-			return response.SmartError(errors.Wrap(err, "Failed to load instance"))
+			return response.SmartError(fmt.Errorf("Failed to load instance: %w", err))
 		}
 
 		instances = append(instances, inst)
@@ -2894,7 +2894,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			err = inst.Start(false)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to start instance %q", inst.Name())
+				return fmt.Errorf("Failed to start instance %q: %w", inst.Name(), err)
 			}
 		}
 
@@ -2909,25 +2909,25 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 				sourceNode, err = tx.GetNodeByName(inst.Location())
 				if err != nil {
-					return errors.Wrapf(err, "Failed to get node %q", inst.Location())
+					return fmt.Errorf("Failed to get node %q: %w", inst.Location(), err)
 				}
 
 				return nil
 			})
 			if err != nil {
-				return errors.Wrap(err, "Failed to get node")
+				return fmt.Errorf("Failed to get node: %w", err)
 			}
 
 			source, err = cluster.Connect(sourceNode.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
 			if err != nil {
-				return errors.Wrap(err, "Failed to connect to source")
+				return fmt.Errorf("Failed to connect to source: %w", err)
 			}
 
 			source = source.UseProject(inst.Project())
 
 			apiInst, _, err := source.GetInstance(inst.Name())
 			if err != nil {
-				return errors.Wrapf(err, "Failed to get instance %q", inst.Name())
+				return fmt.Errorf("Failed to get instance %q: %w", inst.Name(), err)
 			}
 
 			isRunning := apiInst.StatusCode == api.Running
@@ -2944,7 +2944,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 				// Attempt a clean stop.
 				stopOp, err := source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: false, Timeout: val}, "")
 				if err != nil {
-					return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+					return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 				}
 
 				// Wait for the stop operation to complete or timeout.
@@ -2954,13 +2954,13 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 					stopOp, err = source.UpdateInstanceState(inst.Name(), api.InstanceStatePut{Action: "stop", Force: true}, "")
 					if err != nil {
 						// If this fails too, fail the whole operation.
-						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 					}
 
 					// Wait for the forceful stop to complete.
 					err = stopOp.Wait()
 					if err != nil {
-						return errors.Wrapf(err, "Failed to stop instance %q", inst.Name())
+						return fmt.Errorf("Failed to stop instance %q: %w", inst.Name(), err)
 					}
 				}
 			}
@@ -2975,18 +2975,18 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			migrationOp, err := source.MigrateInstance(inst.Name(), req)
 			if err != nil {
-				return errors.Wrap(err, "Migration API failure")
+				return fmt.Errorf("Migration API failure: %w", err)
 			}
 
 			err = migrationOp.Wait()
 			if err != nil {
-				return errors.Wrap(err, "Failed to wait for migration to finish")
+				return fmt.Errorf("Failed to wait for migration to finish: %w", err)
 			}
 
 			// Reload the instance after migration.
 			inst, err := instance.LoadByProjectAndName(d.State(), inst.Project(), inst.Name())
 			if err != nil {
-				return errors.Wrap(err, "Failed to load instance")
+				return fmt.Errorf("Failed to load instance: %w", err)
 			}
 
 			config := inst.LocalConfig()
@@ -3005,7 +3005,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			err = inst.Update(args, false)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to update instance %q", inst.Name())
+				return fmt.Errorf("Failed to update instance %q: %w", inst.Name(), err)
 			}
 
 			if !isRunning || live {
@@ -3017,7 +3017,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			err = inst.Start(false)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to start instance %q", inst.Name())
+				return fmt.Errorf("Failed to start instance %q: %w", inst.Name(), err)
 			}
 		}
 

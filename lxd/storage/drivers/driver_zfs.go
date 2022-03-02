@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/util"
@@ -58,7 +56,7 @@ func (d *zfs) load() error {
 	// Load the kernel module.
 	err := util.LoadModule("zfs")
 	if err != nil {
-		return errors.Wrapf(err, "Error loading %q module", "zfs")
+		return fmt.Errorf("Error loading %q module: %w", "zfs", err)
 	}
 
 	// Validate the needed tools are present.
@@ -332,7 +330,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 	loopPath := loopFilePath(d.name)
 	err = os.Remove(loopPath)
 	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "Failed to remove '%s'", loopPath)
+		return fmt.Errorf("Failed to remove '%s': %w", loopPath, err)
 	}
 
 	return nil

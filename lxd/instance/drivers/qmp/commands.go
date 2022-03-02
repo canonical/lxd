@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 )
@@ -257,7 +255,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 	if netDev != nil {
 		err := m.run("netdev_add", netDev, nil)
 		if err != nil {
-			return errors.Wrapf(err, "Failed adding NIC netdev")
+			return fmt.Errorf("Failed adding NIC netdev: %w", err)
 		}
 
 		revert.Add(func() {
@@ -275,7 +273,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 	if device != nil {
 		err := m.run("device_add", device, nil)
 		if err != nil {
-			return errors.Wrapf(err, "Failed adding NIC device")
+			return fmt.Errorf("Failed adding NIC device: %w", err)
 		}
 	}
 
@@ -294,7 +292,7 @@ func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
 		if err != nil {
 			// If the device has already been removed then all good.
 			if err != nil && !strings.Contains(err.Error(), "not found") {
-				return errors.Wrapf(err, "Failed removing NIC device")
+				return fmt.Errorf("Failed removing NIC device: %w", err)
 			}
 		}
 	}
@@ -308,7 +306,7 @@ func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
 
 		// Not all NICs need a netdev, so if its missing, its not a problem.
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			return errors.Wrapf(err, "Failed removing NIC netdev")
+			return fmt.Errorf("Failed removing NIC netdev: %w", err)
 		}
 	}
 
@@ -319,7 +317,7 @@ func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
 func (m *Monitor) Reset() error {
 	err := m.run("system_reset", nil, nil)
 	if err != nil {
-		return errors.Wrapf(err, "Failed resetting")
+		return fmt.Errorf("Failed resetting: %w", err)
 	}
 
 	return nil
@@ -358,7 +356,7 @@ func (m *Monitor) QueryPCI() ([]PCIDevice, error) {
 
 	err := m.run("query-pci", nil, &resp)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed querying PCI devices")
+		return nil, fmt.Errorf("Failed querying PCI devices: %w", err)
 	}
 
 	if len(resp.Return) > 0 {
@@ -388,7 +386,7 @@ func (m *Monitor) GetBlockStats() (map[string]BlockStats, error) {
 
 	err := m.run("query-blockstats", nil, &resp)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed querying block stats")
+		return nil, fmt.Errorf("Failed querying block stats: %w", err)
 	}
 
 	out := make(map[string]BlockStats)

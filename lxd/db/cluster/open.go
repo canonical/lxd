@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
-	"github.com/pkg/errors"
 )
 
 // Open the cluster database object.
@@ -27,7 +26,7 @@ import (
 func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.DB, error) {
 	driver, err := driver.New(store, options...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create dqlite driver")
+		return nil, fmt.Errorf("Failed to create dqlite driver: %w", err)
 	}
 
 	driverName := dqliteDriverName()
@@ -41,7 +40,7 @@ func Open(name string, store driver.NodeStore, options ...driver.Option) (*sql.D
 	}
 	db, err := sql.Open(driverName, name)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open cluster database: %v", err)
+		return nil, fmt.Errorf("cannot open cluster database: %w", err)
 	}
 
 	return db, nil
@@ -64,7 +63,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		// Check if this is a fresh instance.
 		isUpdate, err := schema.DoesSchemaTableExist(tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to check if schema table exists")
+			return fmt.Errorf("failed to check if schema table exists: %w", err)
 		}
 
 		if !isUpdate {
@@ -75,7 +74,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		clustered := true
 		n, err := selectUnclusteredNodesCount(tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch unclustered nodes count")
+			return fmt.Errorf("failed to fetch unclustered nodes count: %w", err)
 		}
 		if n > 1 {
 			// This should never happen, since we only add nodes with valid addresses..
@@ -95,7 +94,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 				filepath.Join(dir, "global.bak"),
 			)
 			if err != nil {
-				return errors.Wrap(err, "failed to backup global database")
+				return fmt.Errorf("failed to backup global database: %w", err)
 			}
 			backupDone = true
 		}
@@ -119,7 +118,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		// Check if we're clustered
 		n, err := selectUnclusteredNodesCount(tx)
 		if err != nil {
-			return errors.Wrap(err, "failed to fetch unclustered nodes count")
+			return fmt.Errorf("failed to fetch unclustered nodes count: %w", err)
 		}
 		if n > 1 {
 			// This should never happen, since we only add nodes with valid addresses.
@@ -131,7 +130,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		// Update the schema and api_extension columns of ourselves.
 		err = updateNodeVersion(tx, address, apiExtensions)
 		if err != nil {
-			return errors.Wrap(err, "failed to update node version info")
+			return fmt.Errorf("failed to update node version info: %w", err)
 		}
 
 		err = checkClusterIsUpgradable(tx, [2]int{len(updates), apiExtensions})
@@ -235,7 +234,7 @@ func checkClusterIsUpgradable(tx *sql.Tx, target [2]int) error {
 	// Get the current versions in the nodes table.
 	versions, err := selectNodesVersions(tx)
 	if err != nil {
-		return errors.Wrap(err, "failed to fetch current nodes versions")
+		return fmt.Errorf("failed to fetch current nodes versions: %w", err)
 	}
 
 	for _, version := range versions {

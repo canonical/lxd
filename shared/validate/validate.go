@@ -12,7 +12,6 @@ import (
 
 	"github.com/kballard/go-shellquote"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 
 	"github.com/lxc/lxd/shared/osarch"
@@ -78,7 +77,7 @@ func IsUint8(value string) error {
 func IsUint32(value string) error {
 	_, err := strconv.ParseUint(value, 10, 32)
 	if err != nil {
-		return fmt.Errorf("Invalid value for uint32 %q: %v", value, err)
+		return fmt.Errorf("Invalid value for uint32 %q: %w", value, err)
 	}
 
 	return nil
@@ -694,7 +693,7 @@ func IsCron(aliases []string) func(value string) error {
 
 			_, err := cron.ParseStandard(value)
 			if err != nil {
-				return errors.Wrap(err, "Error parsing schedule")
+				return fmt.Errorf("Error parsing schedule: %w", err)
 			}
 
 			return nil

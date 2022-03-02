@@ -83,7 +83,7 @@ func (e *Endpoints) MetricsUpdateAddress(address string, cert *shared.CertInfo) 
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("Cannot listen on http socket: %v", err)
+			return nil, fmt.Errorf("Cannot listen on http socket: %w", err)
 		}
 
 		return &listener, nil

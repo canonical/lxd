@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
@@ -437,7 +436,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 	if s.instance.Type() == instancetype.VM {
 		blockSize, err := storagePools.InstanceDiskBlockSize(pool, s.instance, migrateOp)
 		if err != nil {
-			return errors.Wrapf(err, "Failed getting source disk size")
+			return fmt.Errorf("Failed getting source disk size: %w", err)
 		}
 
 		logger.Debugf("Set migration offer volume size for %q: %d", s.instance.Name(), blockSize)
@@ -952,7 +951,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 					// Create the snapshot as it doesn't seem to exist.
 					_, snapInstOp, err := instance.CreateInternal(state, snapArgs, true, nil, revert)
 					if err != nil {
-						return errors.Wrapf(err, "Failed creating instance snapshot record %q", snapArgs.Name)
+						return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 					}
 					defer snapInstOp.Done(err)
 				}

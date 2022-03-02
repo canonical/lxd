@@ -20,7 +20,7 @@ func DotGo(updates map[int]Update, name string) error {
 	// the resulting schema.
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
-		return fmt.Errorf("failed to open schema.go for writing: %v", err)
+		return fmt.Errorf("failed to open schema.go for writing: %w", err)
 	}
 
 	schema := NewFromMap(updates)
@@ -40,13 +40,13 @@ func DotGo(updates map[int]Update, name string) error {
 
 	file, err := os.Create(path.Join(path.Dir(filename), name+".go"))
 	if err != nil {
-		return fmt.Errorf("failed to open Go file for writing: %v", err)
+		return fmt.Errorf("failed to open Go file for writing: %w", err)
 	}
 
 	pkg := path.Base(path.Dir(filename))
 	_, err = file.Write([]byte(fmt.Sprintf(dotGoTemplate, pkg, dump)))
 	if err != nil {
-		return fmt.Errorf("failed to write to Go file: %v", err)
+		return fmt.Errorf("failed to write to Go file: %w", err)
 	}
 
 	return nil
