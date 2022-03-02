@@ -849,7 +849,7 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 		arping.SetTimeout(timeout)
 		_, _, err := arping.PingOverIfaceByName(address, parentInterface)
 		if err != nil {
-			if errors.Unwrap(err) == arping.ErrTimeout {
+			if errors.Is(err, arping.ErrTimeout) {
 				return false, nil
 			}
 

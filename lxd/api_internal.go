@@ -610,7 +610,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	// Check snapshots are consistent, and if not, if req.Force is true, then delete snapshots that do not exist in backup.yaml.
 	existingSnapshots, err := pool.CheckInstanceBackupFileSnapshots(backupConf, projectName, force, nil)
 	if err != nil {
-		if errors.Unwrap(err) == storagePools.ErrBackupSnapshotsMismatch {
+		if errors.Is(err, storagePools.ErrBackupSnapshotsMismatch) {
 			return fmt.Errorf(`%s. Set "force" to discard non-existing snapshots`, err)
 		}
 

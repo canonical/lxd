@@ -3648,7 +3648,7 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
-	if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
@@ -5779,7 +5779,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 
 			usage, err = pool.GetInstanceUsage(d)
 			if err != nil {
-				if errors.Unwrap(err) != storageDrivers.ErrNotSupported {
+				if !errors.Is(err, storageDrivers.ErrNotSupported) {
 					d.logger.Error("Error getting disk usage", log.Ctx{"err": err})
 				}
 				continue
@@ -5793,7 +5793,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 
 			usage, err = pool.GetCustomVolumeUsage(d.Project(), dev.Config["source"])
 			if err != nil {
-				if errors.Unwrap(err) != storageDrivers.ErrNotSupported {
+				if !errors.Is(err, storageDrivers.ErrNotSupported) {
 					d.logger.Error("Error getting volume usage", log.Ctx{"volume": dev.Config["source"], "err": err})
 				}
 				continue

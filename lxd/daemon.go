@@ -1998,7 +1998,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Rebalancing member roles in heartbeat", log.Ctx{"local": localAddress})
 			err := rebalanceMemberRoles(d, nil, unavailableMembers)
-			if err != nil && errors.Unwrap(err) != cluster.ErrNotLeader {
+			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Could not rebalance cluster member roles", log.Ctx{"err": err, "local": localAddress})
 			}
 			d.clusterMembershipMutex.Unlock()
@@ -2008,7 +2008,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 			d.clusterMembershipMutex.Lock()
 			logger.Debug("Upgrading members without raft role in heartbeat", log.Ctx{"local": localAddress})
 			err := upgradeNodesWithoutRaftRole(d)
-			if err != nil && errors.Unwrap(err) != cluster.ErrNotLeader {
+			if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 				logger.Warn("Failed upgrading raft roles:", log.Ctx{"err": err, "local": localAddress})
 			}
 			d.clusterMembershipMutex.Unlock()

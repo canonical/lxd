@@ -305,7 +305,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 						}
 					}
 				}
-			} else if errors.Unwrap(err) == shared.ErrNoRootDisk {
+			} else if errors.Is(err, shared.ErrNoRootDisk) {
 				// If no root disk defined in either local devices or profiles, then add one to the
 				// snapshot local devices using the same device name from the parent instance.
 				snapLocalDevices[instRootDiskDeviceKey] = map[string]string{

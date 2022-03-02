@@ -2286,7 +2286,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 	}
 
 	err = rebalanceMemberRoles(d, r, nil)
-	if err != nil && errors.Unwrap(err) != cluster.ErrNotLeader {
+	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
 		logger.Warn("Could not rebalance cluster member roles after raft member removal", log.Ctx{"err": err})
 	}
 

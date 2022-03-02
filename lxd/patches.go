@@ -313,7 +313,7 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 
 		leaderAddress, err := d.gateway.LeaderAddress()
 		if err != nil {
-			if errors.Unwrap(err) == cluster.ErrNodeIsNotClustered {
+			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
 				break // Apply change on standalone node.
 			}
 

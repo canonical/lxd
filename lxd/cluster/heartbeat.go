@@ -298,7 +298,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	raftNodes, err := g.currentRaftNodes()
 	if err != nil {
-		if errors.Unwrap(err) == ErrNotLeader {
+		if errors.Is(err, ErrNotLeader) {
 			return
 		}
 
@@ -450,7 +450,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 				}
 
 				err := tx.SetNodeHeartbeat(node.Address, node.LastHeartbeat)
-				if err != nil && errors.Unwrap(err) != db.ErrNoSuchObject {
+				if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
 					return fmt.Errorf("Failed updating heartbeat time for member %q: %w", node.Address, err)
 				}
 			}

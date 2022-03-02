@@ -3474,7 +3474,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		leader, err := d.gateway.LeaderAddress()
 		if err != nil {
-			if errors.Unwrap(err) == cluster.ErrNodeIsNotClustered {
+			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
 				return // No error if not clustered.
 			}
 

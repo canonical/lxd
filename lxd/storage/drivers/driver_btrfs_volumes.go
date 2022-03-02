@@ -95,7 +95,7 @@ func (d *btrfs) CreateVolume(vol Volume, filler *VolumeFiller, op *operations.Op
 		// means the filler run above has needed to increase the volume size beyond the default block
 		// volume size.
 		_, err = ensureVolumeBlockFile(vol, rootBlockPath, sizeBytes, false)
-		if err != nil && errors.Unwrap(err) != ErrCannotBeShrunk {
+		if err != nil && !errors.Is(err, ErrCannotBeShrunk) {
 			return err
 		}
 
