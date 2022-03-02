@@ -319,9 +319,9 @@ func (s *Server) RemovePrefixByOwner(owner string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, path := range s.paths {
+	for pathUUID, path := range s.paths {
 		if path.owner == owner {
-			err := s.removePrefix(path.prefix, path.nexthop)
+			err := s.removePrefixByUUID(pathUUID)
 			if err != nil {
 				return err
 			}
@@ -353,16 +353,20 @@ func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
 		return ErrPrefixNotFound
 	}
 
+	return s.removePrefixByUUID(uuid)
+}
+
+func (s *Server) removePrefixByUUID(pathUUID string) error {
 	// Remove it from the BGP server.
 	if s.bgp != nil {
-		err := s.bgp.DeletePath(context.Background(), &bgpAPI.DeletePathRequest{Uuid: []byte(uuid)})
+		err := s.bgp.DeletePath(context.Background(), &bgpAPI.DeletePathRequest{Uuid: []byte(pathUUID)})
 		if err != nil {
 			return err
 		}
 	}
 
 	// Remove the path from the map.
-	delete(s.paths, uuid)
+	delete(s.paths, pathUUID)
 
 	return nil
 }
