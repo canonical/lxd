@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -29,7 +28,6 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -912,12 +910,6 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 	err = d.State().Cluster.DeleteNetwork(n.Project(), n.Name())
 	if err != nil {
 		return response.SmartError(err)
-	}
-
-	// Delete network related warnings.
-	err = warnings.DeleteWarningsByLocalNodeAndProjectAndEntity(d.State().Cluster, n.Project(), dbCluster.TypeNetwork, int(n.ID()))
-	if err != nil {
-		logger.Warn("Failed to delete warnings", log.Ctx{"err": err})
 	}
 
 	requestor := request.CreateRequestor(r)
