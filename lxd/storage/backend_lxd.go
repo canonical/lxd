@@ -2181,6 +2181,11 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	logger.Debug("MountInstance started")
 	defer logger.Debug("MountInstance finished")
 
+	err := b.isStatusReady()
+	if err != nil {
+		return nil, err
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -3723,6 +3728,11 @@ func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operatio
 	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName})
 	logger.Debug("MountCustomVolume started")
 	defer logger.Debug("MountCustomVolume finished")
+
+	err := b.isStatusReady()
+	if err != nil {
+		return err
+	}
 
 	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
