@@ -340,7 +340,6 @@ type qemu struct {
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
 	architectureName string
-	storagePool      storagePools.Pool
 }
 
 // getAgentClient returns the current agent client handle. To avoid TLS setup each time this

@@ -60,6 +60,11 @@ type common struct {
 	project         string
 	snapshot        bool
 	stateful        bool
+
+	// Cached handles.
+	// Do not use these variables directly, instead use their associated get functions so they
+	// will be initialised on demand.
+	storagePool storagePools.Pool
 }
 
 //
