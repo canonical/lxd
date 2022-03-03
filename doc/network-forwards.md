@@ -1,6 +1,4 @@
-# Network Forward configuration
-
-## Network types
+# How to configure network forwards
 
 The following network types support forwards. See each network type section for more details.
 
@@ -9,13 +7,16 @@ The following network types support forwards. See each network type section for 
 
  Network forwards allow an external IP address (or specific ports on it) to be forwarded to an internal IP address (or specific ports on it) in the network that the forward belongs to.
 
+## Create a network forward
+
 Each forward requires a single external listen address, combined with an optional default target address (which causes any traffic not matched by a port specification to be forwarded to it) and an optional set of port specifications (that allow specific port(s) on the listen address to be forwarded to specific port(s) on a target address that is different than the default target address).
 
 The default target address is specified in the forward's `config` set using the `target_address` field.
 
 All target addresses must be within the same subnet as the network that the forward is associated to.
 
-## Properties
+### Forward properties
+
 The following are network forward properties:
 
 Property         | Type       | Required | Description
@@ -24,6 +25,8 @@ listen\_address  | string     | yes      | IP address to listen on
 description      | string     | no       | Description of Network Forward
 config           | string set | no       | Config key/value pairs (Only `target_address` and `user.*` custom keys supported)
 ports            | port list  | no       | Network forward port list
+
+### Requirements for listen addresses
 
 The listen addresses allowed vary depending on which [network type](#network-types) the forward is associated to.
 
@@ -40,6 +43,10 @@ The listen address used cannot overlap with a subnet that is in use with another
 The allowed listen addresses are those that are defined in the uplink network's `ipv{n}.routes` settings, and the project's `restricted.networks.subnets` setting (if set).
 
 The listen address used cannot overlap with a subnet that is in use with another network.
+
+## Configure ports
+
+### Port properties
 
 Network forward ports have the following properties:
 
