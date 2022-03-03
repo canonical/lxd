@@ -255,21 +255,26 @@ func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	return nil, drivers.ErrNotSupported
 }
 
+// UnavailablePools returns the names of storage pools not available on the local server.
+func UnavailablePools() []string {
+	unavailablePoolsMu.Lock()
+	defer unavailablePoolsMu.Unlock()
+
+	unavailablePoolNames := make([]string, 0, len(unavailablePools))
+	for unavailablePoolName := range unavailablePools {
+		unavailablePoolNames = append(unavailablePoolNames, unavailablePoolName)
+	}
+
+	return unavailablePoolNames
+}
+
 // Patch applies specified patch to all storage pools.
 // All storage pools must be available locally before any storage pools are patched.
 func Patch(s *state.State, patchName string) error {
-	unavailablePoolsMu.Lock()
+	unavailablePoolNames := UnavailablePools()
 	if len(unavailablePools) > 0 {
-		unavailablePoolNames := make([]string, 0, len(unavailablePools))
-		for unavailablePoolName := range unavailablePools {
-			unavailablePoolNames = append(unavailablePoolNames, unavailablePoolName)
-		}
-
-		unavailablePoolsMu.Unlock()
-
-		return fmt.Errorf("Unvailable storage pools %v", unavailablePoolNames)
+		return fmt.Errorf("Unvailable storage pools: %v", unavailablePoolNames)
 	}
-	unavailablePoolsMu.Unlock()
 
 	// Load all the pools.
 	pools, err := s.Cluster.GetStoragePoolNames()
