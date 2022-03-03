@@ -415,6 +415,7 @@ maas.subnet.ipv4        | string  | -                 | no       | yes     | MAA
 maas.subnet.ipv6        | string  | -                 | no       | yes     | MAAS IPv6 subnet to register the instance in
 boot.priority           | integer | -                 | no       | no      | Boot priority for VMs (higher boots first)
 
+(instance_device_type_nic_ovn)=
 ##### nic: ovn
 
 Supported instance types: container, VM
