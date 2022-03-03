@@ -47,7 +47,7 @@ devices:
 
 Network forwards:
 
-Bridge networks support {ref}`network forwards <network-forwards-bridge>`.
+Bridge networks support {doc}`network forwards <network-forwards>`.
 
 Network configuration properties:
 
@@ -371,7 +371,7 @@ lxc ls
 
 Network forwards:
 
-OVN networks support {ref}`network forwards <network-forwards-ovn>`.
+OVN networks support {doc}`network forwards <network-forwards>`.
 
 Network peers:
 
