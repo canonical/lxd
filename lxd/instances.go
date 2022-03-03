@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
+	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -228,6 +229,33 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 	sort.Sort(instanceAutostartList(instances))
 
 	maxAttempts := 3
+	unavailableStoragePoolNames := storagePools.UnavailablePools()
+
+	// checkPoolsAvailable checks the storage pools for all of the instance's disk devices are available.
+	checkPoolsAvailable := func(inst instance.Instance) error {
+		for devName, devConfig := range inst.ExpandedDevices() {
+			if devConfig["type"] != "disk" {
+				continue // Only check disk devices.
+			}
+
+			if devConfig["pool"] == "" {
+				continue // Non-pool disks are not relevant for checking.
+			}
+
+			// Custom volume disks that are not required don't need to be checked as if the pool is
+			// not available we should still start the instance.
+			if devConfig["path"] != "/" && shared.IsFalse(devConfig["required"]) {
+				continue
+			}
+
+			// If disk is required and storage pool is not available, don't try and start instance.
+			if shared.StringInSlice(devConfig["pool"], unavailableStoragePoolNames) {
+				return fmt.Errorf("Storage pool %q for disk %q is unavailable", devConfig["pool"], devName)
+			}
+		}
+
+		return nil
+	}
 
 	// Restart the instances
 	for _, inst := range instances {
@@ -243,6 +271,11 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			continue
 		}
 
+		err := checkPoolsAvailable(inst)
+		if err != nil {
+			continue // Skip instance start if any pools required are not available.
+		}
+
 		// If already running, we're done.
 		if inst.IsRunning() {
 			continue
@@ -251,7 +284,6 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 		instLogger := logging.AddContext(logger.Log, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 
 		// Try to start the instance.
-		var err error
 		var attempt = 0
 		for {
 			attempt++
