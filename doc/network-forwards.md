@@ -1,12 +1,8 @@
 # Network Forward configuration
 
-Network forwards allow an external IP address (or specific ports on it) to be forwarded to an internal IP address
-(or specific ports on it) in the network that the forward belongs to.
+Network forwards allow an external IP address (or specific ports on it) to be forwarded to an internal IP address (or specific ports on it) in the network that the forward belongs to.
 
-Each forward requires a single external listen address, combined with an optional default target address
-(which causes any traffic not matched by a port specification to be forwarded to it) and an optional set of port
-specifications (that allow specific port(s) on the listen address to be forwarded to specific port(s) on a target
-address that is different than the default target address).
+Each forward requires a single external listen address, combined with an optional default target address (which causes any traffic not matched by a port specification to be forwarded to it) and an optional set of port specifications (that allow specific port(s) on the listen address to be forwarded to specific port(s) on a target address that is different than the default target address).
 
 All target addresses must be within the same subnet as the network that the forward is associated to.
 
@@ -51,7 +47,6 @@ The listen address used cannot overlap with a subnet that is in use with another
 (network-forwards-ovn)=
 ### network: ovn
 
-The allowed listen addresses are those that are defined in the uplink network's `ipv{n}.routes` settings, and the
-project's `restricted.networks.subnets` setting (if set).
+The allowed listen addresses are those that are defined in the uplink network's `ipv{n}.routes` settings, and the project's `restricted.networks.subnets` setting (if set).
 
 The listen address used cannot overlap with a subnet that is in use with another network.
