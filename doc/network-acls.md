@@ -1,112 +1,218 @@
-# Network ACL configuration
+# How to configure network ACLs
 
-Network Access Control Lists (ACLs) define traffic rules that can then be applied to certain types of Instance NIC devices.
-This provides the ability to control network access between different instances connected to the same network and
-control access to and from other networks.
+```{note}
+Network ACLs are available for the {ref}`OVN NIC type <instance_device_type_nic_ovn>`, the {ref}`OVN network <network-ovn>` and the {ref}`Bridge network <network-bridge>` (with some exceptions, see {ref}`network-acls-bridge-limitations`).
+```
 
-Network ACLs can either be applied directly to the desired NICs or can be applied to all NICs connected to a
-network by assigning the ACL to the desired network.
+Network {abbr}`ACLs (Access Control Lists)` define traffic rules that allow controlling network access between different instances connected to the same network, and access to and from other networks.
 
-The Instance NICs that have a particular ACL applied (either explicitly or implicitly from the network) make up a
-logical group that can be referenced from other rules as a source or destination. This makes it possible to define
-rules for groups of instances without needing to maintain IP lists or create additional subnets.
+Network ACLs can be assigned directly to the {abbr}`NIC (Network Interface Controller)` of an instance or to a network.
+When assigned to a network, the ACL applies to all NICs connected to the network.
 
-Once one or more ACLs are applied to a NIC (either explicitly or implicitly from the network) then a default reject
-rule is added to the NIC, so if traffic doesn't match one of the rules in the applied ACLs then it is rejected.
+The instance NICs that have a particular ACL applied (either explicitly or implicitly through a network) make up a logical group, which can be referenced from other rules as a source or destination.
+See {ref}`network-acls-groups` for more information.
 
-This behaviour can be modified by using the network and NIC level `security.acls.default.ingress.action` and
-`security.acls.default.egress.action` settings. The NIC level settings will override the network level settings.
+## Create an ACL
 
-Rules are defined for a particular direction (ingress or egress) in relation to the Instance NIC.
-Ingress rules apply to traffic going towards the NIC, and egress rules apply to traffic leaving the NIC.
+Use the following command to create an ACL:
 
-Rules are provided as lists, however the order of the rules in the list is not important and does not affect
-filtering. See [Rule ordering and priorities](#rule-ordering-and-priorities).
+```bash
+lxc network acl create <ACL_name> [configuration_options...]
+```
 
-Valid Network ACL names must:
+This command creates an ACL without rules.
+As a next step, {ref}`add rules <network-acls-rules>` to the ACL.
 
-- Be between 1 and 63 characters long
-- Be made up exclusively of letters, numbers and dashes from the ASCII table
-- Not start with a digit or a dash
-- Not end with a dash
+Valid network ACL names must adhere to the following rules:
 
-## Properties
-The following are ACL properties:
+- Names must be between 1 and 63 characters long.
+- Names must be made up exclusively of letters, numbers and dashes from the ASCII table.
+- Names must not start with a digit or a dash.
+- Names must not end with a dash.
 
+### ACL properties
+
+ACLs have the following properties:
 
 Property         | Type       | Required | Description
 :--              | :--        | :--      | :--
-name             | string     | yes      | Unique name of Network ACL in Project
-description      | string     | no       | Description of Network ACL
+name             | string     | yes      | Unique name of the network ACL in the project
+description      | string     | no       | Description of then network ACL
 ingress          | rule list  | no       | Ingress traffic rules
 egress           | rule list  | no       | Egress traffic rules
-config           | string set | no       | Config key/value pairs (Only `user.*` custom keys supported)
+config           | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
+
+(network-acls-rules)=
+## Add or remove rules
+
+Each ACL contains two lists of rules:
+
+- *Ingress* rules apply to inbound traffic going towards the NIC.
+- *Egress* rules apply to outbound traffic leaving the NIC.
+
+To add a rule to an ACL, use the following command, where `<direction>` can be either `ingress` or `egress`:
+
+```bash
+lxc network acl rule add <ACL_name> <direction> [properties...]
+```
+
+This command adds a rule to the list for the specified direction.
+
+You cannot edit a rule (except if you {ref}`edit the full ACL <network-acls-edit>`), but you can delete rules with the following command:
+
+```bash
+lxc network acl rule remove <ACL_name> <direction> [properties...]
+```
+
+You must either specify all properties needed to uniquely identify a rule or add `--force` to the command to delete all matching rules.
+
+### Rule ordering and priorities
+
+Rules are provided as lists.
+However, the order of the rules in the list is not important and does not affect
+filtering.
+
+LXD automatically orders the rules based on the `action` property as follows:
+
+ - `drop`
+ - `reject`
+ - `allow`
+ - Automatic default action for any unmatched traffic (defaults to `reject`, see {ref}`network-acls-defaults`).
+
+This means that when you apply multiple ACLs to a NIC, there is no need to specify a combined rule ordering.
+If one of the rules in the ACLs matches, the action for that rule is taken and no other rules are considered.
+
+
+### Rule properties
 
 ACL rules have the following properties:
 
 Property          | Type       | Required | Description
 :--               | :--        | :--      | :--
 action            | string     | yes      | Action to take for matching traffic (`allow`, `reject` or `drop`)
-state             | string     | yes      | State of rule (`enabled`, `disabled` or `logged`)
-description       | string     | no       | Description of rule
-source            | string     | no       | Comma separated list of CIDR or IP ranges, source subject name selectors (for ingress rules), or empty for any
-destination       | string     | no       | Comma separated list of CIDR or IP ranges, destination subject name selectors (for egress rules), or empty for any
+state             | string     | yes      | State of the rule (`enabled`, `disabled` or `logged`), defaulting to `enabled` if not specified
+description       | string     | no       | Description of the rule
+source            | string     | no       | Comma-separated list of CIDR or IP ranges, source subject name selectors (for ingress rules), or empty for any
+destination       | string     | no       | Comma-separated list of CIDR or IP ranges, destination subject name selectors (for egress rules), or empty for any
 protocol          | string     | no       | Protocol to match (`icmp4`, `icmp6`, `tcp`, `udp`) or empty for any
-source\_port      | string     | no       | If Protocol is `udp` or `tcp`, then comma separated list of ports or port ranges (start-end inclusive), or empty for any
-destination\_port | string     | no       | If Protocol is `udp` or `tcp`, then comma separated list of ports or port ranges (start-end inclusive), or empty for any
-icmp\_type        | string     | no       | If Protocol is `icmp4` or `icmp6`, then ICMP Type number, or empty for any
-icmp\_code        | string     | no       | If Protocol is `icmp4` or `icmp6`, then ICMP Code number, or empty for any
+source\_port      | string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
+destination\_port | string     | no       | If protocol is `udp` or `tcp`, then a comma-separated list of ports or port ranges (start-end inclusive), or empty for any
+icmp\_type        | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP type number, or empty for any
+icmp\_code        | string     | no       | If protocol is `icmp4` or `icmp6`, then ICMP code number, or empty for any
 
-## Rule ordering and priorities
+(network-acls-selectors)=
+### Use selectors in rules
 
-Rules cannot be explicitly ordered. However LXD will order the rules based on the `action` property as follows:
+```{note}
+This feature is supported only for the {ref}`OVN NIC type <instance_device_type_nic_ovn>` and the {ref}`OVN network <network-ovn>`.
+```
 
- - `drop`
- - `reject`
- - `allow`
- - Automatic default action for any unmatched traffic (defaults to `reject`).
+The `source` field (for ingress rules) and the `destination` field (for egress rules) support using selectors instead of CIDR or IP ranges.
 
-This means that multiple ACLs can be applied to a NIC without having to specify the combined rule ordering.
-As soon as one of the rules in the ACLs matches then that action is taken and no other rules are considered.
+With this method, you can use ACL groups or network selectors to define rules for groups of instances without needing to maintain IP lists or create additional subnets.
 
-The default reject action can be modified by using the network and NIC level `security.acls.default.ingress.action`
-and `security.acls.default.egress.action` settings. The NIC level settings will override the network level settings.
+(network-acls-groups)=
+#### ACL groups
 
-## Subject name selectors
+Instance NICs that are assigned a particular ACL (either explicitly or implicitly through a network) make up a logical port group.
 
-Subject name selectors can be used in the `source` field for ingress rules and in the `destination` field for
-egress rules.
+Such ACL groups are called *subject name selectors*, and they can be referenced with the name of the ACL in other ACL groups.
 
-Instance NICs that are assigned a particular ACL (either directly or via the ACLs assigned to the network it is
-connected to) make up a logical port group named after the ACL that can then be referenced as an ACL subject name
-in other ACL rules using the format `<ACL_name>`.
+For example, if you have an ACL with the name `foo`, you can specify the group of instance NICs that are assigned this ACL as source with `source=foo`.
 
-E.g. `source=foo`
+#### Network selectors
 
-If the network supports [network peers](network-peers.md) then you can also reference traffic to/from the peer
-connection by way of a network subject selector in the format `@<network_name>/<peer_name>`.
+You can use *network subject selectors* to define rules based on the network that the traffic is coming from or going to.
 
-E.g. `source=@ovn1/mypeer`
+There are two special network subject selectors called `@internal` and `@external`.
+They represent network local and external traffic, respectively.
+For example:
 
-When using a network subject selector, the network having the ACL applied to it must have the specified peer
-connection or the ACL will refuse to be applied to it.
+```bash
+source=@internal
+```
 
-There are also two special network subject selectors called `@internal` and `@external` which represent network
-local and external traffic respectively.
+If your network supports [network peers](network-peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`.
+For example:
 
-E.g. `source=@internal`
+```bash
+source=@ovn1/mypeer
+```
+
+When using a network subject selector, the network that has the ACL applied to it must have the specified peer connection.
+Otherwise, the ACL cannot be applied to it.
+
+### Log traffic
+
+Generally, ACL rules are meant to control the network traffic between instances and networks.
+However, you can also use them to log specific network traffic, which can be useful for monitoring, or to test rules before actually enabling them.
+
+To add a rule for logging, create it with the `state=logged` property.
+You can then display the log output for all logging rules in the ACL with the following command:
+
+```bash
+lxc network acl show-log <ACL_name>
+```
+
+(network-acls-edit)=
+## Edit an ACL
+
+Use the following command to edit an ACL:
+
+```bash
+lxc network acl edit <ACL_name>
+```
+
+This command opens the ACL in YAML format for editing.
+You can edit both the ACL configuration and the rules.
+
+## Assign an ACL
+
+After configuring an ACL, you must assign it to a network or an instance NIC.
+
+To do so, add it to the `security.acls` list of the network or NIC configuration.
+For networks, use the following command:
+
+```bash
+lxc network set <network_name> security.acls="<ACL_name>"
+```
+
+For instance NICs, use the following command:
+
+```bash
+lxc config device set <instance_name> <device_name> security.acls="<ACL_name>"
+```
+
+(network-acls-defaults)=
+## Configure default actions
+
+When one or more ACLs are applied to a NIC (either explicitly or implicitly through a network), a default reject rule is added to the NIC.
+This rule rejects all traffic that doesn't match any of the rules in the applied ACLs.
+
+You can change this behavior with the network and NIC level `security.acls.default.ingress.action` and `security.acls.default.egress.action` settings.
+The NIC level settings override the network level settings.
+
+For example, to set the default action for inbound traffic to `allow` for all instances connected to a network, use the following command:
+
+```bash
+lxc network set <network_name> security.acls.default.ingress.action=allow
+```
+
+To configure the same default action for an instance NIC, use the following command:
+
+```bash
+lxc config device set <instance_name> <device_name> security.acls.default.ingress.action=allow
+```
 
 (network-acls-bridge-limitations)=
 ## Bridge limitations
 
-Unlike OVN ACLs, `bridge` ACLs are applied *only* on the boundary between the bridge and the LXD host.
-This means they can only be used to apply network policy for traffic going to/from external networks, and cannot be
-used for intra-bridge firewalling (i.e for firewalling traffic between instances connected to the same bridge).
+When using network ACLs with a bridge network, be aware of the following limitations:
 
-Additionally `bridge` ACLs do not support using subject name selectors.
-
-When using the `iptables` firewall driver, you cannot use IP range subjects (e.g. `192.168.1.1-192.168.1.10`).
-
-Baseline network service rules are added before ACL rules (in their respective INPUT/OUTPUT chains), because we
-cannot differentiate between INPUT/OUTPUT and FORWARD traffic once we have jumped into the ACL chain. Because of
-this ACL rules cannot be used to block baseline service rules.
+- Unlike OVN ACLs, bridge ACLs are applied only on the boundary between the bridge and the LXD host.
+  This means they can only be used to apply network policies for traffic going to or from external networks.
+  They cannot be used for intra-bridge firewalling, thus firewalling traffic between instances connected to the same bridge.
+- {ref}`ACL groups and network selectors <network-acls-selectors>` are not supported.
+- When using the `iptables` firewall driver, you cannot use IP range subjects (for example, `192.168.1.1-192.168.1.10`).
+- Baseline network service rules are added before ACL rules (in their respective INPUT/OUTPUT chains), because we cannot differentiate between INPUT/OUTPUT and FORWARD traffic once we have jumped into the ACL chain.
+  Because of this, ACL rules cannot be used to block baseline service rules.
