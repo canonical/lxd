@@ -98,7 +98,7 @@ func (b *lxdBackend) isStatusReady() error {
 	}
 
 	if b.LocalStatus() == api.StoragePoolStatusUnvailable {
-		return fmt.Errorf("Specified pool is not currently available on this server")
+		return ErrPoolUnavailable
 	}
 
 	return nil
