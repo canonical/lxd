@@ -22,7 +22,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/storage"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
@@ -80,7 +79,7 @@ type disk struct {
 	deviceCommon
 
 	restrictedParentSourcePath string
-	pool                       storage.Pool
+	pool                       storagePools.Pool
 }
 
 // CanMigrate returns whether the device can be migrated to any other cluster member.
@@ -252,7 +251,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		// Only perform expensive instance pool volume checks when not validating a profile and after
 		// device expansion has occurred (to avoid doing it twice during instance load).
 		if d.inst != nil && !d.inst.IsSnapshot() && len(instConf.ExpandedDevices()) > 0 {
-			d.pool, err = storage.GetPoolByName(d.state, d.config["pool"])
+			d.pool, err = storagePools.GetPoolByName(d.state, d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
 			}
