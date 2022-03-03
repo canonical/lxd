@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -109,7 +108,7 @@ func (g *Group) Stop(timeout time.Duration) error {
 				running = append(running, strconv.Itoa(i))
 			}
 		}
-		return fmt.Errorf("tasks %s are still running", strings.Join(running, ", "))
+		return fmt.Errorf("Task(s) still running: IDs %v", running)
 	case <-graceful:
 		return nil
 
