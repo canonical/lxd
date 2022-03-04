@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-02 15:31+0000\n"
+"POT-Creation-Date: 2022-03-04 13:49+0000\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -504,7 +504,7 @@ msgstr "%s (%d más)"
 msgid "%s (%d more)"
 msgstr "%s (%d más)"
 
-#: lxc/file.go:861
+#: lxc/file.go:863
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s no es un directorio"
@@ -514,7 +514,7 @@ msgstr "%s no es un directorio"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrumpe dos o más tiempos a la fuerza)"
 
-#: lxc/file.go:755
+#: lxc/file.go:757
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "%s no es un tipo de archivo soportado."
@@ -616,7 +616,7 @@ msgstr ""
 msgid "<remote> <new-name>"
 msgstr ""
 
-#: lxc/file.go:422
+#: lxc/file.go:424
 #, fuzzy
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr "No se puede proveer el nombre del container a la lista"
@@ -972,7 +972,7 @@ msgstr ""
 msgid "Can't provide a name for the target image"
 msgstr ""
 
-#: lxc/file.go:318
+#: lxc/file.go:320
 msgid "Can't pull a directory without --recursive"
 msgstr "No se puede jalar un directorio sin - recursivo"
 
@@ -1002,7 +1002,7 @@ msgstr "No se puede especificar un remote diferente para renombrar."
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:498
+#: lxc/file.go:500
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
@@ -1310,7 +1310,7 @@ msgstr "Creando el contenedor"
 msgid "Create and start instances from images"
 msgstr ""
 
-#: lxc/file.go:235 lxc/file.go:431
+#: lxc/file.go:237 lxc/file.go:433
 msgid "Create any directories necessary"
 msgstr ""
 
@@ -1441,7 +1441,7 @@ msgstr ""
 msgid "Delete all warnings"
 msgstr ""
 
-#: lxc/file.go:116 lxc/file.go:117
+#: lxc/file.go:118 lxc/file.go:119
 msgid "Delete files in instances"
 msgstr ""
 
@@ -1530,8 +1530,8 @@ msgstr ""
 #: lxc/config_trust.go:223 lxc/config_trust.go:335 lxc/config_trust.go:416
 #: lxc/config_trust.go:507 lxc/config_trust.go:550 lxc/config_trust.go:621
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
-#: lxc/export.go:32 lxc/file.go:77 lxc/file.go:117 lxc/file.go:166
-#: lxc/file.go:229 lxc/file.go:424 lxc/file.go:907 lxc/image.go:38
+#: lxc/export.go:32 lxc/file.go:79 lxc/file.go:119 lxc/file.go:168
+#: lxc/file.go:231 lxc/file.go:426 lxc/file.go:909 lxc/image.go:38
 #: lxc/image.go:144 lxc/image.go:304 lxc/image.go:355 lxc/image.go:480
 #: lxc/image.go:639 lxc/image.go:860 lxc/image.go:995 lxc/image.go:1293
 #: lxc/image.go:1372 lxc/image.go:1431 lxc/image.go:1483 lxc/image.go:1539
@@ -1729,7 +1729,7 @@ msgstr ""
 msgid "EXPIRY DATE"
 msgstr "FECHA DE EXPIRACIÓN"
 
-#: lxc/file.go:68
+#: lxc/file.go:70
 msgid ""
 "Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
@@ -1743,7 +1743,7 @@ msgstr ""
 msgid "Edit cluster member configurations as YAML"
 msgstr ""
 
-#: lxc/file.go:165 lxc/file.go:166
+#: lxc/file.go:167 lxc/file.go:168
 msgid "Edit files in instances"
 msgstr ""
 
@@ -1955,24 +1955,59 @@ msgstr "HUELLA DIGITAL"
 msgid "FIRST SEEN"
 msgstr ""
 
+#: lxc/file.go:1088
+#, c-format
+msgid "Failed SSH handshake with client %q: %v"
+msgstr ""
+
+#: lxc/file.go:1111
+#, c-format
+msgid "Failed accepting channel client %q: %v"
+msgstr ""
+
+#: lxc/file.go:1138
+#, c-format
+msgid "Failed connecting to instance SFTP for client %q: %v"
+msgstr ""
+
+#: lxc/file.go:972
+#, fuzzy, c-format
+msgid "Failed connecting to instance SFTP: %w"
+msgstr "Nombre del Miembro del Cluster"
+
 #: lxc/config_trust.go:200
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:966
-#, c-format
-msgid "Failed finding sshfs: %w"
-msgstr ""
+#: lxc/file.go:959
+#, fuzzy, c-format
+msgid "Failed finding sshfs: %v\n"
+msgstr "Acepta certificado"
+
+#: lxc/file.go:1055
+#, fuzzy, c-format
+msgid "Failed generating SSH host key: %w"
+msgstr "Acepta certificado"
 
 #: lxc/network_peer.go:305
 #, c-format
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:986
+#: lxc/file.go:1060
+#, fuzzy, c-format
+msgid "Failed parsing SSH host key: %w"
+msgstr "Acepta certificado"
+
+#: lxc/file.go:997
 #, fuzzy, c-format
 msgid "Failed starting sshfs: %w"
+msgstr "Acepta certificado"
+
+#: lxc/file.go:1076
+#, fuzzy, c-format
+msgid "Failed to accept incoming connection: %w"
 msgstr "Acepta certificado"
 
 #: lxc/remote.go:229
@@ -2009,6 +2044,11 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr "Perfil para aplicar al nuevo contenedor"
 
+#: lxc/file.go:1068
+#, fuzzy, c-format
+msgid "Failed to listen for connection: %w"
+msgstr "Acepta certificado"
+
 #: lxc/copy.go:366
 #, fuzzy, c-format
 msgid "Failed to refresh target instance '%s': %v"
@@ -2019,7 +2059,7 @@ msgstr "Perfil para aplicar al nuevo contenedor"
 msgid "Failed to remove alias %s: %w"
 msgstr "Acepta certificado"
 
-#: lxc/file.go:750
+#: lxc/file.go:752
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2231,15 +2271,25 @@ msgstr "Aliases:"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1009
-#, c-format
-msgid "I/O copy from remote to sshfs failed: %v"
-msgstr ""
+#: lxc/file.go:1160
+#, fuzzy, c-format
+msgid "I/O copy from SSH to instance failed: %v"
+msgstr "Copiando la imagen: %s"
 
-#: lxc/file.go:1019
-#, c-format
-msgid "I/O copy from sshfs to remote failed: %v"
-msgstr ""
+#: lxc/file.go:1149
+#, fuzzy, c-format
+msgid "I/O copy from instance to SSH failed: %v"
+msgstr "Copiando la imagen: %s"
+
+#: lxc/file.go:1020
+#, fuzzy, c-format
+msgid "I/O copy from instance to sshfs failed: %v"
+msgstr "Dispositivo %s añadido a %s"
+
+#: lxc/file.go:1030
+#, fuzzy, c-format
+msgid "I/O copy from sshfs to instance failed: %v"
+msgstr "Copiando la imagen: %s"
 
 #: lxc/operation.go:161
 msgid "ID"
@@ -2395,6 +2445,15 @@ msgstr ""
 msgid "Instance Only"
 msgstr "Nombre del contenedor es: %s"
 
+#: lxc/file.go:1022
+msgid "Instance disconnected"
+msgstr ""
+
+#: lxc/file.go:1151
+#, c-format
+msgid "Instance disconnected for client %q"
+msgstr ""
+
 #: lxc/publish.go:79
 #, fuzzy
 msgid "Instance name is mandatory"
@@ -2491,7 +2550,7 @@ msgstr ""
 msgid "Invalid number of arguments"
 msgstr ""
 
-#: lxc/file.go:141
+#: lxc/file.go:143
 #, c-format
 msgid "Invalid path %s"
 msgstr ""
@@ -2508,12 +2567,12 @@ msgstr ""
 msgid "Invalid snapshot name"
 msgstr "Nombre del contenedor es: %s"
 
-#: lxc/file.go:292 lxc/file.go:945
+#: lxc/file.go:294 lxc/file.go:947
 #, c-format
 msgid "Invalid source %s"
 msgstr ""
 
-#: lxc/file.go:452
+#: lxc/file.go:454
 #, c-format
 msgid "Invalid target %s"
 msgstr ""
@@ -2964,7 +3023,7 @@ msgstr ""
 msgid "Manage devices"
 msgstr ""
 
-#: lxc/file.go:76 lxc/file.go:77
+#: lxc/file.go:78 lxc/file.go:79
 msgid "Manage files in instances"
 msgstr ""
 
@@ -3245,7 +3304,7 @@ msgstr ""
 msgid "Missing source volume name"
 msgstr ""
 
-#: lxc/file.go:545
+#: lxc/file.go:547
 #, fuzzy
 msgid "Missing target directory"
 msgstr "%s no es un directorio"
@@ -3281,11 +3340,11 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr ""
 
-#: lxc/file.go:268
+#: lxc/file.go:270
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 
-#: lxc/file.go:906 lxc/file.go:907
+#: lxc/file.go:908 lxc/file.go:909
 #, fuzzy
 msgid "Mount files from instances"
 msgstr "Aliases:"
@@ -3682,7 +3741,7 @@ msgstr "Auto actualización: %s"
 msgid "Ports:"
 msgstr ""
 
-#: lxc/file.go:990
+#: lxc/file.go:1001
 msgid "Press ctlc+c to finish"
 msgstr ""
 
@@ -3826,20 +3885,20 @@ msgstr ""
 msgid "Publishing instance: %s"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/file.go:228 lxc/file.go:229
+#: lxc/file.go:230 lxc/file.go:231
 msgid "Pull files from instances"
 msgstr ""
 
-#: lxc/file.go:381 lxc/file.go:704
+#: lxc/file.go:383 lxc/file.go:706
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
 
-#: lxc/file.go:423 lxc/file.go:424
+#: lxc/file.go:425 lxc/file.go:426
 msgid "Push files into instances"
 msgstr ""
 
-#: lxc/file.go:640 lxc/file.go:796
+#: lxc/file.go:642 lxc/file.go:798
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -3865,7 +3924,7 @@ msgstr ""
 msgid "Read-Only: %v"
 msgstr ""
 
-#: lxc/file.go:236 lxc/file.go:430
+#: lxc/file.go:238 lxc/file.go:432
 msgid "Recursively transfer files"
 msgstr ""
 
@@ -3915,10 +3974,6 @@ msgstr ""
 
 #: lxc/remote.go:99
 msgid "Remote admin password"
-msgstr ""
-
-#: lxc/file.go:1011
-msgid "Remote disconnected"
 msgstr ""
 
 #: lxc/remote.go:250
@@ -4150,6 +4205,16 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
+#: lxc/file.go:1081
+#, c-format
+msgid "SSH client connected %q"
+msgstr ""
+
+#: lxc/file.go:1082
+#, c-format
+msgid "SSH client disconnected %q"
+msgstr ""
+
 #: lxc/cluster.go:181 lxc/list.go:572 lxc/network.go:918
 #: lxc/network_peer.go:143 lxc/storage.go:583
 msgid "STATE"
@@ -4369,15 +4434,15 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr ""
 
-#: lxc/file.go:433
+#: lxc/file.go:435
 msgid "Set the file's gid on push"
 msgstr ""
 
-#: lxc/file.go:434
+#: lxc/file.go:436
 msgid "Set the file's perms on push"
 msgstr ""
 
-#: lxc/file.go:432
+#: lxc/file.go:434
 msgid "Set the file's uid on push"
 msgstr ""
 
@@ -4706,7 +4771,7 @@ msgstr ""
 msgid "Taken at"
 msgstr ""
 
-#: lxc/file.go:932
+#: lxc/file.go:934
 msgid "Target path must be a directory"
 msgstr ""
 
@@ -4956,7 +5021,7 @@ msgstr ""
 msgid "UUID: %v"
 msgstr ""
 
-#: lxc/file.go:191
+#: lxc/file.go:193
 #, c-format
 msgid "Unable to create a temporary file: %v"
 msgstr ""
@@ -4964,6 +5029,11 @@ msgstr ""
 #: lxc/config_trust.go:115
 #, c-format
 msgid "Unknown certificate type %q"
+msgstr ""
+
+#: lxc/file.go:1104
+#, c-format
+msgid "Unknown channel type for client %q: %s"
 msgstr ""
 
 #: lxc/image.go:1053 lxc/list.go:630 lxc/storage_volume.go:1336
@@ -4977,7 +5047,7 @@ msgstr ""
 msgid "Unknown console type %q"
 msgstr ""
 
-#: lxc/file.go:737
+#: lxc/file.go:739
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -5110,7 +5180,7 @@ msgstr ""
 msgid "User aborted delete operation"
 msgstr ""
 
-#: lxc/file.go:65 lxc/utils/cancel.go:63
+#: lxc/file.go:67 lxc/utils/cancel.go:63
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
@@ -5437,22 +5507,22 @@ msgstr "No se puede proveer el nombre del container a la lista"
 msgid "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 msgstr ""
 
-#: lxc/file.go:164
+#: lxc/file.go:166
 #, fuzzy
 msgid "[<remote>:]<instance>/<path>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/file.go:905
+#: lxc/file.go:907
 #, fuzzy
 msgid "[<remote>:]<instance>/<path> <target path>"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/file.go:114
+#: lxc/file.go:116
 #, fuzzy
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr "No se puede proveer el nombre del container a la lista"
 
-#: lxc/file.go:227
+#: lxc/file.go:229
 #, fuzzy
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
@@ -5939,20 +6009,20 @@ msgid ""
 "    Download a backup tarball of the u1 instance."
 msgstr ""
 
-#: lxc/file.go:909
+#: lxc/file.go:911
 msgid ""
 "lxc file mount foo/root fooroot\n"
 "   To mount /root from the instance and onto the local fooroot directory."
 msgstr ""
 
-#: lxc/file.go:231
+#: lxc/file.go:233
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
 "directory."
 msgstr ""
 
-#: lxc/file.go:426
+#: lxc/file.go:428
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
@@ -6152,12 +6222,12 @@ msgstr ""
 msgid "space used"
 msgstr ""
 
-#: lxc/file.go:989
+#: lxc/file.go:1000
 #, c-format
 msgid "sshfs has mounted %q on %q"
 msgstr ""
 
-#: lxc/file.go:1028
+#: lxc/file.go:1039
 msgid "sshfs has stopped"
 msgstr ""
 
