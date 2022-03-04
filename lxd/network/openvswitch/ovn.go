@@ -1889,7 +1889,7 @@ func (o *OVN) LogicalRouterPolicyApply(routerName OVNRouter, policies ...OVNRout
 	return nil
 }
 
-// LogicalRouterRoutes returns a list of static routes configured on a logical router.
+// LogicalRouterRoutes returns a list of static routes in the main route table of the logical router.
 func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error) {
 	output, err := o.nbctl("lr-route-list", string(routerName))
 	if err != nil {
@@ -1899,9 +1899,25 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	routes := make([]OVNRouterRoute, 0)
 
+	mainTable := true // Assume output starts with main table (supports ovn versions without multiple tables).
 	for i, line := range lines {
 		if line == "IPv4 Routes" || line == "IPv6 Routes" {
 			continue // Ignore heading category lines.
+		}
+
+		// Keep track of which route table we are looking at.
+		if strings.HasPrefix(line, "Route Table") {
+			if line == "Route Table <main>:" {
+				mainTable = true
+			} else {
+				mainTable = false
+			}
+
+			continue
+		}
+
+		if !mainTable {
+			continue // We don't currently consider routes in other route tables.
 		}
 
 		// E.g. "10.97.31.0/24 10.97.31.1 dst-ip [optional-some-router-port-name]"
