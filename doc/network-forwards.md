@@ -1,57 +1,96 @@
-# Network Forward configuration
+# How to configure network forwards
 
-Network forwards allow an external IP address (or specific ports on it) to be forwarded to an internal IP address
-(or specific ports on it) in the network that the forward belongs to.
+```{note}
+Network forwards are available for the {ref}`OVN network <network-ovn>` and the {ref}`Bridge network <network-bridge>`.
+```
 
-Each forward requires a single external listen address, combined with an optional default target address
-(which causes any traffic not matched by a port specification to be forwarded to it) and an optional set of port
-specifications (that allow specific port(s) on the listen address to be forwarded to specific port(s) on a target
-address that is different than the default target address).
+Network forwards allow an external IP address (or specific ports on it) to be forwarded to an internal IP address (or specific ports on it) in the network that the forward belongs to.
 
-All target addresses must be within the same subnet as the network that the forward is associated to.
+This feature can be useful if you have limited external IP addresses and want to share a single external address between multiple instances.
+There are two different ways how you can use network forwards in this case:
 
-The default target address is specified in the forward's `config` set using the `target_address` field.
+- Forward all traffic from the external address to the internal address of one instance.
+  This method makes it easy to move the traffic destined for the external address to another instance by simply reconfiguring the network forward.
+- Forward traffic from different port numbers of the external address to different instances (and optionally different ports on those instances).
+  This method allows to "share" your external IP address and expose more than one instance at a time.
 
-The listen addresses allowed vary depending on which [network type](#network-types) the forward is associated to.
+## Create a network forward
 
-## Properties
-The following are network forward properties:
+Use the following command to create a network forward:
+
+```bash
+lxc network forward create <network_name> <listen_address> [configuration_options...]
+```
+
+Each forward is assigned to a network.
+It requires a single external listen address (see {ref}`network-forwards-listen-addresses` for more information about which addresses can be forwarded, depending on the network that you are using).
+
+You can specify an optional default target address by adding the `target_address=<IP_address>` configuration option.
+If you do, any traffic that does not match a port specification is forwarded to this address.
+Note that this target address must be within the same subnet as the network that the forward is associated to.
+
+### Forward properties
+
+Network forwards have the following properties:
 
 Property         | Type       | Required | Description
 :--              | :--        | :--      | :--
 listen\_address  | string     | yes      | IP address to listen on
-description      | string     | no       | Description of Network Forward
-config           | string set | no       | Config key/value pairs (Only `target_address` and `user.*` custom keys supported)
-ports            | port list  | no       | Network forward port list
+description      | string     | no       | Description of the network forward
+config           | string set | no       | Configuration options as key/value pairs (only `target_address` and `user.*` custom keys supported)
+ports            | port list  | no       | List of {ref}`port specifications <network-forwards-port-specifications>`
+
+(network-forwards-listen-addresses)=
+### Requirements for listen addresses
+
+The requirements for valid listen addresses vary depending on which network type the forward is associated to.
+
+Bridge network
+: - Any non-conflicting listen address is allowed.
+  - The listen address must not overlap with a subnet that is in use with another network.
+
+OVN network
+: - Allowed listen addresses must be defined in the uplink network's `ipv{n}.routes` settings or the project's `restricted.networks.subnets` setting (if set).
+  - The listen address must not overlap with a subnet that is in use with another network.
+
+(network-forwards-port-specifications)=
+## Configure ports
+
+You can add port specifications to the network forward to forward traffic from specific ports on the listen address to specific ports on the target address.
+This target address must be different from the default target address.
+It must be within the same subnet as the network that the forward is associated to.
+
+Use the following command to add a port specification:
+
+```bash
+lxc network forward port add <network_name> <listen_address> <protocol> <listen_ports> <target_address> [<target_ports>]
+```
+
+You can specify a single listen port or a set of ports.
+If you want to forward the traffic to different ports, you have two options:
+
+- Specify a single target port to forward traffic from all listen ports to this target port.
+- Specify a set of target ports with the same number of ports as the listen ports to forward traffic from the first listen port to the first target port, the second listen port to the second target port, and so on.
+
+### Port properties
 
 Network forward ports have the following properties:
 
 Property          | Type       | Required | Description
 :--               | :--        | :--      | :--
-protocol          | string     | yes      | Protocol for port (`tcp` or `udp`)
+protocol          | string     | yes      | Protocol for the port(s) (`tcp` or `udp`)
 listen\_port      | string     | yes      | Listen port(s) (e.g. `80,90-100`)
 target\_address   | string     | yes      | IP address to forward to
 target\_port      | string     | no       | Target port(s) (e.g. `70,80-90` or `90`), same as `listen_port` if empty
 description       | string     | no       | Description of port(s)
 
-## Network types
+## Edit a network forward
 
-The following network types support forwards. See each network type section for more details.
+Use the following command to edit a network forward:
 
- - [bridge](#network-bridge)
- - [ovn](#network-ovn)
+```bash
+lxc network forward edit <network_name> <listen_address>
+```
 
-(network-forwards-bridge)=
-### network: bridge
-
-Any non-conflicting listen address is allowed.
-
-The listen address used cannot overlap with a subnet that is in use with another network.
-
-(network-forwards-ovn)=
-### network: ovn
-
-The allowed listen addresses are those that are defined in the uplink network's `ipv{n}.routes` settings, and the
-project's `restricted.networks.subnets` setting (if set).
-
-The listen address used cannot overlap with a subnet that is in use with another network.
+This command opens the network forward in YAML format for editing.
+You can edit both the general configuration and the port specifications.
