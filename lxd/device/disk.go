@@ -606,7 +606,8 @@ func (d *disk) detectVMPoolMountOpts() []string {
 
 	// If the pool's source is a normal file, rather than a block device or directory, then we consider it to
 	// be a loop backed stored pool.
-	if shared.PathExists(driverConf["source"]) && !shared.IsBlockdevPath(driverConf["source"]) && !shared.IsDir(driverConf["source"]) {
+	fileInfo, _ := os.Stat(driverConf["source"])
+	if fileInfo != nil && !shared.IsBlockdev(fileInfo.Mode()) && !fileInfo.IsDir() {
 		opts = append(opts, DiskLoopBacked)
 	}
 
