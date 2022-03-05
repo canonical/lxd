@@ -453,6 +453,18 @@ func checkRestrictions(project *db.Project, instances []db.Instance, profiles []
 		}
 
 		switch key {
+		case "restricted.containers.interception":
+			for _, key := range allowableIntercept {
+				containerConfigChecks[key] = func(instanceValue string) error {
+					disabled := shared.IsFalseOrEmpty(instanceValue)
+
+					if restrictionValue != "allow" && !disabled {
+						return fmt.Errorf("Container syscall interception is forbidden")
+					}
+
+					return nil
+				}
+			}
 		case "restricted.containers.nesting":
 			containerConfigChecks["security.nesting"] = func(instanceValue string) error {
 				if restrictionValue == "block" && shared.IsTrue(instanceValue) {
@@ -743,6 +755,7 @@ var allRestrictions = map[string]string{
 	"restricted.cluster.groups":            "",
 	"restricted.cluster.target":            "block",
 	"restricted.containers.nesting":        "block",
+	"restricted.containers.interception":   "block",
 	"restricted.containers.lowlevel":       "block",
 	"restricted.containers.privilege":      "unprivileged",
 	"restricted.virtual-machines.lowlevel": "block",
@@ -762,9 +775,19 @@ var allRestrictions = map[string]string{
 	"restricted.snapshots":                 "block",
 }
 
+// allowableIntercept lists all syscall interception keys which may be allowed.
+var allowableIntercept = []string{
+	"security.syscalls.intercept.bpf",
+	"security.syscalls.intercept.bpf.devices",
+	"security.syscalls.intercept.mknod",
+	"security.syscalls.intercept.mount",
+	"security.syscalls.intercept.mount.fuse",
+	"security.syscalls.intercept.setxattr",
+}
+
 // Return true if a low-level container option is forbidden.
 func isContainerLowLevelOptionForbidden(key string) bool {
-	if strings.HasPrefix(key, "security.syscalls.intercept") {
+	if strings.HasPrefix(key, "security.syscalls.intercept") && !shared.StringInSlice(key, allowableIntercept) {
 		return true
 	}
 
