@@ -1020,7 +1020,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Ensure secureboot is turned off for images that are not secureboot enabled
 	if shared.IsFalse(d.localConfig["image.requirements.secureboot"]) && shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
-		return fmt.Errorf("The image used by this instance is incompatible with secureboot")
+		return fmt.Errorf("The image used by this instance is incompatible with secureboot. Please set security.secureboot=false on the instance")
 	}
 
 	// Setup a new operation.
