@@ -183,5 +183,5 @@ Return value:
 Return value:
 
     #cloud-config
-    instance-id: abc
+    instance-id: af6a01c7-f847-4688-a2a4-37fddd744625
     local-hostname: abc
