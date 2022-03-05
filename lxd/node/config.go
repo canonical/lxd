@@ -274,7 +274,7 @@ var ConfigSchema = config.Schema{
 	// Network address for the DNS server
 	"core.dns_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
-	// Network address for the debug server
+	// Network address for the metrics server
 	"core.metrics_address": {Validator: validate.Optional(validate.IsListenAddress(true, true, false))},
 
 	// MAAS machine this LXD instance is associated with
