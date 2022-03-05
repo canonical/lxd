@@ -34,10 +34,11 @@ type devLxdResponse struct {
 }
 
 type instanceData struct {
-	Name     string                         `json:"name"`
-	Location string                         `json:"location"`
-	Config   map[string]string              `json:"config,omitempty"`
-	Devices  map[string]deviceConfig.Device `json:"devices,omitempty"`
+	Name        string                         `json:"name"`
+	CloudInitID string                         `json:"cloud_init_id"`
+	Location    string                         `json:"location"`
+	Config      map[string]string              `json:"config,omitempty"`
+	Devices     map[string]deviceConfig.Device `json:"devices,omitempty"`
 }
 
 func okResponse(ct interface{}, ctype string) *devLxdResponse {
@@ -118,7 +119,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 	}
 
 	value := instance.Config["user.meta-data"]
-	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", instance.Name, instance.Name, value), "raw")
+	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", instance.CloudInitID, instance.Name, value), "raw")
 }}
 
 var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
