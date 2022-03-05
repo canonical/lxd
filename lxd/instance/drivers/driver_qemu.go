@@ -5777,12 +5777,18 @@ func (d *qemu) writeInstanceData() error {
 		location = d.Location()
 	}
 
+	id := d.LocalConfig()["volatile.cloud-init.instance-id"]
+	if id == "" {
+		id = d.Name()
+	}
+
 	out, err := json.Marshal(struct {
-		Name     string                         `json:"name"`
-		Location string                         `json:"location"`
-		Config   map[string]string              `json:"config,omitempty"`
-		Devices  map[string]deviceConfig.Device `json:"devices,omitempty"`
-	}{d.Name(), location, userConfig, d.expandedDevices})
+		Name        string                         `json:"name"`
+		CloudInitID string                         `json:"cloud_init_id"`
+		Location    string                         `json:"location"`
+		Config      map[string]string              `json:"config,omitempty"`
+		Devices     map[string]deviceConfig.Device `json:"devices,omitempty"`
+	}{d.Name(), id, location, userConfig, d.expandedDevices})
 	if err != nil {
 		return err
 	}
