@@ -22,8 +22,8 @@ profile "{{.name}}" {
 
   {{ .outputPath }}/ rw,
   {{ .outputPath }}/** rwl,
-  {{ .varPath }}/backups/** rw,
-  {{ .varPath }}/images/** r,
+  {{ .backupsPath }}/** rw,
+  {{ .imagesPath }}/** r,
 
   signal (receive) set=("term") peer=unconfined,
 
@@ -93,13 +93,30 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 		rootPath = "/var/lib/snapd/hostfs"
 	}
 
+	// Deref all paths.
+	outputPathFull, err := filepath.EvalSymlinks(outputPath)
+	if err != nil {
+		return "", err
+	}
+
+	backupsPathFull, err := filepath.EvalSymlinks(shared.VarPath("backups"))
+	if err != nil {
+		return "", err
+	}
+
+	imagesPathFull, err := filepath.EvalSymlinks(shared.VarPath("images"))
+	if err != nil {
+		return "", err
+	}
+
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err := archiveProfileTpl.Execute(sb, map[string]interface{}{
+	err = archiveProfileTpl.Execute(sb, map[string]interface{}{
 		"name":                ArchiveProfileName(outputPath),
-		"outputPath":          outputPath,
+		"outputPath":          outputPathFull,
 		"rootPath":            rootPath,
-		"varPath":             shared.VarPath(""),
+		"backupsPath":         backupsPathFull,
+		"imagesPath":          imagesPathFull,
 		"allowedCommandPaths": allowedCommandPaths,
 	})
 	if err != nil {
