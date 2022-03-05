@@ -413,7 +413,7 @@ static int handle_bpf_syscall(pid_t pid_target, int notify_fd, int mem_fd,
 			// recycled in the meantime so we're not accidentally
 			// looking at a different threadgroup with the same
 			// open files.
-			if (!process_still_alive(tgid))
+			if (!process_still_alive(pidfd))
 				return -EINVAL;
 		}
 
@@ -446,7 +446,7 @@ static int handle_bpf_syscall(pid_t pid_target, int notify_fd, int mem_fd,
 			// recycled in the meantime so we're not accidentally
 			// looking at a different threadgroup with the same
 			// open files.
-			if (!process_still_alive(tgid))
+			if (!process_still_alive(pidfd))
 				return -EINVAL;
 		}
 
