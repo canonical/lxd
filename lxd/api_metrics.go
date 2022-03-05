@@ -7,6 +7,7 @@ import (
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
+	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -27,7 +28,22 @@ var metricsLock sync.Mutex
 var metricsCmd = APIEndpoint{
 	Path: "metrics",
 
-	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowProjectPermission("containers", "view")},
+	Get: APIEndpointAction{Handler: metricsGet, AccessHandler: allowMetrics, AllowUntrusted: true},
+}
+
+func allowMetrics(d *Daemon, r *http.Request) response.Response {
+	// Check if API is wide open.
+	isAuthenticated, err := cluster.ConfigGetBool(d.cluster, "core.metrics_authentication")
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	if !isAuthenticated {
+		return response.EmptySyncResponse
+	}
+
+	// If not wide open, apply project access restrictions.
+	return allowProjectPermission("containers", "view")(d, r)
 }
 
 // swagger:operation GET /1.0/metrics metrics metrics_get
