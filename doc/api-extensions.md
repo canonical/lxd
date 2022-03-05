@@ -1625,3 +1625,6 @@ This adds support for `event-hub` cluster member role and the `ServerEventMode` 
 ## agent\_nic\_config
 If set to true, on VM start-up the lxd-agent will apply NIC config to change the names and MTU of the instance NIC
 devices.
+
+## projects\_restricted\_intercept
+Adds new `restricted.container.intercept` config key to allow usually safe system call interception options.
