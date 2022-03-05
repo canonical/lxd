@@ -251,6 +251,7 @@ var ConfigSchema = config.Schema{
 	"cluster.images_minimal_replica": {Type: config.Int64, Default: "3", Validator: imageMinimalReplicaValidator},
 	"cluster.max_voters":             {Type: config.Int64, Default: "3", Validator: maxVotersValidator},
 	"cluster.max_standby":            {Type: config.Int64, Default: "2", Validator: maxStandByValidator},
+	"core.metrics_authentication":    {Type: config.Bool, Default: "true"},
 	"core.bgp_asn":                   {Type: config.Int64, Default: "0", Validator: validate.Optional(validate.IsInRange(0, 4294967294))},
 	"core.https_allowed_headers":     {},
 	"core.https_allowed_methods":     {},
