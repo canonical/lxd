@@ -1148,7 +1148,7 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return fmt.Errorf(i18n.G("Missing storage pool name"))
 	}
 
 	client := resource.server
