@@ -917,6 +917,16 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 	if !args.Snapshot {
 		// Unset expiry date since instances don't expire.
 		args.ExpiryDate = time.Time{}
+
+		// Generate a cloud-init instance-id if not provided.
+		//
+		// This is generated here rather than in startCommon as only new
+		// instances or those which get modified should receive an instance-id.
+		// Existing instances will keep using their instance name as instance-id to
+		// avoid triggering cloud-init on upgrade.
+		if args.Config["volatile.cloud-init.instance-id"] == "" {
+			args.Config["volatile.cloud-init.instance-id"] = uuid.New()
+		}
 	}
 
 	// Validate instance config.
