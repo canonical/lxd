@@ -321,6 +321,7 @@ var APIExtensions = []string{
 	"event_hub",
 	"agent_nic_config",
 	"projects_restricted_intercept",
+	"metrics_authentication",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

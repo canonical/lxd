@@ -1628,3 +1628,8 @@ devices.
 
 ## projects\_restricted\_intercept
 Adds new `restricted.container.intercept` config key to allow usually safe system call interception options.
+
+## metrics\_authentication
+Introduces a new `core.metrics_authentication` server config option to
+allow for the /1.0/metrics endpoint to be generally available without
+client authentication.
