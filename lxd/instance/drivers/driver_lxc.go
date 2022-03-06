@@ -442,10 +442,9 @@ type lxc struct {
 	// Cached handles.
 	// Do not use these variables directly, instead use their associated get functions so they
 	// will be initialised on demand.
-	c           *liblxc.Container
-	cConfig     bool
-	idmapset    *idmap.IdmapSet
-	storagePool storagePools.Pool
+	c        *liblxc.Container
+	cConfig  bool
+	idmapset *idmap.IdmapSet
 }
 
 func idmapSize(state *state.State, isolatedStr string, size string) (int64, error) {
