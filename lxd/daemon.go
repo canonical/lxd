@@ -1428,7 +1428,7 @@ func (d *Daemon) init() error {
 	}
 
 	// Resolve warnings older than the daemon start time
-	warnings.ResolveWarningsByLocalNodeOlderThan(d.cluster, d.startTime)
+	err = warnings.ResolveWarningsByLocalNodeOlderThan(d.cluster, d.startTime)
 	if err != nil {
 		logger.Warn("Failed to resolve warnings", log.Ctx{"err": err})
 	}

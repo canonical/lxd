@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
@@ -165,17 +166,32 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 					t.Stop()
 
 					// Try initializing remaining storage pools in random order.
+					tryInstancesStart := false
 					for poolName := range initPools {
 						if initPool(poolName) {
 							// Storage pool initialized successfully then remove it
 							// from the list so its not retried.
 							delete(initPools, poolName)
+							tryInstancesStart = true
 						}
 					}
 
 					if len(initPools) <= 0 {
 						logger.Info("All storage pools initialized")
+					}
 
+					// At least one remaining storage pool was initialized, check if any
+					// instances can now start.
+					if tryInstancesStart {
+						instances, err := instance.LoadNodeAll(s, instancetype.Any)
+						if err != nil {
+							logger.Warn("Failed loading instances to start", log.Ctx{"err": err})
+						} else {
+							instancesStart(s, instances)
+						}
+					}
+
+					if len(initPools) <= 0 {
 						return // Our job here is done.
 					}
 				}
