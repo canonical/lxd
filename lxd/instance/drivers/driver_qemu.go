@@ -1263,7 +1263,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		minVer, _ := version.NewDottedVersion("5.10.0")
-		if currentVer.Compare(minVer) >= 0 {
+		if currentVer.Compare(minVer) >= 0 && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
 			// x86_64 can use hv_time to improve Windows guest performance.
 			cpuExtensions = append(cpuExtensions, "hv_passthrough")
 		}
