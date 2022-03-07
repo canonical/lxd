@@ -2,12 +2,14 @@ package qmp
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // Status returns the current VM status.
@@ -245,6 +247,87 @@ func (m *Monitor) GetMemoryBalloonSizeBytes() (int64, error) {
 func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
 	args := map[string]int64{"value": sizeBytes}
 	return m.run("balloon", args, nil)
+}
+
+// AddBlockDevice adds a block device.
+func (m *Monitor) AddBlockDevice(blockDev map[string]interface{}, device map[string]string) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if blockDev != nil {
+		err := m.run("blockdev-add", blockDev, nil)
+		if err != nil {
+			return fmt.Errorf("Failed adding block device: %w", err)
+		}
+
+		revert.Add(func() {
+			blockDevDel := map[string]interface{}{
+				"node-name": blockDev["devName"],
+			}
+
+			m.run("blockdev-del", blockDevDel, nil)
+		})
+	}
+
+	if device != nil {
+		err := m.run("device_add", device, nil)
+		if err != nil {
+			return fmt.Errorf("Failed adding device: %w", err)
+		}
+	}
+
+	revert.Success()
+	return nil
+}
+
+// RemoveBlockDevice removes a block device.
+func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
+	if blockDevName != "" {
+		blockDevName := map[string]string{
+			"node-name": blockDevName,
+		}
+
+		// Retry a few times in case the blockdev is in use.
+		err := m.run("blockdev-del", blockDevName, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "is in use") {
+				return api.StatusErrorf(http.StatusLocked, err.Error())
+			}
+
+			if strings.Contains(err.Error(), "Failed to find") {
+				return nil
+			}
+
+			return fmt.Errorf("Failed removing block device: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// RemoveDevice removes a device.
+func (m *Monitor) RemoveDevice(deviceID string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	if deviceID != "" {
+		deviceID := map[string]string{
+			"id": deviceID,
+		}
+
+		err := m.run("device_del", deviceID, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				return nil
+			}
+
+			return err
+		}
+	}
+
+	return nil
 }
 
 // AddNIC adds a NIC device.
