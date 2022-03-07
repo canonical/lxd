@@ -15,7 +15,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.4.1"
+      "version": "8.4.3"
     },
     {
       "type": "panel",
@@ -67,7 +67,7 @@
   "gnetId": 15726,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1645545692746,
+  "iteration": 1646671114502,
   "links": [
     {
       "icon": "external link",
@@ -365,7 +365,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_free_bytes)",
+          "expr": "topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes)",
           "hide": false,
           "instant": true,
           "interval": "",
@@ -374,7 +374,7 @@
         },
         {
           "exemplar": true,
-          "expr": "sum(lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_free_bytes) - \nsum(topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_free_bytes))",
+          "expr": "sum(lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes) - \nsum(topk(${top}, lxd_filesystem_size_bytes{job=\"$job\",project=\"$project\",mountpoint=\"/\"} - lxd_filesystem_avail_bytes))",
           "hide": false,
           "interval": "",
           "legendFormat": "Others",
@@ -432,7 +432,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.1",
+      "pluginVersion": "8.4.3",
       "targets": [
         {
           "exemplar": true,
@@ -494,7 +494,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.1",
+      "pluginVersion": "8.4.3",
       "targets": [
         {
           "exemplar": true,
@@ -556,7 +556,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.1",
+      "pluginVersion": "8.4.3",
       "targets": [
         {
           "exemplar": true,
@@ -618,7 +618,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.1",
+      "pluginVersion": "8.4.3",
       "targets": [
         {
           "exemplar": true,
@@ -1141,7 +1141,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(lxd_filesystem_avail_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"})",
+          "expr": "sum(lxd_filesystem_size_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"} - lxd_filesystem_avail_bytes)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -3141,6 +3141,6 @@
   "timezone": "",
   "title": "LXD",
   "uid": "bGY-LSB7k",
-  "version": 12,
+  "version": 13,
   "weekStart": ""
 }
