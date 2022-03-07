@@ -1251,7 +1251,7 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 			snapData = append(snapData, row)
 		}
 
-		sort.Sort(byName(snapData))
+		sort.Sort(utils.ByName(snapData))
 		snapHeader := []string{
 			i18n.G("Name"),
 			i18n.G("Description"),
@@ -1410,7 +1410,7 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		data = append(data, row)
 	}
 	if len(columns) >= 2 {
-		sort.Sort(byNameAndType(data))
+		sort.Sort(utils.ByNameAndType(data))
 	}
 
 	rawData := make([]*api.StorageVolume, len(volumes))

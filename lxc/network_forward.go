@@ -138,7 +138,7 @@ func (c *cmdNetworkForwardList) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, details)
 	}
-	sort.Sort(byName(data))
+	sort.Sort(utils.ByName(data))
 
 	header := []string{
 		i18n.G("LISTEN ADDRESS"),

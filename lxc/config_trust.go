@@ -386,7 +386,7 @@ func (c *cmdConfigTrustList) Run(cmd *cobra.Command, args []string) error {
 		expiry := tlsCert.NotAfter.Format(layout)
 		data = append(data, []string{cert.Type, cert.Name, tlsCert.Subject.CommonName, fp, issue, expiry})
 	}
-	sort.Sort(stringList(data))
+	sort.Sort(utils.StringList(data))
 
 	header := []string{
 		i18n.G("TYPE"),
@@ -482,7 +482,7 @@ func (c *cmdConfigTrustListTokens) Run(cmd *cobra.Command, args []string) error 
 		line := []string{token.ClientName, token.Token}
 		data = append(data, line)
 	}
-	sort.Sort(byName(data))
+	sort.Sort(utils.ByName(data))
 
 	header := []string{
 		i18n.G("NAME"),

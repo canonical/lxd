@@ -428,7 +428,7 @@ func (c *cmdList) showInstances(cts []api.InstanceFull, filters []string, column
 		}
 		data = append(data, col)
 	}
-	sort.Sort(byName(data))
+	sort.Sort(utils.ByName(data))
 
 	headers := []string{}
 	for _, column := range columns {

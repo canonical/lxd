@@ -7,104 +7,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fvbommel/sortorder"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
 )
-
-type stringList [][]string
-
-func (a stringList) Len() int {
-	return len(a)
-}
-
-func (a stringList) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a stringList) Less(i, j int) bool {
-	x := 0
-	for x = range a[i] {
-		if a[i][x] != a[j][x] {
-			break
-		}
-	}
-
-	if a[i][x] == "" {
-		return false
-	}
-
-	if a[j][x] == "" {
-		return true
-	}
-
-	return sortorder.NaturalLess(a[i][x], a[j][x])
-}
-
-// Instance name sorting
-type byName [][]string
-
-func (a byName) Len() int {
-	return len(a)
-}
-
-func (a byName) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a byName) Less(i, j int) bool {
-	for k := range a[i] {
-		if a[i][k] == a[j][k] {
-			continue
-		}
-
-		if a[i][k] == "" {
-			return false
-		}
-
-		if a[j][k] == "" {
-			return true
-		}
-
-		return sortorder.NaturalLess(a[i][k], a[j][k])
-	}
-
-	return false
-}
-
-// Storage volume sorting
-type byNameAndType [][]string
-
-func (a byNameAndType) Len() int {
-	return len(a)
-}
-
-func (a byNameAndType) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-
-func (a byNameAndType) Less(i, j int) bool {
-	// Sort snapshot and parent together.
-	iType := strings.Split(a[i][0], " ")[0]
-	jType := strings.Split(a[j][0], " ")[0]
-
-	if iType != jType {
-		return sortorder.NaturalLess(a[i][0], a[j][0])
-	}
-
-	if a[i][1] == "" {
-		return false
-	}
-
-	if a[j][1] == "" {
-		return true
-	}
-
-	return sortorder.NaturalLess(a[i][1], a[j][1])
-}
 
 // Batch operations
 type batchResult struct {

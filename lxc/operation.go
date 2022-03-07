@@ -155,7 +155,7 @@ func (c *cmdOperationList) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, entry)
 	}
-	sort.Sort(byName(data))
+	sort.Sort(utils.ByName(data))
 
 	header := []string{
 		i18n.G("ID"),
