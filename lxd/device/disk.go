@@ -741,26 +741,6 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					rawIDMaps = diskAddRootUserNSEntry(rawIDMaps, 65534)
 				}
 
-				// Start virtfs-proxy-helper for 9p share.
-				err = func() error {
-					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
-					if err != nil {
-						return err
-					}
-					revert.Add(revertFunc)
-
-					// Request the unix socket is closed after QEMU has connected on startup.
-					runConf.PostHooks = append(runConf.PostHooks, sockFile.Close)
-
-					// Use 9p socket FD number as dev path so qemu can connect to the proxy.
-					mount.DevPath = fmt.Sprintf("%d", sockFile.Fd())
-
-					return nil
-				}()
-				if err != nil {
-					return nil, fmt.Errorf("Failed to setup virtfs-proxy-helper for device %q: %w", d.name, err)
-				}
-
 				// Start virtiofsd for virtio-fs share. The lxd-agent prefers to use this over the
 				// virtfs-proxy-helper 9p share. The 9p share will only be used as a fallback.
 				err = func() error {
@@ -807,6 +787,27 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 				}()
 				if err != nil {
 					return nil, fmt.Errorf("Failed to setup virtiofsd for device %q: %w", d.name, err)
+				}
+
+				// Start virtfs-proxy-helper for 9p share (this will rewrite mount.DevPath with
+				// socket FD number so must come after starting virtiofsd).
+				err = func() error {
+					revertFunc, sockFile, err := DiskVMVirtfsProxyStart(d.state.OS.ExecPath, d.vmVirtfsProxyHelperPaths(), mount.DevPath, rawIDMaps)
+					if err != nil {
+						return err
+					}
+					revert.Add(revertFunc)
+
+					// Request the unix socket is closed after QEMU has connected on startup.
+					runConf.PostHooks = append(runConf.PostHooks, sockFile.Close)
+
+					// Use 9p socket FD number as dev path so qemu can connect to the proxy.
+					mount.DevPath = fmt.Sprintf("%d", sockFile.Fd())
+
+					return nil
+				}()
+				if err != nil {
+					return nil, fmt.Errorf("Failed to setup virtfs-proxy-helper for device %q: %w", d.name, err)
 				}
 			} else {
 				f, err := d.localSourceOpen(mount.DevPath)
