@@ -93,30 +93,32 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 		rootPath = "/var/lib/snapd/hostfs"
 	}
 
-	// Deref all paths.
+	// Attempt to deref all paths.
 	outputPathFull, err := filepath.EvalSymlinks(outputPath)
-	if err != nil {
-		return "", err
+	if err == nil {
+		outputPath = outputPathFull
 	}
 
-	backupsPathFull, err := filepath.EvalSymlinks(shared.VarPath("backups"))
-	if err != nil {
-		return "", err
+	backupsPath := shared.VarPath("backups")
+	backupsPathFull, err := filepath.EvalSymlinks(backupsPath)
+	if err == nil {
+		backupsPath = backupsPathFull
 	}
 
-	imagesPathFull, err := filepath.EvalSymlinks(shared.VarPath("images"))
-	if err != nil {
-		return "", err
+	imagesPath := shared.VarPath("images")
+	imagesPathFull, err := filepath.EvalSymlinks(imagesPath)
+	if err == nil {
+		imagesPath = imagesPathFull
 	}
 
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	err = archiveProfileTpl.Execute(sb, map[string]interface{}{
 		"name":                ArchiveProfileName(outputPath),
-		"outputPath":          outputPathFull,
+		"outputPath":          outputPath,
 		"rootPath":            rootPath,
-		"backupsPath":         backupsPathFull,
-		"imagesPath":          imagesPathFull,
+		"backupsPath":         backupsPath,
+		"imagesPath":          imagesPath,
 		"allowedCommandPaths": allowedCommandPaths,
 	})
 	if err != nil {
