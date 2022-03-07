@@ -320,6 +320,7 @@ var APIExtensions = []string{
 	"instance_nic_routed_neighbor_probe",
 	"event_hub",
 	"agent_nic_config",
+	"projects_restricted_intercept",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
