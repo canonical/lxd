@@ -143,14 +143,20 @@ func forkproxyProfile(sysOS *sys.OS, inst instance, dev device) (string, error) 
 		}
 	}
 
+	execPath := util.GetExecPath()
+	execPathFull, err := filepath.EvalSymlinks(execPath)
+	if err == nil {
+		execPath = execPathFull
+	}
+
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err := forkproxyProfileTpl.Execute(sb, map[string]interface{}{
+	err = forkproxyProfileTpl.Execute(sb, map[string]interface{}{
 		"name":        ForkproxyProfileName(inst, dev),
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
-		"exePath":     util.GetExecPath(),
+		"exePath":     execPath,
 		"logPath":     inst.LogPath(),
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 		"sockets":     sockets,
