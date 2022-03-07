@@ -228,7 +228,7 @@ func (c *cmdImageAliasList) Run(cmd *cobra.Command, args []string) error {
 
 		data = append(data, []string{alias.Name, alias.Target[0:12], strings.ToUpper(alias.Type), alias.Description})
 	}
-	sort.Sort(stringList(data))
+	sort.Sort(utils.StringList(data))
 
 	header := []string{
 		i18n.G("ALIAS"),

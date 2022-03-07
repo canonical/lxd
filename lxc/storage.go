@@ -568,7 +568,7 @@ func (c *cmdStorageList) Run(cmd *cobra.Command, args []string) error {
 		details = append(details, strings.ToUpper(pool.Status))
 		data = append(data, details)
 	}
-	sort.Sort(byName(data))
+	sort.Sort(utils.ByName(data))
 
 	header := []string{
 		i18n.G("NAME"),
