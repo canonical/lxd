@@ -1293,7 +1293,7 @@ func (d *qemu) Start(stateful bool) error {
 		"-serial", "chardev:console",
 		"-nodefaults",
 		"-no-user-config",
-		"-sandbox", "on,obsolete=deny,elevateprivileges=allow,spawn=deny,resourcecontrol=deny",
+		"-sandbox", "on,obsolete=deny,elevateprivileges=allow,spawn=allow,resourcecontrol=deny",
 		"-readconfig", confFile,
 		"-spice", d.spiceCmdlineConfig(),
 		"-pidfile", d.pidFilePath(),
