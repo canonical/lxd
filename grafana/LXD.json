@@ -1141,7 +1141,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(lxd_filesystem_avail_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"})",
+          "expr": "sum(lxd_filesystem_size_bytes{mountpoint=\"/\",job=\"$job\",project=\"$project\"} - lxd_filesystem_avail_bytes)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
