@@ -3,6 +3,7 @@ package apparmor
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -61,16 +62,23 @@ func forkdnsProfile(sysOS *sys.OS, n network) (string, error) {
 		rootPath = "/var/lib/snapd/hostfs"
 	}
 
+	// Deref paths.
+	execPath := util.GetExecPath()
+	execPathFull, err := filepath.EvalSymlinks(execPath)
+	if err == nil {
+		execPath = execPathFull
+	}
+
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err := forkdnsProfileTpl.Execute(sb, map[string]interface{}{
+	err = forkdnsProfileTpl.Execute(sb, map[string]interface{}{
 		"name":        ForkdnsProfileName(n),
 		"networkName": n.Name(),
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,
 		"snap":        shared.InSnap(),
 		"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
-		"exePath":     util.GetExecPath(),
+		"exePath":     execPath,
 	})
 	if err != nil {
 		return "", err

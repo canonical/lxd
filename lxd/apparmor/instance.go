@@ -201,10 +201,16 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			return "", err
 		}
 
+		execPath := util.GetExecPath()
+		execPathFull, err := filepath.EvalSymlinks(execPath)
+		if err == nil {
+			execPath = execPathFull
+		}
+
 		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
 			"externalDevPaths": externalDevPaths,
 			"devicesPath":      inst.DevicesPath(),
-			"exePath":          util.GetExecPath(),
+			"exePath":          execPath,
 			"libraryPath":      strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
 			"logPath":          inst.LogPath(),
 			"name":             InstanceProfileName(inst),
