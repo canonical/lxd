@@ -1148,7 +1148,7 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 	resource := resources[0]
 
 	if resource.name == "" {
-		return fmt.Errorf(i18n.G("Missing pool name"))
+		return fmt.Errorf(i18n.G("Missing storage pool name"))
 	}
 
 	client := resource.server
@@ -1175,17 +1175,143 @@ func (c *cmdStorageVolumeInfo) Run(cmd *cobra.Command, args []string) error {
 		client = client.UseTarget(c.storage.flagTarget)
 	}
 
-	state, err := client.GetStoragePoolVolumeState(resource.name, volType, volName)
+	// Get the data.
+	vol, _, err := client.GetStoragePoolVolume(resource.name, volType, volName)
 	if err != nil {
 		return err
 	}
 
-	data, err := yaml.Marshal(&state)
+	volState, err := client.GetStoragePoolVolumeState(resource.name, volType, volName)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%s", data)
+	volSnapshots, err := client.GetStoragePoolVolumeSnapshots(resource.name, volType, volName)
+	if err != nil {
+		return err
+	}
+
+	var volBackups []api.StoragePoolVolumeBackup
+	if client.HasExtension("custom_volume_backup") && volType == "custom" {
+		volBackups, err = client.GetStoragePoolVolumeBackups(resource.name, volName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Render the overview.
+	const layout = "2006/01/02 15:04 MST"
+
+	fmt.Printf(i18n.G("Name: %s")+"\n", vol.Name)
+	if vol.Description != "" {
+		fmt.Printf(i18n.G("Description: %s")+"\n", vol.Description)
+	}
+
+	if vol.Type == "" {
+		vol.Type = "custom"
+	}
+	fmt.Printf(i18n.G("Type: %s")+"\n", vol.Type)
+
+	if vol.ContentType == "" {
+		vol.ContentType = "filesystem"
+	}
+	fmt.Printf(i18n.G("Content type: %s")+"\n", vol.ContentType)
+
+	if vol.Location != "" && client.IsClustered() {
+		fmt.Printf(i18n.G("Location: %s")+"\n", vol.Location)
+	}
+
+	if volState.Usage != nil {
+		fmt.Printf(i18n.G("Usage: %s")+"\n", units.GetByteSizeStringIEC(int64(volState.Usage.Used), 2))
+	}
+
+	// List snapshots
+	firstSnapshot := true
+	if len(volSnapshots) > 0 {
+		snapData := [][]string{}
+
+		for _, snap := range volSnapshots {
+			if firstSnapshot {
+				fmt.Println("\n" + i18n.G("Snapshots:"))
+			}
+
+			var row []string
+
+			fields := strings.Split(snap.Name, shared.SnapshotDelimiter)
+			row = append(row, fields[len(fields)-1])
+			row = append(row, snap.Description)
+
+			if snap.ExpiresAt != nil {
+				row = append(row, snap.ExpiresAt.Local().Format(layout))
+			} else {
+				row = append(row, " ")
+			}
+
+			firstSnapshot = false
+			snapData = append(snapData, row)
+		}
+
+		sort.Sort(byName(snapData))
+		snapHeader := []string{
+			i18n.G("Name"),
+			i18n.G("Description"),
+			i18n.G("Expires at"),
+		}
+
+		_ = utils.RenderTable(utils.TableFormatTable, snapHeader, snapData, volSnapshots)
+	}
+
+	// List backups
+	firstBackup := true
+	if len(volBackups) > 0 {
+		backupData := [][]string{}
+
+		for _, backup := range volBackups {
+			if firstBackup {
+				fmt.Println("\n" + i18n.G("Backups:"))
+			}
+
+			var row []string
+			row = append(row, backup.Name)
+
+			if shared.TimeIsSet(backup.CreatedAt) {
+				row = append(row, backup.CreatedAt.Local().Format(layout))
+			} else {
+				row = append(row, " ")
+			}
+
+			if shared.TimeIsSet(backup.ExpiresAt) {
+				row = append(row, backup.ExpiresAt.Local().Format(layout))
+			} else {
+				row = append(row, " ")
+			}
+
+			if backup.VolumeOnly {
+				row = append(row, "YES")
+			} else {
+				row = append(row, "NO")
+			}
+
+			if backup.OptimizedStorage {
+				row = append(row, "YES")
+			} else {
+				row = append(row, "NO")
+			}
+
+			firstBackup = false
+			backupData = append(backupData, row)
+		}
+
+		backupHeader := []string{
+			i18n.G("Name"),
+			i18n.G("Taken at"),
+			i18n.G("Expires at"),
+			i18n.G("Volume Only"),
+			i18n.G("Optimized Storage"),
+		}
+
+		_ = utils.RenderTable(utils.TableFormatTable, backupHeader, backupData, volBackups)
+	}
 
 	return nil
 }
