@@ -563,6 +563,6 @@ type = "emulator"
 chardev = "qemu_tpm-chardev_{{.devName}}"
 
 [device "dev-lxd_{{.devName}}"]
-driver = "tpm-tis"
+driver = "tpm-crb"
 tpmdev = "qemu_tpm-tpmdev_{{.devName}}"
 `))
