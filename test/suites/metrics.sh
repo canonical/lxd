@@ -43,4 +43,9 @@ test_metrics() {
 
   # make sure no other endpoint is available
   curl -k -s --cert "${TEST_DIR}/metrics.crt" --key "${TEST_DIR}/metrics.key" -X GET "https://${metrics_addr}/1.0/instances" | grep "\"error_code\":404"
+
+  # test unauthenticated connections
+  ! curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "name=\"c1\"" || false
+  lxc config set core.metrics_authentication=false
+  curl -k -s -X GET "https://${metrics_addr}/1.0/metrics" | grep "name=\"c1\""
 }
