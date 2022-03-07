@@ -1265,7 +1265,7 @@ func (c *cmdImageList) Run(cmd *cobra.Command, args []string) error {
 		}
 		data = append(data, row)
 	}
-	sort.Sort(stringList(data))
+	sort.Sort(utils.StringList(data))
 
 	rawData := make([]*api.Image, len(images))
 	for i := range images {
