@@ -152,7 +152,7 @@ func (c *cmdWarningList) Run(cmd *cobra.Command, args []string) error {
 		}
 		data = append(data, row)
 	}
-	sort.Sort(stringList(data))
+	sort.Sort(utils.StringList(data))
 
 	rawData := make([]*api.Warning, len(warnings))
 	for i := range warnings {

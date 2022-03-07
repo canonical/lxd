@@ -617,7 +617,7 @@ func (c *cmdProfileList) Run(cmd *cobra.Command, args []string) error {
 		strUsedBy := fmt.Sprintf("%d", len(profile.UsedBy))
 		data = append(data, []string{profile.Name, profile.Description, strUsedBy})
 	}
-	sort.Sort(byName(data))
+	sort.Sort(utils.ByName(data))
 
 	header := []string{
 		i18n.G("NAME"),
