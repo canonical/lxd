@@ -8228,6 +8228,8 @@ paths:
               description: File owner GID
             X-LXD-mode:
               description: Mode mask
+            X-LXD-modified:
+              description: Last modified date
             X-LXD-type:
               description: Type of file (file, symlink or directory)
             X-LXD-uid:
