@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -450,6 +451,10 @@ func DiskVMVirtfsProxyStop(pidPath string) error {
 func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath string, pidPath string, logPath string, sharePath string, idmaps []idmap.IdmapEntry) (func(), net.Listener, error) {
 	revert := revert.New()
 	defer revert.Fail()
+
+	if !filepath.IsAbs(sharePath) {
+		return nil, nil, fmt.Errorf("Share path not absolute: %q", sharePath)
+	}
 
 	// Remove old socket if needed.
 	os.Remove(socketPath)
