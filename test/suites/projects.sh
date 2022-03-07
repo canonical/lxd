@@ -867,6 +867,16 @@ test_projects_restrictions() {
   # 'unprivileged', because there's an instance with security.privileged=true.
   ! lxc project set p1 restricted.containers.privilege=unprivileged || false
 
+  # Test expected syscall interception behavior.
+  ! lxc config set c1 security.syscalls.intercept.mknod=true || false
+  lxc config set c1 security.syscalls.intercept.mknod=false
+  lxc project set p1 restricted.containers.interception=block
+  ! lxc config set c1 security.syscalls.intercept.mknod=true || false
+  lxc project set p1 restricted.containers.interception=allow
+  lxc config set c1 security.syscalls.intercept.mknod=true
+  lxc config set c1 security.syscalls.intercept.mount=true
+  ! lxc config set c1 security.syscalls.intercept.mount.allow=ext4 || false
+
   lxc delete c1
 
   lxc image delete testimage

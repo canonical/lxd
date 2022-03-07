@@ -871,6 +871,7 @@ func projectValidateConfig(s *state.State, config map[string]string) error {
 		"restricted.backups":                   isEitherAllowOrBlock,
 		"restricted.cluster.groups":            validate.Optional(validate.IsListOf(validate.IsAny)),
 		"restricted.cluster.target":            isEitherAllowOrBlock,
+		"restricted.containers.interception":   validate.Optional(validate.IsOneOf("allow", "block", "full")),
 		"restricted.containers.nesting":        isEitherAllowOrBlock,
 		"restricted.containers.lowlevel":       isEitherAllowOrBlock,
 		"restricted.containers.privilege":      validate.Optional(validate.IsOneOf("allow", "unprivileged", "isolated")),

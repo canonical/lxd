@@ -141,7 +141,7 @@ _have lxc && {
 
     project_keys="features.images features.profiles features.storage.volumes \
       limits.containers limits.virtual-machines limits.memory limits.processes limits.cpu \
-      restricted restricted.containers.nesting restricted.containers.lowlevel \
+      restricted restricted.containers.nesting restricted.containers.interception restricted.containers.lowlevel \
       restricted.containers.privilege restricted.virtual-machines.lowlevel restricted.devices.unix-char \
       restricted.devices.unix-block restricted.devices.unix-hotplug restricted.devices.infiniband \
       restricted.devices.gpu restricted.devices.usb restricted.devices.nic restricted.devices.disk \
