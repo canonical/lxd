@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-02 15:31+0000\n"
+"POT-Creation-Date: 2022-03-04 13:49+0000\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -492,7 +492,7 @@ msgstr "%s (%d個使用可能)"
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:861
+#: lxc/file.go:863
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -503,7 +503,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:755
+#: lxc/file.go:757
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
@@ -600,7 +600,7 @@ msgstr "<remote> <URL>"
 msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
 
-#: lxc/file.go:422
+#: lxc/file.go:424
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr "<source path>... [<remote>:]<instance>/<path>"
 
@@ -970,7 +970,7 @@ msgstr "ローカル上のリネームでは、設定やプロファイルの上
 msgid "Can't provide a name for the target image"
 msgstr "ターゲットイメージの名前を取得できません"
 
-#: lxc/file.go:318
+#: lxc/file.go:320
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
@@ -1001,7 +1001,7 @@ msgstr "リネームの場合は異なるリモートを指定できません"
 msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
-#: lxc/file.go:498
+#: lxc/file.go:500
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -1311,7 +1311,7 @@ msgstr "空のインスタンスを作成"
 msgid "Create and start instances from images"
 msgstr "イメージからインスタンスを作成し、起動します"
 
-#: lxc/file.go:235 lxc/file.go:431
+#: lxc/file.go:237 lxc/file.go:433
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
@@ -1445,7 +1445,7 @@ msgstr "クラスタメンバの名前を変更します"
 msgid "Delete all warnings"
 msgstr "警告をすべて削除します"
 
-#: lxc/file.go:116 lxc/file.go:117
+#: lxc/file.go:118 lxc/file.go:119
 msgid "Delete files in instances"
 msgstr "インスタンス内のファイルを削除します"
 
@@ -1532,8 +1532,8 @@ msgstr "警告を削除します"
 #: lxc/config_trust.go:223 lxc/config_trust.go:335 lxc/config_trust.go:416
 #: lxc/config_trust.go:507 lxc/config_trust.go:550 lxc/config_trust.go:621
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
-#: lxc/export.go:32 lxc/file.go:77 lxc/file.go:117 lxc/file.go:166
-#: lxc/file.go:229 lxc/file.go:424 lxc/file.go:907 lxc/image.go:38
+#: lxc/export.go:32 lxc/file.go:79 lxc/file.go:119 lxc/file.go:168
+#: lxc/file.go:231 lxc/file.go:426 lxc/file.go:909 lxc/image.go:38
 #: lxc/image.go:144 lxc/image.go:304 lxc/image.go:355 lxc/image.go:480
 #: lxc/image.go:639 lxc/image.go:860 lxc/image.go:995 lxc/image.go:1293
 #: lxc/image.go:1372 lxc/image.go:1431 lxc/image.go:1483 lxc/image.go:1539
@@ -1733,7 +1733,7 @@ msgstr "EPHEMERAL"
 msgid "EXPIRY DATE"
 msgstr "EXPIRY DATE"
 
-#: lxc/file.go:68
+#: lxc/file.go:70
 msgid ""
 "Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
@@ -1749,7 +1749,7 @@ msgstr ""
 msgid "Edit cluster member configurations as YAML"
 msgstr "クラスターメンバーの設定をYAMLファイルで編集します"
 
-#: lxc/file.go:165 lxc/file.go:166
+#: lxc/file.go:167 lxc/file.go:168
 msgid "Edit files in instances"
 msgstr "インスタンス内のファイルを編集します"
 
@@ -1981,14 +1981,39 @@ msgstr "FINGERPRINT"
 msgid "FIRST SEEN"
 msgstr "FIRST SEEN"
 
+#: lxc/file.go:1088
+#, c-format
+msgid "Failed SSH handshake with client %q: %v"
+msgstr ""
+
+#: lxc/file.go:1111
+#, c-format
+msgid "Failed accepting channel client %q: %v"
+msgstr ""
+
+#: lxc/file.go:1138
+#, c-format
+msgid "Failed connecting to instance SFTP for client %q: %v"
+msgstr ""
+
+#: lxc/file.go:972
+#, fuzzy, c-format
+msgid "Failed connecting to instance SFTP: %w"
+msgstr "クラスタメンバへの接続に失敗しました"
+
 #: lxc/config_trust.go:200
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:966
+#: lxc/file.go:959
 #, fuzzy, c-format
-msgid "Failed finding sshfs: %w"
+msgid "Failed finding sshfs: %v\n"
+msgstr "ピアのステータスの取得に失敗しました: %w"
+
+#: lxc/file.go:1055
+#, fuzzy, c-format
+msgid "Failed generating SSH host key: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
 
 #: lxc/network_peer.go:305
@@ -1996,9 +2021,19 @@ msgstr "ピアのステータスの取得に失敗しました: %w"
 msgid "Failed getting peer's status: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
 
-#: lxc/file.go:986
+#: lxc/file.go:1060
+#, fuzzy, c-format
+msgid "Failed parsing SSH host key: %w"
+msgstr "ピアのステータスの取得に失敗しました: %w"
+
+#: lxc/file.go:997
 #, fuzzy, c-format
 msgid "Failed starting sshfs: %w"
+msgstr "ピアのステータスの取得に失敗しました: %w"
+
+#: lxc/file.go:1076
+#, fuzzy, c-format
+msgid "Failed to accept incoming connection: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
 
 #: lxc/remote.go:229
@@ -2035,6 +2070,11 @@ msgstr "ピアのステータスの取得に失敗しました: %w"
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
+#: lxc/file.go:1068
+#, fuzzy, c-format
+msgid "Failed to listen for connection: %w"
+msgstr "ピアのステータスの取得に失敗しました: %w"
+
 #: lxc/copy.go:366
 #, fuzzy, c-format
 msgid "Failed to refresh target instance '%s': %v"
@@ -2045,7 +2085,7 @@ msgstr "'lxc.%s.1' の生成が失敗しました: %v"
 msgid "Failed to remove alias %s: %w"
 msgstr "エイリアス %s の削除に失敗しました"
 
-#: lxc/file.go:750
+#: lxc/file.go:752
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -2267,15 +2307,25 @@ msgstr "ホストインターフェース"
 msgid "Hugepages:\n"
 msgstr "Hugepages:\n"
 
-#: lxc/file.go:1009
-#, c-format
-msgid "I/O copy from remote to sshfs failed: %v"
-msgstr ""
+#: lxc/file.go:1160
+#, fuzzy, c-format
+msgid "I/O copy from SSH to instance failed: %v"
+msgstr "インスタンスの停止に失敗しました: %s"
 
-#: lxc/file.go:1019
-#, c-format
-msgid "I/O copy from sshfs to remote failed: %v"
-msgstr ""
+#: lxc/file.go:1149
+#, fuzzy, c-format
+msgid "I/O copy from instance to SSH failed: %v"
+msgstr "インスタンスの停止に失敗しました: %s"
+
+#: lxc/file.go:1020
+#, fuzzy, c-format
+msgid "I/O copy from instance to sshfs failed: %v"
+msgstr "一部のインスタンスで %s が失敗しました"
+
+#: lxc/file.go:1030
+#, fuzzy, c-format
+msgid "I/O copy from sshfs to instance failed: %v"
+msgstr "インスタンスの停止に失敗しました: %s"
 
 #: lxc/operation.go:161
 msgid "ID"
@@ -2437,6 +2487,16 @@ msgstr "入力するデータ"
 msgid "Instance Only"
 msgstr "インスタンスのみ"
 
+#: lxc/file.go:1022
+#, fuzzy
+msgid "Instance disconnected"
+msgstr "リモートの管理者パスワード"
+
+#: lxc/file.go:1151
+#, c-format
+msgid "Instance disconnected for client %q"
+msgstr ""
+
 #: lxc/publish.go:79
 msgid "Instance name is mandatory"
 msgstr "インスタンス名を指定する必要があります"
@@ -2536,7 +2596,7 @@ msgstr ""
 msgid "Invalid number of arguments"
 msgstr "引数の数が不正です"
 
-#: lxc/file.go:141
+#: lxc/file.go:143
 #, c-format
 msgid "Invalid path %s"
 msgstr "不正なパス %s"
@@ -2553,12 +2613,12 @@ msgstr "不正なプロトコル: %s"
 msgid "Invalid snapshot name"
 msgstr "不正なインスタンス名: %s"
 
-#: lxc/file.go:292 lxc/file.go:945
+#: lxc/file.go:294 lxc/file.go:947
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:452
+#: lxc/file.go:454
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -3145,7 +3205,7 @@ msgstr "コマンドのエイリアスを管理します"
 msgid "Manage devices"
 msgstr "デバイスを管理します"
 
-#: lxc/file.go:76 lxc/file.go:77
+#: lxc/file.go:78 lxc/file.go:79
 msgid "Manage files in instances"
 msgstr "インスタンス内のファイルを管理します"
 
@@ -3433,7 +3493,7 @@ msgstr "コピー元のプロファイル名を指定する必要があります
 msgid "Missing source volume name"
 msgstr "コピー元のボリューム名を指定する必要があります"
 
-#: lxc/file.go:545
+#: lxc/file.go:547
 msgid "Missing target directory"
 msgstr "コピー先のディレクトリを指定する必要があります"
 
@@ -3470,13 +3530,13 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください"
 
-#: lxc/file.go:268
+#: lxc/file.go:270
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
-#: lxc/file.go:906 lxc/file.go:907
+#: lxc/file.go:908 lxc/file.go:909
 #, fuzzy
 msgid "Mount files from instances"
 msgstr "インスタンスからファイルを取得します"
@@ -3878,7 +3938,7 @@ msgstr "ポートタイプ: %s"
 msgid "Ports:"
 msgstr "ポート:"
 
-#: lxc/file.go:990
+#: lxc/file.go:1001
 msgid "Press ctlc+c to finish"
 msgstr ""
 
@@ -4021,20 +4081,20 @@ msgstr "インスタンスをイメージとして出力します"
 msgid "Publishing instance: %s"
 msgstr "インスタンスの出力中: %s"
 
-#: lxc/file.go:228 lxc/file.go:229
+#: lxc/file.go:230 lxc/file.go:231
 msgid "Pull files from instances"
 msgstr "インスタンスからファイルを取得します"
 
-#: lxc/file.go:381 lxc/file.go:704
+#: lxc/file.go:383 lxc/file.go:706
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr "ファイル %s を %s から取得します: %%s"
 
-#: lxc/file.go:423 lxc/file.go:424
+#: lxc/file.go:425 lxc/file.go:426
 msgid "Push files into instances"
 msgstr "インスタンス内にファイルをコピーします"
 
-#: lxc/file.go:640 lxc/file.go:796
+#: lxc/file.go:642 lxc/file.go:798
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
@@ -4060,7 +4120,7 @@ msgstr "ROLES"
 msgid "Read-Only: %v"
 msgstr "読み取り専用: %v"
 
-#: lxc/file.go:236 lxc/file.go:430
+#: lxc/file.go:238 lxc/file.go:432
 msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
@@ -4110,11 +4170,6 @@ msgstr "リモート %s は static ですので変更できません"
 
 #: lxc/remote.go:99
 msgid "Remote admin password"
-msgstr "リモートの管理者パスワード"
-
-#: lxc/file.go:1011
-#, fuzzy
-msgid "Remote disconnected"
 msgstr "リモートの管理者パスワード"
 
 #: lxc/remote.go:250
@@ -4350,6 +4405,16 @@ msgstr "SOURCE"
 #: lxc/info.go:136 lxc/info.go:242
 msgid "SR-IOV information:"
 msgstr "SR-IOV 情報:"
+
+#: lxc/file.go:1081
+#, c-format
+msgid "SSH client connected %q"
+msgstr ""
+
+#: lxc/file.go:1082
+#, fuzzy, c-format
+msgid "SSH client disconnected %q"
+msgstr "リモートの管理者パスワード"
 
 #: lxc/cluster.go:181 lxc/list.go:572 lxc/network.go:918
 #: lxc/network_peer.go:143 lxc/storage.go:583
@@ -4614,15 +4679,15 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr "リモートの URL を設定します"
 
-#: lxc/file.go:433
+#: lxc/file.go:435
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:434
+#: lxc/file.go:436
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:432
+#: lxc/file.go:434
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
@@ -4948,7 +5013,7 @@ msgstr "TYPE"
 msgid "Taken at"
 msgstr "取得日時"
 
-#: lxc/file.go:932
+#: lxc/file.go:934
 msgid "Target path must be a directory"
 msgstr ""
 
@@ -5221,7 +5286,7 @@ msgstr "UUID"
 msgid "UUID: %v"
 msgstr "UUID: %v"
 
-#: lxc/file.go:191
+#: lxc/file.go:193
 #, c-format
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
@@ -5229,6 +5294,11 @@ msgstr "テンポラリファイルを作成できません: %v"
 #: lxc/config_trust.go:115
 #, fuzzy, c-format
 msgid "Unknown certificate type %q"
+msgstr "未知のファイルタイプ '%s'"
+
+#: lxc/file.go:1104
+#, fuzzy, c-format
+msgid "Unknown channel type for client %q: %s"
 msgstr "未知のファイルタイプ '%s'"
 
 #: lxc/image.go:1053 lxc/list.go:630 lxc/storage_volume.go:1336
@@ -5242,7 +5312,7 @@ msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 msgid "Unknown console type %q"
 msgstr "未知のファイルタイプ '%s'"
 
-#: lxc/file.go:737
+#: lxc/file.go:739
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -5371,7 +5441,7 @@ msgstr "コマンドを実行する際のユーザ ID (UID) (デフォルト 0)"
 msgid "User aborted delete operation"
 msgstr "ユーザが削除操作を中断しました"
 
-#: lxc/file.go:65 lxc/utils/cancel.go:63
+#: lxc/file.go:67 lxc/utils/cancel.go:63
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
 msgstr ""
@@ -5658,20 +5728,20 @@ msgstr "[<remote>:]<instance> [flags] [--] <command line>"
 msgid "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 msgstr "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 
-#: lxc/file.go:164
+#: lxc/file.go:166
 msgid "[<remote>:]<instance>/<path>"
 msgstr "[<remote>:]<instance>/<path>"
 
-#: lxc/file.go:905
+#: lxc/file.go:907
 #, fuzzy
 msgid "[<remote>:]<instance>/<path> <target path>"
 msgstr "[<remote>:]<instance>/<path>"
 
-#: lxc/file.go:114
+#: lxc/file.go:116
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 
-#: lxc/file.go:227
+#: lxc/file.go:229
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 msgstr ""
@@ -6134,7 +6204,7 @@ msgstr ""
 "lxc export u1 backup0.tar.gz\n"
 "    u1 インスタンスのバックアップ tarball をダウンロードします。"
 
-#: lxc/file.go:909
+#: lxc/file.go:911
 #, fuzzy
 msgid ""
 "lxc file mount foo/root fooroot\n"
@@ -6144,7 +6214,7 @@ msgstr ""
 "   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーし"
 "ます。"
 
-#: lxc/file.go:231
+#: lxc/file.go:233
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
@@ -6154,7 +6224,7 @@ msgstr ""
 "   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーし"
 "ます。"
 
-#: lxc/file.go:426
+#: lxc/file.go:428
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
@@ -6450,12 +6520,12 @@ msgstr "`lxc profile` コマンドを使ってください"
 msgid "space used"
 msgstr "使用量"
 
-#: lxc/file.go:989
+#: lxc/file.go:1000
 #, c-format
 msgid "sshfs has mounted %q on %q"
 msgstr ""
 
-#: lxc/file.go:1028
+#: lxc/file.go:1039
 msgid "sshfs has stopped"
 msgstr ""
 
