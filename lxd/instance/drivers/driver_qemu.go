@@ -1781,6 +1781,28 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 	return runConf, nil
 }
 
+func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
+	}
+
+	var fdFiles []*os.File
+
+	monHook, err := d.addDriveConfig(nil, &fdFiles, nil, mount)
+	if err != nil {
+		return fmt.Errorf("Failed to add drive config: %w", err)
+	}
+
+	err = monHook(monitor)
+	if err != nil {
+		return fmt.Errorf("Failed to call monitor hook for block device: %w", err)
+	}
+
+	return nil
+}
+
 // deviceAttachNIC live attaches a NIC device to the instance.
 func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
