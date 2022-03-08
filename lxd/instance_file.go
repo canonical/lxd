@@ -107,6 +107,10 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 //          description: Mode mask
 //          schema:
 //            type: integer
+//        X-LXD-modified:
+//          description: Last modified date
+//          schema:
+//            type: string
 //        X-LXD-type:
 //          description: Type of file (file, symlink or directory)
 //          schema:
@@ -165,6 +169,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		"X-LXD-uid":  fmt.Sprintf("%d", fs.UID),
 		"X-LXD-gid":  fmt.Sprintf("%d", fs.GID),
 		"X-LXD-mode": fmt.Sprintf("%04o", stat.Mode().Perm()),
+		"X-LXD-modified": stat.ModTime().UTC().String(),
 		"X-LXD-type": fileType,
 	}
 
