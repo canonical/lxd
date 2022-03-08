@@ -1860,13 +1860,11 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
 	}
 
 	if runConf != nil {
-		if runConf != nil {
-			// Detach NIC from running instance.
-			if configCopy["type"] == "nic" && instanceRunning {
-				err = d.deviceDetachNIC(dev.Name())
-				if err != nil {
-					return err
-				}
+		// Detach NIC from running instance.
+		if configCopy["type"] == "nic" && instanceRunning {
+			err = d.deviceDetachNIC(dev.Name())
+			if err != nil {
+				return err
 			}
 		}
 
