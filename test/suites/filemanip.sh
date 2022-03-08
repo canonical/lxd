@@ -109,11 +109,20 @@ test_filemanip() {
   lxc file push -p "${TEST_DIR}"/source/foo filemanip/A/B/C/D/
   [ "$(lxc exec filemanip cat /A/B/C/D/foo)" = "foo" ]
 
-  lxc delete filemanip -f
-
   if [ "$(storage_backend "$LXD_DIR")" != "lvm" ]; then
     lxc launch testimage idmap -c "raw.idmap=both 0 0"
     [ "$(stat -c %u "${LXD_DIR}/containers/idmap/rootfs")" = "0" ]
     lxc delete idmap --force
   fi
+
+  # Test SFTP functionality.
+  cmd=$(unset -f lxc; command -v lxc)
+  $cmd file mount filemanip --listen=127.0.0.1:2022 &
+  mountPID=$!
+  sleep 1
+
+  output=$(curl -s -S --insecure sftp://127.0.0.1:2022/foo || true)
+  kill -9 ${mountPID}
+  lxc delete filemanip -f
+  [ "$output" = "foo" ]
 }
