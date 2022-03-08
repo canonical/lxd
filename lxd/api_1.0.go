@@ -324,6 +324,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		"seccomp_listener":          fmt.Sprintf("%v", d.os.SeccompListener),
 		"seccomp_listener_continue": fmt.Sprintf("%v", d.os.SeccompListenerContinue),
 		"shiftfs":                   fmt.Sprintf("%v", d.os.Shiftfs),
+		"idmapped_mounts":           fmt.Sprintf("%v", d.os.IdmappedMounts),
 	}
 
 	instanceTypes, _ := instanceDrivers.SupportedInstanceTypes()
