@@ -87,6 +87,9 @@ const qemuDeviceIDPrefix = "dev-lxd_"
 // qemuNetDevIDPrefix used as part of the name given QEMU netdevs generated from user added devices.
 const qemuNetDevIDPrefix = "lxd_"
 
+// qemuBlockDevIDPrefix used as part of the name given QEMU blockdevs generated from user added devices.
+const qemuBlockDevIDPrefix = "lxd_"
+
 // qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
 const qemuSparseUSBPorts = 4
 
