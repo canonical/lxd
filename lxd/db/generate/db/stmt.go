@@ -458,6 +458,9 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 		var column string
 		if field.IsScalar() {
 			column = field.Config.Get("join")
+			if column == "" {
+				column = field.Config.Get("leftjoin")
+			}
 		} else {
 			column = mapping.FieldColumnName(field.Name, table)
 		}
@@ -467,6 +470,10 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 
 	for _, field := range mapping.ScalarFields() {
 		join := field.Config.Get("join")
+		if join == "" {
+			join = field.Config.Get("leftjoin")
+		}
+
 		right := strings.Split(join, ".")[0]
 		via := entityTable(entity)
 		if field.Config.Get("via") != "" {
