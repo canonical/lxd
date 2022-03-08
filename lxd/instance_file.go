@@ -166,11 +166,11 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 
 	// Prepare the response.
 	headers := map[string]string{
-		"X-LXD-uid":  fmt.Sprintf("%d", fs.UID),
-		"X-LXD-gid":  fmt.Sprintf("%d", fs.GID),
-		"X-LXD-mode": fmt.Sprintf("%04o", stat.Mode().Perm()),
+		"X-LXD-uid":      fmt.Sprintf("%d", fs.UID),
+		"X-LXD-gid":      fmt.Sprintf("%d", fs.GID),
+		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
 		"X-LXD-modified": stat.ModTime().UTC().String(),
-		"X-LXD-type": fileType,
+		"X-LXD-type":     fileType,
 	}
 
 	if fileType == "file" {
