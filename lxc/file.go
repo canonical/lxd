@@ -900,11 +900,13 @@ func (c *cmdFile) recursiveMkdir(d lxd.InstanceServer, inst string, p string, mo
 type cmdFileMount struct {
 	global *cmdGlobal
 	file   *cmdFile
+
+	flagListen string
 }
 
 func (c *cmdFileMount) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("mount", i18n.G("[<remote>:]<instance>/<path> <target path>"))
+	cmd.Use = usage("mount", i18n.G("[<remote>:]<instance>[/<path>] [<target path>]"))
 	cmd.Short = i18n.G("Mount files from instances")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Mount files from instances`))
@@ -913,60 +915,80 @@ func (c *cmdFileMount) Command() *cobra.Command {
    To mount /root from the instance and onto the local fooroot directory.`))
 
 	cmd.RunE = c.Run
+	cmd.Flags().StringVar(&c.flagListen, "listen", "", i18n.G("Setup SSH SFTP listener on address:port instead of mounting"))
 
 	return cmd
 }
 
 func (c *cmdFileMount) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 2, -1)
+	exit, err := c.global.CheckArgs(cmd, args, 1, 2)
 	if exit {
 		return err
 	}
 
-	// Determine the target.
-	targetPath := shared.HostPathFollow(filepath.Clean(args[len(args)-1]))
-	sb, err := os.Stat(targetPath)
-	if err != nil {
-		return err
-	}
-	if !sb.IsDir() {
-		return fmt.Errorf(i18n.G("Target path must be a directory"))
-	}
-
 	// Parse remote.
-	resources, err := c.global.ParseServers(args[:len(args)-1]...)
+	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
 	}
 
 	resource := resources[0]
 
-	pathSpec := strings.SplitN(resource.name, "/", 2)
-	if len(pathSpec) != 2 {
-		return fmt.Errorf(i18n.G("Invalid source %s"), resource.name)
+	var targetPath string
+
+	// Determine the target if specified.
+	if len(args) >= 2 {
+		targetPath = shared.HostPathFollow(filepath.Clean(args[len(args)-1]))
+		sb, err := os.Stat(targetPath)
+		if err != nil {
+			return err
+		}
+		if !sb.IsDir() {
+			return fmt.Errorf(i18n.G("Target path must be a directory"))
+		}
 	}
 
-	instName := pathSpec[0]
-
-	// Setup sourcePath with leading / to ensure we reference the specified source path from / location.
-	sourcePath := filepath.Join(string(filepath.Separator), filepath.Clean(pathSpec[1]))
-
-	// Look for sshfs command.
-	sshfsPath, err := exec.LookPath("sshfs")
-	if err != nil {
-		// If sshfs command not found, then use a local SSH SFTP server.
-		fmt.Fprintf(os.Stderr, i18n.G("Failed finding sshfs: %v"+"\n"), err)
-
-		return c.sshSFTPServer(cmd.Context(), instName, resource)
+	// Check which mode we should operate in. If target path is provided we use sshfs mode.
+	if targetPath != "" && c.flagListen != "" {
+		return fmt.Errorf(i18n.G("Target path and --listen flag cannot be used together"))
 	}
 
-	// If sshfs command is found, use it to mount the SFTP connection to the targetPath.
-	return c.sshfsMount(cmd.Context(), instName, resource, sourcePath, sshfsPath, targetPath)
+	instSpec := strings.SplitN(resource.name, "/", 2)
+
+	// Check instance path is provided in sshfs mode.
+	if len(instSpec) < 2 && targetPath != "" {
+		return fmt.Errorf(i18n.G("Invalid instance path: %q"), resource.name)
+	}
+
+	// Check instance path isn't provided in listener mode.
+	if len(instSpec) > 1 && targetPath == "" {
+		return fmt.Errorf(i18n.G("Instance path cannot be used in SSH SFTP listener mode"))
+	}
+
+	instName := instSpec[0]
+
+	// Look for sshfs command if no SSH SFTP listener mode specified and a target mount path was specified.
+	if c.flagListen == "" && targetPath != "" {
+		sshfsPath, err := exec.LookPath("sshfs")
+		if err != nil {
+			// If sshfs command not found, then advise user of the --listen flag.
+			return fmt.Errorf(i18n.G("sshfs not found. Try SSH SFTP mode using the --listen flag"))
+		}
+
+		// Setup sourcePath with leading / to ensure we reference the instance path from / location.
+		instPath := filepath.Join(string(filepath.Separator), filepath.Clean(instSpec[1]))
+
+		// If sshfs command is found, use it to mount the SFTP connection to the targetPath.
+		return c.sshfsMount(cmd.Context(), resource, instName, instPath, sshfsPath, targetPath)
+	}
+
+	// If SSH SFTP listener specified or no target mount path specified, then use SSH SFTP server.
+	return c.sshSFTPServer(cmd.Context(), instName, resource)
 }
 
 // sshfsMount mounts the instance's filesystem using sshfs by piping the instance's SFTP connection to sshfs.
-func (c *cmdFileMount) sshfsMount(ctx context.Context, instName string, resource remoteResource, sourcePath string, sshfsPath string, targetPath string) error {
+func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, instName string, instPath string, sshfsPath string, targetPath string) error {
 	sftpConn, err := resource.server.GetInstanceFileSFTPConn(instName)
 	if err != nil {
 		return fmt.Errorf(i18n.G("Failed connecting to instance SFTP: %w"), err)
@@ -975,7 +997,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, instName string, resource
 
 	// Use the format "lxd.<instance_name>" as the source "host" (although not used for communication)
 	// so that the mount can be seen to be associated with LXD and the instance in the local mount table.
-	sourceURL := fmt.Sprintf("lxd.%s:%s", instName, sourcePath)
+	sourceURL := fmt.Sprintf("lxd.%s:%s", instName, instPath)
 
 	sshfsCmd := exec.Command(sshfsPath, "-o", "slave", sourceURL, targetPath)
 
@@ -997,7 +1019,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, instName string, resource
 		return fmt.Errorf(i18n.G("Failed starting sshfs: %w"), err)
 	}
 
-	fmt.Printf(i18n.G("sshfs has mounted %q on %q")+"\n", fmt.Sprintf("%s:%s", instName, sourcePath), targetPath)
+	fmt.Printf(i18n.G("sshfs mounting %q on %q")+"\n", fmt.Sprintf("%s%s", instName, instPath), targetPath)
 	fmt.Println(i18n.G("Press ctlc+c to finish"))
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -1062,12 +1084,16 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 
 	config.AddHostKey(private)
 
-	// Listen on a random local port.
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listenAddr := c.flagListen
+	if listenAddr == "" {
+		listenAddr = "127.0.0.1:0" // Listen on a random local port if not specified.
+	}
+
+	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return fmt.Errorf(i18n.G("Failed to listen for connection: %w"), err)
 	}
-	fmt.Printf("SSH listening on %v\n", listener.Addr())
+	fmt.Printf("SSH SFTP listening on %v\n", listener.Addr())
 
 	for {
 		// Wait for new SSH connections.
