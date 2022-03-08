@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-07 03:50+0100\n"
+"POT-Creation-Date: 2022-03-08 12:13+0000\n"
 "PO-Revision-Date: 2021-08-06 08:35+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -975,7 +975,7 @@ msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
 
-#: lxc/utils.go:238 lxc/utils.go:258
+#: lxc/utils.go:145 lxc/utils.go:165
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "標準入力から読み込めません: %s"
@@ -1538,7 +1538,7 @@ msgstr "警告を削除します"
 #: lxc/config_trust.go:507 lxc/config_trust.go:550 lxc/config_trust.go:621
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:79 lxc/file.go:119 lxc/file.go:168
-#: lxc/file.go:231 lxc/file.go:426 lxc/file.go:909 lxc/image.go:38
+#: lxc/file.go:231 lxc/file.go:426 lxc/file.go:911 lxc/image.go:38
 #: lxc/image.go:144 lxc/image.go:304 lxc/image.go:355 lxc/image.go:480
 #: lxc/image.go:639 lxc/image.go:860 lxc/image.go:995 lxc/image.go:1293
 #: lxc/image.go:1372 lxc/image.go:1431 lxc/image.go:1483 lxc/image.go:1539
@@ -1639,7 +1639,7 @@ msgstr "デバイス %s が %s で上書きされました"
 msgid "Device %s removed from %s"
 msgstr "デバイス %s が %s から削除されました"
 
-#: lxc/utils.go:143 lxc/utils.go:167
+#: lxc/utils.go:50 lxc/utils.go:74
 #, c-format
 msgid "Device already exists: %s"
 msgstr "デバイスは既に存在します: %s"
@@ -1992,22 +1992,22 @@ msgstr "FINGERPRINT"
 msgid "FIRST SEEN"
 msgstr "FIRST SEEN"
 
-#: lxc/file.go:1088
+#: lxc/file.go:1114
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1111
+#: lxc/file.go:1137
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1138
+#: lxc/file.go:1164
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
 
-#: lxc/file.go:972
+#: lxc/file.go:994
 #, fuzzy, c-format
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "クラスタメンバへの接続に失敗しました"
@@ -2017,12 +2017,7 @@ msgstr "クラスタメンバへの接続に失敗しました"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:959
-#, fuzzy, c-format
-msgid "Failed finding sshfs: %v\n"
-msgstr "ピアのステータスの取得に失敗しました: %w"
-
-#: lxc/file.go:1055
+#: lxc/file.go:1077
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
@@ -2032,17 +2027,17 @@ msgstr "ピアのステータスの取得に失敗しました: %w"
 msgid "Failed getting peer's status: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
 
-#: lxc/file.go:1060
+#: lxc/file.go:1082
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
 
-#: lxc/file.go:997
+#: lxc/file.go:1019
 #, fuzzy, c-format
 msgid "Failed starting sshfs: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
 
-#: lxc/file.go:1076
+#: lxc/file.go:1102
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
@@ -2062,7 +2057,7 @@ msgstr "クラスタメンバへの接続に失敗しました"
 msgid "Failed to create %q: %w"
 msgstr "エイリアス %s の作成に失敗しました"
 
-#: lxc/utils.go:213
+#: lxc/utils.go:120
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "エイリアス %s の作成に失敗しました"
@@ -2081,7 +2076,7 @@ msgstr "ピアのステータスの取得に失敗しました: %w"
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
-#: lxc/file.go:1068
+#: lxc/file.go:1094
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
@@ -2091,7 +2086,7 @@ msgstr "ピアのステータスの取得に失敗しました: %w"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "'lxc.%s.1' の生成が失敗しました: %v"
 
-#: lxc/utils.go:202
+#: lxc/utils.go:109
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
 msgstr "エイリアス %s の削除に失敗しました"
@@ -2318,22 +2313,22 @@ msgstr "ホストインターフェース"
 msgid "Hugepages:\n"
 msgstr "Hugepages:\n"
 
-#: lxc/file.go:1160
+#: lxc/file.go:1186
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "インスタンスの停止に失敗しました: %s"
 
-#: lxc/file.go:1149
+#: lxc/file.go:1175
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "インスタンスの停止に失敗しました: %s"
 
-#: lxc/file.go:1020
+#: lxc/file.go:1042
 #, fuzzy, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr "一部のインスタンスで %s が失敗しました"
 
-#: lxc/file.go:1030
+#: lxc/file.go:1052
 #, fuzzy, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr "インスタンスの停止に失敗しました: %s"
@@ -2498,12 +2493,12 @@ msgstr "入力するデータ"
 msgid "Instance Only"
 msgstr "インスタンスのみ"
 
-#: lxc/file.go:1022
+#: lxc/file.go:1044
 #, fuzzy
 msgid "Instance disconnected"
 msgstr "リモートの管理者パスワード"
 
-#: lxc/file.go:1151
+#: lxc/file.go:1177
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -2516,6 +2511,10 @@ msgstr "インスタンス名を指定する必要があります"
 #, c-format
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
+
+#: lxc/file.go:966
+msgid "Instance path cannot be used in SSH SFTP listener mode"
+msgstr ""
 
 #: lxc/publish.go:289
 #, c-format
@@ -2566,7 +2565,12 @@ msgstr "不正なフォーマット %s"
 msgid "Invalid instance name: %s"
 msgstr "不正なインスタンス名: %s"
 
-#: lxc/utils.go:252
+#: lxc/file.go:961
+#, fuzzy, c-format
+msgid "Invalid instance path: %q"
+msgstr "不正なインスタンス名: %s"
+
+#: lxc/utils.go:159
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %w"
 msgstr "不適切な キー=値 のペア: %s"
@@ -2624,7 +2628,7 @@ msgstr "不正なプロトコル: %s"
 msgid "Invalid snapshot name"
 msgstr "不正なインスタンス名: %s"
 
-#: lxc/file.go:294 lxc/file.go:947
+#: lxc/file.go:294
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
@@ -3552,7 +3556,7 @@ msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
-#: lxc/file.go:908 lxc/file.go:909
+#: lxc/file.go:910 lxc/file.go:911
 #, fuzzy
 msgid "Mount files from instances"
 msgstr "インスタンスからファイルを取得します"
@@ -3955,7 +3959,7 @@ msgstr "ポートタイプ: %s"
 msgid "Ports:"
 msgstr "ポート:"
 
-#: lxc/file.go:1001
+#: lxc/file.go:1023
 msgid "Press ctlc+c to finish"
 msgstr ""
 
@@ -4423,12 +4427,12 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr "SR-IOV 情報:"
 
-#: lxc/file.go:1081
+#: lxc/file.go:1107
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1082
+#: lxc/file.go:1108
 #, fuzzy, c-format
 msgid "SSH client disconnected %q"
 msgstr "リモートの管理者パスワード"
@@ -4707,6 +4711,10 @@ msgstr "プッシュ時にファイルのパーミションを設定します"
 #: lxc/file.go:434
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
+
+#: lxc/file.go:918
+msgid "Setup SSH SFTP listener on address:port instead of mounting"
+msgstr ""
 
 #: lxc/main.go:95
 msgid "Show all debug messages"
@@ -5030,7 +5038,12 @@ msgstr "TYPE"
 msgid "Taken at"
 msgstr "取得日時"
 
-#: lxc/file.go:934
+#: lxc/file.go:954
+#, fuzzy
+msgid "Target path and --listen flag cannot be used together"
+msgstr "--instance-only と --target は同時に指定できません"
+
+#: lxc/file.go:948
 msgid "Target path must be a directory"
 msgstr ""
 
@@ -5313,7 +5326,7 @@ msgstr "テンポラリファイルを作成できません: %v"
 msgid "Unknown certificate type %q"
 msgstr "未知のファイルタイプ '%s'"
 
-#: lxc/file.go:1104
+#: lxc/file.go:1130
 #, fuzzy, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr "未知のファイルタイプ '%s'"
@@ -5758,11 +5771,6 @@ msgstr "[<remote>:]<instance> [target] [--instance-only] [--optimized-storage]"
 msgid "[<remote>:]<instance>/<path>"
 msgstr "[<remote>:]<instance>/<path>"
 
-#: lxc/file.go:907
-#, fuzzy
-msgid "[<remote>:]<instance>/<path> <target path>"
-msgstr "[<remote>:]<instance>/<path>"
-
 #: lxc/file.go:116
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
@@ -5772,6 +5780,11 @@ msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 msgstr ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
+
+#: lxc/file.go:909
+#, fuzzy
+msgid "[<remote>:]<instance>[/<path>] [<target path>]"
+msgstr "[<remote>:]<instance>/<path>"
 
 #: lxc/rename.go:19
 msgid "[<remote>:]<instance>[/<snapshot>] <instance>[/<snapshot>]"
@@ -6230,7 +6243,7 @@ msgstr ""
 "lxc export u1 backup0.tar.gz\n"
 "    u1 インスタンスのバックアップ tarball をダウンロードします。"
 
-#: lxc/file.go:911
+#: lxc/file.go:913
 #, fuzzy
 msgid ""
 "lxc file mount foo/root fooroot\n"
@@ -6546,13 +6559,17 @@ msgstr "`lxc profile` コマンドを使ってください"
 msgid "space used"
 msgstr "使用量"
 
-#: lxc/file.go:1000
-#, c-format
-msgid "sshfs has mounted %q on %q"
+#: lxc/file.go:1061
+msgid "sshfs has stopped"
 msgstr ""
 
-#: lxc/file.go:1039
-msgid "sshfs has stopped"
+#: lxc/file.go:1022
+#, c-format
+msgid "sshfs mounting %q on %q"
+msgstr ""
+
+#: lxc/file.go:976
+msgid "sshfs not found. Try SSH SFTP mode using the --listen flag"
 msgstr ""
 
 #: lxc/storage.go:456
@@ -6575,6 +6592,10 @@ msgstr "y"
 #: lxc/image.go:1089
 msgid "yes"
 msgstr "yes"
+
+#, fuzzy
+#~ msgid "Failed finding sshfs: %v\n"
+#~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
 #, fuzzy
 #~ msgid "Creates a new cluster groups"
