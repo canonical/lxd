@@ -1066,6 +1066,12 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 // sshSFTPServer runs an SSH server listening on a random port of 127.0.0.1.
 // It provides an unauthenticated SFTP server connected to the instance's filesystem.
 func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resource remoteResource) error {
+	// Check instance exists.
+	_, _, err := resource.server.GetInstance(instName)
+	if err != nil {
+		return err
+	}
+
 	// Setup a local unauthenticated SSH SFTP server.
 	config := &ssh.ServerConfig{
 		NoClientAuth: true,
