@@ -468,7 +468,28 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 		criteria += fmt.Sprintf("%s = ?", column)
 	}
 
+	keyFields := mapping.NaturalKey()
+
+	fieldInNaturalKey := func(f *Field) bool {
+		for _, keyField := range keyFields {
+			if keyField.Name == f.Name {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	// Find the scalar (join) fields that are part of the natural key.
+	var scalarKeyFields []*Field
 	for _, field := range mapping.ScalarFields() {
+		if fieldInNaturalKey(field) {
+			scalarKeyFields = append(scalarKeyFields, field)
+		}
+	}
+
+	// Generate join statement for scalar fields that are par of the natural key.
+	for _, field := range scalarKeyFields {
 		join := field.Config.Get("join")
 		if join == "" {
 			join = field.Config.Get("leftjoin")
@@ -479,6 +500,7 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 		if field.Config.Get("via") != "" {
 			via = entityTable(field.Config.Get("via"))
 		}
+
 		table += fmt.Sprintf(" JOIN %s ON %s.%s_id = %s.id", right, via, lex.Singular(right), right)
 	}
 

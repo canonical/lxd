@@ -120,7 +120,7 @@ SELECT instances.id, projects.name AS project, instances.name, nodes.name AS nod
 `)
 
 var instanceID = cluster.RegisterStmt(`
-SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id JOIN nodes ON instances.node_id = nodes.id
+SELECT instances.id FROM instances JOIN projects ON instances.project_id = projects.id
   WHERE projects.name = ? AND instances.name = ?
 `)
 
