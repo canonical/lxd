@@ -943,7 +943,11 @@ func (d *Daemon) init() error {
 		}
 	}
 
-	if kernelSupportsIdmappedMounts() {
+	// Detect idmapped mounts support.
+	if shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
+		logger.Info(" - idmapped mounts kernel support: disabled")
+	} else if kernelSupportsIdmappedMounts() {
+		d.os.IdmappedMounts = true
 		logger.Info(" - idmapped mounts kernel support: yes")
 	} else {
 		logger.Info(" - idmapped mounts kernel support: no")
