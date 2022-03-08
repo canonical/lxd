@@ -1803,6 +1803,43 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 	return nil
 }
 
+func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig.Device) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	escapedDeviceName := filesystem.PathNameEncode(deviceName)
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	blockDevName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+
+	err = monitor.RemoveDevice(deviceID)
+	if err != nil {
+		return err
+	}
+
+	waitDuration := time.Duration(time.Second * time.Duration(10))
+	waitUntil := time.Now().Add(waitDuration)
+	for {
+		err = monitor.RemoveBlockDevice(blockDevName)
+		if err == nil {
+			break
+		}
+
+		if api.StatusErrorCheck(err, http.StatusLocked) {
+			time.Sleep(time.Second * time.Duration(2))
+			continue
+		}
+
+		if time.Now().After(waitUntil) {
+			return fmt.Errorf("Failed to detach block device after %v: %w", waitDuration, err)
+		}
+	}
+
+	return nil
+}
+
 // deviceAttachNIC live attaches a NIC device to the instance.
 func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, netIF []deviceConfig.RunConfigItem) error {
 	devName := ""
