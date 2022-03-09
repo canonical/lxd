@@ -1046,7 +1046,7 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 
 		err = dhcpalloc.AllocateTask(opts, func(t *dhcpalloc.Transaction) error {
-			if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil {
+			if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && d.config["ipv4.address"] != "none" {
 				IPv4, err = t.AllocateIPv4()
 
 				// If DHCP not supported, skip error, and will result in total protocol filter.
@@ -1055,7 +1055,7 @@ func (d *nicBridged) setFilters() (err error) {
 				}
 			}
 
-			if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil {
+			if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil && d.config["ipv6.address"] != "none" {
 				IPv6, err = t.AllocateIPv6()
 
 				// If DHCP not supported, skip error, and will result in total protocol filter.
