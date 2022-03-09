@@ -1312,7 +1312,7 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 		mode = idmap.IdmapStorageShiftfs
 	}
 
-	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] || shared.IsTrue(os.Getenv("LXD_SHIFTFS_DISABLE")) {
+	if !d.state.OS.LXCFeatures["idmapped_mounts_v2"] || !d.state.OS.IdmappedMounts {
 		return mode
 	}
 
