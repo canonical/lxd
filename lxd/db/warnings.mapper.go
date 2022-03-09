@@ -66,6 +66,11 @@ var warningDeleteByEntityTypeCodeAndEntityID = cluster.RegisterStmt(`
 DELETE FROM warnings WHERE entity_type_code = ? AND entity_id = ?
 `)
 
+var warningID = cluster.RegisterStmt(`
+SELECT warnings.id FROM warnings
+  WHERE warnings.uuid = ?
+`)
+
 // GetWarnings returns all available warnings.
 // generator: warning GetMany
 func (c *ClusterTx) GetWarnings(filter WarningFilter) ([]Warning, error) {
@@ -208,4 +213,50 @@ func (c *ClusterTx) DeleteWarnings(entityTypeCode int, entityID int) error {
 	}
 
 	return nil
+}
+
+// GetWarningID return the ID of the warning with the given key.
+// generator: warning ID
+func (c *ClusterTx) GetWarningID(uuid string) (int64, error) {
+	stmt := c.stmt(warningID)
+	rows, err := stmt.Query(uuid)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to get \"warnings\" ID: %w", err)
+	}
+
+	defer rows.Close()
+
+	// Ensure we read one and only one row.
+	if !rows.Next() {
+		return -1, ErrNoSuchObject
+	}
+	var id int64
+	err = rows.Scan(&id)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to scan ID: %w", err)
+	}
+
+	if rows.Next() {
+		return -1, fmt.Errorf("More than one row returned")
+	}
+	err = rows.Err()
+	if err != nil {
+		return -1, fmt.Errorf("Result set failure: %w", err)
+	}
+
+	return id, nil
+}
+
+// WarningExists checks if a warning with the given key exists.
+// generator: warning Exists
+func (c *ClusterTx) WarningExists(uuid string) (bool, error) {
+	_, err := c.GetWarningID(uuid)
+	if err != nil {
+		if err == ErrNoSuchObject {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
 }
