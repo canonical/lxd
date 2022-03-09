@@ -214,10 +214,13 @@ func (d *nicSRIOV) postStop() error {
 
 	v := d.volatileGet()
 
+	network.SRIOVVirtualFunctionMutex.Lock()
 	err := networkSRIOVRestoreVF(d.deviceCommon, true, v)
 	if err != nil {
+		network.SRIOVVirtualFunctionMutex.Unlock()
 		return err
 	}
+	network.SRIOVVirtualFunctionMutex.Unlock()
 
 	return nil
 }
