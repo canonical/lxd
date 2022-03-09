@@ -662,6 +662,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 				"--xattrs-include=*",
 				"--restrict",
 				"--force-local",
+				"--numeric-owner",
 				"-C", mountPath,
 			}...)
 
