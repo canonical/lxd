@@ -74,6 +74,7 @@ type OS struct {
 	// Kernel features
 	CloseRange              bool
 	CoreScheduling          bool
+	IdmappedMounts          bool
 	NetnsGetifaddrs         bool
 	PidFdSetns              bool
 	SeccompListener         bool
