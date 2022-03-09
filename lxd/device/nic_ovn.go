@@ -552,10 +552,13 @@ func (d *nicOVN) postStop() error {
 	if d.config["host_name"] != "" && shared.PathExists(fmt.Sprintf("/sys/class/net/%s", d.config["host_name"])) {
 		if d.config["acceleration"] == "sriov" {
 			// Restoring host-side interface.
+			network.SRIOVVirtualFunctionMutex.Lock()
 			err := networkSRIOVRestoreVF(d.deviceCommon, false, v)
 			if err != nil {
+				network.SRIOVVirtualFunctionMutex.Unlock()
 				return err
 			}
+			network.SRIOVVirtualFunctionMutex.Unlock()
 
 			link := &ip.Link{Name: d.config["host_name"]}
 			err = link.SetDown()
