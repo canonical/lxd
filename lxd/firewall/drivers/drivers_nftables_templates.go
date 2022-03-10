@@ -188,24 +188,31 @@ chain in{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .ipv4Nets -}}
+	iifname "{{.hostName}}" ether type ip ip saddr 0.0.0.0 ip daddr 255.255.255.255 udp dport 67 accept
+	{{range .ipv4Nets -}}
+	iifname "{{$.hostName}}" ether type arp arp saddr ip {{.}} accept
+	iifname "{{$.hostName}}" ether type ip ip saddr {{.}} accept
+	{{end}}
+	iifname "{{.hostName}}" ether type arp drop
+	iifname "{{.hostName}}" ether type ip drop
+	{{- end}}
 	{{if .ipv4FilterAll -}}
 	iifname "{{.hostName}}" ether type arp drop
 	iifname "{{.hostName}}" ether type ip drop
 	{{- end}}
-	{{if .ipv4Addr -}}
-	iifname "{{.hostName}}" ether type arp arp saddr ip != {{.ipv4Addr}} drop
-	iifname "{{.hostName}}" ether type ip ip saddr 0.0.0.0 ip daddr 255.255.255.255 udp dport 67 accept
-	iifname "{{.hostName}}" ether type ip ip saddr != {{.ipv4Addr}} drop
+	{{if .ipv6Nets -}}
+	iifname "{{.hostName}}" ether type ip6 ip6 saddr fe80::/10 ip6 daddr ff02::1:2 udp dport 547 accept
+	iifname "{{.hostName}}" ether type ip6 ip6 saddr fe80::/10 ip6 daddr ff02::2 icmpv6 type 133 accept
+	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
+	{{ range .ipv6Nets -}}
+	iifname "{{$.hostName}}" ether type ip6 icmpv6 type 136 @nh,384,{{.nBits}} {{.hexPrefix}} accept
+	iifname "{{$.hostName}}" ether type ip6 ip6 saddr {{.net}} accept
+	{{end}}
+	iifname "{{.hostName}}" ether type ip6 drop
 	{{- end}}
 	{{if .ipv6FilterAll -}}
 	iifname "{{.hostName}}" ether type ip6 drop
-	{{- end}}
-	{{if .ipv6Addr -}}
-	iifname "{{.hostName}}" ether type ip6 ip6 saddr fe80::/10 ip6 daddr ff02::1:2 udp dport 547 accept
-	iifname "{{.hostName}}" ether type ip6 ip6 saddr fe80::/10 ip6 daddr ff02::2 icmpv6 type 133 accept
-	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,384,128 != {{.ipv6AddrHex}} drop
-	iifname "{{.hostName}}" ether type ip6 ip6 saddr != {{.ipv6Addr}} drop
-	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
 	{{- end}}
 	{{if .filterUnwantedFrames -}}
 	iifname "{{.hostName}}" ether type != {arp, ip, ip6} drop
@@ -217,21 +224,28 @@ chain fwd{{.chainSeparator}}{{.deviceLabel}} {
 	iifname "{{.hostName}}" ether saddr != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type arp arp saddr ether != {{.hwAddr}} drop
 	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,528,48 != {{.hwAddrHex}} drop
+	{{if .ipv4Nets -}}
+	{{range .ipv4Nets -}}
+	iifname "{{$.hostName}}" ether type arp arp saddr ip {{.}} accept
+	iifname "{{$.hostName}}" ether type ip ip saddr {{.}} accept
+	{{end}}
+	iifname "{{.hostName}}" ether type arp drop
+	iifname "{{.hostName}}" ether type ip drop
+	{{end}}
 	{{if .ipv4FilterAll -}}
 	iifname "{{.hostName}}" ether type arp drop
 	iifname "{{.hostName}}" ether type ip drop
 	{{- end}}
-	{{if .ipv4Addr -}}
-	iifname "{{.hostName}}" ether type arp arp saddr ip != {{.ipv4Addr}} drop
-	iifname "{{.hostName}}" ether type ip ip saddr != {{.ipv4Addr}} drop
+	{{if .ipv6Nets -}}
+	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
+	{{range .ipv6Nets}}
+	iifname "{{$.hostName}}" ether type ip6 ip6 saddr {{.net}} accept
+	iifname "{{$.hostName}}" ether type ip6 icmpv6 type 136 @nh,384,{{.nBits}} {{.hexPrefix}} accept
+	{{end}}
+	iifname "{{.hostName}}" ether type ip6 drop
 	{{- end}}
 	{{if .ipv6FilterAll -}}
 	iifname "{{.hostName}}" ether type ip6 drop
-	{{- end}}
-	{{if .ipv6Addr -}}
-	iifname "{{.hostName}}" ether type ip6 ip6 saddr != {{.ipv6Addr}} drop
-	iifname "{{.hostName}}" ether type ip6 icmpv6 type 136 @nh,384,128 != {{.ipv6AddrHex}} drop
-	iifname "{{.hostName}}" ether type ip6 icmpv6 type 134 drop
 	{{- end}}
 	{{if .filterUnwantedFrames -}}
 	iifname "{{.hostName}}" ether type != {arp, ip, ip6} drop
