@@ -95,31 +95,6 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 		return nil, fmt.Errorf("Failed to fetch from \"certificates\" table: %w", err)
 	}
 
-	certificateProjects, err := c.GetCertificateProjects()
-	if err != nil {
-		return nil, err
-	}
-
-	for i := range objects {
-		objects[i].Projects = make([]string, 0)
-		if refIDs, ok := certificateProjects[objects[i].ID]; ok {
-			for _, refID := range refIDs {
-				projectURIs, err := c.GetProjectURIs(ProjectFilter{ID: &refID})
-				if err != nil {
-					return nil, err
-				}
-
-				uris, err := urlsToResourceNames("/projects", projectURIs...)
-				if err != nil {
-					return nil, err
-				}
-
-				projectURIs = uris
-				objects[i].Projects = append(objects[i].Projects, projectURIs...)
-			}
-		}
-	}
-
 	return objects, nil
 }
 
@@ -226,13 +201,6 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 		return -1, fmt.Errorf("Failed to fetch \"certificates\" entry ID: %w", err)
 	}
 
-	// Update association table.
-	object.ID = int(id)
-	err = c.UpdateCertificateProjects(object)
-	if err != nil {
-		return -1, fmt.Errorf("Could not update association table: %w", err)
-	}
-
 	return id, nil
 }
 
@@ -295,13 +263,6 @@ func (c *ClusterTx) UpdateCertificate(fingerprint string, object Certificate) er
 
 	if n != 1 {
 		return fmt.Errorf("Query updated %d rows instead of 1", n)
-	}
-
-	// Update association table.
-	object.ID = int(id)
-	err = c.UpdateCertificateProjects(object)
-	if err != nil {
-		return fmt.Errorf("Could not update association table: %w", err)
 	}
 
 	return nil
