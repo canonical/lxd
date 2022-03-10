@@ -385,7 +385,7 @@ func (d Nftables) instanceDeviceLabel(projectName, instanceName, deviceName stri
 }
 
 // InstanceSetupBridgeFilter sets up the filter rules to apply bridged device IP filtering.
-func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4 net.IP, IPv6 net.IP, _ bool) error {
+func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet, parentManaged bool) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	mac, err := net.ParseMAC(hwAddr)
@@ -405,26 +405,40 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 	}
 
 	// Filter unwanted ethernet frames when using IP filtering.
-	if IPv4 != nil || IPv6 != nil {
+	if len(IPv4Nets)+len(IPv6Nets) > 0 {
 		tplFields["filterUnwantedFrames"] = true
 	}
 
-	if IPv4 != nil {
-		if IPv4.String() == FilterIPv4All {
-			tplFields["ipv4FilterAll"] = true
-		} else {
-			tplFields["ipv4Addr"] = IPv4.String()
-		}
+	if IPv4Nets != nil && len(IPv4Nets) == 0 {
+		tplFields["ipv4FilterAll"] = true
 	}
 
-	if IPv6 != nil {
-		if IPv6.String() == FilterIPv6All {
-			tplFields["ipv6FilterAll"] = true
-		} else {
-			tplFields["ipv6Addr"] = IPv6.String()
-			tplFields["ipv6AddrHex"] = fmt.Sprintf("0x%s", hex.EncodeToString(IPv6))
-		}
+	ipv4Nets := make([]string, 0, len(IPv4Nets))
+	for _, ipv4Net := range IPv4Nets {
+		ipv4Nets = append(ipv4Nets, ipv4Net.String())
 	}
+
+	if IPv6Nets != nil && len(IPv6Nets) == 0 {
+		tplFields["ipv6FilterAll"] = true
+	}
+
+	ipv6Nets := make([]map[string]string, 0, len(IPv6Nets))
+	for _, ipv6Net := range IPv6Nets {
+		ones, _ := ipv6Net.Mask.Size()
+		prefix, err := subnetPrefixHex(ipv6Net)
+		if err != nil {
+			return err
+		}
+
+		ipv6Nets = append(ipv6Nets, map[string]string{
+			"net":       ipv6Net.String(),
+			"nBits":     strconv.Itoa(ones),
+			"hexPrefix": fmt.Sprintf("0x%s", prefix),
+		})
+	}
+
+	tplFields["ipv4Nets"] = ipv4Nets
+	tplFields["ipv6Nets"] = ipv6Nets
 
 	err = d.applyNftConfig(nftablesInstanceBridgeFilter, tplFields)
 	if err != nil {
@@ -435,7 +449,7 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 }
 
 // InstanceClearBridgeFilter removes any filter rules that were added to apply bridged device IP filtering.
-func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, _ net.IP, _ net.IP) error {
+func (d Nftables) InstanceClearBridgeFilter(projectName string, instanceName string, deviceName string, parentName string, hostName string, hwAddr string, _ []*net.IPNet, _ []*net.IPNet) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
 
 	// Remove chains created by bridge filter rules.
