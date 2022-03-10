@@ -865,7 +865,7 @@ func (d Xtables) InstanceClearBridgeFilter(projectName string, instanceName stri
 		fieldsLen := len(fields)
 
 		for _, rule := range rules {
-			// Rule doesn't match if the field lenths aren't the same, move on.
+			// Rule doesn't match if the field lengths aren't the same, move on.
 			if len(rule) != fieldsLen {
 				continue
 			}
