@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-08 12:13+0000\n"
+"POT-Creation-Date: 2022-03-10 10:00-0500\n"
 "PO-Revision-Date: 2020-04-27 19:48+0000\n"
 "Last-Translator: Predatorix Phoenix <predatorix@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -2055,17 +2055,17 @@ msgstr "FINGERABDRUCK"
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1114
+#: lxc/file.go:1120
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1137
+#: lxc/file.go:1143
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1164
+#: lxc/file.go:1170
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -2080,7 +2080,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:1077
+#: lxc/file.go:1083
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2090,7 +2090,7 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:1082
+#: lxc/file.go:1088
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2100,7 +2100,7 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Failed starting sshfs: %w"
 msgstr "Akzeptiere Zertifikat"
 
-#: lxc/file.go:1102
+#: lxc/file.go:1108
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2139,7 +2139,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/file.go:1094
+#: lxc/file.go:1100
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2375,12 +2375,12 @@ msgstr "Anhalten des Containers fehlgeschlagen!"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1186
+#: lxc/file.go:1192
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/file.go:1175
+#: lxc/file.go:1181
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -2556,7 +2556,7 @@ msgstr ""
 msgid "Instance disconnected"
 msgstr "Entferntes Administrator Passwort"
 
-#: lxc/file.go:1177
+#: lxc/file.go:1183
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3281,8 +3281,8 @@ msgstr "Kein Zertifikat für diese Verbindung"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -4405,12 +4405,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1107
+#: lxc/file.go:1113
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1108
+#: lxc/file.go:1114
 #, fuzzy, c-format
 msgid "SSH client disconnected %q"
 msgstr "Entferntes Administrator Passwort"
@@ -5273,7 +5273,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
 
-#: lxc/file.go:1130
+#: lxc/file.go:1136
 #, fuzzy, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -6891,8 +6891,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
@@ -6953,9 +6953,17 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Akzeptiere Zertifikat"
+
+#, fuzzy
+#~ msgid "[<remote>:]<instance>/<path> <target path>"
+#~ msgstr ""
+#~ "Löscht einen Container oder Container Sicherungspunkt.\n"
+#~ "\n"
+#~ "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
+#~ "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
 #, fuzzy
 #~ msgid "Creates a new cluster groups"
@@ -6969,7 +6977,7 @@ msgstr ""
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Kein Zertifikat für diese Verbindung"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Profil %s wurde auf %s angewandt\n"
 
@@ -7884,3 +7892,23 @@ msgstr ""
 #, fuzzy
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Gespeichertes Nutzerzertifikat auf dem Server: "
+
+#, fuzzy
+#~ msgid "Remote disconnected"
+#~ msgstr "Entferntes Administrator Passwort"
+
+#, fuzzy
+#~ msgid "Failed to connect to cluster member"
+#~ msgstr "kann nicht zum selben Container Namen kopieren"
+
+#, fuzzy, c-format
+#~ msgid "Invalid key=value configuration: %s"
+#~ msgstr "Alternatives config Verzeichnis."
+
+#, fuzzy
+#~ msgid "Removes a cluster member from a cluster group"
+#~ msgstr "der Name des Ursprung Containers muss angegeben werden"
+
+#, fuzzy, c-format
+#~ msgid "The key %q doest not exist on cluster member %q"
+#~ msgstr "der Name des Ursprung Containers muss angegeben werden"

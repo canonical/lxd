@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-08 12:13+0000\n"
+"POT-Creation-Date: 2022-03-10 10:00-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/linux-containers/"
@@ -81,19 +81,16 @@ msgstr ""
 "###   zfs.pool_name: default"
 
 #: lxc/config_trust.go:232
-#, fuzzy
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### Note that the fingerprint is shown but cannot be changed"
 msgstr ""
-"### Esta es una representación yaml de las propiedades de la imagen.\n"
-"### Cualquier línea que empiece con un '# será ignorada..\n"
+"### Esta es una representación YAML del certificado.\n"
+"### Cualquier renglón que empiece por un «#» se ignorará.\n"
 "###\n"
-"### Cada propiedad es representada por una única línea:\n"
-"### Un ejemplo sería:\n"
-"###  description: My custom image"
+"### Observe que la huella se muestra pero no puede modificarse"
 
 #: lxc/cluster_group.go:356
 #, fuzzy
@@ -1966,17 +1963,17 @@ msgstr "HUELLA DIGITAL"
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1114
+#: lxc/file.go:1120
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1137
+#: lxc/file.go:1143
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1164
+#: lxc/file.go:1170
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -1991,7 +1988,7 @@ msgstr "Nombre del Miembro del Cluster"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:1077
+#: lxc/file.go:1083
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Acepta certificado"
@@ -2001,7 +1998,7 @@ msgstr "Acepta certificado"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:1082
+#: lxc/file.go:1088
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Acepta certificado"
@@ -2011,7 +2008,7 @@ msgstr "Acepta certificado"
 msgid "Failed starting sshfs: %w"
 msgstr "Acepta certificado"
 
-#: lxc/file.go:1102
+#: lxc/file.go:1108
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Acepta certificado"
@@ -2050,7 +2047,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr "Perfil para aplicar al nuevo contenedor"
 
-#: lxc/file.go:1094
+#: lxc/file.go:1100
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Acepta certificado"
@@ -2277,12 +2274,12 @@ msgstr "Aliases:"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1186
+#: lxc/file.go:1192
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "Copiando la imagen: %s"
 
-#: lxc/file.go:1175
+#: lxc/file.go:1181
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "Copiando la imagen: %s"
@@ -2455,7 +2452,7 @@ msgstr "Nombre del contenedor es: %s"
 msgid "Instance disconnected"
 msgstr ""
 
-#: lxc/file.go:1177
+#: lxc/file.go:1183
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3136,8 +3133,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -4226,12 +4223,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1107
+#: lxc/file.go:1113
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1108
+#: lxc/file.go:1114
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr ""
@@ -5060,7 +5057,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1130
+#: lxc/file.go:1136
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -6232,8 +6229,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
@@ -6294,9 +6291,13 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Acepta certificado"
+
+#, fuzzy
+#~ msgid "[<remote>:]<instance>/<path> <target path>"
+#~ msgstr "No se puede proveer el nombre del container a la lista"
 
 #, fuzzy
 #~ msgid "Manage network zone record entriess"
@@ -6381,3 +6382,19 @@ msgstr ""
 #, fuzzy
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado del cliente almacenado en el servidor: "
+
+#, c-format
+#~ msgid "Can't read from stdin: %s"
+#~ msgstr "No se peude leer desde stdin: %s"
+
+#, fuzzy, c-format
+#~ msgid "Invalid key=value configuration: %s"
+#~ msgstr "Nombre del contenedor es: %s"
+
+#, fuzzy
+#~ msgid "Removes a cluster member from a cluster group"
+#~ msgstr "Nombre del Miembro del Cluster"
+
+#, fuzzy, c-format
+#~ msgid "The key %q doest not exist on cluster member %q"
+#~ msgstr "Nombre del Miembro del Cluster"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-08 12:13+0000\n"
+"POT-Creation-Date: 2022-03-10 10:00-0500\n"
 "PO-Revision-Date: 2020-10-08 08:16+0000\n"
 "Last-Translator: Artem <KovalevArtem.ru@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -16,8 +16,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
 "X-Generator: Weblate 4.3-dev\n"
 
 #: lxc/storage.go:229
@@ -2002,17 +2002,17 @@ msgstr ""
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1114
+#: lxc/file.go:1120
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1137
+#: lxc/file.go:1143
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1164
+#: lxc/file.go:1170
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -2027,7 +2027,7 @@ msgstr "Копирование образа: %s"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:1077
+#: lxc/file.go:1083
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Принять сертификат"
@@ -2037,7 +2037,7 @@ msgstr "Принять сертификат"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:1082
+#: lxc/file.go:1088
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Принять сертификат"
@@ -2047,7 +2047,7 @@ msgstr "Принять сертификат"
 msgid "Failed starting sshfs: %w"
 msgstr "Принять сертификат"
 
-#: lxc/file.go:1102
+#: lxc/file.go:1108
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Принять сертификат"
@@ -2085,7 +2085,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr ""
 
-#: lxc/file.go:1094
+#: lxc/file.go:1100
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Принять сертификат"
@@ -2312,12 +2312,12 @@ msgstr "Псевдонимы:"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1186
+#: lxc/file.go:1192
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/file.go:1175
+#: lxc/file.go:1181
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -2492,7 +2492,7 @@ msgstr "Имя контейнера: %s"
 msgid "Instance disconnected"
 msgstr ""
 
-#: lxc/file.go:1177
+#: lxc/file.go:1183
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3185,8 +3185,8 @@ msgstr "Копирование образа: %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -4284,12 +4284,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1107
+#: lxc/file.go:1113
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1108
+#: lxc/file.go:1114
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr ""
@@ -5123,7 +5123,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1130
+#: lxc/file.go:1136
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -6680,8 +6680,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
@@ -6742,9 +6742,16 @@ msgstr ""
 msgid "yes"
 msgstr "да"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Принять сертификат"
+
+#, fuzzy
+#~ msgid "[<remote>:]<instance>/<path> <target path>"
+#~ msgstr ""
+#~ "Изменение состояния одного или нескольких контейнеров %s.\n"
+#~ "\n"
+#~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
 #, fuzzy
 #~ msgid "Creates a new cluster groups"
@@ -6960,3 +6967,19 @@ msgstr "да"
 #, fuzzy
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Сертификат клиента хранится на сервере: "
+
+#, c-format
+#~ msgid "Can't read from stdin: %s"
+#~ msgstr "Невозможно прочитать из стандартного ввода: %s"
+
+#, fuzzy, c-format
+#~ msgid "Invalid key=value configuration: %s"
+#~ msgstr "Имя контейнера: %s"
+
+#, fuzzy
+#~ msgid "Removes a cluster member from a cluster group"
+#~ msgstr "Копирование образа: %s"
+
+#, fuzzy, c-format
+#~ msgid "The key %q doest not exist on cluster member %q"
+#~ msgstr "Копирование образа: %s"
