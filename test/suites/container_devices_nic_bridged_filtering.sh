@@ -146,6 +146,8 @@ test_container_devices_nic_bridged_filtering() {
   lxc config device set "${ctPrefix}A" eth0 ipv4.address 192.0.2.2
   lxc config device set "${ctPrefix}A" eth0 security.mac_filtering false
   lxc config device set "${ctPrefix}A" eth0 security.ipv4_filtering true
+  lxc config device set "${ctPrefix}A" eth0 ipv4.routes 198.51.100.0/24
+  lxc config device set "${ctPrefix}A" eth0 ipv4.routes.external 203.0.113.0/24
 
   # Check MAC and IPv4 filter is present in firewall.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
@@ -156,6 +158,14 @@ test_container_devices_nic_bridged_filtering() {
     fi
     if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "192.0.2.2" ; then
         echo "IPv4 filter not applied as part of ipv4_filtering in ebtables"
+        false
+    fi
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "198.51.100.0/24" ; then
+        echo "IPv4 filter for ipv4.routes not applied as part of ipv4_filtering in ebtables"
+        false
+    fi
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "203.0.113.0/24" ; then
+        echo "IPv4 filter for ipv4.routes.external not applied as part of ipv4_filtering in ebtables"
         false
     fi
   else
@@ -203,6 +213,42 @@ test_container_devices_nic_bridged_filtering() {
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
   if lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
       echo "IPv4 filter not working to other container"
+      false
+  fi
+
+  # Add a fake IP within ipv4.routes range (198.51.100.0/24)
+  lxc exec "${ctPrefix}A" -- ip a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 198.51.100.1/32 dev eth0
+  lxc exec "${ctPrefix}A" -- ip r add 192.0.2.0/24 dev eth0
+  lxc exec "${ctPrefix}B" -- ip r add 198.51.100.0/24 dev eth0
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv4.routes subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
+      echo "IPv4 filter is preventing traffic from within ipv4.routes"
+      false
+  fi
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv4.routes subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
+      echo "IPv4 filter is preventing traffic from within ipv4.routes"
+      false
+  fi
+
+  # Add a fake IP within ipv4.routes.external range (203.0.113.0/24)
+  lxc exec "${ctPrefix}A" -- ip a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip a add 203.0.113.1/32 dev eth0
+  lxc exec "${ctPrefix}A" -- ip r add 192.0.2.0/24 dev eth0
+  lxc exec "${ctPrefix}B" -- ip r add 203.0.113.0/24 dev eth0
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv4.routes.external subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.1; then
+      echo "IPv4 filter is preventing traffic from within ipv4.routes.external"
+      false
+  fi
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv4.routes.external subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping -c2 -W5 192.0.2.3; then
+      echo "IPv4 filter is preventing traffic from within ipv4.routes.external"
       false
   fi
 
