@@ -66,7 +66,6 @@ type Certificate struct {
 	Name        string
 	Certificate string
 	Restricted  bool
-	Projects    []string
 }
 
 // ToAPIType returns the API equivalent type.
@@ -90,7 +89,6 @@ func (cert *Certificate) ToAPI() api.Certificate {
 	resp.Certificate = cert.Certificate
 	resp.Name = cert.Name
 	resp.Restricted = cert.Restricted
-	resp.Projects = cert.Projects
 	resp.Type = cert.ToAPIType()
 
 	return resp
