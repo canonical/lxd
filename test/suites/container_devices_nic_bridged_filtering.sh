@@ -45,38 +45,6 @@ test_container_devices_nic_bridged_filtering() {
   # Modify profile nictype and parent in atomic operation to ensure validation passes.
   lxc profile show "${ctPrefix}" | sed  "s/nictype: p2p/nictype: bridged\\n    parent: ${brName}/" | lxc profile edit "${ctPrefix}"
 
-  # Check filtering works when ipv4 and ipv6 addresses are set to none on the nic device and the parent network is managed.
-  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
-  lxc config device add "${ctPrefix}A" eth0 nic \
-    name=eth0 \
-    nictype=bridged \
-    parent="${brName}" \
-    security.ipv4_filtering=true \
-    security.ipv6_filtering=true \
-    ipv4.address=none \
-    ipv6.address=none
-  lxc start "${ctPrefix}A"
-  ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
-
-  # When IPv{n} addresses are "none", every packet should be dropped.
-  if [ "$firewallDriver" = "xtables" ]; then
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
-    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
-  else
-    for table in "in" "fwd"
-    do
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0806 drop" # ARP
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0800 drop" # IPv4
-      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x86dd drop" # IPv6
-    done
-  fi
-
-  lxc delete -f "${ctPrefix}A"
-
   # Launch first container.
   lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
   lxc config device add "${ctPrefix}A" eth0 nic nictype=nic name=eth0 nictype=bridged parent="${brName}"
@@ -470,6 +438,38 @@ test_container_devices_nic_bridged_filtering() {
 
   lxc delete -f "${ctPrefix}A"
   lxc delete -f "${ctPrefix}B"
+
+  # Check filtering works when ipv4 and ipv6 addresses are set to none on the nic device and the parent network is managed.
+  lxc init testimage "${ctPrefix}A" -p "${ctPrefix}"
+  lxc config device add "${ctPrefix}A" eth0 nic \
+    name=eth0 \
+    nictype=bridged \
+    parent="${brName}" \
+    security.ipv4_filtering=true \
+    security.ipv6_filtering=true \
+    ipv4.address=none \
+    ipv6.address=none
+  lxc start "${ctPrefix}A"
+  ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
+
+  # When IPv{n} addresses are "none", every packet should be dropped.
+  if [ "$firewallDriver" = "xtables" ]; then
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p ARP -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv4 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A INPUT -p IPv6 -i ${ctAHost} -j DROP"
+    ebtables --concurrent -L --Lmac2 --Lx | grep -e "-A FORWARD -p IPv6 -i ${ctAHost} -j DROP"
+  else
+    for table in "in" "fwd"
+    do
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0806 drop" # ARP
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x0800 drop" # IPv4
+      nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether type 0x86dd drop" # IPv6
+    done
+  fi
+
+  lxc delete -f "${ctPrefix}A"
 
   # Check filtering works with non-DHCP statically defined IPs and a bridge with no IP address and DHCP disabled.
   lxc network set "${brName}" ipv4.dhcp false
