@@ -1167,11 +1167,35 @@ func (d Xtables) matchEbtablesRule(activeRule []string, matchRule []string, dele
 			continue
 		}
 
-		// Mangle to line up with different versions of ebtables.
-		active := strings.Replace(activeRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1)
-		match := strings.Replace(matchRule[i], "/ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "", -1)
-		active = strings.Replace(active, "fe80::/ffc0::", "fe80::/10", -1)
-		match = strings.Replace(match, "fe80::/ffc0::", "fe80::/10", -1)
+		active := activeRule[i]
+		match := matchRule[i]
+
+		// When adding a rule ebtables expects subnets to be of the form "<IP address>/<subnet mask>".
+		// However when active rules are printed, subnets are expressed in CIDR format.
+		// Additionally, if the subnet has a full mask (i.e. it is IP address, e.g. 10.0.0.0/32) then
+		// ebtables will omit the range and just print an IP. For example, a generated subnet "198.0.2.0/255.255.255.0"
+		// should match the active subnet "198.0.2.0/24", and a generated subnet "198.0.2.1/255.255.255.255" should match
+		// the active IP address "198.0.2.1".
+		//
+		// First, check that the match is a subnet and that the IPs are the same.
+		matchIPMaskStr := strings.SplitN(match, "/", 2)
+		if len(matchIPMaskStr) == 2 && matchIPMaskStr[0] == strings.Split(active, "/")[0] {
+			// If the active subnet is a CIDR string we have a match if the masks are identical.
+			activeIP, activeIPNet, err := net.ParseCIDR(active)
+			if err == nil {
+				return subnetMask(activeIPNet) == matchIPMaskStr[1]
+			}
+
+			// If the active subnet is a single IP then we have a match if the generated mask is a full mask.
+			activeIP = net.ParseIP(active)
+			if activeIP != nil {
+				if activeIP.To4() != nil {
+					return matchIPMaskStr[1] == "255.255.255.255"
+				}
+
+				return matchIPMaskStr[1] == "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+			}
+		}
 
 		// Check the match rule field matches the active rule field.
 		// If they don't match, then this isn't one of our rules.
