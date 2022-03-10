@@ -169,12 +169,16 @@ ORDER BY certificates.fingerprint
 
 // CreateCertificate stores a CertInfo object in the db, it will ignore the ID
 // field from the CertInfo.
-func (c *Cluster) CreateCertificate(cert Certificate) (int64, error) {
+func (c *Cluster) CreateCertificate(cert Certificate, projectNames []string) (int64, error) {
 	var id int64
 	var err error
 	err = c.Transaction(func(tx *ClusterTx) error {
 		id, err = tx.CreateCertificate(cert)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return tx.UpdateCertificateProjects(int(id), projectNames)
 	})
 	return id, err
 }
@@ -188,9 +192,20 @@ func (c *Cluster) DeleteCertificate(fingerprint string) error {
 }
 
 // UpdateCertificate updates a certificate in the db.
-func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate) error {
+func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate, projectNames []string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.UpdateCertificate(fingerprint, cert)
+		// Get the ID for the certificate.
+		id, err := tx.GetCertificateID(fingerprint)
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateCertificate(fingerprint, cert)
+		if err != nil {
+			return err
+		}
+
+		return tx.UpdateCertificateProjects(int(id), projectNames)
 	})
 	return err
 }
