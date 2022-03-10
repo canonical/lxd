@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-08 12:13+0000\n"
+"POT-Creation-Date: 2022-03-10 10:00-0500\n"
 "PO-Revision-Date: 2019-09-06 07:09+0000\n"
 "Last-Translator: Stéphane Graber <stgraber@stgraber.org>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -2007,17 +2007,17 @@ msgstr ""
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1114
+#: lxc/file.go:1120
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1137
+#: lxc/file.go:1143
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1164
+#: lxc/file.go:1170
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -2032,7 +2032,7 @@ msgstr "Nome de membro do cluster"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:1077
+#: lxc/file.go:1083
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Aceitar certificado"
@@ -2042,7 +2042,7 @@ msgstr "Aceitar certificado"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:1082
+#: lxc/file.go:1088
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Aceitar certificado"
@@ -2052,7 +2052,7 @@ msgstr "Aceitar certificado"
 msgid "Failed starting sshfs: %w"
 msgstr "Aceitar certificado"
 
-#: lxc/file.go:1102
+#: lxc/file.go:1108
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Aceitar certificado"
@@ -2090,7 +2090,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr ""
 
-#: lxc/file.go:1094
+#: lxc/file.go:1100
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Aceitar certificado"
@@ -2321,12 +2321,12 @@ msgstr ""
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1186
+#: lxc/file.go:1192
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "Copiar a imagem: %s"
 
-#: lxc/file.go:1175
+#: lxc/file.go:1181
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "Copiar a imagem: %s"
@@ -2498,7 +2498,7 @@ msgstr ""
 msgid "Instance disconnected"
 msgstr ""
 
-#: lxc/file.go:1177
+#: lxc/file.go:1183
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -3183,8 +3183,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -4281,12 +4281,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1107
+#: lxc/file.go:1113
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1108
+#: lxc/file.go:1114
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr ""
@@ -5131,7 +5131,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1130
+#: lxc/file.go:1136
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -6233,8 +6233,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
@@ -6295,9 +6295,13 @@ msgstr ""
 msgid "yes"
 msgstr "sim"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Aceitar certificado"
+
+#, fuzzy
+#~ msgid "[<remote>:]<instance>/<path> <target path>"
+#~ msgstr "Editar templates de arquivo do container"
 
 #, fuzzy
 #~ msgid "Creates a new cluster groups"
@@ -6307,7 +6311,7 @@ msgstr "sim"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Criar novas redes"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Versão do cliente: %s\n"
 
@@ -6332,3 +6336,19 @@ msgstr "sim"
 #, fuzzy
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado do cliente armazenado no servidor: "
+
+#, c-format
+#~ msgid "Can't read from stdin: %s"
+#~ msgstr "Não é possível ler stdin: %s"
+
+#, fuzzy, c-format
+#~ msgid "Invalid key=value configuration: %s"
+#~ msgstr "par de chave=valor inválido %s"
+
+#, fuzzy
+#~ msgid "Removes a cluster member from a cluster group"
+#~ msgstr "Nome de membro do cluster"
+
+#, fuzzy, c-format
+#~ msgid "The key %q doest not exist on cluster member %q"
+#~ msgstr "Nome de membro do cluster"

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-08 12:13+0000\n"
+"POT-Creation-Date: 2022-03-10 10:00-0500\n"
 "PO-Revision-Date: 2020-11-05 02:45+0000\n"
 "Last-Translator: wdggg <wdggg7@gmail.com>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
@@ -1820,17 +1820,17 @@ msgstr ""
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1114
+#: lxc/file.go:1120
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1137
+#: lxc/file.go:1143
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1164
+#: lxc/file.go:1170
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -1845,7 +1845,7 @@ msgstr ""
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:1077
+#: lxc/file.go:1083
 #, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr ""
@@ -1855,7 +1855,7 @@ msgstr ""
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:1082
+#: lxc/file.go:1088
 #, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr ""
@@ -1865,7 +1865,7 @@ msgstr ""
 msgid "Failed starting sshfs: %w"
 msgstr ""
 
-#: lxc/file.go:1102
+#: lxc/file.go:1108
 #, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr ""
@@ -1903,7 +1903,7 @@ msgstr ""
 msgid "Failed to get the new instance name"
 msgstr ""
 
-#: lxc/file.go:1094
+#: lxc/file.go:1100
 #, c-format
 msgid "Failed to listen for connection: %w"
 msgstr ""
@@ -2124,12 +2124,12 @@ msgstr ""
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1186
+#: lxc/file.go:1192
 #, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr ""
 
-#: lxc/file.go:1175
+#: lxc/file.go:1181
 #, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr ""
@@ -2299,7 +2299,7 @@ msgstr ""
 msgid "Instance disconnected"
 msgstr ""
 
-#: lxc/file.go:1177
+#: lxc/file.go:1183
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -2965,8 +2965,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -4028,12 +4028,12 @@ msgstr ""
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1107
+#: lxc/file.go:1113
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1108
+#: lxc/file.go:1114
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr ""
@@ -4845,7 +4845,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1130
+#: lxc/file.go:1136
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -5882,8 +5882,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
