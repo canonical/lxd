@@ -21,7 +21,6 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
-	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
@@ -1035,6 +1034,9 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}
 
+	// Use a clone of the config. This can be amended with the allocated IPs so that the correct ones are added to the firewall.
+	config := d.config.Clone()
+
 	// If parent bridge is managed, allocate the static IPs (if needed).
 	if d.network != nil && (IPv4 == nil || IPv6 == nil) {
 		opts := &dhcpalloc.Options{
@@ -1046,20 +1048,26 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 
 		err = dhcpalloc.AllocateTask(opts, func(t *dhcpalloc.Transaction) error {
-			if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && d.config["ipv4.address"] != "none" {
+			if shared.IsTrue(config["security.ipv4_filtering"]) && IPv4 == nil && config["ipv4.address"] != "none" {
 				IPv4, err = t.AllocateIPv4()
+				config["ipv4.address"] = IPv4.String()
 
-				// If DHCP not supported, skip error, and will result in total protocol filter.
-				if err != nil && err != dhcpalloc.ErrDHCPNotSupported {
+				// If DHCP not supported, skip error and set the address to "none", and will result in total protocol filter.
+				if err == dhcpalloc.ErrDHCPNotSupported {
+					config["ipv4.address"] = "none"
+				} else if err != nil {
 					return err
 				}
 			}
 
-			if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil && d.config["ipv6.address"] != "none" {
+			if shared.IsTrue(config["security.ipv6_filtering"]) && IPv6 == nil && config["ipv6.address"] != "none" {
 				IPv6, err = t.AllocateIPv6()
+				config["ipv6.address"] = IPv6.String()
 
-				// If DHCP not supported, skip error, and will result in total protocol filter.
-				if err != nil && err != dhcpalloc.ErrDHCPNotSupported {
+				// If DHCP not supported, skip error and set the address to "none", and will result in total protocol filter.
+				if err == dhcpalloc.ErrDHCPNotSupported {
+					config["ipv6.address"] = "none"
+				} else if err != nil {
 					return err
 				}
 			}
@@ -1074,19 +1082,14 @@ func (d *nicBridged) setFilters() (err error) {
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
 	revert := revert.New()
 	defer revert.Fail()
-	revert.Add(func() { d.removeFilters(d.config) })
+	revert.Add(func() { d.removeFilters(config) })
 
-	// If no allocated IPv4 address for filtering and filtering enabled, then block all IPv4 traffic.
-	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil {
-		IPv4 = net.ParseIP(firewallDrivers.FilterIPv4All)
+	IPv4Nets, IPv6Nets, err := allowedIPNets(config)
+	if err != nil {
+		return err
 	}
 
-	// If no allocated IPv6 address for filtering and filtering enabled, then block all IPv6 traffic.
-	if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil {
-		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
-	}
-
-	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6, d.network != nil)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4Nets, IPv6Nets, d.network != nil)
 	if err != nil {
 		return err
 	}
