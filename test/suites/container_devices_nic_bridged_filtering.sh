@@ -416,7 +416,7 @@ test_container_devices_nic_bridged_filtering() {
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check basic connectivity with IPv6 filtering and real IPs configured.
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::2
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::1
   lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3
 
   # Add a fake IP
@@ -425,7 +425,7 @@ test_container_devices_nic_bridged_filtering() {
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::2; then
+  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::1; then
       echo "IPv6 filter not working to host"
       false
   fi
