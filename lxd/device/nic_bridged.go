@@ -1095,6 +1095,61 @@ func (d *nicBridged) setFilters() (err error) {
 	return nil
 }
 
+// allowedIPNets accepts a device config. For each IP version it returns nil if all addresses should be allowed,
+// an empty slice if all addresses should be blocked, and a populated slice of subnets to allow traffic from specific ranges.
+func allowedIPNets(config deviceConfig.Device) (IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet, err error) {
+	getAllowedNets := func(ipVersion int) ([]*net.IPNet, error) {
+		if shared.IsFalseOrEmpty(config[fmt.Sprintf("security.ipv%d_filtering", ipVersion)]) {
+			// Return nil (allow all)
+			return nil, nil
+		}
+
+		ipAddr := config[fmt.Sprintf("ipv%d.address", ipVersion)]
+		if ipAddr == "none" {
+			// Return an empty slice to block all traffic.
+			return []*net.IPNet{}, nil
+		}
+
+		var routes []string
+
+		// Get a CIDR string for the instance address
+		if ipAddr != "" {
+			if ipVersion == 4 {
+				routes = append(routes, fmt.Sprintf("%s/32", ipAddr))
+			} else if ipVersion == 6 {
+				routes = append(routes, fmt.Sprintf("%s/128", ipAddr))
+			}
+		}
+
+		// Get remaining allowed routes from config.
+		routes = append(routes, util.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes", ipVersion)], ",", -1, true)...)
+		routes = append(routes, util.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes.external", ipVersion)], ",", -1, true)...)
+
+		var allowedNets []*net.IPNet
+		for _, route := range routes {
+			ipNet, err := network.ParseIPCIDRToNet(route)
+			if err != nil {
+				return nil, err
+			}
+			allowedNets = append(allowedNets, ipNet)
+		}
+
+		return allowedNets, nil
+	}
+
+	IPv4Nets, err = getAllowedNets(4)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	IPv6Nets, err = getAllowedNets(6)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return IPv4Nets, IPv6Nets, nil
+}
+
 const (
 	clearLeaseAll = iota
 	clearLeaseIPv4Only
