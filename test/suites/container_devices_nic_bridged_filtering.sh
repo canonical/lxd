@@ -318,6 +318,8 @@ test_container_devices_nic_bridged_filtering() {
 
   # Add a fake IPv6 and check connectivity
   lxc exec "${ctPrefix}B" -- ip -6 a add 2001:db8:1::3/64 dev eth0
+  wait_for_dad "${ctPrefix}B" eth0
+
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8:1::254 dev eth0
   wait_for_dad "${ctPrefix}A" eth0
@@ -328,6 +330,10 @@ test_container_devices_nic_bridged_filtering() {
   lxc config device set "${ctPrefix}A" eth0 ipv6.address 2001:db8:1::2
   lxc config device set "${ctPrefix}A" eth0 security.mac_filtering false
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
+
+  # Set the ipv6.routes with mask ::ffff (i.e. subnet is last four hex digits)
+  lxc config device set "${ctPrefix}A" eth0 ipv6.routes 2001:db8:2::/64
+  lxc config device set "${ctPrefix}A" eth0 ipv6.routes.external 2001:db8:3::/64
 
   # Check MAC filter is present in firewall.
   ctAHost=$(lxc config get "${ctPrefix}A" volatile.eth0.host_name)
@@ -348,6 +354,18 @@ test_container_devices_nic_bridged_filtering() {
     # Check NDP IPv6 filter is present in ip6tables.
     if ! ip6tables -S -w -t filter | grep -e "20010db8000100000000000000000002" ; then
         echo "IPv6 NDP filter not applied as part of ipv6_filtering in ip6tables"
+        false
+    fi
+
+    # Check NDP IPv6 filter for ipv6.routes is present in ip6tables.
+    if ! ip6tables -S -w -t filter | grep -e "20010db800020000" ; then
+        echo "IPv6 NDP filter for ipv6.routes not applied as part of ipv6_filtering in ip6tables"
+        false
+    fi
+
+    # Check NDP IPv6 filter for ipv6.routes.external is present in ip6tables.
+    if ! ip6tables -S -w -t filter | grep -e "20010db800030000" ; then
+        echo "IPv6 NDP filter for ipv6.routes.external not applied as part of ipv6_filtering in ip6tables"
         false
     fi
 
@@ -433,6 +451,43 @@ test_container_devices_nic_bridged_filtering() {
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
   if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3; then
       echo "IPv6 filter not working to other container"
+      false
+  fi
+
+  # Add a fake IP within ipv6.routes range (2001:db8:2::/64)
+  lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8:2::1/128 dev eth0
+  lxc exec "${ctPrefix}A" -- ip -6 r add 2001:db8:1::/64 dev eth0
+  lxc exec "${ctPrefix}B" -- ip -6 r add 2001:db8:2::/64 dev eth0
+  wait_for_dad "${ctPrefix}A" eth0
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv6.routes subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1; then
+      echo "IPv6 filter is preventing traffic from from within ipv6.routes"
+      false
+  fi
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv6.routes subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3; then
+      echo "IPv6 filter is preventing traffic from within ipv6.routes"
+      false
+  fi
+
+  # Add a fake IP within ipv6.routes.external range (2001:db8:0:0:2::/96)
+  lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8:3::1/128 dev eth0
+  lxc exec "${ctPrefix}B" -- ip -6 r add 2001:db8:3::/64 dev eth0
+  wait_for_dad "${ctPrefix}A" eth0
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv6.routes.external subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1; then
+      echo "IPv6 filter is preventing traffic from within ipv6.routes.external"
+      false
+  fi
+
+  # Check that ping is still working (i.e the filter did not apply to the ipv6.routes subnet).
+  if ! lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3; then
+      echo "IPv6 filter is preventing traffic from within ipv6.routes.external"
       false
   fi
 
