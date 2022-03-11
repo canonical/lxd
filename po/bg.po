@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-10 10:00-0500\n"
+"POT-Creation-Date: 2022-03-11 18:29+0900\n"
 "PO-Revision-Date: 2022-03-10 15:09+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
-"Language-Team: Bulgarian <https://hosted.weblate.org/projects/"
-"linux-containers/lxd/bg/>\n"
+"Language-Team: Bulgarian <https://hosted.weblate.org/projects/linux-"
+"containers/lxd/bg/>\n"
 "Language: bg\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -3474,7 +3474,7 @@ msgid "Ports:"
 msgstr ""
 
 #: lxc/file.go:1023
-msgid "Press ctlc+c to finish"
+msgid "Press ctrl+c to finish"
 msgstr ""
 
 #: lxc/cluster.go:675 lxc/cluster_group.go:334 lxc/config.go:259
@@ -5598,7 +5598,7 @@ msgstr ""
 #: lxc/file.go:913
 msgid ""
 "lxc file mount foo/root fooroot\n"
-"   To mount /root from the instance and onto the local fooroot directory."
+"   To mount /root from the instance foo onto the local fooroot directory."
 msgstr ""
 
 #: lxc/file.go:233
