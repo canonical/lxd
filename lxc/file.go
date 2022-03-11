@@ -912,7 +912,7 @@ func (c *cmdFileMount) Command() *cobra.Command {
 		`Mount files from instances`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc file mount foo/root fooroot
-   To mount /root from the instance and onto the local fooroot directory.`))
+   To mount /root from the instance foo onto the local fooroot directory.`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringVar(&c.flagListen, "listen", "", i18n.G("Setup SSH SFTP listener on address:port instead of mounting"))

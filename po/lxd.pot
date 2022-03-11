@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2022-03-10 10:18-0500\n"
+        "POT-Creation-Date: 2022-03-11 18:29+0900\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3230,7 +3230,7 @@ msgid   "Ports:"
 msgstr  ""
 
 #: lxc/file.go:1023
-msgid   "Press ctlc+c to finish"
+msgid   "Press ctrl+c to finish"
 msgstr  ""
 
 #: lxc/cluster.go:675 lxc/cluster_group.go:334 lxc/config.go:259 lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206 lxc/config_trust.go:302 lxc/image.go:449 lxc/network.go:675 lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574 lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502 lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:978 lxc/storage_volume.go:1008
@@ -5261,7 +5261,7 @@ msgstr  ""
 
 #: lxc/file.go:913
 msgid   "lxc file mount foo/root fooroot\n"
-        "   To mount /root from the instance and onto the local fooroot directory."
+        "   To mount /root from the instance foo onto the local fooroot directory."
 msgstr  ""
 
 #: lxc/file.go:233
