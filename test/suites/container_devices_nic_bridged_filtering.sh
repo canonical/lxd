@@ -36,7 +36,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc network set "${brName}" ipv6.dhcp.stateful true
   lxc network set "${brName}" bridge.hwaddr 00:11:22:33:44:55
   lxc network set "${brName}" ipv4.address 192.0.2.1/24
-  lxc network set "${brName}" ipv6.address 2001:db8::1/64
+  lxc network set "${brName}" ipv6.address 2001:db8:1::1/64
   [ "$(cat /sys/class/net/${brName}/address)" = "00:11:22:33:44:55" ]
 
   # Create profile for new containers.
@@ -317,15 +317,15 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   # Add a fake IPv6 and check connectivity
-  lxc exec "${ctPrefix}B" -- ip -6 a add 2001:db8::3/64 dev eth0
+  lxc exec "${ctPrefix}B" -- ip -6 a add 2001:db8:1::3/64 dev eth0
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
-  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254 dev eth0
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8:1::254 dev eth0
   wait_for_dad "${ctPrefix}A" eth0
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::1
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3
 
   # Enable IPv6 filtering on CT A and test (disable security.mac_filtering to check its applied too).
-  lxc config device set "${ctPrefix}A" eth0 ipv6.address 2001:db8::2
+  lxc config device set "${ctPrefix}A" eth0 ipv6.address 2001:db8:1::2
   lxc config device set "${ctPrefix}A" eth0 security.mac_filtering false
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
 
@@ -346,13 +346,13 @@ test_container_devices_nic_bridged_filtering() {
     fi
 
     # Check NDP IPv6 filter is present in ip6tables.
-    if ! ip6tables -S -w -t filter | grep -e "20010db8000000000000000000000002" ; then
+    if ! ip6tables -S -w -t filter | grep -e "20010db8000100000000000000000002" ; then
         echo "IPv6 NDP filter not applied as part of ipv6_filtering in ip6tables"
         false
     fi
 
     # Check IPv6 filter is present in ebtables.
-    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8::2" ; then
+    if ! ebtables --concurrent -L --Lmac2 --Lx | grep -e "2001:db8:1::2" ; then
         echo "IPv6 filter not applied as part of ipv6_filtering in ebtables"
         false
     fi
@@ -412,26 +412,26 @@ test_container_devices_nic_bridged_filtering() {
   fi
 
   lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
-  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::2/64 dev eth0
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8:1::2/64 dev eth0
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check basic connectivity with IPv6 filtering and real IPs configured.
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::1
-  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1
+  lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3
 
   # Add a fake IP
   lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
-  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254/64 dev eth0
+  lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8:1::254/64 dev eth0
   wait_for_dad "${ctPrefix}A" eth0
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::1; then
+  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::1; then
       echo "IPv6 filter not working to host"
       false
   fi
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
-  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3; then
+  if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8:1::3; then
       echo "IPv6 filter not working to other container"
       false
   fi
@@ -466,7 +466,7 @@ test_container_devices_nic_bridged_filtering() {
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8::216:3eff:fe92:f3c1\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep "\\[2001:db8:1:0:216:3eff:fe92:f3c1\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain dynamically allocated static IPv6 config"
     false
   fi
@@ -475,14 +475,14 @@ test_container_devices_nic_bridged_filtering() {
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering false
   rm "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0"
 
-  # Simulate SLAAC 2001:db8::216:3eff:fe92:f3c1 being used by another container, next free IP is 2001:db8::2
+  # Simulate SLAAC 2001:db8:1::216:3eff:fe92:f3c1 being used by another container, next free IP is 2001:db8:1::2
   kill "$(grep ^pid "${LXD_DIR}"/networks/"${brName}"/dnsmasq.pid | cut -d' ' -f2)"
-  echo "$(date --date="1hour" +%s) 1875094469 2001:db8::216:3eff:fe92:f3c1 c1 00:02:00:00:ab:11:f8:5c:3d:73:db:b2:6a:06" > "${LXD_DIR}/networks/${brName}/dnsmasq.leases"
+  echo "$(date --date="1hour" +%s) 1875094469 2001:db8:1::216:3eff:fe92:f3c1 c1 00:02:00:00:ab:11:f8:5c:3d:73:db:b2:6a:06" > "${LXD_DIR}/networks/${brName}/dnsmasq.leases"
   shutdown_lxd "${LXD_DIR}"
   respawn_lxd "${LXD_DIR}" true
   lxc config device set "${ctPrefix}A" eth0 security.ipv6_filtering true
   lxc start "${ctPrefix}A"
-  if ! grep "\\[2001:db8::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
+  if ! grep "\\[2001:db8:1::2\\]" "${LXD_DIR}/networks/${brName}/dnsmasq.hosts/${ctPrefix}A.eth0" ; then
     echo "dnsmasq host config doesnt contain sequentially allocated static IPv6 config"
     false
   fi
