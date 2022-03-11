@@ -138,6 +138,11 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		return ErrUnsupportedDevType
 	}
 
+	// QMP allows node names to be 31 characters. LXD prefixes any block device with `lxd_` which leaves the user with 27 characters.
+	if len(d.name) > 27 {
+		return fmt.Errorf("Device name too long, max. 27 characters")
+	}
+
 	// Supported propagation types.
 	// If an empty value is supplied the default behavior is to assume "private" mode.
 	// These come from https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt
