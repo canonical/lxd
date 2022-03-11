@@ -309,7 +309,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				if mt == websocket.CloseMessage {
 					logger.Warn("Got exec control websocket close message, killing command")
 				} else {
-					logger.Debug("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
+					logger.Warn("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
 				}
 
 				cmdKillOnce.Do(cmdKill)
