@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-10 10:00-0500\n"
+"POT-Creation-Date: 2022-03-11 18:29+0900\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Fujiwara Software <fujisoft@gmail.com>\n"
-"Language-Team: Japanese <https://hosted.weblate.org/projects/"
-"linux-containers/lxd/ja/>\n"
+"Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
+"containers/lxd/ja/>\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -498,7 +498,8 @@ msgstr "%s はディレクトリではありません"
 #: lxc/utils/cancel.go:67
 #, c-format
 msgid "%v (interrupt two more times to force)"
-msgstr "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
+msgstr ""
+"%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
 #: lxc/file.go:757
 #, c-format
@@ -679,8 +680,8 @@ msgstr ""
 "リモートのリソースに対する URL は HTTPS (https://) でなければなりません。\n"
 "\n"
 "Basic 認証は \"simplestreams\" プロトコルと組み合わせて使えます:\n"
-"  lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path "
-"--protocol=simplestreams\n"
+"  lxc remote add some-name https://LOGIN:PASSWORD@example.com/some/path --"
+"protocol=simplestreams\n"
 
 #: lxc/config_trust.go:87
 msgid "Add new trusted clients"
@@ -757,7 +758,8 @@ msgstr "アーキテクチャ: %v"
 #: lxc/cluster.go:1111
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
-msgstr "本当に %s しますか? （対象: クラスターメンバー %q） (yes/no) [default=no]: "
+msgstr ""
+"本当に %s しますか? （対象: クラスターメンバー %q） (yes/no) [default=no]: "
 
 #: lxc/console.go:370
 msgid "As neither could be found, the raw SPICE socket can be found at:"
@@ -876,7 +878,8 @@ msgstr "不正なイメージプロパティ形式: %s"
 #: lxc/copy.go:139
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
-msgstr "書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
+msgstr ""
+"書式が不適切です。次のような形式で指定してください <device>,<key>=<value>: %s"
 
 #: lxc/action.go:136 lxc/action.go:308
 msgid "Both --all and instance name given"
@@ -965,7 +968,8 @@ msgstr "ターゲットイメージの名前を取得できません"
 
 #: lxc/file.go:320
 msgid "Can't pull a directory without --recursive"
-msgstr "ディレクトリを pull する場合は --recursive オプションを使用してください"
+msgstr ""
+"ディレクトリを pull する場合は --recursive オプションを使用してください"
 
 #: lxc/utils.go:145 lxc/utils.go:165
 #, fuzzy, c-format
@@ -1033,7 +1037,8 @@ msgstr "%s に対する証明書追加トークンが削除されました"
 #, c-format
 msgid ""
 "Certificate fingerprint mismatch between certificate token and server %q"
-msgstr "証明書のフィンガープリントが証明書トークンとサーバの間で一致しません %q"
+msgstr ""
+"証明書のフィンガープリントが証明書トークンとサーバの間で一致しません %q"
 
 #: lxc/remote.go:404
 #, c-format
@@ -1640,14 +1645,16 @@ msgstr "デバイスが存在しません"
 msgid ""
 "Device from profile(s) cannot be modified for individual instance. Override "
 "device or modify profile instead"
-msgstr "プロファイルのデバイスは個々のインスタンスでは変更できません。デバイスを上書"
+msgstr ""
+"プロファイルのデバイスは個々のインスタンスでは変更できません。デバイスを上書"
 "きするかプロファイルを変更してください"
 
 #: lxc/config_device.go:498
 msgid ""
 "Device from profile(s) cannot be removed from individual instance. Override "
 "device or modify profile instead"
-msgstr "プロファイルのデバイスは個々のインスタンスでは削除できません。デバイスを上書"
+msgstr ""
+"プロファイルのデバイスは個々のインスタンスでは削除できません。デバイスを上書"
 "きするかプロファイルを変更してください"
 
 #: lxc/config_device.go:252
@@ -1661,7 +1668,8 @@ msgstr "デバイス: %s"
 
 #: lxc/init.go:356
 msgid "Didn't get any affected image, instance or snapshot from server"
-msgstr "サーバから変更されたイメージ、インスタンス、スナップショットを取得できません"
+msgstr ""
+"サーバから変更されたイメージ、インスタンス、スナップショットを取得できません"
 "でした"
 
 #: lxc/image.go:654
@@ -1730,7 +1738,8 @@ msgstr "EXPIRY DATE"
 msgid ""
 "Early server side processing of file transfer requests cannot be canceled "
 "(interrupt two more times to force)"
-msgstr "ファイル転送のサーバ側の初期処理はキャンセルできません（強制的に中断するには"
+msgstr ""
+"ファイル転送のサーバ側の初期処理はキャンセルできません（強制的に中断するには"
 "あと2回行ってください）"
 
 #: lxc/cluster_group.go:260 lxc/cluster_group.go:261
@@ -1809,11 +1818,13 @@ msgstr "信頼済みクライアント設定をYAMLで編集します"
 #: lxc/warning.go:234
 #, c-format
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
-msgstr "'%s' 中のカラムエントリが空です (カラムの指定に空文字列が指定されています)"
+msgstr ""
+"'%s' 中のカラムエントリが空です (カラムの指定に空文字列が指定されています)"
 
 #: lxc/cluster.go:507
 msgid "Enable clustering on a single non-clustered LXD server"
-msgstr "クラスタリングで動作していないLXDサーバ上でクラスタリングを有効にします"
+msgstr ""
+"クラスタリングで動作していないLXDサーバ上でクラスタリングを有効にします"
 
 #: lxc/cluster.go:508
 msgid ""
@@ -1896,9 +1907,8 @@ msgstr ""
 "\n"
 "  lxc exec <instance> -- sh -c \"cd /tmp && pwd\"\n"
 "\n"
-"デフォルトのモードは non-interactive です。"
-"もし標準入出力が両方ともターミナルの場合は interactive モードが選択されます "
-"(標準エラー出力は無視されます)。"
+"デフォルトのモードは non-interactive です。もし標準入出力が両方ともターミナル"
+"の場合は interactive モードが選択されます (標準エラー出力は無視されます)。"
 
 #: lxc/info.go:623 lxc/info.go:674 lxc/storage_volume.go:1258
 #: lxc/storage_volume.go:1308
@@ -1942,7 +1952,8 @@ msgstr "インスタンスを tarball 形式のバックアップとしてエク
 
 #: lxc/storage_volume.go:2058
 msgid "Export the volume without its snapshots"
-msgstr "ボリュームをエクスポートします (スナップショットはエクスポートしません)"
+msgstr ""
+"ボリュームをエクスポートします (スナップショットはエクスポートしません)"
 
 #: lxc/export.go:142 lxc/storage_volume.go:2165
 #, c-format
@@ -2135,8 +2146,8 @@ msgid ""
 "\n"
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
-"クラスタからサーバを強制的に削除するのは最後の手段としてのみ実行してください"
-"。\n"
+"クラスタからサーバを強制的に削除するのは最後の手段としてのみ実行してくださ"
+"い。\n"
 "\n"
 "削除されたサーバはこの操作のあとは機能せず、LXD のフルリセットが必要になりま"
 "す。サーバに存在していた可能性のある残りのインスタンス、イメージ、ストレージ"
@@ -2350,7 +2361,8 @@ msgstr "ISSUE DATE"
 
 #: lxc/snapshot.go:40 lxc/storage_volume.go:1895
 msgid "If the snapshot name already exists, delete and create a new one"
-msgstr "存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
+msgstr ""
+"存在するスナップショット名の場合は既存のスナップショットを削除したあとに新し"
 "いスナップショットを作成します"
 
 #: lxc/main.go:380
@@ -2415,12 +2427,14 @@ msgstr "起動直後にインスタンスのコンソールに接続します"
 
 #: lxc/storage_volume.go:2196
 msgid "Import backups of custom volumes including their snapshots."
-msgstr "カスタムボリュームのバックアップをスナップショットを含んだ状態でインポートし"
+msgstr ""
+"カスタムボリュームのバックアップをスナップショットを含んだ状態でインポートし"
 "ます。"
 
 #: lxc/import.go:29
 msgid "Import backups of instances including their snapshots."
-msgstr "インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
+msgstr ""
+"インスタンスのバックアップをスナップショットを含んだ状態でインポートします。"
 
 #: lxc/storage_volume.go:2195
 msgid "Import custom storage volumes"
@@ -2434,8 +2448,8 @@ msgid ""
 msgstr ""
 "イメージをイメージストアにインポートします\n"
 "\n"
-"ディレクトリのインポートは Linux 上でのみ可能で、root "
-"で実行する必要があります。"
+"ディレクトリのインポートは Linux 上でのみ可能で、root で実行する必要がありま"
+"す。"
 
 #: lxc/image.go:638
 msgid "Import images into the image store"
@@ -2521,7 +2535,8 @@ msgstr "'%s' は正しくない設定項目 (key) です (%s 中の)"
 #: lxc/list.go:642
 #, c-format
 msgid "Invalid config key column format (too many fields): '%s'"
-msgstr "不正な設定項目のカラムフォーマットです (フィールド数が多すぎます): '%s'"
+msgstr ""
+"不正な設定項目のカラムフォーマットです (フィールド数が多すぎます): '%s'"
 
 #: lxc/utils/table.go:56
 #, c-format
@@ -2551,8 +2566,9 @@ msgstr "不適切な キー=値 のペア: %s"
 #: lxc/list.go:667
 #, c-format
 msgid "Invalid max width (must -1, 0 or a positive integer) '%s' in '%s'"
-msgstr "'%s' は最大幅の値として不正です (-1 もしくは 0 "
-"もしくは正の整数でなくてはなりません) ('%s' 中の)"
+msgstr ""
+"'%s' は最大幅の値として不正です (-1 もしくは 0 もしくは正の整数でなくてはなり"
+"ません) ('%s' 中の)"
 
 #: lxc/list.go:664
 #, c-format
@@ -2563,7 +2579,8 @@ msgstr "'%s' は最大幅の値として不正です (整数でなくてはな�
 #, c-format
 msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
-msgstr "'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
+msgstr ""
+"'%s' は不正な名前です。空文字列は maxWidth を指定しているときのみ指定できます"
 
 #: lxc/move.go:127 lxc/storage_volume.go:1607
 msgid "Invalid new snapshot name"
@@ -2571,12 +2588,14 @@ msgstr "不適切な新しいスナップショット名"
 
 #: lxc/move.go:123
 msgid "Invalid new snapshot name, parent must be the same as source"
-msgstr "新しいスナップショット名が不正です。親のスナップショット名はソースと同じでな"
+msgstr ""
+"新しいスナップショット名が不正です。親のスナップショット名はソースと同じでな"
 "ければいけません"
 
 #: lxc/storage_volume.go:1603
 msgid "Invalid new snapshot name, parent volume must be the same as source"
-msgstr "新しいスナップショット名が不正です。親のボリュームはソースと同じでなければな"
+msgstr ""
+"新しいスナップショット名が不正です。親のボリュームはソースと同じでなければな"
 "りません"
 
 #: lxc/main.go:476
@@ -2649,8 +2668,9 @@ msgstr "LXD - コマンドラインクライアント"
 
 #: lxc/console.go:369
 msgid "LXD automatically uses either spicy or remote-viewer when present."
-msgstr "LXD は spicy か remote-viewer "
-"がインストールされている場合は自動的にどちらかを使います。"
+msgstr ""
+"LXD は spicy か remote-viewer がインストールされている場合は自動的にどちらか"
+"を使います。"
 
 #: lxc/cluster.go:152 lxc/cluster.go:811 lxc/cluster.go:901 lxc/cluster.go:992
 #: lxc/cluster_group.go:410
@@ -2807,8 +2827,8 @@ msgstr ""
 "\n"
 "カラムの指定文字:\n"
 "\n"
-"    l - もっとも短いイメージのエイリアス "
-"(他の指定されているエイリアスの数も表示します)\n"
+"    l - もっとも短いイメージのエイリアス (他の指定されているエイリアスの数も"
+"表示します)\n"
 "    L - イメージのエイリアスすべて (改行区切り)\n"
 "    f - フィンガープリント (短い形式)\n"
 "    F - フィンガープリント (長い形式)\n"
@@ -2919,13 +2939,13 @@ msgstr ""
 "Fast モードのカラムレイアウト: nsacPt\n"
 "\n"
 "== フィルタ ==\n"
-"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" "
-"ではじまるインスタンスが一覧表示されます。\n"
+"単一の \"web\" のようなキーワードを指定すると、名前が \"web\" ではじまるイン"
+"スタンスが一覧表示されます。\n"
 "インスタンス名の正規表現 (例: .*web.*01$)。\n"
 "設定項目を参照するキーと値のペア。これらの場合、名前空間は最短の一意な識別子"
 "に短縮できます。\n"
-"短縮形のキーを使ったキーと値のペア。複数の値は ',' "
-"で区切らなければなりません。使用できる表現は:\n"
+"短縮形のキーを使ったキーと値のペア。複数の値は ',' で区切らなければなりませ"
+"ん。使用できる表現は:\n"
 "  - type={instance type}\n"
 "  - status={instance current lifecycle status}\n"
 "  - architecture={instance architecture}\n"
@@ -2934,17 +2954,17 @@ msgstr ""
 "  - ipv6={ip or CIDR}\n"
 "\n"
 "例:\n"
-"  - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" "
-"に設定されているインスタンスをすべて一覧表示します\n"
+"  - \"user.blah=abc\" は \"blah\" という user プロパティが \"abc\" に設定され"
+"ているインスタンスをすべて一覧表示します\n"
 "  - \"u.blah=abc\" は上記と同じ意味になります\n"
 "  - \"security.privileged=true\" は特権インスタンスをすべて一覧表示します\n"
 "  - \"s.privileged=true\" は上記と同じ意味になります\n"
 "  - \"type=container\" コンテナインスタンスをすべて表示します\n"
-"  - \"type=container status=running\" "
-"実行中のコンテナインスタンスをすべて表示します\n"
+"  - \"type=container status=running\" 実行中のコンテナインスタンスをすべて表"
+"示します\n"
 "\n"
-"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0."
-"hwaddr=00:16:3e:.*)。\n"
+"設定項目もしくは値とマッチする正規表現 (例:volatile.eth0.hwaddr=00:16:3e:."
+"*)。\n"
 "\n"
 "複数のフィルタを指定した場合は、指定したフィルタが順に追加され、\n"
 "すべてのフィルタを満たすインスタンスが選択されます。\n"
@@ -2985,8 +3005,8 @@ msgstr ""
 "\"[config:|devices:]key[:name][:maxWidth]\" のように指定するカスタムカラム:\n"
 "  KEY: 表示する (拡張された) 設定キー。[config:|devices:] が省略された場合は "
 "config が指定されたものとします\n"
-"  NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデフ"
-"ォルトはキー。\n"
+"  NAME: カラムのヘッダに表示する名前。指定しない場合、もしくは空の場合のデ"
+"フォルトはキー。\n"
 "\n"
 "  MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
 "  デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
@@ -3300,8 +3320,8 @@ msgid ""
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
-"プレフィックスで指定しない限りは、ボリュームに対する操作はすべて \"カスタム\""
-" (ユーザが作成した) ボリュームに対して行われます。"
+"プレフィックスで指定しない限りは、ボリュームに対する操作はすべて \"カスタム"
+"\" (ユーザが作成した) ボリュームに対して行われます。"
 
 #: lxc/remote.go:32 lxc/remote.go:33
 msgid "Manage the list of remote servers"
@@ -3515,7 +3535,8 @@ msgstr "複数のデバイスとマッチします。デバイス名を指定し
 
 #: lxc/file.go:270
 msgid "More than one file to download, but target is not a directory"
-msgstr "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
+msgstr ""
+"ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
 #: lxc/file.go:910 lxc/file.go:911
@@ -3546,11 +3567,13 @@ msgstr "ストレージボリュームの移動中: %s"
 
 #: lxc/network_forward.go:843
 msgid "Multiple ports match. Use --force to remove them all"
-msgstr "複数のポートにマッチしました。すべて削除するには --force を指定してください"
+msgstr ""
+"複数のポートにマッチしました。すべて削除するには --force を指定してください"
 
 #: lxc/network_acl.go:928
 msgid "Multiple rules match. Use --force to remove them all"
-msgstr "複数のルールにマッチしました。すべて削除するには --force を指定してください"
+msgstr ""
+"複数のルールにマッチしました。すべて削除するには --force を指定してください"
 
 #: lxc/image.go:656
 msgid "Must run as root to import from directory"
@@ -3702,8 +3725,9 @@ msgstr "ネットワークピア %s は想定外のステータスです %q"
 #, c-format
 msgid ""
 "Network peer %s pending (please complete mutual peering on peer network)"
-msgstr "ネットワークピア %s はピアリング状態です "
-"(ピアネットワーク上で相互ピアリングを完了させてください)"
+msgstr ""
+"ネットワークピア %s はピアリング状態です (ピアネットワーク上で相互ピアリング"
+"を完了させてください)"
 
 #: lxc/network.go:289
 msgid "Network type"
@@ -3743,7 +3767,8 @@ msgstr "メンバー %s に対する証明書追加トークンがリモート�
 #: lxc/cluster.go:939
 #, c-format
 msgid "No cluster join token for member %s on remote: %s"
-msgstr "メンバー %s に対するクラスターへの join トークンがリモート %s にありません"
+msgstr ""
+"メンバー %s に対するクラスターへの join トークンがリモート %s にありません"
 
 #: lxc/network.go:463 lxc/network.go:548
 msgid "No device found for this network"
@@ -3917,7 +3942,7 @@ msgid "Ports:"
 msgstr "ポート:"
 
 #: lxc/file.go:1023
-msgid "Press ctlc+c to finish"
+msgid "Press ctrl+c to finish"
 msgstr ""
 
 #: lxc/cluster.go:675 lxc/cluster_group.go:334 lxc/config.go:259
@@ -3928,8 +3953,9 @@ msgstr ""
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:978
 #: lxc/storage_volume.go:1008
 msgid "Press enter to open the editor again or ctrl+c to abort change"
-msgstr "再度エディタを開くためには Enter キーを、変更を取り消すには ctrl+c "
-"を入力します"
+msgstr ""
+"再度エディタを開くためには Enter キーを、変更を取り消すには ctrl+c を入力しま"
+"す"
 
 #: lxc/monitor.go:49
 msgid "Pretty rendering (short for --format=pretty)"
@@ -4266,7 +4292,8 @@ msgstr "ストレージボリューム名を変更します"
 
 #: lxc/storage_volume.go:1555
 msgid "Rename storage volumes and storage volume snapshots"
-msgstr "ストレージボリューム名とストレージボリュームのスナップショット名を変更します"
+msgstr ""
+"ストレージボリューム名とストレージボリュームのスナップショット名を変更します"
 
 #: lxc/storage_volume.go:1632 lxc/storage_volume.go:1652
 #, c-format
@@ -5039,8 +5066,9 @@ msgstr "インスタンスは実行中です。先に停止させるか、--forc
 msgid ""
 "The instance is currently running. Use --force to have it stopped and "
 "restarted"
-msgstr "インスタンスは現在実行中です。停止して、再起動するために --force "
-"を使用してください"
+msgstr ""
+"インスタンスは現在実行中です。停止して、再起動するために --force を使用してく"
+"ださい"
 
 #: lxc/init.go:414
 msgid "The instance you are starting doesn't have any network attached to it."
@@ -5054,13 +5082,15 @@ msgstr "設定 %q はクラスタメンバー %q には存在しません"
 #: lxc/init.go:398
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:%s' instead."
-msgstr "ローカルイメージ '%s' が見つかりません。代わりに '%s:%s' "
-"を試してみてください。"
+msgstr ""
+"ローカルイメージ '%s' が見つかりません。代わりに '%s:%s' を試してみてくださ"
+"い。"
 
 #: lxc/init.go:394
 #, c-format
 msgid "The local image '%s' couldn't be found, trying '%s:' instead."
-msgstr "ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
+msgstr ""
+"ローカルイメージ '%s' が見つかりません。代わりに '%s:' を試してみてください。"
 
 #: lxc/config_device.go:386
 msgid "The profile device doesn't exist"
@@ -5085,8 +5115,9 @@ msgstr "指定したデバイスはネットワークとマッチしません"
 
 #: lxc/publish.go:82
 msgid "There is no \"image name\".  Did you want an alias?"
-msgstr "publish 先にはイメージ名は指定できません。\"--alias\" "
-"オプションを使ってください。"
+msgstr ""
+"publish 先にはイメージ名は指定できません。\"--alias\" オプションを使ってくだ"
+"さい。"
 
 #: lxc/cluster.go:562
 msgid "This LXD server is already clustered"
@@ -5107,14 +5138,13 @@ msgid ""
 "To easily setup a local LXD server in a virtual machine, consider using: "
 "https://multipass.run"
 msgstr ""
-"このクライアントは、まだリモートの LXD "
-"サーバを使うようには設定されていません。\n"
-"お使いのプラットフォームでは、ネイティブな Linux "
-"インスタンスは実行できませんので、リモートの LXD "
-"サーバに接続しなければなりません。\n"
+"このクライアントは、まだリモートの LXD サーバを使うようには設定されていませ"
+"ん。\n"
+"お使いのプラットフォームでは、ネイティブな Linux インスタンスは実行できません"
+"ので、リモートの LXD サーバに接続しなければなりません。\n"
 "\n"
-"すでにリモートサーバを追加しているのであれば、\"lxc remote switch NAME\" "
-"のようにデフォルトを設定してください。\n"
+"すでにリモートサーバを追加しているのであれば、\"lxc remote switch NAME\" のよ"
+"うにデフォルトを設定してください。\n"
 "仮想マシン上にローカルな LXD サーバを簡単にセットアップするには、https://"
 "multipass.run の使用を検討してください。"
 
@@ -5132,12 +5162,14 @@ msgstr "タイムスタンプ:"
 
 #: lxc/init.go:416
 msgid "To attach a network to an instance, use: lxc network attach"
-msgstr "インスタンスにネットワークを接続するには、lxc network attach "
-"を使用してください"
+msgstr ""
+"インスタンスにネットワークを接続するには、lxc network attach を使用してくださ"
+"い"
 
 #: lxc/init.go:415
 msgid "To create a new network, use: lxc network create"
-msgstr "新しいネットワークを作成するには、lxc network create を使用してください"
+msgstr ""
+"新しいネットワークを作成するには、lxc network create を使用してください"
 
 #: lxc/console.go:207
 msgid "To detach from the console, press: <ctrl>+a q"
@@ -5148,15 +5180,16 @@ msgid ""
 "To start your first container, try: lxc launch ubuntu:20.04\n"
 "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
 msgstr ""
-"初めてコンテナを起動するには、\"lxc launch ubuntu:20.04\" "
-"と実行してみてください\n"
+"初めてコンテナを起動するには、\"lxc launch ubuntu:20.04\" と実行してみてくだ"
+"さい\n"
 "仮想マシンの場合は \"lxc launch ubuntu:20.04 --vm\" と実行してみてください"
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
 #: lxc/copy.go:121 lxc/info.go:332 lxc/network.go:793 lxc/storage.go:429
 msgid "To use --target, the destination remote must be a cluster"
-msgstr "--target "
-"オプションは、コピー先のリモートサーバがクラスタに属していなければなりません"
+msgstr ""
+"--target オプションは、コピー先のリモートサーバがクラスタに属していなければな"
+"りません"
 
 #: lxc/info.go:366 lxc/info.go:377 lxc/info.go:381 lxc/info.go:387
 #, c-format
@@ -5207,8 +5240,9 @@ msgstr "証明書の形式"
 msgid ""
 "Type of connection to establish: 'console' for serial console, 'vga' for "
 "SPICE graphical output"
-msgstr "確立する接続のタイプ: シリアルコンソールの場合は 'console'、SPICE "
-"でのグラフィカル出力の場合は 'vga'"
+msgstr ""
+"確立する接続のタイプ: シリアルコンソールの場合は 'console'、SPICE でのグラ"
+"フィカル出力の場合は 'vga'"
 
 #: lxc/image.go:922 lxc/info.go:269 lxc/info.go:468 lxc/storage_volume.go:1213
 #, c-format
@@ -5373,7 +5407,8 @@ msgstr "クラスター証明書を更新します"
 msgid ""
 "Update cluster certificate with PEM certificate and key read from input "
 "files."
-msgstr "入力ファイルから読み込んだ PEM 証明書と鍵でクラスター証明書を更新します。"
+msgstr ""
+"入力ファイルから読み込んだ PEM 証明書と鍵でクラスター証明書を更新します。"
 
 #: lxc/image.go:931
 #, c-format
@@ -5388,8 +5423,9 @@ msgstr "使い方: %s"
 #: lxc/export.go:42 lxc/storage_volume.go:2060
 msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
-msgstr "最適化された形でストレージドライバを使います "
-"(同様のプール上にのみリストアできます)"
+msgstr ""
+"最適化された形でストレージドライバを使います (同様のプール上にのみリストアで"
+"きます)"
 
 #: lxc/main.go:98
 msgid "Use with help or --help to view sub-commands"
@@ -5411,8 +5447,9 @@ msgstr "ユーザが削除操作を中断しました"
 #: lxc/file.go:67 lxc/utils/cancel.go:63
 msgid ""
 "User signaled us three times, exiting. The remote operation will keep running"
-msgstr "ユーザからのシグナルを 3 度受信したので exit "
-"しました。リモート操作は実行し続けます"
+msgstr ""
+"ユーザからのシグナルを 3 度受信したので exit しました。リモート操作は実行し続"
+"けます"
 
 #: lxc/info.go:140 lxc/info.go:246
 #, c-format
@@ -5455,8 +5492,9 @@ msgstr "スナップショットを含めずにインスタンスのみをバッ
 msgid ""
 "Whether or not to restore the instance's running state from snapshot (if "
 "available)"
-msgstr "スナップショットからインスタンスの稼動状態をリストアするかどうか "
-"(取得可能な場合)"
+msgstr ""
+"スナップショットからインスタンスの稼動状態をリストアするかどうか (取得可能な"
+"場合)"
 
 #: lxc/snapshot.go:38
 msgid "Whether or not to snapshot the instance's running state"
@@ -5478,7 +5516,8 @@ msgstr "--mode と同時に -t または -T は指定できません"
 
 #: lxc/copy.go:82
 msgid "You must specify a destination instance name when using --target"
-msgstr "--target オプションを使うときはコピー先のインスタンス名を指定してください"
+msgstr ""
+"--target オプションを使うときはコピー先のインスタンス名を指定してください"
 
 #: lxc/copy.go:77 lxc/move.go:266 lxc/move.go:340 lxc/move.go:392
 msgid "You must specify a source instance name"
@@ -5721,7 +5760,8 @@ msgstr "[<remote>:]<instance>[/<snapshot>] [<remote>:] [flags] [key=value...]"
 
 #: lxc/move.go:34
 msgid "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
-msgstr "[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
+msgstr ""
+"[<remote>:]<instance>[/<snapshot>] [<remote>:][<instance>[/<snapshot>]]"
 
 #: lxc/delete.go:28
 msgid ""
@@ -6157,11 +6197,11 @@ msgstr ""
 #, fuzzy
 msgid ""
 "lxc file mount foo/root fooroot\n"
-"   To mount /root from the instance and onto the local fooroot directory."
+"   To mount /root from the instance foo onto the local fooroot directory."
 msgstr ""
 "lxc file pull foo/etc/hosts .\n"
-"   インスタンスの /etc/hosts "
-"ファイルを取得し、カレントディレクトリにコピーします。"
+"   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーし"
+"ます。"
 
 #: lxc/file.go:233
 msgid ""
@@ -6170,8 +6210,8 @@ msgid ""
 "directory."
 msgstr ""
 "lxc file pull foo/etc/hosts .\n"
-"   インスタンスの /etc/hosts "
-"ファイルを取得し、カレントディレクトリにコピーします。"
+"   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーし"
+"ます。"
 
 #: lxc/file.go:428
 msgid ""
@@ -6179,8 +6219,8 @@ msgid ""
 "   To push /etc/hosts into the instance \"foo\"."
 msgstr ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
-"   /etc/hosts ファイルを、インスタンス \"foo\" 内 (の /etc/hosts) "
-"にコピーします。"
+"   /etc/hosts ファイルを、インスタンス \"foo\" 内 (の /etc/hosts) にコピーし"
+"ます。"
 
 #: lxc/image.go:357
 msgid ""
@@ -6263,10 +6303,10 @@ msgid ""
 msgstr ""
 "lxc list -c nFs46,volatile.eth0.hwaddr:MAC,config:image.os,devices:eth0."
 "parent:ETHP\n"
-"  \"NAME\"、\"BASE IMAGE\"、\"STATE\"、\"IPV4\"、\"IPV6\"、\"MAC\" "
-"カラムを使ってインスタンスを一覧表示します。\n"
-"  \"BASE IMAGE\" と \"MAC\" と \"IMAGE OS\" "
-"はインスタンスの設定から生成したカスタムカラムです。\n"
+"  \"NAME\"、\"BASE IMAGE\"、\"STATE\"、\"IPV4\"、\"IPV6\"、\"MAC\" カラムを"
+"使ってインスタンスを一覧表示します。\n"
+"  \"BASE IMAGE\" と \"MAC\" と \"IMAGE OS\" はインスタンスの設定から生成した"
+"カスタムカラムです。\n"
 "  \"ETHP\" はデバイスの設定から生成したカスタムカラムです。\n"
 "\n"
 "lxc list -c ns,user.comment:comment\n"
@@ -6305,10 +6345,10 @@ msgid ""
 "lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>\n"
 "    Rename a snapshot."
 msgstr ""
-"lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] "
-"[--instance-only]\n"
-"    2 つのホスト間でインスタンスを移動します。"
-"コピー先の名前が元と違う場合は\n"
+"lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--"
+"instance-only]\n"
+"    2 つのホスト間でインスタンスを移動します。コピー先の名前が元と違う場合"
+"は\n"
 "    同時にリネームされます。\n"
 "\n"
 "lxc move <old name> <new name> [--instance-only]\n"
@@ -6340,8 +6380,8 @@ msgstr ""
 "    \"default\" と \"bar\" をプロファイル \"foo\" に設定します。\n"
 "\n"
 "lxc profile assign foo default\n"
-"    \"foo\" プロファイルを \"default\" "
-"プロファイルの内容のみにリセットします。\n"
+"    \"foo\" プロファイルを \"default\" プロファイルの内容のみにリセットしま"
+"す。\n"
 "\n"
 "lxc profile assign foo ''\n"
 "    \"foo\" からすべてのプロファイルを削除します。"
@@ -6437,12 +6477,12 @@ msgid ""
 "\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
-"    \"default\" プール内のカスタムボリューム \"data\" "
-"のプロパティを表示します。\n"
+"    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
+"す。\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    \"default\" プール内のコンテナ \"data\" "
-"のファイルシステムプロパティを表示します。"
+"    \"default\" プール内のコンテナ \"data\" のファイルシステムプロパティを表"
+"示します。"
 
 #: lxc/remote.go:412
 msgid "n"
