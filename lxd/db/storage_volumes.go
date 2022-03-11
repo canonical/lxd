@@ -266,7 +266,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
 	query := fmt.Sprintf(`
-SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FROM storage_volumes_snapshots
+SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
   JOIN projects ON projects.id=storage_volumes.project_id
   JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
@@ -283,18 +283,23 @@ SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description FRO
 	}
 
 	typeGuide := StorageVolumeArgs{} // StorageVolume struct used to guide the types expected.
-	outfmt := []interface{}{typeGuide.Name, typeGuide.Description}
+	var expiryDate string
+	outfmt := []interface{}{typeGuide.Name, typeGuide.Description, expiryDate}
 	dbResults, err := queryScan(c, query, inargs, outfmt)
 	if err != nil {
 		return result, err
 	}
 
 	for _, r := range dbResults {
+		var snapshotExpiry time.Time
+		snapshotExpiry.UnmarshalText([]byte(r[2].(string)))
+
 		row := StorageVolumeArgs{
 			Name:        volumeName + shared.SnapshotDelimiter + r[0].(string),
 			Description: r[1].(string),
 			Snapshot:    true,
 			ProjectName: projectName,
+			ExpiryDate:  snapshotExpiry,
 		}
 		result = append(result, row)
 	}
