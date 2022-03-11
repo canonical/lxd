@@ -1020,7 +1020,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 	}
 
 	fmt.Printf(i18n.G("sshfs mounting %q on %q")+"\n", fmt.Sprintf("%s%s", instName, instPath), targetPath)
-	fmt.Println(i18n.G("Press ctlc+c to finish"))
+	fmt.Println(i18n.G("Press ctrl+c to finish"))
 
 	ctx, cancel := context.WithCancel(ctx)
 	chSignal := make(chan os.Signal, 1)
