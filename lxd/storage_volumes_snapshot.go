@@ -388,6 +388,11 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 			tmp.Description = vol.Description
 			tmp.Name = vol.Name
 
+			expiryDate := volume.ExpiryDate
+			if expiryDate.Unix() > 0 {
+				tmp.ExpiresAt = &expiryDate
+			}
+
 			resultMap = append(resultMap, tmp)
 		}
 	}
