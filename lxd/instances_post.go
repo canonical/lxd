@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
@@ -352,8 +353,10 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	migrationArgs := MigrationSinkArgs{
 		Url: req.Source.Operation,
 		Dialer: websocket.Dialer{
-			TLSClientConfig: config,
-			NetDial:         shared.RFC3493Dialer},
+			TLSClientConfig:  config,
+			NetDial:          shared.RFC3493Dialer,
+			HandshakeTimeout: time.Second * 5,
+		},
 		Instance:     inst,
 		Secrets:      req.Source.Websockets,
 		Push:         push,

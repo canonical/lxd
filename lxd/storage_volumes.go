@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -830,8 +831,9 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 	migrationArgs := MigrationSinkArgs{
 		Url: req.Source.Operation,
 		Dialer: websocket.Dialer{
-			TLSClientConfig: config,
-			NetDial:         shared.RFC3493Dialer,
+			TLSClientConfig:  config,
+			NetDial:          shared.RFC3493Dialer,
+			HandshakeTimeout: time.Second * 5,
 		},
 		Secrets:    req.Source.Websockets,
 		Push:       push,

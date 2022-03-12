@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -230,8 +231,9 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 	}
 
 	dialer := websocket.Dialer{
-		TLSClientConfig: config,
-		NetDial:         shared.RFC3493Dialer,
+		TLSClientConfig:  config,
+		NetDial:          shared.RFC3493Dialer,
+		HandshakeTimeout: time.Second * 5,
 	}
 
 	for name, secret := range websockets {
