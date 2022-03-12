@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"gopkg.in/yaml.v2"
@@ -41,7 +42,8 @@ var devLxdTransport = &http.Transport{
 
 func devlxdMonitor(c http.Client) {
 	dialer := websocket.Dialer{
-		NetDial: devLxdTransport.Dial,
+		NetDial:          devLxdTransport.Dial,
+		HandshakeTimeout: time.Second * 5,
 	}
 
 	conn, _, err := dialer.Dial("ws://unix.socket/1.0/events", nil)
