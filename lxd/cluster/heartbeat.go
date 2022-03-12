@@ -452,6 +452,11 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	unavailableMembers := make([]string, 0)
 
 	err = query.Retry(func() error {
+		// Durating cluster member fluctuations/upgrades the cluster can become unavailable so check here.
+		if g.Cluster == nil {
+			return fmt.Errorf("Cluster unavailable")
+		}
+
 		return g.Cluster.Transaction(func(tx *db.ClusterTx) error {
 			for _, node := range hbState.Members {
 				if !node.updated {
