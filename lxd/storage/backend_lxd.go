@@ -2338,6 +2338,11 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 	// There's no need to pass config as it's not needed when creating volume snapshots.
 	vol := b.GetVolume(volType, contentType, volStorageName, nil)
 
+	// Lock this operation to ensure that the only one snapshot is made at the time.
+	// Other operations will wait for this one to finish.
+	unlock := locking.Lock(drivers.OperationLockName("CreateInstanceSnapshot", b.name, vol.Type(), contentType, src.Name()))
+	defer unlock()
+
 	err = b.driver.CreateVolumeSnapshot(vol, op)
 	if err != nil {
 		return err
@@ -3894,6 +3899,11 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, fullSnapshotName)
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, parentVol.Config)
+
+	// Lock this operation to ensure that the only one snapshot is made at the time.
+	// Other operations will wait for this one to finish.
+	unlock := locking.Lock(drivers.OperationLockName("CreateCustomVolumeSnapshot", b.name, vol.Type(), contentType, volName))
+	defer unlock()
 
 	// Create the snapshot on the storage device.
 	err = b.driver.CreateVolumeSnapshot(vol, op)

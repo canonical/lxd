@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -1029,17 +1030,27 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 	return f, schedule
 }
 
+var cvSnapshotsPruneRunning = sync.Map{}
+
 func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSnapshots []db.StorageVolumeArgs) error {
 	for _, s := range expiredSnapshots {
+		if _, loaded := cvSnapshotsPruneRunning.LoadOrStore(s.ID, struct{}{}); loaded {
+			continue
+		}
+
 		pool, err := storagePools.GetPoolByName(d.State(), s.PoolName)
 		if err != nil {
+			cvSnapshotsPruneRunning.Delete(s.ID)
 			return fmt.Errorf("Failed to get pool %q: %w", s.PoolName, err)
 		}
 
 		err = pool.DeleteCustomVolumeSnapshot(s.ProjectName, s.Name, nil)
 		if err != nil {
+			cvSnapshotsPruneRunning.Delete(s.ID)
 			return fmt.Errorf("Error deleting custom volume snapshot %s: %w", s.Name, err)
 		}
+
+		cvSnapshotsPruneRunning.Delete(s.ID)
 	}
 
 	return nil
