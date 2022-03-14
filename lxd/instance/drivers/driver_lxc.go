@@ -5496,7 +5496,8 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		}
 
 		// Write PID file.
-		err = ioutil.WriteFile(filepath.Join(d.LogPath(), "forkfile.pid"), []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
+		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
+		err = ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
@@ -5517,6 +5518,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// processed.
 		forkfileListener.Close()
 		os.Remove(forkfilePath)
+		os.Remove(pidFile)
 
 		// All done.
 		reverter.Success()
