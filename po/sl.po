@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-11 18:29+0900\n"
+"POT-Creation-Date: 2022-03-14 16:23-0400\n"
 "PO-Revision-Date: 2022-03-10 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Slovenian <https://hosted.weblate.org/projects/linux-"
@@ -16,8 +16,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=4; plural=n%100==1 ? 0 : n%100==2 ? 1 : n%100==3 || n"
-"%100==4 ? 2 : 3;\n"
+"Plural-Forms: nplurals=4; plural=n%100==1 ? 0 : n%100==2 ? 1 : n%100==3 || "
+"n%100==4 ? 2 : 3;\n"
 "X-Generator: Weblate 4.12-dev\n"
 
 #: lxc/storage.go:229
@@ -666,6 +666,10 @@ msgstr ""
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
 
+#: lxc/network.go:831
+msgid "Bond:"
+msgstr ""
+
 #: lxc/action.go:136 lxc/action.go:308
 msgid "Both --all and instance name given"
 msgstr ""
@@ -675,11 +679,15 @@ msgstr ""
 msgid "Brand: %v"
 msgstr ""
 
-#: lxc/info.go:559 lxc/network.go:820
+#: lxc/network.go:844
+msgid "Bridge:"
+msgstr ""
+
+#: lxc/info.go:559 lxc/network.go:823
 msgid "Bytes received"
 msgstr ""
 
-#: lxc/info.go:560 lxc/network.go:821
+#: lxc/info.go:560 lxc/network.go:824
 msgid "Bytes sent"
 msgstr ""
 
@@ -828,6 +836,10 @@ msgstr ""
 msgid "Certificate fingerprint: %s"
 msgstr ""
 
+#: lxc/network.go:865
+msgid "Chassis"
+msgstr ""
+
 #: lxc/config_trust.go:203
 #, c-format
 msgid "Client %s certificate add token: %s"
@@ -880,8 +892,8 @@ msgstr ""
 #: lxc/cluster.go:707 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
 #: lxc/config.go:617 lxc/config.go:736 lxc/copy.go:53 lxc/info.go:47
 #: lxc/init.go:54 lxc/move.go:58 lxc/network.go:288 lxc/network.go:706
-#: lxc/network.go:764 lxc/network.go:1061 lxc/network.go:1128
-#: lxc/network.go:1190 lxc/network_forward.go:170 lxc/network_forward.go:234
+#: lxc/network.go:764 lxc/network.go:1104 lxc/network.go:1171
+#: lxc/network.go:1233 lxc/network_forward.go:170 lxc/network_forward.go:234
 #: lxc/network_forward.go:389 lxc/network_forward.go:490
 #: lxc/network_forward.go:631 lxc/network_forward.go:708
 #: lxc/network_forward.go:774 lxc/storage.go:96 lxc/storage.go:340
@@ -1178,7 +1190,7 @@ msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
 #: lxc/cluster.go:180 lxc/cluster_group.go:428 lxc/image.go:1034
-#: lxc/image_alias.go:237 lxc/list.go:559 lxc/network.go:914
+#: lxc/image_alias.go:237 lxc/list.go:559 lxc/network.go:957
 #: lxc/network_acl.go:149 lxc/network_forward.go:145 lxc/network_peer.go:141
 #: lxc/network_zone.go:139 lxc/network_zone.go:702 lxc/operation.go:163
 #: lxc/profile.go:624 lxc/project.go:473 lxc/storage.go:581
@@ -1196,6 +1208,10 @@ msgstr ""
 
 #: lxc/info.go:109
 msgid "DRM:"
+msgstr ""
+
+#: lxc/network.go:848
+msgid "Default VLAN ID"
 msgstr ""
 
 #: lxc/storage_volume.go:2061
@@ -1311,8 +1327,8 @@ msgstr ""
 #: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
-#: lxc/network.go:761 lxc/network.go:841 lxc/network.go:936 lxc/network.go:1005
-#: lxc/network.go:1055 lxc/network.go:1125 lxc/network.go:1187
+#: lxc/network.go:761 lxc/network.go:884 lxc/network.go:979 lxc/network.go:1048
+#: lxc/network.go:1098 lxc/network.go:1168 lxc/network.go:1230
 #: lxc/network_acl.go:31 lxc/network_acl.go:96 lxc/network_acl.go:166
 #: lxc/network_acl.go:219 lxc/network_acl.go:265 lxc/network_acl.go:314
 #: lxc/network_acl.go:397 lxc/network_acl.go:457 lxc/network_acl.go:484
@@ -1480,6 +1496,10 @@ msgstr ""
 
 #: lxc/main.go:97
 msgid "Don't show progress information"
+msgstr ""
+
+#: lxc/network.go:835
+msgid "Down delay"
 msgstr ""
 
 #: lxc/info.go:105 lxc/info.go:188
@@ -1826,7 +1846,7 @@ msgstr ""
 msgid "Fast mode (same as --columns=nsacPt)"
 msgstr ""
 
-#: lxc/network.go:872 lxc/network_acl.go:126 lxc/network_zone.go:116
+#: lxc/network.go:915 lxc/network_acl.go:126 lxc/network_zone.go:116
 #: lxc/operation.go:134
 msgid "Filtering isn't supported yet"
 msgstr ""
@@ -1887,7 +1907,7 @@ msgstr ""
 #: lxc/alias.go:105 lxc/cluster.go:118 lxc/cluster.go:777
 #: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:337
 #: lxc/config_trust.go:418 lxc/image.go:1021 lxc/image_alias.go:158
-#: lxc/list.go:134 lxc/network.go:845 lxc/network.go:938 lxc/network_acl.go:99
+#: lxc/list.go:134 lxc/network.go:888 lxc/network.go:981 lxc/network_acl.go:99
 #: lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89
 #: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:584
 #: lxc/project.go:394 lxc/project.go:749 lxc/remote.go:615 lxc/storage.go:525
@@ -1901,6 +1921,10 @@ msgstr ""
 
 #: lxc/manpage.go:25
 msgid "Format (man|md|rest|yaml)"
+msgstr ""
+
+#: lxc/network.go:847
+msgid "Forward delay"
 msgstr ""
 
 #: lxc/main_aliases.go:99
@@ -2011,7 +2035,7 @@ msgstr ""
 msgid "Group ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/network.go:982
+#: lxc/network.go:1025
 msgid "HOSTNAME"
 msgstr ""
 
@@ -2043,7 +2067,7 @@ msgstr ""
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr ""
 
-#: lxc/operation.go:161
+#: lxc/network.go:845 lxc/operation.go:161
 msgid "ID"
 msgstr ""
 
@@ -2061,7 +2085,7 @@ msgstr ""
 msgid "IMAGES"
 msgstr ""
 
-#: lxc/network.go:984
+#: lxc/network.go:1027
 msgid "IP ADDRESS"
 msgstr ""
 
@@ -2069,11 +2093,15 @@ msgstr ""
 msgid "IP addresses"
 msgstr ""
 
-#: lxc/list.go:554 lxc/network.go:912
+#: lxc/network.go:814
+msgid "IP addresses:"
+msgstr ""
+
+#: lxc/list.go:554 lxc/network.go:955
 msgid "IPV4"
 msgstr ""
 
-#: lxc/list.go:555 lxc/network.go:913
+#: lxc/list.go:555 lxc/network.go:956
 msgid "IPV6"
 msgstr ""
 
@@ -2332,10 +2360,6 @@ msgstr ""
 msgid "Invalid target %s"
 msgstr ""
 
-#: lxc/network.go:812
-msgid "Ips:"
-msgstr ""
-
 #: lxc/info.go:227
 #, c-format
 msgid "IsSM: %s (%s)"
@@ -2361,7 +2385,7 @@ msgstr ""
 msgid "LISTEN ADDRESS"
 msgstr ""
 
-#: lxc/list.go:600 lxc/network.go:988 lxc/network_forward.go:151
+#: lxc/list.go:600 lxc/network.go:1031 lxc/network_forward.go:151
 #: lxc/operation.go:168 lxc/storage_volume.go:1440 lxc/warning.go:219
 msgid "LOCATION"
 msgstr ""
@@ -2403,7 +2427,7 @@ msgstr ""
 msgid "Link speed: %dMbit/s (%s duplex)"
 msgstr ""
 
-#: lxc/network.go:935 lxc/network.go:936
+#: lxc/network.go:978 lxc/network.go:979
 msgid "List DHCP leases"
 msgstr ""
 
@@ -2459,7 +2483,7 @@ msgstr ""
 msgid "List available network zoneS"
 msgstr ""
 
-#: lxc/network.go:840 lxc/network.go:841
+#: lxc/network.go:883 lxc/network.go:884
 msgid "List available networks"
 msgstr ""
 
@@ -2693,7 +2717,15 @@ msgstr ""
 msgid "Log:"
 msgstr ""
 
-#: lxc/network.go:983
+#: lxc/network.go:857
+msgid "Lower device"
+msgstr ""
+
+#: lxc/network.go:838
+msgid "Lower devices"
+msgstr ""
+
+#: lxc/network.go:1026
 msgid "MAC ADDRESS"
 msgstr ""
 
@@ -2711,7 +2743,7 @@ msgstr ""
 msgid "MAD: %s (%s)"
 msgstr ""
 
-#: lxc/network.go:911
+#: lxc/network.go:954
 msgid "MANAGED"
 msgstr ""
 
@@ -2730,6 +2762,14 @@ msgstr ""
 
 #: lxc/cluster.go:182
 msgid "MESSAGE"
+msgstr ""
+
+#: lxc/network.go:836
+msgid "MII Frequency"
+msgstr ""
+
+#: lxc/network.go:837
+msgid "MII state"
 msgstr ""
 
 #: lxc/info.go:557
@@ -2864,8 +2904,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -2978,8 +3018,8 @@ msgstr ""
 
 #: lxc/network.go:152 lxc/network.go:237 lxc/network.go:384 lxc/network.go:434
 #: lxc/network.go:519 lxc/network.go:624 lxc/network.go:729 lxc/network.go:787
-#: lxc/network.go:961 lxc/network.go:1029 lxc/network.go:1084
-#: lxc/network.go:1151 lxc/network_forward.go:116 lxc/network_forward.go:191
+#: lxc/network.go:1004 lxc/network.go:1072 lxc/network.go:1127
+#: lxc/network.go:1194 lxc/network_forward.go:116 lxc/network_forward.go:191
 #: lxc/network_forward.go:255 lxc/network_forward.go:350
 #: lxc/network_forward.go:410 lxc/network_forward.go:533
 #: lxc/network_forward.go:652 lxc/network_forward.go:729
@@ -3046,6 +3086,10 @@ msgstr ""
 
 #: lxc/network_peer.go:246
 msgid "Missing target network"
+msgstr ""
+
+#: lxc/network.go:832
+msgid "Mode"
 msgstr ""
 
 #: lxc/info.go:265
@@ -3121,7 +3165,7 @@ msgstr ""
 
 #: lxc/cluster.go:175 lxc/cluster.go:857 lxc/cluster_group.go:427
 #: lxc/config_trust.go:393 lxc/config_trust.go:488 lxc/list.go:567
-#: lxc/network.go:909 lxc/network_acl.go:148 lxc/network_peer.go:140
+#: lxc/network.go:952 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:674 lxc/storage.go:574
 #: lxc/storage_volume.go:1432
@@ -3140,7 +3184,7 @@ msgstr ""
 msgid "NICs:"
 msgstr ""
 
-#: lxc/network.go:886 lxc/operation.go:146 lxc/project.go:437
+#: lxc/network.go:929 lxc/operation.go:146 lxc/project.go:437
 #: lxc/project.go:442 lxc/project.go:447 lxc/project.go:452 lxc/remote.go:632
 #: lxc/remote.go:637 lxc/remote.go:642
 msgid "NO"
@@ -3198,7 +3242,7 @@ msgstr ""
 msgid "Network %s pending on member %s"
 msgstr ""
 
-#: lxc/network.go:1039
+#: lxc/network.go:1082
 #, c-format
 msgid "Network %s renamed to %s"
 msgstr ""
@@ -3267,7 +3311,7 @@ msgstr ""
 msgid "Network type"
 msgstr ""
 
-#: lxc/info.go:577 lxc/network.go:819
+#: lxc/info.go:577 lxc/network.go:822
 msgid "Network usage:"
 msgstr ""
 
@@ -3341,6 +3385,10 @@ msgstr ""
 msgid "Not a snapshot name"
 msgstr ""
 
+#: lxc/network.go:864
+msgid "OVN:"
+msgstr ""
+
 #: lxc/storage_volume.go:209 lxc/storage_volume.go:284
 msgid "Only \"custom\" volumes can be attached to instances"
 msgstr ""
@@ -3365,7 +3413,7 @@ msgstr ""
 msgid "Only instance or custom volumes are supported"
 msgstr ""
 
-#: lxc/network.go:650 lxc/network.go:1099
+#: lxc/network.go:650 lxc/network.go:1142
 msgid "Only managed networks can be modified"
 msgstr ""
 
@@ -3428,11 +3476,11 @@ msgstr ""
 msgid "PUBLIC"
 msgstr ""
 
-#: lxc/info.go:561 lxc/network.go:822
+#: lxc/info.go:561 lxc/network.go:825
 msgid "Packets received"
 msgstr ""
 
-#: lxc/info.go:562 lxc/network.go:823
+#: lxc/info.go:562 lxc/network.go:826
 msgid "Packets sent"
 msgstr ""
 
@@ -3801,7 +3849,7 @@ msgstr ""
 msgid "Rename network ACLs"
 msgstr ""
 
-#: lxc/network.go:1004 lxc/network.go:1005
+#: lxc/network.go:1047 lxc/network.go:1048
 msgid "Rename networks"
 msgstr ""
 
@@ -3937,7 +3985,7 @@ msgstr ""
 msgid "SSH client disconnected %q"
 msgstr ""
 
-#: lxc/cluster.go:181 lxc/list.go:572 lxc/network.go:918
+#: lxc/cluster.go:181 lxc/list.go:572 lxc/network.go:961
 #: lxc/network_peer.go:143 lxc/storage.go:583
 msgid "STATE"
 msgstr ""
@@ -3956,6 +4004,10 @@ msgstr ""
 
 #: lxc/project.go:471
 msgid "STORAGE VOLUMES"
+msgstr ""
+
+#: lxc/network.go:846
+msgid "STP"
 msgstr ""
 
 #: lxc/query.go:32 lxc/query.go:33
@@ -4039,11 +4091,11 @@ msgid ""
 "    lxc network set [<remote>:]<ACL> <key> <value>"
 msgstr ""
 
-#: lxc/network.go:1054
+#: lxc/network.go:1097
 msgid "Set network configuration keys"
 msgstr ""
 
-#: lxc/network.go:1055
+#: lxc/network.go:1098
 msgid ""
 "Set network configuration keys\n"
 "\n"
@@ -4231,7 +4283,7 @@ msgstr ""
 msgid "Show network ACL log"
 msgstr ""
 
-#: lxc/network.go:1124 lxc/network.go:1125
+#: lxc/network.go:1167 lxc/network.go:1168
 msgid "Show network configurations"
 msgstr ""
 
@@ -4476,7 +4528,7 @@ msgid "TOKEN"
 msgstr ""
 
 #: lxc/config_trust.go:392 lxc/image.go:1038 lxc/image_alias.go:236
-#: lxc/list.go:573 lxc/network.go:910 lxc/network.go:985 lxc/operation.go:162
+#: lxc/list.go:573 lxc/network.go:953 lxc/network.go:1028 lxc/operation.go:162
 #: lxc/storage_volume.go:1431 lxc/warning.go:214
 msgid "TYPE"
 msgstr ""
@@ -4674,6 +4726,10 @@ msgstr ""
 msgid "Transferring instance: %s"
 msgstr ""
 
+#: lxc/network.go:833
+msgid "Transmit policy"
+msgstr ""
+
 #: lxc/action.go:273 lxc/launch.go:107
 #, c-format
 msgid "Try `lxc info --show-log %s` for more info"
@@ -4693,7 +4749,8 @@ msgid ""
 "SPICE graphical output"
 msgstr ""
 
-#: lxc/image.go:922 lxc/info.go:269 lxc/info.go:468 lxc/storage_volume.go:1213
+#: lxc/image.go:922 lxc/info.go:269 lxc/info.go:468 lxc/network.go:809
+#: lxc/storage_volume.go:1213
 #, c-format
 msgid "Type: %s"
 msgstr ""
@@ -4719,7 +4776,7 @@ msgstr ""
 msgid "USAGE"
 msgstr ""
 
-#: lxc/network.go:915 lxc/network_acl.go:150 lxc/network_zone.go:140
+#: lxc/network.go:958 lxc/network_acl.go:150 lxc/network_zone.go:140
 #: lxc/profile.go:625 lxc/project.go:474 lxc/storage.go:582
 #: lxc/storage_volume.go:1435
 msgid "USED BY"
@@ -4799,7 +4856,7 @@ msgstr ""
 msgid "Unset network ACL configuration keys"
 msgstr ""
 
-#: lxc/network.go:1186 lxc/network.go:1187
+#: lxc/network.go:1229 lxc/network.go:1230
 msgid "Unset network configuration keys"
 msgstr ""
 
@@ -4848,6 +4905,10 @@ msgstr ""
 msgid "Unsupported instance type: %s"
 msgstr ""
 
+#: lxc/network.go:834
+msgid "Up delay"
+msgstr ""
+
 #: lxc/cluster.go:952
 msgid "Update cluster certificate"
 msgstr ""
@@ -4861,6 +4922,10 @@ msgstr ""
 #: lxc/image.go:931
 #, c-format
 msgid "Uploaded: %s"
+msgstr ""
+
+#: lxc/network.go:850
+msgid "Upper devices"
 msgstr ""
 
 #: lxc/storage_volume.go:1225
@@ -4898,6 +4963,18 @@ msgstr ""
 #: lxc/info.go:140 lxc/info.go:246
 #, c-format
 msgid "VFs: %d"
+msgstr ""
+
+#: lxc/network.go:858
+msgid "VLAN ID"
+msgstr ""
+
+#: lxc/network.go:849
+msgid "VLAN filtering"
+msgstr ""
+
+#: lxc/network.go:856
+msgid "VLAN:"
 msgstr ""
 
 #: lxc/info.go:295
@@ -4942,7 +5019,7 @@ msgstr ""
 msgid "Whether or not to snapshot the instance's running state"
 msgstr ""
 
-#: lxc/network.go:888 lxc/operation.go:148 lxc/project.go:439
+#: lxc/network.go:931 lxc/operation.go:148 lxc/project.go:439
 #: lxc/project.go:444 lxc/project.go:449 lxc/project.go:454 lxc/remote.go:634
 #: lxc/remote.go:639 lxc/remote.go:644
 msgid "YES"
@@ -4974,7 +5051,7 @@ msgstr ""
 
 #: lxc/cluster.go:113 lxc/cluster.go:774 lxc/cluster_group.go:371
 #: lxc/config_trust.go:332 lxc/config_trust.go:414 lxc/monitor.go:31
-#: lxc/network.go:838 lxc/network_acl.go:93 lxc/network_zone.go:83
+#: lxc/network.go:881 lxc/network_acl.go:93 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
 #: lxc/storage.go:520 lxc/version.go:20 lxc/warning.go:69
 msgid "[<remote>:]"
@@ -5227,8 +5304,8 @@ msgstr ""
 msgid "[<remote>:]<member> <new-name>"
 msgstr ""
 
-#: lxc/network.go:357 lxc/network.go:578 lxc/network.go:759 lxc/network.go:934
-#: lxc/network.go:1123 lxc/network_forward.go:84 lxc/network_peer.go:80
+#: lxc/network.go:357 lxc/network.go:578 lxc/network.go:759 lxc/network.go:977
+#: lxc/network.go:1166 lxc/network_forward.go:84 lxc/network_peer.go:80
 msgid "[<remote>:]<network>"
 msgstr ""
 
@@ -5240,11 +5317,11 @@ msgstr ""
 msgid "[<remote>:]<network> <instance> [<device name>] [<interface name>]"
 msgstr ""
 
-#: lxc/network.go:701 lxc/network.go:1185
+#: lxc/network.go:701 lxc/network.go:1228
 msgid "[<remote>:]<network> <key>"
 msgstr ""
 
-#: lxc/network.go:1053
+#: lxc/network.go:1096
 msgid "[<remote>:]<network> <key>=<value>..."
 msgstr ""
 
@@ -5275,7 +5352,7 @@ msgstr ""
 msgid "[<remote>:]<network> <listen_address> [key=value...]"
 msgstr ""
 
-#: lxc/network.go:1002
+#: lxc/network.go:1045
 msgid "[<remote>:]<network> <new-name>"
 msgstr ""
 
@@ -5781,8 +5858,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
