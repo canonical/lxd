@@ -1247,16 +1247,16 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 	r.addClientHeaders(req)
 
 	// Establish the connection.
-	conn, err := httpTransport.Dial("tcp", apiURL.Host)
-	if err != nil {
-		return nil, err
-	}
+	var conn net.Conn
+	var err error
 
 	if httpTransport.TLSClientConfig != nil {
 		conn, err = httpTransport.DialTLS("tcp", apiURL.Host)
-		if err != nil {
-			return nil, err
-		}
+	} else {
+		conn, err = httpTransport.Dial("tcp", apiURL.Host)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	tcpConn, err := tcp.ExtractConn(conn)
