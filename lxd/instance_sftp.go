@@ -67,6 +67,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 	if client != nil {
+		client = client.UseProject(projectName)
 		resp.instConn, err = client.GetInstanceFileSFTPConn(instName)
 		if err != nil {
 			return response.SmartError(err)
