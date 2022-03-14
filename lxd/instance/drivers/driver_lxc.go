@@ -5354,6 +5354,12 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	spawnUnlock := locking.Lock(fmt.Sprintf("forkfile_%d", d.id))
 	defer spawnUnlock()
 
+	// Create any missing directories in case the instance has never been started before.
+	err := os.MkdirAll(d.LogPath(), 0700)
+	if err != nil {
+		return nil, err
+	}
+
 	// Attempt to connect on existing socket.
 	forkfilePath := filepath.Join(d.LogPath(), "forkfile.sock")
 
