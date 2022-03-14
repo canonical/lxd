@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -540,7 +541,7 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 	return nil
 }
 
-func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
+func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Load all local instances
 		allInstances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
@@ -577,7 +578,7 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		}
 
 		opRun := func(op *operations.Operation) error {
-			return pruneExpiredContainerSnapshots(ctx, d, expiredSnapshots)
+			return pruneExpiredInstanceSnapshots(ctx, d, expiredSnapshots)
 		}
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
@@ -611,13 +612,22 @@ func pruneExpiredContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-func pruneExpiredContainerSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
+var cSnapshotsPruneRunning = sync.Map{}
+
+func pruneExpiredInstanceSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
+		if _, loaded := cSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{}); loaded {
+			continue
+		}
+
 		err := snapshot.Delete(true)
 		if err != nil {
+			cSnapshotsPruneRunning.Delete(snapshot.ID())
 			return fmt.Errorf("Failed to delete expired instance snapshot '%s' in project '%s': %w", snapshot.Name(), snapshot.Project(), err)
 		}
+
+		cSnapshotsPruneRunning.Delete(snapshot.ID())
 	}
 
 	return nil
