@@ -106,25 +106,35 @@ func (r *ProtocolLXD) GetHTTPClient() (*http.Client, error) {
 
 // DoHTTP performs a Request, using macaroon authentication if set.
 func (r *ProtocolLXD) DoHTTP(req *http.Request) (*http.Response, error) {
-	// Set the user agent
-	if r.httpUserAgent != "" {
-		req.Header.Set("User-Agent", r.httpUserAgent)
-	}
+	r.addClientHeaders(req)
 
 	// Send the request through
 	if r.bakeryClient != nil {
-		r.addMacaroonHeaders(req)
 		return r.bakeryClient.Do(req)
 	}
 
 	return r.http.Do(req)
 }
 
-func (r *ProtocolLXD) addMacaroonHeaders(req *http.Request) {
-	req.Header.Set(httpbakery.BakeryProtocolHeader, fmt.Sprint(bakery.LatestVersion))
+// addClientHeaders sets headers from client settings.
+// User-Agent (if r.httpUserAgent is set).
+// X-LXD-authenticated (if r.requireAuthenticated is set).
+// Bakery authentication header and cookie (if r.bakeryClient is set).
+func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
+	if r.httpUserAgent != "" {
+		req.Header.Set("User-Agent", r.httpUserAgent)
+	}
 
-	for _, cookie := range r.http.Jar.Cookies(req.URL) {
-		req.AddCookie(cookie)
+	if r.requireAuthenticated {
+		req.Header.Set("X-LXD-authenticated", "true")
+	}
+
+	if r.bakeryClient != nil {
+		req.Header.Set(httpbakery.BakeryProtocolHeader, fmt.Sprint(bakery.LatestVersion))
+
+		for _, cookie := range r.http.Jar.Cookies(req.URL) {
+			req.AddCookie(cookie)
+		}
 	}
 }
 
@@ -238,11 +248,6 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 	// Set the ETag
 	if ETag != "" {
 		req.Header.Set("If-Match", ETag)
-	}
-
-	// Set the authentication header
-	if r.requireAuthenticated {
-		req.Header.Set("X-LXD-authenticated", "true")
 	}
 
 	// Send the request
@@ -373,28 +378,18 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 		HandshakeTimeout: time.Second * 5,
 	}
 
-	// Set the user agent
-	headers := http.Header{}
-	if r.httpUserAgent != "" {
-		headers.Set("User-Agent", r.httpUserAgent)
+	// Create temporary http.Request using the http url, not the ws one, so that we can add the client headers
+	// for the websocket request.
+	u, err := neturl.Parse(r.httpHost)
+	if err != nil {
+		return nil, err
 	}
 
-	if r.requireAuthenticated {
-		headers.Set("X-LXD-authenticated", "true")
-	}
-
-	// Set macaroon headers if needed
-	if r.bakeryClient != nil {
-		u, err := neturl.Parse(r.httpHost) // use the http url, not the ws one
-		if err != nil {
-			return nil, err
-		}
-		req := &http.Request{URL: u, Header: headers}
-		r.addMacaroonHeaders(req)
-	}
+	req := &http.Request{URL: u, Header: http.Header{}}
+	r.addClientHeaders(req)
 
 	// Establish the connection
-	conn, _, err := dialer.Dial(url, headers)
+	conn, _, err := dialer.Dial(url, req.Header)
 	if err != nil {
 		return nil, err
 	}
