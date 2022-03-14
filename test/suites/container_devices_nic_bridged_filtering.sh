@@ -75,18 +75,21 @@ test_container_devices_nic_bridged_filtering() {
   else
     macHex=$(echo "${ctAMAC}" |sed "s/://g")
     macDec=$(printf "%d" 0x"${macHex}")
+    macHex=$(printf "0x%x" "${macDec}")
 
     for table in "in" "fwd"
     do
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
+      rules=$(nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0")
+
+      if ! echo "${rules}" | grep -e "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
         echo "MAC filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep -e "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
         echo "MAC ARP filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != ${macDec} drop"; then
+      if ! echo "${rules}" | grep -P "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != (${macHex}|${macDec}) drop"; then
         echo "MAC NDP filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -315,31 +318,35 @@ test_container_devices_nic_bridged_filtering() {
     fi
   else
     macDec=$(printf "%d" 0x"${macHex}")
+    macHex=$(printf "0x%x" "${macDec}")
+    ipv6Hex="0x20010db8000000000000000000000002"
     ipv6Dec="42540766411282592856903984951653826562"
+
+    rules=$(nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0")
 
     for table in "in" "fwd"
     do
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
         echo "MAC filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
         echo "MAC ARP filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != ${macDec} drop"; then
+      if ! echo "${rules}" | grep -P "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != (${macHex}|${macDec}) drop"; then
         echo "MAC NDP filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" icmpv6 type 136 @nh,384,128 != ${ipv6Dec} drop"; then
+      if ! echo "${rules}" | grep -P "iifname \"${ctAHost}\" icmpv6 type 136 @nh,384,128 != (${ipv6Hex}|${ipv6Dec}) drop"; then
         echo "IPv6 NDP filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" ip6 saddr != 2001:db8::2 drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" ip6 saddr != 2001:db8::2 drop"; then
         echo "IPv6 filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep -e "iifname \"${ctAHost}\" icmpv6 type 134 drop"; then
+      if ! echo "${rules}" | grep -e "iifname \"${ctAHost}\" icmpv6 type 134 drop"; then
         echo "IPv6 RA filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -527,29 +534,34 @@ test_container_devices_nic_bridged_filtering() {
         false
     fi
   else
+    macHex=$(echo "${ctAMAC}" |sed "s/://g")
     macDec=$(printf "%d" 0x"${macHex}")
+    macHex=$(printf "0x%x" "${macDec}")
+    ipv6Hex="0x20010db8000000000000000000000002"
     ipv6Dec="42540766411282592856903984951653826562"
+
+    rules=$(nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0")
 
     for table in "in" "fwd"
     do
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
         echo "MAC filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
         echo "MAC ARP filter not applied as part of ipv4_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
 
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != ${macDec} drop"; then
+      if ! echo "${rules}" | grep -P "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != (${macHex}|${macDec}) drop"; then
         echo "MAC NDP filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" icmpv6 type 136 @nh,384,128 != ${ipv6Dec} drop"; then
+      if ! echo "${rules}" | grep -P "iifname \"${ctAHost}\" icmpv6 type 136 @nh,384,128 != (${ipv6Hex}|${ipv6Dec}) drop"; then
         echo "IPv6 NDP filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" ip6 saddr != 2001:db8::2 drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" ip6 saddr != 2001:db8::2 drop"; then
         echo "IPv6 filter not applied as part of ipv6_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
@@ -609,19 +621,22 @@ test_container_devices_nic_bridged_filtering() {
   else
     macHex=$(echo "${ctAMAC}" |sed "s/://g")
     macDec=$(printf "%d" 0x"${macHex}")
+    macHex=$(printf "0x%x" "${macDec}")
+
+    rules=$(nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0")
 
     for table in "in" "fwd"
     do
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" ether saddr != ${ctAMAC} drop"; then
         echo "MAC filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
+      if ! echo "${rules}" | grep "iifname \"${ctAHost}\" arp saddr ether != ${ctAMAC} drop"; then
         echo "MAC ARP filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
 
-      if ! nft -nn list chain bridge lxd "${table}.${ctPrefix}A.eth0" | grep "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != ${macDec} drop"; then
+      if ! echo "${rules}" | grep -P "iifname \"${ctAHost}\" icmpv6 type 136 @nh,528,48 != (${macHex}|${macDec}) drop"; then
         echo "MAC NDP filter not applied as part of mac_filtering in nftables (${table}.${ctPrefix}A.eth0)"
         false
       fi
