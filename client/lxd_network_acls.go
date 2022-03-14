@@ -70,7 +70,7 @@ func (r *ProtocolLXD) GetNetworkACLLogfile(name string) (io.ReadCloser, error) {
 	}
 
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/network-acls/%s/log", r.httpHost, url.PathEscape(name))
+	url := fmt.Sprintf("%s/1.0/network-acls/%s/log", r.httpBaseURL.String(), url.PathEscape(name))
 	url, err := r.setQueryAttributes(url)
 	if err != nil {
 		return nil, err

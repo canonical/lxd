@@ -104,12 +104,17 @@ func ConnectLXDHTTPWithContext(ctx context.Context, args *ConnectionArgs, client
 		args = &ConnectionArgs{}
 	}
 
+	httpBaseURL, err := url.Parse("https://custom.socket")
+	if err != nil {
+		return nil, err
+	}
+
 	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
 
 	// Initialize the client struct
 	server := ProtocolLXD{
 		ctx:                ctx,
-		httpHost:           "https://custom.socket",
+		httpBaseURL:        *httpBaseURL,
 		httpProtocol:       "custom",
 		httpUserAgent:      args.UserAgent,
 		ctxConnected:       ctxConnected,
@@ -157,12 +162,17 @@ func ConnectLXDUnixWithContext(ctx context.Context, path string, args *Connectio
 		args = &ConnectionArgs{}
 	}
 
+	httpBaseURL, err := url.Parse("http://unix.socket")
+	if err != nil {
+		return nil, err
+	}
+
 	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
 
 	// Initialize the client struct
 	server := ProtocolLXD{
 		ctx:                ctx,
-		httpHost:           "http://unix.socket",
+		httpBaseURL:        *httpBaseURL,
 		httpUnixPath:       path,
 		httpProtocol:       "unix",
 		httpUserAgent:      args.UserAgent,
@@ -287,10 +297,15 @@ func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error)
 }
 
 // Internal function called by ConnectLXD and ConnectPublicLXD
-func httpsLXD(ctx context.Context, url string, args *ConnectionArgs) (InstanceServer, error) {
+func httpsLXD(ctx context.Context, requestURL string, args *ConnectionArgs) (InstanceServer, error) {
 	// Use empty args if not specified
 	if args == nil {
 		args = &ConnectionArgs{}
+	}
+
+	httpBaseURL, err := url.Parse(requestURL)
+	if err != nil {
+		return nil, err
 	}
 
 	ctxConnected, ctxConnectedCancel := context.WithCancel(context.Background())
@@ -299,7 +314,7 @@ func httpsLXD(ctx context.Context, url string, args *ConnectionArgs) (InstanceSe
 	server := ProtocolLXD{
 		ctx:                ctx,
 		httpCertificate:    args.TLSServerCert,
-		httpHost:           url,
+		httpBaseURL:        *httpBaseURL,
 		httpProtocol:       "https",
 		httpUserAgent:      args.UserAgent,
 		bakeryInteractor:   args.AuthInteractor,
