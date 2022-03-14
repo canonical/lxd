@@ -1244,19 +1244,7 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 	req.Header["Upgrade"] = []string{"sftp"}
 	req.Header["Connection"] = []string{"Upgrade"}
 
-	// Set the user agent.
-	if r.httpUserAgent != "" {
-		req.Header["User-Agent"] = []string{r.httpUserAgent}
-	}
-
-	if r.requireAuthenticated {
-		req.Header["X-LXD-authenticated"] = []string{"true"}
-	}
-
-	// Set macaroon headers if needed.
-	if r.bakeryClient != nil {
-		r.addMacaroonHeaders(req)
-	}
+	r.addClientHeaders(req)
 
 	// Establish the connection.
 	conn, err := httpTransport.Dial("tcp", apiURL.Host)
