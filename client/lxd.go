@@ -41,7 +41,7 @@ type ProtocolLXD struct {
 
 	http            *http.Client
 	httpCertificate string
-	httpHost        string
+	httpBaseURL     neturl.URL
 	httpUnixPath    string
 	httpProtocol    string
 	httpUserAgent   string
@@ -66,7 +66,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info := ConnectionInfo{}
 	info.Certificate = r.httpCertificate
 	info.Protocol = "lxd"
-	info.URL = r.httpHost
+	info.URL = r.httpBaseURL.String()
 	info.SocketPath = r.httpUnixPath
 	info.Project = r.project
 	if info.Project == "" {
@@ -75,7 +75,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 
 	urls := []string{}
 	if r.httpProtocol == "https" {
-		urls = append(urls, r.httpHost)
+		urls = append(urls, r.httpBaseURL.String())
 	}
 
 	if r.server != nil && len(r.server.Environment.Addresses) > 0 {
@@ -148,7 +148,7 @@ func (r *ProtocolLXD) RequireAuthenticated(authenticated bool) {
 // This should only be used by internal LXD tools.
 func (r *ProtocolLXD) RawQuery(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
 	// Generate the URL
-	url := fmt.Sprintf("%s%s", r.httpHost, path)
+	url := fmt.Sprintf("%s%s", r.httpBaseURL.String(), path)
 
 	return r.rawQuery(method, url, data, ETag)
 }
@@ -293,7 +293,7 @@ func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
 
 func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
 	// Generate the URL
-	url := fmt.Sprintf("%s/1.0%s", r.httpHost, path)
+	url := fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path)
 
 	// Add project/target
 	url, err := r.setQueryAttributes(url)
@@ -380,12 +380,7 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 
 	// Create temporary http.Request using the http url, not the ws one, so that we can add the client headers
 	// for the websocket request.
-	u, err := neturl.Parse(r.httpHost)
-	if err != nil {
-		return nil, err
-	}
-
-	req := &http.Request{URL: u, Header: http.Header{}}
+	req := &http.Request{URL: &r.httpBaseURL, Header: http.Header{}}
 	r.addClientHeaders(req)
 
 	// Establish the connection
@@ -403,10 +398,10 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
 	// Generate the URL
 	var url string
-	if strings.HasPrefix(r.httpHost, "https://") {
-		url = fmt.Sprintf("wss://%s/1.0%s", strings.TrimPrefix(r.httpHost, "https://"), path)
+	if r.httpBaseURL.Scheme == "https" {
+		url = fmt.Sprintf("wss://%s/1.0%s", r.httpBaseURL.Host, path)
 	} else {
-		url = fmt.Sprintf("ws://%s/1.0%s", strings.TrimPrefix(r.httpHost, "http://"), path)
+		url = fmt.Sprintf("ws://%s/1.0%s", r.httpBaseURL.Host, path)
 	}
 
 	return r.rawWebsocket(url)

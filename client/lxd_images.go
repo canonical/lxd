@@ -126,7 +126,7 @@ func (r *ProtocolLXD) GetPrivateImageFile(fingerprint string, secret string, req
 	}
 
 	// Build the URL
-	uri = fmt.Sprintf("%s%s", r.httpHost, uri)
+	uri = fmt.Sprintf("%s%s", r.httpBaseURL.String(), uri)
 	if secret != "" {
 		uri, err = setQueryParam(uri, "secret", secret)
 		if err != nil {
@@ -453,7 +453,7 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 	}
 
 	// Prepare the HTTP request
-	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/images", r.httpHost))
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/images", r.httpBaseURL.String()))
 	if err != nil {
 		return nil, err
 	}
