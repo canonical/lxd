@@ -760,7 +760,7 @@ func (r *ProtocolLXD) GetStoragePoolVolumeBackupFile(pool string, volName string
 	}
 
 	// Build the URL
-	uri := fmt.Sprintf("%s/1.0/storage-pools/%s/volumes/custom/%s/backups/%s/export", r.httpHost, url.PathEscape(pool), url.PathEscape(volName), url.PathEscape(name))
+	uri := fmt.Sprintf("%s/1.0/storage-pools/%s/volumes/custom/%s/backups/%s/export", r.httpBaseURL.String(), url.PathEscape(pool), url.PathEscape(volName), url.PathEscape(name))
 
 	if r.project != "" {
 		uri += fmt.Sprintf("?project=%s", url.QueryEscape(r.project))
@@ -829,7 +829,7 @@ func (r *ProtocolLXD) CreateStoragePoolVolumeFromBackup(pool string, args Storag
 	path := fmt.Sprintf("/storage-pools/%s/volumes/custom", url.PathEscape(pool))
 
 	// Prepare the HTTP request.
-	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpHost, path))
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path))
 	if err != nil {
 		return nil, err
 	}
