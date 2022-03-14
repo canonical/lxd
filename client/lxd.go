@@ -250,11 +250,6 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag
 		req.Header.Set("If-Match", ETag)
 	}
 
-	// Set the authentication header
-	if r.requireAuthenticated {
-		req.Header.Set("X-LXD-authenticated", "true")
-	}
-
 	// Send the request
 	resp, err := r.DoHTTP(req)
 	if err != nil {
