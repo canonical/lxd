@@ -101,7 +101,7 @@ func (r *ProtocolLXD) CreateContainerFromBackup(args ContainerBackupArgs) (Opera
 	}
 
 	// Prepare the HTTP request
-	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/containers", r.httpHost))
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0/containers", r.httpBaseURL.String()))
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +758,7 @@ func (r *ProtocolLXD) ExecContainer(containerName string, exec api.ContainerExec
 func (r *ProtocolLXD) GetContainerFile(containerName string, path string) (io.ReadCloser, *ContainerFileResponse, error) {
 	// Prepare the HTTP request
 	requestURL, err := shared.URLEncode(
-		fmt.Sprintf("%s/1.0/containers/%s/files", r.httpHost, url.PathEscape(containerName)),
+		fmt.Sprintf("%s/1.0/containers/%s/files", r.httpBaseURL.String(), url.PathEscape(containerName)),
 		map[string]string{"path": path})
 	if err != nil {
 		return nil, nil, err
@@ -843,7 +843,7 @@ func (r *ProtocolLXD) CreateContainerFile(containerName string, path string, arg
 	}
 
 	// Prepare the HTTP request
-	requestURL := fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpHost, url.PathEscape(containerName), url.QueryEscape(path))
+	requestURL := fmt.Sprintf("%s/1.0/containers/%s/files?path=%s", r.httpBaseURL.String(), url.PathEscape(containerName), url.QueryEscape(path))
 
 	requestURL, err := r.setQueryAttributes(requestURL)
 	if err != nil {
@@ -1329,7 +1329,7 @@ func (r *ProtocolLXD) GetContainerLogfiles(name string) ([]string, error) {
 // Note that it's the caller's responsibility to close the returned ReadCloser
 func (r *ProtocolLXD) GetContainerLogfile(name string, filename string) (io.ReadCloser, error) {
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/containers/%s/logs/%s", r.httpHost, url.PathEscape(name), url.PathEscape(filename))
+	url := fmt.Sprintf("%s/1.0/containers/%s/logs/%s", r.httpBaseURL.String(), url.PathEscape(name), url.PathEscape(filename))
 
 	url, err := r.setQueryAttributes(url)
 	if err != nil {
@@ -1424,7 +1424,7 @@ func (r *ProtocolLXD) GetContainerTemplateFile(containerName string, templateNam
 		return nil, fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
 
-	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, url.PathEscape(containerName), url.QueryEscape(templateName))
+	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpBaseURL.String(), url.PathEscape(containerName), url.QueryEscape(templateName))
 
 	url, err := r.setQueryAttributes(url)
 	if err != nil {
@@ -1459,7 +1459,7 @@ func (r *ProtocolLXD) CreateContainerTemplateFile(containerName string, template
 		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
 
-	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpHost, url.PathEscape(containerName), url.QueryEscape(templateName))
+	url := fmt.Sprintf("%s/1.0/containers/%s/metadata/templates?path=%s", r.httpBaseURL.String(), url.PathEscape(containerName), url.QueryEscape(templateName))
 
 	url, err := r.setQueryAttributes(url)
 	if err != nil {
@@ -1577,7 +1577,7 @@ func (r *ProtocolLXD) GetContainerConsoleLog(containerName string, args *Contain
 	}
 
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0/containers/%s/console", r.httpHost, url.PathEscape(containerName))
+	url := fmt.Sprintf("%s/1.0/containers/%s/console", r.httpBaseURL.String(), url.PathEscape(containerName))
 
 	url, err := r.setQueryAttributes(url)
 	if err != nil {
@@ -1727,7 +1727,7 @@ func (r *ProtocolLXD) GetContainerBackupFile(containerName string, name string, 
 	}
 
 	// Build the URL
-	uri := fmt.Sprintf("%s/1.0/containers/%s/backups/%s/export", r.httpHost,
+	uri := fmt.Sprintf("%s/1.0/containers/%s/backups/%s/export", r.httpBaseURL.String(),
 		url.PathEscape(containerName), url.PathEscape(name))
 	if r.project != "" {
 		uri += fmt.Sprintf("?project=%s", url.QueryEscape(r.project))

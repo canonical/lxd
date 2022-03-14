@@ -307,7 +307,7 @@ func (r *ProtocolLXD) CreateInstanceFromBackup(args InstanceBackupArgs) (Operati
 	}
 
 	// Prepare the HTTP request
-	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpHost, path))
+	reqURL, err := r.setQueryAttributes(fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path))
 	if err != nil {
 		return nil, err
 	}
@@ -1035,7 +1035,7 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 
 	if r.IsAgent() {
 		requestURL, err = shared.URLEncode(
-			fmt.Sprintf("%s/1.0/files", r.httpHost),
+			fmt.Sprintf("%s/1.0/files", r.httpBaseURL.String()),
 			map[string]string{"path": filePath})
 	} else {
 		var path string
@@ -1047,7 +1047,7 @@ func (r *ProtocolLXD) GetInstanceFile(instanceName string, filePath string) (io.
 
 		// Prepare the HTTP request
 		requestURL, err = shared.URLEncode(
-			fmt.Sprintf("%s/1.0%s/%s/files", r.httpHost, path, url.PathEscape(instanceName)),
+			fmt.Sprintf("%s/1.0%s/%s/files", r.httpBaseURL.String(), path, url.PathEscape(instanceName)),
 			map[string]string{"path": filePath})
 	}
 	if err != nil {
@@ -1135,7 +1135,7 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 	var requestURL string
 
 	if r.IsAgent() {
-		requestURL = fmt.Sprintf("%s/1.0/files?path=%s", r.httpHost, url.QueryEscape(filePath))
+		requestURL = fmt.Sprintf("%s/1.0/files?path=%s", r.httpBaseURL.String(), url.QueryEscape(filePath))
 	} else {
 		path, _, err := r.instanceTypeToPath(api.InstanceTypeAny)
 		if err != nil {
@@ -1143,7 +1143,7 @@ func (r *ProtocolLXD) CreateInstanceFile(instanceName string, filePath string, a
 		}
 
 		// Prepare the HTTP request
-		requestURL = fmt.Sprintf("%s/1.0%s/%s/files?path=%s", r.httpHost, path, url.PathEscape(instanceName), url.QueryEscape(filePath))
+		requestURL = fmt.Sprintf("%s/1.0%s/%s/files?path=%s", r.httpBaseURL.String(), path, url.PathEscape(instanceName), url.QueryEscape(filePath))
 	}
 
 	requestURL, err := r.setQueryAttributes(requestURL)
@@ -1293,13 +1293,8 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 
 // GetInstanceFileSFTPConn returns a connection to the instance's SFTP endpoint.
 func (r *ProtocolLXD) GetInstanceFileSFTPConn(instanceName string) (net.Conn, error) {
-	u, err := url.Parse(r.httpHost)
-	if err != nil {
-		return nil, err
-	}
-
 	apiURL := api.NewURL()
-	apiURL.URL = *u // Preload the URL with the parsed values from r.httpHost.
+	apiURL.URL = *&r.httpBaseURL // Preload the URL with the client base URL.
 	apiURL.Path("1.0", "instances", instanceName, "sftp")
 	r.setURLQueryAttributes(&apiURL.URL)
 
@@ -1829,7 +1824,7 @@ func (r *ProtocolLXD) GetInstanceLogfile(name string, filename string) (io.ReadC
 	}
 
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0%s/%s/logs/%s", r.httpHost, path, url.PathEscape(name), url.PathEscape(filename))
+	url := fmt.Sprintf("%s/1.0%s/%s/logs/%s", r.httpBaseURL.String(), path, url.PathEscape(name), url.PathEscape(filename))
 
 	url, err = r.setQueryAttributes(url)
 	if err != nil {
@@ -1949,7 +1944,7 @@ func (r *ProtocolLXD) GetInstanceTemplateFile(instanceName string, templateName 
 		return nil, fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
 
-	url := fmt.Sprintf("%s/1.0%s/%s/metadata/templates?path=%s", r.httpHost, path, url.PathEscape(instanceName), url.QueryEscape(templateName))
+	url := fmt.Sprintf("%s/1.0%s/%s/metadata/templates?path=%s", r.httpBaseURL.String(), path, url.PathEscape(instanceName), url.QueryEscape(templateName))
 
 	url, err = r.setQueryAttributes(url)
 	if err != nil {
@@ -1989,7 +1984,7 @@ func (r *ProtocolLXD) CreateInstanceTemplateFile(instanceName string, templateNa
 		return fmt.Errorf("The server is missing the required \"container_edit_metadata\" API extension")
 	}
 
-	url := fmt.Sprintf("%s/1.0%s/%s/metadata/templates?path=%s", r.httpHost, path, url.PathEscape(instanceName), url.QueryEscape(templateName))
+	url := fmt.Sprintf("%s/1.0%s/%s/metadata/templates?path=%s", r.httpBaseURL.String(), path, url.PathEscape(instanceName), url.QueryEscape(templateName))
 
 	url, err = r.setQueryAttributes(url)
 	if err != nil {
@@ -2213,7 +2208,7 @@ func (r *ProtocolLXD) GetInstanceConsoleLog(instanceName string, args *InstanceC
 	}
 
 	// Prepare the HTTP request
-	url := fmt.Sprintf("%s/1.0%s/%s/console", r.httpHost, path, url.PathEscape(instanceName))
+	url := fmt.Sprintf("%s/1.0%s/%s/console", r.httpBaseURL.String(), path, url.PathEscape(instanceName))
 
 	url, err = r.setQueryAttributes(url)
 	if err != nil {
@@ -2400,7 +2395,7 @@ func (r *ProtocolLXD) GetInstanceBackupFile(instanceName string, name string, re
 	}
 
 	// Build the URL
-	uri := fmt.Sprintf("%s/1.0%s/%s/backups/%s/export", r.httpHost, path, url.PathEscape(instanceName), url.PathEscape(name))
+	uri := fmt.Sprintf("%s/1.0%s/%s/backups/%s/export", r.httpBaseURL.String(), path, url.PathEscape(instanceName), url.PathEscape(name))
 	if r.project != "" {
 		uri += fmt.Sprintf("?project=%s", url.QueryEscape(r.project))
 	}
