@@ -2,7 +2,6 @@ package lxd
 
 import (
 	"bufio"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -1245,9 +1244,31 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 	req.Header["Upgrade"] = []string{"sftp"}
 	req.Header["Connection"] = []string{"Upgrade"}
 
+	// Set the user agent.
+	if r.httpUserAgent != "" {
+		req.Header["User-Agent"] = []string{r.httpUserAgent}
+	}
+
+	if r.requireAuthenticated {
+		req.Header["X-LXD-authenticated"] = []string{"true"}
+	}
+
+	// Set macaroon headers if needed.
+	if r.bakeryClient != nil {
+		r.addMacaroonHeaders(req)
+	}
+
+	// Establish the connection.
 	conn, err := httpTransport.Dial("tcp", apiURL.Host)
 	if err != nil {
 		return nil, err
+	}
+
+	if httpTransport.TLSClientConfig != nil {
+		conn, err = httpTransport.DialTLS("tcp", apiURL.Host)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	tcpConn, err := tcp.ExtractConn(conn)
@@ -1256,16 +1277,6 @@ func (r *ProtocolLXD) rawSFTPConn(apiURL *url.URL) (net.Conn, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if httpTransport.TLSClientConfig != nil {
-		tlsConn := tls.Client(conn, httpTransport.TLSClientConfig)
-		err = tlsConn.Handshake()
-		if err != nil {
-			return nil, err
-		}
-
-		conn = tlsConn
 	}
 
 	err = req.Write(conn)
