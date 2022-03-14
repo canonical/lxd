@@ -612,22 +612,20 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	return f, schedule
 }
 
-var cSnapshotsPruneRunning = sync.Map{}
+var instSnapshotsPruneRunning = sync.Map{}
 
 func pruneExpiredInstanceSnapshots(ctx context.Context, d *Daemon, snapshots []instance.Instance) error {
 	// Find snapshots to delete
 	for _, snapshot := range snapshots {
-		if _, loaded := cSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{}); loaded {
-			continue
+		if _, loaded := instSnapshotsPruneRunning.LoadOrStore(snapshot.ID(), struct{}{}); loaded {
+			continue // Deletion of this snapshot is already running, skip.
 		}
 
 		err := snapshot.Delete(true)
+		instSnapshotsPruneRunning.Delete(snapshot.ID())
 		if err != nil {
-			cSnapshotsPruneRunning.Delete(snapshot.ID())
-			return fmt.Errorf("Failed to delete expired instance snapshot '%s' in project '%s': %w", snapshot.Name(), snapshot.Project(), err)
+			return fmt.Errorf("Failed to delete expired instance snapshot %q in project %q: %w", snapshot.Name(), snapshot.Project(), err)
 		}
-
-		cSnapshotsPruneRunning.Delete(snapshot.ID())
 	}
 
 	return nil
