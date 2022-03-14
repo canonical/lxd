@@ -5354,6 +5354,12 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 	spawnUnlock := locking.Lock(fmt.Sprintf("forkfile_%d", d.id))
 	defer spawnUnlock()
 
+	// Create any missing directories in case the instance has never been started before.
+	err := os.MkdirAll(d.LogPath(), 0700)
+	if err != nil {
+		return nil, err
+	}
+
 	// Attempt to connect on existing socket.
 	forkfilePath := filepath.Join(d.LogPath(), "forkfile.sock")
 
@@ -5490,7 +5496,8 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		}
 
 		// Write PID file.
-		err = ioutil.WriteFile(filepath.Join(d.LogPath(), "forkfile.pid"), []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
+		pidFile := filepath.Join(d.LogPath(), "forkfile.pid")
+		err = ioutil.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", forkfile.Process.Pid)), 0600)
 		if err != nil {
 			chReady <- fmt.Errorf("Failed to write forkfile PID: %w", err)
 			return
@@ -5511,6 +5518,7 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		// processed.
 		forkfileListener.Close()
 		os.Remove(forkfilePath)
+		os.Remove(pidFile)
 
 		// All done.
 		reverter.Success()
