@@ -774,7 +774,7 @@ func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Parse remote
+	// Parse remote.
 	resources, err := c.global.ParseServers(args[0])
 	if err != nil {
 		return err
@@ -787,7 +787,7 @@ func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing network name"))
 	}
 
-	// Targeting
+	// Targeting.
 	if c.network.flagTarget != "" {
 		if !client.IsClustered() {
 			return fmt.Errorf(i18n.G("To use --target, the destination remote must be a cluster"))
@@ -801,26 +801,69 @@ func (c *cmdNetworkInfo) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Interface information
+	// Interface information.
 	fmt.Printf(i18n.G("Name: %s")+"\n", resource.name)
 	fmt.Printf(i18n.G("MAC address: %s")+"\n", state.Hwaddr)
 	fmt.Printf(i18n.G("MTU: %d")+"\n", state.Mtu)
 	fmt.Printf(i18n.G("State: %s")+"\n", state.State)
+	fmt.Printf(i18n.G("Type: %s")+"\n", state.Type)
 
-	// IP addresses
-	fmt.Println("")
-	fmt.Println(i18n.G("Ips:"))
-	for _, addr := range state.Addresses {
-		fmt.Printf("  %s\t%s\n", addr.Family, addr.Address)
+	// IP addresses.
+	if state.Addresses != nil && len(state.Addresses) > 0 {
+		fmt.Println("")
+		fmt.Println(i18n.G("IP addresses:"))
+		for _, addr := range state.Addresses {
+			fmt.Printf("  %s\t%s/%s (%s)\n", addr.Family, addr.Address, addr.Netmask, addr.Scope)
+		}
 	}
 
-	// Network usage
+	// Network usage.
 	fmt.Println("")
 	fmt.Println(i18n.G("Network usage:"))
 	fmt.Printf("  %s: %s\n", i18n.G("Bytes received"), units.GetByteSizeString(state.Counters.BytesReceived, 2))
 	fmt.Printf("  %s: %s\n", i18n.G("Bytes sent"), units.GetByteSizeString(state.Counters.BytesSent, 2))
 	fmt.Printf("  %s: %d\n", i18n.G("Packets received"), state.Counters.PacketsReceived)
 	fmt.Printf("  %s: %d\n", i18n.G("Packets sent"), state.Counters.PacketsSent)
+
+	// Bond information.
+	if state.Bond != nil {
+		fmt.Println("")
+		fmt.Println(i18n.G("Bond:"))
+		fmt.Printf("  %s: %s\n", i18n.G("Mode"), state.Bond.Mode)
+		fmt.Printf("  %s: %s\n", i18n.G("Transmit policy"), state.Bond.TransmitPolicy)
+		fmt.Printf("  %s: %d\n", i18n.G("Up delay"), state.Bond.UpDelay)
+		fmt.Printf("  %s: %d\n", i18n.G("Down delay"), state.Bond.DownDelay)
+		fmt.Printf("  %s: %d\n", i18n.G("MII Frequency"), state.Bond.MIIFrequency)
+		fmt.Printf("  %s: %s\n", i18n.G("MII state"), state.Bond.MIIState)
+		fmt.Printf("  %s: %s\n", i18n.G("Lower devices"), strings.Join(state.Bond.LowerDevices, ", "))
+	}
+
+	// Bridge information.
+	if state.Bridge != nil {
+		fmt.Println("")
+		fmt.Println(i18n.G("Bridge:"))
+		fmt.Printf("  %s: %s\n", i18n.G("ID"), state.Bridge.ID)
+		fmt.Printf("  %s: %v\n", i18n.G("STP"), state.Bridge.STP)
+		fmt.Printf("  %s: %d\n", i18n.G("Forward delay"), state.Bridge.ForwardDelay)
+		fmt.Printf("  %s: %d\n", i18n.G("Default VLAN ID"), state.Bridge.VLANDefault)
+		fmt.Printf("  %s: %v\n", i18n.G("VLAN filtering"), state.Bridge.VLANFiltering)
+		fmt.Printf("  %s: %s\n", i18n.G("Upper devices"), strings.Join(state.Bridge.UpperDevices, ", "))
+	}
+
+	// VLAN information.
+	if state.VLAN != nil {
+		fmt.Println("")
+		fmt.Println(i18n.G("VLAN:"))
+		fmt.Printf("  %s: %s\n", i18n.G("Lower device"), state.VLAN.LowerDevice)
+		fmt.Printf("  %s: %d\n", i18n.G("VLAN ID"), state.VLAN.VID)
+	}
+
+	// OVN information.
+	if state.OVN != nil {
+		fmt.Println("")
+		fmt.Println(i18n.G("OVN:"))
+		fmt.Printf("  %s: %s\n", i18n.G("Chassis"), state.OVN.Chassis)
+	}
 
 	return nil
 }
