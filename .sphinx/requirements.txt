@@ -3,7 +3,7 @@ Babel
 certifi
 charset-normalizer
 colorama
-docutils
+docutils<0.18
 idna
 imagesize
 Jinja2
