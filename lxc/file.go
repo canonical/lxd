@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -901,7 +902,9 @@ type cmdFileMount struct {
 	global *cmdGlobal
 	file   *cmdFile
 
-	flagListen string
+	flagListen   string
+	flagAuthNone bool
+	flagAuthUser string
 }
 
 func (c *cmdFileMount) Command() *cobra.Command {
@@ -916,6 +919,8 @@ func (c *cmdFileMount) Command() *cobra.Command {
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringVar(&c.flagListen, "listen", "", i18n.G("Setup SSH SFTP listener on address:port instead of mounting"))
+	cmd.Flags().BoolVar(&c.flagAuthNone, "no-auth", false, i18n.G("Disable authentication when using SSH SFTP listener"))
+	cmd.Flags().StringVar(&c.flagAuthUser, "auth-user", "", i18n.G("Set authentication user when using SSH SFTP listener"))
 
 	return cmd
 }
@@ -1072,9 +1077,38 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		return err
 	}
 
-	// Setup a local unauthenticated SSH SFTP server.
-	config := &ssh.ServerConfig{
-		NoClientAuth: true,
+	randString := func(length int) string {
+		var chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
+		randStr := make([]rune, length)
+		for i := range randStr {
+			randStr[i] = chars[rand.Intn(len(chars))]
+		}
+
+		return string(randStr)
+	}
+
+	// Setup an SSH SFTP server.
+	config := &ssh.ServerConfig{}
+
+	var authUser, authPass string
+
+	if c.flagAuthNone {
+		config.NoClientAuth = true
+	} else {
+		if c.flagAuthUser != "" {
+			authUser = c.flagAuthUser
+		} else {
+			authUser = randString(8)
+		}
+
+		authPass = randString(8)
+		config.PasswordCallback = func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
+			if c.User() == authUser && string(pass) == authPass {
+				return nil, nil
+			}
+
+			return nil, fmt.Errorf("Password rejected for %q", c.User())
+		}
 	}
 
 	// Generate random host key.
@@ -1100,6 +1134,12 @@ func (c *cmdFileMount) sshSFTPServer(ctx context.Context, instName string, resou
 		return fmt.Errorf(i18n.G("Failed to listen for connection: %w"), err)
 	}
 	fmt.Printf("SSH SFTP listening on %v\n", listener.Addr())
+
+	if config.PasswordCallback != nil {
+		fmt.Printf("Login with username %q and password %q\n", authUser, authPass)
+	} else {
+		fmt.Printf("Login without username and password\n")
+	}
 
 	for {
 		// Wait for new SSH connections.
