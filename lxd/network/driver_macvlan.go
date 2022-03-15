@@ -1,6 +1,8 @@
 package network
 
 import (
+	"fmt"
+
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -67,6 +69,20 @@ func (n *macvlan) Rename(newName string) error {
 // Start starts is a no-op.
 func (n *macvlan) Start() error {
 	n.logger.Debug("Start")
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { n.setUnavailable() })
+
+	if !InterfaceExists(n.config["parent"]) {
+		return fmt.Errorf("Parent interface %q not found", n.config["parent"])
+	}
+
+	revert.Success()
+
+	// Ensure network is marked as available now its started.
+	n.setAvailable()
 
 	return nil
 }
