@@ -1060,3 +1060,25 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 func (n *common) State() (*api.NetworkState, error) {
 	return resources.GetNetworkState(n.name)
 }
+
+func (n *common) setUnavailable() {
+	pn := ProjectNetwork{
+		ProjectName: n.Project(),
+		NetworkName: n.Name(),
+	}
+
+	unavailableNetworksMu.Lock()
+	unavailableNetworks[pn] = struct{}{}
+	unavailableNetworksMu.Unlock()
+}
+
+func (n *common) setAvailable() {
+	pn := ProjectNetwork{
+		ProjectName: n.Project(),
+		NetworkName: n.Name(),
+	}
+
+	unavailableNetworksMu.Lock()
+	delete(unavailableNetworks, pn)
+	unavailableNetworksMu.Unlock()
+}
