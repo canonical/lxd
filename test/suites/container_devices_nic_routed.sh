@@ -24,14 +24,7 @@ test_container_devices_nic_routed() {
   sysctl net.ipv4.conf."${ctName}".forwarding=1
 
   # Wait for IPv6 DAD to complete.
-  while true
-  do
-    if ! ip -6 a show dev "${ctName}" | grep "tentative" ; then
-      break
-    fi
-
-    sleep 0.5
-  done
+  wait_for_dad "${ctName}"
 
   # Create container connected to bridge (which will be used for neighbor probe testing).
   lxc init testimage "${ctName}neigh"
@@ -43,14 +36,7 @@ test_container_devices_nic_routed() {
   lxc exec "${ctName}neigh" -- ip -6 route replace default via 2001:db8::1 dev eth0
 
   # Wait for IPv6 DAD to complete.
-  while true
-  do
-    if ! lxc exec "${ctName}neigh" -- ip -6 a show dev eth0 | grep "tentative" ; then
-      break
-    fi
-
-    sleep 0.5
-  done
+  wait_for_dad "${ctName}neigh" eth0
 
   ping -c2 -W5 192.0.2.254
   ping6 -c2 -W5 "2001:db8::FFFF"
@@ -193,23 +179,8 @@ test_container_devices_nic_routed() {
   lxc start "${ctName}2"
 
   # Wait for IPv6 DAD to complete.
-  while true
-  do
-    if ! lxc exec "${ctName}" -- ip -6 a show dev eth0 | grep "tentative" ; then
-      break
-    fi
-
-    sleep 0.5
-  done
-
-  while true
-  do
-    if ! lxc exec "${ctName}2" -- ip -6 a show dev eth0 | grep "tentative" ; then
-      break
-    fi
-
-    sleep 0.5
-  done
+  wait_for_dad "${ctName}" eth0
+  wait_for_dad "${ctName}2" eth0
 
   # Check comms between containers.
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.1"
