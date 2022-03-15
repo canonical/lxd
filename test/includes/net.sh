@@ -37,9 +37,9 @@ my_curl() {
 # Wait for duplicate address detection to complete.
 # Usage: Either "wait_for_dad <device>" or "wait_for_dad <container> <device>".
 wait_for_dad() {
-  cmd="ip -6 a show dev $1"
+  cmd="ip -6 a show -tentative dev $1"
   if [ "$#" -eq 2 ]; then
-    cmd="lxc exec $1 -- ip -6 a show dev $2"
+    cmd="lxc exec $1 -- ip -6 a show -tentative dev $2"
   fi
 
   # Ensure the command succeeds (else the while loop will break for the wrong reason).
@@ -52,7 +52,8 @@ wait_for_dad() {
   while true
   do
     ip -6 a show
-    if ! eval "$cmd" | grep "tentative" ; then
+    # Stop waiting as soon as non-tentative address(es) show up
+    if [ -n "$(eval "$cmd")" ]; then
       break
     fi
 
