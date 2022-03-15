@@ -566,20 +566,32 @@ func (n *bridge) Rename(newName string) error {
 func (n *bridge) Start() error {
 	n.logger.Debug("Start")
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { n.setUnavailable() })
+
 	err := n.setup(nil)
 	if err != nil {
-		err := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
-		if err != nil {
+		warnErr := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
+		if warnErr != nil {
 			n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
 		}
-	} else {
-		err := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
-		if err != nil {
-			n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
-		}
+
+		return err
 	}
 
-	return err
+	warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
+	if warnErr != nil {
+		n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+	}
+
+	revert.Success()
+
+	// Ensure network is marked as available now its started.
+	n.setAvailable()
+
+	return nil
 }
 
 // setup restarts the network.
