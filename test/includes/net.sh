@@ -33,3 +33,29 @@ EOF
 my_curl() {
     curl -k -s --cert "${LXD_CONF}/client.crt" --key "${LXD_CONF}/client.key" "$@"
 }
+
+# Wait for duplicate address detection to complete.
+# Usage: Either "wait_for_dad <device>" or "wait_for_dad <container> <device>".
+wait_for_dad() {
+  cmd="ip -6 a show dev $1"
+  if [ "$#" -eq 2 ]; then
+    cmd="lxc exec $1 -- ip -6 a show dev $2"
+  fi
+
+  # Ensure the command succeeds (else the while loop will break for the wrong reason).
+  if ! eval "$cmd"; then
+    echo "Invalid arguments to wait_for_dad"
+    false
+    return
+  fi
+
+  while true
+  do
+    ip -6 a show
+    if ! eval "$cmd" | grep "tentative" ; then
+      break
+    fi
+
+    sleep 0.5
+  done
+}
