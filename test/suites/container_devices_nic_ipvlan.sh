@@ -130,6 +130,7 @@ test_container_devices_nic_ipvlan() {
   # Add an internally configured address (only possible in l2 mode).
   lxc exec "${ctName}2" -- ip -4 addr add "192.0.2.4${ipRand}/32" dev eth0
   lxc exec "${ctName}2" -- ip -6 addr add "2001:db8::4${ipRand}/128" dev eth0
+  wait_for_dad "${ctName}2" eth0
 
   # Check comms between containers.
   lxc exec "${ctName}" -- ping -c2 -W5 "192.0.2.3${ipRand}"

@@ -274,7 +274,7 @@ test_container_devices_nic_bridged_filtering() {
   lxc exec "${ctPrefix}B" -- ip -6 a add 2001:db8::3/64 dev eth0
   lxc exec "${ctPrefix}A" -- ip link set dev eth0 address "${ctAMAC}" up
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254 dev eth0
-  sleep 2 # Wait for DAD.
+  wait_for_dad "${ctPrefix}A" eth0
   lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::1
   lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::3
 
@@ -367,7 +367,7 @@ test_container_devices_nic_bridged_filtering() {
 
   lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::2/64 dev eth0
-  sleep 2 # Wait for DAD.
+  wait_for_dad "${ctPrefix}A" eth0
 
   # Check basic connectivity with IPv6 filtering and real IPs configured.
   lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::2
@@ -376,6 +376,7 @@ test_container_devices_nic_bridged_filtering() {
   # Add a fake IP
   lxc exec "${ctPrefix}A" -- ip -6 a flush dev eth0
   lxc exec "${ctPrefix}A" -- ip -6 a add 2001:db8::254/64 dev eth0
+  wait_for_dad "${ctPrefix}A" eth0
 
   # Check that ping is no longer working (i.e its filtered after fake IP setup).
   if lxc exec "${ctPrefix}A" -- ping6 -c2 -W5 2001:db8::2; then
