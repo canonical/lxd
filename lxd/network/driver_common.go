@@ -181,6 +181,11 @@ func (n *common) Status() string {
 
 // LocalStatus returns network status of the local cluster member.
 func (n *common) LocalStatus() string {
+	// Check if network is unavailable locally and replace status if so.
+	if !IsAvailable(n.Project(), n.Name()) {
+		return api.NetworkStatusUnavailable
+	}
+
 	node, exists := n.nodes[n.state.Cluster.GetNodeID()]
 	if !exists {
 		return api.NetworkStatusUnknown
