@@ -180,7 +180,12 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	revert := revert.New()
 	defer revert.Fail()
 
+	if !InterfaceExists(n.config["parent"]) {
+		return fmt.Errorf("Parent interface %q not found", n.config["parent"])
+	}
+
 	hostName := GetHostDevice(n.config["parent"], n.config["vlan"])
+
 	created, err := VLANInterfaceCreate(n.config["parent"], hostName, n.config["vlan"], shared.IsTrue(n.config["gvrp"]))
 	if err != nil {
 		return err
