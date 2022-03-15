@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,8 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"errors"
+	"time"
 
 	"github.com/gorilla/mux"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -19,6 +19,9 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -29,6 +32,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -1334,60 +1338,161 @@ func networkStartup(s *state.State) error {
 		return fmt.Errorf("Failed to load projects: %w", err)
 	}
 
-	// Record of networks that need to be started later keyed on project name.
-	deferredNetworks := make(map[string][]network.Network)
+	// List of networks that need to be started after non-dependent networks.
+	deferredNetworks := make([]network.Network, 0)
 
+	// Build a list of networks to initialise, keyed by project and network name.
+	initNetworks := make(map[network.ProjectNetwork]struct{}, 0)
 	for _, projectName := range projectNames {
-		deferredNetworks[projectName] = make([]network.Network, 0)
-
-		// Get a list of managed networks.
-		networks, err := s.Cluster.GetCreatedNetworks(projectName)
+		networkNames, err := s.Cluster.GetCreatedNetworks(projectName)
 		if err != nil {
 			return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
 		}
 
-		// Bring them all up.
-		for _, name := range networks {
-			n, err := network.LoadByName(s, projectName, name)
-			if err != nil {
-				return fmt.Errorf("Failed to load network %q in project %q: %w", name, projectName, err)
+		for _, networkName := range networkNames {
+			pn := network.ProjectNetwork{
+				ProjectName: projectName,
+				NetworkName: networkName,
 			}
 
-			netConfig := n.Config()
-			err = n.Validate(netConfig)
-			if err != nil {
-				// Don't cause LXD to fail to start entirely on network start up failure.
-				logger.Error("Failed to validate network", log.Ctx{"err": err, "project": projectName, "name": name})
+			initNetworks[pn] = struct{}{}
+		}
+	}
+
+	initNetwork := func(n network.Network) error {
+		err = n.Start()
+		if err != nil {
+			err = fmt.Errorf("Failed starting: %w", err)
+			s.Cluster.UpsertWarningLocalNode(n.Project(), dbCluster.TypeNetwork, int(n.ID()), db.WarningNetworkUnvailable, err.Error())
+
+			return err
+		}
+
+		logger.Info("Initialized network", log.Ctx{"project": n.Project(), "name": n.Name()})
+
+		// Network initialized successfully so remove it from the list so its not retried.
+		pn := network.ProjectNetwork{
+			ProjectName: n.Project(),
+			NetworkName: n.Name(),
+		}
+
+		delete(initNetworks, pn)
+
+		warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, n.Project(), db.WarningNetworkUnvailable, dbCluster.TypeNetwork, int(n.ID()))
+
+		return nil
+	}
+
+	errDeferredStartup := fmt.Errorf("Deferred start")
+
+	loadAndInitNetwork := func(projectName, networkName string, firstPass bool) error {
+		n, err := network.LoadByName(s, projectName, networkName)
+		if err != nil {
+			if _, matched := api.StatusErrorMatch(err, http.StatusNotFound); matched {
+				return nil // Network has been deleted since we started trying to load it.
+			}
+
+			return fmt.Errorf("Failed loading: %w", err)
+		}
+
+		netConfig := n.Config()
+		err = n.Validate(netConfig)
+		if err != nil {
+			return fmt.Errorf("Failed validating: %w", err)
+		}
+
+		// Defer network start until after non-dependent networks on first pass.
+		if firstPass && netConfig["network"] != "" {
+			deferredNetworks = append(deferredNetworks, n)
+
+			return errDeferredStartup
+		}
+
+		err = initNetwork(n)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// Try initializing networks in a random order.
+	for pn := range initNetworks {
+		err := loadAndInitNetwork(pn.ProjectName, pn.NetworkName, true)
+		if err != nil {
+			if errors.Is(err, errDeferredStartup) {
 				continue
 			}
 
-			// Defer network start until after non-dependent networks.
-			if netConfig["network"] != "" {
-				deferredNetworks[projectName] = append(deferredNetworks[projectName], n)
-				continue
-			}
+			logger.Error("Failed initializing network", log.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
-			err = n.Start()
-			if err != nil {
-				// Don't cause LXD to fail to start entirely on network start up failure.
-				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": name})
-				continue
-			}
+			continue
 		}
 	}
 
 	// Bring up deferred networks after non-dependent networks have been started.
-	for projectName, networks := range deferredNetworks {
-		for _, n := range networks {
-			err = n.Start()
-			if err != nil {
-				// Don't cause LXD to fail to start entirely on network start up failure.
-				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": n.Name()})
-				continue
-			}
+	for _, n := range deferredNetworks {
+		err = initNetwork(n)
+		if err != nil {
+			logger.Error("Failed initializing network", log.Ctx{"project": n.Project(), "network": n.Name(), "err": err})
+
+			continue
 		}
 	}
 
+	deferredNetworks = nil // Don't keep references to the deferred networks around from here.
+
+	// For any remaining networks that were not successfully initialised, we now start a go routine to
+	// periodically try to initialize them again in the background.
+	if len(initNetworks) > 0 {
+		go func() {
+			for {
+				t := time.NewTimer(time.Duration(time.Minute))
+
+				select {
+				case <-s.Context.Done():
+					t.Stop()
+					return
+				case <-t.C:
+					t.Stop()
+
+					// Try initializing remaining networks in random order.
+					tryInstancesStart := false
+					for pn := range initNetworks {
+						err := loadAndInitNetwork(pn.ProjectName, pn.NetworkName, false)
+						if err != nil {
+							logger.Error("Failed initializing network", log.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+
+							continue
+						}
+
+						tryInstancesStart = true // We initialized at least one network.
+					}
+
+					if len(initNetworks) <= 0 {
+						logger.Info("All networks initialized")
+					}
+
+					// At least one remaining network was initialized, check if any instances
+					// can now start.
+					if tryInstancesStart {
+						instances, err := instance.LoadNodeAll(s, instancetype.Any)
+						if err != nil {
+							logger.Warn("Failed loading instances to start", log.Ctx{"err": err})
+						} else {
+							instancesStart(s, instances)
+						}
+					}
+
+					if len(initNetworks) <= 0 {
+						return // Our job here is done.
+					}
+				}
+			}
+		}()
+	}
+
+	logger.Info("All networks initialized")
 	return nil
 }
 
