@@ -146,7 +146,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 	// Try initializing storage pools in random order.
 	for poolName := range initPools {
 		if initPool(poolName) {
-			// Storage pool initialized successfully then remove it from the list so its not retried.
+			// Storage pool initialized successfully so remove it from the list so its not retried.
 			delete(initPools, poolName)
 		}
 	}
@@ -169,8 +169,8 @@ func storageStartup(s *state.State, forceCheck bool) error {
 					tryInstancesStart := false
 					for poolName := range initPools {
 						if initPool(poolName) {
-							// Storage pool initialized successfully then remove it
-							// from the list so its not retried.
+							// Storage pool initialized successfully so remove it from
+							// the list so its not retried.
 							delete(initPools, poolName)
 							tryInstancesStart = true
 						}
