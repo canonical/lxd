@@ -48,14 +48,24 @@ func (cg *CGroup) GetMemorySoftLimit() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	case V2:
 		val, err := cg.rw.Get(version, "memory", "memory.low")
 		if err != nil {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	return -1, ErrUnknownVersion
@@ -92,14 +102,24 @@ func (cg *CGroup) GetMemoryLimit() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	case V2:
 		val, err := cg.rw.Get(version, "memory", "memory.max")
 		if err != nil {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	return -1, ErrUnknownVersion
@@ -136,14 +156,24 @@ func (cg *CGroup) GetMemoryUsage() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	case V2:
 		val, err := cg.rw.Get(version, "memory", "memory.current")
 		if err != nil {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	return -1, ErrUnknownVersion
@@ -163,7 +193,12 @@ func (cg *CGroup) GetProcessesUsage() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	return -1, ErrUnknownVersion
@@ -187,7 +222,7 @@ func (cg *CGroup) SetMemorySwapLimit(limit int64) error {
 
 		valInt, err := strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed parsing %q: %w", val, err)
 		}
 
 		return cg.rw.Set(version, "memory", "memory.memsw.limit_in_bytes", fmt.Sprintf("%d", limit+valInt))
@@ -228,17 +263,17 @@ func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 
 			cpuID, err := strconv.ParseInt(fields[0], 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+				return nil, fmt.Errorf("Failed parsing %q: %w", fields[0], err)
 			}
 
 			stats.User, err = strconv.ParseInt(fields[1], 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+				return nil, fmt.Errorf("Failed parsing %q: %w", fields[0], err)
 			}
 
 			stats.System, err = strconv.ParseInt(fields[2], 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse %q: %w", fields[0], err)
+				return nil, fmt.Errorf("Failed parsing %q: %w", fields[0], err)
 			}
 
 			out[cpuID] = stats
@@ -269,7 +304,7 @@ func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 			case "user_usec":
 				val, err := strconv.ParseInt(fields[1], 10, 64)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("Failed parsing %q: %w", val, err)
 				}
 
 				// Convert usec to nsec
@@ -277,7 +312,7 @@ func (cg *CGroup) GetCPUAcctUsageAll() (map[int64]CPUStats, error) {
 			case "system_usec":
 				val, err := strconv.ParseInt(fields[1], 10, 64)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("Failed parsing %q: %w", val, err)
 				}
 
 				// Convert usec to nsec
@@ -304,7 +339,12 @@ func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	// Handle cgroups v2
@@ -329,7 +369,7 @@ func (cg *CGroup) GetCPUAcctUsage() (int64, error) {
 
 			val, err := strconv.ParseInt(fields[1], 10, 64)
 			if err != nil {
-				return 0, err
+				return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
 			}
 
 			// Convert usec to nsec
@@ -352,7 +392,12 @@ func (cg *CGroup) GetMemoryMaxUsage() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	case V2:
 		return -1, ErrControllerMissing
 	}
@@ -374,7 +419,7 @@ func (cg *CGroup) GetMemorySwapMaxUsage() (int64, error) {
 
 		swapValInt, err := strconv.ParseInt(swapVal, 10, 64)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("Failed parsing %q: %w", swapVal, err)
 		}
 
 		memVal, err := cg.rw.Get(version, "memory", "memory.max_usage_in_bytes")
@@ -384,7 +429,7 @@ func (cg *CGroup) GetMemorySwapMaxUsage() (int64, error) {
 
 		memValInt, err := strconv.ParseInt(memVal, 10, 64)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("Failed parsing %q: %w", memVal, err)
 		}
 
 		return swapValInt - memValInt, nil
@@ -425,7 +470,7 @@ func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 
 		swapValInt, err := strconv.ParseInt(swapVal, 10, 64)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("Failed parsing %q: %w", swapVal, err)
 		}
 
 		memVal, err := cg.rw.Get(version, "memory", "memory.limit_in_bytes")
@@ -435,7 +480,7 @@ func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 
 		memValInt, err := strconv.ParseInt(memVal, 10, 64)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("Failed parsing %q: %w", memVal, err)
 		}
 
 		return swapValInt - memValInt, nil
@@ -445,7 +490,12 @@ func (cg *CGroup) GetMemorySwapLimit() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 	return -1, ErrUnknownVersion
 }
@@ -464,7 +514,7 @@ func (cg *CGroup) GetMemorySwapUsage() (int64, error) {
 
 		swapValInt, err := strconv.ParseInt(swapVal, 10, 64)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("Failed parsing %q: %w", swapVal, err)
 		}
 
 		memVal, err := cg.rw.Get(version, "memory", "memory.usage_in_bytes")
@@ -474,7 +524,7 @@ func (cg *CGroup) GetMemorySwapUsage() (int64, error) {
 
 		memValInt, err := strconv.ParseInt(memVal, 10, 64)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("Failed parsing %q: %w", memVal, err)
 		}
 
 		return swapValInt - memValInt, nil
@@ -484,7 +534,12 @@ func (cg *CGroup) GetMemorySwapUsage() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	return -1, ErrUnknownVersion
@@ -502,14 +557,24 @@ func (cg *CGroup) GetBlkioWeight() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	case V2:
 		val, err := cg.rw.Get(version, "io", "io.weight")
 		if err != nil {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	return -1, ErrUnknownVersion
@@ -881,14 +946,24 @@ func (cg *CGroup) GetTotalProcesses() (int64, error) {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	case V2:
 		val, err := cg.rw.Get(version, "pids", "pids.current")
 		if err != nil {
 			return -1, err
 		}
 
-		return strconv.ParseInt(val, 10, 64)
+		n, err := strconv.ParseInt(val, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("Failed parsing %q: %w", val, err)
+		}
+
+		return n, nil
 	}
 
 	return -1, ErrUnknownVersion
