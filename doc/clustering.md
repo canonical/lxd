@@ -1,5 +1,8 @@
 # Clustering
 
+```{youtube} https://www.youtube.com/watch?v=nrOR6yaO_MY
+```
+
 LXD can be run in clustering mode, where any number of LXD servers
 share the same distributed database and can be managed uniformly using
 the lxc client or the REST API.

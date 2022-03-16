@@ -1,5 +1,8 @@
 # cloud-init
 
+```{youtube} https://www.youtube.com/watch?v=8OCG15TAldI
+```
+
 LXD supports [cloud-init](https://launchpad.net/cloud-init) via the following instance or profile
 configuration keys
 

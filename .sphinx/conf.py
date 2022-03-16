@@ -1,5 +1,6 @@
 import datetime
 import os
+import sys
 import yaml
 
 # Project config.
@@ -10,12 +11,15 @@ copyright = "2014-%s %s" % (datetime.date.today().year, author)
 with open("../shared/version/flex.go") as fd:
     version = fd.read().split("\n")[-2].split()[-1].strip("\"")
 
+sys.path.append(os.path.abspath("_extensions"))
+
 # Extensions.
 extensions = [
     "myst_parser",
     "sphinx_tabs.tabs",
     "sphinx_reredirects",
-    "sphinxext.opengraph"
+    "sphinxext.opengraph",
+    "youtube-link"
 ]
 
 myst_enable_extensions = [
