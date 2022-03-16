@@ -8,13 +8,17 @@ class YouTubeLink(Directive):
     has_content = False
 
     def run(self):
-        para = nodes.paragraph()
-        para.set_class("youtube_link")
 
-        para += nodes.reference(refuri=self.arguments[0], text="▶", internal=False)
-        para += nodes.reference(refuri=self.arguments[0], text="Watch on YouTube", internal=False)
+        fragment = ' \
+        <p class="youtube_link"> \
+          <a href="'+self.arguments[0]+'" target="_blank"> \
+            <span class="play_icon">▶</span> \
+            <span>Watch on YouTube</span> \
+          </a> \
+        </p>'
+        raw = nodes.raw(text=fragment, format="html")
 
-        return [para]
+        return [raw]
 
 
 def setup(app):

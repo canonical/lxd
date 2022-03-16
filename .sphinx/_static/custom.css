@@ -126,16 +126,20 @@ p.youtube_link {
 }
 
 p.youtube_link a {
-    display: block;
     text-align: center;
-    max-width: 70px;
 }
 
-p.youtube_link a:first-child {
+p.youtube_link span.play_icon {
     color: #E95420;
     font-size: 2em;
 }
 
-p.youtube_link a:nth-child(2) {
+p.youtube_link span.play_icon::after {
+    content: "\a"
+}
+
+p.youtube_link span {
+    display: block;
     font-size: small;
+    max-width: 70px;
 }
