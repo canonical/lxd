@@ -212,6 +212,16 @@ func (n *common) Info() Info {
 	}
 }
 
+// Locations returns the list of cluster members this network is configured on.
+func (n *common) Locations() []string {
+	locations := make([]string, 0, len(n.nodes))
+	for _, netNode := range n.nodes {
+		locations = append(locations, netNode.Name)
+	}
+
+	return locations
+}
+
 // IsUsed returns whether the network is used by any instances or profiles.
 func (n *common) IsUsed() (bool, error) {
 	usedBy, err := UsedBy(n.state, n.project, n.id, n.name, true)
