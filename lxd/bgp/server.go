@@ -341,19 +341,26 @@ func (s *Server) RemovePrefix(subnet net.IPNet, nexthop net.IP) error {
 }
 
 func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
-	// Find the prefix.
-	var uuid string
+	found := false
 	for pathUUID, path := range s.paths {
-		if path.prefix.String() == subnet.String() && path.nexthop.String() == nexthop.String() {
-			uuid = pathUUID
+		if path.prefix.String() != subnet.String() || path.nexthop.String() != nexthop.String() {
+			continue
+		}
+
+		found = true
+
+		// Remove the prefix.
+		err := s.removePrefixByUUID(pathUUID)
+		if err != nil {
+			return err
 		}
 	}
 
-	if uuid == "" {
+	if !found {
 		return ErrPrefixNotFound
 	}
 
-	return s.removePrefixByUUID(uuid)
+	return nil
 }
 
 func (s *Server) removePrefixByUUID(pathUUID string) error {
