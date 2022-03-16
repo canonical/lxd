@@ -756,74 +756,94 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, &n, etag)
 }
 
-func doNetworkGet(d *Daemon, r *http.Request, projectName string, name string) (api.Network, error) {
+// doNetworkGet returns information about the specified network.
+// If the network being requested is a managed network and allNodes is true then node specific config is removed.
+// Otherwise if allNodes is false then the network's local status is returned.
+func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string, networkName string) (api.Network, error) {
 	// Ignore veth pairs (for performance reasons).
-	if strings.HasPrefix(name, "veth") {
+	if strings.HasPrefix(networkName, "veth") {
 		return api.Network{}, os.ErrNotExist
 	}
 
 	// Get some information.
-	networkID, dbInfo, _, _ := d.cluster.GetNetworkInAnyState(projectName, name)
+	n, _ := network.LoadByName(d.State(), projectName, networkName)
 
 	// Don't allow retrieving info about the local node interfaces when not using default project.
-	if projectName != project.Default && dbInfo == nil {
+	if projectName != project.Default && n == nil {
 		return api.Network{}, os.ErrNotExist
 	}
 
-	osInfo, _ := net.InterfaceByName(name)
+	osInfo, _ := net.InterfaceByName(networkName)
 
 	// Quick check.
-	if osInfo == nil && dbInfo == nil {
+	if osInfo == nil && n == nil {
 		return api.Network{}, os.ErrNotExist
 	}
 
 	// Prepare the response.
-	n := api.Network{}
-	n.Name = name
-	n.UsedBy = []string{}
-	n.Config = map[string]string{}
+	apiNet := api.Network{}
+	apiNet.Name = networkName
+	apiNet.UsedBy = []string{}
+	apiNet.Config = map[string]string{}
 
 	// Set the device type as needed.
-	if dbInfo != nil {
-		n.Managed = true
-		n.Description = dbInfo.Description
-		n.Config = dbInfo.Config
-		n.Type = dbInfo.Type
+	if n != nil {
+		apiNet.Managed = true
+		apiNet.Description = n.Description()
+		apiNet.Config = n.Config()
+		apiNet.Type = n.Type()
+
+		// If no member is specified, we omit the node-specific fields.
+		if allNodes {
+			for _, key := range db.NodeSpecificNetworkConfig {
+				delete(apiNet.Config, key)
+			}
+		}
 	} else if osInfo != nil && shared.IsLoopback(osInfo) {
-		n.Type = "loopback"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
-		n.Type = "bridge"
-	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", n.Name)) {
-		n.Type = "vlan"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", n.Name)) {
-		n.Type = "physical"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", n.Name)) {
-		n.Type = "bond"
+		apiNet.Type = "loopback"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", apiNet.Name)) {
+		apiNet.Type = "bridge"
+	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", apiNet.Name)) {
+		apiNet.Type = "vlan"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", apiNet.Name)) {
+		apiNet.Type = "physical"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", apiNet.Name)) {
+		apiNet.Type = "bond"
 	} else {
 		ovs := openvswitch.NewOVS()
-		if exists, _ := ovs.BridgeExists(n.Name); exists {
-			n.Type = "bridge"
+		if exists, _ := ovs.BridgeExists(apiNet.Name); exists {
+			apiNet.Type = "bridge"
 		} else {
-			n.Type = "unknown"
+			apiNet.Type = "unknown"
 		}
 	}
 
 	// Look for instances using the interface.
-	if n.Type != "loopback" {
-		usedBy, err := network.UsedBy(d.State(), projectName, networkID, n.Name, false)
+	if apiNet.Type != "loopback" {
+		var networkID int64
+		if n != nil {
+			networkID = n.ID()
+		}
+
+		usedBy, err := network.UsedBy(d.State(), projectName, networkID, apiNet.Name, false)
 		if err != nil {
 			return api.Network{}, err
 		}
 
-		n.UsedBy = project.FilterUsedBy(r, usedBy)
+		apiNet.UsedBy = project.FilterUsedBy(r, usedBy)
 	}
 
-	if dbInfo != nil {
-		n.Status = dbInfo.Status
-		n.Locations = dbInfo.Locations
+	if n != nil {
+		if allNodes {
+			apiNet.Status = n.Status()
+		} else {
+			apiNet.Status = n.LocalStatus()
+		}
+
+		apiNet.Locations = n.Locations()
 	}
 
-	return n, nil
+	return apiNet, nil
 }
 
 // swagger:operation DELETE /1.0/networks/{name} networks network_delete
