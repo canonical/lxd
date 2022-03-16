@@ -177,8 +177,6 @@ func (n *physical) Start() error {
 }
 
 func (n *physical) setup(oldConfig map[string]string) error {
-	n.logger.Debug("Start")
-
 	revert := revert.New()
 	defer revert.Fail()
 
