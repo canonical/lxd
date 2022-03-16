@@ -319,7 +319,14 @@ func (s *Server) RemovePrefixByOwner(owner string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Make a copy of the paths dict to safely iterate (path removal mutates it).
+	paths := map[string]path{}
 	for pathUUID, path := range s.paths {
+		paths[pathUUID] = path
+	}
+
+	// Iterate through the paths and remove them from the server.
+	for pathUUID, path := range paths {
 		if path.owner == owner {
 			err := s.removePrefixByUUID(pathUUID)
 			if err != nil {
