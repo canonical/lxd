@@ -737,24 +737,21 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name := mux.Vars(r)["name"]
-
-	n, err := doNetworkGet(d, r, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	targetNode := queryParam(r, "target")
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// If no target node is specified and the daemon is clustered, we omit the node-specific fields.
-	if targetNode == "" && clustered {
-		for _, key := range db.NodeSpecificNetworkConfig {
-			delete(n.Config, key)
-		}
+	allNodes := false
+	if clustered && queryParam(r, "target") == "" {
+		allNodes = true
+	}
+
+	name := mux.Vars(r)["name"]
+
+	n, err := doNetworkGet(d, r, allNodes, projectName, name)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	etag := []interface{}{n.Name, n.Managed, n.Type, n.Description, n.Config}
