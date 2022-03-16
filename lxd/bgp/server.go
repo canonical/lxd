@@ -319,7 +319,14 @@ func (s *Server) RemovePrefixByOwner(owner string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Make a copy of the paths dict to safely iterate (path removal mutates it).
+	paths := map[string]path{}
 	for pathUUID, path := range s.paths {
+		paths[pathUUID] = path
+	}
+
+	// Iterate through the paths and remove them from the server.
+	for pathUUID, path := range paths {
 		if path.owner == owner {
 			err := s.removePrefixByUUID(pathUUID)
 			if err != nil {
@@ -341,26 +348,33 @@ func (s *Server) RemovePrefix(subnet net.IPNet, nexthop net.IP) error {
 }
 
 func (s *Server) removePrefix(subnet net.IPNet, nexthop net.IP) error {
-	// Find the prefix.
-	var uuid string
+	found := false
 	for pathUUID, path := range s.paths {
-		if path.prefix.String() == subnet.String() && path.nexthop.String() == nexthop.String() {
-			uuid = pathUUID
+		if path.prefix.String() != subnet.String() || path.nexthop.String() != nexthop.String() {
+			continue
+		}
+
+		found = true
+
+		// Remove the prefix.
+		err := s.removePrefixByUUID(pathUUID)
+		if err != nil {
+			return err
 		}
 	}
 
-	if uuid == "" {
+	if !found {
 		return ErrPrefixNotFound
 	}
 
-	return s.removePrefixByUUID(uuid)
+	return nil
 }
 
 func (s *Server) removePrefixByUUID(pathUUID string) error {
 	// Remove it from the BGP server.
 	if s.bgp != nil {
 		err := s.bgp.DeletePath(context.Background(), &bgpAPI.DeletePathRequest{Uuid: []byte(pathUUID)})
-		if err != nil {
+		if err != nil && err.Error() != "can't find a specified path" {
 			return err
 		}
 	}
