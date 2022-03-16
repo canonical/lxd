@@ -119,7 +119,7 @@ test_filemanip() {
 
   # Test SFTP functionality.
   cmd=$(unset -f lxc; command -v lxc)
-  $cmd file mount filemanip --listen=127.0.0.1:2022 &
+  $cmd file mount filemanip --listen=127.0.0.1:2022 --no-auth &
   mountPID=$!
   sleep 1
 
