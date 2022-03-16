@@ -2565,6 +2565,11 @@ func (n *ovn) Start() error {
 func (n *ovn) start() error {
 	n.logger.Debug("Start")
 
+	// Check that uplink network is available.
+	if n.config["network"] != "" && !IsAvailable(project.Default, n.config["network"]) {
+		return fmt.Errorf("Uplink network %q is unavailable", n.config["network"])
+	}
+
 	var err error
 	var projectID int64
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
