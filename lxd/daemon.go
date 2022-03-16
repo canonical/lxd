@@ -129,6 +129,9 @@ type Daemon struct {
 
 	// Keep track of skews.
 	timeSkew bool
+
+	// Kernel version.
+	kernelVersion version.DottedVersion
 }
 
 type externalAuth struct {
@@ -452,6 +455,7 @@ func (d *Daemon) State() *state.State {
 		UpdateCertificateCache: func() { updateCertificateCache(d) },
 		InstanceTypes:          supportedInstanceTypes,
 		DevMonitor:             d.devmonitor,
+		KernelVersion:          d.kernelVersion,
 	}
 }
 
@@ -833,6 +837,15 @@ func (d *Daemon) init() error {
 
 	// Look for kernel features
 	logger.Infof("Kernel features:")
+
+	uname, _ := shared.Uname()
+	if uname != nil {
+		kernelVersion, err := version.Parse(strings.Split(uname.Release, "-")[0])
+		if err == nil {
+			d.kernelVersion = *kernelVersion
+		}
+	}
+
 	d.os.CloseRange = canUseCloseRange()
 	if d.os.CloseRange {
 		logger.Info(" - closing multiple file descriptors efficiently: yes")
