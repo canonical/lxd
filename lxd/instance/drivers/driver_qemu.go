@@ -2953,9 +2953,10 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 	drivers, _ := SupportedInstanceTypes()
 	info := drivers[d.Type()]
 
-	// If supported by QEMU and disk not backed by loop device, use io_uring over native for added performance.
-	// We've seen issues starting VMs when running with io_ring AIO mode on loop backed disks.
-	if shared.StringInSlice("io_uring", info.Features) && !shared.StringInSlice(device.DiskLoopBacked, driveConf.Opts) {
+	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
+	// We've seen issues starting VMs when running with io_ring AIO mode on kernels before 5.13.
+	minVer, _ := version.NewDottedVersion("5.13.0")
+	if shared.StringInSlice("io_uring", info.Features) && d.state.KernelVersion.Compare(minVer) >= 0 {
 		aioMode = "io_uring"
 	}
 
