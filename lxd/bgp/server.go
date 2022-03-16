@@ -374,7 +374,7 @@ func (s *Server) removePrefixByUUID(pathUUID string) error {
 	// Remove it from the BGP server.
 	if s.bgp != nil {
 		err := s.bgp.DeletePath(context.Background(), &bgpAPI.DeletePathRequest{Uuid: []byte(pathUUID)})
-		if err != nil {
+		if err != nil && err.Error() != "can't find a specified path" {
 			return err
 		}
 	}
