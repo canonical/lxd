@@ -128,12 +128,13 @@ type cmdImageCopy struct {
 	global *cmdGlobal
 	image  *cmdImage
 
-	flagAliases     []string
-	flagPublic      bool
-	flagCopyAliases bool
-	flagAutoUpdate  bool
-	flagVM          bool
-	flagMode        string
+	flagAliases       []string
+	flagPublic        bool
+	flagCopyAliases   bool
+	flagAutoUpdate    bool
+	flagVM            bool
+	flagMode          string
+	flagTargetProject string
 }
 
 func (c *cmdImageCopy) Command() *cobra.Command {
@@ -153,6 +154,7 @@ It requires the source to be an alias and for it to be public.`))
 	cmd.Flags().StringArrayVar(&c.flagAliases, "alias", nil, i18n.G("New aliases to add to the image")+"``")
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Copy virtual machine images"))
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -208,6 +210,10 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 	imageType := ""
 	if c.flagVM {
 		imageType = "virtual-machine"
+	}
+
+	if c.flagTargetProject != "" {
+		destinationServer = destinationServer.UseProject(c.flagTargetProject)
 	}
 
 	// Copy the image
