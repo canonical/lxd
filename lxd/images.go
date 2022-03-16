@@ -3516,6 +3516,10 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 			},
 		}
 
+		if req.Project != "" {
+			remote = remote.UseProject(req.Project)
+		}
+
 		imageCreateOp, err = remote.CreateImage(image, createArgs)
 		if err != nil {
 			return err
