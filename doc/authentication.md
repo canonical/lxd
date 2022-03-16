@@ -13,6 +13,9 @@ The following authentication methods are supported:
 (authentication-tls-certs)=
 ## TLS client certificates
 
+```{youtube} https://www.youtube.com/watch?v=4iNpiL-lrXU
+```
+
 When using {abbr}`TLS (Transport Layer Security)` client certificates for authentication, both the client and the server will generate a key pair the first time they're launched.
 The server will use that key pair for all HTTPS connections to the LXD socket.
 The client will use its certificate as a client certificate for any client-server communication.
@@ -108,6 +111,9 @@ Note that the generated certificates are not automatically trusted. You must sti
 (authentication-candid)=
 ## Candid-based authentication
 
+```{youtube} https://www.youtube.com/watch?v=FebTipM1jJk
+```
+
 When LXD is configured to use [Candid](https://github.com/canonical/candid) authentication, clients that try to authenticate with the server must get a Discharge token from the authentication server specified by the `candid.api.url` setting (see {doc}`server`).
 
 The authentication server certificate must be trusted by the LXD server.
@@ -122,6 +128,9 @@ For instructions on how to set up Candid-based authentication, see the [Candid a
 
 (authentication-rbac)=
 ## Role Based Access Control (RBAC)
+
+```{youtube} https://www.youtube.com/watch?v=VE60AbJHT6E
+```
 
 LXD supports integrating with the Canonical RBAC service.
 Combined with Candid-based authentication, {abbr}`RBAC (Role Based Access Control)` can be used to limit what an API client is allowed to do on LXD.
