@@ -173,13 +173,18 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get list of managed networks (that may or may not have network interfaces on the host).
-	networks, err := d.cluster.GetNetworks(projectName)
+	networkNames, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	// Get list of actual network interfaces on the host as well if the network's project is Default.
+	// Get list of actual network interfaces on the host as well if the effective project is Default.
 	if projectName == project.Default {
 		ifaces, err := net.Interfaces()
 		if err != nil {
@@ -193,22 +198,23 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Append to the list of networks if a managed network of same name doesn't exist.
-			if !shared.StringInSlice(iface.Name, networks) {
-				networks = append(networks, iface.Name)
+			if !shared.StringInSlice(iface.Name, networkNames) {
+				networkNames = append(networkNames, iface.Name)
 			}
 		}
 	}
 
 	resultString := []string{}
 	resultMap := []api.Network{}
-	for _, network := range networks {
+	for _, networkName := range networkNames {
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, network))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
-			net, err := doNetworkGet(d, r, projectName, network)
+			net, err := doNetworkGet(d, r, clustered, projectName, networkName)
 			if err != nil {
 				continue
 			}
+
 			resultMap = append(resultMap, net)
 		}
 	}
