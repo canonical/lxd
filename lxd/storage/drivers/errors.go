@@ -19,6 +19,9 @@ var ErrCannotBeShrunk = fmt.Errorf("Cannot be shrunk")
 // ErrInUse indicates operation cannot proceed as resource is in use.
 var ErrInUse = fmt.Errorf("In use")
 
+// ErrSnapshotDoesNotMatchIncrementalSource in the "Snapshot does not match incremental source" error
+var ErrSnapshotDoesNotMatchIncrementalSource = fmt.Errorf("Snapshot does not match incremental source")
+
 // ErrDeleteSnapshots is a special error used to tell the backend to delete more recent snapshots
 type ErrDeleteSnapshots struct {
 	Snapshots []string
