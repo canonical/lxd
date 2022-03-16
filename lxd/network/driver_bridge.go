@@ -573,17 +573,7 @@ func (n *bridge) Start() error {
 
 	err := n.setup(nil)
 	if err != nil {
-		warnErr := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
-		if warnErr != nil {
-			n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
-		}
-
 		return err
-	}
-
-	warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
-	if warnErr != nil {
-		n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
 	}
 
 	revert.Success()
