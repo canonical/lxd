@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	log "gopkg.in/inconshreveable/log15.v2"
 
@@ -37,6 +38,12 @@ import (
 func ValidName(value string) error {
 	if strings.Contains(value, "/") {
 		return fmt.Errorf(`Storage name cannot contain "/"`)
+	}
+
+	for _, r := range value {
+		if unicode.IsSpace(r) {
+			return fmt.Errorf(`Storage name cannot contain white space`)
+		}
 	}
 
 	return nil
