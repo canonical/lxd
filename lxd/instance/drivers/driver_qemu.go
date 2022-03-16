@@ -1250,20 +1250,9 @@ func (d *qemu) Start(stateful bool) error {
 	cpuExtensions := []string{}
 
 	if d.architecture == osarch.ARCH_64BIT_INTEL_X86 {
-		// Get the kernel version.
-		uname, err := shared.Uname()
-		if err != nil {
-			return err
-		}
-
 		// If using Linux 5.10 or later, use HyperV optimizations.
-		currentVer, err := version.Parse(strings.Split(uname.Release, "-")[0])
-		if err != nil {
-			return err
-		}
-
 		minVer, _ := version.NewDottedVersion("5.10.0")
-		if currentVer.Compare(minVer) >= 0 && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
+		if d.state.KernelVersion.Compare(minVer) >= 0 && shared.IsFalseOrEmpty(d.expandedConfig["migration.stateful"]) {
 			// x86_64 can use hv_time to improve Windows guest performance.
 			cpuExtensions = append(cpuExtensions, "hv_passthrough")
 		}
@@ -2964,9 +2953,10 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 	drivers, _ := SupportedInstanceTypes()
 	info := drivers[d.Type()]
 
-	// If supported by QEMU and disk not backed by loop device, use io_uring over native for added performance.
-	// We've seen issues starting VMs when running with io_ring AIO mode on loop backed disks.
-	if shared.StringInSlice("io_uring", info.Features) && !shared.StringInSlice(device.DiskLoopBacked, driveConf.Opts) {
+	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
+	// We've seen issues starting VMs when running with io_ring AIO mode on kernels before 5.13.
+	minVer, _ := version.NewDottedVersion("5.13.0")
+	if shared.StringInSlice("io_uring", info.Features) && d.state.KernelVersion.Compare(minVer) >= 0 {
 		aioMode = "io_uring"
 	}
 
