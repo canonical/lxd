@@ -11,7 +11,7 @@ class YouTubeLink(Directive):
 
         fragment = ' \
         <p class="youtube_link"> \
-          <a href="'+self.arguments[0]+'"> \
+          <a href="'+self.arguments[0]+'" target="_blank"> \
             <span class="play_icon">▶</span> \
             <span>Watch on YouTube</span> \
           </a> \
