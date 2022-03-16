@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/ip"
@@ -28,7 +27,6 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
-	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/validate"
@@ -2537,40 +2535,15 @@ func (n *ovn) Start() error {
 	revert := revert.New()
 	defer revert.Fail()
 
+	var err error
+
 	revert.Add(func() { n.setUnavailable() })
-
-	err := n.start()
-	if err != nil {
-		warnErr := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
-		if warnErr != nil {
-			n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
-		}
-
-		return err
-	}
-
-	warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
-	if warnErr != nil {
-		n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
-	}
-
-	revert.Success()
-
-	// Ensure network is marked as available now its started.
-	n.setAvailable()
-
-	return nil
-}
-
-func (n *ovn) start() error {
-	n.logger.Debug("Start")
 
 	// Check that uplink network is available.
 	if n.config["network"] != "" && !IsAvailable(project.Default, n.config["network"]) {
 		return fmt.Errorf("Uplink network %q is unavailable", n.config["network"])
 	}
 
-	var err error
 	var projectID int64
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		projectID, err = tx.GetProjectID(n.project)
@@ -2602,6 +2575,11 @@ func (n *ovn) start() error {
 	if err != nil {
 		return err
 	}
+
+	revert.Success()
+
+	// Ensure network is marked as available now its started.
+	n.setAvailable()
 
 	return nil
 }
