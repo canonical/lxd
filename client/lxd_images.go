@@ -665,6 +665,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 			Certificate: info.Certificate,
 			Secret:      secret.(string),
 			Aliases:     image.Aliases,
+			Project:     info.Project,
 		}
 
 		exportOp, err := source.ExportImage(image.Fingerprint, req)
