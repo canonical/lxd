@@ -8,11 +8,9 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/validate"
@@ -167,17 +165,7 @@ func (n *physical) Start() error {
 
 	err := n.setup(nil)
 	if err != nil {
-		warnErr := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
-		if warnErr != nil {
-			n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
-		}
-
 		return err
-	}
-
-	warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
-	if warnErr != nil {
-		n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
 	}
 
 	revert.Success()
