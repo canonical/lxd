@@ -1,4 +1,8 @@
 # Instance metrics
+
+```{youtube} https://www.youtube.com/watch?v=EthK-8hm_fY
+```
+
 LXD provides metrics for all running instances. Those covers CPU, memory, network, disk and process usage and are meant to be consumed by Prometheus and likely graphed in Grafana.
 In cluster environments, LXD will only return the values for instances running on the server being accessed. It's expected that each cluster member will be scraped separately.
 The instance metrics are updated when calling the `/1.0/metrics` endpoint.
