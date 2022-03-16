@@ -322,6 +322,7 @@ var APIExtensions = []string{
 	"agent_nic_config",
 	"projects_restricted_intercept",
 	"metrics_authentication",
+	"images_target_project",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
