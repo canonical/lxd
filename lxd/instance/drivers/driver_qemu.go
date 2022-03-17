@@ -1659,7 +1659,7 @@ func (d *qemu) qemuArchConfig(arch int) (string, string, error) {
 func (d *qemu) RegisterDevices() {
 	devices := d.ExpandedDevices()
 	for _, entry := range devices.Sorted() {
-		dev, _, err := d.deviceLoad(entry.Name, entry.Config)
+		dev, err := d.deviceLoad(entry.Name, entry.Config)
 		if err == device.ErrUnsupportedDevType {
 			continue
 		}
@@ -1719,15 +1719,12 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 	revert := revert.New()
 	defer revert.Fail()
 
-	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	err = dev.PreStartCheck()
-	if err != nil {
-		return nil, fmt.Errorf("Failed pre-start check for device: %w", err)
-	}
+	configCopy := dev.Config()
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
@@ -1841,7 +1838,7 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Stopping device")
 
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -4451,7 +4448,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 
 // deviceUpdate loads a new device and calls its Update() function.
 func (d *qemu) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
@@ -4693,7 +4690,7 @@ func (d *qemu) Delete(force bool) error {
 }
 
 func (d *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
@@ -4708,7 +4705,7 @@ func (d *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, insta
 func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -5971,7 +5968,7 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 			continue
 		}
 
-		dev, _, err := d.deviceLoad(k, m)
+		dev, err := d.deviceLoad(k, m)
 		if err != nil {
 			d.logger.Warn("Could not load device", log.Ctx{"device": k, "err": err})
 			continue
