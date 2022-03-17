@@ -4690,6 +4690,9 @@ func (d *qemu) Delete(force bool) error {
 }
 
 func (d *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
+	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	logger.Debug("Adding device")
+
 	dev, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
