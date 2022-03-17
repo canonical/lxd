@@ -11,7 +11,7 @@ type Device map[string]string
 
 // Clone returns a copy of the Device.
 func (device Device) Clone() Device {
-	copy := map[string]string{}
+	copy := make(map[string]string, len(device))
 
 	for k, v := range device {
 		copy[k] = v
@@ -159,7 +159,7 @@ func (list Devices) Update(newlist Devices, updateFields func(Device, Device) []
 
 // Clone returns a copy of the Devices set.
 func (list Devices) Clone() Devices {
-	copy := Devices{}
+	copy := make(Devices, len(list))
 
 	for deviceName, device := range list {
 		copy[deviceName] = device.Clone()
@@ -170,7 +170,7 @@ func (list Devices) Clone() Devices {
 
 // CloneNative returns a copy of the Devices set as a native map[string]map[string]string type.
 func (list Devices) CloneNative() map[string]map[string]string {
-	copy := map[string]map[string]string{}
+	copy := make(map[string]map[string]string, len(list))
 
 	for deviceName, device := range list {
 		copy[deviceName] = device.Clone()
