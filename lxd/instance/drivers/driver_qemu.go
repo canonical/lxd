@@ -2726,10 +2726,12 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 		// Add USB devices.
 		for _, usbDev := range runConf.USBDevice {
-			err = d.addUSBDeviceConfig(sb, bus, usbDev)
+			monHook, err := d.addUSBDeviceConfig(sb, bus, usbDev)
 			if err != nil {
 				return "", nil, err
 			}
+
+			monHooks = append(monHooks, monHook)
 		}
 
 		// Add TPM device.
@@ -3527,21 +3529,46 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	return nil
 }
 
-func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbDev deviceConfig.USBDeviceItem) error {
-	tplFields := map[string]interface{}{
-		"hostDevice": usbDev.HostDevicePath,
-		"devName":    usbDev.DeviceName,
-	}
-
-	err := qemuUSBDev.Execute(sb, tplFields)
-	if err != nil {
-		return err
+func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
+	device := map[string]string{
+		"id":     fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName),
+		"driver": "usb-host",
+		"bus":    "qemu_usb.0",
 	}
 
 	// Add path to external devPaths. This way, the path will be included in the apparmor profile.
 	d.devPaths = append(d.devPaths, usbDev.HostDevicePath)
 
-	return nil
+	monHook := func(m *qmp.Monitor) error {
+		revert := revert.New()
+		defer revert.Fail()
+
+		f, err := os.OpenFile(usbDev.HostDevicePath, unix.O_RDWR, 0)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		info, err := m.SendFileWithFDSet(device["id"], f, false)
+		if err != nil {
+			return err
+		}
+		revert.Add(func() {
+			m.RemoveFDFromFDSet(device["id"])
+		})
+
+		device["hostdevice"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
+
+		err = m.AddDevice(device)
+		if err != nil {
+			return err
+		}
+
+		revert.Success()
+		return nil
+	}
+
+	return monHook, nil
 }
 
 func (d *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.RunConfigItem) error {
