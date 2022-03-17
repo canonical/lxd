@@ -1160,13 +1160,26 @@ func (d *qemu) Start(stateful bool) error {
 	devConfs := make([]*deviceConfig.RunConfig, 0, len(d.expandedDevices))
 	postStartHooks := []func() error{}
 
-	// Setup devices in sorted order, this ensures that device mounts are added in path order.
-	for _, entry := range d.expandedDevices.Sorted() {
+	sortedDevices := d.expandedDevices.Sorted()
+	startDevices := make([]device.Device, len(sortedDevices))
+
+	// Load devices in sorted order, this ensures that device mounts are added in path order.
+	// Loading all devices first means that validation of all devices occurs before starting any of them.
+	for i, entry := range sortedDevices {
 		dev, err := d.deviceLoad(entry.Name, entry.Config)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
 		}
+
+		startDevices[i] = dev
+	}
+
+	// Start devices in order.
+	for i := range startDevices {
+		// Local vars for revert.
+		rawConfig := sortedDevices[i].Config // For deviceStop.
+		dev := startDevices[i]
 
 		// Start the device.
 		runConf, err := d.deviceStart(dev, false)
@@ -1176,7 +1189,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		revert.Add(func() {
-			err := d.deviceStop(dev.Name(), dev.Config(), false)
+			err := d.deviceStop(dev.Name(), rawConfig, false)
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name(), "err": err})
 			}
