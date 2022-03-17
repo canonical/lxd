@@ -1038,6 +1038,7 @@ func (c *cmdFileMount) sshfsMount(ctx context.Context, resource remoteResource, 
 
 		cancel()                              // Prevents error output when the io.Copy functions finish.
 		sshfsCmd.Process.Signal(os.Interrupt) // This will cause sshfs to unmount.
+		stdin.Close()
 	}()
 
 	go func() {
