@@ -1417,22 +1417,13 @@ func (d *lxc) deviceAdd(dev device.Device, instanceRunning bool) error {
 }
 
 // deviceStart loads a new device and calls its Start() function.
-func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
+	configCopy := dev.Config()
+	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Starting device")
 
 	revert := revert.New()
 	defer revert.Fail()
-
-	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	err = dev.PreStartCheck()
-	if err != nil {
-		return nil, fmt.Errorf("Failed pre-start check for device: %w", err)
-	}
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
