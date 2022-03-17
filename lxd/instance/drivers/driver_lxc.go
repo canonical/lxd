@@ -1366,8 +1366,8 @@ func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]interfac
 func (d *lxc) RegisterDevices() {
 	devices := d.ExpandedDevices()
 	for _, entry := range devices.Sorted() {
-		dev, _, err := d.deviceLoad(entry.Name, entry.Config)
-		if err == device.ErrUnsupportedDevType {
+		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		if errors.Is(err, device.ErrUnsupportedDevType) {
 			continue
 		}
 
@@ -1587,7 +1587,7 @@ func (d *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 
 // deviceUpdate loads a new device and calls its Update() function.
 func (d *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
@@ -1607,7 +1607,7 @@ func (d *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, insta
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	logger.Debug("Stopping device")
 
-	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -1625,6 +1625,8 @@ func (d *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, insta
 
 		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
 	}
+
+	configCopy := dev.Config()
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
@@ -1802,8 +1804,9 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 // deviceRemove loads a new device and calls its Remove() function.
 func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	logger.Debug("Removing device")
 
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
