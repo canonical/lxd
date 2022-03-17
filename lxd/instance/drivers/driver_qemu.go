@@ -4707,6 +4707,7 @@ func (d *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, insta
 
 func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	logger.Debug("Removing device")
 
 	dev, err := d.deviceLoad(deviceName, rawConfig)
 
