@@ -4689,14 +4689,9 @@ func (d *qemu) Delete(force bool) error {
 	return nil
 }
 
-func (d *qemu) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
+	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
 	logger.Debug("Adding device")
-
-	dev, err := d.deviceLoad(deviceName, rawConfig)
-	if err != nil {
-		return err
-	}
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be added when instance is running")
