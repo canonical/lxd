@@ -1017,3 +1017,63 @@ func (d *common) resetInstanceID() error {
 
 	return nil
 }
+
+// needsNewInstanceID checks the changed data in an Update call to determine if a new instance-id is necessary.
+func (d *common) needsNewInstanceID(changedConfig []string, oldExpandedDevices deviceConfig.Devices) bool {
+	// Look for cloud-init related config changes.
+	for _, key := range []string{
+		"cloud-init.vendor-data",
+		"cloud-init.user-data",
+		"cloud-init.network-config",
+		"user.vendor-data",
+		"user.user-data",
+		"user.network-config",
+	} {
+		if shared.StringInSlice(key, changedConfig) {
+			return true
+		}
+	}
+
+	// Look for changes in network interface names.
+	getNICNames := func(devs deviceConfig.Devices) []string {
+		names := make([]string, 0, len(devs))
+		for devName, dev := range devs {
+			if dev["type"] != "nic" {
+				continue
+			}
+
+			if dev["name"] != "" {
+				names = append(names, dev["name"])
+				continue
+			}
+
+			configKey := fmt.Sprintf("volatile.%s.name", devName)
+			volatileName := d.localConfig[configKey]
+			if volatileName != "" {
+				names = append(names, dev["name"])
+				continue
+			}
+
+			names = append(names, devName)
+		}
+
+		return names
+	}
+
+	oldNames := getNICNames(oldExpandedDevices)
+	newNames := getNICNames(d.expandedDevices)
+
+	for _, entry := range oldNames {
+		if !shared.StringInSlice(entry, newNames) {
+			return true
+		}
+	}
+
+	for _, entry := range newNames {
+		if !shared.StringInSlice(entry, oldNames) {
+			return true
+		}
+	}
+
+	return false
+}

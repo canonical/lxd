@@ -4552,6 +4552,14 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
+	// Re-generate the instance-id if needed.
+	if !d.IsSnapshot() && d.needsNewInstanceID(changedConfig, oldExpandedDevices) {
+		err = d.resetInstanceID()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Finally, apply the changes to the database
 	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Snapshots should update only their descriptions and expiry date.
