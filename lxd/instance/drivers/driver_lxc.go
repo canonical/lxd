@@ -5360,14 +5360,20 @@ func (d *lxc) FileSFTPConn() (net.Conn, error) {
 		return nil, err
 	}
 
-	// Attempt to connect on existing socket.
-	forkfilePath := filepath.Join(d.LogPath(), "forkfile.sock")
+	// Trickery to handle paths > 108 chars.
+	dirFile, err := os.Open(d.LogPath())
+	if err != nil {
+		return nil, err
+	}
+	defer dirFile.Close()
 
-	forkfileAddr, err := net.ResolveUnixAddr("unix", forkfilePath)
+	forkfileAddr, err := net.ResolveUnixAddr("unix", fmt.Sprintf("/proc/self/fd/%d/forkfile.sock", dirFile.Fd()))
 	if err != nil {
 		return nil, err
 	}
 
+	// Attempt to connect on existing socket.
+	forkfilePath := filepath.Join(d.LogPath(), "forkfile.sock")
 	forkfileConn, err := net.DialUnix("unix", nil, forkfileAddr)
 	if err == nil {
 		// Found an existing server.
