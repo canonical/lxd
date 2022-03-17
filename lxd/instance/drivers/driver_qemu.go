@@ -1690,7 +1690,7 @@ func (d *qemu) OnHook(hookName string, args map[string]string) error {
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
+func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
 	var configCopy deviceConfig.Device
 	var err error
 
@@ -1698,7 +1698,7 @@ func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (dev
 	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
 		configCopy, err = d.FillNetworkDevice(deviceName, rawConfig)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		// Othewise copy the config so it cannot be modified by device.
@@ -1708,7 +1708,7 @@ func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (dev
 	dev, err := device.New(d, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
 
 	// Return device and config copy even if error occurs as caller may still use device.
-	return dev, configCopy, err
+	return dev, err
 }
 
 // deviceStart loads a new device and calls its Start() function.
