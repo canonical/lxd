@@ -4720,30 +4720,43 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dd := range addDevices.Sorted() {
-		dev := dd // Local var for loop revert.
-		err := d.deviceAdd(dev.Name, dev.Config, instanceRunning)
-		if err == device.ErrUnsupportedDevType {
-			continue // No point in trying to start device below.
-		} else if err != nil {
+		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // No point in trying to add or start device below.
+			}
+
 			if userRequested {
-				return fmt.Errorf("Failed to add device %q: %w", dev.Name, err)
+				return fmt.Errorf("Failed to load device to add %q: %w", dev.Name(), err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"device": dev.Name, "err": err})
+			d.logger.Error("Failed to load device to add, skipping as non-user requested", log.Ctx{"device": dev.Name(), "err": err})
+
 			continue
 		}
 
-		revert.Add(func() { d.deviceRemove(dev.Name, dev.Config, instanceRunning) })
-
-		if instanceRunning {
-			_, err := d.deviceStart(dev.Name, dev.Config, instanceRunning)
-			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to start device %q: %w", dev.Name, err)
+		err = d.deviceAdd(dev, instanceRunning)
+		if err != nil {
+			if userRequested {
+				return fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceStop(dev.Name, dev.Config, instanceRunning, "") })
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			d.logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"device": dev.Name(), "err": err})
+		}
+
+		revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), instanceRunning) })
+
+		if instanceRunning {
+			_, err := d.deviceStart(dev, instanceRunning)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			}
+
+			revert.Add(func() { d.deviceStop(dev.Name(), dev.Config(), instanceRunning, "") })
 		}
 	}
 
