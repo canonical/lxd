@@ -69,7 +69,7 @@ type diskSourceNotFoundError struct {
 }
 
 func (e diskSourceNotFoundError) Error() string {
-	return e.msg
+	return fmt.Sprintf("%s: %v", e.msg, e.err)
 }
 
 func (e diskSourceNotFoundError) Unwrap() error {
