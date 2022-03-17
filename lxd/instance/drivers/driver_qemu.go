@@ -1162,19 +1162,23 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
 	for _, entry := range d.expandedDevices.Sorted() {
-		dev := entry // Ensure device variable has local scope for revert.
-
-		// Start the device.
-		runConf, err := d.deviceStart(dev.Name, dev.Config, false)
+		dev, err := d.deviceLoad(entry.Name, entry.Config)
 		if err != nil {
 			op.Done(err)
-			return fmt.Errorf("Failed to start device %q: %w", dev.Name, err)
+			return fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
+		}
+
+		// Start the device.
+		runConf, err := d.deviceStart(dev, false)
+		if err != nil {
+			op.Done(err)
+			return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 		}
 
 		revert.Add(func() {
-			err := d.deviceStop(dev.Name, dev.Config, false)
+			err := d.deviceStop(dev.Name(), dev.Config(), false)
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name, "err": err})
+				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name(), "err": err})
 			}
 		})
 
@@ -4443,7 +4447,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 		revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), instanceRunning) })
 
 		if instanceRunning {
-			_, err := d.deviceStart(dev.Name(), dev.Config(), instanceRunning)
+			_, err := d.deviceStart(dev, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
