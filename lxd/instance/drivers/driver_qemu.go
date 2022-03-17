@@ -304,8 +304,18 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 		for k, m := range d.expandedDevices {
 			devName := k
 			devConfig := m
-			err = d.deviceAdd(devName, devConfig, false)
-			if err != nil && err != device.ErrUnsupportedDevType {
+
+			dev, err := d.deviceLoad(devName, devConfig)
+			if err != nil {
+				if errors.Is(err, device.ErrUnsupportedDevType) {
+					continue
+				}
+
+				return nil, fmt.Errorf("Failed to load device to add %q: %w", devName, err)
+			}
+
+			err = d.deviceAdd(dev, false)
+			if err != nil {
 				return nil, fmt.Errorf("Failed to add device %q: %w", devName, err)
 			}
 
