@@ -23,6 +23,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -287,21 +288,22 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 		hijacker, ok := w.(http.Hijacker)
 		if !ok {
 			http.Error(w, "Webserver doesn't support hijacking", http.StatusInternalServerError)
+
 			return
 		}
 
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
-			message := fmt.Errorf("Failed to hijack connection: %w", err).Error()
-			http.Error(w, message, http.StatusInternalServerError)
+			http.Error(w, fmt.Errorf("Failed to hijack connection: %w", err).Error(), http.StatusInternalServerError)
+
 			return
 		}
 
-		// Write the status line and upgrade header by hand since w.WriteHeader()
-		// would fail after Hijack()
-		data := []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: dqlite\r\n\r\n")
-		if n, err := conn.Write(data); err != nil || n != len(data) {
+		err = response.Upgrade(conn, "dqlite")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			conn.Close()
+
 			return
 		}
 
