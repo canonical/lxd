@@ -1862,28 +1862,10 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 }
 
 // deviceStop loads a new device and calls its Stop() function.
-func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
+	configCopy := dev.Config()
+	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Stopping device")
-
-	dev, err := d.deviceLoad(deviceName, rawConfig)
-
-	// If deviceLoad fails with unsupported device type then return.
-	if err == device.ErrUnsupportedDevType {
-		return err
-	}
-
-	// If deviceLoad fails for any other reason then just log the error and proceed, as in the
-	// scenario that a new version of LXD has additional validation restrictions than older
-	// versions we still need to allow previously valid devices to be stopped.
-	if err != nil {
-		// If there is no device returned, then we cannot proceed, so return as error.
-		if dev == nil {
-			return fmt.Errorf("Device stop validation failed for %q: %w", deviceName, err)
-		}
-
-		logger.Error("Device stop validation failed", log.Ctx{"err": err})
-	}
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
@@ -1897,8 +1879,8 @@ func (d *qemu) deviceStop(deviceName string, rawConfig deviceConfig.Device, inst
 	if runConf != nil {
 		if runConf != nil {
 			// Detach NIC from running instance.
-			if rawConfig["type"] == "nic" && instanceRunning {
-				err = d.deviceDetachNIC(deviceName)
+			if configCopy["type"] == "nic" && instanceRunning {
+				err = d.deviceDetachNIC(dev.Name())
 				if err != nil {
 					return err
 				}
