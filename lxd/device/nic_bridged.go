@@ -21,7 +21,6 @@ import (
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/lxd/dnsmasq/dhcpalloc"
-	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/ip"
@@ -942,41 +941,35 @@ func (d *nicBridged) setupHostFilters(oldConfig deviceConfig.Device) (revert.Hoo
 // removeFilters removes any network level filters defined for the instance.
 func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if m["hwaddr"] == "" {
-		logger.Errorf("Failed to remove network filters for %q: hwaddr not defined", d.name)
+		d.logger.Error("Failed to remove network filters: hwaddr not defined")
 		return
 	}
 
 	if m["host_name"] == "" {
-		logger.Errorf("Failed to remove network filters for %q: host_name not defined", d.name)
+		d.logger.Error("Failed to remove network filters: host_name not defined")
 		return
 	}
 
-	var IPv4, IPv6 net.IP
-
-	if m["ipv4.address"] != "" {
-		IPv4 = net.ParseIP(m["ipv4.address"])
-	}
-
-	if m["ipv6.address"] != "" {
-		IPv6 = net.ParseIP(m["ipv6.address"])
-	}
-
-	// If no static IPv4 assigned, try removing the filter all rule in case it was setup.
-	if IPv4 == nil {
-		IPv4 = net.ParseIP(firewallDrivers.FilterIPv4All)
-	}
-
-	// If no static IPv6 assigned, try removing the filter all rule in case it was setup.
-	if IPv6 == nil {
-		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
+	IPv4Nets, IPv6Nets, err := allowedIPNets(m)
+	if err != nil {
+		d.logger.Error("Failed to calculate static IP network filters", log.Ctx{"err": err})
+		return
 	}
 
 	// Remove filters for static MAC and IPs (if specified above).
 	// This covers the case when filtering is used with an unmanaged bridge.
-	logger.Debug("Clearing instance firewall static filters", log.Ctx{"project": d.inst.Project(), "instance": d.inst.Name(), "parent": m["parent"], "dev": d.name, "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4, "ipv6": IPv6})
-	err := d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4, IPv6)
+	d.logger.Debug("Clearing instance firewall static filters", log.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
+	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Nets, IPv6Nets)
 	if err != nil {
-		logger.Errorf("Failed to remove static IP network filters for %q: %v", d.name, err)
+		d.logger.Error("Failed to remove static IP network filters", log.Ctx{"err": err})
+	}
+
+	// If allowedIPNets returned nil for IPv4 or IPv6, it is possible that total protocol blocking was set up
+	// because the device has a managed parent network with DHCP disabled. Pass in empty slices to catch this case.
+	d.logger.Debug("Clearing instance total protocol filters", log.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
+	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], make([]*net.IPNet, 0), make([]*net.IPNet, 0))
+	if err != nil {
+		d.logger.Error("Failed to remove total protocol network filters", log.Ctx{"err": err})
 	}
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
@@ -988,12 +981,33 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 			return
 		}
 
-		logger.Errorf("Failed to get static IP allocations for filter removal from %q: %v", d.name, err)
+		d.logger.Error("Failed to get static IP allocations for filter removal", log.Ctx{"err": err})
 		return
 	}
 
-	logger.Debug("Clearing instance firewall dynamic filters", log.Ctx{"project": d.inst.Project(), "instance": d.inst.Name(), "parent": m["parent"], "dev": d.name, "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
-	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Alloc.IP, IPv6Alloc.IP)
+	// We have already cleared any "ipv{n}.routes" etc. above, so we just need to clear the DHCP allocated IPs.
+	var IPv4AllocNets []*net.IPNet
+	if len(IPv4Alloc.IP) > 0 {
+		_, IPv4AllocNet, err := net.ParseCIDR(fmt.Sprintf("%s/32", IPv4Alloc.IP.String()))
+		if err != nil {
+			d.logger.Error("Failed to generate subnet from dynamically generated IPv4 address", log.Ctx{"err": err})
+		} else {
+			IPv4AllocNets = append(IPv4AllocNets, IPv4AllocNet)
+		}
+	}
+
+	var IPv6AllocNets []*net.IPNet
+	if len(IPv6Alloc.IP) > 0 {
+		_, IPv6AllocNet, err := net.ParseCIDR(fmt.Sprintf("%s/128", IPv6Alloc.IP.String()))
+		if err != nil {
+			d.logger.Error("Failed to generate subnet from dynamically generated IPv6Address", log.Ctx{"err": err})
+		} else {
+			IPv6AllocNets = append(IPv6AllocNets, IPv6AllocNet)
+		}
+	}
+
+	d.logger.Debug("Clearing instance firewall dynamic filters", log.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
+	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4AllocNets, IPv6AllocNets)
 	if err != nil {
 		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
 	}
@@ -1035,6 +1049,9 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 	}
 
+	// Use a clone of the config. This can be amended with the allocated IPs so that the correct ones are added to the firewall.
+	config := d.config.Clone()
+
 	// If parent bridge is managed, allocate the static IPs (if needed).
 	if d.network != nil && (IPv4 == nil || IPv6 == nil) {
 		opts := &dhcpalloc.Options{
@@ -1046,20 +1063,26 @@ func (d *nicBridged) setFilters() (err error) {
 		}
 
 		err = dhcpalloc.AllocateTask(opts, func(t *dhcpalloc.Transaction) error {
-			if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil && d.config["ipv4.address"] != "none" {
+			if shared.IsTrue(config["security.ipv4_filtering"]) && IPv4 == nil && config["ipv4.address"] != "none" {
 				IPv4, err = t.AllocateIPv4()
+				config["ipv4.address"] = IPv4.String()
 
-				// If DHCP not supported, skip error, and will result in total protocol filter.
-				if err != nil && err != dhcpalloc.ErrDHCPNotSupported {
+				// If DHCP not supported, skip error and set the address to "none", and will result in total protocol filter.
+				if err == dhcpalloc.ErrDHCPNotSupported {
+					config["ipv4.address"] = "none"
+				} else if err != nil {
 					return err
 				}
 			}
 
-			if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil && d.config["ipv6.address"] != "none" {
+			if shared.IsTrue(config["security.ipv6_filtering"]) && IPv6 == nil && config["ipv6.address"] != "none" {
 				IPv6, err = t.AllocateIPv6()
+				config["ipv6.address"] = IPv6.String()
 
-				// If DHCP not supported, skip error, and will result in total protocol filter.
-				if err != nil && err != dhcpalloc.ErrDHCPNotSupported {
+				// If DHCP not supported, skip error and set the address to "none", and will result in total protocol filter.
+				if err == dhcpalloc.ErrDHCPNotSupported {
+					config["ipv6.address"] = "none"
+				} else if err != nil {
 					return err
 				}
 			}
@@ -1074,25 +1097,75 @@ func (d *nicBridged) setFilters() (err error) {
 	// If anything goes wrong, clean up so we don't leave orphaned rules.
 	revert := revert.New()
 	defer revert.Fail()
-	revert.Add(func() { d.removeFilters(d.config) })
+	revert.Add(func() { d.removeFilters(config) })
 
-	// If no allocated IPv4 address for filtering and filtering enabled, then block all IPv4 traffic.
-	if shared.IsTrue(d.config["security.ipv4_filtering"]) && IPv4 == nil {
-		IPv4 = net.ParseIP(firewallDrivers.FilterIPv4All)
+	IPv4Nets, IPv6Nets, err := allowedIPNets(config)
+	if err != nil {
+		return err
 	}
 
-	// If no allocated IPv6 address for filtering and filtering enabled, then block all IPv6 traffic.
-	if shared.IsTrue(d.config["security.ipv6_filtering"]) && IPv6 == nil {
-		IPv6 = net.ParseIP(firewallDrivers.FilterIPv6All)
-	}
-
-	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4, IPv6, d.network != nil)
+	err = d.state.Firewall.InstanceSetupBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, d.config["parent"], d.config["host_name"], d.config["hwaddr"], IPv4Nets, IPv6Nets, d.network != nil)
 	if err != nil {
 		return err
 	}
 
 	revert.Success()
 	return nil
+}
+
+// allowedIPNets accepts a device config. For each IP version it returns nil if all addresses should be allowed,
+// an empty slice if all addresses should be blocked, and a populated slice of subnets to allow traffic from specific ranges.
+func allowedIPNets(config deviceConfig.Device) (IPv4Nets []*net.IPNet, IPv6Nets []*net.IPNet, err error) {
+	getAllowedNets := func(ipVersion int) ([]*net.IPNet, error) {
+		if shared.IsFalseOrEmpty(config[fmt.Sprintf("security.ipv%d_filtering", ipVersion)]) {
+			// Return nil (allow all)
+			return nil, nil
+		}
+
+		ipAddr := config[fmt.Sprintf("ipv%d.address", ipVersion)]
+		if ipAddr == "none" {
+			// Return an empty slice to block all traffic.
+			return []*net.IPNet{}, nil
+		}
+
+		var routes []string
+
+		// Get a CIDR string for the instance address
+		if ipAddr != "" {
+			if ipVersion == 4 {
+				routes = append(routes, fmt.Sprintf("%s/32", ipAddr))
+			} else if ipVersion == 6 {
+				routes = append(routes, fmt.Sprintf("%s/128", ipAddr))
+			}
+		}
+
+		// Get remaining allowed routes from config.
+		routes = append(routes, util.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes", ipVersion)], ",", -1, true)...)
+		routes = append(routes, util.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes.external", ipVersion)], ",", -1, true)...)
+
+		var allowedNets []*net.IPNet
+		for _, route := range routes {
+			ipNet, err := network.ParseIPCIDRToNet(route)
+			if err != nil {
+				return nil, err
+			}
+			allowedNets = append(allowedNets, ipNet)
+		}
+
+		return allowedNets, nil
+	}
+
+	IPv4Nets, err = getAllowedNets(4)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	IPv6Nets, err = getAllowedNets(6)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return IPv4Nets, IPv6Nets, nil
 }
 
 const (
