@@ -2092,19 +2092,22 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 
 	// Setup devices in sorted order, this ensures that device mounts are added in path order.
 	for _, entry := range d.expandedDevices.Sorted() {
-		dev := entry // Ensure device variable has local scope for revert.
+		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
+		}
 
 		// Start the device.
-		runConf, err := d.deviceStart(dev.Name, dev.Config, false)
+		runConf, err := d.deviceStart(dev, false)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name, err)
+			return "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 		}
 
 		// Stop device on failure to setup container.
 		revert.Add(func() {
-			err := d.deviceStop(dev.Name, dev.Config, false, "")
+			err := d.deviceStop(dev.Name(), dev.Config(), false, "")
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name, "err": err})
+				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name(), "err": err})
 			}
 		})
 
@@ -2143,13 +2146,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			}
 
 			if err != nil {
-				return "", nil, fmt.Errorf("Failed to setup device rootfs '%s': %w", dev.Name, err)
+				return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 			}
 
 			if len(runConf.RootFS.Opts) > 0 {
 				err = lxcSetConfigItem(d.c, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device rootfs '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 				}
 			}
 
@@ -2163,19 +2166,19 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					// Host side mark mount.
 					err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
 					if err != nil {
-						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 
 					// Container side shift mount.
 					err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
 					if err != nil {
-						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 
 					// Host side umount of mark mount.
 					err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(d.RootfsPath())))
 					if err != nil {
-						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 				}
 			}
@@ -2193,7 +2196,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					err = lxcSetConfigItem(d.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
 				}
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device cgroup '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device cgroup %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2202,7 +2205,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
 				if shared.StringInSlice("propagation", mount.Opts) && !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-					return "", nil, fmt.Errorf("Failed to setup device mount '%s': %w", dev.Name, fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
+					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
 				}
 
 				mntOptions := strings.Join(mount.Opts, ",")
@@ -2214,27 +2217,27 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					case idmap.IdmapStorageShiftfs:
 						err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
 						if err != nil {
-							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 
 						err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
 						if err != nil {
-							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 
 						err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(mount.DevPath)))
 						if err != nil {
-							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 					case idmap.IdmapStorageNone:
-						return "", nil, fmt.Errorf("Failed to setup device mount '%s': %w", dev.Name, fmt.Errorf("idmapping abilities are required but aren't supported on system"))
+						return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("idmapping abilities are required but aren't supported on system"))
 					}
 				}
 
 				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, mntOptions, mount.Freq, mount.PassNo)
 				err = lxcSetConfigItem(d.c, "lxc.mount.entry", mntVal)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device mount '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2252,7 +2255,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			for _, nicItem := range runConf.NetworkInterface {
 				err = lxcSetConfigItem(d.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device network interface '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
 			}
 		}
