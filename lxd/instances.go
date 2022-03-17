@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,9 +19,9 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
-	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 )
@@ -225,7 +226,12 @@ func (slice instanceAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
+var instancesStartMu sync.Mutex
+
 func instancesStart(s *state.State, instances []instance.Instance) {
+	instancesStartMu.Lock()
+	defer instancesStartMu.Unlock()
+
 	sort.Sort(instanceAutostartList(instances))
 
 	maxAttempts := 3
