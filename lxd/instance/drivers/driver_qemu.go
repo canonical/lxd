@@ -1741,6 +1741,13 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
+			for _, usbDev := range runConf.USBDevice {
+				err = d.deviceAttachUSB(usbDev)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			// If running, run post start hooks now (if not running LXD will run them
 			// once the instance is started).
 			err = d.runHooks(runConf.PostHooks)
@@ -1909,6 +1916,16 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
 			err = d.deviceDetachNIC(dev.Name())
 			if err != nil {
 				return err
+			}
+		}
+
+		// Detach USB drom running instance.
+		if configCopy["type"] == "usb" && runConf != nil {
+			for _, usbDev := range runConf.USBDevice {
+				err = d.deviceDetachUSB(usbDev)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -3536,22 +3553,19 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 		"bus":    "qemu_usb.0",
 	}
 
-	// Add path to external devPaths. This way, the path will be included in the apparmor profile.
-	d.devPaths = append(d.devPaths, usbDev.HostDevicePath)
-
 	monHook := func(m *qmp.Monitor) error {
 		revert := revert.New()
 		defer revert.Fail()
 
 		f, err := os.OpenFile(usbDev.HostDevicePath, unix.O_RDWR, 0)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to open host device: %w", err)
 		}
 		defer f.Close()
 
 		info, err := m.SendFileWithFDSet(device["id"], f, false)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to send file descriptor: %w", err)
 		}
 		revert.Add(func() {
 			m.RemoveFDFromFDSet(device["id"])
@@ -3561,7 +3575,7 @@ func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHoo
 
 		err = m.AddDevice(device)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed to add device: %w", err)
 		}
 
 		revert.Success()
@@ -6228,4 +6242,46 @@ func (d *qemu) agentMetricsEnabled() bool {
 	}
 
 	return false
+}
+
+func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	monHook, err := d.addUSBDeviceConfig(usbConf)
+	if err != nil {
+		return err
+	}
+
+	err = monHook(monitor)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName)
+
+	err = monitor.RemoveDevice(deviceID)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed removing device: %w", err)
+	}
+
+	err = monitor.RemoveFDFromFDSet(deviceID)
+	if err != nil {
+		return fmt.Errorf("Failed removing FD set: %w", err)
+	}
+
+	return nil
 }
