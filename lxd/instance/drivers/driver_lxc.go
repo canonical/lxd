@@ -4705,27 +4705,42 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 	defer revert.Fail()
 
 	// Remove devices in reverse order to how they were added.
-	for _, dev := range removeDevices.Reversed() {
+	for _, dd := range removeDevices.Reversed() {
 		if instanceRunning {
-			err := d.deviceStop(dev.Name, dev.Config, instanceRunning, "")
-			if err == device.ErrUnsupportedDevType {
-				continue // No point in trying to remove device below.
-			} else if err != nil {
-				return fmt.Errorf("Failed to stop device %q: %w", dev.Name, err)
+			dev, err := d.deviceLoad(dd.Name, dd.Config)
+			if err != nil {
+				// If deviceLoad fails with unsupported device type then skip stopping.
+				if errors.Is(err, device.ErrUnsupportedDevType) {
+					continue
+				}
+
+				// If deviceLoad fails for any other reason then just log the error and proceed
+				// with stop, as in the scenario that a new version of LXD has additional
+				// validation restrictions than older versions we still need to allow previously
+				// valid devices to be stopped.
+				d.logger.Error("Device stop validation failed", log.Ctx{"devName": dd.Name, "err": err})
+			}
+
+			// If a device was returned from deviceLoad even if validation fails, then try and stop.
+			if dev != nil {
+				err = d.deviceStop(dev, instanceRunning, "")
+				if err != nil {
+					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
+				}
 			}
 		}
 
-		err := d.deviceRemove(dev.Name, dev.Config, instanceRunning)
+		err := d.deviceRemove(dd.Name, dd.Config, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return fmt.Errorf("Failed to remove device %q: %w", dev.Name, err)
+			return fmt.Errorf("Failed to remove device %q: %w", dd.Name, err)
 		}
 
 		// Check whether we are about to add the same device back with updated config and
 		// if not, or if the device type has changed, then remove all volatile keys for
 		// this device (as its an actual removal or a device type change).
-		err = d.deviceVolatileReset(dev.Name, dev.Config, addDevices[dev.Name])
+		err = d.deviceVolatileReset(dd.Name, dd.Config, addDevices[dd.Name])
 		if err != nil {
-			return fmt.Errorf("Failed to reset volatile data for device %q: %w", dev.Name, err)
+			return fmt.Errorf("Failed to reset volatile data for device %q: %w", dd.Name, err)
 		}
 	}
 
@@ -4772,7 +4787,7 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceStop(dev.Name(), dev.Config(), instanceRunning, "") })
+			revert.Add(func() { d.deviceStop(dev, instanceRunning, "") })
 		}
 	}
 
