@@ -172,12 +172,15 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	}
 	result.FailureDomain = failureDomain
 
+	// Set state and message.
+	result.Status = "Online"
+	result.Message = "Fully operational"
+
 	if n.State == ClusterMemberStateEvacuated {
 		result.Status = "Evacuated"
 		result.Message = "Unavailable due to maintenance"
 	} else if n.IsOffline(offlineThreshold) {
 		result.Status = "Offline"
-		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Now().Sub(n.Heartbeat), n.Heartbeat)
 	} else {
 		// Check if up to date.
 		n, err := util.CompareVersions(maxVersion, n.Version())
@@ -188,10 +191,11 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 		if n == 1 {
 			result.Status = "Blocked"
 			result.Message = "Needs updating to newer version"
-		} else {
-			result.Status = "Online"
-			result.Message = "Fully operational"
 		}
+	}
+
+	if n.IsOffline(offlineThreshold) {
+		result.Message = fmt.Sprintf("No heartbeat for %s (%s)", time.Now().Sub(n.Heartbeat), n.Heartbeat)
 	}
 
 	return &result, nil
