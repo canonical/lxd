@@ -1376,7 +1376,7 @@ func (d *lxc) RegisterDevices() {
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
+func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
 	var configCopy deviceConfig.Device
 	var err error
 
@@ -1384,7 +1384,7 @@ func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
 		configCopy, err = d.FillNetworkDevice(deviceName, rawConfig)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		// Othewise copy the config so it cannot be modified by device.
@@ -1393,8 +1393,8 @@ func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 
 	dev, err := device.New(d, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
 
-	// Return device and config copy even if error occurs as caller may still use device.
-	return dev, configCopy, err
+	// Return device even if error occurs as caller may still use device.
+	return dev, err
 }
 
 // deviceAdd loads a new device and calls its Add() function.
