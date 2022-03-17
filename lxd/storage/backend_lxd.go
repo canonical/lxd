@@ -96,7 +96,7 @@ func (b *lxdBackend) isStatusReady() error {
 	}
 
 	if b.LocalStatus() == api.StoragePoolStatusUnvailable {
-		return ErrPoolUnavailable
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool is unavailable on this server")
 	}
 
 	return nil
