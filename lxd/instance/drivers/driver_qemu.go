@@ -4593,13 +4593,26 @@ func (d *qemu) cleanupDevices() {
 		d.logger.Warn("Failed cleaning up config drive mount", log.Ctx{"err": err})
 	}
 
-	for _, dev := range d.expandedDevices.Reversed() {
-		// Use the device interface if device supports it.
-		err := d.deviceStop(dev.Name, dev.Config, false)
-		if err == device.ErrUnsupportedDevType {
-			continue
-		} else if err != nil {
-			d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name, "err": err})
+	for _, dd := range d.expandedDevices.Reversed() {
+		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		if err != nil {
+			// If deviceLoad fails with unsupported device type then skip stopping.
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue
+			}
+
+			// If deviceLoad fails for any other reason then just log the error and proceed with stop,
+			// as in the scenario that a new version of LXD has additional validation restrictions than
+			// older versions we still need to allow previously valid devices to be stopped.
+			d.logger.Error("Device stop validation failed", log.Ctx{"device": dd.Name, "err": err})
+		}
+
+		// If a device was returned from deviceLoad even if validation fails, then try and stop.
+		if dev != nil {
+			err = d.deviceStop(dev, false)
+			if err != nil {
+				d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name(), "err": err})
+			}
 		}
 	}
 }
