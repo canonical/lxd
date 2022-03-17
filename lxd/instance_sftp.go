@@ -113,8 +113,8 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	}
 	defer remoteConn.Close()
 
-	remoteTCP, err := tcp.ExtractConn(remoteConn)
-	if err == nil {
+	remoteTCP, _ := tcp.ExtractConn(remoteConn)
+	if remoteTCP != nil {
 		// Apply TCP timeouts if remote connection is TCP (rather than Unix).
 		err = tcp.SetTimeouts(remoteTCP)
 		if err != nil {
@@ -122,10 +122,9 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 		}
 	}
 
-	data := []byte("HTTP/1.1 101 Switching Protocols\r\nUpgrade: sftp\r\n\r\n")
-	n, err := remoteConn.Write(data)
-	if err != nil || n != len(data) {
-		return nil
+	err = response.Upgrade(remoteConn, "sftp")
+	if err != nil {
+		return api.StatusErrorf(http.StatusInternalServerError, err.Error())
 	}
 
 	ctx, cancel := context.WithCancel(r.req.Context())
