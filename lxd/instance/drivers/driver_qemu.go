@@ -1184,9 +1184,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Start devices in order.
 	for i := range startDevices {
-		// Local vars for revert.
-		rawConfig := sortedDevices[i].Config // For deviceStop.
-		dev := startDevices[i]
+		dev := startDevices[i] // Local var for revert.
 
 		// Start the device.
 		runConf, err := d.deviceStart(dev, false)
@@ -1196,7 +1194,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		revert.Add(func() {
-			err := d.deviceStop(dev.Name(), rawConfig, false)
+			err := d.deviceStop(dev, false)
 			if err != nil {
 				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name(), "err": err})
 			}
