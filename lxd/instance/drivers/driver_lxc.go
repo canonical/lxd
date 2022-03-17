@@ -2101,6 +2101,12 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			return "", nil, fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
 		}
 
+		// Run pre-start of check all devices before starting any device to avoid expensive revert.
+		err = dev.PreStartCheck()
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+		}
+
 		startDevices[i] = dev
 	}
 
@@ -4764,6 +4770,11 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 		revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), instanceRunning) })
 
 		if instanceRunning {
+			err = dev.PreStartCheck()
+			if err != nil {
+				return fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+			}
+
 			_, err := d.deviceStart(dev, instanceRunning)
 			if err != nil && err != device.ErrUnsupportedDevType {
 				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
