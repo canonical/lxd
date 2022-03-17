@@ -318,3 +318,8 @@ func (d *usb) loadRawValues(p string) (map[string]string, error) {
 func (d *usb) getUniqueDeviceNameFromUSBEvent(e USBEvent) string {
 	return fmt.Sprintf("%s-%03d-%03d", d.name, e.BusNum, e.DevNum)
 }
+
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
+func (d *usb) CanHotPlug() bool {
+	return true
+}
