@@ -1722,19 +1722,13 @@ func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (dev
 }
 
 // deviceStart loads a new device and calls its Start() function.
-func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
+	configCopy := dev.Config()
+	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Starting device")
 
 	revert := revert.New()
 	defer revert.Fail()
-
-	dev, err := d.deviceLoad(deviceName, rawConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	configCopy := dev.Config()
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
@@ -1758,7 +1752,7 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 		if instanceRunning {
 			// Attach network interface if requested.
 			if len(runConf.NetworkInterface) > 0 {
-				err = d.deviceAttachNIC(deviceName, configCopy, runConf.NetworkInterface)
+				err = d.deviceAttachNIC(dev.Name(), configCopy, runConf.NetworkInterface)
 				if err != nil {
 					return nil, err
 				}
