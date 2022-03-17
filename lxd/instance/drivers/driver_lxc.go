@@ -1408,12 +1408,7 @@ func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 }
 
 // deviceAdd loads a new device and calls its Add() function.
-func (d *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
-	if err != nil {
-		return err
-	}
-
+func (d *lxc) deviceAdd(dev device.Device, instanceRunning bool) error {
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be added when instance is running")
 	}
