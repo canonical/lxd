@@ -3898,6 +3898,15 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	// Update lease files.
 	network.UpdateDNSMasqStatic(d.state, "")
 
+	// Reset cloud-init instance-id (causes a re-run on name changes).
+	if !d.IsSnapshot() {
+		err = d.resetInstanceID()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update the backup file.
 	err = d.UpdateBackupFile()
 	if err != nil {
 		return err
