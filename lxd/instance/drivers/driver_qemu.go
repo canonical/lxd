@@ -2726,7 +2726,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 		// Add USB devices.
 		for _, usbDev := range runConf.USBDevice {
-			monHook, err := d.addUSBDeviceConfig(sb, bus, usbDev)
+			monHook, err := d.addUSBDeviceConfig(usbDev)
 			if err != nil {
 				return "", nil, err
 			}
@@ -3529,7 +3529,7 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	return nil
 }
 
-func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
+func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
 	device := map[string]string{
 		"id":     fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName),
 		"driver": "usb-host",
