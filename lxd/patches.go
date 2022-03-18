@@ -78,7 +78,7 @@ var patches = []patch{
 	{name: "shrink_logs_db_file", stage: patchPostDaemonStorage, run: patchShrinkLogsDBFile},
 	{name: "invalid_profile_names", stage: patchPostDaemonStorage, run: patchInvalidProfileNames},
 	{name: "leftover_profile_config", stage: patchPostDaemonStorage, run: patchLeftoverProfileConfig},
-	{name: "network_permissions", stage: patchPostDaemonStorage, run: patchNetworkPermissions},
+	{name: "network_permissions", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkPermissions)},
 	{name: "storage_api", stage: patchPostDaemonStorage, run: patchStorageApi},
 	{name: "storage_api_v1", stage: patchPostDaemonStorage, run: patchStorageApiV1},
 	{name: "storage_api_dir_cleanup", stage: patchPostDaemonStorage, run: patchStorageApiDirCleanup},
@@ -90,7 +90,7 @@ var patches = []patch{
 	{name: "storage_api_insert_zfs_driver", stage: patchPostDaemonStorage, run: patchStorageApiInsertZfsDriver},
 	{name: "storage_zfs_noauto", stage: patchPostDaemonStorage, run: patchStorageZFSnoauto},
 	{name: "storage_zfs_volume_size", stage: patchPostDaemonStorage, run: patchStorageZFSVolumeSize},
-	{name: "network_dnsmasq_hosts", stage: patchPostDaemonStorage, run: patchNetworkDnsmasqHosts},
+	{name: "network_dnsmasq_hosts", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkDnsmasqHosts)},
 	{name: "storage_api_dir_bind_mount", stage: patchPostDaemonStorage, run: patchStorageApiDirBindMount},
 	{name: "fix_uploaded_at", stage: patchPostDaemonStorage, run: patchFixUploadedAt},
 	{name: "storage_api_ceph_size_remove", stage: patchPostDaemonStorage, run: patchStorageApiCephSizeRemove},
@@ -110,21 +110,21 @@ var patches = []patch{
 	{name: "clustering_add_roles_again", stage: patchPostDaemonStorage, run: patchClusteringAddRoles},
 	{name: "storage_create_vm", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_zfs_mount", stage: patchPostDaemonStorage, run: patchGenericStorage},
-	{name: "network_pid_files", stage: patchPostDaemonStorage, run: patchNetworkPIDFiles},
+	{name: "network_pid_files", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkPIDFiles)},
 	{name: "storage_create_vm_again", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_zfs_volmode", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "storage_rename_custom_volume_add_project", stage: patchPreDaemonStorage, run: patchGenericStorage},
 	{name: "storage_lvm_skipactivation", stage: patchPostDaemonStorage, run: patchGenericStorage},
 	{name: "clustering_drop_database_role", stage: patchPostDaemonStorage, run: patchClusteringDropDatabaseRole},
-	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchNetworkClearBridgeVolatileHwaddr},
+	{name: "network_clear_bridge_volatile_hwaddr", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkClearBridgeVolatileHwaddr)},
 	{name: "move_backups_instances", stage: patchPostDaemonStorage, run: patchMoveBackupsInstances},
-	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkOVNEnableNAT},
-	{name: "network_ovn_remove_routes", stage: patchPostDaemonStorage, run: patchNetworkOVNRemoveRoutes},
-	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchNetworkFANEnableNAT},
+	{name: "network_ovn_enable_nat", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkOVNEnableNAT)},
+	{name: "network_ovn_remove_routes", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkOVNRemoveRoutes)},
+	{name: "network_fan_enable_nat", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkFANEnableNAT)},
 	{name: "thinpool_typo_fix", stage: patchPostDaemonStorage, run: patchThinpoolTypoFix},
 	{name: "vm_rename_uuid_key", stage: patchPostDaemonStorage, run: patchVMRenameUUIDKey},
 	{name: "db_nodes_autoinc", stage: patchPreDaemonStorage, run: patchDBNodesAutoInc},
-	{name: "network_acl_remove_defaults", stage: patchPostDaemonStorage, run: patchNetworkACLRemoveDefaults},
+	{name: "network_acl_remove_defaults", stage: patchPostDaemonStorage, run: patchGenericNetwork(patchNetworkACLRemoveDefaults)},
 	{name: "clustering_server_cert_trust", stage: patchPreDaemonStorage, run: patchClusteringServerCertTrust},
 	{name: "warnings_remove_empty_node", stage: patchPostDaemonStorage, run: patchRemoveWarningsWithEmptyNode},
 	{name: "dnsmasq_entries_include_device_name", stage: patchPostDaemonStorage, run: patchDnsmasqEntriesIncludeDeviceName},
@@ -790,6 +790,17 @@ func patchNetworkPIDFiles(name string, d *Daemon) error {
 
 func patchGenericStorage(name string, d *Daemon) error {
 	return storagePools.Patch(d.State(), name)
+}
+
+func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string, d *Daemon) error {
+	return func(name string, d *Daemon) error {
+		err := network.PatchPreCheck()
+		if err != nil {
+			return err
+		}
+
+		return f(name, d)
+	}
 }
 
 func patchRenameCustomVolumeLVs(name string, d *Daemon) error {
