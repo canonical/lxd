@@ -2528,6 +2528,47 @@ func (n *ovn) Rename(newName string) error {
 	return nil
 }
 
+// chassisEnabled checks the cluster config to see if this particular
+// member should act as an OVN chassis.
+func (n *ovn) chassisEnabled(tx *db.ClusterTx) (bool, error) {
+	// Get the node info.
+	nodeID := tx.GetNodeID()
+	nodes, err := tx.GetNodes()
+	if err != nil {
+		return false, err
+	}
+
+	// Determine whether to add ourselves as a chassis.
+	// If no server has the role, enable the chassis, otherwise only
+	// enable if the local server has the role.
+	enableChassis := -1
+
+	for _, node := range nodes {
+		hasRole := false
+		for _, role := range node.Roles {
+			if role == db.ClusterRoleOVNChassis {
+				hasRole = true
+				break
+			}
+		}
+
+		if hasRole {
+			if node.ID == nodeID {
+				// Local node has the OVN chassis role, enable chassis.
+				enableChassis = 1
+				break
+			}
+
+			if hasRole {
+				// Some other node has the OVN chassis role, don't enable.
+				enableChassis = 0
+			}
+		}
+	}
+
+	return enableChassis != 0, nil
+}
+
 // Start starts adds the local OVS chassis ID to the OVN chass group and starts the local OVS uplink port.
 func (n *ovn) Start() error {
 	n.logger.Debug("Start")
@@ -2545,9 +2586,21 @@ func (n *ovn) Start() error {
 	}
 
 	var projectID int64
+	var chassisEnabled bool
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the project ID.
 		projectID, err = tx.GetProjectID(n.project)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Check if we should enable the chassis.
+		chassisEnabled, err = n.chassisEnabled(tx)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Failed getting project ID for project %q: %w", n.project, err)
@@ -2559,10 +2612,19 @@ func (n *ovn) Start() error {
 		return err
 	}
 
-	// Add local node's OVS chassis ID to logical chassis group.
-	err = n.addChassisGroupEntry()
-	if err != nil {
-		return err
+	// Handle chassis groups.
+	if chassisEnabled {
+		// Add local node's OVS chassis ID to logical chassis group.
+		err = n.addChassisGroupEntry()
+		if err != nil {
+			return err
+		}
+	} else {
+		// Make sure we don't have a group entry.
+		err = n.deleteChassisGroupEntry()
+		if err != nil {
+			return err
+		}
 	}
 
 	err = n.startUplinkPort()
