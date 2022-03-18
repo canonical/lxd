@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-15 11:37+0000\n"
+"POT-Creation-Date: 2022-03-17 23:10-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -2112,17 +2112,17 @@ msgstr "EMPREINTE"
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1160
+#: lxc/file.go:1161
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1183
+#: lxc/file.go:1184
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1210
+#: lxc/file.go:1211
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
@@ -2137,7 +2137,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:1117
+#: lxc/file.go:1118
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2147,7 +2147,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:1122
+#: lxc/file.go:1123
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2157,7 +2157,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed starting sshfs: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:1148
+#: lxc/file.go:1149
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
@@ -2197,7 +2197,7 @@ msgstr "Échec lors de la génération de 'lxc.1': %v"
 msgid "Failed to get the new instance name"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/file.go:1134
+#: lxc/file.go:1135
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
@@ -2439,22 +2439,22 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1232
+#: lxc/file.go:1233
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1221
+#: lxc/file.go:1222
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1047
+#: lxc/file.go:1048
 #, fuzzy, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1057
+#: lxc/file.go:1058
 #, fuzzy, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -2628,12 +2628,12 @@ msgstr ""
 msgid "Instance Only"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:1049
+#: lxc/file.go:1050
 #, fuzzy
 msgid "Instance disconnected"
 msgstr "Mot de passe de l'administrateur distant"
 
-#: lxc/file.go:1223
+#: lxc/file.go:1224
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -4578,12 +4578,12 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1153
+#: lxc/file.go:1154
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1154
+#: lxc/file.go:1155
 #, fuzzy, c-format
 msgid "SSH client disconnected %q"
 msgstr "Mot de passe de l'administrateur distant"
@@ -5477,7 +5477,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1176
+#: lxc/file.go:1177
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -7272,7 +7272,7 @@ msgstr "s'il vous plaît utilisez  `lxc profile`"
 msgid "space used"
 msgstr "espace utilisé"
 
-#: lxc/file.go:1066
+#: lxc/file.go:1067
 msgid "sshfs has stopped"
 msgstr ""
 
