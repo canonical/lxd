@@ -1724,6 +1724,11 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 		return nil, err
 	}
 
+	err = dev.PreStartCheck()
+	if err != nil {
+		return nil, fmt.Errorf("Failed pre-start check for device: %w", err)
+	}
+
 	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
 	}
