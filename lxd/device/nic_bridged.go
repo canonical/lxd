@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -473,6 +474,21 @@ func (d *nicBridged) Add() error {
 	err := d.rebuildDnsmasqEntry()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// PreStartCheck checks the managed parent network is available (if relevant).
+func (d *nicBridged) PreStartCheck() error {
+	// Non-managed network NICs are not relevant for checking managed network availability.
+	if d.network == nil {
+		return nil
+	}
+
+	// If managed network is not available, don't try and start instance.
+	if d.network.LocalStatus() == api.StoragePoolStatusUnvailable {
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
 	}
 
 	return nil
