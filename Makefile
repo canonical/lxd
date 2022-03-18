@@ -90,6 +90,11 @@ ifneq "$(LXD_OFFLINE)" ""
 	exit 1
 endif
 	go get -t -v -d -u ./...
+
+	# Manual fixups
+	go get github.com/mdlayher/ndp@v0.8.0
+	go get github.com/canonical/dqlite@HEAD
+
 	go mod tidy
 	@echo "Dependencies updated"
 
