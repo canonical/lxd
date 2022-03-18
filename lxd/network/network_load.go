@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/lxc/lxd/lxd/state"
@@ -51,6 +52,25 @@ func LoadByName(s *state.State, projectName string, name string) (Network, error
 	n.init(s, id, projectName, netInfo, netNodes)
 
 	return n, nil
+}
+
+// PatchPreCheck checks if there are any unavailable networks.
+func PatchPreCheck() error {
+	unavailableNetworksMu.Lock()
+
+	if len(unavailableNetworks) > 0 {
+		unavailableNetworkNames := make([]string, 0, len(unavailableNetworks))
+		for unavailablePoolName := range unavailableNetworks {
+			unavailableNetworkNames = append(unavailableNetworkNames, fmt.Sprintf("%s/%s", unavailablePoolName.ProjectName, unavailablePoolName.NetworkName))
+		}
+
+		unavailableNetworksMu.Unlock()
+		return fmt.Errorf("Unvailable networks: %v", unavailableNetworkNames)
+	}
+
+	unavailableNetworksMu.Unlock()
+
+	return nil
 }
 
 // IsAvailable checks if a network is available.
