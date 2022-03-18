@@ -5939,7 +5939,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"devName": d.Name(), "err": err})
+		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
