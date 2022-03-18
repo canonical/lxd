@@ -324,6 +324,7 @@ var APIExtensions = []string{
 	"metrics_authentication",
 	"images_target_project",
 	"cluster_migration_inconsistent_copy",
+	"cluster_ovn_chassis",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

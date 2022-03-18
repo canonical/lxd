@@ -1640,3 +1640,6 @@ Adds ability to copy image to a project different from the source.
 ## cluster\_migration\_inconsistent\_copy
 Adds `allow_inconsistent` field to `POST /1.0/instances/<name>`. Set to true to allow inconsistent copying between cluster
 members.
+
+## cluster\_ovn\_chassis
+Introduces a new `ovn-chassis` cluster role which allows for specifying what cluster member should act as an OVN chassis.
