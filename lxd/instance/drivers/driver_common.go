@@ -150,6 +150,16 @@ func (d *common) Name() string {
 	return d.name
 }
 
+// CloudInitID returns the cloud-init instance-id.
+func (d *common) CloudInitID() string {
+	id := d.LocalConfig()["volatile.cloud-init.instance-id"]
+	if id != "" {
+		return id
+	}
+
+	return d.name
+}
+
 // Location returns instance's location.
 func (d *common) Location() string {
 	return d.node
