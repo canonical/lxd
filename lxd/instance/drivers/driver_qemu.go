@@ -5794,13 +5794,15 @@ func (d *qemu) writeInstanceData() error {
 		location = d.Location()
 	}
 
-	out, err := json.Marshal(struct {
-		Name        string                         `json:"name"`
-		CloudInitID string                         `json:"cloud_init_id"`
-		Location    string                         `json:"location"`
-		Config      map[string]string              `json:"config,omitempty"`
-		Devices     map[string]deviceConfig.Device `json:"devices,omitempty"`
-	}{d.Name(), d.CloudInitID(), location, userConfig, d.expandedDevices})
+	agentData := instancetype.VMAgentData{
+		Name:        d.Name(),
+		CloudInitID: d.CloudInitID(),
+		Location:    location,
+		Config:      userConfig,
+		Devices:     d.expandedDevices,
+	}
+
+	out, err := json.Marshal(agentData)
 	if err != nil {
 		return err
 	}
