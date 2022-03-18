@@ -286,6 +286,19 @@ test_remote_usage() {
   lxc_remote image show lxd2:bar
   lxc_remote image delete "lxd2:${sum}"
 
+  # Test image copy between projects
+  lxc_remote project create lxd2:foo
+  lxc_remote image copy "localhost:${sum}" lxd2: --target-project foo
+  lxc_remote image show lxd2:"${sum}" --project foo
+  lxc_remote image delete "lxd2:${sum}" --project foo
+  lxc_remote image copy "localhost:${sum}" lxd2: --target-project foo --mode=push
+  lxc_remote image show lxd2:"${sum}" --project foo
+  lxc_remote image delete "lxd2:${sum}" --project foo
+  lxc_remote image copy "localhost:${sum}" lxd2: --target-project foo --mode=relay
+  lxc_remote image show lxd2:"${sum}" --project foo
+  lxc_remote image delete "lxd2:${sum}" --project foo
+  lxc_remote project delete lxd2:foo
+
   lxc_remote image alias delete localhost:foo
 
   lxc_remote remote remove lxd2
