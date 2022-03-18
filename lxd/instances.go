@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,9 +19,9 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
-	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/logging"
 )
@@ -225,37 +226,15 @@ func (slice instanceAutostartList) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
+var instancesStartMu sync.Mutex
+
 func instancesStart(s *state.State, instances []instance.Instance) {
+	instancesStartMu.Lock()
+	defer instancesStartMu.Unlock()
+
 	sort.Sort(instanceAutostartList(instances))
 
 	maxAttempts := 3
-	unavailableStoragePoolNames := storagePools.UnavailablePools()
-
-	// checkPoolsAvailable checks the storage pools for all of the instance's disk devices are available.
-	checkPoolsAvailable := func(inst instance.Instance) error {
-		for devName, devConfig := range inst.ExpandedDevices() {
-			if devConfig["type"] != "disk" {
-				continue // Only check disk devices.
-			}
-
-			if devConfig["pool"] == "" {
-				continue // Non-pool disks are not relevant for checking.
-			}
-
-			// Custom volume disks that are not required don't need to be checked as if the pool is
-			// not available we should still start the instance.
-			if devConfig["path"] != "/" && shared.IsFalse(devConfig["required"]) {
-				continue
-			}
-
-			// If disk is required and storage pool is not available, don't try and start instance.
-			if shared.StringInSlice(devConfig["pool"], unavailableStoragePoolNames) {
-				return fmt.Errorf("Storage pool %q for disk %q is unavailable", devConfig["pool"], devName)
-			}
-		}
-
-		return nil
-	}
 
 	// Restart the instances
 	for _, inst := range instances {
@@ -271,11 +250,6 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			continue
 		}
 
-		err := checkPoolsAvailable(inst)
-		if err != nil {
-			continue // Skip instance start if any pools required are not available.
-		}
-
 		// If already running, we're done.
 		if inst.IsRunning() {
 			continue
@@ -287,41 +261,44 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 		var attempt = 0
 		for {
 			attempt++
-			err = inst.Start(false)
+			err := inst.Start(false)
 			if err != nil {
+				if _, matched := api.StatusErrorMatch(err, http.StatusServiceUnavailable); matched {
+					break // Don't log or retry instances that are not ready to start yet.
+				}
+
 				instLogger.Warn("Failed auto start instance attempt", log.Ctx{"attempt": attempt, "maxAttempts": maxAttempts, "err": err})
 
 				if attempt >= maxAttempts {
+					// If unable to start after 3 tries, record a warning.
+					warnErr := s.Cluster.UpsertWarningLocalNode(inst.Project(), cluster.TypeInstance, inst.ID(), db.WarningInstanceAutostartFailure, fmt.Sprintf("%v", err))
+					if warnErr != nil {
+						instLogger.Warn("Failed to create instance autostart failure warning", log.Ctx{"err": warnErr})
+					}
+
+					instLogger.Error("Failed to auto start instance", log.Ctx{"err": err})
+
 					break
 				}
 
 				time.Sleep(5 * time.Second)
-			} else {
-				// Resolve any previous warning.
-				warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, inst.Project(), db.WarningInstanceAutostartFailure, cluster.TypeInstance, inst.ID())
-				if warnErr != nil {
-					instLogger.Warn("Failed to resolve instance autostart failure warning", log.Ctx{"err": warnErr})
-				}
 
-				break
+				continue
 			}
-		}
 
-		if err != nil {
-			// If unable to start after 3 tries, record a warning.
-			warnErr := s.Cluster.UpsertWarningLocalNode(inst.Project(), cluster.TypeInstance, inst.ID(), db.WarningInstanceAutostartFailure, fmt.Sprintf("%v", err))
+			// Resolve any previous warning.
+			warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, inst.Project(), db.WarningInstanceAutostartFailure, cluster.TypeInstance, inst.ID())
 			if warnErr != nil {
-				instLogger.Warn("Failed to create instance autostart failure warning", log.Ctx{"err": warnErr})
+				instLogger.Warn("Failed to resolve instance autostart failure warning", log.Ctx{"err": warnErr})
 			}
 
-			instLogger.Error("Failed to auto start instance", log.Ctx{"err": err})
-			continue
-		}
+			// Wait the auto-start delay if set.
+			autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
+			if err == nil {
+				time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
+			}
 
-		// Wait the auto-start delay if set.
-		autoStartDelayInt, err := strconv.Atoi(autoStartDelay)
-		if err == nil {
-			time.Sleep(time.Duration(autoStartDelayInt) * time.Second)
+			break
 		}
 	}
 

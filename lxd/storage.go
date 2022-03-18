@@ -78,7 +78,7 @@ func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.Idmap
 	return nil
 }
 
-func setupStorageDriver(s *state.State, forceCheck bool) error {
+func storageStartup(s *state.State, forceCheck bool) error {
 	// Update the storage drivers supported and used cache in api_1.0.go.
 	storagePoolDriversCacheUpdate(s)
 
@@ -124,14 +124,14 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 				return true // Nothing to activate as pool has been deleted.
 			}
 
-			logger.Warn("Failed loading storage pool", log.Ctx{"pool": poolName, "err": err})
+			logger.Error("Failed loading storage pool", log.Ctx{"pool": poolName, "err": err})
 
 			return false
 		}
 
 		_, err = pool.Mount()
 		if err != nil {
-			logger.Warn("Failed mounting storage pool", log.Ctx{"pool": poolName, "err": err})
+			logger.Error("Failed mounting storage pool", log.Ctx{"pool": poolName, "err": err})
 			s.Cluster.UpsertWarningLocalNode("", cluster.TypeStoragePool, int(pool.ID()), db.WarningStoragePoolUnvailable, err.Error())
 
 			return false
@@ -146,7 +146,7 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 	// Try initializing storage pools in random order.
 	for poolName := range initPools {
 		if initPool(poolName) {
-			// Storage pool initialized successfully then remove it from the list so its not retried.
+			// Storage pool initialized successfully so remove it from the list so its not retried.
 			delete(initPools, poolName)
 		}
 	}
@@ -169,8 +169,8 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 					tryInstancesStart := false
 					for poolName := range initPools {
 						if initPool(poolName) {
-							// Storage pool initialized successfully then remove it
-							// from the list so its not retried.
+							// Storage pool initialized successfully so remove it from
+							// the list so its not retried.
 							delete(initPools, poolName)
 							tryInstancesStart = true
 						}
@@ -185,7 +185,7 @@ func setupStorageDriver(s *state.State, forceCheck bool) error {
 					if tryInstancesStart {
 						instances, err := instance.LoadNodeAll(s, instancetype.Any)
 						if err != nil {
-							logger.Warn("Failed loading instances to start", log.Ctx{"err": err})
+							logger.Error("Failed loading instances to start", log.Ctx{"err": err})
 						} else {
 							instancesStart(s, instances)
 						}

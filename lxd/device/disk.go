@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -68,7 +69,7 @@ type diskSourceNotFoundError struct {
 }
 
 func (e diskSourceNotFoundError) Error() string {
-	return e.msg
+	return fmt.Sprintf("%s: %v", e.msg, e.err)
 }
 
 func (e diskSourceNotFoundError) Unwrap() error {
@@ -415,6 +416,27 @@ func (d *disk) Register() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// PreStartCheck checks the storage pool is available (if relevant).
+func (d *disk) PreStartCheck() error {
+	// Non-pool disks are not relevant for checking pool availability.
+	if d.pool == nil {
+		return nil
+	}
+
+	// Custom volume disks that are not required don't need to be checked as if the pool is
+	// not available we should still start the instance.
+	if d.config["path"] != "/" && shared.IsFalse(d.config["required"]) {
+		return nil
+	}
+
+	// If disk is required and storage pool is not available, don't try and start instance.
+	if d.pool.LocalStatus() == api.StoragePoolStatusUnvailable {
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool %q unavailable on this server", d.pool.Name())
 	}
 
 	return nil

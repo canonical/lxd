@@ -958,9 +958,22 @@ func (d *qemu) saveState(monitor *qmp.Monitor) error {
 
 // validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
 func (d *qemu) validateStartup(stateful bool) error {
+	// Because the root disk is special and is mounted before the root disk device is setup we duplicate the
+	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
+	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
+	// error with an ERROR status code from the instance check instead.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if !storagePools.IsAvailable(rootDiskConf["pool"]) {
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool %q unavailable on this server", rootDiskConf["pool"])
+	}
+
 	// Check that we are startable before creating an operation lock, so if the instance is in the
 	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
-	err := d.isStartableStatusCode(d.statusCode())
+	err = d.isStartableStatusCode(d.statusCode())
 	if err != nil {
 		return err
 	}
@@ -1151,7 +1164,7 @@ func (d *qemu) Start(stateful bool) error {
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false)
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
+				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name, "err": err})
 			}
 		})
 
@@ -1709,6 +1722,11 @@ func (d *qemu) deviceStart(deviceName string, rawConfig deviceConfig.Device, ins
 	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return nil, err
+	}
+
+	err = dev.PreStartCheck()
+	if err != nil {
+		return nil, fmt.Errorf("Failed pre-start check for device: %w", err)
 	}
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -4543,7 +4561,7 @@ func (d *qemu) cleanupDevices() {
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			d.logger.Error("Failed to stop device", log.Ctx{"devName": dev.Name, "err": err})
+			d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name, "err": err})
 		}
 	}
 }
@@ -5921,7 +5939,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"devName": d.Name(), "err": err})
+		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
