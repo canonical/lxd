@@ -124,14 +124,14 @@ func storageStartup(s *state.State, forceCheck bool) error {
 				return true // Nothing to activate as pool has been deleted.
 			}
 
-			logger.Warn("Failed loading storage pool", log.Ctx{"pool": poolName, "err": err})
+			logger.Error("Failed loading storage pool", log.Ctx{"pool": poolName, "err": err})
 
 			return false
 		}
 
 		_, err = pool.Mount()
 		if err != nil {
-			logger.Warn("Failed mounting storage pool", log.Ctx{"pool": poolName, "err": err})
+			logger.Error("Failed mounting storage pool", log.Ctx{"pool": poolName, "err": err})
 			s.Cluster.UpsertWarningLocalNode("", cluster.TypeStoragePool, int(pool.ID()), db.WarningStoragePoolUnvailable, err.Error())
 
 			return false
@@ -185,7 +185,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 					if tryInstancesStart {
 						instances, err := instance.LoadNodeAll(s, instancetype.Any)
 						if err != nil {
-							logger.Warn("Failed loading instances to start", log.Ctx{"err": err})
+							logger.Error("Failed loading instances to start", log.Ctx{"err": err})
 						} else {
 							instancesStart(s, instances)
 						}
