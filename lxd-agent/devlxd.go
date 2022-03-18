@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/daemon"
-	deviceConfig "github.com/lxc/lxd/lxd/device/config"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -31,13 +31,6 @@ type devLxdResponse struct {
 	content interface{}
 	code    int
 	ctype   string
-}
-
-type instanceData struct {
-	Name     string                         `json:"name"`
-	Location string                         `json:"location"`
-	Config   map[string]string              `json:"config,omitempty"`
-	Devices  map[string]deviceConfig.Device `json:"devices,omitempty"`
 }
 
 func okResponse(ct interface{}, ctype string) *devLxdResponse {
@@ -62,7 +55,7 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.Respon
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instanceData
+	var instance instancetype.VMAgentData
 
 	err = json.Unmarshal(data, &instance)
 	if err != nil {
@@ -89,7 +82,7 @@ var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w ht
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instanceData
+	var instance instancetype.VMAgentData
 
 	err = json.Unmarshal(data, &instance)
 	if err != nil {
@@ -110,7 +103,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instanceData
+	var instance instancetype.VMAgentData
 
 	err = json.Unmarshal(data, &instance)
 	if err != nil {
@@ -118,7 +111,7 @@ var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, w http.R
 	}
 
 	value := instance.Config["user.meta-data"]
-	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", instance.Name, instance.Name, value), "raw")
+	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", instance.CloudInitID, instance.Name, value), "raw")
 }}
 
 var devLxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
@@ -136,7 +129,7 @@ var devlxdAPIGet = devLxdHandler{"/1.0", func(d *Daemon, w http.ResponseWriter, 
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instanceData
+	var instance instancetype.VMAgentData
 
 	err = json.Unmarshal(data, &instance)
 	if err != nil {
@@ -151,7 +144,7 @@ var devlxdDevicesGet = devLxdHandler{"/1.0/devices", func(d *Daemon, w http.Resp
 		return &devLxdResponse{"internal server error", http.StatusInternalServerError, "raw"}
 	}
 
-	var instance instanceData
+	var instance instancetype.VMAgentData
 
 	err = json.Unmarshal(data, &instance)
 	if err != nil {

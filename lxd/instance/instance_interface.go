@@ -122,6 +122,7 @@ type Instance interface {
 	ID() int
 	Location() string
 	Name() string
+	CloudInitID() string
 	Description() string
 	CreationDate() time.Time
 	LastUsedDate() time.Time
