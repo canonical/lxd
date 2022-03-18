@@ -410,6 +410,15 @@ func (n *common) delete(clientType request.ClientType) error {
 		os.RemoveAll(shared.VarPath("networks", n.name))
 	}
 
+	pn := ProjectNetwork{
+		ProjectName: n.Project(),
+		NetworkName: n.Name(),
+	}
+
+	unavailableNetworksMu.Lock()
+	delete(unavailableNetworks, pn)
+	unavailableNetworksMu.Unlock()
+
 	return nil
 }
 
