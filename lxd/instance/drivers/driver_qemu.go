@@ -1164,7 +1164,7 @@ func (d *qemu) Start(stateful bool) error {
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false)
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
+				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name, "err": err})
 			}
 		})
 
@@ -4561,7 +4561,7 @@ func (d *qemu) cleanupDevices() {
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			d.logger.Error("Failed to stop device", log.Ctx{"devName": dev.Name, "err": err})
+			d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name, "err": err})
 		}
 	}
 }
