@@ -1720,7 +1720,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 			if err != nil {
 				return fmt.Errorf("Failed to detach interface: %q to %q: %w", configCopy["name"], devName, err)
 			}
-			d.logger.Debug("Detached NIC device interface", log.Ctx{"name": configCopy["name"], "devName": devName})
+			d.logger.Debug("Detached NIC device interface", log.Ctx{"name": configCopy["name"], "device": devName})
 		}
 	}
 
@@ -2102,7 +2102,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false, "")
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
+				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name, "err": err})
 			}
 		})
 
@@ -3118,7 +3118,7 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			d.logger.Error("Failed to stop device", log.Ctx{"devName": dev.Name, "err": err})
+			d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name, "err": err})
 		}
 	}
 }
