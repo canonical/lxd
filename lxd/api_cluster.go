@@ -1508,8 +1508,10 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	}
 
 	// Update the database
+	changedConfig := []string{}
+	var nodeInfo db.NodeInfo
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		nodeInfo, err := tx.GetNodeByName(name)
+		nodeInfo, err = tx.GetNodeByName(name)
 		if err != nil {
 			return fmt.Errorf("Loading node information: %w", err)
 		}
@@ -1529,6 +1531,19 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 						req.Config[k] = v
 					}
 				}
+			}
+		}
+
+		// Determinate what config keys changed.
+		for k, v := range req.Config {
+			if nodeInfo.Config[k] != v && !shared.StringInSlice(k, changedConfig) {
+				changedConfig = append(changedConfig, k)
+			}
+		}
+
+		for k, v := range nodeInfo.Config {
+			if req.Config[k] != v && !shared.StringInSlice(k, changedConfig) {
+				changedConfig = append(changedConfig, k)
 			}
 		}
 
@@ -1571,6 +1586,19 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	// If cluster roles changed, then distribute the info to all members.
 	if state.Endpoints != nil && clusterRolesChanged(node.Roles, newRoles) {
 		cluster.NotifyHeartbeat(state, d.gateway)
+	}
+
+	// If OVN chassis priority has changed, instruct the affected member to reload networking.
+	if shared.StringInSlice("network.ovn.chassis", changedConfig) {
+		client, err := cluster.Connect(nodeInfo.Address, d.endpoints.NetworkCert(), d.serverCert(), r, true)
+		if err != nil {
+			return response.SmartError(err)
+		}
+
+		_, _, err = client.RawQuery("POST", "/internal/cluster/network-restart", nil, "")
+		if err != nil {
+			return response.SmartError(err)
+		}
 	}
 
 	requestor := request.CreateRequestor(r)
