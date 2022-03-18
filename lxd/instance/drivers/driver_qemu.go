@@ -3916,6 +3916,15 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	// Update lease files.
 	network.UpdateDNSMasqStatic(d.state, "")
 
+	// Reset cloud-init instance-id (causes a re-run on name changes).
+	if !d.IsSnapshot() {
+		err = d.resetInstanceID()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update the backup file.
 	err = d.UpdateBackupFile()
 	if err != nil {
 		return err
@@ -4226,6 +4235,14 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	if shared.StringInSlice("security.secureboot", changedConfig) {
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Re-generate the instance-id if needed.
+	if !d.IsSnapshot() && d.needsNewInstanceID(changedConfig, oldExpandedDevices) {
+		err = d.resetInstanceID()
 		if err != nil {
 			return err
 		}
@@ -5795,12 +5812,15 @@ func (d *qemu) writeInstanceData() error {
 		location = d.Location()
 	}
 
-	out, err := json.Marshal(struct {
-		Name     string                         `json:"name"`
-		Location string                         `json:"location"`
-		Config   map[string]string              `json:"config,omitempty"`
-		Devices  map[string]deviceConfig.Device `json:"devices,omitempty"`
-	}{d.Name(), location, userConfig, d.expandedDevices})
+	agentData := instancetype.VMAgentData{
+		Name:        d.Name(),
+		CloudInitID: d.CloudInitID(),
+		Location:    location,
+		Config:      userConfig,
+		Devices:     d.expandedDevices,
+	}
+
+	out, err := json.Marshal(agentData)
 	if err != nil {
 		return err
 	}

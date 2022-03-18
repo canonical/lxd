@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pborman/uuid"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -146,6 +147,16 @@ func (d *common) LocalDevices() deviceConfig.Devices {
 
 // Name returns the instance's name.
 func (d *common) Name() string {
+	return d.name
+}
+
+// CloudInitID returns the cloud-init instance-id.
+func (d *common) CloudInitID() string {
+	id := d.LocalConfig()["volatile.cloud-init.instance-id"]
+	if id != "" {
+		return id
+	}
+
 	return d.name
 }
 
@@ -1005,4 +1016,74 @@ func (d *common) getRootDiskDevice() (string, map[string]string, error) {
 	}
 
 	return name, configuration, nil
+}
+
+// resetInstanceID generates a new UUID and puts it in volatile.
+func (d *common) resetInstanceID() error {
+	err := d.VolatileSet(map[string]string{"volatile.cloud-init.instance-id": uuid.New()})
+	if err != nil {
+		return fmt.Errorf("Failed to set volatile.cloud-init.instance-id: %w", err)
+	}
+
+	return nil
+}
+
+// needsNewInstanceID checks the changed data in an Update call to determine if a new instance-id is necessary.
+func (d *common) needsNewInstanceID(changedConfig []string, oldExpandedDevices deviceConfig.Devices) bool {
+	// Look for cloud-init related config changes.
+	for _, key := range []string{
+		"cloud-init.vendor-data",
+		"cloud-init.user-data",
+		"cloud-init.network-config",
+		"user.vendor-data",
+		"user.user-data",
+		"user.network-config",
+	} {
+		if shared.StringInSlice(key, changedConfig) {
+			return true
+		}
+	}
+
+	// Look for changes in network interface names.
+	getNICNames := func(devs deviceConfig.Devices) []string {
+		names := make([]string, 0, len(devs))
+		for devName, dev := range devs {
+			if dev["type"] != "nic" {
+				continue
+			}
+
+			if dev["name"] != "" {
+				names = append(names, dev["name"])
+				continue
+			}
+
+			configKey := fmt.Sprintf("volatile.%s.name", devName)
+			volatileName := d.localConfig[configKey]
+			if volatileName != "" {
+				names = append(names, dev["name"])
+				continue
+			}
+
+			names = append(names, devName)
+		}
+
+		return names
+	}
+
+	oldNames := getNICNames(oldExpandedDevices)
+	newNames := getNICNames(d.expandedDevices)
+
+	for _, entry := range oldNames {
+		if !shared.StringInSlice(entry, newNames) {
+			return true
+		}
+	}
+
+	for _, entry := range newNames {
+		if !shared.StringInSlice(entry, oldNames) {
+			return true
+		}
+	}
+
+	return false
 }
