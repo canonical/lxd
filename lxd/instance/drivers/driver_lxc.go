@@ -46,6 +46,7 @@ import (
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/seccomp"
 	"github.com/lxc/lxd/lxd/state"
@@ -3696,7 +3697,7 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	pool, err := storagePools.GetPoolByInstance(d.state, d)
-	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
+	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {

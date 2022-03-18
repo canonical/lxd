@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
 	driver "github.com/lxc/lxd/lxd/storage"
@@ -1082,7 +1083,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 		if err != nil {
 			return err
 		}
-	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
+	} else if response.IsNotFoundError(err) { // Likely a pristine upgrade.
 		tmp, err := dbStoragePoolCreateAndUpdateCache(d.State(), defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
@@ -1139,7 +1140,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -1227,7 +1228,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 				if err != nil {
 					return err
 				}
-			} else if err == db.ErrNoSuchObject {
+			} else if response.IsNotFoundError(err) {
 				// Insert storage volumes for containers into the database.
 				_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 				if err != nil {
@@ -1308,7 +1309,7 @@ func upgradeFromStorageTypeBtrfs(name string, d *Daemon, defaultPoolName string,
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -1382,7 +1383,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 		if err != nil {
 			return err
 		}
-	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
+	} else if response.IsNotFoundError(err) { // Likely a pristine upgrade.
 		tmp, err := dbStoragePoolCreateAndUpdateCache(d.State(), defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
@@ -1429,7 +1430,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -1546,7 +1547,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 			if err != nil {
@@ -1576,7 +1577,7 @@ func upgradeFromStorageTypeDir(name string, d *Daemon, defaultPoolName string, d
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -1684,7 +1685,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 		if err != nil {
 			return err
 		}
-	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
+	} else if response.IsNotFoundError(err) { // Likely a pristine upgrade.
 		tmp, err := dbStoragePoolCreateAndUpdateCache(d.State(), defaultPoolName, "", defaultStorageTypeName, poolConfig)
 		if err != nil {
 			return err
@@ -1738,7 +1739,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -1896,7 +1897,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 				if err != nil {
 					return err
 				}
-			} else if err == db.ErrNoSuchObject {
+			} else if response.IsNotFoundError(err) {
 				// Insert storage volumes for containers into the database.
 				_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 				if err != nil {
@@ -2076,7 +2077,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -2196,7 +2197,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 		if err != nil {
 			return err
 		}
-	} else if err == db.ErrNoSuchObject { // Likely a pristine upgrade.
+	} else if response.IsNotFoundError(err) { // Likely a pristine upgrade.
 		poolConfig["zfs.pool_name"] = defaultPoolName
 		if shared.PathExists(oldLoopFilePath) {
 			// This is a loop file pool.
@@ -2268,7 +2269,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", ct, "", db.StoragePoolVolumeTypeContainer, poolID, containerPoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -2354,7 +2355,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 				if err != nil {
 					return err
 				}
-			} else if err == db.ErrNoSuchObject {
+			} else if response.IsNotFoundError(err) {
 				// Insert storage volumes for containers into the database.
 				_, err := d.cluster.CreateStorageVolumeSnapshot("default", cs, "", db.StoragePoolVolumeTypeContainer, poolID, snapshotPoolVolumeConfig, time.Time{})
 				if err != nil {
@@ -2410,7 +2411,7 @@ func upgradeFromStorageTypeZfs(name string, d *Daemon, defaultPoolName string, d
 			if err != nil {
 				return err
 			}
-		} else if err == db.ErrNoSuchObject {
+		} else if response.IsNotFoundError(err) {
 			// Insert storage volumes for containers into the database.
 			_, err := d.cluster.CreateStoragePoolVolume("default", img, "", db.StoragePoolVolumeTypeImage, poolID, imagePoolVolumeConfig, db.StoragePoolVolumeContentTypeFS)
 			if err != nil {
@@ -2598,7 +2599,7 @@ func updatePoolPropertyForAllObjects(d *Daemon, poolName string, allcontainers [
 
 func patchStorageApiV1(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err == db.ErrNoSuchObject {
+	if err != nil && response.IsNotFoundError(err) {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
 		return nil
@@ -2742,7 +2743,7 @@ func patchStorageApiLvmKeys(name string, d *Daemon) error {
 
 func patchStorageApiKeys(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err == db.ErrNoSuchObject {
+	if err != nil && response.IsNotFoundError(err) {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
 		return nil
@@ -2800,7 +2801,7 @@ func patchStorageApiKeys(name string, d *Daemon) error {
 func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return nil
 		}
 		logger.Errorf("Failed to query database: %s", err)
@@ -2882,7 +2883,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 		// Get all storage volumes on the storage pool.
 		volumes, err := d.cluster.GetLocalStoragePoolVolumes("default", poolID, supportedVolumeTypes)
 		if err != nil {
-			if err == db.ErrNoSuchObject {
+			if response.IsNotFoundError(err) {
 				continue
 			}
 			return err
@@ -2948,7 +2949,7 @@ func patchStorageApiUpdateStorageConfigs(name string, d *Daemon) error {
 func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return nil
 		}
 		logger.Errorf("Failed to query database: %s", err)
@@ -3005,7 +3006,7 @@ func patchStorageApiLxdOnBtrfs(name string, d *Daemon) error {
 func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return nil
 		}
 		logger.Errorf("Failed to query database: %s", err)
@@ -3038,7 +3039,7 @@ func patchStorageApiDetectLVSize(name string, d *Daemon) error {
 		// Get all storage volumes on the storage pool.
 		volumes, err := d.cluster.GetLocalStoragePoolVolumes("default", poolID, supportedVolumeTypes)
 		if err != nil {
-			if err == db.ErrNoSuchObject {
+			if response.IsNotFoundError(err) {
 				continue
 			}
 			return err
@@ -3115,7 +3116,7 @@ func patchStorageApiInsertZfsDriver(name string, d *Daemon) error {
 func patchStorageZFSnoauto(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return nil
 		}
 		logger.Errorf("Failed to query database: %s", err)
@@ -3177,7 +3178,7 @@ func patchStorageZFSnoauto(name string, d *Daemon) error {
 
 func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err == db.ErrNoSuchObject {
+	if err != nil && response.IsNotFoundError(err) {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
 		return nil
@@ -3202,7 +3203,7 @@ func patchStorageZFSVolumeSize(name string, d *Daemon) error {
 		// Get all storage volumes on the storage pool.
 		volumes, err := d.cluster.GetLocalStoragePoolVolumes("default", poolID, supportedVolumeTypes)
 		if err != nil {
-			if err == db.ErrNoSuchObject {
+			if response.IsNotFoundError(err) {
 				continue
 			}
 			return err
@@ -3264,7 +3265,7 @@ func patchNetworkDnsmasqHosts(name string, d *Daemon) error {
 
 func patchStorageApiDirBindMount(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err == db.ErrNoSuchObject {
+	if err != nil && response.IsNotFoundError(err) {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
 		return nil
@@ -3350,7 +3351,7 @@ func patchFixUploadedAt(name string, d *Daemon) error {
 
 func patchStorageApiCephSizeRemove(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err == db.ErrNoSuchObject {
+	if err != nil && response.IsNotFoundError(err) {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
 		return nil
@@ -3547,7 +3548,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 	}
 
 	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err == db.ErrNoSuchObject {
+	if err != nil && response.IsNotFoundError(err) {
 		// No pool was configured in the previous update. So we're on a
 		// pristine LXD instance.
 		return nil
@@ -3615,7 +3616,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 
 		volumes, err := d.cluster.GetLocalStoragePoolVolumesWithType(project.Default, db.StoragePoolVolumeTypeCustom, poolID)
-		if err != nil && err != db.ErrNoSuchObject {
+		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		}
 
@@ -3710,7 +3711,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 	// Get all storage pools
 	pools, err := d.cluster.GetStoragePoolNames()
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return nil
 		}
 
@@ -3720,7 +3721,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 	// Get all containers
 	containers, err := d.cluster.LegacyContainersList()
 	if err != nil {
-		if err != db.ErrNoSuchObject {
+		if !response.IsNotFoundError(err) {
 			return err
 		}
 
@@ -3827,7 +3828,7 @@ func patchMoveBackups(name string, d *Daemon) error {
 
 func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 	pools, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err == db.ErrNoSuchObject {
+	if err != nil && response.IsNotFoundError(err) {
 		// No pool was configured so we're on a pristine LXD instance.
 		return nil
 	} else if err != nil {

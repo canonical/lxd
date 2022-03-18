@@ -11,6 +11,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 // The GetNetworksLocalConfigs method returns only node-specific config values.
@@ -98,5 +99,5 @@ func TestNetworksCreatePending_NonExistingNode(t *testing.T) {
 	defer cleanup()
 
 	err := tx.CreatePendingNetwork("buzz", project.Default, "network1", db.NetworkTypeBridge, map[string]string{})
-	require.Equal(t, db.ErrNoSuchObject, err)
+	require.True(t, response.IsNotFoundError(err))
 }

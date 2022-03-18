@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -201,7 +200,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get all instance volumes currently attached to the storage pool by ID of the pool and project.
 	volumes, err := d.cluster.GetStoragePoolVolumes(projectName, poolID, supportedVolumeTypesInstances)
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return response.SmartError(err)
 	}
 
@@ -214,7 +213,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get all custom volumes currently attached to the storage pool by ID of the pool and project.
 	custVolumes, err := d.cluster.GetStoragePoolVolumes(customVolProjectName, poolID, []int{db.StoragePoolVolumeTypeCustom})
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return response.SmartError(err)
 	}
 
@@ -227,7 +226,7 @@ func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	// project. This means that we want to filter image volumes and return only the ones that have fingerprint
 	// matching images actually in use by the project.
 	imageVolumes, err := d.cluster.GetStoragePoolVolumes(project.Default, poolID, []int{db.StoragePoolVolumeTypeImage})
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return response.SmartError(err)
 	}
 
@@ -571,7 +570,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 
 	// Check if destination volume exists.
 	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
-	if err != db.ErrNoSuchObject {
+	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -775,7 +774,7 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 
 	// Check if destination volume exists.
 	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, req.Name, db.StoragePoolVolumeTypeCustom, poolID)
-	if err != db.ErrNoSuchObject {
+	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -1012,7 +1011,7 @@ func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 
 	// Check that the name isn't already in use.
 	_, err = d.cluster.GetStoragePoolNodeVolumeID(targetProjectName, req.Name, volumeType, targetPoolID)
-	if err != db.ErrNoSuchObject {
+	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1787,7 +1786,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 
 	// Check storage pool exists.
 	_, _, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
-	if errors.Is(err, db.ErrNoSuchObject) {
+	if response.IsNotFoundError(err) {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
 		// the backup then we cannot proceed so return an error.

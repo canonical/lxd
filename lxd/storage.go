@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -14,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
@@ -84,7 +84,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 
 	poolNames, err := s.Cluster.GetCreatedStoragePoolNames()
 	if err != nil {
-		if errors.Is(err, db.ErrNoSuchObject) {
+		if response.IsNotFoundError(err) {
 			logger.Debug("No existing storage pools detected")
 			return nil
 		}
@@ -120,7 +120,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 
 		pool, err := storagePools.GetPoolByName(s, poolName)
 		if err != nil {
-			if errors.Is(err, db.ErrNoSuchObject) {
+			if response.IsNotFoundError(err) {
 				return true // Nothing to activate as pool has been deleted.
 			}
 
@@ -215,7 +215,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
 	drivers, err := s.Cluster.GetStoragePoolDrivers()
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return
 	}
 

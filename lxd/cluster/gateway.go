@@ -939,7 +939,7 @@ func (g *Gateway) nodeAddress(raftAddress string) (string, error) {
 		var err error
 		address, err = tx.GetRaftNodeAddress(1)
 		if err != nil {
-			if err != db.ErrNoSuchObject {
+			if !response.IsNotFoundError(err) {
 				return fmt.Errorf("Failed to fetch raft server address: %w", err)
 			}
 			// Use the initial address as fallback. This is an edge

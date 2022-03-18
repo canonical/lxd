@@ -11,8 +11,8 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/network"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
@@ -80,7 +80,7 @@ func (d *zone) usedBy(firstOnly bool) ([]string, error) {
 
 	// Find networks using the zone.
 	networkNames, err := d.state.Cluster.GetCreatedNetworks(d.projectName)
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return nil, fmt.Errorf("Failed loading networks for project %q: %w", d.projectName, err)
 	}
 

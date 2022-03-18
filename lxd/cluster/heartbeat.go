@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/node"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
@@ -469,7 +470,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 				}
 
 				err := tx.SetNodeHeartbeat(node.Address, node.LastHeartbeat)
-				if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
+				if err != nil && !response.IsNotFoundError(err) {
 					return fmt.Errorf("Failed updating heartbeat time for member %q: %w", node.Address, err)
 				}
 			}
