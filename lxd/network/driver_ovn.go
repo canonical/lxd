@@ -2588,7 +2588,7 @@ func (n *ovn) start() error {
 }
 
 // Stop deletes the local OVS uplink port (if unused) and deletes the local OVS chassis ID from the
-// OVN chass group
+// OVN chassis group.
 func (n *ovn) Stop() error {
 	n.logger.Debug("Stop")
 
