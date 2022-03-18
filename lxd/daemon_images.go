@@ -18,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/request"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -165,7 +166,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 				return nil, fmt.Errorf("Failed adding transferred image %q to local cluster member: %w", imgInfo.Fingerprint, err)
 			}
 		}
-	} else if err == db.ErrNoSuchObject {
+	} else if response.IsNotFoundError(err) {
 		// Check if the image already exists in some other project.
 		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
 		if err == nil {

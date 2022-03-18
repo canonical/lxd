@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 // ResolveTarget is a convenience for handling the value ?targetNode query
@@ -23,7 +24,7 @@ func ResolveTarget(cluster *db.Cluster, target string) (string, error) {
 
 		node, err := tx.GetNodeByName(target)
 		if err != nil {
-			if err == db.ErrNoSuchObject {
+			if response.IsNotFoundError(err) {
 				return fmt.Errorf("No cluster member called '%s'", target)
 			}
 

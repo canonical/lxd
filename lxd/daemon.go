@@ -1658,7 +1658,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			// Unmount storage pools after instances stopped.
 			logger.Info("Stopping storage pools")
 			pools, err := s.Cluster.GetStoragePoolNames()
-			if err != nil && err != db.ErrNoSuchObject {
+			if err != nil && !response.IsNotFoundError(err) {
 				logger.Error("Failed to get storage pools", log.Ctx{"err": err})
 			}
 

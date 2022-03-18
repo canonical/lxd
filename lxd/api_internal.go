@@ -648,7 +648,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
 	pool, err := storagePools.GetPoolByName(d.State(), instancePoolName)
-	if err == db.ErrNoSuchObject {
+	if response.IsNotFoundError(err) {
 		// Create the storage pool db entry if it doesn't exist.
 		_, err = storagePoolDBCreate(d.State(), instancePoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
 		if err != nil {
@@ -683,10 +683,8 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	// Check if a storage volume entry for the instance already exists.
 	_, volume, ctVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
-	if ctVolErr != nil {
-		if ctVolErr != db.ErrNoSuchObject {
-			return ctVolErr
-		}
+	if ctVolErr != nil && !response.IsNotFoundError(ctVolErr) {
+		return ctVolErr
 	}
 
 	// If a storage volume entry exists only proceed if force was specified.
@@ -696,10 +694,8 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	// Check if an entry for the instance already exists in the db.
 	_, instanceErr := d.cluster.GetInstanceID(projectName, backupConf.Container.Name)
-	if instanceErr != nil {
-		if instanceErr != db.ErrNoSuchObject {
-			return instanceErr
-		}
+	if instanceErr != nil && !response.IsNotFoundError(instanceErr) {
+		return instanceErr
 	}
 
 	// If a db entry exists only proceed if force was specified.
@@ -781,10 +777,8 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 		// Check if an entry for the snapshot already exists in the db.
 		_, snapErr := d.cluster.GetInstanceSnapshotID(projectName, backupConf.Container.Name, snap.Name)
-		if snapErr != nil {
-			if snapErr != db.ErrNoSuchObject {
-				return snapErr
-			}
+		if snapErr != nil && !response.IsNotFoundError(snapErr) {
+			return snapErr
 		}
 
 		// If a db entry exists only proceed if force was specified.
@@ -794,10 +788,8 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 		// Check if a storage volume entry for the snapshot already exists.
 		_, _, csVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
-		if csVolErr != nil {
-			if csVolErr != db.ErrNoSuchObject {
-				return csVolErr
-			}
+		if csVolErr != nil && !response.IsNotFoundError(csVolErr) {
+			return csVolErr
 		}
 
 		// If a storage volume entry exists only proceed if force was specified.

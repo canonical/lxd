@@ -163,8 +163,8 @@ func instanceSnapRestore(s *state.State, projectName string, name string, snap s
 
 	source, err := instance.LoadByProjectAndName(s, projectName, snap)
 	if err != nil {
-		switch err {
-		case db.ErrNoSuchObject:
+		switch {
+		case response.IsNotFoundError(err):
 			return fmt.Errorf("Snapshot %s does not exist", snap)
 		default:
 			return err

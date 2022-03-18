@@ -6,6 +6,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -84,7 +85,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 
 	// Find networks using the ACLs. Cheapest to do.
 	networkNames, err := s.Cluster.GetCreatedNetworks(aclProjectName)
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return fmt.Errorf("Failed loading networks for project %q: %w", aclProjectName, err)
 	}
 

@@ -343,7 +343,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	info.CreatedAt = time.Now().UTC()
 
 	_, _, err = d.cluster.GetImage(info.Fingerprint, db.ImageFilter{Project: &projectName})
-	if err != db.ErrNoSuchObject {
+	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return nil, err
 		}
@@ -997,7 +997,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 
 		for _, alias := range req.Aliases {
 			_, _, err := d.cluster.GetImageAlias(projectName, alias.Name, true)
-			if err != db.ErrNoSuchObject {
+			if !response.IsNotFoundError(err) {
 				if err != nil {
 					return fmt.Errorf("Fetch image alias %q: %w", alias.Name, err)
 				}
@@ -2590,7 +2590,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	profileIds := make([]int64, len(req.Profiles))
 	for i, profile := range req.Profiles {
 		profileID, _, err := d.cluster.GetProfile(projectName, profile)
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return response.BadRequest(fmt.Errorf("Profile '%s' doesn't exist", profile))
 		} else if err != nil {
 			return response.SmartError(err)
@@ -2758,7 +2758,7 @@ func imageAliasesPost(d *Daemon, r *http.Request) response.Response {
 
 	// This is just to see if the alias name already exists.
 	_, _, err := d.cluster.GetImageAlias(projectName, req.Name, true)
-	if err != db.ErrNoSuchObject {
+	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.InternalError(err)
 		}
