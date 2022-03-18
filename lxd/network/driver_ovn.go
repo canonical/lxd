@@ -2553,9 +2553,22 @@ func (n *ovn) start() error {
 
 	var err error
 	var projectID int64
+	var node db.NodeInfo
 	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get the project ID.
 		projectID, err = tx.GetProjectID(n.project)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Get the node info.
+		nodeID := n.state.Cluster.GetNodeID()
+		node, err = tx.GetNodeWithID(int(nodeID))
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("Failed getting project ID for project %q: %w", n.project, err)
@@ -2567,10 +2580,19 @@ func (n *ovn) start() error {
 		return err
 	}
 
-	// Add local node's OVS chassis ID to logical chassis group.
-	err = n.addChassisGroupEntry()
-	if err != nil {
-		return err
+	// Handle chassis groups.
+	if shared.IsFalse(node.Config["network.ovn.chassis"]) {
+		// Make sure we don't have a group entry.
+		err = n.deleteChassisGroupEntry()
+		if err != nil {
+			return err
+		}
+	} else {
+		// Add local node's OVS chassis ID to logical chassis group.
+		err = n.addChassisGroupEntry()
+		if err != nil {
+			return err
+		}
 	}
 
 	err = n.startUplinkPort()
