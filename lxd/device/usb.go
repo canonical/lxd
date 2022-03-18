@@ -192,6 +192,20 @@ func (d *usb) Stop() (*deviceConfig.RunConfig, error) {
 		PostHooks: []func() error{d.postStop},
 	}
 
+	usbs, err := d.loadUsb()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, usb := range usbs {
+		if usbIsOurDevice(d.config, &usb) {
+			runConf.USBDevice = append(runConf.USBDevice, deviceConfig.USBDeviceItem{
+				DeviceName:     d.getUniqueDeviceNameFromUSBEvent(usb),
+				HostDevicePath: fmt.Sprintf("/dev/bus/usb/%03d/%03d", usb.BusNum, usb.DevNum),
+			})
+		}
+	}
+
 	if d.inst.Type() == instancetype.Container {
 		// Unregister any USB event handlers for this device.
 		usbUnregisterHandler(d.inst, d.name)
