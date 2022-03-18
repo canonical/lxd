@@ -42,24 +42,24 @@ import (
 )
 
 var apiInternal = []APIEndpoint{
+	internalBGPStateCmd,
+	internalClusterAcceptCmd,
+	internalClusterAssignCmd,
+	internalClusterHandoverCmd,
+	internalClusterInstanceMovedCmd,
+	internalClusterRaftNodeCmd,
+	internalClusterRebalanceCmd,
+	internalContainerOnStartCmd,
+	internalContainerOnStopCmd,
+	internalContainerOnStopNSCmd,
+	internalGarbageCollectorCmd,
+	internalImageOptimizeCmd,
+	internalImageRefreshCmd,
+	internalRAFTSnapshotCmd,
 	internalReadyCmd,
 	internalShutdownCmd,
-	internalContainerOnStartCmd,
-	internalContainerOnStopNSCmd,
-	internalContainerOnStopCmd,
 	internalSQLCmd,
-	internalClusterAcceptCmd,
-	internalClusterRebalanceCmd,
-	internalClusterAssignCmd,
-	internalClusterInstanceMovedCmd,
-	internalGarbageCollectorCmd,
-	internalRAFTSnapshotCmd,
-	internalClusterHandoverCmd,
-	internalClusterRaftNodeCmd,
-	internalImageRefreshCmd,
-	internalImageOptimizeCmd,
 	internalWarningCreateCmd,
-	internalBGPStateCmd,
 }
 
 var internalShutdownCmd = APIEndpoint{
