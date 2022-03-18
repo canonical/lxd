@@ -535,7 +535,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Get all defined storage pools and networks, so they can be compared to the ones in the cluster.
 		pools := []api.StoragePool{}
 		poolNames, err := d.cluster.GetStoragePoolNames()
-		if err != nil && err != db.ErrNoSuchObject {
+		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		}
 
@@ -561,7 +561,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		networks := []internalClusterPostNetwork{}
 		for _, p := range projects {
 			networkNames, err := d.cluster.GetNetworks(p.Name)
-			if err != nil && err != db.ErrNoSuchObject {
+			if err != nil && !response.IsNotFoundError(err) {
 				return err
 			}
 
@@ -1876,7 +1876,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 		// Delete all the pools on this node
 		pools, err := d.cluster.GetStoragePoolNames()
-		if err != nil && err != db.ErrNoSuchObject {
+		if err != nil && !response.IsNotFoundError(err) {
 			return response.SmartError(err)
 		}
 
@@ -2444,7 +2444,7 @@ type internalClusterPostHandoverRequest struct {
 
 func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePool) error {
 	poolNames, err := cluster.GetCreatedStoragePoolNames()
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	}
 	for _, name := range poolNames {
@@ -2492,7 +2492,7 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 
 	for _, networkProjectName := range networkProjectNames {
 		networkNames, err := cluster.GetCreatedNetworks(networkProjectName)
-		if err != nil && err != db.ErrNoSuchObject {
+		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		}
 
@@ -3290,7 +3290,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, db.ErrNoSuchObject) {
+		if response.IsNotFoundError(err) {
 			return response.NotFound(fmt.Errorf("Cluster group %q not found", name))
 		}
 
@@ -3374,7 +3374,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, db.ErrNoSuchObject) {
+		if response.IsNotFoundError(err) {
 			return response.NotFound(fmt.Errorf("Cluster group %q not found", name))
 		}
 

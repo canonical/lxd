@@ -7,9 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 func init() {
@@ -154,7 +156,7 @@ func TestStoragePoolsCreatePending_NonExistingNode(t *testing.T) {
 	defer cleanup()
 
 	err := tx.CreatePendingStoragePool("buzz", "pool1", "dir", map[string]string{})
-	require.Equal(t, db.ErrNoSuchObject, err)
+	require.True(t, response.IsNotFoundError(err))
 }
 
 // If a pool with the given name already exists but has different driver, an
@@ -214,7 +216,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	require.NoError(t, err)
 	for _, nodeID := range []int64{1, 2} {
 		_, volume, err := cluster.GetStoragePoolVolume("default", "v1-new", 1, poolID, nodeID)
-		assert.Equal(t, db.ErrNoSuchObject, err)
+		assert.True(t, response.IsNotFoundError(err))
 		assert.Nil(t, volume)
 	}
 }

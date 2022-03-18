@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -147,7 +146,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 	for _, p := range userPools {
 		pool, err := storagePools.GetPoolByName(d.State(), p.Name)
 		if err != nil {
-			if errors.Is(err, db.ErrNoSuchObject) {
+			if response.IsNotFoundError(err) {
 				// If the pool DB record doesn't exist, and we are clustered, then don't proceed
 				// any further as we do not support pool DB record recovery when clustered.
 				if isClustered {

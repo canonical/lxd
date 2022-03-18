@@ -141,7 +141,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	poolNames, err := d.cluster.GetStoragePoolNames()
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return response.SmartError(err)
 	}
 
@@ -316,7 +316,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 
 	// Load existing pool if exists, if not don't fail.
 	_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return response.InternalError(err)
 	}
 
@@ -446,7 +446,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		return tx.StoragePoolErrored(req.Name)
 	})
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return fmt.Errorf("Pool not pending on any node (use --target <node> first)")
 		}
 		return err

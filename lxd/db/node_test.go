@@ -9,6 +9,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/stretchr/testify/assert"
@@ -163,7 +164,7 @@ func TestRemoveNode(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = tx.GetNodeByName("rusp")
-	assert.Equal(t, db.ErrNoSuchObject, err)
+	assert.True(t, response.IsNotFoundError(err))
 }
 
 // Mark a node has pending.
@@ -180,7 +181,7 @@ func TestSetNodePendingFlag(t *testing.T) {
 
 	// Pending nodes are skipped from regular listing
 	_, err = tx.GetNodeByName("buzz")
-	assert.Equal(t, db.ErrNoSuchObject, err)
+	assert.True(t, response.IsNotFoundError(err))
 	nodes, err := tx.GetNodes()
 	require.NoError(t, err)
 	assert.Len(t, nodes, 1)

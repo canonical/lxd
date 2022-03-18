@@ -15,9 +15,9 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
@@ -621,7 +621,7 @@ func (d *ceph) DeleteVolume(vol Volume, op *operations.Operation) error {
 
 		if hasReadonlySnapshot {
 			dependantSnapshots, err := d.rbdListSnapshotClones(vol, "readonly")
-			if err != nil && err != db.ErrNoSuchObject {
+			if err != nil && !response.IsNotFoundError(err) {
 				return err
 			}
 
@@ -1641,7 +1641,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, error) {
 	snapshots, err := d.rbdListVolumeSnapshots(vol)
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return nil, nil
 		}
 
