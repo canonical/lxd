@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
@@ -403,8 +404,26 @@ func (n *common) rename(newName string) error {
 	return nil
 }
 
-// delete the network from the database if clusterNotification is false.
+// warningsDelete deletes any persistent warnings for the network.
+func (n *common) warningsDelete() error {
+	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.DeleteWarnings(dbCluster.TypeNetwork, int(n.ID()))
+	})
+	if err != nil {
+		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
+	}
+
+	return nil
+}
+
+// delete the network on local server.
 func (n *common) delete(clientType request.ClientType) error {
+	// Delete any persistent warnings for network.
+	err := n.warningsDelete()
+	if err != nil {
+		return err
+	}
+
 	// Cleanup storage.
 	if shared.PathExists(shared.VarPath("networks", n.name)) {
 		os.RemoveAll(shared.VarPath("networks", n.name))
