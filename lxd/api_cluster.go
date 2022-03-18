@@ -119,6 +119,12 @@ var internalClusterHandoverCmd = APIEndpoint{
 	Post: APIEndpointAction{Handler: internalClusterPostHandover},
 }
 
+var internalClusterNetworkRestartCmd = APIEndpoint{
+	Path: "cluster/network-restart",
+
+	Post: APIEndpointAction{Handler: internalClusterNetworkRestart},
+}
+
 var internalClusterRaftNodeCmd = APIEndpoint{
 	Path: "cluster/raft-node/{address}",
 
@@ -3735,4 +3741,15 @@ func clusterGroupValidateName(name string) error {
 	}
 
 	return nil
+}
+
+// internalClusterNetworkRestart is used to trigger a restart of all networks on the target member.
+func internalClusterNetworkRestart(d *Daemon, r *http.Request) response.Response {
+	logger.Infof("Restarting networking")
+	err := networkStartup(d.State())
+	if err != nil {
+		return response.InternalError(err)
+	}
+
+	return response.EmptySyncResponse
 }
