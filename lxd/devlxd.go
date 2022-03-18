@@ -101,15 +101,15 @@ var devlxdImageExport = devLxdHandler{"/1.0/images/{fingerprint}/export", func(d
 	return &devLxdResponse{"", http.StatusOK, "raw"}
 }}
 
-var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	value := c.ExpandedConfig()["user.meta-data"]
+var devlxdMetadataGet = devLxdHandler{"/1.0/meta-data", func(d *Daemon, inst instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
+	value := inst.ExpandedConfig()["user.meta-data"]
 
-	id := c.LocalConfig()["volatile.cloud-init.instance-id"]
+	id := inst.LocalConfig()["volatile.cloud-init.instance-id"]
 	if id == "" {
-		id = c.Name()
+		id = inst.Name()
 	}
 
-	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", id, c.Name(), value), "raw")
+	return okResponse(fmt.Sprintf("#cloud-config\ninstance-id: %s\nlocal-hostname: %s\n%s", id, inst.Name(), value), "raw")
 }}
 
 var devlxdEventsGet = devLxdHandler{"/1.0/events", func(d *Daemon, c instance.Instance, w http.ResponseWriter, r *http.Request) *devLxdResponse {
