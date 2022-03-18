@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,12 +75,9 @@ func (b *lxdBackend) Status() string {
 
 // LocalStatus returns storage pool status of the local cluster member.
 func (b *lxdBackend) LocalStatus() string {
-	unavailablePoolsMu.Lock()
-	defer unavailablePoolsMu.Unlock()
-
 	// Check if pool is unavailable locally and replace status if so.
 	// But don't modify b.db.Status as the status may be recovered later so we don't want to persist it here.
-	if _, found := unavailablePools[b.name]; found {
+	if !IsAvailable(b.name) {
 		return api.StoragePoolStatusUnvailable
 	}
 
@@ -98,7 +96,7 @@ func (b *lxdBackend) isStatusReady() error {
 	}
 
 	if b.LocalStatus() == api.StoragePoolStatusUnvailable {
-		return ErrPoolUnavailable
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool is unavailable on this server")
 	}
 
 	return nil

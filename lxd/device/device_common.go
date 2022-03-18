@@ -83,6 +83,11 @@ func (d *deviceCommon) UpdatableFields(oldDevice Type) []string {
 	return []string{}
 }
 
+// PreStartCheck indicates if the device is available for starting.
+func (d *deviceCommon) PreStartCheck() error {
+	return nil
+}
+
 // Update returns an ErrCannotUpdate error as most devices do not support updates.
 func (d *deviceCommon) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	return ErrCannotUpdate

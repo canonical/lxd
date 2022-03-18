@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -1423,6 +1424,11 @@ func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, inst
 		return nil, err
 	}
 
+	err = dev.PreStartCheck()
+	if err != nil {
+		return nil, fmt.Errorf("Failed pre-start check for device: %w", err)
+	}
+
 	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
 	}
@@ -1714,7 +1720,7 @@ func (d *lxc) deviceDetachNIC(configCopy map[string]string, netIF []deviceConfig
 			if err != nil {
 				return fmt.Errorf("Failed to detach interface: %q to %q: %w", configCopy["name"], devName, err)
 			}
-			d.logger.Debug("Detached NIC device interface", log.Ctx{"name": configCopy["name"], "devName": devName})
+			d.logger.Debug("Detached NIC device interface", log.Ctx{"name": configCopy["name"], "device": devName})
 		}
 	}
 
@@ -2096,7 +2102,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		revert.Add(func() {
 			err := d.deviceStop(dev.Name, dev.Config, false, "")
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"devName": dev.Name, "err": err})
+				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name, "err": err})
 			}
 		})
 
@@ -2351,14 +2357,37 @@ func (d *lxc) detachInterfaceRename(netns string, ifName string, hostName string
 	return nil
 }
 
+// validateStartup checks any constraints that would prevent start up from succeeding under normal circumstances.
+func (d *lxc) validateStartup(stateful bool) error {
+	// Because the root disk is special and is mounted before the root disk device is setup we duplicate the
+	// pre-start check here before the isStartableStatusCode check below so that if there is a problem loading
+	// the instance status because the storage pool isn't available we don't mask the StatusServiceUnavailable
+	// error with an ERROR status code from the instance check instead.
+	_, rootDiskConf, err := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+	if err != nil {
+		return err
+	}
+
+	if !storagePools.IsAvailable(rootDiskConf["pool"]) {
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Storage pool %q unavailable on this server", rootDiskConf["pool"])
+	}
+
+	// Check that we are startable before creating an operation lock, so if the instance is in the
+	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
+	err = d.isStartableStatusCode(d.statusCode())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Start starts the instance.
 func (d *lxc) Start(stateful bool) error {
 	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
 	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
 
-	// Check that we are startable before creating an operation lock, so if the instance is in the
-	// process of stopping we don't prevent the stop hooks from running due to our start operation lock.
-	err := d.isStartableStatusCode(d.statusCode())
+	err := d.validateStartup(stateful)
 	if err != nil {
 		return err
 	}
@@ -3089,7 +3118,7 @@ func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
 		if err == device.ErrUnsupportedDevType {
 			continue
 		} else if err != nil {
-			d.logger.Error("Failed to stop device", log.Ctx{"devName": dev.Name, "err": err})
+			d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name, "err": err})
 		}
 	}
 }
