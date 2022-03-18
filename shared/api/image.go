@@ -24,6 +24,12 @@ type ImageExportPost struct {
 
 	// List of aliases to set on the image
 	Aliases []ImageAlias `json:"aliases" yaml:"aliases"`
+
+	// Project name
+	// Example: project1
+	//
+	// API extension: image_target_project
+	Project string `json:"project" yaml:"project"`
 }
 
 // ImagesPost represents the fields available for a new LXD image

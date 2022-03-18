@@ -1633,3 +1633,6 @@ Adds new `restricted.container.intercept` config key to allow usually safe syste
 Introduces a new `core.metrics_authentication` server config option to
 allow for the /1.0/metrics endpoint to be generally available without
 client authentication.
+
+## images\_target\_project
+Adds ability to copy image to a project different from the source.
