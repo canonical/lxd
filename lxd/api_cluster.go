@@ -1605,7 +1605,8 @@ func clusterRolesChanged(oldRoles []db.ClusterRole, newRoles []db.ClusterRole) b
 // clusterValidateConfig validates the configuration keys/values for cluster members.
 func clusterValidateConfig(config map[string]string) error {
 	clusterConfigKeys := map[string]func(value string) error{
-		"scheduler.instance": validate.Optional(validate.IsOneOf("all", "group", "manual")),
+		"network.ovn.chassis": validate.Optional(validate.IsBool),
+		"scheduler.instance":  validate.Optional(validate.IsOneOf("all", "group", "manual")),
 	}
 
 	for k, v := range config {
