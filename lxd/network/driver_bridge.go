@@ -498,14 +498,6 @@ func (n *bridge) isRunning() bool {
 func (n *bridge) Delete(clientType request.ClientType) error {
 	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
 
-	// Delete all warnings regarding this network.
-	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		return tx.DeleteWarnings(dbCluster.TypeNetwork, int(n.ID()))
-	})
-	if err != nil {
-		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
-	}
-
 	if n.isRunning() {
 		err := n.Stop()
 		if err != nil {
@@ -514,7 +506,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 	}
 
 	// Delete apparmor profiles.
-	err = apparmor.NetworkDelete(n.state.OS, n)
+	err := apparmor.NetworkDelete(n.state.OS, n)
 	if err != nil {
 		return err
 	}
