@@ -1636,3 +1636,7 @@ client authentication.
 
 ## images\_target\_project
 Adds ability to copy image to a project different from the source.
+
+## cluster\_ovn\_chassis
+Introduces a new `network.ovn.chassis` configuration key which allows
+for disabling the participation of a cluster member as an OVN chassis.
