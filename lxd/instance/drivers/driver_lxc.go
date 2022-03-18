@@ -330,8 +330,18 @@ func lxcCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]str
 		for k, m := range d.expandedDevices {
 			devName := k
 			devConfig := m
-			err = d.deviceAdd(devName, devConfig, false)
-			if err != nil && err != device.ErrUnsupportedDevType {
+
+			dev, err := d.deviceLoad(devName, devConfig)
+			if err != nil {
+				if errors.Is(err, device.ErrUnsupportedDevType) {
+					continue
+				}
+
+				return nil, fmt.Errorf("Failed to load device to add %q: %w", devName, err)
+			}
+
+			err = d.deviceAdd(dev, false)
+			if err != nil {
 				return nil, fmt.Errorf("Failed to add device %q: %w", devName, err)
 			}
 
@@ -1357,8 +1367,8 @@ func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]interfac
 func (d *lxc) RegisterDevices() {
 	devices := d.ExpandedDevices()
 	for _, entry := range devices.Sorted() {
-		dev, _, err := d.deviceLoad(entry.Name, entry.Config)
-		if err == device.ErrUnsupportedDevType {
+		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		if errors.Is(err, device.ErrUnsupportedDevType) {
 			continue
 		}
 
@@ -1377,7 +1387,7 @@ func (d *lxc) RegisterDevices() {
 }
 
 // deviceLoad instantiates and validates a new device and returns it along with enriched config.
-func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, deviceConfig.Device, error) {
+func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (device.Device, error) {
 	var configCopy deviceConfig.Device
 	var err error
 
@@ -1385,7 +1395,7 @@ func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 	if shared.StringInSlice(rawConfig["type"], []string{"nic", "infiniband"}) {
 		configCopy, err = d.FillNetworkDevice(deviceName, rawConfig)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		// Othewise copy the config so it cannot be modified by device.
@@ -1394,16 +1404,14 @@ func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 
 	dev, err := device.New(d, d.state, deviceName, configCopy, d.deviceVolatileGetFunc(deviceName), d.deviceVolatileSetFunc(deviceName))
 
-	// Return device and config copy even if error occurs as caller may still use device.
-	return dev, configCopy, err
+	// Return device even if error occurs as caller may still use device.
+	return dev, err
 }
 
 // deviceAdd loads a new device and calls its Add() function.
-func (d *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
-	if err != nil {
-		return err
-	}
+func (d *lxc) deviceAdd(dev device.Device, instanceRunning bool) error {
+	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	logger.Debug("Adding device")
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be added when instance is running")
@@ -1413,22 +1421,13 @@ func (d *lxc) deviceAdd(deviceName string, rawConfig deviceConfig.Device, instan
 }
 
 // deviceStart loads a new device and calls its Start() function.
-func (d *lxc) deviceStart(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
+	configCopy := dev.Config()
+	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Starting device")
 
 	revert := revert.New()
 	defer revert.Fail()
-
-	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	err = dev.PreStartCheck()
-	if err != nil {
-		return nil, fmt.Errorf("Failed pre-start check for device: %w", err)
-	}
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return nil, fmt.Errorf("Device cannot be started when instance is running")
@@ -1578,7 +1577,7 @@ func (d *lxc) deviceAttachNIC(configCopy map[string]string, netIF []deviceConfig
 
 // deviceUpdate loads a new device and calls its Update() function.
 func (d *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, oldDevices deviceConfig.Devices, instanceRunning bool) error {
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 	if err != nil {
 		return err
 	}
@@ -1594,28 +1593,10 @@ func (d *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, old
 // deviceStop loads a new device and calls its Stop() function.
 // Accepts a stopHookNetnsPath argument which is required when run from the onStopNS hook before the
 // container's network namespace is unmounted (which is required for NIC device cleanup).
-func (d *lxc) deviceStop(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool, stopHookNetnsPath string) error {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+func (d *lxc) deviceStop(dev device.Device, instanceRunning bool, stopHookNetnsPath string) error {
+	configCopy := dev.Config()
+	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Stopping device")
-
-	dev, configCopy, err := d.deviceLoad(deviceName, rawConfig)
-
-	// If deviceLoad fails with unsupported device type then return.
-	if err == device.ErrUnsupportedDevType {
-		return err
-	}
-
-	// If deviceLoad fails for any other reason then just log the error and proceed, as in the
-	// scenario that a new version of LXD has additional validation restrictions than older
-	// versions we still need to allow previously valid devices to be stopped.
-	if err != nil {
-		// If there is no device returned, then we cannot proceed, so return as error.
-		if dev == nil {
-			return fmt.Errorf("Device stop validation failed for %q: %w", deviceName, err)
-		}
-
-		logger.Error("Device stop validation failed for", log.Ctx{"err": err})
-	}
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
@@ -1793,8 +1774,9 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 // deviceRemove loads a new device and calls its Remove() function.
 func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
 	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	logger.Debug("Removing device")
 
-	dev, _, err := d.deviceLoad(deviceName, rawConfig)
+	dev, err := d.deviceLoad(deviceName, rawConfig)
 
 	// If deviceLoad fails with unsupported device type then return.
 	if err == device.ErrUnsupportedDevType {
@@ -2089,21 +2071,41 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 	nicID := -1
 	nvidiaDevices := []string{}
 
-	// Setup devices in sorted order, this ensures that device mounts are added in path order.
-	for _, entry := range d.expandedDevices.Sorted() {
-		dev := entry // Ensure device variable has local scope for revert.
+	sortedDevices := d.expandedDevices.Sorted()
+	startDevices := make([]device.Device, len(sortedDevices))
+
+	// Load devices in sorted order, this ensures that device mounts are added in path order.
+	// Loading all devices first means that validation of all devices occurs before starting any of them.
+	for i, entry := range sortedDevices {
+		dev, err := d.deviceLoad(entry.Name, entry.Config)
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed to load device to start %q: %w", dev.Name(), err)
+		}
+
+		// Run pre-start of check all devices before starting any device to avoid expensive revert.
+		err = dev.PreStartCheck()
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+		}
+
+		startDevices[i] = dev
+	}
+
+	// Start devices in order.
+	for i := range startDevices {
+		dev := startDevices[i] // Local var for revert.
 
 		// Start the device.
-		runConf, err := d.deviceStart(dev.Name, dev.Config, false)
+		runConf, err := d.deviceStart(dev, false)
 		if err != nil {
-			return "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name, err)
+			return "", nil, fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
 		}
 
 		// Stop device on failure to setup container.
 		revert.Add(func() {
-			err := d.deviceStop(dev.Name, dev.Config, false, "")
+			err := d.deviceStop(dev, false, "")
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name, "err": err})
+				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name(), "err": err})
 			}
 		})
 
@@ -2142,13 +2144,13 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			}
 
 			if err != nil {
-				return "", nil, fmt.Errorf("Failed to setup device rootfs '%s': %w", dev.Name, err)
+				return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 			}
 
 			if len(runConf.RootFS.Opts) > 0 {
 				err = lxcSetConfigItem(d.c, "lxc.rootfs.options", strings.Join(runConf.RootFS.Opts, ","))
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device rootfs '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device rootfs %q: %w", dev.Name(), err)
 				}
 			}
 
@@ -2162,19 +2164,19 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					// Host side mark mount.
 					err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
 					if err != nil {
-						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 
 					// Container side shift mount.
 					err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(d.RootfsPath()), strconv.Quote(d.RootfsPath())))
 					if err != nil {
-						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 
 					// Host side umount of mark mount.
 					err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(d.RootfsPath())))
 					if err != nil {
-						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+						return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 					}
 				}
 			}
@@ -2192,7 +2194,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					err = lxcSetConfigItem(d.c, fmt.Sprintf("lxc.cgroup.%s", rule.Key), rule.Value)
 				}
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device cgroup '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device cgroup %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2201,7 +2203,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 		if len(runConf.Mounts) > 0 {
 			for _, mount := range runConf.Mounts {
 				if shared.StringInSlice("propagation", mount.Opts) && !instance.RuntimeLiblxcVersionAtLeast(liblxc.Version(), 3, 0, 0) {
-					return "", nil, fmt.Errorf("Failed to setup device mount '%s': %w", dev.Name, fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
+					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("liblxc 3.0 is required for mount propagation configuration"))
 				}
 
 				mntOptions := strings.Join(mount.Opts, ",")
@@ -2213,27 +2215,27 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 					case idmap.IdmapStorageShiftfs:
 						err = lxcSetConfigItem(d.c, "lxc.hook.pre-start", fmt.Sprintf("/bin/mount -t shiftfs -o mark,passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
 						if err != nil {
-							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 
 						err = lxcSetConfigItem(d.c, "lxc.hook.pre-mount", fmt.Sprintf("/bin/mount -t shiftfs -o passthrough=3 %s %s", strconv.Quote(mount.DevPath), strconv.Quote(mount.DevPath)))
 						if err != nil {
-							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 
 						err = lxcSetConfigItem(d.c, "lxc.hook.start-host", fmt.Sprintf("/bin/umount -l %s", strconv.Quote(mount.DevPath)))
 						if err != nil {
-							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs '%s': %w", dev.Name, err)
+							return "", nil, fmt.Errorf("Failed to setup device mount shiftfs %q: %w", dev.Name(), err)
 						}
 					case idmap.IdmapStorageNone:
-						return "", nil, fmt.Errorf("Failed to setup device mount '%s': %w", dev.Name, fmt.Errorf("idmapping abilities are required but aren't supported on system"))
+						return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), fmt.Errorf("idmapping abilities are required but aren't supported on system"))
 					}
 				}
 
 				mntVal := fmt.Sprintf("%s %s %s %s %d %d", shared.EscapePathFstab(mount.DevPath), shared.EscapePathFstab(mount.TargetPath), mount.FSType, mntOptions, mount.Freq, mount.PassNo)
 				err = lxcSetConfigItem(d.c, "lxc.mount.entry", mntVal)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device mount '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device mount %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -2251,7 +2253,7 @@ func (d *lxc) startCommon() (string, []func() error, error) {
 			for _, nicItem := range runConf.NetworkInterface {
 				err = lxcSetConfigItem(d.c, fmt.Sprintf("%s.%d.%s", networkKeyPrefix, nicID, nicItem.Key), nicItem.Value)
 				if err != nil {
-					return "", nil, fmt.Errorf("Failed to setup device network interface '%s': %w", dev.Name, err)
+					return "", nil, fmt.Errorf("Failed to setup device network interface %q: %w", dev.Name(), err)
 				}
 			}
 		}
@@ -3107,19 +3109,33 @@ func (d *lxc) onStop(args map[string]string) error {
 // Accepts a stopHookNetnsPath argument which is required when run from the onStopNS hook before the
 // container's network namespace is unmounted (which is required for NIC device cleanup).
 func (d *lxc) cleanupDevices(instanceRunning bool, stopHookNetnsPath string) {
-	for _, dev := range d.expandedDevices.Reversed() {
+	for _, dd := range d.expandedDevices.Reversed() {
 		// Only stop NIC devices when run from the onStopNS hook, and stop all other devices when run from
 		// the onStop hook. This way disk devices are stopped after the instance has been fully stopped.
-		if (stopHookNetnsPath != "" && dev.Config["type"] != "nic") || (stopHookNetnsPath == "" && dev.Config["type"] == "nic") {
+		if (stopHookNetnsPath != "" && dd.Config["type"] != "nic") || (stopHookNetnsPath == "" && dd.Config["type"] == "nic") {
 			continue
 		}
 
-		// Use the device interface if device supports it.
-		err := d.deviceStop(dev.Name, dev.Config, instanceRunning, stopHookNetnsPath)
-		if err == device.ErrUnsupportedDevType {
-			continue
-		} else if err != nil {
-			d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name, "err": err})
+		dev, err := d.deviceLoad(dd.Name, dd.Config)
+
+		if err != nil {
+			// If deviceLoad fails with unsupported device type then skip stopping.
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue
+			}
+
+			// If deviceLoad fails for any other reason then just log the error and proceed with stop,
+			// as in the scenario that a new version of LXD has additional validation restrictions than
+			// older versions we still need to allow previously valid devices to be stopped.
+			d.logger.Error("Device stop validation failed", log.Ctx{"device": dd.Name, "err": err})
+		}
+
+		// If a device was returned from deviceLoad even if validation fails, then try and stop.
+		if dev != nil {
+			err = d.deviceStop(dev, instanceRunning, stopHookNetnsPath)
+			if err != nil {
+				d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name(), "err": err})
+			}
 		}
 	}
 }
@@ -4707,56 +4723,89 @@ func (d *lxc) updateDevices(removeDevices deviceConfig.Devices, addDevices devic
 	defer revert.Fail()
 
 	// Remove devices in reverse order to how they were added.
-	for _, dev := range removeDevices.Reversed() {
+	for _, dd := range removeDevices.Reversed() {
 		if instanceRunning {
-			err := d.deviceStop(dev.Name, dev.Config, instanceRunning, "")
-			if err == device.ErrUnsupportedDevType {
-				continue // No point in trying to remove device below.
-			} else if err != nil {
-				return fmt.Errorf("Failed to stop device %q: %w", dev.Name, err)
+			dev, err := d.deviceLoad(dd.Name, dd.Config)
+			if err != nil {
+				// If deviceLoad fails with unsupported device type then skip stopping.
+				if errors.Is(err, device.ErrUnsupportedDevType) {
+					continue
+				}
+
+				// If deviceLoad fails for any other reason then just log the error and proceed
+				// with stop, as in the scenario that a new version of LXD has additional
+				// validation restrictions than older versions we still need to allow previously
+				// valid devices to be stopped.
+				d.logger.Error("Device stop validation failed", log.Ctx{"devName": dd.Name, "err": err})
+			}
+
+			// If a device was returned from deviceLoad even if validation fails, then try and stop.
+			if dev != nil {
+				err = d.deviceStop(dev, instanceRunning, "")
+				if err != nil {
+					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
+				}
 			}
 		}
 
-		err := d.deviceRemove(dev.Name, dev.Config, instanceRunning)
+		err := d.deviceRemove(dd.Name, dd.Config, instanceRunning)
 		if err != nil && err != device.ErrUnsupportedDevType {
-			return fmt.Errorf("Failed to remove device %q: %w", dev.Name, err)
+			return fmt.Errorf("Failed to remove device %q: %w", dd.Name, err)
 		}
 
 		// Check whether we are about to add the same device back with updated config and
 		// if not, or if the device type has changed, then remove all volatile keys for
 		// this device (as its an actual removal or a device type change).
-		err = d.deviceVolatileReset(dev.Name, dev.Config, addDevices[dev.Name])
+		err = d.deviceVolatileReset(dd.Name, dd.Config, addDevices[dd.Name])
 		if err != nil {
-			return fmt.Errorf("Failed to reset volatile data for device %q: %w", dev.Name, err)
+			return fmt.Errorf("Failed to reset volatile data for device %q: %w", dd.Name, err)
 		}
 	}
 
 	// Add devices in sorted order, this ensures that device mounts are added in path order.
 	for _, dd := range addDevices.Sorted() {
-		dev := dd // Local var for loop revert.
-		err := d.deviceAdd(dev.Name, dev.Config, instanceRunning)
-		if err == device.ErrUnsupportedDevType {
-			continue // No point in trying to start device below.
-		} else if err != nil {
+		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		if err != nil {
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue // No point in trying to add or start device below.
+			}
+
 			if userRequested {
-				return fmt.Errorf("Failed to add device %q: %w", dev.Name, err)
+				return fmt.Errorf("Failed to load device to add %q: %w", dev.Name(), err)
 			}
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"device": dev.Name, "err": err})
+			d.logger.Error("Failed to load device to add, skipping as non-user requested", log.Ctx{"device": dev.Name(), "err": err})
+
 			continue
 		}
 
-		revert.Add(func() { d.deviceRemove(dev.Name, dev.Config, instanceRunning) })
-
-		if instanceRunning {
-			_, err := d.deviceStart(dev.Name, dev.Config, instanceRunning)
-			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to start device %q: %w", dev.Name, err)
+		err = d.deviceAdd(dev, instanceRunning)
+		if err != nil {
+			if userRequested {
+				return fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceStop(dev.Name, dev.Config, instanceRunning, "") })
+			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
+			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
+			d.logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"device": dev.Name(), "err": err})
+		}
+
+		revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), instanceRunning) })
+
+		if instanceRunning {
+			err = dev.PreStartCheck()
+			if err != nil {
+				return fmt.Errorf("Failed pre-start check for device %q: %w", dev.Name(), err)
+			}
+
+			_, err := d.deviceStart(dev, instanceRunning)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return fmt.Errorf("Failed to start device %q: %w", dev.Name(), err)
+			}
+
+			revert.Add(func() { d.deviceStop(dev, instanceRunning, "") })
 		}
 	}
 
