@@ -1565,6 +1565,51 @@ func networkShutdown(s *state.State) error {
 	return nil
 }
 
+// networkRestartOVN is used to trigger a restart of all OVN networks.
+func networkRestartOVN(s *state.State) error {
+	logger.Infof("Restarting OVN networks")
+
+	// Get a list of projects.
+	var projectNames []string
+	var err error
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		projectNames, err = tx.GetProjectNames()
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to load projects: %w", err)
+	}
+
+	// Go over all the networks in every project.
+	for _, projectName := range projectNames {
+		networkNames, err := s.Cluster.GetCreatedNetworks(projectName)
+		if err != nil {
+			return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
+		}
+
+		for _, networkName := range networkNames {
+			// Load the network struct.
+			n, err := network.LoadByName(s, projectName, networkName)
+			if err != nil {
+				return fmt.Errorf("Failed to load network %q in project %q: %w", networkName, projectName, err)
+			}
+
+			// Skip non-OVN networks.
+			if n.DBType() != db.NetworkTypeOVN {
+				continue
+			}
+
+			// Restart the network.
+			err = n.Start()
+			if err != nil {
+				return fmt.Errorf("Failed to restart network %q in project %q: %w", networkName, projectName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // swagger:operation GET /1.0/networks/{name}/state networks networks_state_get
 //
 // Get the network state
