@@ -45,6 +45,7 @@ const (
 	patchNoStageSet patchStage = iota
 	patchPreDaemonStorage
 	patchPostDaemonStorage
+	patchPostNetworks
 )
 
 // Leave the string type in here! This guarantees that go treats this is as a
