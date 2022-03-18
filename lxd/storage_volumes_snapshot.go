@@ -176,7 +176,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Ensure that the snapshot doesn't already exist.
 	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
-	if err != db.ErrNoSuchObject {
+	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.SmartError(err)
 		}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
@@ -36,7 +37,7 @@ func lxdPatchStorageRenameCustomVolumeAddProject(b *lxdBackend) error {
 	// Get all custom volumes in default project on this node.
 	// At this time, all custom volumes are in the default project.
 	volumes, err := b.state.Cluster.GetLocalStoragePoolVolumes(project.Default, b.ID(), []int{db.StoragePoolVolumeTypeCustom})
-	if err != nil && err != db.ErrNoSuchObject {
+	if err != nil && !response.IsNotFoundError(err) {
 		return fmt.Errorf("Failed getting custom volumes for default project: %w", err)
 	}
 

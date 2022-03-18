@@ -541,7 +541,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 		return tx.NetworkErrored(projectName, req.Name)
 	})
 	if err != nil {
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			return fmt.Errorf("Network not pending on any node (use --target <node> first)")
 		}
 

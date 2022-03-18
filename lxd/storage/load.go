@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -10,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
@@ -49,7 +49,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 
 		volID, _, err := state.Cluster.GetLocalStoragePoolVolume(projectName, volName, volTypeID, poolID)
 		if err != nil {
-			if err == db.ErrNoSuchObject {
+			if response.IsNotFoundError(err) {
 				return -1, fmt.Errorf("Failed to get volume ID for project %q, volume %q, type %q: Volume doesn't exist", projectName, volName, volType)
 			}
 
@@ -287,7 +287,7 @@ func Patch(s *state.State, patchName string) error {
 	// Load all the pools.
 	pools, err := s.Cluster.GetStoragePoolNames()
 	if err != nil {
-		if errors.Is(err, db.ErrNoSuchObject) {
+		if response.IsNotFoundError(err) {
 			return nil
 		}
 

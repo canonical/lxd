@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 )
 
 // Fetch all raft nodes.
@@ -113,7 +114,7 @@ func TestRemoveRaftNode_NonExisting(t *testing.T) {
 	defer cleanup()
 
 	err := tx.RemoveRaftNode(1)
-	assert.Equal(t, db.ErrNoSuchObject, err)
+	assert.True(t, response.IsNotFoundError(err))
 }
 
 // Replace all existing raft nodes.

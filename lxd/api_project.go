@@ -649,7 +649,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 		var id int64
 		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 			project, err := tx.GetProject(req.Name)
-			if err != nil && err != db.ErrNoSuchObject {
+			if err != nil && !response.IsNotFoundError(err) {
 				return fmt.Errorf("Failed checking if project %q exists: %w", req.Name, err)
 			}
 

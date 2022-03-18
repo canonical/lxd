@@ -44,3 +44,18 @@ func SmartError(err error) Response {
 
 	return &errorResponse{http.StatusInternalServerError, err.Error()}
 }
+
+// IsNotFoundError returns true if the error is considered a Not Found error.
+func IsNotFoundError(err error) bool {
+	if _, found := api.StatusErrorMatch(err, http.StatusNotFound); found {
+		return true
+	}
+
+	for _, checkErr := range httpResponseErrors[http.StatusNotFound] {
+		if errors.Is(err, checkErr) {
+			return true
+		}
+	}
+
+	return false
+}

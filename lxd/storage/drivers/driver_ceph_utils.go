@@ -16,6 +16,7 @@ import (
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
@@ -669,7 +670,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 			}
 		}
 	} else {
-		if err != db.ErrNoSuchObject {
+		if !response.IsNotFoundError(err) {
 			return -1, err
 		}
 
@@ -702,7 +703,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 				}
 			}
 		} else {
-			if err != db.ErrNoSuchObject {
+			if !response.IsNotFoundError(err) {
 				return -1, err
 			}
 
@@ -743,7 +744,7 @@ func (d *ceph) deleteVolume(vol Volume) (int, error) {
 func (d *ceph) deleteVolumeSnapshot(vol Volume, snapshotName string) (int, error) {
 	clones, err := d.rbdListSnapshotClones(vol, snapshotName)
 	if err != nil {
-		if err != db.ErrNoSuchObject {
+		if !response.IsNotFoundError(err) {
 			return -1, err
 		}
 

@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -678,7 +677,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 
 	// Check storage pool exists.
 	_, _, _, err = d.State().Cluster.GetStoragePoolInAnyState(bInfo.Pool)
-	if errors.Is(err, db.ErrNoSuchObject) {
+	if response.IsNotFoundError(err) {
 		// The storage pool doesn't exist. If backup is in binary format (so we cannot alter
 		// the backup.yaml) or the pool has been specified directly from the user restoring
 		// the backup then we cannot proceed so return an error.
@@ -1095,7 +1094,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 	// Handle copying/moving between two storage-api LXD instances.
 	if storagePool != "" {
 		_, err := d.cluster.GetStoragePoolID(storagePool)
-		if err == db.ErrNoSuchObject {
+		if response.IsNotFoundError(err) {
 			storagePool = ""
 			// Unset the local root disk device storage pool if not
 			// found.
@@ -1125,7 +1124,7 @@ func instanceFindStoragePool(d *Daemon, projectName string, req *api.InstancesPo
 		logger.Debugf("No valid storage pool in the container's local root disk device and profiles found")
 		pools, err := d.cluster.GetStoragePoolNames()
 		if err != nil {
-			if err == db.ErrNoSuchObject {
+			if response.IsNotFoundError(err) {
 				return "", "", "", nil, response.BadRequest(fmt.Errorf("This LXD instance does not have any storage pools configured"))
 			}
 			return "", "", "", nil, response.SmartError(err)

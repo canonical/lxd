@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -55,7 +54,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 			_, err := d.cluster.GetProject(projectName)
 			if err != nil {
-				if errors.Is(err, db.ErrNoSuchObject) {
+				if response.IsNotFoundError(err) {
 					response.BadRequest(fmt.Errorf("Project %q not found", projectName)).Render(w)
 				}
 

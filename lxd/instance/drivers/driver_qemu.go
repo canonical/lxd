@@ -51,6 +51,7 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -4615,7 +4616,7 @@ func (d *qemu) Delete(force bool) error {
 
 	// Attempt to initialize storage interface for the instance.
 	pool, err := d.getStoragePool()
-	if err != nil && !errors.Is(err, db.ErrNoSuchObject) {
+	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	} else if pool != nil {
 		if d.IsSnapshot() {
