@@ -33,6 +33,9 @@ type Type interface {
 type Device interface {
 	Type
 
+	Config() deviceConfig.Device
+	Name() string
+
 	// Add performs any host-side setup when a device is added to an instance.
 	// It is called irrespective of whether the instance is running or not.
 	Add() error
