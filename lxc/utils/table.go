@@ -13,22 +13,25 @@ import (
 
 // Table list format
 const (
-	TableFormatCSV   = "csv"
-	TableFormatJSON  = "json"
-	TableFormatTable = "table"
-	TableFormatYAML  = "yaml"
+	TableFormatCSV     = "csv"
+	TableFormatJSON    = "json"
+	TableFormatTable   = "table"
+	TableFormatYAML    = "yaml"
+	TableFormatCompact = "compact"
 )
 
 // RenderTable renders tabular data in various formats.
 func RenderTable(format string, header []string, data [][]string, raw interface{}) error {
 	switch format {
 	case TableFormatTable:
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetAutoWrapText(false)
-		table.SetAlignment(tablewriter.ALIGN_LEFT)
+		table := getBaseTable(header, data)
 		table.SetRowLine(true)
-		table.SetHeader(header)
-		table.AppendBulk(data)
+		table.Render()
+	case TableFormatCompact:
+		table := getBaseTable(header, data)
+		table.SetColumnSeparator("")
+		table.SetHeaderLine(false)
+		table.SetBorder(false)
 		table.Render()
 	case TableFormatCSV:
 		w := csv.NewWriter(os.Stdout)
@@ -57,4 +60,13 @@ func RenderTable(format string, header []string, data [][]string, raw interface{
 	}
 
 	return nil
+}
+
+func getBaseTable(header []string, data [][]string) *tablewriter.Table {
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAutoWrapText(false)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetHeader(header)
+	table.AppendBulk(data)
+	return table
 }
