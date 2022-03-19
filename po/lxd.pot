@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2022-03-18 16:20+0100\n"
+        "POT-Creation-Date: 2022-03-19 04:51+0100\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1743,7 +1743,7 @@ msgid   "Forcefully removing a server from the cluster should only be done as a 
 msgstr  ""
 
 #: lxc/alias.go:105 lxc/cluster.go:118 lxc/cluster.go:777 lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:337 lxc/config_trust.go:418 lxc/image.go:1027 lxc/image_alias.go:158 lxc/list.go:134 lxc/network.go:888 lxc/network.go:981 lxc/network_acl.go:99 lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89 lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:584 lxc/project.go:394 lxc/project.go:749 lxc/remote.go:615 lxc/storage.go:525 lxc/storage_volume.go:1357 lxc/warning.go:94
-msgid   "Format (csv|json|table|yaml)"
+msgid   "Format (csv|json|table|yaml|compact)"
 msgstr  ""
 
 #: lxc/monitor.go:53
@@ -2105,7 +2105,7 @@ msgstr  ""
 msgid   "Invalid config key column format (too many fields): '%s'"
 msgstr  ""
 
-#: lxc/utils/table.go:56
+#: lxc/utils/table.go:59
 #, c-format
 msgid   "Invalid format %q"
 msgstr  ""
