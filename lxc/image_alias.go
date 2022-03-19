@@ -155,7 +155,7 @@ func (c *cmdImageAliasList) Command() *cobra.Command {
 
 Filters may be part of the image hash or part of the image alias name.
 `))
-	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml)")+"``")
+	cmd.Flags().StringVarP(&c.flagFormat, "format", "f", "table", i18n.G("Format (csv|json|table|yaml|compact)")+"``")
 
 	cmd.RunE = c.Run
 
