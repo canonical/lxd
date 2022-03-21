@@ -1,3 +1,7 @@
+---
+discourse: 11801
+---
+
 # How to configure network forwards
 
 ```{note}

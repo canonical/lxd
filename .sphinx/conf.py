@@ -19,7 +19,8 @@ extensions = [
     "sphinx_tabs.tabs",
     "sphinx_reredirects",
     "sphinxext.opengraph",
-    "youtube-link"
+    "youtube-link",
+    "discourse-links"
 ]
 
 myst_enable_extensions = [
@@ -106,8 +107,10 @@ html_context = {
     "github_url": "https://github.com/lxc/lxd",
     "github_version": "master",
     "github_folder": "/doc/",
-    "github_filetype": "md"
+    "github_filetype": "md",
+    "discourse_prefix": "https://discuss.linuxcontainers.org/t/"
 }
+
 
 source_suffix = ".md"
 
