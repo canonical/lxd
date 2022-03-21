@@ -92,13 +92,11 @@ func llistxattr(path string, list []byte) (sz int, err error) {
 // GetAllXattr retrieves all extended attributes associated with a file,
 // directory or symbolic link.
 func GetAllXattr(path string) (xattrs map[string]string, err error) {
-	e1 := fmt.Errorf("Extended attributes changed during retrieval")
-
 	// Call llistxattr() twice: First, to determine the size of the buffer
 	// we need to allocate to store the extended attributes, second, to
 	// actually store the extended attributes in the buffer. Also, check if
-	// the size/number of extended attributes hasn't changed between the two
-	// calls.
+	// the size/number of extended attributes hasn't increased between the
+	// two calls.
 	pre, err := llistxattr(path, nil)
 	if err != nil || pre < 0 {
 		return nil, err
@@ -113,8 +111,8 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 	if err != nil || post < 0 {
 		return nil, err
 	}
-	if post != pre {
-		return nil, e1
+	if post > pre {
+		return nil, fmt.Errorf("Extended attribute list size increased from %d to %d during retrieval", pre, post)
 	}
 
 	split := strings.Split(string(dest), "\x00")
@@ -138,7 +136,7 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 		// buffer we need to allocate to store the extended attributes,
 		// second, to actually store the extended attributes in the
 		// buffer. Also, check if the size of the extended attribute
-		// hasn't changed between the two calls.
+		// hasn't increased between the two calls.
 		pre, err = unix.Getxattr(path, xattr, nil)
 		if err != nil || pre < 0 {
 			return nil, err
@@ -153,8 +151,8 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 			}
 		}
 
-		if post != pre {
-			return nil, e1
+		if post > pre {
+			return nil, fmt.Errorf("Extended attribute '%s' size increased from %d to %d during retrieval", xattr, pre, post)
 		}
 
 		xattrs[xattr] = string(dest)
