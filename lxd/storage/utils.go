@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
+	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/storage/drivers"
@@ -245,6 +246,22 @@ func VolumeDBCreate(s *state.State, pool Pool, projectName string, volumeName st
 	}
 	if err != nil {
 		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volumeType, err)
+	}
+
+	return nil
+}
+
+// VolumeDBDelete deletes a volume from the database.
+func VolumeDBDelete(pool *lxdBackend, projectName string, volumeName string, volumeType drivers.VolumeType) error {
+	// Convert the volume type to our internal integer representation.
+	volDBType, err := VolumeTypeToDBType(volumeType)
+	if err != nil {
+		return err
+	}
+
+	err = pool.state.Cluster.RemoveStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
+	if err != nil && !response.IsNotFoundError(err) {
+		return fmt.Errorf("Error deleting storage volume from database: %w", err)
 	}
 
 	return nil
