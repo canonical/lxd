@@ -1,3 +1,7 @@
+---
+discourse: 12281
+---
+
 # Instance metrics
 
 ```{youtube} https://www.youtube.com/watch?v=EthK-8hm_fY

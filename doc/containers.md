@@ -1,3 +1,7 @@
+---
+discourse: 8767
+---
+
 # Containers
 ## Introduction
 Containers are the default type for LXD and currently the most

@@ -1,3 +1,7 @@
+---
+discourse: 8178
+---
+
 # Installing LXD
 
 The easiest way to install LXD is to install one of the available packages, but you can also install LXD from the sources.
