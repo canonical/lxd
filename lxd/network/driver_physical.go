@@ -8,11 +8,9 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
-	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/validate"
@@ -158,29 +156,36 @@ func (n *physical) Rename(newName string) error {
 
 // Start sets up some global configuration.
 func (n *physical) Start() error {
-	err := n.setup(nil)
-	if err != nil {
-		err := n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningNetworkStartupFailure, err.Error())
-		if err != nil {
-			n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
-		}
-	} else {
-		err := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningNetworkStartupFailure, dbCluster.TypeNetwork, int(n.id))
-		if err != nil {
-			n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
-		}
-	}
-
-	return err
-}
-
-func (n *physical) setup(oldConfig map[string]string) error {
 	n.logger.Debug("Start")
 
 	revert := revert.New()
 	defer revert.Fail()
 
+	revert.Add(func() { n.setUnavailable() })
+
+	err := n.setup(nil)
+	if err != nil {
+		return err
+	}
+
+	revert.Success()
+
+	// Ensure network is marked as available now its started.
+	n.setAvailable()
+
+	return nil
+}
+
+func (n *physical) setup(oldConfig map[string]string) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if !InterfaceExists(n.config["parent"]) {
+		return fmt.Errorf("Parent interface %q not found", n.config["parent"])
+	}
+
 	hostName := GetHostDevice(n.config["parent"], n.config["vlan"])
+
 	created, err := VLANInterfaceCreate(n.config["parent"], hostName, n.config["vlan"], shared.IsTrue(n.config["gvrp"]))
 	if err != nil {
 		return err

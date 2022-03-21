@@ -2,6 +2,7 @@ package device
 
 import (
 	"fmt"
+	"net/http"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -15,6 +16,8 @@ import (
 
 type nicSRIOV struct {
 	deviceCommon
+
+	network network.Network // Populated in validateConfig().
 }
 
 // CanHotPlug returns whether the device can be managed whilst the instance is running. Returns true.
@@ -59,20 +62,21 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 
 		// If network property is specified, lookup network settings and apply them to the device's config.
 		// project.Default is used here as macvlan networks don't suppprt projects.
-		n, err := network.LoadByName(d.state, project.Default, d.config["network"])
+		var err error
+		d.network, err = network.LoadByName(d.state, project.Default, d.config["network"])
 		if err != nil {
 			return fmt.Errorf("Error loading network config for %q: %w", d.config["network"], err)
 		}
 
-		if n.Status() != api.NetworkStatusCreated {
+		if d.network.Status() != api.NetworkStatusCreated {
 			return fmt.Errorf("Specified network is not fully created")
 		}
 
-		if n.Type() != "sriov" {
+		if d.network.Type() != "sriov" {
 			return fmt.Errorf("Specified network must be of type macvlan")
 		}
 
-		netConfig := n.Config()
+		netConfig := d.network.Config()
 
 		// Get actual parent device from network's parent setting.
 		d.config["parent"] = netConfig["parent"]
@@ -97,6 +101,21 @@ func (d *nicSRIOV) validateConfig(instConf instance.ConfigReader) error {
 	err := d.config.Validate(nicValidationRules(requiredFields, optionalFields, instConf))
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// PreStartCheck checks the managed parent network is available (if relevant).
+func (d *nicSRIOV) PreStartCheck() error {
+	// Non-managed network NICs are not relevant for checking managed network availability.
+	if d.network == nil {
+		return nil
+	}
+
+	// If managed network is not available, don't try and start instance.
+	if d.network.LocalStatus() == api.StoragePoolStatusUnvailable {
+		return api.StatusErrorf(http.StatusServiceUnavailable, "Network %q unavailable on this server", d.network.Name())
 	}
 
 	return nil

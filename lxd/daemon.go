@@ -1365,6 +1365,12 @@ func (d *Daemon) init() error {
 		return err
 	}
 
+	// Apply all patches that need to be run after networks are initialised.
+	err = patchesApply(d, patchPostNetworks)
+	if err != nil {
+		return err
+	}
+
 	// Cleanup leftover images.
 	pruneLeftoverImages(d)
 

@@ -36,6 +36,7 @@ type Network interface {
 	Status() string
 	LocalStatus() string
 	Config() map[string]string
+	Locations() []string
 	IsUsed() (bool, error)
 	IsManaged() bool
 	DHCPv4Subnet() *net.IPNet

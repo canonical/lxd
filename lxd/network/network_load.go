@@ -1,6 +1,9 @@
 package network
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/lxc/lxd/lxd/state"
 )
 
@@ -11,6 +14,15 @@ var drivers = map[string]func() Network{
 	"ovn":      func() Network { return &ovn{} },
 	"physical": func() Network { return &physical{} },
 }
+
+// ProjectNetwork is a composite type of project name and network name.
+type ProjectNetwork struct {
+	ProjectName string
+	NetworkName string
+}
+
+var unavailableNetworks = make(map[ProjectNetwork]struct{})
+var unavailableNetworksMu = sync.Mutex{}
 
 // LoadByType loads a network by driver type.
 func LoadByType(driverType string) (Type, error) {
@@ -40,4 +52,40 @@ func LoadByName(s *state.State, projectName string, name string) (Network, error
 	n.init(s, id, projectName, netInfo, netNodes)
 
 	return n, nil
+}
+
+// PatchPreCheck checks if there are any unavailable networks.
+func PatchPreCheck() error {
+	unavailableNetworksMu.Lock()
+
+	if len(unavailableNetworks) > 0 {
+		unavailableNetworkNames := make([]string, 0, len(unavailableNetworks))
+		for unavailablePoolName := range unavailableNetworks {
+			unavailableNetworkNames = append(unavailableNetworkNames, fmt.Sprintf("%s/%s", unavailablePoolName.ProjectName, unavailablePoolName.NetworkName))
+		}
+
+		unavailableNetworksMu.Unlock()
+		return fmt.Errorf("Unvailable networks: %v", unavailableNetworkNames)
+	}
+
+	unavailableNetworksMu.Unlock()
+
+	return nil
+}
+
+// IsAvailable checks if a network is available.
+func IsAvailable(projectName string, networkName string) bool {
+	unavailableNetworksMu.Lock()
+	defer unavailableNetworksMu.Unlock()
+
+	pn := ProjectNetwork{
+		ProjectName: projectName,
+		NetworkName: networkName,
+	}
+
+	if _, found := unavailableNetworks[pn]; found {
+		return false
+	}
+
+	return true
 }
