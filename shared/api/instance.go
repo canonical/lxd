@@ -90,6 +90,12 @@ type InstancePost struct {
 	//
 	// API extension: instance_project_move
 	Project string `json:"project" yaml:"project"`
+
+	// AllowInconsistent allow inconsistent copies when migrating.
+	// Example: false
+	//
+	// API extension: instance_allow_inconsistent_copy
+	AllowInconsistent bool `json:"allow_inconsistent" yaml:"allow_inconsistent"`
 }
 
 // InstancePostTarget represents the migration target host and operation.
