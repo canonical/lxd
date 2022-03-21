@@ -247,9 +247,9 @@ func (o *OVN) xbctl(southbound bool, args ...string) (string, error) {
 
 	if strings.Contains(dbAddr, "ssl:") {
 		sslArgs := []string{
-			"-c", shared.HostPathFollow("/etc/ovn/cert_host"),
-			"-p", shared.HostPathFollow("/etc/ovn/key_host"),
-			"-C", shared.HostPathFollow("/etc/ovn/ovn-central.crt"),
+			"-c", "/etc/ovn/cert_host",
+			"-p", "/etc/ovn/key_host",
+			"-C", "/etc/ovn/ovn-central.crt",
 		}
 
 		args = append(sslArgs, args...)
