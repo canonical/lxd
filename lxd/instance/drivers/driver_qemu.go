@@ -1797,7 +1797,7 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 
 	var fdFiles []*os.File
 
-	monHook, err := d.addDriveConfig(nil, &fdFiles, nil, mount)
+	monHook, err := d.addDriveConfig(&fdFiles, nil, mount)
 	if err != nil {
 		return fmt.Errorf("Failed to add drive config: %w", err)
 	}
@@ -2699,11 +2699,11 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				var monHook monitorHook
 
 				if drive.TargetPath == "/" {
-					monHook, err = d.addRootDriveConfig(sb, mountInfo, bootIndexes, drive)
+					monHook, err = d.addRootDriveConfig(mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
 					err = d.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
 				} else {
-					monHook, err = d.addDriveConfig(sb, fdFiles, bootIndexes, drive)
+					monHook, err = d.addDriveConfig(fdFiles, bootIndexes, drive)
 				}
 				if err != nil {
 					return "", nil, err
@@ -2943,7 +2943,7 @@ func (d *qemu) addFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
 		return nil, fmt.Errorf("Non-root drive config supplied")
 	}
@@ -2960,7 +2960,7 @@ func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.M
 		TargetPath: rootDriveConf.TargetPath,
 	}
 
-	return d.addDriveConfig(sb, nil, bootIndexes, driveConf)
+	return d.addDriveConfig(nil, bootIndexes, driveConf)
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
@@ -3048,7 +3048,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
