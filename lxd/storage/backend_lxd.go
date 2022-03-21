@@ -1185,7 +1185,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		for _, snapshot := range syncSnapshots {
 			_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
 
-			err = VolumeDBCreate(b.state, b, projectName, fmt.Sprintf("%s/%s", volName, snapshotName), snapshot.Description, drivers.VolumeTypeCustom, true, snapshot.Config, snapshot.ExpiryDate, contentType)
+			err = VolumeDBCreate(b, projectName, fmt.Sprintf("%s/%s", volName, snapshotName), snapshot.Description, drivers.VolumeTypeCustom, true, snapshot.Config, snapshot.ExpiryDate, contentType)
 			if err != nil {
 				return err
 			}
@@ -1830,11 +1830,6 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	volDBType, err := VolumeTypeToDBType(volType)
-	if err != nil {
-		return err
-	}
-
 	// Get any snapshots the instance has in the format <instance name>/<snapshot name>.
 	snapshots, err := b.state.Cluster.GetInstanceSnapshotsNames(inst.Project(), inst.Name())
 	if err != nil {
@@ -1854,7 +1849,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	vol := b.GetVolume(volType, contentType, volStorageName, nil)
 
 	// Delete the volume from the storage device. Must come after snapshots are removed.
-	// Must come before DB RemoveStoragePoolVolume so that the volume ID is still available.
+	// Must come before DB VolumeDBDelete so that the volume ID is still available.
 	logger.Debug("Deleting instance volume", log.Ctx{"volName": volStorageName})
 
 	if b.driver.HasVolume(vol) {
@@ -1876,9 +1871,9 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 	}
 
 	// Remove the volume record from the database.
-	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
-	if err != nil && !response.IsNotFoundError(err) {
-		return fmt.Errorf("Error deleting storage volume from database: %w", err)
+	err = VolumeDBDelete(b, inst.Project(), inst.Name(), vol.Type())
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -2435,18 +2430,13 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 		return err
 	}
 
-	volDBType, err := VolumeTypeToDBType(volType)
-	if err != nil {
-		return err
-	}
-
 	contentType := InstanceContentType(inst)
 
 	// Get the parent volume name on storage.
 	parentStorageName := project.Instance(inst.Project(), parentName)
 
 	// Delete the snapshot from the storage device.
-	// Must come before DB RemoveStoragePoolVolume so that the volume ID is still available.
+	// Must come before DB VolumeDBDelete so that the volume ID is still available.
 	logger.Debug("Deleting instance snapshot volume", log.Ctx{"volName": parentStorageName, "snapshotName": snapName})
 
 	snapVolName := drivers.GetSnapshotVolumeName(parentStorageName, snapName)
@@ -2468,8 +2458,8 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 	}
 
 	// Remove the snapshot volume record from the database if exists.
-	err = b.state.Cluster.RemoveStoragePoolVolume(inst.Project(), drivers.GetSnapshotVolumeName(parentName, snapName), volDBType, b.ID())
-	if err != nil && !response.IsNotFoundError(err) {
+	err = VolumeDBDelete(b, inst.Project(), inst.Name(), vol.Type())
+	if err != nil {
 		return err
 	}
 
@@ -2794,7 +2784,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
-	err = VolumeDBCreate(b.state, b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, volConfig, time.Time{}, contentType)
+	err = VolumeDBCreate(b, project.Default, fingerprint, "", drivers.VolumeTypeImage, false, volConfig, time.Time{}, contentType)
 	if err != nil {
 		return err
 	}
@@ -2841,7 +2831,7 @@ func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) e
 		}
 	}
 
-	err = b.state.Cluster.RemoveStoragePoolVolume(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, b.ID())
+	err = VolumeDBDelete(b, project.Default, fingerprint, vol.Type())
 	if err != nil {
 		return err
 	}
@@ -2949,14 +2939,12 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 	defer revert.Fail()
 
 	// Create database entry for new storage volume.
-	err = VolumeDBCreate(b.state, b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
+	err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() {
-		b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
-	})
+	revert.Add(func() { VolumeDBDelete(b, projectName, volName, vol.Type()) })
 
 	// Create the empty custom volume on the storage device.
 	err = b.driver.CreateVolume(vol, nil, op)
@@ -3087,28 +3075,24 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		}
 
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
+		err = VolumeDBCreate(b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() {
-			b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
-		})
+		revert.Add(func() { VolumeDBDelete(b, projectName, volName, vol.Type()) })
 
 		if len(snapshotNames) > 0 {
 			for _, snapName := range snapshotNames {
 				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
+				err = VolumeDBCreate(b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
 				if err != nil {
 					return err
 				}
 
-				revert.Add(func() {
-					b.state.Cluster.RemoveStoragePoolVolume(projectName, newSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
-				})
+				revert.Add(func() { VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 			}
 		}
 
@@ -3300,14 +3284,12 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	if !args.Refresh || !b.driver.HasVolume(vol) {
 		// Create database entry for new storage volume.
-		err = VolumeDBCreate(b.state, b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
+		err = VolumeDBCreate(b, projectName, args.Name, args.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() {
-			b.state.Cluster.RemoveStoragePoolVolume(projectName, args.Name, db.StoragePoolVolumeTypeCustom, b.ID())
-		})
+		revert.Add(func() { VolumeDBDelete(b, projectName, args.Name, vol.Type()) })
 	}
 
 	if len(args.Snapshots) > 0 {
@@ -3315,14 +3297,12 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
 			// Create database entry for new storage volume snapshot.
-			err = VolumeDBCreate(b.state, b, projectName, newSnapshotName, args.Description, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
+			err = VolumeDBCreate(b, projectName, newSnapshotName, args.Description, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
 			if err != nil {
 				return err
 			}
 
-			revert.Add(func() {
-				b.state.Cluster.RemoveStoragePoolVolume(projectName, newSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
-			})
+			revert.Add(func() { VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 		}
 	}
 
@@ -3673,7 +3653,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Finally, remove the volume record from the database.
-	err = b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err = VolumeDBDelete(b, projectName, volName, vol.Type())
 	if err != nil {
 		return err
 	}
@@ -3772,27 +3752,23 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol backup.Confi
 	defer revert.Fail()
 
 	// Create the storage volume DB records.
-	err := VolumeDBCreate(b.state, b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, poolVol.Volume.Config, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType))
+	err := VolumeDBCreate(b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, poolVol.Volume.Config, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType))
 	if err != nil {
 		return fmt.Errorf("Failed creating custom volume %q record in project %q: %w", poolVol.Volume.Name, projectName, err)
 	}
 
-	revert.Add(func() {
-		b.state.Cluster.RemoveStoragePoolVolume(projectName, poolVol.Volume.Name, db.StoragePoolVolumeTypeCustom, b.ID())
-	})
+	revert.Add(func() { VolumeDBDelete(b, projectName, poolVol.Volume.Name, drivers.VolumeTypeCustom) })
 
 	// Create the storage volume snapshot DB records.
 	for _, poolVolSnap := range poolVol.VolumeSnapshots {
 		fullSnapName := drivers.GetSnapshotVolumeName(poolVol.Volume.Name, poolVolSnap.Name)
 
-		err = VolumeDBCreate(b.state, b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, poolVolSnap.Config, time.Time{}, drivers.ContentType(poolVolSnap.ContentType))
+		err = VolumeDBCreate(b, projectName, fullSnapName, poolVolSnap.Description, drivers.VolumeTypeCustom, true, poolVolSnap.Config, time.Time{}, drivers.ContentType(poolVolSnap.ContentType))
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() {
-			b.state.Cluster.RemoveStoragePoolVolume(projectName, fullSnapName, db.StoragePoolVolumeTypeCustom, b.ID())
-		})
+		revert.Add(func() { revert.Add(func() { VolumeDBDelete(b, projectName, fullSnapName, drivers.VolumeTypeCustom) }) })
 	}
 
 	// Get the volume name on storage.
@@ -3864,14 +3840,12 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	defer revert.Fail()
 
 	// Create database entry for new storage volume snapshot.
-	err = VolumeDBCreate(b.state, b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, parentVol.Config, newExpiryDate, drivers.ContentType(parentVol.ContentType))
+	err = VolumeDBCreate(b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, parentVol.Config, newExpiryDate, drivers.ContentType(parentVol.ContentType))
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() {
-		b.state.Cluster.RemoveStoragePoolVolume(projectName, fullSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
-	})
+	revert.Add(func() { VolumeDBDelete(b, projectName, fullSnapshotName, drivers.VolumeTypeCustom) })
 
 	volDBContentType, err := VolumeContentTypeNameToContentType(parentVol.ContentType)
 	if err != nil {
@@ -3988,7 +3962,7 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	vol := b.GetVolume(drivers.VolumeTypeCustom, contentType, volStorageName, nil)
 
 	// Delete the snapshot from the storage device.
-	// Must come before DB RemoveStoragePoolVolume so that the volume ID is still available.
+	// Must come before DB VolumeDBDelete so that the volume ID is still available.
 	if b.driver.HasVolume(vol) {
 		err := b.driver.DeleteVolumeSnapshot(vol, op)
 		if err != nil {
@@ -3997,7 +3971,7 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 	}
 
 	// Remove the snapshot volume record from the database.
-	err = b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	err = VolumeDBDelete(b, projectName, volName, vol.Type())
 	if err != nil {
 		return err
 	}
@@ -4803,14 +4777,12 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	}
 
 	// Create database entry for new storage volume using the validated config.
-	err = VolumeDBCreate(b.state, b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
+	err = VolumeDBCreate(b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 	if err != nil {
 		return err
 	}
 
-	revert.Add(func() {
-		b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, srcBackup.Name, db.StoragePoolVolumeTypeCustom, b.ID())
-	})
+	revert.Add(func() { VolumeDBDelete(b, srcBackup.Project, srcBackup.Name, vol.Type()) })
 
 	// Create database entries fro new storage volume snapshots.
 	for _, s := range srcBackup.Config.VolumeSnapshots {
@@ -4833,14 +4805,12 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 			return err
 		}
 
-		err = VolumeDBCreate(b.state, b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), *snapshot.ExpiresAt, snapVol.ContentType())
+		err = VolumeDBCreate(b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), *snapshot.ExpiresAt, snapVol.ContentType())
 		if err != nil {
 			return err
 		}
 
-		revert.Add(func() {
-			b.state.Cluster.RemoveStoragePoolVolume(srcBackup.Project, fullSnapName, db.StoragePoolVolumeTypeCustom, b.ID())
-		})
+		revert.Add(func() { VolumeDBDelete(b, srcBackup.Project, fullSnapName, snapVol.Type()) })
 	}
 
 	// Unpack the backup into the new storage volume(s).
