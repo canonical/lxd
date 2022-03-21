@@ -6094,22 +6094,6 @@ func (d *lxc) processesState() int64 {
 	return int64(len(pids))
 }
 
-// getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
-// function is called, the handle is cached internally in the lxc struct.
-func (d *lxc) getStoragePool() (storagePools.Pool, error) {
-	if d.storagePool != nil {
-		return d.storagePool, nil
-	}
-
-	pool, err := storagePools.GetPoolByInstance(d.state, d)
-	if err != nil {
-		return nil, err
-	}
-	d.storagePool = pool
-
-	return d.storagePool, nil
-}
-
 // getStorageType returns the storage type of the instance's storage pool.
 func (d *lxc) getStorageType() (string, error) {
 	pool, err := d.getStoragePool()
@@ -6814,16 +6798,6 @@ func (d *lxc) State() string {
 // LogFilePath log file path.
 func (d *lxc) LogFilePath() string {
 	return filepath.Join(d.LogPath(), "lxc.log")
-}
-
-// StoragePool storage pool name.
-func (d *lxc) StoragePool() (string, error) {
-	poolName, err := d.state.Cluster.GetInstancePool(d.Project(), d.Name())
-	if err != nil {
-		return "", err
-	}
-
-	return poolName, nil
 }
 
 func (d *lxc) CGroup() (*cgroup.CGroup, error) {

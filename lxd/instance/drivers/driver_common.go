@@ -1087,3 +1087,35 @@ func (d *common) needsNewInstanceID(changedConfig []string, oldExpandedDevices d
 
 	return false
 }
+
+// getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
+// function is called, the handle is cached internally in the struct.
+func (d *common) getStoragePool() (storagePools.Pool, error) {
+	if d.storagePool != nil {
+		return d.storagePool, nil
+	}
+
+	poolName, err := d.state.Cluster.GetInstancePool(d.Project(), d.Name())
+	if err != nil {
+		return nil, err
+	}
+
+	pool, err := storagePools.GetPoolByName(d.state, poolName)
+	if err != nil {
+		return nil, err
+	}
+
+	d.storagePool = pool
+
+	return d.storagePool, nil
+}
+
+// StoragePool returns the storage pool name.
+func (d *common) StoragePool() (string, error) {
+	pool, err := d.getStoragePool()
+	if err != nil {
+		return "", err
+	}
+
+	return pool.Name(), nil
+}
