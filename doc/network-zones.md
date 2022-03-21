@@ -1,3 +1,7 @@
+---
+discourse: 12033,13128
+---
+
 # Network Zones configuration
 Network zones are used to hold DNS records for LXD networks.
 

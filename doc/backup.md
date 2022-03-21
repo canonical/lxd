@@ -1,3 +1,7 @@
+---
+discourse: 11296
+---
+
 # Backing up a LXD server
 ## What to backup
 When planning to backup a LXD server, consider all the different objects
