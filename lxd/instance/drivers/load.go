@@ -101,11 +101,11 @@ func validDevices(state *state.State, projectName string, instanceType instancet
 	return nil
 }
 
-func create(s *state.State, args db.InstanceArgs, volumeConfig map[string]string, revert *revert.Reverter) (instance.Instance, error) {
+func create(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
 	if args.Type == instancetype.Container {
-		return lxcCreate(s, args, volumeConfig, revert)
+		return lxcCreate(s, args, revert)
 	} else if args.Type == instancetype.VM {
-		return qemuCreate(s, args, volumeConfig, revert)
+		return qemuCreate(s, args, revert)
 	}
 
 	return nil, fmt.Errorf("Instance type invalid")
