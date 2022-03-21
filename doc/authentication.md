@@ -1,3 +1,7 @@
+---
+discourse: 13114
+---
+
 # Remote API authentication
 
 Remote communications with the LXD daemon happen using JSON over HTTPS.

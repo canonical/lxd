@@ -143,3 +143,43 @@ p.youtube_link span {
     font-size: small;
     max-width: 70px;
 }
+
+/** Discourse links **/
+
+.discourse-title {
+    color: var(--color-toc-title-text);
+    font-size: var(--toc-title-font-size);
+    padding-left: var(--toc-spacing-horizontal);
+    text-transform: uppercase;
+}
+
+.discourse {
+    font-size: var(--font-size--small--2);
+    padding-left: calc(var(--toc-spacing-horizontal) - var(--toc-item-spacing-horizontal));
+    padding-bottom: 1em;
+}
+
+.discourse ul {
+    list-style-type: none;
+    margin-bottom: 0;
+    margin-top: 0;
+    padding-left: var(--toc-item-spacing-horizontal);
+}
+
+.discourse li {
+    padding-top: var(--toc-item-spacing-vertical);
+}
+
+.discourse a {
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+.discourse a::before {
+    content: url("data:image/svg+xml;charset=utf-8,%3Csvg width='12' height='12' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' stroke-width='1.5' stroke='%23607D8B' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M0 0h24v24H0z' stroke='none'/%3E%3Cpath d='M11 7H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-5M10 14 20 4M15 4h5v5'/%3E%3C/svg%3E");
+    margin-right: 0.25rem;
+}
+
+.discourse-title-container {
+    padding-top: 2em;
+}

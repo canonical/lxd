@@ -1,3 +1,7 @@
+---
+discourse: 8355
+---
+
 # Instance configuration
 
 ## Instances

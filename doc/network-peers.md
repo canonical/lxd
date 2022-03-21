@@ -1,3 +1,7 @@
+---
+discourse: 12165
+---
+
 # Network Peers configuration
 
 Network peers allow the creation of routing relationships between two OVN networks.
