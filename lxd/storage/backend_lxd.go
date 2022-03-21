@@ -644,13 +644,8 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	revert := true
-	defer func() {
-		if !revert {
-			return
-		}
-		b.DeleteInstance(inst, op)
-	}()
+	revert := revert.New()
+	defer revert.Fail()
 
 	contentType := InstanceContentType(inst)
 
@@ -669,6 +664,8 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
+	revert.Add(func() { b.DeleteInstance(inst, op) })
+
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
 	if err != nil {
 		return err
@@ -679,7 +676,7 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 		return err
 	}
 
-	revert = false
+	revert.Success()
 	return nil
 }
 
@@ -1633,16 +1630,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	var preFiller drivers.VolumeFiller
 
-	revert := true
+	revert := revert.New()
+	defer revert.Fail()
 
 	if !args.Refresh {
-		defer func() {
-			if !revert {
-				return
-			}
-			b.DeleteInstance(inst, op)
-		}()
-
 		// If the negotiated migration method is rsync and the instance's base image is
 		// already on the host then setup a pre-filler that will unpack the local image
 		// to try and speed up the rsync of the incoming volume by avoiding the need to
@@ -1651,7 +1642,6 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
 
 			// Confirm that the image is present in the project.
-
 			_, _, err = b.state.Cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 			if err != nil && !response.IsNotFoundError(err) {
 				return err
@@ -1686,6 +1676,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		conn.Close()
 		return err
 	}
+	revert.Add(func() { b.DeleteInstance(inst, op) })
 
 	err = b.ensureInstanceSymlink(inst.Type(), inst.Project(), inst.Name(), vol.MountPath())
 	if err != nil {
@@ -1699,7 +1690,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		}
 	}
 
-	revert = false
+	revert.Success()
 	return nil
 }
 
@@ -2954,18 +2945,18 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 		return fmt.Errorf("Storage pool does not support custom volume type")
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create database entry for new storage volume.
 	err = VolumeDBCreate(b.state, b, projectName, volName, desc, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
 	if err != nil {
 		return err
 	}
 
-	revertDB := true
-	defer func() {
-		if revertDB {
-			b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
-		}
-	}()
+	revert.Add(func() {
+		b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+	})
 
 	// Create the empty custom volume on the storage device.
 	err = b.driver.CreateVolume(vol, nil, op)
@@ -2975,7 +2966,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
-	revertDB = false
+	revert.Success()
 	return nil
 }
 
@@ -3073,19 +3064,13 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		}
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// If the source and target are in the same pool then use CreateVolumeFromCopy rather than
 	// migration system as it will be quicker.
 	if srcPool == b {
 		logger.Debug("CreateCustomVolumeFromCopy same-pool mode detected")
-
-		// Create slice to record DB volumes created if revert needed later.
-		revertDBVolumes := []string{}
-		defer func() {
-			// Remove any DB volume rows created if we are reverting.
-			for _, volName := range revertDBVolumes {
-				b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
-			}
-		}()
 
 		// Get the volume name on storage.
 		volStorageName := project.StorageVolume(projectName, volName)
@@ -3107,7 +3092,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			return err
 		}
 
-		revertDBVolumes = append(revertDBVolumes, volName)
+		revert.Add(func() {
+			b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
+		})
 
 		if len(snapshotNames) > 0 {
 			for _, snapName := range snapshotNames {
@@ -3119,7 +3106,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 					return err
 				}
 
-				revertDBVolumes = append(revertDBVolumes, newSnapshotName)
+				revert.Add(func() {
+					b.state.Cluster.RemoveStoragePoolVolume(projectName, newSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
+				})
 			}
 		}
 
@@ -3130,7 +3119,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
-		revertDBVolumes = nil
+		revert.Success()
 		return nil
 	}
 
@@ -3231,6 +3220,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		return fmt.Errorf("Create custom volume from copy failed: %v", errs)
 	}
 
+	revert.Success()
 	return nil
 }
 
@@ -3287,14 +3277,8 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return fmt.Errorf("Storage pool does not support custom volume type")
 	}
 
-	// Create slice to record DB volumes created if revert needed later.
-	revertDBVolumes := []string{}
-	defer func() {
-		// Remove any DB volume rows created if we are reverting.
-		for _, volName := range revertDBVolumes {
-			b.state.Cluster.RemoveStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.ID())
-		}
-	}()
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, args.Name)
@@ -3321,7 +3305,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 			return err
 		}
 
-		revertDBVolumes = append(revertDBVolumes, args.Name)
+		revert.Add(func() {
+			b.state.Cluster.RemoveStoragePoolVolume(projectName, args.Name, db.StoragePoolVolumeTypeCustom, b.ID())
+		})
 	}
 
 	if len(args.Snapshots) > 0 {
@@ -3334,7 +3320,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 				return err
 			}
 
-			revertDBVolumes = append(revertDBVolumes, newSnapshotName)
+			revert.Add(func() {
+				b.state.Cluster.RemoveStoragePoolVolume(projectName, newSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
+			})
 		}
 	}
 
@@ -3346,7 +3334,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
-	revertDBVolumes = nil
+	revert.Success()
 	return nil
 }
 
@@ -3872,18 +3860,18 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	// Create database entry for new storage volume snapshot.
 	err = VolumeDBCreate(b.state, b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, parentVol.Config, newExpiryDate, drivers.ContentType(parentVol.ContentType))
 	if err != nil {
 		return err
 	}
 
-	revertDB := true
-	defer func() {
-		if revertDB {
-			b.state.Cluster.RemoveStoragePoolVolume(projectName, fullSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
-		}
-	}()
+	revert.Add(func() {
+		b.state.Cluster.RemoveStoragePoolVolume(projectName, fullSnapshotName, db.StoragePoolVolumeTypeCustom, b.ID())
+	})
 
 	volDBContentType, err := VolumeContentTypeNameToContentType(parentVol.ContentType)
 	if err != nil {
@@ -3912,7 +3900,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
 
-	revertDB = false
+	revert.Success()
 	return nil
 }
 
