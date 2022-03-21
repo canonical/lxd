@@ -46,7 +46,7 @@ var Load func(s *state.State, args db.InstanceArgs, profiles []api.Profile) (Ins
 // Create is linked from instance/drivers.create to allow difference instance types to be created.
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
 // revert's Fail() or Success() function as needed.
-var Create func(s *state.State, args db.InstanceArgs, volumeConfig map[string]string, revert *revert.Reverter) (Instance, error)
+var Create func(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (Instance, error)
 
 // CompareSnapshots returns a list of snapshots to sync to the target and a list of
 // snapshots to remove from the target. A snapshot will be marked as "to sync" if it either doesn't
@@ -1084,7 +1084,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, volu
 	revert.Add(func() { s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
-	inst, err := Create(s, args, volumeConfig, revert)
+	inst, err := Create(s, args, revert)
 	if err != nil {
 		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
 		return nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
