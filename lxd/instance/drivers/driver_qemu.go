@@ -2069,6 +2069,8 @@ Documentation=https://linuxcontainers.org/lxd
 ConditionPathExists=/dev/virtio-ports/org.linuxcontainers.lxd
 Before=cloud-init.target cloud-init.service cloud-init-local.service
 DefaultDependencies=no
+After=run-lxd_agent.mount
+Requires=run-lxd_agent.mount
 
 [Service]
 Type=notify
