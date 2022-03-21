@@ -621,10 +621,11 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 	// Source request
 	sourceReq := api.InstancePost{
-		Migration:     true,
-		Live:          req.Source.Live,
-		ContainerOnly: req.Source.ContainerOnly, // Deprecated, use InstanceOnly.
-		InstanceOnly:  req.Source.InstanceOnly,
+		Migration:         true,
+		Live:              req.Source.Live,
+		ContainerOnly:     req.Source.ContainerOnly, // Deprecated, use InstanceOnly.
+		InstanceOnly:      req.Source.InstanceOnly,
+		AllowInconsistent: req.Source.AllowInconsistent,
 	}
 
 	// Push mode migration
