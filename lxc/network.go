@@ -940,10 +940,9 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 			network.Config["ipv6.address"],
 			network.Description,
 			strUsedBy,
+			strings.ToUpper(network.Status),
 		}
-		if resource.server.IsClustered() {
-			details = append(details, strings.ToUpper(network.Status))
-		}
+
 		data = append(data, details)
 	}
 	sort.Sort(utils.ByName(data))
@@ -956,9 +955,7 @@ func (c *cmdNetworkList) Run(cmd *cobra.Command, args []string) error {
 		i18n.G("IPV6"),
 		i18n.G("DESCRIPTION"),
 		i18n.G("USED BY"),
-	}
-	if resource.server.IsClustered() {
-		header = append(header, i18n.G("STATE"))
+		i18n.G("STATE"),
 	}
 
 	return utils.RenderTable(c.flagFormat, header, data, networks)

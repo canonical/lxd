@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -66,6 +67,15 @@ func (n *sriov) Rename(newName string) error {
 // Start starts is a no-op.
 func (n *sriov) Start() error {
 	n.logger.Debug("Start")
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { n.setUnavailable() })
+
+	if !InterfaceExists(n.config["parent"]) {
+		return fmt.Errorf("Parent interface %q not found", n.config["parent"])
+	}
 
 	return nil
 }

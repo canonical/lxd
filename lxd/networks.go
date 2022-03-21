@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,8 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"errors"
+	"time"
 
 	"github.com/gorilla/mux"
 	log "gopkg.in/inconshreveable/log15.v2"
@@ -19,6 +19,9 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
+	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/network/openvswitch"
@@ -29,6 +32,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -169,13 +173,18 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
+	clustered, err := cluster.Enabled(d.db)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get list of managed networks (that may or may not have network interfaces on the host).
-	networks, err := d.cluster.GetNetworks(projectName)
+	networkNames, err := d.cluster.GetNetworks(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
 
-	// Get list of actual network interfaces on the host as well if the network's project is Default.
+	// Get list of actual network interfaces on the host as well if the effective project is Default.
 	if projectName == project.Default {
 		ifaces, err := net.Interfaces()
 		if err != nil {
@@ -189,22 +198,23 @@ func networksGet(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Append to the list of networks if a managed network of same name doesn't exist.
-			if !shared.StringInSlice(iface.Name, networks) {
-				networks = append(networks, iface.Name)
+			if !shared.StringInSlice(iface.Name, networkNames) {
+				networkNames = append(networkNames, iface.Name)
 			}
 		}
 	}
 
 	resultString := []string{}
 	resultMap := []api.Network{}
-	for _, network := range networks {
+	for _, networkName := range networkNames {
 		if !recursion {
-			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, network))
+			resultString = append(resultString, fmt.Sprintf("/%s/networks/%s", version.APIVersion, networkName))
 		} else {
-			net, err := doNetworkGet(d, r, projectName, network)
+			net, err := doNetworkGet(d, r, clustered, projectName, networkName)
 			if err != nil {
 				continue
 			}
+
 			resultMap = append(resultMap, net)
 		}
 	}
@@ -727,24 +737,21 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name := mux.Vars(r)["name"]
-
-	n, err := doNetworkGet(d, r, projectName, name)
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	targetNode := queryParam(r, "target")
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	// If no target node is specified and the daemon is clustered, we omit the node-specific fields.
-	if targetNode == "" && clustered {
-		for _, key := range db.NodeSpecificNetworkConfig {
-			delete(n.Config, key)
-		}
+	allNodes := false
+	if clustered && queryParam(r, "target") == "" {
+		allNodes = true
+	}
+
+	name := mux.Vars(r)["name"]
+
+	n, err := doNetworkGet(d, r, allNodes, projectName, name)
+	if err != nil {
+		return response.SmartError(err)
 	}
 
 	etag := []interface{}{n.Name, n.Managed, n.Type, n.Description, n.Config}
@@ -752,74 +759,94 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponseETag(true, &n, etag)
 }
 
-func doNetworkGet(d *Daemon, r *http.Request, projectName string, name string) (api.Network, error) {
+// doNetworkGet returns information about the specified network.
+// If the network being requested is a managed network and allNodes is true then node specific config is removed.
+// Otherwise if allNodes is false then the network's local status is returned.
+func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string, networkName string) (api.Network, error) {
 	// Ignore veth pairs (for performance reasons).
-	if strings.HasPrefix(name, "veth") {
+	if strings.HasPrefix(networkName, "veth") {
 		return api.Network{}, os.ErrNotExist
 	}
 
 	// Get some information.
-	networkID, dbInfo, _, _ := d.cluster.GetNetworkInAnyState(projectName, name)
+	n, _ := network.LoadByName(d.State(), projectName, networkName)
 
 	// Don't allow retrieving info about the local node interfaces when not using default project.
-	if projectName != project.Default && dbInfo == nil {
+	if projectName != project.Default && n == nil {
 		return api.Network{}, os.ErrNotExist
 	}
 
-	osInfo, _ := net.InterfaceByName(name)
+	osInfo, _ := net.InterfaceByName(networkName)
 
 	// Quick check.
-	if osInfo == nil && dbInfo == nil {
+	if osInfo == nil && n == nil {
 		return api.Network{}, os.ErrNotExist
 	}
 
 	// Prepare the response.
-	n := api.Network{}
-	n.Name = name
-	n.UsedBy = []string{}
-	n.Config = map[string]string{}
+	apiNet := api.Network{}
+	apiNet.Name = networkName
+	apiNet.UsedBy = []string{}
+	apiNet.Config = map[string]string{}
 
 	// Set the device type as needed.
-	if dbInfo != nil {
-		n.Managed = true
-		n.Description = dbInfo.Description
-		n.Config = dbInfo.Config
-		n.Type = dbInfo.Type
+	if n != nil {
+		apiNet.Managed = true
+		apiNet.Description = n.Description()
+		apiNet.Config = n.Config()
+		apiNet.Type = n.Type()
+
+		// If no member is specified, we omit the node-specific fields.
+		if allNodes {
+			for _, key := range db.NodeSpecificNetworkConfig {
+				delete(apiNet.Config, key)
+			}
+		}
 	} else if osInfo != nil && shared.IsLoopback(osInfo) {
-		n.Type = "loopback"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", n.Name)) {
-		n.Type = "bridge"
-	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", n.Name)) {
-		n.Type = "vlan"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", n.Name)) {
-		n.Type = "physical"
-	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", n.Name)) {
-		n.Type = "bond"
+		apiNet.Type = "loopback"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bridge", apiNet.Name)) {
+		apiNet.Type = "bridge"
+	} else if shared.PathExists(fmt.Sprintf("/proc/net/vlan/%s", apiNet.Name)) {
+		apiNet.Type = "vlan"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/device", apiNet.Name)) {
+		apiNet.Type = "physical"
+	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/bonding", apiNet.Name)) {
+		apiNet.Type = "bond"
 	} else {
 		ovs := openvswitch.NewOVS()
-		if exists, _ := ovs.BridgeExists(n.Name); exists {
-			n.Type = "bridge"
+		if exists, _ := ovs.BridgeExists(apiNet.Name); exists {
+			apiNet.Type = "bridge"
 		} else {
-			n.Type = "unknown"
+			apiNet.Type = "unknown"
 		}
 	}
 
 	// Look for instances using the interface.
-	if n.Type != "loopback" {
-		usedBy, err := network.UsedBy(d.State(), projectName, networkID, n.Name, false)
+	if apiNet.Type != "loopback" {
+		var networkID int64
+		if n != nil {
+			networkID = n.ID()
+		}
+
+		usedBy, err := network.UsedBy(d.State(), projectName, networkID, apiNet.Name, false)
 		if err != nil {
 			return api.Network{}, err
 		}
 
-		n.UsedBy = project.FilterUsedBy(r, usedBy)
+		apiNet.UsedBy = project.FilterUsedBy(r, usedBy)
 	}
 
-	if dbInfo != nil {
-		n.Status = dbInfo.Status
-		n.Locations = dbInfo.Locations
+	if n != nil {
+		if allNodes {
+			apiNet.Status = n.Status()
+		} else {
+			apiNet.Status = n.LocalStatus()
+		}
+
+		apiNet.Locations = n.Locations()
 	}
 
-	return n, nil
+	return apiNet, nil
 }
 
 // swagger:operation DELETE /1.0/networks/{name} networks network_delete
@@ -1334,60 +1361,161 @@ func networkStartup(s *state.State) error {
 		return fmt.Errorf("Failed to load projects: %w", err)
 	}
 
-	// Record of networks that need to be started later keyed on project name.
-	deferredNetworks := make(map[string][]network.Network)
+	// List of networks that need to be started after non-dependent networks.
+	deferredNetworks := make([]network.Network, 0)
 
+	// Build a list of networks to initialise, keyed by project and network name.
+	initNetworks := make(map[network.ProjectNetwork]struct{}, 0)
 	for _, projectName := range projectNames {
-		deferredNetworks[projectName] = make([]network.Network, 0)
-
-		// Get a list of managed networks.
-		networks, err := s.Cluster.GetCreatedNetworks(projectName)
+		networkNames, err := s.Cluster.GetCreatedNetworks(projectName)
 		if err != nil {
 			return fmt.Errorf("Failed to load networks for project %q: %w", projectName, err)
 		}
 
-		// Bring them all up.
-		for _, name := range networks {
-			n, err := network.LoadByName(s, projectName, name)
-			if err != nil {
-				return fmt.Errorf("Failed to load network %q in project %q: %w", name, projectName, err)
+		for _, networkName := range networkNames {
+			pn := network.ProjectNetwork{
+				ProjectName: projectName,
+				NetworkName: networkName,
 			}
 
-			netConfig := n.Config()
-			err = n.Validate(netConfig)
-			if err != nil {
-				// Don't cause LXD to fail to start entirely on network start up failure.
-				logger.Error("Failed to validate network", log.Ctx{"err": err, "project": projectName, "name": name})
+			initNetworks[pn] = struct{}{}
+		}
+	}
+
+	initNetwork := func(n network.Network) error {
+		err = n.Start()
+		if err != nil {
+			err = fmt.Errorf("Failed starting: %w", err)
+			s.Cluster.UpsertWarningLocalNode(n.Project(), dbCluster.TypeNetwork, int(n.ID()), db.WarningNetworkUnvailable, err.Error())
+
+			return err
+		}
+
+		logger.Info("Initialized network", log.Ctx{"project": n.Project(), "name": n.Name()})
+
+		// Network initialized successfully so remove it from the list so its not retried.
+		pn := network.ProjectNetwork{
+			ProjectName: n.Project(),
+			NetworkName: n.Name(),
+		}
+
+		delete(initNetworks, pn)
+
+		warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, n.Project(), db.WarningNetworkUnvailable, dbCluster.TypeNetwork, int(n.ID()))
+
+		return nil
+	}
+
+	errDeferredStartup := fmt.Errorf("Deferred start")
+
+	loadAndInitNetwork := func(projectName, networkName string, firstPass bool) error {
+		n, err := network.LoadByName(s, projectName, networkName)
+		if err != nil {
+			if _, matched := api.StatusErrorMatch(err, http.StatusNotFound); matched {
+				return nil // Network has been deleted since we started trying to load it.
+			}
+
+			return fmt.Errorf("Failed loading: %w", err)
+		}
+
+		netConfig := n.Config()
+		err = n.Validate(netConfig)
+		if err != nil {
+			return fmt.Errorf("Failed validating: %w", err)
+		}
+
+		// Defer network start until after non-dependent networks on first pass.
+		if firstPass && netConfig["network"] != "" {
+			deferredNetworks = append(deferredNetworks, n)
+
+			return errDeferredStartup
+		}
+
+		err = initNetwork(n)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// Try initializing networks in a random order.
+	for pn := range initNetworks {
+		err := loadAndInitNetwork(pn.ProjectName, pn.NetworkName, true)
+		if err != nil {
+			if errors.Is(err, errDeferredStartup) {
 				continue
 			}
 
-			// Defer network start until after non-dependent networks.
-			if netConfig["network"] != "" {
-				deferredNetworks[projectName] = append(deferredNetworks[projectName], n)
-				continue
-			}
+			logger.Error("Failed initializing network", log.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
-			err = n.Start()
-			if err != nil {
-				// Don't cause LXD to fail to start entirely on network start up failure.
-				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": name})
-				continue
-			}
+			continue
 		}
 	}
 
 	// Bring up deferred networks after non-dependent networks have been started.
-	for projectName, networks := range deferredNetworks {
-		for _, n := range networks {
-			err = n.Start()
-			if err != nil {
-				// Don't cause LXD to fail to start entirely on network start up failure.
-				logger.Error("Failed to bring up network", log.Ctx{"err": err, "project": projectName, "name": n.Name()})
-				continue
-			}
+	for _, n := range deferredNetworks {
+		err = initNetwork(n)
+		if err != nil {
+			logger.Error("Failed initializing network", log.Ctx{"project": n.Project(), "network": n.Name(), "err": err})
+
+			continue
 		}
 	}
 
+	deferredNetworks = nil // Don't keep references to the deferred networks around from here.
+
+	// For any remaining networks that were not successfully initialised, we now start a go routine to
+	// periodically try to initialize them again in the background.
+	if len(initNetworks) > 0 {
+		go func() {
+			for {
+				t := time.NewTimer(time.Duration(time.Minute))
+
+				select {
+				case <-s.Context.Done():
+					t.Stop()
+					return
+				case <-t.C:
+					t.Stop()
+
+					// Try initializing remaining networks in random order.
+					tryInstancesStart := false
+					for pn := range initNetworks {
+						err := loadAndInitNetwork(pn.ProjectName, pn.NetworkName, false)
+						if err != nil {
+							logger.Error("Failed initializing network", log.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+
+							continue
+						}
+
+						tryInstancesStart = true // We initialized at least one network.
+					}
+
+					if len(initNetworks) <= 0 {
+						logger.Info("All networks initialized")
+					}
+
+					// At least one remaining network was initialized, check if any instances
+					// can now start.
+					if tryInstancesStart {
+						instances, err := instance.LoadNodeAll(s, instancetype.Any)
+						if err != nil {
+							logger.Warn("Failed loading instances to start", log.Ctx{"err": err})
+						} else {
+							instancesStart(s, instances)
+						}
+					}
+
+					if len(initNetworks) <= 0 {
+						return // Our job here is done.
+					}
+				}
+			}
+		}()
+	}
+
+	logger.Info("All networks initialized")
 	return nil
 }
 

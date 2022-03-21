@@ -13,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/network/acl"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
@@ -181,6 +182,11 @@ func (n *common) Status() string {
 
 // LocalStatus returns network status of the local cluster member.
 func (n *common) LocalStatus() string {
+	// Check if network is unavailable locally and replace status if so.
+	if !IsAvailable(n.Project(), n.Name()) {
+		return api.NetworkStatusUnavailable
+	}
+
 	node, exists := n.nodes[n.state.Cluster.GetNodeID()]
 	if !exists {
 		return api.NetworkStatusUnknown
@@ -205,6 +211,16 @@ func (n *common) Info() Info {
 		NodeSpecificConfig: true,
 		AddressForwards:    false,
 	}
+}
+
+// Locations returns the list of cluster members this network is configured on.
+func (n *common) Locations() []string {
+	locations := make([]string, 0, len(n.nodes))
+	for _, netNode := range n.nodes {
+		locations = append(locations, netNode.Name)
+	}
+
+	return locations
 }
 
 // IsUsed returns whether the network is used by any instances or profiles.
@@ -388,12 +404,39 @@ func (n *common) rename(newName string) error {
 	return nil
 }
 
-// delete the network from the database if clusterNotification is false.
+// warningsDelete deletes any persistent warnings for the network.
+func (n *common) warningsDelete() error {
+	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return tx.DeleteWarnings(dbCluster.TypeNetwork, int(n.ID()))
+	})
+	if err != nil {
+		return fmt.Errorf("Failed deleting persistent warnings: %w", err)
+	}
+
+	return nil
+}
+
+// delete the network on local server.
 func (n *common) delete(clientType request.ClientType) error {
+	// Delete any persistent warnings for network.
+	err := n.warningsDelete()
+	if err != nil {
+		return err
+	}
+
 	// Cleanup storage.
 	if shared.PathExists(shared.VarPath("networks", n.name)) {
 		os.RemoveAll(shared.VarPath("networks", n.name))
 	}
+
+	pn := ProjectNetwork{
+		ProjectName: n.Project(),
+		NetworkName: n.Name(),
+	}
+
+	unavailableNetworksMu.Lock()
+	delete(unavailableNetworks, pn)
+	unavailableNetworksMu.Unlock()
 
 	return nil
 }
@@ -1059,4 +1102,26 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 
 func (n *common) State() (*api.NetworkState, error) {
 	return resources.GetNetworkState(n.name)
+}
+
+func (n *common) setUnavailable() {
+	pn := ProjectNetwork{
+		ProjectName: n.Project(),
+		NetworkName: n.Name(),
+	}
+
+	unavailableNetworksMu.Lock()
+	unavailableNetworks[pn] = struct{}{}
+	unavailableNetworksMu.Unlock()
+}
+
+func (n *common) setAvailable() {
+	pn := ProjectNetwork{
+		ProjectName: n.Project(),
+		NetworkName: n.Name(),
+	}
+
+	unavailableNetworksMu.Lock()
+	delete(unavailableNetworks, pn)
+	unavailableNetworksMu.Unlock()
 }

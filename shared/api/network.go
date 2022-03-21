@@ -57,6 +57,9 @@ const NetworkStatusErrored = "Errored"
 // NetworkStatusUnknown network is in unknown status.
 const NetworkStatusUnknown = "Unknown"
 
+// NetworkStatusUnavailable network failed to initialize.
+const NetworkStatusUnavailable = "Unavailable"
+
 // Network represents a LXD network
 //
 // swagger:model
