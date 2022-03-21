@@ -559,7 +559,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	}
 
 	// Create the snapshot.
-	snap, snapInstOp, err := instance.CreateInternal(d.state, args, true, nil, revert)
+	snap, snapInstOp, err := instance.CreateInternal(d.state, args, true, revert)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance snapshot record %q: %w", name, err)
 	}

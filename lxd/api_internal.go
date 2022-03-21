@@ -756,7 +756,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	instDBArgs := backupConf.ToInstanceDBArgs(projectName)
 
-	_, instOp, err := instance.CreateInternal(d.State(), *instDBArgs, true, nil, revert)
+	_, instOp, err := instance.CreateInternal(d.State(), *instDBArgs, true, revert)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -848,7 +848,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			Name:         snapInstName,
 			Profiles:     snap.Profiles,
 			Stateful:     snap.Stateful,
-		}, true, nil, revert)
+		}, true, revert)
 		if err != nil {
 			return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 		}
