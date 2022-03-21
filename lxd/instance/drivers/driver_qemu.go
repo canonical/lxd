@@ -392,22 +392,6 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	return agent, nil
 }
 
-// getStoragePool returns the current storage pool handle. To avoid a DB lookup each time this
-// function is called, the handle is cached internally in the Qemu struct.
-func (d *qemu) getStoragePool() (storagePools.Pool, error) {
-	if d.storagePool != nil {
-		return d.storagePool, nil
-	}
-
-	pool, err := storagePools.GetPoolByInstance(d.state, d)
-	if err != nil {
-		return nil, err
-	}
-	d.storagePool = pool
-
-	return d.storagePool, nil
-}
-
 func (d *qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
 	// Create local variables from instance properties we need so as not to keep references to instance around
 	// after we have returned the callback function.
@@ -5626,16 +5610,6 @@ func (d *qemu) EarlyLogFilePath() string {
 // LogFilePath returns the instance's log path.
 func (d *qemu) LogFilePath() string {
 	return filepath.Join(d.LogPath(), "qemu.log")
-}
-
-// StoragePool returns the name of the instance's storage pool.
-func (d *qemu) StoragePool() (string, error) {
-	poolName, err := d.state.Cluster.GetInstancePool(d.Project(), d.Name())
-	if err != nil {
-		return "", err
-	}
-
-	return poolName, nil
 }
 
 // FillNetworkDevice takes a nic or infiniband device type and enriches it with automatically
