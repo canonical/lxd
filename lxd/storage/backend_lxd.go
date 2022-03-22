@@ -1185,10 +1185,11 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			return err
 		}
 
-		// Create database entry for new storage volume snapshots.
+		// Create database entries for new storage volume snapshots.
 		for _, snapshot := range syncSnapshots {
 			_, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
 
+			// Copy volume config from source snapshot.
 			err = VolumeDBCreate(b, projectName, fmt.Sprintf("%s/%s", volName, snapshotName), snapshot.Description, drivers.VolumeTypeCustom, true, snapshot.Config, snapshot.ExpiryDate, contentType)
 			if err != nil {
 				return err
@@ -3155,10 +3156,11 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 		revert.Add(func() { VolumeDBDelete(b, projectName, volName, vol.Type()) })
 
+		// Create database entries for new storage volume snapshots.
 		for _, snapName := range snapshotNames {
 			newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
-			// Create database entry for new storage volume snapshot.
+			// Copy volume config from parent.
 			err = VolumeDBCreate(b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
 			if err != nil {
 				return err
@@ -3364,10 +3366,11 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 	}
 
 	if len(args.Snapshots) > 0 {
+		// Create database entries for new storage volume snapshots.
 		for _, snapName := range args.Snapshots {
 			newSnapshotName := drivers.GetSnapshotVolumeName(args.Name, snapName)
 
-			// Create database entry for new storage volume snapshot.
+			// Copy volume config from parent.
 			err = VolumeDBCreate(b, projectName, newSnapshotName, args.Description, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
 			if err != nil {
 				return err
@@ -3911,6 +3914,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 	defer revert.Fail()
 
 	// Create database entry for new storage volume snapshot.
+	// Copy volume config from parent.
 	err = VolumeDBCreate(b, projectName, fullSnapshotName, parentVol.Description, drivers.VolumeTypeCustom, true, parentVol.Config, newExpiryDate, drivers.ContentType(parentVol.ContentType))
 	if err != nil {
 		return err
