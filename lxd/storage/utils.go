@@ -216,6 +216,7 @@ func VolumeDBGet(pool *lxdBackend, projectName string, volumeName string, volume
 }
 
 // VolumeDBCreate creates a volume in the database.
+// If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
 func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType) error {
 	// Convert the volume type to our internal integer representation.
 	volDBType, err := VolumeTypeToDBType(volumeType)
