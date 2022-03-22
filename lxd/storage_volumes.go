@@ -619,7 +619,7 @@ func doCustomVolumeRefresh(d *Daemon, r *http.Request, requestProjectName string
 			return fmt.Errorf("No source volume name supplied")
 		}
 
-		err = pool.RefreshCustomVolume(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
+		err = pool.RefreshCustomVolume(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 		if err != nil {
 			return err
 		}
@@ -662,7 +662,7 @@ func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string,
 			return pool.CreateCustomVolume(projectName, req.Name, req.Description, req.Config, contentType, op)
 		}
 
-		return pool.CreateCustomVolumeFromCopy(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, req.Source.VolumeOnly, op)
+		return pool.CreateCustomVolumeFromCopy(projectName, req.Source.Project, req.Name, req.Description, req.Config, req.Source.Pool, req.Source.Name, !req.Source.VolumeOnly, op)
 	}
 
 	// If no source name supplied then this a volume create operation.
@@ -1164,7 +1164,7 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 
 		// Provide empty description and nil config to instruct CreateCustomVolumeFromCopy to copy it
 		// from source volume.
-		err = newPool.CreateCustomVolumeFromCopy(projectName, requestProjectName, newVol.Name, "", nil, pool.Name(), vol.Name, false, op)
+		err = newPool.CreateCustomVolumeFromCopy(projectName, requestProjectName, newVol.Name, "", nil, pool.Name(), vol.Name, true, op)
 		if err != nil {
 			return err
 		}
