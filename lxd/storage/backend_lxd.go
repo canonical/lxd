@@ -2293,6 +2293,25 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		return err
 	}
 
+	contentType := InstanceContentType(inst)
+
+	// Load storage volume from database.
+	srcDBVol, err := VolumeDBGet(b, src.Project(), src.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create database entry for new storage volume snapshot.
+	err = VolumeDBCreate(b, inst.Project(), inst.Name(), srcDBVol.Description, volType, true, srcDBVol.Config, time.Time{}, contentType)
+	if err != nil {
+		return err
+	}
+
+	revert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
+
 	// Some driver backing stores require that running instances be frozen during snapshot.
 	if b.driver.Info().RunningCopyFreeze && src.IsRunning() && !src.IsFrozen() {
 		// Freeze the processes.
@@ -2306,13 +2325,6 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		filesystem.SyncFS(src.RootfsPath())
 	}
 
-	isSnap := inst.IsSnapshot()
-
-	if !isSnap {
-		return fmt.Errorf("Volume name must be a snapshot")
-	}
-
-	contentType := InstanceContentType(inst)
 	volStorageName := project.Instance(inst.Project(), inst.Name())
 
 	// Get the volume.
@@ -2334,6 +2346,7 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 
