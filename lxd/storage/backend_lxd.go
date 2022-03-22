@@ -599,38 +599,6 @@ func (b *lxdBackend) instanceEffectiveRootVolume(inst instance.Instance, volConf
 	return &vol, err
 }
 
-// FillInstanceConfig populates the supplied instance volume config map with any defaults based on the storage
-// pool and instance type being used.
-func (b *lxdBackend) FillInstanceConfig(inst instance.Instance, config map[string]string) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("FillInstanceConfig started")
-	defer logger.Debug("FillInstanceConfig finished")
-
-	volType, err := InstanceTypeToVolumeType(inst.Type())
-	if err != nil {
-		return err
-	}
-
-	contentType := InstanceContentType(inst)
-
-	// Get the volume name on storage.
-	volStorageName := project.Instance(inst.Project(), inst.Name())
-
-	// Fill default config in volume (creates internal copy of supplied config and modifies that).
-	vol := b.GetVolume(volType, contentType, volStorageName, config)
-	err = b.driver.FillVolumeConfig(vol)
-	if err != nil {
-		return err
-	}
-
-	// Copy filled volume config back into supplied config map.
-	for k, v := range vol.Config() {
-		config[k] = v
-	}
-
-	return nil
-}
-
 // CreateInstance creates an empty instance.
 func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
