@@ -1412,7 +1412,15 @@ func networkStartup(s *state.State) error {
 		n, err := network.LoadByName(s, projectName, networkName)
 		if err != nil {
 			if _, matched := api.StatusErrorMatch(err, http.StatusNotFound); matched {
-				return nil // Network has been deleted since we started trying to load it.
+				// Network has been deleted since we started trying to start it so delete entry.
+				pn := network.ProjectNetwork{
+					ProjectName: n.Project(),
+					NetworkName: n.Name(),
+				}
+
+				delete(initNetworks, pn) // Can't start a network that no longer exists.
+
+				return nil
 			}
 
 			return fmt.Errorf("Failed loading: %w", err)
