@@ -1166,6 +1166,10 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
       "description": "The number of bytes read or written per second for the whole project",
       "fieldConfig": {
         "defaults": {
@@ -1293,6 +1297,10 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
       "description": "The number (after merges) of I/O requests completed per second for the whole project",
       "fieldConfig": {
         "defaults": {
@@ -1415,6 +1423,10 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
       "description": "Network traffic overview for the whole project",
       "fieldConfig": {
         "defaults": {
@@ -1536,6 +1548,10 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
       "description": "Network traffic overview for the whole project",
       "fieldConfig": {
         "defaults": {
@@ -1658,6 +1674,10 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_LXD}"
+      },
       "description": "Network errors and drop overview for the whole project",
       "fieldConfig": {
         "defaults": {
@@ -2319,6 +2339,10 @@
           "type": "timeseries"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "description": "The number of bytes read from or written to the device per second",
           "fieldConfig": {
             "defaults": {
@@ -2440,6 +2464,10 @@
           "type": "timeseries"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "description": "The number (after merges) of I/O requests completed per second for the device",
           "fieldConfig": {
             "defaults": {
@@ -2558,6 +2586,10 @@
           "type": "timeseries"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_LXD}"
+          },
           "description": "Basic network info per interface",
           "fieldConfig": {
             "defaults": {
