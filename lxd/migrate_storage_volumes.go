@@ -92,7 +92,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
 		var err error
-		snaps, err := storagePools.VolumeSnapshotsGet(state, projectName, poolName, volName, db.StoragePoolVolumeTypeCustom)
+		snaps, err := storagePools.VolumeDBSnapshotsGet(state, pool.ID(), projectName, volName, db.StoragePoolVolumeTypeCustom)
 		if err == nil {
 			for _, snap := range snaps {
 				_, snapVolume, err := state.Cluster.GetLocalStoragePoolVolume(projectName, snap.Name, db.StoragePoolVolumeTypeCustom, pool.ID())
@@ -334,7 +334,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	if c.refresh {
 		// Get our existing snapshots.
 		targetSnapshots := []string{}
-		snaps, err := storagePools.VolumeSnapshotsGet(state, projectName, poolName, req.Name, db.StoragePoolVolumeTypeCustom)
+		snaps, err := storagePools.VolumeDBSnapshotsGet(state, pool.ID(), projectName, req.Name, db.StoragePoolVolumeTypeCustom)
 		if err == nil {
 			for _, snap := range snaps {
 				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
