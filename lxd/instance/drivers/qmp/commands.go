@@ -406,6 +406,23 @@ func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
 	return nil
 }
 
+// AddDevice adds a new device.
+func (m *Monitor) AddDevice(device map[string]string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	if device != nil {
+		err := m.run("device_add", device, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // RemoveDevice removes a device.
 func (m *Monitor) RemoveDevice(deviceID string) error {
 	// Check if disconnected
