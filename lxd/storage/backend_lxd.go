@@ -3111,13 +3111,14 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	}
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
-	snapshotNames := []string{}
+	var snapshotNames []string
 	if snapshots {
 		snapshots, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), srcProjectName, srcVolName, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
 
+		snapshotNames = make([]string, 0, len(snapshots))
 		for _, snapshot := range snapshots {
 			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
 			snapshotNames = append(snapshotNames, snapShotName)
@@ -3154,18 +3155,16 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 		revert.Add(func() { VolumeDBDelete(b, projectName, volName, vol.Type()) })
 
-		if len(snapshotNames) > 0 {
-			for _, snapName := range snapshotNames {
-				newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
+		for _, snapName := range snapshotNames {
+			newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
-				// Create database entry for new storage volume snapshot.
-				err = VolumeDBCreate(b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
-				if err != nil {
-					return err
-				}
-
-				revert.Add(func() { VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
+			// Create database entry for new storage volume snapshot.
+			err = VolumeDBCreate(b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType())
+			if err != nil {
+				return err
 			}
+
+			revert.Add(func() { VolumeDBDelete(b, projectName, newSnapshotName, vol.Type()) })
 		}
 
 		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, op)
