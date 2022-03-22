@@ -2202,7 +2202,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	revert.Add(func() { b.driver.UnmountVolume(vol, false, op) })
 
 	diskPath, err := b.getInstanceDisk(inst)
-	if err != nil && err != drivers.ErrNotSupported {
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, fmt.Errorf("Failed getting disk path: %w", err)
 	}
 
@@ -2589,7 +2589,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 	}
 
 	diskPath, err := b.getInstanceDisk(inst)
-	if err != nil && err != drivers.ErrNotSupported {
+	if err != nil && !errors.Is(err, drivers.ErrNotSupported) {
 		return nil, fmt.Errorf("Failed getting disk path: %w", err)
 	}
 
