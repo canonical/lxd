@@ -556,44 +556,30 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 	return nil
 }
 
-// instanceRootVolumeConfig returns the instance's root volume config.
-func (b *lxdBackend) instanceRootVolumeConfig(inst instance.Instance) (map[string]string, error) {
-	volType, err := InstanceTypeToVolumeType(inst.Type())
-	if err != nil {
-		return nil, err
-	}
-
-	volDBType, err := VolumeTypeToDBType(volType)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get volume config.
-	_, vol, err := b.state.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
-	if err != nil {
-		if response.IsNotFoundError(err) {
-			return nil, fmt.Errorf("Volume doesn't exist for %q on pool %q: %w", project.Instance(inst.Project(), inst.Name()), b.Name(), err)
-		}
-
-		return nil, err
-	}
-
+// instanceRootVolumeConfig returns the instance's effective root volume config.
+// Returns a copy of volConfig with size and size.state values overridden from the instance's root disk device.
+func (b *lxdBackend) instanceEffectiveRootVolumeConfig(inst instance.Instance, volConfig map[string]string) (map[string]string, error) {
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return nil, err
 	}
 
+	volConfigClone := make(map[string]string, len(volConfig))
+	for k, v := range volConfig {
+		volConfigClone[k] = v
+	}
+
 	// Override size property from instance root device config.
 	if rootDiskConf["size"] != "" {
-		vol.Config["size"] = rootDiskConf["size"]
+		volConfigClone["size"] = rootDiskConf["size"]
 	}
 
 	if rootDiskConf["size.state"] != "" {
-		vol.Config["size.state"] = rootDiskConf["size.state"]
+		volConfigClone["size.state"] = rootDiskConf["size.state"]
 	}
 
-	return vol.Config, nil
+	return volConfigClone, err
 }
 
 // FillInstanceConfig populates the supplied instance volume config map with any defaults based on the storage
