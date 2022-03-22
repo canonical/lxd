@@ -1447,14 +1447,20 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 	contentType := InstanceContentType(inst)
 
-	// Load storage volume from database.
-	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Create database entry for new storage volume.
+	volumeConfig := make(map[string]string)
+	err = VolumeDBCreate(b, inst.Project(), inst.Name(), "", volType, false, volumeConfig, time.Time{}, contentType)
 	if err != nil {
 		return err
 	}
 
+	revert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
+
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
 	if err != nil {
 		return err
 	}
@@ -1538,6 +1544,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 
