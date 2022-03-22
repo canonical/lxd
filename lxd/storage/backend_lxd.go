@@ -635,8 +635,14 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 
 	contentType := InstanceContentType(inst)
 
-	// Find the root device config for instance.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -750,8 +756,14 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		logger.Debug("CreateInstanceFromBackup post hook started")
 		defer logger.Debug("CreateInstanceFromBackup post hook finished")
 
-		// Get the root disk device config.
-		rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+		// Load storage volume from database.
+		dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+		if err != nil {
+			return err
+		}
+
+		// Generate the effective root device config for instance.
+		rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 		if err != nil {
 			return err
 		}
@@ -874,8 +886,14 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 	contentType := InstanceContentType(inst)
 
-	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -1293,8 +1311,14 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 
 	contentType := InstanceContentType(inst)
 
-	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -1464,8 +1488,14 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 	contentType := InstanceContentType(inst)
 
-	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -1580,8 +1610,14 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	contentType := InstanceContentType(inst)
 
-	// Find the root device config for instance.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -1919,8 +1955,14 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 			return fmt.Errorf("Instance volume 'block.filesystem' property cannot be changed")
 		}
 
-		// Get the root disk device config.
-		rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+		// Load storage volume from database.
+		dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+		if err != nil {
+			return err
+		}
+
+		// Generate the effective root device config for instance.
+		rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 		if err != nil {
 			return err
 		}
@@ -1995,8 +2037,14 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 		return fmt.Errorf("Snapshots should not be transferred during final sync")
 	}
 
-	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -2043,8 +2091,14 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 
 	contentType := InstanceContentType(inst)
 
-	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -2169,7 +2223,14 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 	// Get the root disk device config.
 	var rootDiskConf map[string]string
 	if inst.ID() > -1 {
-		rootDiskConf, err = b.instanceRootVolumeConfig(inst)
+		// Load storage volume from database.
+		dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+		if err != nil {
+			return nil, err
+		}
+
+		// Generate the effective root device config for instance.
+		rootDiskConf, err = b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -2215,7 +2276,14 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	// Get the root disk device config.
 	var rootDiskConf map[string]string
 	if inst.ID() > -1 {
-		rootDiskConf, err = b.instanceRootVolumeConfig(inst)
+		// Load storage volume from database.
+		dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+		if err != nil {
+			return false, err
+		}
+
+		// Generate the effective root device config for instance.
+		rootDiskConf, err = b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 		if err != nil {
 			return false, err
 		}
@@ -2483,8 +2551,14 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 
 	contentType := InstanceContentType(inst)
 
-	// Find the root device config for source snapshot instance.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
@@ -2557,8 +2631,14 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 
 	contentType := InstanceContentType(inst)
 
-	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return nil, err
 	}
@@ -2602,8 +2682,14 @@ func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operati
 		return false, err
 	}
 
-	// Get the root disk device config.
-	rootDiskConf, err := b.instanceRootVolumeConfig(inst)
+	// Load storage volume from database.
+	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return false, err
+	}
+
+	// Generate the effective root device config for instance.
+	rootDiskConf, err := b.instanceEffectiveRootVolumeConfig(inst, dbVol.Config)
 	if err != nil {
 		return false, err
 	}
