@@ -943,18 +943,12 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 					}
 				}
 
-				// Check if snapshot exists already and if not then create
-				// a new snapshot DB record so that the storage layer can
-				// populate the volume on the storage device.
-				_, err := instance.LoadByProjectAndName(state, args.Instance.Project(), snapArgs.Name)
+				// Create the snapshot instance.
+				_, snapInstOp, err := instance.CreateInternal(state, snapArgs, true, nil, revert)
 				if err != nil {
-					// Create the snapshot as it doesn't seem to exist.
-					_, snapInstOp, err := instance.CreateInternal(state, snapArgs, true, nil, revert)
-					if err != nil {
-						return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
-					}
-					defer snapInstOp.Done(err)
+					return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 				}
+				defer snapInstOp.Done(err)
 			}
 		}
 
