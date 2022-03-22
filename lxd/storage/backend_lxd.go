@@ -1053,8 +1053,8 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 // RefreshCustomVolume refreshes custom volumes (and optionally snapshots) during the custom volume copy operations.
 // Snapshots that are not present in the source but are in the destination are removed from the
 // destination if snapshots are included in the synchronization.
-func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "srcVolOnly": srcVolOnly})
+func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "snapshots": snapshots})
 	logger.Debug("RefreshCustomVolume started")
 	defer logger.Debug("RefreshCustomVolume finished")
 
@@ -1135,7 +1135,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	snapshotNames := []string{}
 	srcSnapVols := []drivers.Volume{}
 	syncSnapshots := []db.StorageVolumeArgs{}
-	if !srcVolOnly {
+	if snapshots {
 		// Detect added/deleted snapshots.
 		srcSnapshots, err := VolumeSnapshotsGet(srcPool.state, srcProjectName, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
@@ -3032,8 +3032,8 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 
 // CreateCustomVolumeFromCopy creates a custom volume from an existing custom volume.
 // It copies the snapshots from the source volume by default, but can be disabled if requested.
-func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, srcVolOnly bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "srcVolOnly": srcVolOnly})
+func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error {
+	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "snapshots": snapshots})
 	logger.Debug("CreateCustomVolumeFromCopy started")
 	defer logger.Debug("CreateCustomVolumeFromCopy finished")
 
@@ -3112,7 +3112,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	snapshotNames := []string{}
-	if !srcVolOnly {
+	if snapshots {
 		snapshots, err := VolumeSnapshotsGet(b.state, srcProjectName, srcPoolName, srcVolName, db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
@@ -3168,7 +3168,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			}
 		}
 
-		err = b.driver.CreateVolumeFromCopy(vol, srcVol, !srcVolOnly, op)
+		err = b.driver.CreateVolumeFromCopy(vol, srcVol, snapshots, op)
 		if err != nil {
 			return err
 		}
