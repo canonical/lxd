@@ -856,30 +856,52 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 
 	contentType := InstanceContentType(inst)
 
-	// Load storage volume from database.
-	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+	// Get the source storage pool.
+	tmpPool, err := GetPoolByInstance(b.state, src)
 	if err != nil {
 		return err
 	}
 
-	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	// Convert to lxdBackend so we can access driver.
+	srcPool, ok := tmpPool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Pool is not an lxdBackend")
+	}
+
+	// Check source volume exists.
+	srcVolRow, err := VolumeDBGet(srcPool, src.Project(), src.Name(), volType)
 	if err != nil {
 		return err
 	}
 
-	if b.driver.HasVolume(*vol) {
-		return fmt.Errorf("Cannot create volume, already exists on target storage")
+	// If we are copying snapshots, retrieve a list of snapshots from source volume.
+	var srcSnapshotVolRows []db.StorageVolumeArgs
+	var srcSnapshotNames []string
+	if snapshots {
+		srcSnapshotVolRows, err = VolumeDBSnapshotsGet(b.state, srcPool.ID(), src.Project(), src.Name(), volType)
+		if err != nil {
+			return err
+		}
+
+		srcSnapshotNames = make([]string, 0, len(srcSnapshotVolRows))
+		for _, srcSnapshotVolRow := range srcSnapshotVolRows {
+			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshotVolRow.Name)
+			srcSnapshotNames = append(srcSnapshotNames, snapShotName)
+		}
 	}
 
 	// Setup reverter.
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Get the source storage pool.
-	srcPool, err := GetPoolByInstance(b.state, src)
+	// Generate the effective root device volume for instance.
+	vol, err := b.instanceEffectiveRootVolume(inst, srcVolRow.Config)
 	if err != nil {
 		return err
+	}
+
+	if b.driver.HasVolume(*vol) {
+		return fmt.Errorf("Cannot create volume, already exists on target storage")
 	}
 
 	// Some driver backing stores require that running instances be frozen during copy.
@@ -906,6 +928,27 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		// We don't need to use the source instance's root disk config, so set to nil.
 		srcVol := b.GetVolume(volType, contentType, srcVolStorageName, nil)
 
+		// Create database entry for new storage volume from source volume config.
+		err = VolumeDBCreate(b, inst.Project(), inst.Name(), "", volType, false, srcVolRow.Config, time.Time{}, contentType)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
+
+		// Create database entries for new storage volume snapshots.
+		for i, srcSnapshotVolRow := range srcSnapshotVolRows {
+			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), srcSnapshotNames[i])
+
+			// Copy volume config from parent.
+			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, "", volType, true, srcSnapshotVolRow.Config, time.Time{}, contentType)
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
+		}
+
 		err = b.driver.CreateVolumeFromCopy(*vol, srcVol, snapshots, op)
 		if err != nil {
 			return err
@@ -914,20 +957,6 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		// We are copying volumes between storage pools so use migration system as it will
 		// be able to negotiate a common transfer method between pool types.
 		logger.Debug("CreateInstanceFromCopy cross-pool mode detected")
-
-		// If we are copying snapshots, retrieve a list of snapshots from source volume.
-		snapshotNames := []string{}
-		if snapshots {
-			snapshots, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), src.Project(), src.Name(), volType)
-			if err != nil {
-				return err
-			}
-
-			for _, snapshot := range snapshots {
-				_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
-				snapshotNames = append(snapshotNames, snapShotName)
-			}
-		}
 
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, false)
@@ -958,7 +987,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		go func() {
 			err := srcPool.MigrateInstance(src, aEnd, &migration.VolumeSourceArgs{
 				Name:              src.Name(),
-				Snapshots:         snapshotNames,
+				Snapshots:         srcSnapshotNames,
 				MigrationType:     migrationTypes[0],
 				TrackProgress:     true, // Do use a progress tracker on sender.
 				AllowInconsistent: allowInconsistent,
@@ -973,7 +1002,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		go func() {
 			err := b.CreateInstanceFromMigration(inst, bEnd, migration.VolumeTargetArgs{
 				Name:          inst.Name(),
-				Snapshots:     snapshotNames,
+				Snapshots:     srcSnapshotNames,
 				MigrationType: migrationTypes[0],
 				VolumeSize:    srcVolumeSize, // Block size setting override.
 				TrackProgress: false,         // Do not use a progress tracker on receiver.
