@@ -229,14 +229,14 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
 // driver does not support the instance's type then drivers.ErrNotSupported is returned.
 func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
-	poolName, err := s.Cluster.GetInstancePool(inst.Project(), inst.Name())
+	poolName, err := inst.StoragePool()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed getting instance storage pool name: %w", err)
 	}
 
 	pool, err := GetPoolByName(s, poolName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
