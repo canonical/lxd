@@ -1571,14 +1571,46 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 	contentType := InstanceContentType(inst)
 
-	// Load storage volume from database.
-	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
-	if err != nil {
-		return err
+	revert := revert.New()
+	defer revert.Fail()
+
+	var volumeConfig map[string]string
+
+	if args.Refresh {
+		// Load existing storage volume if refreshing.
+		dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+		if err != nil {
+			return err
+		}
+
+		volumeConfig = dbVol.Config
+	} else {
+		// Create database entry for new storage volume if not refreshing.
+		// The instance migration protocol doesn't currently support transferring the storage volume config
+		// so we create the volume record with empty config.
+		volumeConfig = make(map[string]string)
+		err = VolumeDBCreate(b, inst.Project(), inst.Name(), "", volType, false, volumeConfig, time.Time{}, contentType)
+		if err != nil {
+			return err
+		}
+	}
+
+	revert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
+
+	for _, snapName := range args.Snapshots {
+		// The instance migration protocol doesn't currently support transferring the storage volume config
+		// so we create the volume record with  config from parent.
+		newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapName)
+		err = VolumeDBCreate(b, inst.Project(), newSnapshotName, "", volType, true, volumeConfig, time.Time{}, contentType)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
 	}
 
 	// Generate the effective root device volume for instance.
-	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+	vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
 	if err != nil {
 		return err
 	}
@@ -1607,9 +1639,6 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	}
 
 	var preFiller drivers.VolumeFiller
-
-	revert := revert.New()
-	defer revert.Fail()
 
 	if !args.Refresh {
 		// If the negotiated migration method is rsync and the instance's base image is
