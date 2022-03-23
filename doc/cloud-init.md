@@ -1,5 +1,6 @@
 ---
 discourse: 12559
+relatedlinks: https://cloudinit.readthedocs.org/
 ---
 
 # cloud-init

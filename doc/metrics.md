@@ -1,5 +1,6 @@
 ---
 discourse: 12281,11735
+relatedlinks: https://grafana.com/grafana/dashboards/15726
 ---
 
 # Instance metrics

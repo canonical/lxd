@@ -1,5 +1,6 @@
 ---
 discourse: 8178
+relatedlinks: "[LXD&#32;-&#32;Installation](https://linuxcontainers.org/lxd/getting-started-cli/)"
 ---
 
 # Installing LXD
