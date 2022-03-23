@@ -41,7 +41,7 @@ ACLs have the following properties:
 Property         | Type       | Required | Description
 :--              | :--        | :--      | :--
 name             | string     | yes      | Unique name of the network ACL in the project
-description      | string     | no       | Description of then network ACL
+description      | string     | no       | Description of the network ACL
 ingress          | rule list  | no       | Ingress traffic rules
 egress           | rule list  | no       | Egress traffic rules
 config           | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
