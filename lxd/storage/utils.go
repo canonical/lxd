@@ -349,8 +349,13 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 }
 
 // VolumeDBSnapshotsGet loads a list of snapshots volumes from the database.
-func VolumeDBSnapshotsGet(state *state.State, poolID int64, projectName string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
-	snapshots, err := state.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volType, poolID)
+func VolumeDBSnapshotsGet(state *state.State, poolID int64, projectName string, volume string, volumeType drivers.VolumeType) ([]db.StorageVolumeArgs, error) {
+	volDBType, err := VolumeTypeToDBType(volumeType)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots, err := state.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volDBType, poolID)
 	if err != nil {
 		return nil, err
 	}
