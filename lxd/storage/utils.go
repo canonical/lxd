@@ -195,7 +195,28 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 	return -1, fmt.Errorf("Invalid volume content type name")
 }
 
+// VolumeDBGet loads a volume from the database.
+func VolumeDBGet(pool *lxdBackend, projectName string, volumeName string, volumeType drivers.VolumeType) (*api.StorageVolume, error) {
+	volDBType, err := VolumeTypeToDBType(volumeType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get volume config.
+	_, vol, err := pool.state.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
+	if err != nil {
+		if response.IsNotFoundError(err) {
+			return vol, fmt.Errorf("Storage volume %q of type %q does not exist on pool %q: %w", fmt.Sprintf("%s_%s", projectName, volumeName), volumeType, pool.Name(), err)
+		}
+
+		return nil, err
+	}
+
+	return vol, nil
+}
+
 // VolumeDBCreate creates a volume in the database.
+// If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
 func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType) error {
 	// Convert the volume type to our internal integer representation.
 	volDBType, err := VolumeTypeToDBType(volumeType)
@@ -327,14 +348,9 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	},
 }
 
-// VolumeSnapshotsGet returns a list of snapshots of the form <volume>/<snapshot-name>.
-func VolumeSnapshotsGet(s *state.State, projectName string, pool string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
-	poolID, err := s.Cluster.GetStoragePoolID(pool)
-	if err != nil {
-		return nil, err
-	}
-
-	snapshots, err := s.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volType, poolID)
+// VolumeDBSnapshotsGet loads a list of snapshots volumes from the database.
+func VolumeDBSnapshotsGet(state *state.State, poolID int64, projectName string, volume string, volType int) ([]db.StorageVolumeArgs, error) {
+	snapshots, err := state.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volType, poolID)
 	if err != nil {
 		return nil, err
 	}

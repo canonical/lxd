@@ -334,6 +334,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 				Profiles:     srcSnap.Profiles(),
 				Project:      opts.targetInstance.Project,
 				ExpiryDate:   srcSnap.ExpiryDate(),
+				CreationDate: srcSnap.CreationDate(),
 			}
 
 			// Create the snapshots.
@@ -342,12 +343,6 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
 			defer snapInstOp.Done(err)
-
-			// Set snapshot creation date to that of the source snapshot.
-			err = s.Cluster.UpdateInstanceSnapshotCreationDate(snapInst.ID(), srcSnap.CreationDate())
-			if err != nil {
-				return nil, err
-			}
 
 			snapList = append(snapList, &snapInst)
 		}
