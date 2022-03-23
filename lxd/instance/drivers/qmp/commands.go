@@ -365,21 +365,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 }
 
 // RemoveNIC removes a NIC device.
-func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
-	if deviceID != "" {
-		deviceID := map[string]string{
-			"id": deviceID,
-		}
-
-		err := m.run("device_del", deviceID, nil)
-		if err != nil {
-			// If the device has already been removed then all good.
-			if err != nil && !strings.Contains(err.Error(), "not found") {
-				return fmt.Errorf("Failed removing NIC device: %w", err)
-			}
-		}
-	}
-
+func (m *Monitor) RemoveNIC(netDevID string) error {
 	if netDevID != "" {
 		netDevID := map[string]string{
 			"id": netDevID,
