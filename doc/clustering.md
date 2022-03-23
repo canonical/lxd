@@ -203,6 +203,18 @@ The currently supported keys are:
 | scheduler.instance    | string    | all     | If `all` then the member will be auto-targeted for instance creation if it has the least number of instances. If `manual` then instances will only target the member if `--target` is given. If `group` then instances will only target members in the group provided using `--target=@<group>` |
 | user.\*               | string    | -       | Free form user key/value storage (can be used in search) |
 
+### Cluster member roles
+
+The following roles can be assigned to LXD cluster members.
+Automatic roles are assigned by LXD itself and cannot be modified by the user.
+
+| Role                  | Automatic     | Description |
+| :---                  | :--------     | :---------- |
+| database              | yes           | Voting member of the distributed database |
+| database-leader       | yes           | Current leader of the distributed database |
+| database-standby      | yes           | Stand-by (non-voting) member of the distributed database |
+| event-hub             | no            | Exchange point (hub) for the internal LXD events (requires at least two) |
+
 ### Voting and stand-by members
 
 The cluster uses a distributed [database](database.md) to store its state. All
