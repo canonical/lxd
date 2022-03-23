@@ -34,6 +34,9 @@ const ClusterRoleDatabaseLeader = ClusterRole("database-leader")
 // ClusterRoleEventHub represents a cluster member who operates as an event hub.
 const ClusterRoleEventHub = ClusterRole("event-hub")
 
+// ClusterRoleOVNChassis represents a cluster member who operates as an OVN chassis.
+const ClusterRoleOVNChassis = ClusterRole("ovn-chassis")
+
 // ClusterRoles maps role ids into human-readable names.
 //
 // Note: the database role is currently stored directly in the raft
@@ -41,6 +44,7 @@ const ClusterRoleEventHub = ClusterRole("event-hub")
 // only contain LXD-specific cluster roles.
 var ClusterRoles = map[int]ClusterRole{
 	1: ClusterRoleEventHub,
+	2: ClusterRoleOVNChassis,
 }
 
 // Numeric type codes identifying different cluster member states.
