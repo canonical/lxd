@@ -843,6 +843,10 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 		return nil, fmt.Errorf("The server is missing the required \"instance_project_move\" API extension")
 	}
 
+	if instance.AllowInconsistent && !r.HasExtension("cluster_migration_inconsistent_copy") {
+		return nil, fmt.Errorf("The server is missing the required \"cluster_migration_inconsistent_copy\" API extension")
+	}
+
 	// Quick check.
 	if !instance.Migration {
 		return nil, fmt.Errorf("Can't ask for a rename through MigrateInstance")
