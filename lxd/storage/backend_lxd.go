@@ -879,11 +879,6 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
-	volDBType, err := VolumeTypeToDBType(volType)
-	if err != nil {
-		return err
-	}
-
 	contentType := InstanceContentType(inst)
 
 	// Load storage volume from database.
@@ -954,7 +949,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		// If we are copying snapshots, retrieve a list of snapshots from source volume.
 		snapshotNames := []string{}
 		if snapshots {
-			snapshots, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), src.Project(), src.Name(), volDBType)
+			snapshots, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), src.Project(), src.Name(), volType)
 			if err != nil {
 				return err
 			}
@@ -1137,12 +1132,12 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	syncSnapshots := []db.StorageVolumeArgs{}
 	if snapshots {
 		// Detect added/deleted snapshots.
-		srcSnapshots, err := VolumeDBSnapshotsGet(srcPool.state, srcPool.ID(), srcProjectName, srcVolName, db.StoragePoolVolumeTypeCustom)
+		srcSnapshots, err := VolumeDBSnapshotsGet(srcPool.state, srcPool.ID(), srcProjectName, srcVolName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
 
-		destSnapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, db.StoragePoolVolumeTypeCustom)
+		destSnapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -3114,7 +3109,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	var snapshotNames []string
 	if snapshots {
-		snapshots, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), srcProjectName, srcVolName, db.StoragePoolVolumeTypeCustom)
+		snapshots, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), srcProjectName, srcVolName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -3415,7 +3410,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	}
 
 	// Rename each snapshot to have the new parent volume prefix.
-	snapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, db.StoragePoolVolumeTypeCustom)
+	snapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
 	}
@@ -3673,7 +3668,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Retrieve a list of snapshots.
-	snapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, db.StoragePoolVolumeTypeCustom)
+	snapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
 	}
