@@ -9,7 +9,7 @@
    {{ super() }}
 {%- endblock body %}
 
-{% if meta and meta.discourse %}
+{% if meta and ((meta.discourse and discourse_prefix) or meta.relatedlinks) %}
    {% set furo_hide_toc_orig = furo_hide_toc %}
    {% set furo_hide_toc=false %}
 {% endif %}
@@ -28,7 +28,7 @@
       </div>
     </div>
    {% endif %}
-    {% if meta and meta.discourse and discourse_prefix %}
+    {% if meta and ((meta.discourse and discourse_prefix) or meta.relatedlinks) %}
     <div class="relatedlinks-title-container">
       <span class="relatedlinks-title">
        Related links
@@ -36,7 +36,12 @@
     </div>
     <div class="relatedlinks-container">
       <div class="relatedlinks">
-        {{ discourse_links(meta.discourse) }}
+        {% if meta.discourse and discourse_prefix %}
+          {{ discourse_links(meta.discourse) }}
+        {% endif %}
+        {% if meta.relatedlinks %}
+          {{ related_links(meta.relatedlinks) }}
+        {% endif %}
       </div>
     </div>
     {% endif %}
