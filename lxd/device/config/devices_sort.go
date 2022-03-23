@@ -49,6 +49,15 @@ func (devices DevicesSortable) Less(i, j int) bool {
 	// Start disk devices in path order.
 	if a.Config["type"] == "disk" && b.Config["type"] == "disk" {
 		if a.Config["path"] != b.Config["path"] {
+			// The root device always goes first.
+			if a.Config["path"] == "/" {
+				return true
+			}
+
+			if b.Config["path"] == "/" {
+				return false
+			}
+
 			return a.Config["path"] < b.Config["path"]
 		}
 	}
