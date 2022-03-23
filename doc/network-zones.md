@@ -11,7 +11,6 @@ Each network can be related to up to 3 zones for:
  - IPv4 reverse DNS records
  - IPv6 reverse DNS records
 
-This is controlled through `dns.zone.forward`, `dns.zone.reverse.ipv4` and `dns.zone.reverse.ipv6` in network configuration.
 LXD will then be automatically managing forward and reverse records for all instances, network gateways and downstream network ports.
 
 To enable the built-in DNS server, `core.dns_address` must be set in the server configuration.
@@ -21,11 +20,7 @@ This means that this feature expects the use of an external DNS server (bind9, n
 
 Authentication for zone transfer is configured on a per-zone basis with peers defined in zone configuration and a combination of IP address matching and TSIG key based authentication.
 
-Zones belong to projects and are tied to the `networks` features of projects.
-
 Zone names must be globally unique, even across projects, so it's possible to get a creation error due to a zone already existing in another project.
-
-It is possible to restrict projects to specific domains and sub-domains through the `restricted.networks.zones` project configuration key.
 
 ## Properties
 The following are network zone properties:
@@ -38,6 +33,11 @@ dns.nameservers     | string set | no       | -       | Comma separated list of 
 network.nat         | bool       | no       | true    | Whether to generate records for NAT-ed subnets
 
 Additionally the `user.` key namespace is also supported for user-provided free-form key/value.
+
+This is controlled through `dns.zone.forward`, `dns.zone.reverse.ipv4` and `dns.zone.reverse.ipv6` in network configuration.
+
+Zones belong to projects and are tied to the `networks` features of projects.
+It is possible to restrict projects to specific domains and sub-domains through the `restricted.networks.zones` project configuration key.
 
 ## Custom records
 It's possible to add additional records to a zone.
