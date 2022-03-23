@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
+	storageDrivers "github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -92,15 +93,10 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 	// Only send snapshots when requested.
 	if !s.volumeOnly {
 		var err error
-		snaps, err := storagePools.VolumeDBSnapshotsGet(state, pool.ID(), projectName, volName, db.StoragePoolVolumeTypeCustom)
+		snaps, err := storagePools.VolumeDBSnapshotsGet(state, pool.ID(), projectName, volName, storageDrivers.VolumeTypeCustom)
 		if err == nil {
 			for _, snap := range snaps {
-				_, snapVolume, err := state.Cluster.GetLocalStoragePoolVolume(projectName, snap.Name, db.StoragePoolVolumeTypeCustom, pool.ID())
-				if err != nil {
-					continue
-				}
-
-				snapshots = append(snapshots, volumeSnapshotToProtobuf(snapVolume))
+				snapshots = append(snapshots, volumeSnapshotToProtobuf(snap))
 				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
 				snapshotNames = append(snapshotNames, snapName)
 			}
@@ -334,7 +330,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	if c.refresh {
 		// Get our existing snapshots.
 		targetSnapshots := []string{}
-		snaps, err := storagePools.VolumeDBSnapshotsGet(state, pool.ID(), projectName, req.Name, db.StoragePoolVolumeTypeCustom)
+		snaps, err := storagePools.VolumeDBSnapshotsGet(state, pool.ID(), projectName, req.Name, storageDrivers.VolumeTypeCustom)
 		if err == nil {
 			for _, snap := range snaps {
 				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name)
@@ -464,7 +460,7 @@ func (s *migrationSourceWs) ConnectStorageTarget(target api.StorageVolumePostTar
 	return s.ConnectTarget(target.Certificate, target.Operation, target.Websockets)
 }
 
-func volumeSnapshotToProtobuf(vol *api.StorageVolume) *migration.Snapshot {
+func volumeSnapshotToProtobuf(vol db.StorageVolumeArgs) *migration.Snapshot {
 	config := []*migration.Config{}
 	for k, v := range vol.Config {
 		kCopy := string(k)
