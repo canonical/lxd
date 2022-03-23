@@ -1311,11 +1311,20 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
+	// Get the source storage pool.
+	srcPool, err := GetPoolByInstance(b.state, src)
+	if err != nil {
+		return err
+	}
+
 	// Generate the effective root device volume for instance.
 	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
 	if err != nil {
 		return err
 	}
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	// Get the src volume name on storage.
 	srcVolStorageName := project.Instance(src.Project(), src.Name())
@@ -1337,13 +1346,43 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		srcSnapVols = append(srcSnapVols, srcSnapVol)
 	}
 
-	srcPool, err := GetPoolByInstance(b.state, src)
-	if err != nil {
-		return err
-	}
-
 	if b.Name() == srcPool.Name() {
 		logger.Debug("RefreshInstance same-pool mode detected")
+
+		// If we are copying snapshots, retrieve a list of all snapshots from source volume.
+		var srcSnapshotVolRows map[string]db.StorageVolumeArgs
+		if len(srcSnapshots) > 0 {
+			allSrcSnapshotVolRows, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), src.Project(), src.Name(), volType)
+			if err != nil {
+				return err
+			}
+
+			// Convert the snapshot list to a map keyed on snapshot name.
+			srcSnapshotVolRows = make(map[string]db.StorageVolumeArgs, len(allSrcSnapshotVolRows))
+			for _, srcSnapshotVolRow := range allSrcSnapshotVolRows {
+				srcSnapshotVolRows[srcSnapshotVolRow.Name] = srcSnapshotVolRow
+			}
+		}
+
+		// Create database entries for new storage volume snapshots.
+		for _, srcSnapshot := range srcSnapshots {
+			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.Name())
+			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), snapShotName)
+
+			srcSnapshotVolRow, found := srcSnapshotVolRows[srcSnapshot.Name()]
+			if !found {
+				return fmt.Errorf("Source snapshot record not found for %q", srcSnapshot.Name())
+			}
+
+			// Copy volume config from source snapshot.
+			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, "", volType, true, srcSnapshotVolRow.Config, time.Time{}, contentType)
+			if err != nil {
+				return err
+			}
+
+			revert.Add(func() { VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
+		}
+
 		err = b.driver.RefreshVolume(*vol, srcVol, srcSnapVols, op)
 		if err != nil {
 			return err
@@ -1435,6 +1474,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 
