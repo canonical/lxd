@@ -1911,7 +1911,12 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName)
 
 	// Request removal of device.
-	err = monitor.RemoveNIC(netDevID, deviceID)
+	err = monitor.RemoveDevice(deviceID)
+	if err != nil {
+		return fmt.Errorf("Failed removing NIC device: %w", err)
+	}
+
+	err = monitor.RemoveNIC(netDevID)
 	if err != nil {
 		return err
 	}
