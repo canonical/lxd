@@ -258,7 +258,6 @@ SELECT storage_volumes_all.name
 // attached to a given storage pool of a given volume type, on the local node.
 // Returns snapshots slice ordered by when they were created, oldest first.
 func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
-	result := []StorageVolumeArgs{}
 	remoteDrivers := StorageRemoteDriverNames()
 
 	// ORDER BY id is important here as the users of this function can expect that the results
@@ -266,7 +265,7 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
 	query := fmt.Sprintf(`
-SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date FROM storage_volumes_snapshots
+SELECT storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
   JOIN projects ON projects.id=storage_volumes.project_id
   JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
@@ -276,35 +275,74 @@ SELECT storage_volumes_snapshots.name, storage_volumes_snapshots.description, st
     AND projects.name=?
     AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
   ORDER BY storage_volumes_snapshots.id`, query.Params(len(remoteDrivers)))
-	inargs := []interface{}{poolID, volumeType, volumeName, projectName, c.nodeID}
 
+	args := []interface{}{poolID, volumeType, volumeName, projectName, c.nodeID}
 	for _, driver := range remoteDrivers {
-		inargs = append(inargs, driver)
+		args = append(args, driver)
 	}
 
-	typeGuide := StorageVolumeArgs{} // StorageVolume struct used to guide the types expected.
-	var expiryDate string
-	outfmt := []interface{}{typeGuide.Name, typeGuide.Description, expiryDate}
-	dbResults, err := queryScan(c, query, inargs, outfmt)
-	if err != nil {
-		return result, err
-	}
+	var snapshots []StorageVolumeArgs
 
-	for _, r := range dbResults {
-		var snapshotExpiry time.Time
-		snapshotExpiry.UnmarshalText([]byte(r[2].(string)))
+	err := c.Transaction(func(tx *ClusterTx) error {
+		err := tx.QueryScan(query, func(scan func(dest ...interface{}) error) error {
+			var s StorageVolumeArgs
+			var snapName string
+			var expiryDate sql.NullTime
 
-		row := StorageVolumeArgs{
-			Name:        volumeName + shared.SnapshotDelimiter + r[0].(string),
-			Description: r[1].(string),
-			Snapshot:    true,
-			ProjectName: projectName,
-			ExpiryDate:  snapshotExpiry,
+			scan(&s.ID, &snapName, &s.Description, &expiryDate)
+			s.Name = volumeName + shared.SnapshotDelimiter + snapName
+			s.PoolID = poolID
+			s.ProjectName = projectName
+			s.Snapshot = true
+			s.ExpiryDate = expiryDate.Time // Convert null to zero.
+
+			snapshots = append(snapshots, s)
+
+			return nil
+		}, args...)
+		if err != nil {
+			return err
 		}
-		result = append(result, row)
+
+		// Populate config.
+		for _, snapshot := range snapshots {
+			err := storageVolumeSnapshotConfig(tx, snapshot.ID, &snapshot)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return result, nil
+	return snapshots, nil
+}
+
+// storageVolumeSnapshotConfig populates the config map of the Storage Volume Snapshot with the given ID.
+func storageVolumeSnapshotConfig(tx *ClusterTx, volumeSnapshotID int64, volume *StorageVolumeArgs) error {
+	q := "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id = ?"
+
+	volume.Config = make(map[string]string)
+	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		var key, value string
+
+		err := scan(&key, &value)
+		if err != nil {
+			return err
+		}
+
+		_, found := volume.Config[key]
+		if found {
+			return fmt.Errorf("Duplicate config row found for key %q for storage volume snapshot ID %d", key, volumeSnapshotID)
+		}
+
+		volume.Config[key] = value
+
+		return nil
+	}, volumeSnapshotID)
 }
 
 // GetLocalStoragePoolVolumesWithType returns all storage volumes attached to a
