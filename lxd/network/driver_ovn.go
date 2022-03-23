@@ -2404,7 +2404,7 @@ func (n *ovn) deleteChassisGroupEntry() error {
 		return fmt.Errorf("Failed to get OVN client: %w", err)
 	}
 
-	// Add local chassis to chassis group.
+	// Remove local chassis from chassis group.
 	ovs := openvswitch.NewOVS()
 	chassisID, err := ovs.ChassisID()
 	if err != nil {
@@ -2585,7 +2585,7 @@ func (n *ovn) Start() error {
 }
 
 // Stop deletes the local OVS uplink port (if unused) and deletes the local OVS chassis ID from the
-// OVN chass group
+// OVN chassis group.
 func (n *ovn) Stop() error {
 	n.logger.Debug("Stop")
 
