@@ -370,11 +370,9 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]interface{}, device map[str
 		})
 	}
 
-	if device != nil {
-		err := m.run("device_add", device, nil)
-		if err != nil {
-			return fmt.Errorf("Failed adding device: %w", err)
-		}
+	err := m.AddDevice(device)
+	if err != nil {
+		return fmt.Errorf("Failed adding device: %w", err)
 	}
 
 	revert.Success()
@@ -471,11 +469,10 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 		})
 	}
 
-	if device != nil {
-		err := m.run("device_add", device, nil)
-		if err != nil {
-			return fmt.Errorf("Failed adding NIC device: %w", err)
-		}
+	err := m.AddDevice(device)
+	if err != nil {
+		return fmt.Errorf("Failed adding NIC device: %w", err)
+
 	}
 
 	revert.Success()
