@@ -20,7 +20,7 @@ extensions = [
     "sphinx_reredirects",
     "sphinxext.opengraph",
     "youtube-link",
-    "discourse-links"
+    "related-links"
 ]
 
 myst_enable_extensions = [
