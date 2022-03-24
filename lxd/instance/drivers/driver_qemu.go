@@ -2994,12 +2994,8 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), srcDevPath)))
 		}
 
-		// If drive config indicates we need to use unsafe I/O then use it.
-		if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
-			d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": srcDevPath})
-			aioMode = "threads"
-			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
-		} else if shared.PathExists(srcDevPath) && !shared.IsBlockdevPath(srcDevPath) {
+		// Handle I/O mode configuration.
+		if shared.PathExists(srcDevPath) && !shared.IsBlockdevPath(srcDevPath) {
 			// Disk dev path is a file, check what the backing filesystem is.
 			fsType, err := filesystem.Detect(driveConf.DevPath)
 			if err != nil {
@@ -3022,6 +3018,11 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 			if strings.HasSuffix(srcDevPath, ".iso") {
 				media = "cdrom"
 			}
+		} else if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
+			// If drive config indicates we need to use unsafe I/O then use it.
+			d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": srcDevPath})
+			aioMode = "threads"
+			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 		}
 
 		// Add src path to external devPaths. This way, the path will be included in the apparmor profile.
