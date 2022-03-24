@@ -4731,7 +4731,8 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 // ImportInstance takes an existing instance volume on the storage backend and ensures that the volume directories
 // and symlinks are restored as needed to make it operational with LXD. Used during the recovery import stage.
 // If the instance exists on the local cluster member then the local mount status is restored as needed.
-func (b *lxdBackend) ImportInstance(inst instance.Instance, op *operations.Operation) error {
+// If the optional poolVol argument is provided then it is used to create the storage volume database records.
+func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error {
 	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	logger.Debug("ImportInstance started")
 	defer logger.Debug("ImportInstance finished")
@@ -4757,15 +4758,78 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, op *operations.Opera
 		return fmt.Errorf("Failed getting local cluster member name: %w", err)
 	}
 
+	contentType := InstanceContentType(inst)
+
 	revert := revert.New()
 	defer revert.Fail()
 
-	contentType := InstanceContentType(inst)
+	var volumeConfig map[string]string
 
-	// Get the volume name on storage.
-	volStorageName := project.Instance(inst.Project(), inst.Name())
+	// Create storage volume database records if in recover mode.
+	if poolVol != nil {
+		// Copy volume config from backup file config if present,
+		// so VolumeDBCreate can safely modify the copy if needed.
+		if poolVol.Volume != nil {
+			volumeConfig = make(map[string]string, len(poolVol.Volume.Config))
+			for k, v := range poolVol.Volume.Config {
+				volumeConfig[k] = v
+			}
+		}
 
-	vol := b.GetVolume(volType, contentType, volStorageName, nil)
+		// Create database entry for new storage volume.
+		err = VolumeDBCreate(b, inst.Project(), poolVol.Volume.Name, "", volType, false, volumeConfig, time.Time{}, contentType)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() { VolumeDBDelete(b, inst.Project(), poolVol.Volume.Name, volType) })
+
+		if len(snapshots) > 0 && len(poolVol.VolumeSnapshots) > 0 {
+			// Create storage volume snapshot DB records from the entries in the backup file config.
+			for _, poolVolSnap := range poolVol.VolumeSnapshots {
+				fullSnapName := drivers.GetSnapshotVolumeName(poolVol.Volume.Name, poolVolSnap.Name)
+
+				// Copy volume config from backup file if present,
+				// so VolumeDBCreate can safely modify the copy if needed.
+				snapVolumeConfig := make(map[string]string, len(poolVolSnap.Config))
+				for k, v := range poolVolSnap.Config {
+					snapVolumeConfig[k] = v
+				}
+
+				err = VolumeDBCreate(b, inst.Project(), fullSnapName, poolVolSnap.Description, volType, true, snapVolumeConfig, time.Time{}, contentType)
+				if err != nil {
+					return err
+				}
+
+				revert.Add(func() { VolumeDBDelete(b, inst.Project(), fullSnapName, volType) })
+			}
+		} else {
+			b.logger.Warn("Missing volume snapshot info in backup config, using parent volume config")
+
+			// Create storage volume snapshot DB records based on instance snapshot list, as the
+			// backup config doesn't contain the required info. This is needed because there was a
+			// historical bug that meant that the instance's backup file didn't store the storage
+			// volume snapshot info.
+			for _, i := range snapshots {
+				fullSnapName := i // Local var for revert.
+
+				// Use parent volume config.
+				err = VolumeDBCreate(b, inst.Project(), fullSnapName, "", volType, true, volumeConfig, time.Time{}, contentType)
+				if err != nil {
+					return err
+				}
+
+				revert.Add(func() { VolumeDBDelete(b, inst.Project(), fullSnapName, volType) })
+			}
+		}
+	}
+
+	// Generate the effective root device volume for instance.
+	vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
+	if err != nil {
+		return err
+	}
+
 	err = vol.EnsureMountPath()
 	if err != nil {
 		return err
@@ -4776,10 +4840,10 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, op *operations.Opera
 		logger.Debug("Restoring local instance mount status")
 
 		if inst.IsRunning() {
-			// If the instance is running then this implies the volume is mounted, but if the LXD daemon has
-			// been restarted since the DB records were removed then there will be no mount reference counter
-			// showing the volume is in use. If this is the case then call mount the volume to increment the
-			// reference counter.
+			// If the instance is running then this implies the volume is mounted, but if the LXD
+			// daemon has been restarted since the DB records were removed then there will be no mount
+			// reference counter showing the volume is in use. If this is the case then call mount the
+			// volume to increment the reference counter.
 			if !vol.MountInUse() {
 				_, err = b.MountInstance(inst, op)
 				if err != nil {
@@ -4787,7 +4851,8 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, op *operations.Opera
 				}
 			}
 		} else {
-			// If the instance isn't running then try and unmount it to ensure consistent state after import.
+			// If the instance isn't running then try and unmount it to ensure consistent state after
+			// import.
 			_, err = b.UnmountInstance(inst, op)
 			if err != nil {
 				return fmt.Errorf("Failed unmounting instance: %w", err)
