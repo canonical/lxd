@@ -690,8 +690,8 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// We will apply the config as part of the post hook function returned if driver needs to.
 	vol := b.GetVolume(volType, contentType, volStorageName, nil)
 
-	revert := revert.New()
-	defer revert.Fail()
+	importRevert := revert.New()
+	defer importRevert.Fail()
 
 	// Unpack the backup into the new storage volume(s).
 	volPostHook, revertHook, err := b.driver.CreateVolumeFromBackup(vol, srcBackup, srcData, op)
@@ -700,7 +700,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	}
 
 	if revertHook != nil {
-		revert.Add(revertHook)
+		importRevert.Add(revertHook)
 	}
 
 	err = b.ensureInstanceSymlink(instanceType, srcBackup.Project, srcBackup.Name, vol.MountPath())
@@ -708,7 +708,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		return nil, nil, err
 	}
 
-	revert.Add(func() {
+	importRevert.Add(func() {
 		b.removeInstanceSymlink(instanceType, srcBackup.Project, srcBackup.Name)
 	})
 
@@ -718,7 +718,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			return nil, nil, err
 		}
 
-		revert.Add(func() {
+		importRevert.Add(func() {
 			b.removeInstanceSnapshotSymlinkIfUnused(instanceType, srcBackup.Project, srcBackup.Name)
 		})
 	}
@@ -740,14 +740,34 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		logger.Debug("CreateInstanceFromBackup post hook started")
 		defer logger.Debug("CreateInstanceFromBackup post hook finished")
 
-		// Load storage volume from database.
-		dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
+		postHookRevert := revert.New()
+		defer postHookRevert.Fail()
+
+		// Create database entry for new storage volume.
+		// The instance backup restore interface does not currently provide volume config so just create
+		// with default volume config for the storage pool.
+		volumeConfig := make(map[string]string)
+		err = VolumeDBCreate(b, inst.Project(), inst.Name(), "", volType, false, volumeConfig, time.Time{}, contentType)
 		if err != nil {
 			return err
 		}
 
+		postHookRevert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
+
+		// The instance backup file does not currently contain snapshot volume config so just create with
+		// default volume config for the storage pool.
+		for _, backupFileSnap := range srcBackup.Snapshots {
+			newSnapshotName := drivers.GetSnapshotVolumeName(inst.Name(), backupFileSnap)
+			err = VolumeDBCreate(b, inst.Project(), newSnapshotName, "", volType, true, nil, time.Time{}, contentType)
+			if err != nil {
+				return err
+			}
+
+			postHookRevert.Add(func() { VolumeDBDelete(b, inst.Project(), newSnapshotName, volType) })
+		}
+
 		// Generate the effective root device volume for instance.
-		vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
+		vol, err := b.instanceEffectiveRootVolume(inst, volumeConfig)
 		if err != nil {
 			return err
 		}
@@ -823,10 +843,11 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 			}
 		}
 
+		postHookRevert.Success()
 		return nil
 	}
 
-	revert.Success()
+	importRevert.Success()
 	return postHook, revertHook, nil
 }
 
