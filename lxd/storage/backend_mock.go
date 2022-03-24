@@ -141,7 +141,7 @@ func (b *mockBackend) ListUnknownVolumes(op *operations.Operation) (map[string][
 	return nil, nil
 }
 
-func (b *mockBackend) ImportInstance(inst instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error {
 	return nil
 }
 
