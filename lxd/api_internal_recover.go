@@ -389,7 +389,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				}
 
 				// Import custom volume and any snapshots.
-				err = pool.ImportCustomVolume(customStorageProjectName, *poolVol, nil)
+				err = pool.ImportCustomVolume(customStorageProjectName, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing custom volume %q in project %q: %w", poolVol.Volume.Name, projectName, err))
 				}
