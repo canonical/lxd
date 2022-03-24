@@ -754,6 +754,11 @@ definitions:
         example: X509 PEM certificate
         type: string
         x-go-name: Certificate
+      project:
+        description: Project name
+        example: project1
+        type: string
+        x-go-name: Project
       secret:
         description: Image receive secret
         example: RANDOM-STRING
@@ -1462,6 +1467,11 @@ definitions:
     x-go-package: github.com/lxc/lxd/shared/api
   InstancePost:
     properties:
+      allow_inconsistent:
+        description: AllowInconsistent allow inconsistent copies when migrating.
+        example: false
+        type: boolean
+        x-go-name: AllowInconsistent
       container_only:
         description: Whether snapshots should be discarded (migration only, deprecated,
           use instance_only)

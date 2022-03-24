@@ -323,6 +323,7 @@ var APIExtensions = []string{
 	"projects_restricted_intercept",
 	"metrics_authentication",
 	"images_target_project",
+	"cluster_migration_inconsistent_copy",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
