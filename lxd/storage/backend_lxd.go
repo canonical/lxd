@@ -565,7 +565,14 @@ func (b *lxdBackend) removeInstanceSnapshotSymlinkIfUnused(instanceType instance
 
 // instanceRootVolumeConfig returns the instance's effective root volume config.
 // Returns a copy of volConfig with size and size.state values overridden from the instance's root disk device.
-func (b *lxdBackend) instanceEffectiveRootVolumeConfig(inst instance.Instance, volConfig map[string]string) (map[string]string, error) {
+func (b *lxdBackend) instanceEffectiveRootVolume(inst instance.Instance, volConfig map[string]string) (*drivers.Volume, error) {
+	volType, err := InstanceTypeToVolumeType(inst.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	contentType := InstanceContentType(inst)
+
 	// Get the root disk device config.
 	_, rootDiskConf, err := shared.GetRootDiskDevice(inst.ExpandedDevices().CloneNative())
 	if err != nil {
@@ -585,7 +592,11 @@ func (b *lxdBackend) instanceEffectiveRootVolumeConfig(inst instance.Instance, v
 		}
 	}
 
-	return volConfigClone, err
+	volStorageName := project.Instance(inst.Project(), inst.Name())
+
+	vol := b.GetVolume(volType, contentType, volStorageName, volConfigClone)
+
+	return &vol, err
 }
 
 // FillInstanceConfig populates the supplied instance volume config map with any defaults based on the storage
