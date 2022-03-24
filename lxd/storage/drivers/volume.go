@@ -31,6 +31,15 @@ const volIDQuotaSkip = int64(-1)
 // VolumeType represents a storage volume type.
 type VolumeType string
 
+// IsInstance indicates if the VolumeType represents an instance type.
+func (t VolumeType) IsInstance() bool {
+	if t == VolumeTypeContainer || t == VolumeTypeVM {
+		return true
+	}
+
+	return false
+}
+
 // VolumeTypeImage represents an image storage volume.
 const VolumeTypeImage = VolumeType("images")
 
