@@ -261,7 +261,7 @@ func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op
 	return true, nil
 }
 
-func (b *mockBackend) ImportCustomVolume(projectName string, poolVol backup.Config, op *operations.Operation) error {
+func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backup.Config, op *operations.Operation) error {
 	return nil
 }
 
