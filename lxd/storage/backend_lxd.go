@@ -44,6 +44,13 @@ import (
 var unavailablePools = make(map[string]struct{})
 var unavailablePoolsMu = sync.Mutex{}
 
+// instanceDiskVolumeEffectiveFields fields from the instance disks that are applied to the volume's effective
+// config (but not stored in the disk's volume database record).
+var instanceDiskVolumeEffectiveFields = []string{
+	"size",
+	"size.state",
+}
+
 type lxdBackend struct {
 	driver drivers.Driver
 	id     int64
@@ -565,18 +572,17 @@ func (b *lxdBackend) instanceEffectiveRootVolumeConfig(inst instance.Instance, v
 		return nil, err
 	}
 
+	// Clone the volume config so that effective overrides below don't modify supplied volume config.
 	volConfigClone := make(map[string]string, len(volConfig))
 	for k, v := range volConfig {
 		volConfigClone[k] = v
 	}
 
-	// Override size property from instance root device config.
-	if rootDiskConf["size"] != "" {
-		volConfigClone["size"] = rootDiskConf["size"]
-	}
-
-	if rootDiskConf["size.state"] != "" {
-		volConfigClone["size.state"] = rootDiskConf["size.state"]
+	// Apply instance root device effective override fields to config.
+	for _, k := range instanceDiskVolumeEffectiveFields {
+		if rootDiskConf[k] != "" {
+			volConfigClone[k] = rootDiskConf[k]
+		}
 	}
 
 	return volConfigClone, err
