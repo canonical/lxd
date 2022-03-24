@@ -98,6 +98,11 @@ func (d *disk) CanMigrate() bool {
 	return false
 }
 
+// CanHotPlug returns whether the device can be managed whilst the instance is running.
+func (d *disk) CanHotPlug() bool {
+	return true
+}
+
 // validateConfig checks the supplied config for correctness.
 // isRequired indicates whether the supplied device config requires this device to start OK.
 func (d *disk) isRequired(devConfig deviceConfig.Device) bool {
@@ -131,6 +136,11 @@ func (d *disk) sourceIsLocalPath(source string) bool {
 func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	if !instanceSupported(instConf.Type(), instancetype.Container, instancetype.VM) {
 		return ErrUnsupportedDevType
+	}
+
+	// QMP allows node names to be 31 characters. LXD prefixes any block device with `lxd_` which leaves the user with 27 characters.
+	if len(d.name) > 27 {
+		return fmt.Errorf("Device name too long, max. 27 characters")
 	}
 
 	// Supported propagation types.

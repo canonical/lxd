@@ -87,6 +87,9 @@ const qemuDeviceIDPrefix = "dev-lxd_"
 // qemuNetDevIDPrefix used as part of the name given QEMU netdevs generated from user added devices.
 const qemuNetDevIDPrefix = "lxd_"
 
+// qemuBlockDevIDPrefix used as part of the name given QEMU blockdevs generated from user added devices.
+const qemuBlockDevIDPrefix = "lxd_"
+
 // qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
 const qemuSparseUSBPorts = 4
 
@@ -1765,6 +1768,13 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
+			for _, mount := range runConf.Mounts {
+				err = d.deviceAttachBlockDevice(dev.Name(), configCopy, mount)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			// If running, run post start hooks now (if not running LXD will run them
 			// once the instance is started).
 			err = d.runHooks(runConf.PostHooks)
@@ -1776,6 +1786,74 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 
 	revert.Success()
 	return runConf, nil
+}
+
+func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]string, mount deviceConfig.MountEntryItem) error {
+	if mount.FSType == "9p" {
+		return fmt.Errorf("Cannot attach directory while instance is running")
+	}
+
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
+	}
+
+	var fdFiles []*os.File
+
+	monHook, err := d.addDriveConfig(&fdFiles, nil, mount)
+	if err != nil {
+		return fmt.Errorf("Failed to add drive config: %w", err)
+	}
+
+	err = monHook(monitor)
+	if err != nil {
+		return fmt.Errorf("Failed to call monitor hook for block device: %w", err)
+	}
+
+	return nil
+}
+
+func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig.Device) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	escapedDeviceName := filesystem.PathNameEncode(deviceName)
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
+	blockDevName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+
+	err = monitor.RemoveFDFromFDSet(blockDevName)
+	if err != nil {
+		return err
+	}
+
+	err = monitor.RemoveDevice(deviceID)
+	if err != nil {
+		return err
+	}
+
+	waitDuration := time.Duration(time.Second * time.Duration(10))
+	waitUntil := time.Now().Add(waitDuration)
+	for {
+		err = monitor.RemoveBlockDevice(blockDevName)
+		if err == nil {
+			break
+		}
+
+		if api.StatusErrorCheck(err, http.StatusLocked) {
+			time.Sleep(time.Second * time.Duration(2))
+			continue
+		}
+
+		if time.Now().After(waitUntil) {
+			return fmt.Errorf("Failed to detach block device after %v: %w", waitDuration, err)
+		}
+	}
+
+	return nil
 }
 
 // deviceAttachNIC live attaches a NIC device to the instance.
@@ -1859,17 +1937,25 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
 		return err
 	}
 
-	if runConf != nil {
-		if runConf != nil {
-			// Detach NIC from running instance.
-			if configCopy["type"] == "nic" && instanceRunning {
-				err = d.deviceDetachNIC(dev.Name())
-				if err != nil {
-					return err
-				}
+	if instanceRunning {
+		// Detach NIC from running instance.
+		if configCopy["type"] == "nic" {
+			err = d.deviceDetachNIC(dev.Name())
+			if err != nil {
+				return err
 			}
 		}
 
+		// Detach disk from running instance.
+		if configCopy["type"] == "disk" {
+			err = d.deviceDetachBlockDevice(dev.Name(), configCopy)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if runConf != nil {
 		// Run post stop hooks irrespective of run state of instance.
 		err = d.runHooks(runConf.PostHooks)
 		if err != nil {
@@ -1911,7 +1997,12 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 	netDevID := fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName)
 
 	// Request removal of device.
-	err = monitor.RemoveNIC(netDevID, deviceID)
+	err = monitor.RemoveDevice(deviceID)
+	if err != nil {
+		return fmt.Errorf("Failed removing NIC device: %w", err)
+	}
+
+	err = monitor.RemoveNIC(netDevID)
 	if err != nil {
 		return err
 	}
@@ -2609,15 +2700,21 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		// Add drive devices.
 		if len(runConf.Mounts) > 0 {
 			for _, drive := range runConf.Mounts {
+				var monHook monitorHook
+
 				if drive.TargetPath == "/" {
-					err = d.addRootDriveConfig(sb, mountInfo, bootIndexes, drive)
+					monHook, err = d.addRootDriveConfig(mountInfo, bootIndexes, drive)
 				} else if drive.FSType == "9p" {
 					err = d.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
 				} else {
-					err = d.addDriveConfig(sb, fdFiles, bootIndexes, drive)
+					monHook, err = d.addDriveConfig(fdFiles, bootIndexes, drive)
 				}
 				if err != nil {
 					return "", nil, err
+				}
+
+				if monHook != nil {
+					monHooks = append(monHooks, monHook)
 				}
 			}
 		}
@@ -2850,23 +2947,24 @@ func (d *qemu) addFileDescriptor(fdFiles *[]*os.File, file *os.File) int {
 }
 
 // addRootDriveConfig adds the qemu config required for adding the root drive.
-func (d *qemu) addRootDriveConfig(sb *strings.Builder, mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes map[string]int, rootDriveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	if rootDriveConf.TargetPath != "/" {
-		return fmt.Errorf("Non-root drive config supplied")
+		return nil, fmt.Errorf("Non-root drive config supplied")
 	}
 
 	if mountInfo.DiskPath == "" {
-		return fmt.Errorf("No disk path available from mount")
+		return nil, fmt.Errorf("No disk path available from mount")
 	}
 
 	// Generate a new device config with the root device path expanded.
 	driveConf := deviceConfig.MountEntryItem{
-		DevName: rootDriveConf.DevName,
-		DevPath: mountInfo.DiskPath,
-		Opts:    rootDriveConf.Opts,
+		DevName:    rootDriveConf.DevName,
+		DevPath:    mountInfo.DiskPath,
+		Opts:       rootDriveConf.Opts,
+		TargetPath: rootDriveConf.TargetPath,
 	}
 
-	return d.addDriveConfig(sb, nil, bootIndexes, driveConf)
+	return d.addDriveConfig(nil, bootIndexes, driveConf)
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
@@ -2954,7 +3052,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) error {
+func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
@@ -2970,22 +3068,22 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 		aioMode = "io_uring"
 	}
 
+	srcDevPath := driveConf.DevPath
+
 	// Handle local disk devices.
 	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
-		srcDevPath := driveConf.DevPath
-
 		// Detect if existing file descriptor format is being supplied.
 		if strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
 			// Expect devPath in format "fd:<fdNum>:<devPath>".
 			devPathParts := strings.SplitN(driveConf.DevPath, ":", 3)
 			if len(devPathParts) != 3 || !strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
-				return fmt.Errorf("Unexpected devPath file descriptor format %q for drive %q", driveConf.DevPath, driveConf.DevName)
+				return nil, fmt.Errorf("Unexpected devPath file descriptor format %q for drive %q", driveConf.DevPath, driveConf.DevName)
 			}
 
 			// Map the file descriptor to the file descriptor path it will be in the QEMU process.
 			fd, err := strconv.Atoi(devPathParts[1])
 			if err != nil {
-				return fmt.Errorf("Invalid file descriptor %q for drive %q: %w", devPathParts[1], driveConf.DevName, err)
+				return nil, fmt.Errorf("Invalid file descriptor %q for drive %q: %w", devPathParts[1], driveConf.DevName, err)
 			}
 
 			// Extract original dev path for additional probing.
@@ -2999,7 +3097,7 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 			// Disk dev path is a file, check what the backing filesystem is.
 			fsType, err := filesystem.Detect(driveConf.DevPath)
 			if err != nil {
-				return fmt.Errorf("Failed detecting filesystem type of %q: %w", srcDevPath, err)
+				return nil, fmt.Errorf("Failed detecting filesystem type of %q: %w", srcDevPath, err)
 			}
 
 			// If backing FS is ZFS or BTRFS, avoid using direct I/O and use host page cache only.
@@ -3029,16 +3127,97 @@ func (d *qemu) addDriveConfig(sb *strings.Builder, fdFiles *[]*os.File, bootInde
 		d.devPaths = append(d.devPaths, srcDevPath)
 	}
 
-	return qemuDrive.Execute(sb, map[string]interface{}{
-		"devName":   driveConf.DevName,
-		"devPath":   driveConf.DevPath,
-		"bootIndex": bootIndexes[driveConf.DevName],
-		"cacheMode": cacheMode,
-		"aioMode":   aioMode,
-		"media":     media,
-		"shared":    driveConf.TargetPath != "/" && !strings.HasPrefix(driveConf.DevPath, "rbd:"),
-		"readonly":  shared.StringInSlice("ro", driveConf.Opts),
-	})
+	// QMP uses two separate values for the cache.
+	directCache := true   // Bypass host cache, use O_DIRECT semantics by default.
+	noFlushCache := false // Don't ignore any flush requests for the device.
+
+	if cacheMode == "unsafe" {
+		directCache = false
+		noFlushCache = true
+	} else if cacheMode == "writeback" {
+		directCache = false
+	}
+
+	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
+
+	blockDev := map[string]interface{}{
+		"aio": aioMode,
+		"cache": map[string]interface{}{
+			"direct":   directCache,
+			"no-flush": noFlushCache,
+		},
+		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
+		"driver":    "file",
+		"node-name": fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName), // Node names may only be 31 characters long.
+		"read-only": false,
+	}
+
+	readonly := shared.StringInSlice("ro", driveConf.Opts)
+
+	if readonly {
+		blockDev["read-only"] = true
+	}
+
+	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+		blockDev["locking"] = "off"
+	}
+
+	device := map[string]string{
+		"id":      fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName),
+		"drive":   blockDev["node-name"].(string),
+		"bus":     "qemu_scsi.0",
+		"channel": "0",
+		"lun":     "1",
+	}
+
+	if bootIndexes != nil {
+		device["bootindex"] = strconv.Itoa(bootIndexes[driveConf.DevName])
+	}
+
+	if media == "disk" {
+		device["driver"] = "scsi-hd"
+	} else if media == "cdrom" {
+		device["driver"] = "scsi-cd"
+	}
+
+	monHook := func(m *qmp.Monitor) error {
+		revert := revert.New()
+		defer revert.Fail()
+
+		nodeName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+
+		permissions := unix.O_RDWR
+
+		if readonly {
+			permissions = unix.O_RDONLY
+		}
+
+		f, err := os.OpenFile(srcDevPath, permissions, 0)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		info, err := m.SendFileWithFDSet(nodeName, f, readonly)
+		if err != nil {
+			return err
+		}
+		revert.Add(func() {
+			m.RemoveFDFromFDSet(nodeName)
+		})
+
+		blockDev["filename"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
+
+		err = m.AddBlockDevice(blockDev, device)
+		if err != nil {
+			return err
+		}
+
+		revert.Success()
+		return nil
+	}
+
+	return monHook, nil
 }
 
 // addNetDevConfig adds the qemu config required for adding a network device.

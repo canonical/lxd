@@ -1,14 +1,35 @@
 package qmp
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
+
+// FdsetFdInfo contains information about a file descriptor that belongs to an FD set.
+type FdsetFdInfo struct {
+	FD     int    `json:"fd"`
+	Opaque string `json:"opaque"`
+}
+
+// FdsetInfo contains information about an FD set.
+type FdsetInfo struct {
+	ID  int           `json:"fdset-id"`
+	FDs []FdsetFdInfo `json:"fds"`
+}
+
+// AddFdInfo contains information about a file descriptor that was added to an fd set.
+type AddFdInfo struct {
+	ID int `json:"fdset-id"`
+	FD int `json:"fd"`
+}
 
 // Status returns the current VM status.
 func (m *Monitor) Status() (string, error) {
@@ -83,6 +104,88 @@ func (m *Monitor) SendFile(name string, file *os.File) error {
 		}
 
 		return err
+	}
+
+	return nil
+}
+
+// SendFileWithFDSet adds a new file descriptor to an FD set.
+func (m *Monitor) SendFileWithFDSet(name string, file *os.File, readonly bool) (AddFdInfo, error) {
+	// Prepare the response.
+	var resp struct {
+		Return AddFdInfo `json:"return"`
+	}
+
+	// Check if disconnected
+	if m.disconnected {
+		return resp.Return, ErrMonitorDisconnect
+	}
+
+	permissions := "rdwr"
+
+	if readonly {
+		permissions = "rdonly"
+	}
+
+	// Query the status.
+	ret, err := m.qmp.RunWithFile([]byte(fmt.Sprintf("{'execute': 'add-fd', 'arguments': {'opaque': '%s:%s'}}", permissions, name)), file)
+	if err != nil {
+		// Confirm the daemon didn't die.
+		errPing := m.ping()
+		if errPing != nil {
+			return resp.Return, errPing
+		}
+
+		return resp.Return, err
+	}
+
+	err = json.Unmarshal(ret, &resp)
+	if err != nil {
+		return resp.Return, err
+	}
+
+	return resp.Return, nil
+}
+
+// RemoveFDFromFDSet removes an FD with the given name from an FD set.
+func (m *Monitor) RemoveFDFromFDSet(name string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	// Prepare the response.
+	var resp struct {
+		Return []FdsetInfo `json:"return"`
+	}
+
+	err := m.run("query-fdsets", nil, &resp)
+	if err != nil {
+		return fmt.Errorf("Failed to query fd sets: %w", err)
+	}
+
+	for _, fdSet := range resp.Return {
+		for _, fd := range fdSet.FDs {
+			fields := strings.SplitN(fd.Opaque, ":", 2)
+			opaque := ""
+
+			if len(fields) == 2 {
+				opaque = fields[1]
+			} else {
+				opaque = fields[0]
+			}
+
+			if opaque == name {
+				args := map[string]interface{}{
+					"fdset-id": fdSet.ID,
+				}
+
+				err = m.run("remove-fd", args, nil)
+				if err != nil {
+					return fmt.Errorf("Failed to remove fd from fd set: %w", err)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -247,6 +350,87 @@ func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
 	return m.run("balloon", args, nil)
 }
 
+// AddBlockDevice adds a block device.
+func (m *Monitor) AddBlockDevice(blockDev map[string]interface{}, device map[string]string) error {
+	revert := revert.New()
+	defer revert.Fail()
+
+	if blockDev != nil {
+		err := m.run("blockdev-add", blockDev, nil)
+		if err != nil {
+			return fmt.Errorf("Failed adding block device: %w", err)
+		}
+
+		revert.Add(func() {
+			blockDevDel := map[string]interface{}{
+				"node-name": blockDev["devName"],
+			}
+
+			m.run("blockdev-del", blockDevDel, nil)
+		})
+	}
+
+	if device != nil {
+		err := m.run("device_add", device, nil)
+		if err != nil {
+			return fmt.Errorf("Failed adding device: %w", err)
+		}
+	}
+
+	revert.Success()
+	return nil
+}
+
+// RemoveBlockDevice removes a block device.
+func (m *Monitor) RemoveBlockDevice(blockDevName string) error {
+	if blockDevName != "" {
+		blockDevName := map[string]string{
+			"node-name": blockDevName,
+		}
+
+		// Retry a few times in case the blockdev is in use.
+		err := m.run("blockdev-del", blockDevName, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "is in use") {
+				return api.StatusErrorf(http.StatusLocked, err.Error())
+			}
+
+			if strings.Contains(err.Error(), "Failed to find") {
+				return nil
+			}
+
+			return fmt.Errorf("Failed removing block device: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// RemoveDevice removes a device.
+func (m *Monitor) RemoveDevice(deviceID string) error {
+	// Check if disconnected
+	if m.disconnected {
+		return ErrMonitorDisconnect
+	}
+
+	if deviceID != "" {
+		deviceID := map[string]string{
+			"id": deviceID,
+		}
+
+		err := m.run("device_del", deviceID, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				return nil
+			}
+
+			return err
+		}
+	}
+
+	return nil
+}
+
 // AddNIC adds a NIC device.
 func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string) error {
 	revert := revert.New()
@@ -282,21 +466,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 }
 
 // RemoveNIC removes a NIC device.
-func (m *Monitor) RemoveNIC(netDevID string, deviceID string) error {
-	if deviceID != "" {
-		deviceID := map[string]string{
-			"id": deviceID,
-		}
-
-		err := m.run("device_del", deviceID, nil)
-		if err != nil {
-			// If the device has already been removed then all good.
-			if err != nil && !strings.Contains(err.Error(), "not found") {
-				return fmt.Errorf("Failed removing NIC device: %w", err)
-			}
-		}
-	}
-
+func (m *Monitor) RemoveNIC(netDevID string) error {
 	if netDevID != "" {
 		netDevID := map[string]string{
 			"id": netDevID,
