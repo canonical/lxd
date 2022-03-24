@@ -621,10 +621,11 @@ func (r *ProtocolLXD) CopyInstance(source InstanceServer, instance api.Instance,
 
 	// Source request
 	sourceReq := api.InstancePost{
-		Migration:     true,
-		Live:          req.Source.Live,
-		ContainerOnly: req.Source.ContainerOnly, // Deprecated, use InstanceOnly.
-		InstanceOnly:  req.Source.InstanceOnly,
+		Migration:         true,
+		Live:              req.Source.Live,
+		ContainerOnly:     req.Source.ContainerOnly, // Deprecated, use InstanceOnly.
+		InstanceOnly:      req.Source.InstanceOnly,
+		AllowInconsistent: req.Source.AllowInconsistent,
 	}
 
 	// Push mode migration
@@ -840,6 +841,10 @@ func (r *ProtocolLXD) MigrateInstance(name string, instance api.InstancePost) (O
 
 	if instance.Project != "" && !r.HasExtension("instance_project_move") {
 		return nil, fmt.Errorf("The server is missing the required \"instance_project_move\" API extension")
+	}
+
+	if instance.AllowInconsistent && !r.HasExtension("cluster_migration_inconsistent_copy") {
+		return nil, fmt.Errorf("The server is missing the required \"cluster_migration_inconsistent_copy\" API extension")
 	}
 
 	// Quick check.

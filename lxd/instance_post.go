@@ -521,7 +521,7 @@ func instancePostProjectMigration(d *Daemon, inst instance.Instance, newName str
 }
 
 // Move a non-ceph container to another cluster node.
-func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, newName string, newNode string, stateful bool) (func(op *operations.Operation) error, error) {
+func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Instance, newName string, newNode string, stateful bool, allowInconsistent bool) (func(op *operations.Operation) error, error) {
 	var sourceAddress string
 	var targetAddress string
 
@@ -606,8 +606,9 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 		}
 
 		args := lxd.InstanceCopyArgs{
-			Name: destName,
-			Mode: "pull",
+			Name:              destName,
+			Mode:              "pull",
+			AllowInconsistent: allowInconsistent,
 		}
 
 		copyOp, err := dest.CopyInstance(source, *entry, &args)
@@ -932,7 +933,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 		return err
 	}
 
-	f, err := instancePostClusteringMigrate(d, r, inst, req.Name, targetNode, req.Live)
+	f, err := instancePostClusteringMigrate(d, r, inst, req.Name, targetNode, req.Live, req.AllowInconsistent)
 	if err != nil {
 		return err
 	}
