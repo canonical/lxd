@@ -218,6 +218,17 @@ func VolumeDBGet(pool *lxdBackend, projectName string, volumeName string, volume
 // VolumeDBCreate creates a volume in the database.
 // If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
 func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType) error {
+	// If the volumeType represents an instance type then check that the volumeConfig doesn't contain any of
+	// the instance disk effective override fields (which should not be stored in the database).
+	if volumeType.IsInstance() {
+		for _, k := range instanceDiskVolumeEffectiveFields {
+			_, found := volumeConfig[k]
+			if found {
+				return fmt.Errorf("Instance disk effective override field %q should not be stored in volume config", k)
+			}
+		}
+	}
+
 	// Convert the volume type to our internal integer representation.
 	volDBType, err := VolumeTypeToDBType(volumeType)
 	if err != nil {
@@ -227,12 +238,6 @@ func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, vol
 	volDBContentType, err := VolumeContentTypeToDBContentType(contentType)
 	if err != nil {
 		return err
-	}
-
-	// Check that a storage volume of the same storage volume type does not already exist.
-	volumeID, _ := pool.state.Cluster.GetStoragePoolNodeVolumeID(projectName, volumeName, volDBType, pool.ID())
-	if volumeID > 0 {
-		return fmt.Errorf("A storage volume %q of type %q already exists", fmt.Sprintf("%s_%s", projectName, volumeName), volumeType)
 	}
 
 	// Make sure that we don't pass a nil to the next function.
