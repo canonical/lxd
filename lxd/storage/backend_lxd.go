@@ -194,13 +194,13 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 // GetVolume returns a drivers.Volume containing copies of the supplied volume config and the pools config,
 func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.ContentType, volName string, volConfig map[string]string) drivers.Volume {
 	// Copy the config map to avoid internal modifications affecting external state.
-	newConfig := map[string]string{}
+	newConfig := make(map[string]string, len(volConfig))
 	for k, v := range volConfig {
 		newConfig[k] = v
 	}
 
 	// Copy the pool config map to avoid internal modifications affecting external state.
-	newPoolConfig := map[string]string{}
+	newPoolConfig := make(map[string]string, len(b.db.Config))
 	for k, v := range b.db.Config {
 		newPoolConfig[k] = v
 	}
