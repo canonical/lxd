@@ -424,45 +424,6 @@ multifunction = "on"
 `))
 
 // Devices use "lxd_" prefix indicating that this is a user named device.
-// The device name prefix must not be changed as we want to have /dev/disk/by-id be a usable stable identifier
-// inside the VM guest.
-var qemuDrive = template.Must(template.New("qemuDrive").Parse(`
-# {{.devName}} drive
-[drive "lxd_{{.devName}}"]
-file = "{{.devPath}}"
-format = "raw"
-if = "none"
-cache = "{{.cacheMode}}"
-aio = "{{.aioMode}}"
-discard = "on"
-media = "{{.media}}"
-{{if .shared -}}
-file.locking = "off"
-{{- end }}
-{{- if .readonly}}
-readonly = "on"
-{{- else}}
-readonly = "off"
-{{- end}}
-
-[device "dev-lxd_{{.devName}}"]
-{{- if eq .media "disk" }}
-driver = "scsi-hd"
-{{- else}}
-driver = "scsi-cd"
-{{- end }}
-bus = "qemu_scsi.0"
-channel = "0"
-scsi-id = "{{.bootIndex}}"
-lun = "1"
-drive = "lxd_{{.devName}}"
-bootindex = "{{.bootIndex}}"
-{{if .multifunction -}}
-multifunction = "on"
-{{- end }}
-`))
-
-// Devices use "lxd_" prefix indicating that this is a user named device.
 var qemuPCIPhysical = template.Must(template.New("qemuPCIPhysical").Parse(`
 # PCI card ("{{.devName}}" device)
 [device "dev-lxd_{{.devName}}"]
