@@ -55,7 +55,7 @@ type Pool interface {
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error
 	CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error)
-	ImportInstance(inst instance.Instance, op *operations.Operation) error
+	ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error
 
 	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error
