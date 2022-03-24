@@ -8,10 +8,14 @@ discourse: 12033,13128
 Network zones are available for the {ref}`OVN network <network-ovn>` and the {ref}`Bridge network <network-bridge>`.
 ```
 
-Network zones can be used to hold DNS records for LXD networks.
+Network zones can be used to serve DNS records for LXD networks.
 
-If you are operating a LXD cluster with multiple instances across a large set of networks, you can use network zones to automatically maintain valid forward and reverse records for all your instances.
-Such DNS records are important not only for ease of access to the instances, but also to avoid hosted services getting flagged as potential spam due to lacking reverse DNS records.
+You can use network zones to automatically maintain valid forward and reverse records for all your instances.
+This can be useful if you are operating a LXD cluster with multiple instances across many networks.
+
+Having DNS records for each instance makes it easier to access network services running on an instance.
+It is also important when hosting, for example, an outbound SMTP service.
+Without correct forward and reverse DNS entries for the instance, sent mail might be flagged as potential spam.
 
 Each network can be related to up to three zones for:
 
@@ -21,14 +25,35 @@ Each network can be related to up to three zones for:
 
 LXD will then automatically manage forward and reverse records for all instances, network gateways and downstream network ports and serve those zones for zone transfer to the operator’s production DNS servers.
 
-So for example, if you configure a zone for forward DNS records for `lxd.example.net` for your network, it is used to resolve DNS names for all instances in the network (`<instance_name>.lxd.example.net`).
-If you configure a zone for IPv4 reverse DNS records for `30.192.10.in-addr.arpa` for a network using `10.192.30.0/24`, it is used for reverse DNS lookup for, for example, `10.192.30.100`.
+## Generated records
+
+For example, if you configure a zone for forward DNS records for `lxd.example.net` for your network, it generates records that resolve the following DNS names:
+
+- For all instances in the network: `<instance_name>.lxd.example.net`
+- For the network gateway: `<network_name>.gw.lxd.example.net`
+- For downstream network ports (for network zones set on an uplink network with a downstream OVN network): `<project_name>-<downstream_network_name>.uplink.lxd.example.net`
+
+You can check the records that are generated with your zone setup with the `dig` command.
+For example, running `dig @<DNS_server_IP> -p 1053 axfr lxd.example.net` might give the following output:
+
+```bash
+lxd.example.net.              3600  IN	SOA	lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
+default-my-ovn.uplink.lxd.example.net. 300 IN A 192.0.2.100
+my-instance.lxd.example.net.  300   IN	A	192.0.2.76
+my-uplink.gw.lxd.example.net. 300   IN	A	192.0.2.1
+foo.lxd.example.net.          300	IN	A	8.8.8.8
+lxd.example.net.              3600	IN	SOA	lxd.example.net. hostmaster.lxd.example.net. 1648118965 120 60 86400 30
+```
+
+If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` for a network using `192.0.2.0/24`, it generates reverse DNS records for, for example, `192.0.2.100`.
 
 ## Enable the built-in DNS server
 
 To make use of network zones, you must enable the built-in DNS server.
 
-To do so, set the `core.dns_address` configuration option (see {doc}`server`) to the address where the DNS server should be available.
+To do so, set the `core.dns_address` configuration option (see {doc}`server`) to a local address on the LXD server.
+This is the address on which the DNS server will listen.
+Note that in a LXD cluster, the address may be different on each cluster member.
 
 ```{note}
 The built-in DNS server supports only zone transfers through AXFR.
@@ -50,8 +75,8 @@ The following examples show how to configure a zone for forward DNS records, one
 
 ```bash
 lxc network zone create lxd.example.net
-lxc network zone create 30.192.10.in-addr.arpa
-lxc network zone create 1.9.f.6.5.a.e.f.f.f.e.3.6.1.2.ip6.arpa
+lxc network zone create 2.0.192.in-addr.arpa
+lxc network zone create 1.0.0.0.1.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa
 ```
 
 ```{note}
@@ -92,6 +117,7 @@ To add a zone to a network, set the corresponding configuration option in the ne
 - For IPv6 reverse DNS records: `dns.zone.reverse.ipv6`
 
 For example:
+
 ```bash
 lxc network set <network_name> dns.zone.forward="lxd.example.net"
 ```
@@ -101,7 +127,7 @@ You can restrict projects to specific domains and sub-domains through the `restr
 
 ## Add custom records
 
-A network zone automatically generates a DNS record for each instance.
+A network zone automatically generates forward and reverse records for all instances, network gateways and downstream network ports.
 If required, you can manually add custom records to a zone.
 
 To do so, use the `lxc network zone record` command.
@@ -137,13 +163,15 @@ lxc network zone record entry add <network_zone> <record_name> <type> <value> [-
 
 This command adds a DNS entry with the specified type and value to the record.
 
-For example:
+For example, to create a dual-stack web server, add a record with two entries similar to the following:
+
 ```bash
-lxc network zone record entry add <network_zone> <record_name> "A" "1.2.3.4"
-lxc network zone record entry add <network_zone> <record_name> "AAAA" "1234::1234"
+lxc network zone record entry add <network_zone> <record_name> A 1.2.3.4
+lxc network zone record entry add <network_zone> <record_name> AAAA 1234::1234
 ```
-You can use the `--ttl` flag to set a custom time-to-live for the entry.
-Otherwise, the default of 300 s is used.
+
+You can use the `--ttl` flag to set a custom time-to-live (in seconds) for the entry.
+Otherwise, the default of 300 seconds is used.
 
 You cannot edit an entry (except if you edit the full record with `lxc network zone record edit`), but you can delete entries with the following command:
 
