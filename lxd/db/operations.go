@@ -40,8 +40,8 @@ type OperationFilter struct {
 	UUID   *string
 }
 
-// GetNodesWithRunningOperations returns a list of nodes that have running operations
-func (c *ClusterTx) GetNodesWithRunningOperations(project string) ([]string, error) {
+// GetNodesWithOperations returns a list of nodes that have operations.
+func (c *ClusterTx) GetNodesWithOperations(project string) ([]string, error) {
 	stmt := `
 SELECT DISTINCT nodes.address
   FROM operations
