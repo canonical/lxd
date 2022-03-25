@@ -697,16 +697,16 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	}
 
 	// Get local address.
-	localAddress, err := node.HTTPSAddress(d.db)
+	localClusterAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
-		return nil, fmt.Errorf("Failed getting member local address: %w", err)
+		return nil, fmt.Errorf("Failed getting member local cluster address: %w", err)
 	}
 
 	memberOnline := func(memberAddress string) bool {
 		for _, node := range nodes {
 			if node.Address == memberAddress {
 				if node.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations by type list", log.Ctx{"name": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat, "opType": opType})
+					logger.Warn("Excluding offline member from operations by type list", log.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat, "opType": opType})
 					return false
 				}
 
@@ -720,7 +720,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	networkCert := d.endpoints.NetworkCert()
 	serverCert := d.serverCert()
 	for memberAddress := range memberOps {
-		if memberAddress == localAddress {
+		if memberAddress == localClusterAddress {
 			continue
 		}
 
@@ -731,7 +731,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 		// Connect to the remote server. Use notify=true to only get local operations on remote member.
 		client, err := cluster.Connect(memberAddress, networkCert, serverCert, r, true)
 		if err != nil {
-			return nil, fmt.Errorf("Failed connecting to %q: %w", memberAddress, err)
+			return nil, fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err)
 		}
 
 		// Get all remote operations in project.
