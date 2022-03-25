@@ -3884,7 +3884,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backup.Conf
 	// Create the storage volume DB records.
 	err := VolumeDBCreate(b, projectName, poolVol.Volume.Name, poolVol.Volume.Description, drivers.VolumeTypeCustom, false, volumeConfig, time.Time{}, drivers.ContentType(poolVol.Volume.ContentType))
 	if err != nil {
-		return fmt.Errorf("Failed creating custom volume %q record in project %q: %w", poolVol.Volume.Name, projectName, err)
+		return err
 	}
 
 	revert.Add(func() { VolumeDBDelete(b, projectName, poolVol.Volume.Name, drivers.VolumeTypeCustom) })
