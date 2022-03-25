@@ -3152,6 +3152,12 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 		"read-only": false,
 	}
 
+	// If driver is "file", QEMU requires the file to be a regular file.
+	// However, if the file is a character or block device, driver needs to be set to "host_device".
+	if shared.IsBlockdevPath(srcDevPath) {
+		blockDev["driver"] = "host_device"
+	}
+
 	readonly := shared.StringInSlice("ro", driveConf.Opts)
 
 	if readonly {
