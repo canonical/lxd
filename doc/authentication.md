@@ -32,7 +32,7 @@ On the next connection, a new certificate is generated.
 The supported protocol must be TLS 1.2 or better.
 All communications must use perfect forward secrecy, and ciphers must be limited to strong elliptic curve ones (such as ECDHE-RSA or ECDHE-ECDSA).
 
-Any generated key should be at least 4096 bit RSA, preferably EC384.
+Any generated key should be at least 4096 bit RSA, preferably 384 bit ECDSA.
 When using signatures, only SHA-2 signatures should be trusted.
 
 Since we control both client and server, there is no reason to support
