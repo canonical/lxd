@@ -542,7 +542,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		membersWithOps, err = tx.GetNodesWithRunningOperations(projectName)
+		membersWithOps, err = tx.GetNodesWithOperations(projectName)
 		if err != nil {
 			return fmt.Errorf("Failed getting members with operations: %w", err)
 		}
