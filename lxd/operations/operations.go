@@ -231,7 +231,13 @@ func (op *Operation) done() {
 	close(op.chanDone)
 	op.lock.Unlock()
 
-	time.AfterFunc(time.Second*5, func() {
+	go func() {
+		select {
+		case <-op.state.ShutdownCtx.Done():
+			return // Expect all operation records to be removed by waitForOperations in one query.
+		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
+		}
+
 		operationsLock.Lock()
 		_, ok := operations[op.id]
 		if !ok {
@@ -250,7 +256,7 @@ func (op *Operation) done() {
 		if err != nil {
 			logger.Warnf("Failed to delete operation %s: %s", op.id, err)
 		}
-	})
+	}()
 }
 
 // Run runs a pending operation. It returns an error if the operation cannot
