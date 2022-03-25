@@ -90,3 +90,48 @@ test_image_import_existing_alias() {
     lxc image import testimage.file --alias newimage
     lxc image delete newimage image2
 }
+
+test_image_refresh() {
+  # shellcheck disable=2039
+  local LXD2_DIR LXD2_ADDR
+  LXD2_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
+  chmod +x "${LXD2_DIR}"
+  spawn_lxd "${LXD2_DIR}" true
+  LXD2_ADDR=$(cat "${LXD2_DIR}/lxd.addr")
+
+  ensure_import_testimage
+
+  lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
+
+  # Publish image
+  lxc image copy testimage l2: --alias testimage --public
+  fp="$(lxc image info l2:testimage | awk '/Fingerprint: / {print $2}')"
+  lxc image rm testimage
+
+  # Create container from published image
+  lxc init l2:testimage c1
+
+  # Create an alias for the received image
+  lxc image alias create testimage "${fp}"
+
+  # Change image and publish it
+  lxc init l2:testimage l2:c1
+  echo test | lxc file push - l2:c1/tmp/testfile
+  lxc publish l2:c1 l2: --alias testimage --public
+  new_fp="$(lxc image info l2:testimage | awk '/Fingerprint: / {print $2}')"
+
+  # Ensure the images differ
+  [ "${fp}" != "${new_fp}" ]
+
+  # Refresh image
+  lxc image refresh testimage
+
+  # Ensure the old image is gone
+  ! lxc image info "${fp}" || false
+
+  # Cleanup
+  lxc rm l2:c1
+  lxc rm c1
+  lxc remote rm l2
+  kill_lxd "${LXD2_DIR}"
+}
