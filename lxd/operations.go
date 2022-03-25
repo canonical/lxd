@@ -536,13 +536,25 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get all nodes with running operations in this project.
-	var nodesWithRunningOps []string
+	var membersWithOps []string
+	var offlineThreshold time.Duration
+	var nodes []db.NodeInfo
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 
-		nodesWithRunningOps, err = tx.GetNodesWithRunningOperations(projectName)
+		membersWithOps, err = tx.GetNodesWithRunningOperations(projectName)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed getting members with operations: %w", err)
+		}
+
+		offlineThreshold, err = tx.GetNodeOfflineThreshold()
+		if err != nil {
+			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
+		}
+
+		nodes, err = tx.GetNodes()
+		if err != nil {
+			return fmt.Errorf("Failed getting members: %w", err)
 		}
 
 		return nil
@@ -554,25 +566,45 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	// Get local address.
 	localClusterAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
-		return response.InternalError(err)
+		return response.InternalError(fmt.Errorf("Failed getting member local cluster address: %w", err))
+	}
+
+	memberOnline := func(memberAddress string) bool {
+		for _, node := range nodes {
+			if node.Address == memberAddress {
+				if node.IsOffline(offlineThreshold) {
+					logger.Warn("Excluding offline member from operations list", log.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat})
+					return false
+				}
+
+				return true
+			}
+		}
+
+		return false
 	}
 
 	networkCert := d.endpoints.NetworkCert()
-	for _, node := range nodesWithRunningOps {
-		if node == localClusterAddress {
+	for _, memberAddress := range membersWithOps {
+		if memberAddress == localClusterAddress {
 			continue
 		}
 
-		// Connect to the remote server.
-		client, err := cluster.Connect(node, networkCert, d.serverCert(), r, true)
+		if !memberOnline(memberAddress) {
+			continue
+		}
+
+		// Connect to the remote server. Use notify=true to only get local operations on remote member.
+		client, err := cluster.Connect(memberAddress, networkCert, d.serverCert(), r, true)
 		if err != nil {
-			return response.SmartError(err)
+			return response.SmartError(fmt.Errorf("Failed connecting to member %q: %w", memberAddress, err))
 		}
 
 		// Get operation data.
 		ops, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
-			return response.SmartError(err)
+			log.Warn("Failed getting operations from member", log.Ctx{"address": memberAddress, "err": err})
+			continue
 		}
 
 		// Merge with existing data.
