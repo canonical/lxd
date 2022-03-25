@@ -40,8 +40,8 @@ EOF
     lxc info c1
 
     lxc storage volume snapshot "${poolName}" vol1_test snap0
-    lxc storage volume ls "${poolName}" | grep vol1_test
-    lxc storage volume ls "${poolName}" | grep -c vol1_test | grep 2
+    lxc storage volume show "${poolName}" vol1_test
+    lxc storage volume show "${poolName}" vol1_test/snap0
 
     # Remove container DB records and symlink.
     lxd sql global "PRAGMA foreign_keys=ON; DELETE FROM instances WHERE name='c1'"
@@ -68,6 +68,8 @@ EOF
     # Check container appears removed.
     ! ls "${LXD_DIR}/containers/test_c1" || false
     ! lxc info c1 || false
+    ! lxc storage volume show "${poolName}" container/c1 || false
+    ! lxc storage volume show "${poolName}" container/c1/snap0 || false
 
     if [ "$poolDriver" != "dir" ] && [ "$poolDriver" != "btrfs" ] && [ "$poolDriver" != "cephfs" ]; then
       ! ls "${LXD_DIR}/storage-pools/${poolName}/containers/test_c1" || false
@@ -75,7 +77,8 @@ EOF
     fi
 
     # Check custom volume appears removed.
-    ! lxc storage volume ls "${poolName}" | grep vol1_test || false
+    ! lxc storage volume show "${poolName}" vol1_test || false
+    ! lxc storage volume show "${poolName}" vol1_test/snap0 || false
 
     # Shutdown LXD so pools are unmounted.
     shutdown_lxd "${LXD_DIR}"
@@ -104,11 +107,14 @@ EOF
     ls "${LXD_DIR}/storage-pools/${poolName}/custom-snapshots/test_vol1_test/snap0"
 
     # Check custom volume record exists with snapshot.
-    lxc storage volume ls "${poolName}" | grep vol1_test
-    lxc storage volume ls "${poolName}" | grep -c vol1_test | grep 2
+    lxc storage volume show "${poolName}" vol1_test
+    lxc storage volume show "${poolName}" vol1_test/snap0
 
     # Check snapshot exists and container can be started.
     lxc info c1 | grep snap0
+    lxc storage volume ls "${poolName}"
+    lxc storage volume show "${poolName}" container/c1
+    lxc storage volume show "${poolName}" container/c1/snap0
     lxc start c1
     lxc exec c1 --project test -- hostname
 
