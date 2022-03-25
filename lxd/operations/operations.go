@@ -127,7 +127,7 @@ type Operation struct {
 // created, it returns an error.
 func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
-	if s != nil && s.Context.Err() == context.Canceled {
+	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, fmt.Errorf("LXD is shutting down")
 	}
 

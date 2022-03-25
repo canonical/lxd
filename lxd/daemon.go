@@ -439,7 +439,7 @@ func (d *Daemon) State() *state.State {
 	}
 
 	return &state.State{
-		Context:                d.shutdownCtx,
+		ShutdownCtx:            d.shutdownCtx,
 		Node:                   d.db,
 		Cluster:                d.cluster,
 		MAAS:                   d.maas,
@@ -1385,7 +1385,7 @@ func (d *Daemon) init() error {
 
 		logger.Info("Starting device monitor")
 
-		d.devmonitor, err = fsmonitor.New(d.State().Context, prefixPath)
+		d.devmonitor, err = fsmonitor.New(d.State().ShutdownCtx, prefixPath)
 		if err != nil {
 			return err
 		}
