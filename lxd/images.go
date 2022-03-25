@@ -1948,6 +1948,12 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 		}
 	}
 
+	// Remove database entry of the old image.
+	err = d.cluster.DeleteImage(id)
+	if err != nil {
+		logger.Debugf("Error deleting image from database: %s", err)
+	}
+
 	setRefreshResult(true)
 	return newInfo, nil
 }
