@@ -26,8 +26,8 @@ import (
 // and the operating system. It's typically used by model entities such as
 // containers, volumes, etc. in order to perform changes.
 type State struct {
-	// Context
-	Context context.Context
+	// Shutdown Context
+	ShutdownCtx context.Context
 
 	// Databases
 	Node    *db.Node

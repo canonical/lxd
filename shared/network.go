@@ -35,9 +35,11 @@ func RFC3493Dialer(network string, address string) (net.Conn, error) {
 		return nil, err
 	}
 
+	var errs []error
 	for _, a := range addrs {
 		c, err := net.DialTimeout(network, net.JoinHostPort(a, port), 10*time.Second)
 		if err != nil {
+			errs = append(errs, err)
 			continue
 		}
 
@@ -46,10 +48,10 @@ func RFC3493Dialer(network string, address string) (net.Conn, error) {
 			tc.SetKeepAlivePeriod(3 * time.Second)
 		}
 
-		return c, err
+		return c, nil
 	}
 
-	return nil, fmt.Errorf("%s: %s", connectErrorPrefix, address)
+	return nil, fmt.Errorf("%s: %s (%v)", connectErrorPrefix, address, errs)
 }
 
 // IsConnectionError returns true if the given error is due to the dialer not being able to connect to the target
