@@ -159,7 +159,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 				t := time.NewTimer(time.Duration(time.Minute))
 
 				select {
-				case <-s.Context.Done():
+				case <-s.ShutdownCtx.Done():
 					t.Stop()
 					return
 				case <-t.C:
