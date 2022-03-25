@@ -6,6 +6,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -697,7 +698,7 @@ SELECT storage_pools.name FROM storage_pools
 	err := c.tx.QueryRow(query, inargs...).Scan(outargs...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", ErrNoSuchObject
+			return "", api.StatusErrorf(http.StatusNotFound, "Instance storage pool not found")
 		}
 
 		return "", err
