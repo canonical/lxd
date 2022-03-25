@@ -29,7 +29,7 @@ func NewTestState(t *testing.T) (*State, func()) {
 	}
 
 	state := &State{
-		Context:                context.TODO(),
+		ShutdownCtx:            context.TODO(),
 		Node:                   node,
 		Cluster:                cluster,
 		OS:                     os,
