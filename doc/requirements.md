@@ -1,6 +1,6 @@
 # Requirements
 ## Go
-LXD requires Go 1.16 or higher and is only tested with the golang compiler.
+LXD requires Go 1.18 or higher and is only tested with the golang compiler.
 
 We recommend having at least 2GB of RAM to allow the build to complete.
 
@@ -31,10 +31,7 @@ To run recent version of various distributions, including Ubuntu, LXCFS
 should also be installed.
 
 ## QEMU
-For virtual machines, QEMU 4.2 or higher is preferred.
-Older versions, as far back as QEMU 2.11 have been reported to work
-properly, but support for those may accidentally regress in future LXD
-releases.
+For virtual machines, QEMU 6.0 or higher is required.
 
 ## Additional libraries (and development headers)
 LXD uses `dqlite` for its database, to build and setup it, you can
@@ -44,6 +41,7 @@ LXD itself also uses a number of (usually packaged) C libraries:
 
  - libacl1
  - libcap2
+ - liblz4 (for `dqlite`)
  - libuv1 (for `dqlite`)
  - libsqlite3 >= 3.25.0 (for `dqlite`)
 
