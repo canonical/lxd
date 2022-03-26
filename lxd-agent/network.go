@@ -73,11 +73,6 @@ func serverTLSConfig() (*tls.Config, error) {
 	}
 
 	tlsConfig := util.ServerTLSConfig(certInfo)
-	tlsConfig.CipherSuites = []uint16{
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	}
-
 	return tlsConfig, nil
 }
 
