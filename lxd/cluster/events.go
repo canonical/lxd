@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/endpoints"
@@ -69,8 +67,8 @@ func (lc *eventListenerClient) SetEventMode(eventMode EventMode, eventHubPushCh 
 		go func() {
 			lc.hubPushCancel = cancel
 			info, _ := lc.client.GetConnectionInfo()
-			logger.Info("Event hub client started", log.Ctx{"remote": info.URL})
-			defer logger.Info("Event hub client stopped", log.Ctx{"remote": info.URL})
+			logger.Info("Event hub client started", logger.Ctx{"remote": info.URL})
+			defer logger.Info("Event hub client stopped", logger.Ctx{"remote": info.URL})
 			defer func() {
 				cancel()
 				lc.hubPushCancel = nil
@@ -244,7 +242,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
+			logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err})
 			return
 		}
 
@@ -296,7 +294,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			listenersLock.Unlock()
 
 			// Log after releasing listenersLock to avoid deadlock on listenersLock with EventHubPush.
-			logger.Info("Removed inactive member event listener client", log.Ctx{"local": localAddress, "remote": member.Address})
+			logger.Info("Removed inactive member event listener client", logger.Ctx{"local": localAddress, "remote": member.Address})
 		} else {
 			listenersLock.Unlock()
 		}
@@ -306,12 +304,12 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		// Connect to remote concurrently and add to active listeners if successful.
 		wg.Add(1)
 		go func(m APIHeartbeatMember) {
-			logger := logging.AddContext(logger.Log, log.Ctx{"local": localAddress, "remote": m.Address})
+			l := logging.AddContext(logger.Log, logger.Ctx{"local": localAddress, "remote": m.Address})
 
 			defer wg.Done()
 			listener, err := eventsConnect(m.Address, endpoints.NetworkCert(), serverCert())
 			if err != nil {
-				logger.Warn("Failed adding member event listener client", log.Ctx{"err": err})
+				l.Warn("Failed adding member event listener client", logger.Ctx{"err": err})
 				return
 			}
 
@@ -337,7 +335,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 			listenersLock.Unlock()
 
 			// Log after releasing listenersLock to avoid deadlock on listenersLock with EventHubPush.
-			logger.Info("Added member event listener client")
+			l.Info("Added member event listener client")
 		}(member)
 	}
 	wg.Wait()
@@ -366,11 +364,11 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 
 	// Log the listeners removed after releasing listenersLock.
 	for _, removedAddress := range removedAddresses {
-		logger.Info("Removed old member event listener client", log.Ctx{"local": localAddress, "remote": removedAddress})
+		logger.Info("Removed old member event listener client", logger.Ctx{"local": localAddress, "remote": removedAddress})
 	}
 
 	if len(members) > 1 && len(keepListeners) <= 0 {
-		logger.Error("No active cluster event listener clients", log.Ctx{"local": localAddress})
+		logger.Error("No active cluster event listener clients", logger.Ctx{"local": localAddress})
 	}
 }
 

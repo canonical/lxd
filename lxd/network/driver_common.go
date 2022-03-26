@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -70,7 +68,7 @@ type common struct {
 
 // init initialise internal variables.
 func (n *common) init(state *state.State, id int64, projectName string, netInfo *api.Network, netNodes map[int64]db.NetworkNode) {
-	n.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
+	n.logger = logging.AddContext(logger.Log, logger.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
 	n.id = id
 	n.project = projectName
 	n.name = netInfo.Name
@@ -443,7 +441,7 @@ func (n *common) delete(clientType request.ClientType) error {
 
 // Create is a no-op.
 func (n *common) Create(clientType request.ClientType) error {
-	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
+	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 	return nil
 }
 
@@ -467,7 +465,7 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 		return err
 	})
 	if err != nil {
-		n.logger.Error("Failed to load projects", log.Ctx{"err": err})
+		n.logger.Error("Failed to load projects", logger.Ctx{"err": err})
 		return
 	}
 
@@ -475,14 +473,14 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 		// Get a list of managed networks in project.
 		depNets, err := n.state.Cluster.GetCreatedNetworks(projectName)
 		if err != nil {
-			n.logger.Error("Failed to load networks in project", log.Ctx{"project": projectName, "err": err})
+			n.logger.Error("Failed to load networks in project", logger.Ctx{"project": projectName, "err": err})
 			continue // Continue to next project.
 		}
 
 		for _, depName := range depNets {
 			depNet, err := LoadByName(n.state, projectName, depName)
 			if err != nil {
-				n.logger.Error("Failed to load dependent network", log.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
+				n.logger.Error("Failed to load dependent network", logger.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
 				continue // Continue to next network.
 			}
 
@@ -492,7 +490,7 @@ func (n *common) notifyDependentNetworks(changedKeys []string) {
 
 			err = depNet.handleDependencyChange(n.Name(), n.Config(), changedKeys)
 			if err != nil {
-				n.logger.Error("Failed notifying dependent network", log.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
+				n.logger.Error("Failed notifying dependent network", logger.Ctx{"project": projectName, "dependentNetwork": depName, "err": err})
 				continue // Continue to next network.
 			}
 		}

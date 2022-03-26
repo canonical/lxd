@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -179,19 +177,19 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 			hbNode.updated = true
 			heartbeatData.Members[nodeID] = hbNode
 			heartbeatData.Unlock()
-			logger.Debug("Successful heartbeat", log.Ctx{"remote": address})
+			logger.Debug("Successful heartbeat", logger.Ctx{"remote": address})
 
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(hbState.cluster, "", db.WarningOfflineClusterMember, cluster.TypeNode, int(nodeID))
 			if err != nil {
-				logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+				logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
 		} else {
-			logger.Warn("Failed heartbeat", log.Ctx{"remote": address, "err": err})
+			logger.Warn("Failed heartbeat", logger.Ctx{"remote": address, "err": err})
 
 			if ctx.Err() == nil {
 				err = hbState.cluster.UpsertWarningLocalNode("", cluster.TypeNode, int(nodeID), db.WarningOfflineClusterMember, err.Error())
 				if err != nil {
-					logger.Warn("Failed to create warning", log.Ctx{"err": err})
+					logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 				}
 			}
 		}
@@ -317,14 +315,14 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 			return
 		}
 
-		logger.Error("Failed to get current raft members", log.Ctx{"err": err})
+		logger.Error("Failed to get current raft members", logger.Ctx{"err": err})
 		return
 	}
 
 	// Address of this node.
 	localAddress, err := node.ClusterAddress(g.db)
 	if err != nil {
-		logger.Error("Failed to fetch local cluster address", log.Ctx{"err": err})
+		logger.Error("Failed to fetch local cluster address", logger.Ctx{"err": err})
 	}
 
 	var allNodes []db.NodeInfo
@@ -338,7 +336,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err})
+		logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err})
 		return
 	}
 
@@ -352,27 +350,27 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	if mode != hearbeatNormal {
 		// Log unscheduled heartbeats with a higher level than normal heartbeats.
-		logger.Info("Starting heartbeat round", log.Ctx{"mode": modeStr, "local": localAddress})
+		logger.Info("Starting heartbeat round", logger.Ctx{"mode": modeStr, "local": localAddress})
 	} else {
 		// Don't spam the normal log with regular heartbeat messages.
-		logger.Debug("Starting heartbeat round", log.Ctx{"mode": modeStr, "local": localAddress})
+		logger.Debug("Starting heartbeat round", logger.Ctx{"mode": modeStr, "local": localAddress})
 	}
 
 	// Replace the local raft_nodes table immediately because it
 	// might miss a row containing ourselves, since we might have
 	// been elected leader before the former leader had chance to
 	// send us a fresh update through the heartbeat pool.
-	logger.Debug("Heartbeat updating local raft members", log.Ctx{"members": raftNodes})
+	logger.Debug("Heartbeat updating local raft members", logger.Ctx{"members": raftNodes})
 	err = g.db.Transaction(func(tx *db.NodeTx) error {
 		return tx.ReplaceRaftNodes(raftNodes)
 	})
 	if err != nil {
-		logger.Warn("Failed to replace local raft members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+		logger.Warn("Failed to replace local raft members", logger.Ctx{"err": err, "mode": modeStr, "local": localAddress})
 		return
 	}
 
 	if localAddress == "" {
-		logger.Error("No local address set, aborting heartbeat round", log.Ctx{"mode": modeStr})
+		logger.Error("No local address set, aborting heartbeat round", logger.Ctx{"mode": modeStr})
 		return
 	}
 
@@ -421,7 +419,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "mode": modeStr, "local": localAddress})
+			logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "mode": modeStr, "local": localAddress})
 			return
 		}
 
@@ -479,13 +477,13 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 		})
 	})
 	if err != nil {
-		logger.Error("Failed updating cluster heartbeats", log.Ctx{"err": err})
+		logger.Error("Failed updating cluster heartbeats", logger.Ctx{"err": err})
 		return
 	}
 
 	// If the context has been cancelled, return prematurely after saving the members we did manage to ping.
 	if ctxErr != nil {
-		logger.Warn("Aborting heartbeat round", log.Ctx{"err": ctxErr, "mode": modeStr, "local": localAddress})
+		logger.Warn("Aborting heartbeat round", logger.Ctx{"err": ctxErr, "mode": modeStr, "local": localAddress})
 		return
 	}
 
@@ -496,16 +494,16 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 
 	duration := time.Now().Sub(startTime)
 	if duration > heartbeatInterval {
-		logger.Warn("Heartbeat round duration greater than heartbeat interval", log.Ctx{"duration": duration, "interval": heartbeatInterval})
+		logger.Warn("Heartbeat round duration greater than heartbeat interval", logger.Ctx{"duration": duration, "interval": heartbeatInterval})
 	}
 
 	// Update last leader heartbeat time so next time a full node state list can be sent (if not this time).
-	logger.Debug("Completed heartbeat round", log.Ctx{"duration": duration, "local": localAddress})
+	logger.Debug("Completed heartbeat round", logger.Ctx{"duration": duration, "local": localAddress})
 }
 
 // HeartbeatNode performs a single heartbeat request against the node with the given address.
 func HeartbeatNode(taskCtx context.Context, address string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, heartbeatData *APIHeartbeat) error {
-	logger.Debug("Sending heartbeat request", log.Ctx{"address": address})
+	logger.Debug("Sending heartbeat request", logger.Ctx{"address": address})
 
 	config, err := tlsClientConfig(networkCert, serverCert)
 	if err != nil {

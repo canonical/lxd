@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
@@ -31,6 +30,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -784,7 +784,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					if err != nil {
 						var errUnsupported UnsupportedError
 						if errors.As(err, &errUnsupported) {
-							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", log.Ctx{"err": errUnsupported})
+							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
 							if errUnsupported == ErrMissingVirtiofsd {
 								d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
@@ -1391,7 +1391,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	if poolVolumePut.Config["volatile.idmap.last"] != "" {
 		lastIdmap, err = idmap.JSONUnmarshal(poolVolumePut.Config["volatile.idmap.last"])
 		if err != nil {
-			d.logger.Error("Failed to unmarshal last idmapping", log.Ctx{"idmap": poolVolumePut.Config["volatile.idmap.last"], "err": err})
+			d.logger.Error("Failed to unmarshal last idmapping", logger.Ctx{"idmap": poolVolumePut.Config["volatile.idmap.last"], "err": err})
 			return err
 		}
 	}
@@ -1481,11 +1481,11 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 			}
 
 			if err != nil {
-				d.logger.Error("Failed to unshift", log.Ctx{"path": remapPath, "err": err})
+				d.logger.Error("Failed to unshift", logger.Ctx{"path": remapPath, "err": err})
 				return err
 			}
 
-			d.logger.Debug("Unshifted", log.Ctx{"path": remapPath})
+			d.logger.Debug("Unshifted", logger.Ctx{"path": remapPath})
 		}
 
 		// Shift rootfs.
@@ -1499,11 +1499,11 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 			}
 
 			if err != nil {
-				d.logger.Error("Failed to shift", log.Ctx{"path": remapPath, "err": err})
+				d.logger.Error("Failed to shift", logger.Ctx{"path": remapPath, "err": err})
 				return err
 			}
 
-			d.logger.Debug("Shifted", log.Ctx{"path": remapPath})
+			d.logger.Debug("Shifted", logger.Ctx{"path": remapPath})
 		}
 		d.logger.Debug("Shifted storage volume")
 	}
@@ -1513,7 +1513,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 		var err error
 		jsonIdmap, err = idmap.JSONMarshal(nextIdmap)
 		if err != nil {
-			d.logger.Error("Failed to marshal idmap", log.Ctx{"idmap": nextIdmap, "err": err})
+			d.logger.Error("Failed to marshal idmap", logger.Ctx{"idmap": nextIdmap, "err": err})
 			return err
 		}
 	}
@@ -1602,7 +1602,7 @@ func (d *disk) postStop() error {
 		v := d.volatileGet()
 		err := diskCephRbdUnmap(v["ceph_rbd"])
 		if err != nil {
-			d.logger.Error("Failed to unmap RBD volume", log.Ctx{"rbd": v["ceph_rbd"], "err": err})
+			d.logger.Error("Failed to unmap RBD volume", logger.Ctx{"rbd": v["ceph_rbd"], "err": err})
 		}
 	}
 

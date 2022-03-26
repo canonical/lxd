@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -338,7 +336,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 				if instPoolVol != nil {
 					// Create storage pool DB record from config in the instance.
-					logger.Info("Creating storage pool DB record from instance config", log.Ctx{"name": instPoolVol.Pool.Name, "description": instPoolVol.Pool.Description, "driver": instPoolVol.Pool.Driver, "config": instPoolVol.Pool.Config})
+					logger.Info("Creating storage pool DB record from instance config", logger.Ctx{"name": instPoolVol.Pool.Name, "description": instPoolVol.Pool.Description, "driver": instPoolVol.Pool.Driver, "config": instPoolVol.Pool.Config})
 					poolID, err = dbStoragePoolCreateAndUpdateCache(d.State(), instPoolVol.Pool.Name, instPoolVol.Pool.Description, instPoolVol.Pool.Driver, instPoolVol.Pool.Config)
 					if err != nil {
 						return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
@@ -348,7 +346,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 					// instance volume pool config found.
 					poolDriverName := pool.Driver().Info().Name
 					poolDriverConfig := pool.Driver().Config()
-					logger.Info("Creating storage pool DB record from user config", log.Ctx{"name": pool.Name(), "driver": poolDriverName, "config": poolDriverConfig})
+					logger.Info("Creating storage pool DB record from user config", logger.Ctx{"name": pool.Name(), "driver": poolDriverName, "config": poolDriverConfig})
 					poolID, err = dbStoragePoolCreateAndUpdateCache(d.State(), pool.Name(), "", poolDriverName, poolDriverConfig)
 					if err != nil {
 						return response.SmartError(fmt.Errorf("Failed creating storage pool %q database entry: %w", pool.Name(), err))
@@ -367,7 +365,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed marking storage pool %q local status as created: %w", pool.Name(), err))
 				}
-				logger.Debug("Marked storage pool local status as created", log.Ctx{"pool": pool.Name()})
+				logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": pool.Name()})
 
 				newPool, err := storagePools.LoadByName(d.State(), pool.Name())
 				if err != nil {

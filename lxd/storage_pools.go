@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -329,7 +328,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	requestor := request.CreateRequestor(r)
 
-	ctx := log.Ctx{}
+	ctx := logger.Ctx{}
 	if targetNode != "" {
 		ctx["target"] = targetNode
 	}
@@ -420,7 +419,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 				return fmt.Errorf("Storage pool already partially created. Please do not specify any global config when re-running create")
 			}
 
-			logger.Debug("Skipping global storage pool create as global config already partially created", log.Ctx{"pool": req.Name})
+			logger.Debug("Skipping global storage pool create as global config already partially created", logger.Ctx{"pool": req.Name})
 			return nil
 		}
 
@@ -476,7 +475,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		return err
 	}
 	req.Config = updatedConfig
-	logger.Debug("Created storage pool on local cluster member", log.Ctx{"pool": req.Name})
+	logger.Debug("Created storage pool on local cluster member", logger.Ctx{"pool": req.Name})
 
 	// Strip node specific config keys from config. Very important so we don't forward node-specific config.
 	for _, k := range db.StoragePoolNodeConfigKeys {
@@ -501,7 +500,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		if err != nil {
 			return err
 		}
-		logger.Debug("Created storage pool on cluster member", log.Ctx{"pool": req.Name, "member": server.Environment.ServerName})
+		logger.Debug("Created storage pool on cluster member", logger.Ctx{"pool": req.Name, "member": server.Environment.ServerName})
 
 		return nil
 	})
@@ -516,7 +515,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	if err != nil {
 		return err
 	}
-	logger.Debug("Marked storage pool global status as created", log.Ctx{"pool": req.Name})
+	logger.Debug("Marked storage pool global status as created", logger.Ctx{"pool": req.Name})
 
 	return nil
 }
@@ -738,7 +737,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	requestor := request.CreateRequestor(r)
 
-	ctx := log.Ctx{}
+	ctx := logger.Ctx{}
 	if targetNode != "" {
 		ctx["target"] = targetNode
 	}

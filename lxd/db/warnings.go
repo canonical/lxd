@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/shared"
@@ -285,7 +284,7 @@ func (w Warning) ToAPI(c *Cluster) (api.Warning, error) {
 
 	entity, err := c.GetURIFromEntity(w.EntityTypeCode, w.EntityID)
 	if err != nil {
-		logger.Warn("Failed to get entity URI for warning", log.Ctx{"ID": w.UUID, "entityID": w.EntityID, "entityTypeCode": w.EntityTypeCode, "err": err})
+		logger.Warn("Failed to get entity URI for warning", logger.Ctx{"ID": w.UUID, "entityID": w.EntityID, "entityTypeCode": w.EntityTypeCode, "err": err})
 	}
 
 	return api.Warning{

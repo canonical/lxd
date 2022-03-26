@@ -6,8 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
@@ -116,7 +114,7 @@ func unixRunHandlers(state *state.State, event *UnixEvent) {
 		// Run handler function.
 		runConf, err := sub.Handler(*event)
 		if err != nil {
-			logger.Error("Unix event hook failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName, "path": sub.Path})
+			logger.Error("Unix event hook failed", logger.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName, "path": sub.Path})
 			continue
 		}
 
@@ -125,13 +123,13 @@ func unixRunHandlers(state *state.State, event *UnixEvent) {
 		if runConf != nil {
 			instance, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 			if err != nil {
-				logger.Error("Unix event loading instance failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
+				logger.Error("Unix event loading instance failed", logger.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 				continue
 			}
 
 			err = instance.DeviceEventHandler(runConf)
 			if err != nil {
-				logger.Error("Unix event instance handler failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
+				logger.Error("Unix event instance handler failed", logger.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 				continue
 			}
 		}

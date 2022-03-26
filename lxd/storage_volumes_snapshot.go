@@ -12,7 +12,6 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -987,7 +986,7 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 		// Get the list of expired custom volume snapshots.
 		expiredSnapshots, err := d.cluster.GetExpiredStorageVolumeSnapshots()
 		if err != nil {
-			logger.Error("Unable to retrieve the list of expired custom volume snapshots", log.Ctx{"err": err})
+			logger.Error("Unable to retrieve the list of expired custom volume snapshots", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1001,14 +1000,14 @@ func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) 
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationCustomVolumeSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start expired custom volume snapshots operation", log.Ctx{"err": err})
+			logger.Error("Failed to start expired custom volume snapshots operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Pruning expired custom volume snapshots")
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to expire backups", log.Ctx{"err": err})
+			logger.Error("Failed to expire backups", logger.Ctx{"err": err})
 		}
 		logger.Info("Done pruning expired custom volume snapshots")
 	}
@@ -1079,7 +1078,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		allVolumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
 		if err != nil {
-			logger.Error("Failed getting volumes for auto custom volume snapshot task", log.Ctx{"err": err})
+			logger.Error("Failed getting volumes for auto custom volume snapshot task", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1105,7 +1104,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			if v.NodeID == localNodeID {
 				// Always include local volumes.
 				volumes = append(volumes, v)
-				logger.Debug("Scheduling local auto custom volume snapshot", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+				logger.Debug("Scheduling local auto custom volume snapshot", logger.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
 			} else if v.NodeID < 0 {
 				// Keep a separate list of remote volumes in order to select a member to perform
 				// the snapshot later.
@@ -1144,7 +1143,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				return nil
 			})
 			if err != nil {
-				logger.Error("Failed getting online cluster members for auto custom volume snapshot task", log.Ctx{"err": err})
+				logger.Error("Failed getting online cluster members for auto custom volume snapshot task", logger.Ctx{"err": err})
 				return
 			}
 
@@ -1162,7 +1161,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 					if nodeCount > 1 {
 						selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), onlineNodeIDs)
 						if err != nil {
-							logger.Error("Failed scheduling remote auto custom volume snapshot task", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName, "err": err})
+							logger.Error("Failed scheduling remote auto custom volume snapshot task", logger.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName, "err": err})
 							continue
 						}
 
@@ -1172,7 +1171,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 						}
 					}
 
-					logger.Debug("Scheduling remote auto custom volume snapshot", log.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+					logger.Debug("Scheduling remote auto custom volume snapshot", logger.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
 					volumes = append(volumes, v)
 				}
 			}
@@ -1189,7 +1188,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationVolumeSnapshotCreate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start create volume snapshot operation", log.Ctx{"err": err})
+			logger.Error("Failed to start create volume snapshot operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1197,7 +1196,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to create scheduled volume snapshots", log.Ctx{"err": err})
+			logger.Error("Failed to create scheduled volume snapshots", logger.Ctx{"err": err})
 		}
 
 		logger.Info("Done creating scheduled volume snapshots")
@@ -1226,28 +1225,28 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 		go func() {
 			snapshotName, err := volumeDetermineNextSnapshotName(d, v, "snap%d")
 			if err != nil {
-				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "volume": v})
+				logger.Error("Error retrieving next snapshot name", logger.Ctx{"err": err, "volume": v})
 				ch <- struct{}{}
 				return
 			}
 
 			expiry, err := shared.GetSnapshotExpiry(time.Now(), v.Config["snapshots.expiry"])
 			if err != nil {
-				logger.Error("Error getting expiry date", log.Ctx{"err": err, "volume": v})
+				logger.Error("Error getting expiry date", logger.Ctx{"err": err, "volume": v})
 				ch <- struct{}{}
 				return
 			}
 
 			pool, err := storagePools.LoadByName(d.State(), v.PoolName)
 			if err != nil {
-				logger.Error("Error retrieving pool", log.Ctx{"err": err, "pool": v.PoolName})
+				logger.Error("Error retrieving pool", logger.Ctx{"err": err, "pool": v.PoolName})
 				ch <- struct{}{}
 				return
 			}
 
 			err = pool.CreateCustomVolumeSnapshot(v.ProjectName, v.Name, snapshotName, expiry, nil)
 			if err != nil {
-				logger.Error("Error creating volume snapshot", log.Ctx{"err": err, "volume": v})
+				logger.Error("Error creating volume snapshot", logger.Ctx{"err": err, "volume": v})
 			}
 
 			ch <- struct{}{}

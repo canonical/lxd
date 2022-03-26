@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -858,7 +857,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	// to run the hook (this should be quick as it will fail showing instance is already running).
 	op := operationlock.Get(d.Project(), d.Name())
 	if op != nil && !op.ActionMatch(operationlock.ActionStop, operationlock.ActionRestart, operationlock.ActionRestore) {
-		d.logger.Debug("Waiting for existing operation lock to finish before running hook", log.Ctx{"action": op.Action()})
+		d.logger.Debug("Waiting for existing operation lock to finish before running hook", logger.Ctx{"action": op.Action()})
 		op.Wait()
 		op = nil
 	}
@@ -866,7 +865,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 	instanceInitiated := false
 
 	if op == nil {
-		d.logger.Debug("Instance initiated stop", log.Ctx{"action": target})
+		d.logger.Debug("Instance initiated stop", logger.Ctx{"action": target})
 		instanceInitiated = true
 
 		action := operationlock.ActionStop

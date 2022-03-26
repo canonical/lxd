@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -18,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -526,7 +526,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r), log.Ctx{"old_name": name}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkACLRenamed.Event(netACL, request.CreateRequestor(r), logger.Ctx{"old_name": name}))
 
 	url := fmt.Sprintf("/%s/network-acls/%s", version.APIVersion, req.Name)
 	return response.SyncResponseLocation(true, nil, url)

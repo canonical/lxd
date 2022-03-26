@@ -9,12 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/instance/drivers/qmp"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/metrics"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -29,28 +28,28 @@ func (d *qemu) getQemuMetrics() (*metrics.MetricSet, error) {
 
 	cpuStats, err := d.getQemuCPUMetrics(monitor)
 	if err != nil {
-		d.logger.Warn("Failed to get CPU metrics", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get CPU metrics", logger.Ctx{"err": err})
 	} else {
 		out.CPU = cpuStats
 	}
 
 	memoryStats, err := d.getQemuMemoryMetrics(monitor)
 	if err != nil {
-		d.logger.Warn("Failed to get memory metrics", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get memory metrics", logger.Ctx{"err": err})
 	} else {
 		out.Memory = memoryStats
 	}
 
 	diskStats, err := d.getQemuDiskMetrics(monitor)
 	if err != nil {
-		d.logger.Warn("Failed to get disk metrics", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get disk metrics", logger.Ctx{"err": err})
 	} else {
 		out.Disk = diskStats
 	}
 
 	networkState, err := d.getNetworkState()
 	if err != nil {
-		d.logger.Warn("Failed to get network metrics", log.Ctx{"err": err})
+		d.logger.Warn("Failed to get network metrics", logger.Ctx{"err": err})
 	} else {
 
 		out.Network = make(map[string]metrics.NetworkMetrics)

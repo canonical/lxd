@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -93,14 +92,14 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationInstanceTypesUpdate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start instance types update operation", log.Ctx{"err": err})
+			logger.Error("Failed to start instance types update operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Updating instance types")
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to update instance types", log.Ctx{"err": err})
+			logger.Error("Failed to update instance types", logger.Ctx{"err": err})
 		}
 		logger.Infof("Done updating instance types")
 	}

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
@@ -50,7 +48,7 @@ func (r *operationResponse) Render(w http.ResponseWriter) error {
 
 	var debugLogger logger.Logger
 	if debug {
-		debugLogger = logging.AddContext(logger.Log, log.Ctx{"http_code": code})
+		debugLogger = logging.AddContext(logger.Log, logger.Ctx{"http_code": code})
 	}
 
 	return util.WriteJSON(w, body, debugLogger)
@@ -103,7 +101,7 @@ func (r *forwardedOperationResponse) Render(w http.ResponseWriter) error {
 
 	var debugLogger logger.Logger
 	if debug {
-		debugLogger = logging.AddContext(logger.Log, log.Ctx{"http_code": code})
+		debugLogger = logging.AddContext(logger.Log, logger.Ctx{"http_code": code})
 	}
 
 	return util.WriteJSON(w, body, debugLogger)

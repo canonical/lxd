@@ -12,7 +12,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
@@ -23,6 +22,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -1026,7 +1026,7 @@ func (d *ceph) ListVolumes() ([]Volume, error) {
 		}
 
 		if volType == "" {
-			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": rawName})
+			d.logger.Debug("Ignoring unrecognised volume type", logger.Ctx{"name": rawName})
 			continue // Ignore unrecognised volume.
 		}
 
@@ -1113,7 +1113,7 @@ func (d *ceph) MountVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
-			d.logger.Debug("Mounted RBD volume", log.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
+			d.logger.Debug("Mounted RBD volume", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 		}
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, mount the filesystem volume.
@@ -1145,7 +1145,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 		mountPath := vol.MountPath()
 		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
@@ -1153,7 +1153,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 			if err != nil {
 				return false, err
 			}
-			d.logger.Debug("Unmounted RBD volume", log.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
+			d.logger.Debug("Unmounted RBD volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
 
 			// Attempt to unmap.
 			if !keepBlockDev {
@@ -1180,7 +1180,7 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 			_, devPath, _ := d.getRBDMappedDevPath(vol, false)
 			if devPath != "" && shared.PathExists(devPath) {
 				if refCount > 0 {
-					d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+					d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 					return false, ErrInUse
 				}
 
@@ -1562,7 +1562,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 		if err != nil {
 			return false, err
 		}
-		d.logger.Debug("Mounted RBD volume snapshot", log.Ctx{"dev": rbdDevPath, "path": mountPath, "options": mountOptions})
+		d.logger.Debug("Mounted RBD volume snapshot", logger.Ctx{"dev": rbdDevPath, "path": mountPath, "options": mountOptions})
 
 		revert.Success()
 
@@ -1600,7 +1600,7 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 		if err != nil {
 			return false, err
 		}
-		d.logger.Debug("Unmounted RBD volume snapshot", log.Ctx{"path": mountPath})
+		d.logger.Debug("Unmounted RBD volume snapshot", logger.Ctx{"path": mountPath})
 
 		parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
 		cloneName := fmt.Sprintf("%s_%s_start_clone", parentName, snapshotOnlyName)

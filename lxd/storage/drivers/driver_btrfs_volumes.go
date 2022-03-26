@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/archive"
@@ -28,6 +27,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -262,7 +262,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 			// Define where we will move the subvolume after it is unpacked.
 			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
 
-			d.Logger().Debug("Unpacking optimized volume", log.Ctx{"name": v.name, "source": srcFilePath, "unpackPath": tmpUnpackDir, "path": subVolTargetPath})
+			d.Logger().Debug("Unpacking optimized volume", logger.Ctx{"name": v.name, "source": srcFilePath, "unpackPath": tmpUnpackDir, "path": subVolTargetPath})
 
 			// Unpack the volume into the temporary unpackDir.
 			unpackedSubVolPath, err := unpackSubVolume(srcData, unpacker, srcFilePath, tmpUnpackDir)
@@ -341,7 +341,7 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		}
 
 		path := filepath.Join(v.MountPath(), subVol.Path)
-		d.logger.Debug("Setting subvolume readonly", log.Ctx{"name": v.name, "path": path})
+		d.logger.Debug("Setting subvolume readonly", logger.Ctx{"name": v.name, "path": path})
 		err = d.setSubvolumeReadonlyProperty(path, true)
 		if err != nil {
 			return nil, nil, err
@@ -468,7 +468,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 			return fmt.Errorf("Failed decoding migration header: %w", err)
 		}
 
-		d.logger.Debug("Received migration meta data header", log.Ctx{"name": vol.name})
+		d.logger.Debug("Received migration meta data header", logger.Ctx{"name": vol.name})
 	} else {
 		// Populate the migrationHeader subvolumes with root volumes only to support older LXD sources.
 		for _, snapName := range volTargetArgs.Snapshots {
@@ -541,7 +541,7 @@ func (d *btrfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, v
 			return fmt.Errorf("Failed closing migration header frame: %w", err)
 		}
 
-		d.logger.Debug("Sent migration meta data header", log.Ctx{"name": vol.name, "header": migrationHeader})
+		d.logger.Debug("Sent migration meta data header", logger.Ctx{"name": vol.name, "header": migrationHeader})
 	} else {
 		syncSubvolumes = migrationHeader.Subvolumes
 	}
@@ -563,7 +563,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 			}
 
 			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
-			d.logger.Debug("Receiving volume", log.Ctx{"name": v.name, "receivePath": receivePath, "path": subVolTargetPath})
+			d.logger.Debug("Receiving volume", logger.Ctx{"name": v.name, "receivePath": receivePath, "path": subVolTargetPath})
 			subVolRecvPath, err := d.receiveSubVolume(conn, receivePath)
 			if err != nil {
 				return err
@@ -642,7 +642,7 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 		}
 
 		path := filepath.Join(v.MountPath(), subVol.Path)
-		d.logger.Debug("Setting subvolume readonly", log.Ctx{"name": v.name, "path": path})
+		d.logger.Debug("Setting subvolume readonly", logger.Ctx{"name": v.name, "path": path})
 		err = d.setSubvolumeReadonlyProperty(path, true)
 		if err != nil {
 			return err
@@ -1052,7 +1052,7 @@ func (d *btrfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Oper
 
 	refCount := vol.MountRefCountDecrement()
 	if refCount > 0 {
-		d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+		d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 		return false, ErrInUse
 	}
 
@@ -1100,7 +1100,7 @@ func (d *btrfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 		return "", nil, err
 	}
 
-	d.logger.Debug("Created read-only backup snapshot", log.Ctx{"sourcePath": sourcePath, "path": mountPath})
+	d.logger.Debug("Created read-only backup snapshot", logger.Ctx{"sourcePath": sourcePath, "path": mountPath})
 
 	defer reverter.Success()
 	return mountPath, reverter.Clone(), nil
@@ -1168,7 +1168,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 			return fmt.Errorf("Failed closing migration header frame: %w", err)
 		}
 
-		d.logger.Debug("Sent migration meta data header", log.Ctx{"name": vol.name})
+		d.logger.Debug("Sent migration meta data header", logger.Ctx{"name": vol.name})
 	}
 
 	if volSrcArgs.Refresh && shared.StringInSlice(migration.BTRFSFeatureSubvolumeUUIDs, volSrcArgs.MigrationType.Features) {
@@ -1184,7 +1184,7 @@ func (d *btrfs) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *m
 			return fmt.Errorf("Failed decoding migration header: %w", err)
 		}
 
-		d.logger.Debug("Received migration meta data header", log.Ctx{"name": vol.name})
+		d.logger.Debug("Received migration meta data header", logger.Ctx{"name": vol.name})
 
 		volSrcArgs.Snapshots = []string{}
 
@@ -1253,7 +1253,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 				defer d.setSubvolumeReadonlyProperty(sourcePath, false)
 			}
 
-			d.logger.Debug("Sending subvolume", log.Ctx{"name": v.name, "source": sourcePath, "parent": parentPath, "path": subVolume.Path})
+			d.logger.Debug("Sending subvolume", logger.Ctx{"name": v.name, "source": sourcePath, "parent": parentPath, "path": subVolume.Path})
 			err := d.sendSubvolume(sourcePath, parentPath, conn, wrapper)
 			if err != nil {
 				return fmt.Errorf("Failed sending volume %v:%s: %w", v.name, subVolume.Path, err)
@@ -1408,7 +1408,7 @@ func (d *btrfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWr
 		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "parent": parent, "file": tmpFile.Name(), "name": fileName})
+		d.logger.Debug("Generating optimized volume file", logger.Ctx{"sourcePath": path, "parent": parent, "file": tmpFile.Name(), "name": fileName})
 		err = shared.RunCommandWithFds(nil, tmpFile, "btrfs", args...)
 		if err != nil {
 			return err

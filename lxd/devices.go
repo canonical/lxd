@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	// Used by cgo
 	_ "github.com/lxc/lxd/lxd/include"
@@ -231,7 +230,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					ueventLen,
 				)
 				if err != nil {
-					logger.Error("Error reading usb device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
+					logger.Error("Error reading usb device", logger.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
 					continue
 				}
 
@@ -303,7 +302,7 @@ func deviceNetlinkListener() (chan []string, chan []string, chan device.USBEvent
 					ueventLen,
 				)
 				if err != nil {
-					logger.Error("Error reading unix device", log.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
+					logger.Error("Error reading unix device", logger.Ctx{"err": err, "path": props["PHYSDEVPATH"]})
 					continue
 				}
 
@@ -365,14 +364,14 @@ func deviceTaskBalance(s *state.State) {
 	effectiveCpus = strings.Join(effectiveCpusSlice, ",")
 	cpus, err := resources.ParseCpuset(effectiveCpus)
 	if err != nil {
-		logger.Error("Error parsing host's cpu set", log.Ctx{"cpuset": effectiveCpus, "err": err})
+		logger.Error("Error parsing host's cpu set", logger.Ctx{"cpuset": effectiveCpus, "err": err})
 		return
 	}
 
 	// Iterate through the instances
 	instances, err := instance.LoadNodeAll(s, instancetype.Container)
 	if err != nil {
-		logger.Error("Problem loading instances list", log.Ctx{"err": err})
+		logger.Error("Problem loading instances list", logger.Ctx{"err": err})
 		return
 	}
 
@@ -481,13 +480,13 @@ func deviceTaskBalance(s *state.State) {
 		sort.Strings(set)
 		cg, err := ctn.CGroup()
 		if err != nil {
-			logger.Error("balance: Unable to get cgroup struct", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
+			logger.Error("balance: Unable to get cgroup struct", logger.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 			continue
 		}
 
 		err = cg.SetCpuset(strings.Join(set, ","))
 		if err != nil {
-			logger.Error("balance: Unable to set cpuset", log.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
+			logger.Error("balance: Unable to set cpuset", logger.Ctx{"name": ctn.Name(), "err": err, "value": strings.Join(set, ",")})
 		}
 	}
 }
@@ -588,7 +587,7 @@ func devicesRegister(s *state.State) {
 
 	instances, err := instance.LoadNodeAll(s, instancetype.Any)
 	if err != nil {
-		logger.Error("Problem loading instances list", log.Ctx{"err": err})
+		logger.Error("Problem loading instances list", logger.Ctx{"err": err})
 		return
 	}
 

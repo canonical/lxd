@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/mdlayher/netx/eui64"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -25,6 +24,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // ovnNet defines an interface for accessing instance specific functions on OVN network.
@@ -504,7 +504,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	ovs := openvswitch.NewOVS()
 	ovsExternalOVNPort, err := ovs.InterfaceAssociatedOVNSwitchPort(d.config["host_name"])
 	if err != nil {
-		d.logger.Warn("Could not find OVN Switch port associated to OVS interface", log.Ctx{"interface": d.config["host_name"]})
+		d.logger.Warn("Could not find OVN Switch port associated to OVS interface", logger.Ctx{"interface": d.config["host_name"]})
 	}
 
 	// If there is a host_name specified, then try and remove it from the OVS integration bridge.
@@ -518,11 +518,11 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 			err = ovs.BridgePortDelete(integrationBridge, d.config["host_name"])
 			if err != nil {
 				// Don't fail here as we want the postStop hook to run to clean up the local veth pair.
-				d.logger.Error("Failed detaching interface from OVS integration bridge", log.Ctx{"interface": d.config["host_name"], "bridge": integrationBridge, "err": err})
+				d.logger.Error("Failed detaching interface from OVS integration bridge", logger.Ctx{"interface": d.config["host_name"], "bridge": integrationBridge, "err": err})
 			}
 		} else {
 			// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
-			d.logger.Error("Failed getting OVS integration bridge name to remove bridge port", log.Ctx{"err": err})
+			d.logger.Error("Failed getting OVS integration bridge name to remove bridge port", logger.Ctx{"err": err})
 		}
 	}
 
@@ -534,7 +534,7 @@ func (d *nicOVN) Stop() (*deviceConfig.RunConfig, error) {
 	})
 	if err != nil {
 		// Don't fail here as we still want the postStop hook to run to clean up the local veth pair.
-		d.logger.Error("Failed to remove OVN device port", log.Ctx{"err": err})
+		d.logger.Error("Failed to remove OVN device port", logger.Ctx{"err": err})
 	}
 
 	// Remove BGP announcements.
@@ -658,7 +658,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 				})
 			}
 		} else {
-			d.logger.Warn("Failed getting OVN port dynamic IPs", log.Ctx{"err": err})
+			d.logger.Warn("Failed getting OVN port dynamic IPs", logger.Ctx{"err": err})
 		}
 	} else {
 		if d.config["ipv4.address"] != "" {
@@ -700,7 +700,7 @@ func (d *nicOVN) State() (*api.InstanceStateNetwork, error) {
 	// Get MTU of host interface that connects to OVN integration bridge if exists.
 	iface, err := net.InterfaceByName(d.config["host_name"])
 	if err != nil {
-		d.logger.Warn("Failed getting host interface state for MTU", log.Ctx{"host_name": d.config["host_name"], "err": err})
+		d.logger.Warn("Failed getting host interface state for MTU", logger.Ctx{"host_name": d.config["host_name"], "err": err})
 	}
 
 	mtu := -1

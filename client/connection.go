@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/shared"
@@ -241,7 +240,7 @@ func ConnectPublicLXDWithContext(ctx context.Context, url string, args *Connecti
 //
 // Unless the remote server is trusted by the system CA, the remote certificate must be provided (TLSServerCert).
 func ConnectSimpleStreams(url string, args *ConnectionArgs) (ImageServer, error) {
-	logger.Debug("Connecting to a remote simplestreams server", log.Ctx{"URL": url})
+	logger.Debug("Connecting to a remote simplestreams server", logger.Ctx{"URL": url})
 
 	// Cleanup URL
 	url = strings.TrimSuffix(url, "/")

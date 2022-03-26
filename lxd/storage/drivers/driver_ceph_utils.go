@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -158,7 +158,7 @@ func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 
 	devPath = strings.TrimSpace(devPath[idx:])
 
-	d.logger.Debug("Activated RBD volume", log.Ctx{"vol": rbdName, "dev": devPath})
+	d.logger.Debug("Activated RBD volume", logger.Ctx{"vol": rbdName, "dev": devPath})
 	return devPath, nil
 }
 
@@ -186,7 +186,7 @@ again:
 				if exitError.ExitCode() == 22 {
 					// EINVAL (already unmapped).
 					if ourDeactivate {
-						d.logger.Debug("Deactivated RBD volume", log.Ctx{"vol": rbdVol})
+						d.logger.Debug("Deactivated RBD volume", logger.Ctx{"vol": rbdVol})
 					}
 
 					return nil
@@ -214,7 +214,7 @@ again:
 		goto again
 	}
 
-	d.logger.Debug("Deactivated RBD volume", log.Ctx{"vol": rbdVol})
+	d.logger.Debug("Deactivated RBD volume", logger.Ctx{"vol": rbdVol})
 
 	return nil
 }
@@ -1051,7 +1051,7 @@ func (d *ceph) generateUUID(fsType string, devPath string) error {
 	}
 
 	// Update the UUID.
-	d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": devPath, "fs": fsType})
+	d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": devPath, "fs": fsType})
 	err := regenerateFilesystemUUID(fsType, devPath)
 	if err != nil {
 		return err

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/ip"
@@ -13,6 +11,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -113,7 +112,7 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 // Create checks whether the referenced parent interface is used by other networks or instance devices, as we
 // need to have exclusive access to the interface.
 func (n *physical) Create(clientType request.ClientType) error {
-	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
+	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 
 	// We only need to check in the database once, not on every clustered node.
 	if clientType == request.ClientTypeNormal {
@@ -131,7 +130,7 @@ func (n *physical) Create(clientType request.ClientType) error {
 
 // Delete deletes a network.
 func (n *physical) Delete(clientType request.ClientType) error {
-	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
+	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
 	err := n.Stop()
 	if err != nil {
@@ -143,7 +142,7 @@ func (n *physical) Delete(clientType request.ClientType) error {
 
 // Rename renames a network.
 func (n *physical) Rename(newName string) error {
-	n.logger.Debug("Rename", log.Ctx{"newName": newName})
+	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
 	err := n.common.rename(newName)
@@ -270,7 +269,7 @@ func (n *physical) Stop() error {
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
-	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
+	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	dbUpdateNeeeded, changedKeys, oldNetwork, err := n.common.configChanged(newNetwork)
 	if err != nil {

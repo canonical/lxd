@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/driver"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/node"
@@ -190,7 +189,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		pingCtx, pingCancel := context.WithTimeout(connectCtx, time.Second*5)
 		err = db.PingContext(pingCtx)
 		pingCancel()
-		logCtx := log.Ctx{"err": err, "attempt": i}
+		logCtx := logger.Ctx{"err": err, "attempt": i}
 		if err != nil && !errors.Is(err, driver.ErrNoAvailableLeader) {
 			return nil, err
 		} else if err == nil {
@@ -403,7 +402,7 @@ func (c *Cluster) transaction(f func(*ClusterTx) error) error {
 			// If the query timed out it likely means that the leader has abruptly become unreachable.
 			// Now that this query has been cancelled, a leader election should have taken place by now.
 			// So let's retry the transaction once more in case the global database is now available again.
-			logger.Warn("Transaction timed out. Retrying once", log.Ctx{"member": c.nodeID, "err": err})
+			logger.Warn("Transaction timed out. Retrying once", logger.Ctx{"member": c.nodeID, "err": err})
 			return query.Transaction(c.db, txFunc)
 		}
 

@@ -14,7 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/sftp"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -22,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
@@ -196,7 +196,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 			cleanup.Fail()
 		}
 
-		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, log.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.FileResponse(r, files, headers)
 	} else if fileType == "symlink" {
 		// Find symlink target.
@@ -227,7 +227,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 		files[0].FileModified = time.Now()
 		files[0].FileSize = int64(len(target))
 
-		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, log.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.FileResponse(r, files, headers)
 	} else if fileType == "directory" {
 		dirEnts := []string{}
@@ -242,7 +242,7 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 			dirEnts = append(dirEnts, entry.Name())
 		}
 
-		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, log.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileRetrieved.Event(inst, logger.Ctx{"path": path}))
 		return response.SyncResponseHeaders(true, dirEnts, headers)
 	} else {
 		return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
@@ -378,7 +378,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			}
 		}
 
-		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, log.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	} else if type_ == "symlink" {
 		// Figure out target.
@@ -399,7 +399,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			return response.SmartError(err)
 		}
 
-		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, log.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	} else if type_ == "directory" {
 		// Check if it already exists.
@@ -432,7 +432,7 @@ func instanceFilePost(s *state.State, inst instance.Instance, path string, r *ht
 			}
 		}
 
-		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, log.Ctx{"path": path}))
+		s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFilePushed.Event(inst, logger.Ctx{"path": path}))
 		return response.EmptySyncResponse
 	} else {
 		return response.BadRequest(fmt.Errorf("Bad file type: %s", type_))
@@ -484,6 +484,6 @@ func instanceFileDelete(s *state.State, inst instance.Instance, path string, r *
 		return response.SmartError(err)
 	}
 
-	s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileDeleted.Event(inst, log.Ctx{"path": path}))
+	s.Events.SendLifecycle(inst.Project(), lifecycle.InstanceFileDeleted.Event(inst, logger.Ctx{"path": path}))
 	return response.EmptySyncResponse
 }

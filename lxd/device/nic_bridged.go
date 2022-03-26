@@ -16,7 +16,6 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/mdlayher/netx/eui64"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -625,7 +624,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 				if err != nil {
 					return nil, fmt.Errorf("Error enabling hairpin mode on bridge port %q: %w", link.Name, err)
 				}
-				d.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"dev": link.Name})
+				d.logger.Debug("Enabled hairpin mode on NIC bridge port", logger.Ctx{"dev": link.Name})
 			}
 		}
 	}
@@ -968,24 +967,24 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 
 	IPv4Nets, IPv6Nets, err := allowedIPNets(m)
 	if err != nil {
-		d.logger.Error("Failed to calculate static IP network filters", log.Ctx{"err": err})
+		d.logger.Error("Failed to calculate static IP network filters", logger.Ctx{"err": err})
 		return
 	}
 
 	// Remove filters for static MAC and IPs (if specified above).
 	// This covers the case when filtering is used with an unmanaged bridge.
-	d.logger.Debug("Clearing instance firewall static filters", log.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
+	d.logger.Debug("Clearing instance firewall static filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4Nets, IPv6Nets)
 	if err != nil {
-		d.logger.Error("Failed to remove static IP network filters", log.Ctx{"err": err})
+		d.logger.Error("Failed to remove static IP network filters", logger.Ctx{"err": err})
 	}
 
 	// If allowedIPNets returned nil for IPv4 or IPv6, it is possible that total protocol blocking was set up
 	// because the device has a managed parent network with DHCP disabled. Pass in empty slices to catch this case.
-	d.logger.Debug("Clearing instance total protocol filters", log.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
+	d.logger.Debug("Clearing instance total protocol filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "IPv4Nets": IPv4Nets, "IPv6Nets": IPv6Nets})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], make([]*net.IPNet, 0), make([]*net.IPNet, 0))
 	if err != nil {
-		d.logger.Error("Failed to remove total protocol network filters", log.Ctx{"err": err})
+		d.logger.Error("Failed to remove total protocol network filters", logger.Ctx{"err": err})
 	}
 
 	// Read current static DHCP IP allocation configured from dnsmasq host config (if exists).
@@ -997,7 +996,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 			return
 		}
 
-		d.logger.Error("Failed to get static IP allocations for filter removal", log.Ctx{"err": err})
+		d.logger.Error("Failed to get static IP allocations for filter removal", logger.Ctx{"err": err})
 		return
 	}
 
@@ -1006,7 +1005,7 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if len(IPv4Alloc.IP) > 0 {
 		_, IPv4AllocNet, err := net.ParseCIDR(fmt.Sprintf("%s/32", IPv4Alloc.IP.String()))
 		if err != nil {
-			d.logger.Error("Failed to generate subnet from dynamically generated IPv4 address", log.Ctx{"err": err})
+			d.logger.Error("Failed to generate subnet from dynamically generated IPv4 address", logger.Ctx{"err": err})
 		} else {
 			IPv4AllocNets = append(IPv4AllocNets, IPv4AllocNet)
 		}
@@ -1016,13 +1015,13 @@ func (d *nicBridged) removeFilters(m deviceConfig.Device) {
 	if len(IPv6Alloc.IP) > 0 {
 		_, IPv6AllocNet, err := net.ParseCIDR(fmt.Sprintf("%s/128", IPv6Alloc.IP.String()))
 		if err != nil {
-			d.logger.Error("Failed to generate subnet from dynamically generated IPv6Address", log.Ctx{"err": err})
+			d.logger.Error("Failed to generate subnet from dynamically generated IPv6Address", logger.Ctx{"err": err})
 		} else {
 			IPv6AllocNets = append(IPv6AllocNets, IPv6AllocNet)
 		}
 	}
 
-	d.logger.Debug("Clearing instance firewall dynamic filters", log.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
+	d.logger.Debug("Clearing instance firewall dynamic filters", logger.Ctx{"parent": m["parent"], "host_name": m["host_name"], "hwaddr": m["hwaddr"], "ipv4": IPv4Alloc.IP, "ipv6": IPv6Alloc.IP})
 	err = d.state.Firewall.InstanceClearBridgeFilter(d.inst.Project(), d.inst.Name(), d.name, m["parent"], m["host_name"], m["hwaddr"], IPv4AllocNets, IPv6AllocNets)
 	if err != nil {
 		logger.Errorf("Failed to remove DHCP network assigned filters  for %q: %v", d.name, err)
@@ -1671,7 +1670,7 @@ func (d *nicBridged) State() (*api.InstanceStateNetwork, error) {
 
 	mtu, err := d.getHostMTU()
 	if err != nil {
-		d.logger.Warn("Failed getting host interface state for MTU", log.Ctx{"host_name": d.config["host_name"], "err": err})
+		d.logger.Warn("Failed getting host interface state for MTU", logger.Ctx{"host_name": d.config["host_name"], "err": err})
 	}
 
 	// Retrieve the host counters, as we report the values from the instance's point of view,
