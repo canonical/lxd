@@ -722,16 +722,7 @@ func (g *Gateway) init(bootstrap bool) error {
 
 	dir := filepath.Join(g.db.Dir(), "global")
 	if shared.PathExists(filepath.Join(dir, "logs.db")) {
-		err := shared.DirCopy(dir, dir+".bak")
-		if err != nil {
-			return fmt.Errorf("Failed to backup global database: %w", err)
-		}
-		err = MigrateToDqlite10(dir)
-		if err != nil {
-			return fmt.Errorf("Failed to migrate to dqlite 1.0: %w", err)
-		}
-		os.Remove(filepath.Join(dir, "logs.db"))
-		os.RemoveAll(filepath.Join(dir, "snapshots"))
+		return fmt.Errorf("Unsupported upgrade path, please first upgrade to LXD 4.0")
 	}
 
 	// If the resulting raft instance is not nil, it means that this node
