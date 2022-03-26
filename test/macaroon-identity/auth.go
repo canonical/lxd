@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -12,8 +14,7 @@ import (
 	"gopkg.in/macaroon-bakery.v2/httpbakery"
 	"gopkg.in/macaroon-bakery.v2/httpbakery/form"
 
-	"github.com/go-httprequest/httprequest"
-	"github.com/rogpeppe/fastuuid"
+	"github.com/pborman/uuid"
 )
 
 const formURL string = "/form"
@@ -29,8 +30,7 @@ type authService struct {
 	KeyPair *bakery.KeyPair
 	Checker credentialsChecker
 
-	userTokens    map[string]string // map user token to username
-	uuidGenerator *fastuuid.Generator
+	userTokens map[string]string // map user token to username
 }
 
 // NewAuthService returns an AuthService
@@ -44,10 +44,9 @@ func newAuthService(listenAddr string, logger *log.Logger) *authService {
 			Logger:     logger,
 			Mux:        mux,
 		},
-		KeyPair:       key,
-		Checker:       newCredentialsChecker(),
-		uuidGenerator: fastuuid.MustNewGenerator(),
-		userTokens:    map[string]string{},
+		KeyPair:    key,
+		Checker:    newCredentialsChecker(),
+		userTokens: map[string]string{},
 	}
 	mux.Handle(formURL, http.HandlerFunc(s.formHandler))
 
@@ -83,35 +82,45 @@ func (s *authService) thirdPartyChecker(ctx context.Context, req *http.Request, 
 	}, nil
 }
 
+func writeJSON(w http.ResponseWriter, code int, val interface{}) error {
+	data, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(code)
+	w.Write(data)
+	return nil
+}
+
 func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 	s.LogRequest(req)
 	switch req.Method {
 	case "GET":
-		httprequest.WriteJSON(w, http.StatusOK, schemaResponse)
+		writeJSON(w, http.StatusOK, schemaResponse)
 	case "POST":
-		params := httprequest.Params{
-			Response: w,
-			Request:  req,
-			Context:  context.TODO(),
-		}
-		loginRequest := form.LoginRequest{}
-		if err := httprequest.Unmarshal(params, &loginRequest); err != nil {
-			s.bakeryFail(w, "can't unmarshal login request")
+		content, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			s.bakeryFail(w, "failed to read request: %v", err)
 			return
 		}
 
-		form, err := fieldsChecker.Coerce(loginRequest.Body.Form, nil)
+		loginRequest := form.LoginRequest{}
+		loginRequest.Body = form.LoginBody{}
+		err = json.Unmarshal(content, &loginRequest.Body)
 		if err != nil {
-			s.bakeryFail(w, "invalid login form data: %v", err)
+			s.bakeryFail(w, "failed to parse credentials: %v", err)
 			return
 		}
+		form := loginRequest.Body.Form
 
 		if !s.Checker.Check(form) {
 			s.bakeryFail(w, "invalid credentials")
 			return
 		}
 
-		username := form.(map[string]interface{})["username"].(string)
+		username := form["username"].(string)
 		token := s.getRandomToken()
 		s.userTokens[token] = username
 
@@ -121,7 +130,7 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 				Value: []byte(token),
 			},
 		}
-		httprequest.WriteJSON(w, http.StatusOK, loginResponse)
+		writeJSON(w, http.StatusOK, loginResponse)
 
 	default:
 		s.Fail(w, http.StatusMethodNotAllowed, "%s method not allowed", req.Method)
@@ -130,10 +139,7 @@ func (s *authService) formHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *authService) getRandomToken() string {
-	uuid := make([]byte, 24)
-	for i, b := range s.uuidGenerator.Next() {
-		uuid[i] = b
-	}
+	uuid := []byte(uuid.New()[0:24])
 	return base64.StdEncoding.EncodeToString(uuid)
 }
 
