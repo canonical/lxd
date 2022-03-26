@@ -72,11 +72,10 @@ func serverTLSConfig() (*tls.Config, error) {
 		return nil, err
 	}
 
+	// LXD agent only talks with LXD so there is no need
+	// to support old TLS versions
 	tlsConfig := util.ServerTLSConfig(certInfo)
-	tlsConfig.CipherSuites = []uint16{
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	}
+	tlsConfig.MinVersion = tls.VersionTLS13
 
 	return tlsConfig, nil
 }
