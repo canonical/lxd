@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
@@ -946,13 +947,18 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 
 	defer conn.Close()
 
-	solicitedNodeMulticast, err := ndp.SolicitedNodeMulticast(address)
+	netipAddr, ok := netip.AddrFromSlice(address)
+	if !ok {
+		return false, fmt.Errorf("Couldn't convert address to netip")
+	}
+
+	solicitedNodeMulticast, err := ndp.SolicitedNodeMulticast(netipAddr)
 	if err != nil {
 		return false, err
 	}
 
 	neighbourSolicitationMessage := &ndp.NeighborSolicitation{
-		TargetAddress: address,
+		TargetAddress: netipAddr,
 	}
 
 	conn.SetDeadline(deadline)
@@ -972,7 +978,7 @@ func isIPAvailable(ctx context.Context, address net.IP, parentInterface string) 
 	}
 
 	neighbourAdvertisement, ok := msg.(*ndp.NeighborAdvertisement)
-	if ok && neighbourAdvertisement.TargetAddress.Equal(address) {
+	if ok && neighbourAdvertisement.TargetAddress == netipAddr {
 		return true, nil
 	}
 
