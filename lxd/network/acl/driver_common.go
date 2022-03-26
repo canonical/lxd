@@ -9,8 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -68,7 +66,7 @@ func (d *common) init(state *state.State, id int64, projectName string, info *ap
 		d.info = info
 	}
 
-	d.logger = logging.AddContext(logger.Log, log.Ctx{"project": projectName, "networkACL": d.info.Name})
+	d.logger = logging.AddContext(logger.Log, logger.Ctx{"project": projectName, "networkACL": d.info.Name})
 	d.id = id
 	d.projectName = projectName
 	d.state = state

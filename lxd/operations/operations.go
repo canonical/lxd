@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/events"
@@ -254,7 +253,7 @@ func (op *Operation) done() {
 
 		err := removeDBOperation(op)
 		if err != nil {
-			logger.Warn("Failed to delete operation", log.Ctx{"operation": op.id, "description": op.description, "status": op.status, "project": op.projectName, "err": err})
+			logger.Warn("Failed to delete operation", logger.Ctx{"operation": op.id, "description": op.description, "status": op.status, "project": op.projectName, "err": err})
 		}
 	}()
 }
@@ -348,7 +347,7 @@ func (op *Operation) Cancel() (chan error, error) {
 				op.lock.Unlock()
 				chanCancel <- err
 
-				logger.Debug("Failed to cancel operation", log.Ctx{"operation": op.id, "class": op.class.String(), "err": err})
+				logger.Debug("Failed to cancel operation", logger.Ctx{"operation": op.id, "class": op.class.String(), "err": err})
 				_, md, _ := op.Render()
 
 				op.lock.Lock()
@@ -364,7 +363,7 @@ func (op *Operation) Cancel() (chan error, error) {
 			op.done()
 			chanCancel <- nil
 
-			logger.Debug("Cancelled operation", log.Ctx{"operation": op.ID(), "class": op.class.String()})
+			logger.Debug("Cancelled operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
 			_, md, _ := op.Render()
 
 			op.lock.Lock()
@@ -374,7 +373,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		}(op, oldStatus, chanCancel)
 	}
 
-	logger.Debug("Cancelling operation", log.Ctx{"operation": op.ID(), "class": op.class.String()})
+	logger.Debug("Cancelling operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
 	_, md, _ := op.Render()
 	op.sendEvent(md)
 
@@ -393,7 +392,7 @@ func (op *Operation) Cancel() (chan error, error) {
 		chanCancel <- nil
 	}
 
-	logger.Debug("Cancelled operation", log.Ctx{"operation": op.ID(), "class": op.class.String()})
+	logger.Debug("Cancelled operation", logger.Ctx{"operation": op.ID(), "class": op.class.String()})
 	_, md, _ = op.Render()
 
 	op.lock.Lock()

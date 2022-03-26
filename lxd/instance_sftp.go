@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -128,7 +127,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	}
 
 	ctx, cancel := context.WithCancel(r.req.Context())
-	logger := logging.AddContext(logger.Log, log.Ctx{
+	l := logging.AddContext(logger.Log, logger.Ctx{
 		"project":  r.projectName,
 		"instance": r.instName,
 		"local":    remoteConn.LocalAddr(),
@@ -143,7 +142,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 		_, err := io.Copy(remoteConn, r.instConn)
 		if err != nil {
 			if ctx.Err() == nil {
-				logger.Warn("Failed copying SFTP instance connection to remote connection", log.Ctx{"err": err})
+				l.Warn("Failed copying SFTP instance connection to remote connection", logger.Ctx{"err": err})
 			}
 		}
 		cancel()           // Cancel context first so when remoteConn is closed it doesn't cause a warning.
@@ -153,7 +152,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	_, err = io.Copy(r.instConn, remoteConn)
 	if err != nil {
 		if ctx.Err() == nil {
-			logger.Warn("Failed copying SFTP remote connection to instance connection", log.Ctx{"err": err})
+			l.Warn("Failed copying SFTP remote connection to instance connection", logger.Ctx{"err": err})
 		}
 	}
 	cancel()           // Cancel context first so when instConn is closed it doesn't cause a warning.

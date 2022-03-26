@@ -18,7 +18,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
@@ -232,7 +231,7 @@ func internalWaitReady(d *Daemon, r *http.Request) response.Response {
 
 func internalShutdown(d *Daemon, r *http.Request) response.Response {
 	force := queryParam(r, "force")
-	logger.Info("Asked to shutdown by API", log.Ctx{"force": force})
+	logger.Info("Asked to shutdown by API", logger.Ctx{"force": force})
 
 	if d.shutdownCtx.Err() != nil {
 		return response.SmartError(fmt.Errorf("Shutdown already in progress"))
@@ -290,7 +289,7 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 		inst, err = instance.LoadByProjectAndName(s, projectName, instanceRef)
 		if err != nil {
 			// If DB not available, try loading from backup file.
-			logger.Warn("Failed loading instance from database, trying backup file", log.Ctx{"project": projectName, "instance": instanceRef, "err": err})
+			logger.Warn("Failed loading instance from database, trying backup file", logger.Ctx{"project": projectName, "instance": instanceRef, "err": err})
 
 			instancePath := filepath.Join(shared.VarPath("containers"), project.Instance(projectName, instanceRef))
 			inst, err = instance.LoadFromBackup(s, projectName, instancePath, false)
@@ -310,13 +309,13 @@ func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (in
 func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
-		logger.Error("The start hook failed to load", log.Ctx{"err": err})
+		logger.Error("The start hook failed to load", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
 	err = inst.OnHook(instance.HookStart, nil)
 	if err != nil {
-		logger.Error("The start hook failed", log.Ctx{"instance": inst.Name(), "err": err})
+		logger.Error("The start hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
@@ -326,7 +325,7 @@ func internalContainerOnStart(d *Daemon, r *http.Request) response.Response {
 func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
-		logger.Error("The stopns hook failed to load", log.Ctx{"err": err})
+		logger.Error("The stopns hook failed to load", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -343,7 +342,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.OnHook(instance.HookStopNS, args)
 	if err != nil {
-		logger.Error("The stopns hook failed", log.Ctx{"instance": inst.Name(), "err": err})
+		logger.Error("The stopns hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 
@@ -353,7 +352,7 @@ func internalContainerOnStopNS(d *Daemon, r *http.Request) response.Response {
 func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 	inst, err := internalContainerHookLoadFromReference(d.State(), r)
 	if err != nil {
-		logger.Error("The stop hook failed to load", log.Ctx{"err": err})
+		logger.Error("The stop hook failed to load", logger.Ctx{"err": err})
 		return response.SmartError(err)
 	}
 
@@ -368,7 +367,7 @@ func internalContainerOnStop(d *Daemon, r *http.Request) response.Response {
 
 	err = inst.OnHook(instance.HookStop, args)
 	if err != nil {
-		logger.Error("The stop hook failed", log.Ctx{"instance": inst.Name(), "err": err})
+		logger.Error("The stop hook failed", logger.Ctx{"instance": inst.Name(), "err": err})
 		return response.SmartError(err)
 	}
 

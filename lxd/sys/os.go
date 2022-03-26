@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"sync"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
@@ -122,7 +120,7 @@ func (s *OS) Init() ([]db.Warning, error) {
 
 	s.BackingFS, err = filesystem.Detect(s.LxcPath)
 	if err != nil {
-		logger.Error("Error detecting backing fs", log.Ctx{"err": err})
+		logger.Error("Error detecting backing fs", logger.Ctx{"err": err})
 	}
 
 	// Detect if it is possible to run daemons as an unprivileged user and group.

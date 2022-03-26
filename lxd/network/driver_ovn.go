@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/mdlayher/netx/eui64"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -29,6 +28,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -721,7 +721,7 @@ func (n *ovn) getRouterMAC() (net.HardwareAddr, error) {
 		}
 
 		hwAddr = randomHwaddr(r)
-		n.logger.Debug("Stable MAC generated", log.Ctx{"seed": seed, "hwAddr": hwAddr})
+		n.logger.Debug("Stable MAC generated", logger.Ctx{"seed": seed, "hwAddr": hwAddr})
 	}
 
 	mac, err := net.ParseMAC(hwAddr)
@@ -1264,7 +1264,7 @@ func (n *ovn) pingOVNRouterIPv6() {
 			// Try several attempts as it can take a few seconds for the network to come up.
 			for i := 0; i < 5; i++ {
 				if pingIP(routerExtPortIPv6) {
-					n.logger.Debug("OVN router external IPv6 address reachable", log.Ctx{"ip": routerExtPortIPv6.String()})
+					n.logger.Debug("OVN router external IPv6 address reachable", logger.Ctx{"ip": routerExtPortIPv6.String()})
 					return
 				}
 
@@ -1273,7 +1273,7 @@ func (n *ovn) pingOVNRouterIPv6() {
 
 			// We would expect this on a chassis node that isn't the active router gateway, it doesn't
 			// always indicate a problem.
-			n.logger.Debug("OVN router external IPv6 address unreachable", log.Ctx{"ip": routerExtPortIPv6.String()})
+			n.logger.Debug("OVN router external IPv6 address unreachable", logger.Ctx{"ip": routerExtPortIPv6.String()})
 		}()
 	}
 }
@@ -1615,7 +1615,7 @@ func (n *ovn) populateAutoConfig(config map[string]string) error {
 
 // Create sets up network in OVN Northbound database.
 func (n *ovn) Create(clientType request.ClientType) error {
-	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
+	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 
 	// We only need to setup the OVN Northbound database once, not on every clustered node.
 	if clientType == request.ClientTypeNormal {
@@ -2392,7 +2392,7 @@ func (n *ovn) addChassisGroupEntry() error {
 	if err != nil {
 		return fmt.Errorf("Failed adding OVS chassis %q with priority %d to chassis group %q: %w", chassisID, priority, chassisGroupName, err)
 	}
-	n.logger.Debug("Chassis group entry added", log.Ctx{"chassisGroup": chassisGroupName, "memberID": ourNodeID, "priority": priority})
+	n.logger.Debug("Chassis group entry added", logger.Ctx{"chassisGroup": chassisGroupName, "memberID": ourNodeID, "priority": priority})
 
 	return nil
 }
@@ -2421,7 +2421,7 @@ func (n *ovn) deleteChassisGroupEntry() error {
 
 // Delete deletes a network.
 func (n *ovn) Delete(clientType request.ClientType) error {
-	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
+	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
 	err := n.Stop()
 	if err != nil {
@@ -2517,7 +2517,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 
 // Rename renames a network.
 func (n *ovn) Rename(newName string) error {
-	n.logger.Debug("Rename", log.Ctx{"newName": newName})
+	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	// Rename common steps.
 	err := n.common.rename(newName)
@@ -2695,7 +2695,7 @@ func (n *ovn) instanceNICGetRoutes(nicConfig map[string]string) []net.IPNet {
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
-	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
+	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	err := n.populateAutoConfig(newNetwork.Config)
 	if err != nil {
@@ -2837,7 +2837,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 					// Add NIC port to ACL port group.
 					portGroupName := acl.OVNACLPortGroupName(aclID)
 					acl.OVNPortGroupInstanceNICSchedule(portUUID, addChangeSet, portGroupName)
-					n.logger.Debug("Scheduled logical port for ACL port group addition", log.Ctx{"networkACL": addedACL, "portGroup": portGroupName, "port": instancePortName})
+					n.logger.Debug("Scheduled logical port for ACL port group addition", logger.Ctx{"networkACL": addedACL, "portGroup": portGroupName, "port": instancePortName})
 				}
 
 				// Check whether we need to remove any of the removed ACLs from the NIC.
@@ -2854,7 +2854,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 					// Remove NIC port from ACL port group.
 					portGroupName := acl.OVNACLPortGroupName(aclID)
 					acl.OVNPortGroupInstanceNICSchedule(portUUID, removeChangeSet, portGroupName)
-					n.logger.Debug("Scheduled logical port for ACL port group removal", log.Ctx{"networkACL": removedACL, "portGroup": portGroupName, "port": instancePortName})
+					n.logger.Debug("Scheduled logical port for ACL port group removal", logger.Ctx{"networkACL": removedACL, "portGroup": portGroupName, "port": instancePortName})
 				}
 
 				// If there are no ACLs being applied to the NIC (either from network or NIC) then
@@ -2865,7 +2865,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 						return fmt.Errorf("Failed clearing OVN default ACL rules for instance NIC: %w", err)
 					}
 
-					n.logger.Debug("Cleared NIC default rules", log.Ctx{"port": instancePortName})
+					n.logger.Debug("Cleared NIC default rules", logger.Ctx{"port": instancePortName})
 				} else {
 					defaultRuleChange := false
 
@@ -2894,7 +2894,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 							return fmt.Errorf("Failed applying OVN default ACL rules for instance NIC: %w", err)
 						}
 
-						n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
+						n.logger.Debug("Set NIC default rule", logger.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
 					}
 				}
 			}
@@ -3449,7 +3449,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 
 	// Add NIC port to network port group (this includes the port in the @internal subject for ACL rules).
 	acl.OVNPortGroupInstanceNICSchedule(portUUID, addChangeSet, acl.OVNIntSwitchPortGroupName(n.ID()))
-	n.logger.Debug("Scheduled logical port for network port group addition", log.Ctx{"portGroup": acl.OVNIntSwitchPortGroupName(n.ID()), "port": instancePortName})
+	n.logger.Debug("Scheduled logical port for network port group addition", logger.Ctx{"portGroup": acl.OVNIntSwitchPortGroupName(n.ID()), "port": instancePortName})
 
 	if len(nicACLNames) > 0 || len(securityACLsRemove) > 0 {
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
@@ -3480,7 +3480,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 				// Add NIC port to ACL port group.
 				portGroupName := acl.OVNACLPortGroupName(aclID)
 				acl.OVNPortGroupInstanceNICSchedule(portUUID, addChangeSet, portGroupName)
-				n.logger.Debug("Scheduled logical port for ACL port group addition", log.Ctx{"networkACL": aclName, "portGroup": portGroupName, "port": instancePortName})
+				n.logger.Debug("Scheduled logical port for ACL port group addition", logger.Ctx{"networkACL": aclName, "portGroup": portGroupName, "port": instancePortName})
 			}
 		}
 
@@ -3500,7 +3500,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			// Remove NIC port from ACL port group.
 			portGroupName := acl.OVNACLPortGroupName(aclID)
 			acl.OVNPortGroupInstanceNICSchedule(portUUID, removeChangeSet, portGroupName)
-			n.logger.Debug("Scheduled logical port for ACL port group removal", log.Ctx{"networkACL": aclName, "portGroup": portGroupName, "port": instancePortName})
+			n.logger.Debug("Scheduled logical port for ACL port group removal", logger.Ctx{"networkACL": aclName, "portGroup": portGroupName, "port": instancePortName})
 		}
 	}
 
@@ -3524,14 +3524,14 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 			return "", fmt.Errorf("Failed applying OVN default ACL rules for instance NIC: %w", err)
 		}
 
-		n.logger.Debug("Set NIC default rule", log.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
+		n.logger.Debug("Set NIC default rule", logger.Ctx{"port": instancePortName, "ingressAction": ingressAction, "ingressLogged": ingressLogged, "egressAction": egressAction, "egressLogged": egressLogged})
 	} else {
 		err = client.PortGroupPortClearACLRules(acl.OVNIntSwitchPortGroupName(n.ID()), instancePortName)
 		if err != nil {
 			return "", fmt.Errorf("Failed clearing OVN default ACL rules for instance NIC: %w", err)
 		}
 
-		n.logger.Debug("Cleared NIC default rule", log.Ctx{"port": instancePortName})
+		n.logger.Debug("Cleared NIC default rule", logger.Ctx{"port": instancePortName})
 	}
 
 	revert.Success()
@@ -3589,7 +3589,7 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 		source = "internal"
 	}
 
-	n.logger.Debug("Deleting instance port", log.Ctx{"port": instancePortName, "source": source})
+	n.logger.Debug("Deleting instance port", logger.Ctx{"port": instancePortName, "source": source})
 
 	internalRoutes, externalRoutes, err := n.instanceDevicePortRoutesParse(opts.DeviceConfig)
 	if err != nil {
@@ -3868,7 +3868,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 	// Detect changes that need to be applied to the network.
 	for _, k := range []string{"dns.nameservers"} {
 		if shared.StringInSlice(k, changedKeys) {
-			n.logger.Debug("Applying changes from uplink network", log.Ctx{"uplink": uplinkName})
+			n.logger.Debug("Applying changes from uplink network", logger.Ctx{"uplink": uplinkName})
 
 			// Re-setup logical network in order to apply uplink changes.
 			err := n.setup(true)
@@ -3882,7 +3882,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 	// Add or remove the instance NIC l2proxy DNAT_AND_SNAT rules if uplink's ovn.ingress_mode has changed.
 	if shared.StringInSlice("ovn.ingress_mode", changedKeys) {
-		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", log.Ctx{"uplink": uplinkName})
+		n.logger.Debug("Applying ingress mode changes from uplink network to instance NICs", logger.Ctx{"uplink": uplinkName})
 
 		client, err := openvswitch.NewOVN(n.state)
 		if err != nil {
@@ -3931,7 +3931,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 					}
 
 					// Re-add logical switch port to apply the l2proxy DNAT_AND_SNAT rules.
-					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", log.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
+					n.logger.Debug("Re-adding instance OVN NIC port to apply ingress mode changes", logger.Ctx{"project": inst.Project, "instance": inst.Name, "device": devName})
 					_, err = n.InstanceDevicePortSetup(&OVNInstanceNICSetupOpts{
 						InstanceUUID: instanceUUID,
 						DNSName:      inst.Name,
@@ -3940,7 +3940,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 						UplinkConfig: uplinkConfig,
 					}, nil)
 					if err != nil {
-						n.logger.Error("Failed re-adding instance OVN NIC port", log.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
+						n.logger.Error("Failed re-adding instance OVN NIC port", logger.Ctx{"project": inst.Project, "instance": inst.Name, "err": err})
 						continue
 					}
 				}

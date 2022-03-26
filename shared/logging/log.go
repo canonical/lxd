@@ -81,11 +81,11 @@ func GetLogger(syslog string, logfile string, verbose bool, debug bool, customHa
 }
 
 // AddContext will return a copy of the logger with extra context added
-func AddContext(logger logger.Logger, ctx log.Ctx) logger.Logger {
-	log15logger, ok := logger.(log.Logger)
+func AddContext(l logger.Logger, ctx logger.Ctx) logger.Logger {
+	log15logger, ok := l.(log.Logger)
 	if !ok {
-		logger.Error("couldn't downcast logger to add context", log.Ctx{"logger": log15logger, "ctx": ctx})
-		return logger
+		l.Error("couldn't downcast logger to add context", logger.Ctx{"logger": log15logger, "ctx": ctx})
+		return l
 	}
 
 	return log15logger.New(ctx)

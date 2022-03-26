@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/canonical/go-dqlite/client"
-	"gopkg.in/inconshreveable/log15.v2"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/db"
@@ -112,13 +110,13 @@ func triggerUpdate() error {
 	// restarting all cluster members at the same time, and make the
 	// upgrade more graceful.
 	wait := time.Duration(rand.Intn(30)) * time.Second
-	logger.Info("Triggering cluster auto-update soon", log.Ctx{"wait": wait, "updateExecutable": updateExecutable})
+	logger.Info("Triggering cluster auto-update soon", logger.Ctx{"wait": wait, "updateExecutable": updateExecutable})
 	time.Sleep(wait)
 
 	logger.Info("Triggering cluster auto-update now")
 	_, err := shared.RunCommand(updateExecutable)
 	if err != nil {
-		logger.Error("Triggering cluster update failed", log.Ctx{"err": err})
+		logger.Error("Triggering cluster update failed", logger.Ctx{"err": err})
 		return err
 	}
 	logger.Info("Triggering cluster auto-update succeeded")
@@ -175,7 +173,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 			// This can't really happen (but has in the past) since there are always at least as many
 			// members as there are nodes, and all of them have different IDs.
 			if id == uint64(member.ID) {
-				logger.Error("No available raft ID for cluster member", log.Ctx{"memberID": member.ID, "members": members, "raftMembers": nodes})
+				logger.Error("No available raft ID for cluster member", logger.Ctx{"memberID": member.ID, "members": members, "raftMembers": nodes})
 				return fmt.Errorf("No available raft ID for cluster member ID %d", member.ID)
 			}
 		}
@@ -190,7 +188,7 @@ func UpgradeMembersWithoutRole(gateway *Gateway, members []db.NodeInfo) error {
 			Name: "",
 		}
 
-		logger.Info("Add spare dqlite node", log15.Ctx{"id": info.ID, "address": info.Address})
+		logger.Info("Add spare dqlite node", logger.Ctx{"id": info.ID, "address": info.Address})
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

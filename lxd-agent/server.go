@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/util"
@@ -45,7 +44,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 		w.Header().Set("Content-Type", "application/json")
 
 		if !authenticate(r, cert) {
-			log.Error("Not authorized")
+			logger.Error("Not authorized")
 			response.InternalError(fmt.Errorf("Not authorized")).Render(w)
 			return
 		}
@@ -61,7 +60,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 			}
 
 			r.Body = shared.BytesReadCloser{Buf: newBody}
-			util.DebugJSON("API Request", captured, log.New())
+			util.DebugJSON("API Request", captured, logger.Log)
 		}
 
 		// Actually process the request
@@ -95,7 +94,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 		if err != nil {
 			err := response.InternalError(err).Render(w)
 			if err != nil {
-				logger.Error("Failed writing error for HTTP response", log.Ctx{"url": uri, "error": err})
+				logger.Error("Failed writing error for HTTP response", logger.Ctx{"url": uri, "error": err})
 			}
 		}
 	})

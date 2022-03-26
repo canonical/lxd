@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/lxc/lxd/lxd/archive"
@@ -852,7 +850,7 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 		// And finally run the migration.
 		err = sink.DoStorage(d.State(), projectName, poolName, req, op)
 		if err != nil {
-			logger.Error("Error during migration sink", log.Ctx{"err": err})
+			logger.Error("Error during migration sink", logger.Ctx{"err": err})
 			return fmt.Errorf("Error transferring storage volume: %s", err)
 		}
 
@@ -1774,7 +1772,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		bInfo.Name = volName
 	}
 
-	logger.Debug("Backup file info loaded", log.Ctx{
+	logger.Debug("Backup file info loaded", logger.Ctx{
 		"type":      bInfo.Type,
 		"name":      bInfo.Name,
 		"project":   bInfo.Project,

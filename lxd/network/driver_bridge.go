@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/mdlayher/netx/eui64"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/apparmor"
@@ -42,6 +41,7 @@ import (
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
@@ -480,7 +480,7 @@ func (n *bridge) Validate(config map[string]string) error {
 
 // Create checks whether the bridge interface name is used already.
 func (n *bridge) Create(clientType request.ClientType) error {
-	n.logger.Debug("Create", log.Ctx{"clientType": clientType, "config": n.config})
+	n.logger.Debug("Create", logger.Ctx{"clientType": clientType, "config": n.config})
 
 	if InterfaceExists(n.name) {
 		return fmt.Errorf("Network interface %q already exists", n.name)
@@ -496,7 +496,7 @@ func (n *bridge) isRunning() bool {
 
 // Delete deletes a network.
 func (n *bridge) Delete(clientType request.ClientType) error {
-	n.logger.Debug("Delete", log.Ctx{"clientType": clientType})
+	n.logger.Debug("Delete", logger.Ctx{"clientType": clientType})
 
 	if n.isRunning() {
 		err := n.Stop()
@@ -516,7 +516,7 @@ func (n *bridge) Delete(clientType request.ClientType) error {
 
 // Rename renames a network.
 func (n *bridge) Rename(newName string) error {
-	n.logger.Debug("Rename", log.Ctx{"newName": newName})
+	n.logger.Debug("Rename", logger.Ctx{"newName": newName})
 
 	if InterfaceExists(newName) {
 		return fmt.Errorf("Network interface %q already exists", newName)
@@ -735,7 +735,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		hwAddr = randomHwaddr(r)
-		n.logger.Debug("Stable MAC generated", log.Ctx{"seed": seed, "hwAddr": hwAddr})
+		n.logger.Debug("Stable MAC generated", logger.Ctx{"seed": seed, "hwAddr": hwAddr})
 	}
 
 	// Set the MAC address on the bridge interface if specified.
@@ -772,7 +772,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			entry = strings.TrimSpace(entry)
 			iface, err := net.InterfaceByName(entry)
 			if err != nil {
-				n.logger.Warn("Skipping attaching missing external interface", log.Ctx{"interface": entry})
+				n.logger.Warn("Skipping attaching missing external interface", logger.Ctx{"interface": entry})
 				continue
 			}
 
@@ -1049,12 +1049,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningLargerIPv6PrefixThanSupported, "")
 			if err != nil {
-				n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+				n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 			}
 		} else {
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningLargerIPv6PrefixThanSupported, dbCluster.TypeNetwork, int(n.id))
 			if err != nil {
-				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
 		}
 
@@ -1559,14 +1559,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningAppArmorDisabledDueToRawDnsmasq, dbCluster.TypeNetwork, int(n.id))
 			if err != nil {
-				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
 		} else {
-			n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", log.Ctx{"name": n.name})
+			n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", logger.Ctx{"name": n.name})
 
 			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningAppArmorDisabledDueToRawDnsmasq, "")
 			if err != nil {
-				n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+				n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 			}
 		}
 
@@ -1584,7 +1584,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 
 			// Just log an error if dnsmasq has exited, and still proceed with normal setup so we
 			// don't leave the firewall in an inconsistent state.
-			n.logger.Error("The dnsmasq process exited prematurely", log.Ctx{"err": err, "stderr": strings.TrimSpace(string(stderr))})
+			n.logger.Error("The dnsmasq process exited prematurely", logger.Ctx{"err": err, "stderr": strings.TrimSpace(string(stderr))})
 		}
 		cancel()
 
@@ -1767,7 +1767,7 @@ func (n *bridge) Stop() error {
 // Update updates the network. Accepts notification boolean indicating if this update request is coming from a
 // cluster notification, in which case do not update the database, just apply local changes needed.
 func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType request.ClientType) error {
-	n.logger.Debug("Update", log.Ctx{"clientType": clientType, "newNetwork": newNetwork})
+	n.logger.Debug("Update", logger.Ctx{"clientType": clientType, "newNetwork": newNetwork})
 
 	err := n.populateAutoConfig(newNetwork.Config)
 	if err != nil {
@@ -1924,7 +1924,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 		}
 
 		if !node.Online {
-			n.logger.Warn("Excluding offline member from DNS peers refresh", log.Ctx{"address": node.Address, "ID": node.ID, "raftID": node.RaftID, "lastHeartbeat": node.LastHeartbeat})
+			n.logger.Warn("Excluding offline member from DNS peers refresh", logger.Ctx{"address": node.Address, "ID": node.ID, "raftID": node.RaftID, "lastHeartbeat": node.LastHeartbeat})
 			continue
 		}
 
@@ -1953,7 +1953,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	curList, err := ForkdnsServersList(n.name)
 	if err != nil {
 		// Only warn here, but continue on to regenerate the servers list from cluster info.
-		n.logger.Warn("Failed to load existing forkdns server list", log.Ctx{"err": err})
+		n.logger.Warn("Failed to load existing forkdns server list", logger.Ctx{"err": err})
 	}
 
 	// If current list is same as cluster list, nothing to do.
@@ -1966,7 +1966,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 		return err
 	}
 
-	n.logger.Info("Updated forkdns server list", log.Ctx{"nodes": addresses})
+	n.logger.Info("Updated forkdns server list", logger.Ctx{"nodes": addresses})
 	return nil
 }
 
@@ -2026,7 +2026,7 @@ func (n *bridge) applyBootRoutesV4(routes []string) {
 		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
-			n.logger.Error("Failed to restore route", log.Ctx{"err": err})
+			n.logger.Error("Failed to restore route", logger.Ctx{"err": err})
 		}
 	}
 }
@@ -2042,7 +2042,7 @@ func (n *bridge) applyBootRoutesV6(routes []string) {
 		err := r.Replace(strings.Fields(route))
 		if err != nil {
 			// If it fails, then we can't stop as the route has already gone, so just log and continue.
-			n.logger.Error("Failed to restore route", log.Ctx{"err": err})
+			n.logger.Error("Failed to restore route", logger.Ctx{"err": err})
 		}
 	}
 }
@@ -2657,7 +2657,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 							if err != nil {
 								return fmt.Errorf("Error enabling hairpin mode on bridge port %q: %w", link.Name, err)
 							}
-							n.logger.Debug("Enabled hairpin mode on NIC bridge port", log.Ctx{"inst": inst.Name, "project": inst.Project, "device": devName, "dev": link.Name})
+							n.logger.Debug("Enabled hairpin mode on NIC bridge port", logger.Ctx{"inst": inst.Name, "project": inst.Project, "device": devName, "dev": link.Name})
 						}
 					}
 
@@ -2817,10 +2817,10 @@ func (n *bridge) forwardSetupFirewall() error {
 			if err != nil {
 				brNetfilterWarning = true
 				msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the forward listen IPs", ipVersion)
-				n.logger.Warn(msg, log.Ctx{"err": err})
+				n.logger.Warn(msg, logger.Ctx{"err": err})
 				err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 				if err != nil {
-					n.logger.Warn("Failed to create warning", log.Ctx{"err": err})
+					n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 				}
 			}
 		}
@@ -2828,7 +2828,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		if !brNetfilterWarning {
 			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningProxyBridgeNetfilterNotEnabled, dbCluster.TypeNetwork, int(n.id))
 			if err != nil {
-				n.logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
 		}
 	}

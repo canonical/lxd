@@ -11,7 +11,6 @@ import (
 	"os"
 
 	"github.com/mdlayher/netx/eui64"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/dnsmasq"
 	"github.com/lxc/lxd/shared"
@@ -335,7 +334,7 @@ func (t *Transaction) getDHCPFreeIPv6(usedIPs map[[16]byte]dnsmasq.DHCPAllocatio
 // AllocateTask initialises a new locked Transaction for a specific host and executes the supplied function on it.
 // The lock on the dnsmasq config is released when the function returns.
 func AllocateTask(opts *Options, f func(*Transaction) error) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"driver": opts.Network.Type(), "network": opts.Network.Name(), "project": opts.ProjectName, "host": opts.HostName})
+	l := logging.AddContext(logger.Log, logger.Ctx{"driver": opts.Network.Type(), "network": opts.Network.Name(), "project": opts.ProjectName, "host": opts.HostName})
 
 	dnsmasq.ConfigMutex.Lock()
 	defer dnsmasq.ConfigMutex.Unlock()
@@ -398,7 +397,7 @@ func AllocateTask(opts *Options, f func(*Transaction) error) error {
 		if err != nil {
 			return err
 		}
-		logger.Debug("Updated static DHCP entry", log.Ctx{"mac": opts.HostMAC.String(), "IPv4": IPv4Str, "IPv6": IPv6Str})
+		l.Debug("Updated static DHCP entry", logger.Ctx{"mac": opts.HostMAC.String(), "IPv4": IPv4Str, "IPv6": IPv6Str})
 
 		// Reload dnsmasq.
 		err = dnsmasq.Kill(opts.Network.Name(), true)

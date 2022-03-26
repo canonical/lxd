@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared/logger"
@@ -83,9 +82,9 @@ func (c *cmdDaemon) Run(cmd *cobra.Command, args []string) error {
 	for {
 		select {
 		case sig := <-sigCh:
-			logger.Info("Received signal", log.Ctx{"signal": sig})
+			logger.Info("Received signal", logger.Ctx{"signal": sig})
 			if d.shutdownCtx.Err() != nil {
-				logger.Warn("Ignoring signal, shutdown already in progress", log.Ctx{"signal": sig})
+				logger.Warn("Ignoring signal, shutdown already in progress", logger.Ctx{"signal": sig})
 			} else {
 				go func() {
 					d.shutdownDoneCh <- d.Stop(context.Background(), sig)

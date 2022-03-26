@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	fsn "github.com/fsnotify/fsnotify"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var fsnotifyLoaded bool
@@ -126,7 +126,7 @@ func (d *fsnotify) getEvents(ctx context.Context) {
 			}
 			d.mu.Unlock()
 		case err := <-d.watcher.Errors:
-			d.logger.Error("Received event error", log.Ctx{"err": err})
+			d.logger.Error("Received event error", logger.Ctx{"err": err})
 		}
 	}
 }
@@ -139,7 +139,7 @@ func (d *fsnotify) watchFSTree(path string) error {
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		// Check for errors here as we only care about directories. Files and symlinks aren't of interest for this.
 		if err != nil {
-			d.logger.Warn("Error visiting path", log.Ctx{"path": path, "err": err})
+			d.logger.Warn("Error visiting path", logger.Ctx{"path": path, "err": err})
 			return nil
 		}
 
@@ -151,7 +151,7 @@ func (d *fsnotify) watchFSTree(path string) error {
 		// Only watch on real paths.
 		err = d.watcher.Add(path)
 		if err != nil {
-			d.logger.Warn("Failed to watch path", log.Ctx{"path": path, "err": err})
+			d.logger.Warn("Failed to watch path", logger.Ctx{"path": path, "err": err})
 			return nil
 		}
 

@@ -8,12 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -382,7 +381,7 @@ func (d *lvm) createLogicalVolume(vgName, thinPoolName string, vol Volume, makeT
 		}
 	}
 
-	d.logger.Debug("Logical volume created", log.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": vol.ConfigBlockFilesystem()})
+	d.logger.Debug("Logical volume created", logger.Ctx{"vg_name": vgName, "lv_name": lvFullName, "size": fmt.Sprintf("%db", lvSizeBytes), "fs": vol.ConfigBlockFilesystem()})
 	return nil
 }
 
@@ -395,7 +394,7 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	}
 
 	snapLvName := d.lvmFullVolumeName(snapVol.volType, snapVol.contentType, snapVol.name)
-	logCtx := log.Ctx{"vg_name": vgName, "lv_name": snapLvName, "src_dev": srcVolDevPath, "thin": makeThinLv}
+	logCtx := logger.Ctx{"vg_name": vgName, "lv_name": snapLvName, "src_dev": srcVolDevPath, "thin": makeThinLv}
 	args := []string{"-n", snapLvName, "-s", srcVolDevPath}
 
 	if isRecent {
@@ -446,7 +445,7 @@ func (d *lvm) removeLogicalVolume(volDevPath string) error {
 	if err != nil {
 		return err
 	}
-	d.logger.Debug("Logical volume removed", log.Ctx{"dev": volDevPath})
+	d.logger.Debug("Logical volume removed", logger.Ctx{"dev": volDevPath})
 
 	return nil
 }
@@ -457,7 +456,7 @@ func (d *lvm) renameLogicalVolume(volDevPath string, newVolDevPath string) error
 	if err != nil {
 		return err
 	}
-	d.logger.Debug("Logical volume renamed", log.Ctx{"dev": volDevPath, "new_dev": newVolDevPath})
+	d.logger.Debug("Logical volume renamed", logger.Ctx{"dev": volDevPath, "new_dev": newVolDevPath})
 
 	return nil
 }
@@ -499,7 +498,7 @@ func (d *lvm) resizeLogicalVolume(lvPath string, sizeBytes int64) error {
 		return err
 	}
 
-	d.logger.Debug("Logical volume resized", log.Ctx{"dev": lvPath, "size": fmt.Sprintf("%db", sizeBytes)})
+	d.logger.Debug("Logical volume resized", logger.Ctx{"dev": lvPath, "size": fmt.Sprintf("%db", sizeBytes)})
 	return nil
 }
 
@@ -604,7 +603,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 				return err
 			}
 
-			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": vol.ConfigBlockFilesystem()})
+			d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volDevPath, "fs": vol.ConfigBlockFilesystem()})
 			err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volDevPath)
 			if err != nil {
 				return err
@@ -743,7 +742,7 @@ func (d *lvm) activateVolume(volDevPath string) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
-		d.logger.Debug("Activated logical volume", log.Ctx{"dev": volDevPath})
+		d.logger.Debug("Activated logical volume", logger.Ctx{"dev": volDevPath})
 		return true, nil
 	}
 
@@ -757,7 +756,7 @@ func (d *lvm) deactivateVolume(volDevPath string) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("Failed to deactivate LVM logical volume %q: %w", volDevPath, err)
 		}
-		d.logger.Debug("Deactivated logical volume", log.Ctx{"dev": volDevPath})
+		d.logger.Debug("Deactivated logical volume", logger.Ctx{"dev": volDevPath})
 		return true, nil
 	}
 

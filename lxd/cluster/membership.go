@@ -12,8 +12,6 @@ import (
 
 	"github.com/canonical/go-dqlite/app"
 	"github.com/canonical/go-dqlite/client"
-	"gopkg.in/inconshreveable/log15.v2"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
@@ -418,7 +416,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 		panic("Joining member not found")
 	}
 
-	logger.Info("Joining dqlite raft cluster", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
+	logger.Info("Joining dqlite raft cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	client, err := client.FindLeader(
@@ -431,7 +429,7 @@ func Join(state *state.State, gateway *Gateway, networkCert *shared.CertInfo, se
 	}
 	defer client.Close()
 
-	logger.Info("Adding node to cluster", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
+	logger.Info("Adding node to cluster", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 	ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	err = client.Add(ctx, info.NodeInfo)
@@ -595,7 +593,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current raft members", log.Ctx{"err": err, "local": localAddress})
+		logger.Warn("Failed to get current raft members", logger.Ctx{"err": err, "local": localAddress})
 		return
 	}
 
@@ -609,7 +607,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 		return nil
 	})
 	if err != nil {
-		logger.Warn("Failed to get current cluster members", log.Ctx{"err": err, "local": localAddress})
+		logger.Warn("Failed to get current cluster members", logger.Ctx{"err": err, "local": localAddress})
 		return
 	}
 
@@ -626,7 +624,7 @@ func NotifyHeartbeat(state *state.State, gateway *Gateway) {
 	}()
 
 	// Notify all other members of the change in membership.
-	logger.Info("Sending member change notification heartbeat to all members", log.Ctx{"local": localAddress})
+	logger.Info("Sending member change notification heartbeat to all members", logger.Ctx{"local": localAddress})
 	for _, node := range allNodes {
 		if node.Address == localAddress {
 			continue
@@ -679,7 +677,7 @@ func Rebalance(state *state.State, gateway *Gateway, unavailableMembers []string
 
 	// Check if we have a spare node that we can promote to the missing role.
 	candidateAddress := candidates[0].Address
-	logger.Info("Found cluster member whose role needs to be changed", log.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": address})
+	logger.Info("Found cluster member whose role needs to be changed", logger.Ctx{"candidateAddress": candidateAddress, "newRole": role, "local": address})
 
 	for i, node := range nodes {
 		if node.Address == candidateAddress {
@@ -779,7 +777,7 @@ func Assign(state *state.State, gateway *Gateway, nodes []db.RaftNode) error {
 	}
 
 assign:
-	logger.Info("Changing local dqlite raft role", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
+	logger.Info("Changing local dqlite raft role", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -932,7 +930,7 @@ func Leave(state *state.State, gateway *Gateway, name string, force bool) (strin
 	// Get the address of another database node,
 	logger.Info(
 		"Remove node from dqlite raft cluster",
-		log15.Ctx{"id": info.ID, "address": info.Address})
+		logger.Ctx{"id": info.ID, "address": info.Address})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

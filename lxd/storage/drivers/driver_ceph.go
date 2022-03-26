@@ -7,13 +7,12 @@ import (
 	"os/exec"
 	"strings"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -155,7 +154,7 @@ func (d *ceph) Create() error {
 			"init",
 			d.config["ceph.osd.pool_name"])
 		if err != nil {
-			d.logger.Warn("Failed to initialize pool", log.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
+			d.logger.Warn("Failed to initialize pool", logger.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
 		}
 
 		// Create placeholder storage volume. Other LXD instances will use this to detect whether this osd
@@ -222,7 +221,7 @@ func (d *ceph) Delete(op *operations.Operation) error {
 	// Test if the pool exists.
 	poolExists := d.osdPoolExists()
 	if !poolExists {
-		d.logger.Warn("Pool does not exist", log.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
+		d.logger.Warn("Pool does not exist", logger.Ctx{"pool": d.config["ceph.osd.pool_name"], "cluster": d.config["ceph.cluster_name"]})
 	}
 
 	// Check whether we own the pool and only remove in this case.

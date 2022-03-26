@@ -9,6 +9,7 @@ import (
 
 // Ctx is the logging context.
 type Ctx map[string]interface{}
+
 func (c Ctx) toArray() []interface{} {
 	array := make([]interface{}, len(c)*2)
 

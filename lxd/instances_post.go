@@ -14,7 +14,6 @@ import (
 
 	"github.com/dustinkirkland/golang-petname"
 	"github.com/gorilla/websocket"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
@@ -487,7 +486,7 @@ func createFromCopy(d *Daemon, r *http.Request, projectName string, req *api.Ins
 
 	for key, value := range sourceConfig {
 		if !shared.InstanceIncludeWhenCopying(key, false) {
-			logger.Debug("Skipping key from copy source", log.Ctx{"key": key, "sourceProject": source.Project(), "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
+			logger.Debug("Skipping key from copy source", logger.Ctx{"key": key, "sourceProject": source.Project(), "sourceInstance": source.Name(), "project": targetProject, "instance": req.Name})
 			continue
 		}
 
@@ -665,7 +664,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		bInfo.Name = instanceName
 	}
 
-	logger.Debug("Backup file info loaded", log.Ctx{
+	logger.Debug("Backup file info loaded", logger.Ctx{
 		"type":      bInfo.Type,
 		"name":      bInfo.Name,
 		"project":   bInfo.Project,

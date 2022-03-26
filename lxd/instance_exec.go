@@ -16,7 +16,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -265,16 +264,16 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(-1, err)
 	}
 
-	logger := logging.AddContext(logger.Log, log.Ctx{"project": s.instance.Project(), "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
-	logger.Debug("Instance process started")
+	l := logging.AddContext(logger.Log, logger.Ctx{"project": s.instance.Project(), "instance": s.instance.Name(), "PID": cmd.PID(), "interactive": s.req.Interactive})
+	l.Debug("Instance process started")
 
 	var cmdKillOnce sync.Once
 	cmdKill := func() {
 		err := cmd.Signal(unix.SIGKILL)
 		if err != nil {
-			logger.Debug("Failed to send SIGKILL signal", log.Ctx{"err": err})
+			l.Debug("Failed to send SIGKILL signal", logger.Ctx{"err": err})
 		} else {
-			logger.Debug("Sent SIGKILL signal")
+			l.Debug("Sent SIGKILL signal")
 		}
 	}
 
@@ -293,8 +292,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 			return // No connection, command has ended, being asked to end.
 		}
 
-		logger.Debug("Exec control handler started")
-		defer logger.Debug("Exec control handler finished")
+		l.Debug("Exec control handler started")
+		defer l.Debug("Exec control handler finished")
 
 		for {
 			mt, r, err := conn.NextReader()
@@ -307,9 +306,9 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if mt == websocket.CloseMessage {
-					logger.Warn("Got exec control websocket close message, killing command")
+					l.Warn("Got exec control websocket close message, killing command")
 				} else {
-					logger.Warn("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
+					l.Warn("Failed getting exec control websocket reader, killing command", logger.Ctx{"err": err})
 				}
 
 				cmdKillOnce.Do(cmdKill)
@@ -326,7 +325,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				default:
 				}
 
-				logger.Warn("Failed reading control websocket message, killing command", log.Ctx{"err": err})
+				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
 
 				cmdKillOnce.Do(cmdKill)
 
@@ -336,7 +335,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			command := api.InstanceExecControl{}
 
 			if err := json.Unmarshal(buf, &command); err != nil {
-				logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
+				l.Debug("Failed to unmarshal control socket command", logger.Ctx{"err": err})
 				continue
 			}
 
@@ -344,25 +343,25 @@ func (s *execWs) Do(op *operations.Operation) error {
 			if command.Command == "window-resize" && s.req.Interactive {
 				winchWidth, err := strconv.Atoi(command.Args["width"])
 				if err != nil {
-					logger.Debug("Unable to extract window width", log.Ctx{"err": err})
+					l.Debug("Unable to extract window width", logger.Ctx{"err": err})
 					continue
 				}
 
 				winchHeight, err := strconv.Atoi(command.Args["height"])
 				if err != nil {
-					logger.Debug("Unable to extract window height", log.Ctx{"err": err})
+					l.Debug("Unable to extract window height", logger.Ctx{"err": err})
 					continue
 				}
 
 				err = cmd.WindowResize(int(ptys[0].Fd()), winchWidth, winchHeight)
 				if err != nil {
-					logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+					l.Debug("Failed to set window size", logger.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
 					continue
 				}
 			} else if command.Command == "signal" {
 				err := cmd.Signal(unix.Signal(command.Signal))
 				if err != nil {
-					logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
+					l.Debug("Failed forwarding signal", logger.Ctx{"err": err, "signal": command.Signal})
 					continue
 				}
 			}
@@ -375,8 +374,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 		go func() {
 			defer wgEOF.Done()
 
-			logger.Debug("Exec mirror websocket started", log.Ctx{"number": 0})
-			defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": 0})
+			l.Debug("Exec mirror websocket started", logger.Ctx{"number": 0})
+			defer l.Debug("Exec mirror websocket finished", logger.Ctx{"number": 0})
 
 			s.connsLock.Lock()
 			conn := s.conns[0]
@@ -404,8 +403,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
-				logger.Debug("Exec mirror websocket started", log.Ctx{"number": i})
-				defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": i})
+				l.Debug("Exec mirror websocket started", logger.Ctx{"number": i})
+				defer l.Debug("Exec mirror websocket finished", logger.Ctx{"number": i})
 
 				s.connsLock.Lock()
 				conn := s.conns[i]
@@ -428,7 +427,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 						// In either case there is no need to kill the command, but if not
 						// then it is our responsibility to kill the command now.
 						if s.controlConnectedCtx.Err() == nil {
-							logger.Warn("Unexpected read on stdout websocket, killing command", log.Ctx{"number": i, "err": err})
+							l.Warn("Unexpected read on stdout websocket, killing command", logger.Ctx{"number": i, "err": err})
 							cmdKillOnce.Do(cmdKill)
 						}
 					}()
@@ -447,7 +446,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 	}
 
 	exitStatus, err := cmd.Wait()
-	logger.Debug("Instance process stopped", log.Ctx{"exitStatus": exitStatus})
+	l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
 	return finisher(exitStatus, err)
 }
 
@@ -676,11 +675,11 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		logger := logging.AddContext(logger.Log, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
-		logger.Debug("Instance process started")
+		l := logging.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "PID": cmd.PID(), "recordOutput": post.RecordOutput})
+		l.Debug("Instance process started")
 
 		exitStatus, err := cmd.Wait()
-		logger.Debug("Instance process stopped", log.Ctx{"exitStatus": exitStatus})
+		l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
 		if err != nil {
 			return err
 		}
@@ -689,7 +688,7 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 
 		err = op.ExtendMetadata(metadata)
 		if err != nil {
-			logger.Error("Error updating metadata for cmd", log.Ctx{"err": err, "cmd": post.Command})
+			l.Error("Error updating metadata for cmd", logger.Ctx{"err": err, "cmd": post.Command})
 		}
 
 		return nil

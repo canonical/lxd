@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/revert"
@@ -130,7 +128,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	}
 
 	if pool.LocalStatus() == api.NetworkStatusCreated {
-		logger.Debug("Skipping local storage pool create as already created", log.Ctx{"pool": pool.Name()})
+		logger.Debug("Skipping local storage pool create as already created", logger.Ctx{"pool": pool.Name()})
 
 		return pool.Driver().Config(), nil
 	}
@@ -169,7 +167,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("Marked storage pool local status as created", log.Ctx{"pool": req.Name})
+	logger.Debug("Marked storage pool local status as created", logger.Ctx{"pool": req.Name})
 
 	revert.Success()
 	return pool.Driver().Config(), nil

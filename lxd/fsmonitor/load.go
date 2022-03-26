@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/fsmonitor/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared/logger"
@@ -15,7 +13,7 @@ import (
 // New creates a new FSMonitor instance.
 func New(ctx context.Context, path string) (FSMonitor, error) {
 	startMonitor := func(driverName string) (drivers.Driver, logger.Logger, error) {
-		logger := logging.AddContext(logger.Log, log.Ctx{"driver": driverName})
+		logger := logging.AddContext(logger.Log, logger.Ctx{"driver": driverName})
 
 		driver, err := drivers.Load(ctx, logger, driverName, path)
 		if err != nil {
@@ -31,14 +29,14 @@ func New(ctx context.Context, path string) (FSMonitor, error) {
 
 	driver, monLogger, err := startMonitor("fanotify")
 	if err != nil {
-		logger.Warn("Failed to initialize fanotify, falling back on fsnotify", log.Ctx{"err": err})
+		logger.Warn("Failed to initialize fanotify, falling back on fsnotify", logger.Ctx{"err": err})
 		driver, monLogger, err = startMonitor("fsnotify")
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	logger.Debug("Initialized filesystem monitor", log.Ctx{"path": path})
+	logger.Debug("Initialized filesystem monitor", logger.Ctx{"path": path})
 
 	monitor := fsMonitor{
 		driver: driver,

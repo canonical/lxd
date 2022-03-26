@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -68,7 +66,7 @@ func resetContainerDiskIdmap(container instance.Container, srcIdmap *idmap.Idmap
 			jsonIdmap = "[]"
 		}
 
-		logger.Debug("Setting new volatile.last_state.idmap from source instance", log.Ctx{"project": container.Project(), "instance": container.Name(), "sourceIdmap": srcIdmap})
+		logger.Debug("Setting new volatile.last_state.idmap from source instance", logger.Ctx{"project": container.Project(), "instance": container.Name(), "sourceIdmap": srcIdmap})
 		err := container.VolatileSet(map[string]string{"volatile.last_state.idmap": jsonIdmap})
 		if err != nil {
 			return err
@@ -98,7 +96,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 	}
 
 	initPool := func(poolName string) bool {
-		logger.Debug("Initializing storage pool", log.Ctx{"pool": poolName})
+		logger.Debug("Initializing storage pool", logger.Ctx{"pool": poolName})
 
 		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
@@ -106,20 +104,20 @@ func storageStartup(s *state.State, forceCheck bool) error {
 				return true // Nothing to activate as pool has been deleted.
 			}
 
-			logger.Error("Failed loading storage pool", log.Ctx{"pool": poolName, "err": err})
+			logger.Error("Failed loading storage pool", logger.Ctx{"pool": poolName, "err": err})
 
 			return false
 		}
 
 		_, err = pool.Mount()
 		if err != nil {
-			logger.Error("Failed mounting storage pool", log.Ctx{"pool": poolName, "err": err})
+			logger.Error("Failed mounting storage pool", logger.Ctx{"pool": poolName, "err": err})
 			s.Cluster.UpsertWarningLocalNode("", cluster.TypeStoragePool, int(pool.ID()), db.WarningStoragePoolUnvailable, err.Error())
 
 			return false
 		}
 
-		logger.Info("Initialized storage pool", log.Ctx{"pool": poolName})
+		logger.Info("Initialized storage pool", logger.Ctx{"pool": poolName})
 		warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, "", db.WarningStoragePoolUnvailable, cluster.TypeStoragePool, int(pool.ID()))
 
 		return true
@@ -167,7 +165,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 					if tryInstancesStart {
 						instances, err := instance.LoadNodeAll(s, instancetype.Any)
 						if err != nil {
-							logger.Error("Failed loading instances to start", log.Ctx{"err": err})
+							logger.Error("Failed loading instances to start", logger.Ctx{"err": err})
 						} else {
 							instancesStart(s, instances)
 						}

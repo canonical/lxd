@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	pcidev "github.com/lxc/lxd/lxd/device/pci"
@@ -16,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 type gpuMdev struct {
@@ -137,7 +137,7 @@ func (d *gpuMdev) startVM() (*deviceConfig.RunConfig, error) {
 				if shared.PathExists(path) {
 					err := ioutil.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)
 					if err != nil {
-						d.logger.Error("Failed to remove vgpu", log.Ctx{"device": mdevUUID, "err": err})
+						d.logger.Error("Failed to remove vgpu", logger.Ctx{"device": mdevUUID, "err": err})
 					}
 				}
 			})
@@ -194,7 +194,7 @@ func (d *gpuMdev) postStop() error {
 		if shared.PathExists(path) {
 			err := ioutil.WriteFile(filepath.Join(path, "remove"), []byte("1\n"), 0200)
 			if err != nil {
-				d.logger.Error("Failed to remove vgpu", log.Ctx{"device": v["vgpu.uuid"], "err": err})
+				d.logger.Error("Failed to remove vgpu", logger.Ctx{"device": v["vgpu.uuid"], "err": err})
 			}
 		}
 	}

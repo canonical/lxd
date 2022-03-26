@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -327,7 +326,7 @@ func clusterPut(d *Daemon, r *http.Request) response.Response {
 }
 
 func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
-	logger.Info("Bootstrapping cluster", log.Ctx{"serverName": req.ServerName})
+	logger.Info("Bootstrapping cluster", logger.Ctx{"serverName": req.ServerName})
 
 	run := func(op *operations.Operation) error {
 		// Start clustering tasks
@@ -396,7 +395,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 }
 
 func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
-	logger.Info("Joining cluster", log.Ctx{"serverName": req.ServerName})
+	logger.Info("Joining cluster", logger.Ctx{"serverName": req.ServerName})
 
 	// Make sure basic pre-conditions are met.
 	if len(req.ClusterCertificate) == 0 {
@@ -765,7 +764,7 @@ var clusterPutDisableMu sync.Mutex
 
 // Disable clustering on a node.
 func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.Response {
-	logger.Info("Disabling clustering", log.Ctx{"serverName": req.ServerName})
+	logger.Info("Disabling clustering", logger.Ctx{"serverName": req.ServerName})
 
 	// Close the cluster database
 	err := d.cluster.Close()
@@ -817,7 +816,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 			logger.Info("Restarting LXD daemon following removal from cluster")
 			err = util.ReplaceDaemon()
 			if err != nil {
-				logger.Error("Failed restarting LXD daemon", log.Ctx{"err": err})
+				logger.Error("Failed restarting LXD daemon", logger.Ctx{"err": err})
 			}
 		}
 	}()
@@ -1255,7 +1254,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 
 		if opServerName == req.ServerName {
 			// Join token operation matches requested server name, so lets cancel it.
-			logger.Warn("Cancelling duplicate join token operation", log.Ctx{"operation": op.ID, "serverName": opServerName})
+			logger.Warn("Cancelling duplicate join token operation", logger.Ctx{"operation": op.ID, "serverName": opServerName})
 			err = operationCancel(d, r, project.Default, op)
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed to cancel operation %q: %w", op.ID, err))
@@ -1674,7 +1673,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRenamed.Event(req.ServerName, requestor, log.Ctx{"old_name": name}))
+	d.State().Events.SendLifecycle(projectParam(r), lifecycle.ClusterMemberRenamed.Event(req.ServerName, requestor, logger.Ctx{"old_name": name}))
 
 	return response.EmptySyncResponse
 }
@@ -1753,12 +1752,12 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 			// goes on to request clusterPutDisable back to ourselves it won't be actioned until we
 			// have returned this request back to the original client.
 			clusterPutDisableMu.Lock()
-			logger.Info("Acquired cluster self removal lock", log.Ctx{"member": localInfo.Name})
+			logger.Info("Acquired cluster self removal lock", logger.Ctx{"member": localInfo.Name})
 
 			go func() {
 				<-r.Context().Done() // Wait until request is finished.
 
-				logger.Info("Releasing cluster self removal lock", log.Ctx{"member": localInfo.Name})
+				logger.Info("Releasing cluster self removal lock", logger.Ctx{"member": localInfo.Name})
 				clusterPutDisableMu.Unlock()
 			}()
 		}
@@ -1822,7 +1821,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	logger.Info("Deleting member from cluster", log.Ctx{"name": name, "force": force})
+	logger.Info("Deleting member from cluster", logger.Ctx{"name": name, "force": force})
 
 	err = autoSyncImages(d.shutdownCtx, d)
 	if err != nil {
@@ -2198,7 +2197,7 @@ again:
 			break
 		}
 
-		logger.Info("Demoting offline member during rebalance", log.Ctx{"candidateAddress": node.Address})
+		logger.Info("Demoting offline member during rebalance", logger.Ctx{"candidateAddress": node.Address})
 		err := d.gateway.DemoteOfflineNode(node.ID)
 		if err != nil {
 			return fmt.Errorf("Demote offline node %s: %w", node.Address, err)
@@ -2208,7 +2207,7 @@ again:
 	}
 
 	// Tell the node to promote itself.
-	logger.Info("Promoting member during rebalance", log.Ctx{"candidateAddress": address})
+	logger.Info("Promoting member during rebalance", logger.Ctx{"candidateAddress": address})
 	err = changeMemberRole(d, r, address, nodes)
 	if err != nil {
 		return err
@@ -2288,7 +2287,7 @@ func handoverMemberRole(d *Daemon) error {
 		Address: address,
 	}
 
-	logCtx := log.Ctx{"address": address}
+	logCtx := logger.Ctx{"address": address}
 
 	// Find the cluster leader.
 findLeader:
@@ -2413,7 +2412,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		goto out
 	}
 
-	logger.Info("Promoting member during handover", log.Ctx{"address": address, "losingAddress": req.Address, "candidateAddress": target})
+	logger.Info("Promoting member during handover", logger.Ctx{"address": address, "losingAddress": req.Address, "candidateAddress": target})
 	err = changeMemberRole(d, r, target, nodes)
 	if err != nil {
 		return response.SmartError(err)
@@ -2426,7 +2425,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	logger.Info("Demoting member during handover", log.Ctx{"address": address, "losingAddress": req.Address})
+	logger.Info("Demoting member during handover", logger.Ctx{"address": address, "losingAddress": req.Address})
 	err = changeMemberRole(d, r, req.Address, nodes)
 	if err != nil {
 		return response.SmartError(err)
@@ -2544,7 +2543,7 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 
 	err = rebalanceMemberRoles(d, r, nil)
 	if err != nil && !errors.Is(err, cluster.ErrNotLeader) {
-		logger.Warn("Could not rebalance cluster member roles after raft member removal", log.Ctx{"err": err})
+		logger.Warn("Could not rebalance cluster member roles after raft member removal", logger.Ctx{"err": err})
 	}
 
 	return response.SyncResponse(true, nil)
@@ -2752,7 +2751,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 			// Skip migration if no target available.
 			if targetNodeName == "" {
-				logger.Warn("No migration target available for instance", log.Ctx{"name": inst.Name(), "project": inst.Project()})
+				logger.Warn("No migration target available for instance", logger.Ctx{"name": inst.Name(), "project": inst.Project()})
 				continue
 			}
 
@@ -3382,7 +3381,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupRenamed.Event(req.Name, requestor, log.Ctx{"old_name": name}))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupRenamed.Event(req.Name, requestor, logger.Ctx{"old_name": name}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/cluster/groups/%s", version.APIVersion, req.Name))
 }
@@ -3502,7 +3501,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, log.Ctx{"description": req.Description, "members": req.Members}))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
 
 	return response.EmptySyncResponse
 }
@@ -3649,7 +3648,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, log.Ctx{"description": req.Description, "members": req.Members}))
+	d.State().Events.SendLifecycle(project.Default, lifecycle.ClusterGroupUpdated.Event(name, requestor, logger.Ctx{"description": req.Description, "members": req.Members}))
 
 	return response.EmptySyncResponse
 }

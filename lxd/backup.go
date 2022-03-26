@@ -9,7 +9,6 @@ import (
 
 	"context"
 
-	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -37,9 +36,9 @@ import (
 
 // Create a new backup.
 func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
-	logger.Debug("Instance backup started")
-	defer logger.Debug("Instance backup finished")
+	l := logging.AddContext(logger.Log, logger.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
+	l.Debug("Instance backup started")
+	defer l.Debug("Instance backup finished")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -109,7 +108,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	target := shared.VarPath("backups", "instances", project.Instance(sourceInst.Project(), b.Name()))
 
 	// Setup the tarball writer.
-	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
+	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
 	tarFileWriter, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
@@ -152,8 +151,8 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	go func(resCh chan<- error) {
-		logger.Debug("Started backup tarball writer")
-		defer logger.Debug("Finished backup tarball writer")
+		l.Debug("Started backup tarball writer")
+		defer l.Debug("Finished backup tarball writer")
 		if compress != "none" {
 			backupProgressWriter.WriteCloser = tarFileWriter
 			compressErr = compressFile(compress, tarPipeReader, backupProgressWriter)
@@ -170,7 +169,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}(tarWriterRes)
 
 	// Write index file.
-	logger.Debug("Adding backup index file")
+	l.Debug("Adding backup index file")
 	err = backupWriteIndex(sourceInst, pool, b.OptimizedStorage(), !b.InstanceOnly(), tarWriter)
 
 	// Check compression errors.
@@ -277,14 +276,14 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationBackupsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start expired instance backups operation", log.Ctx{"err": err})
+			logger.Error("Failed to start expired instance backups operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Pruning expired instance backups")
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to expire instance backups", log.Ctx{"err": err})
+			logger.Error("Failed to expire instance backups", logger.Ctx{"err": err})
 		}
 		logger.Info("Done pruning expired instance backups")
 	}
@@ -330,9 +329,9 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 }
 
 func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
-	logger := logging.AddContext(logger.Log, log.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
-	logger.Debug("Volume backup started")
-	defer logger.Debug("Volume backup finished")
+	l := logging.AddContext(logger.Log, logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
+	l.Debug("Volume backup started")
+	defer l.Debug("Volume backup finished")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -398,7 +397,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	target := shared.VarPath("backups", "custom", pool.Name(), project.StorageVolume(projectName, backupRow.Name))
 
 	// Setup the tarball writer.
-	logger.Debug("Opening backup tarball for writing", log.Ctx{"path": target})
+	l.Debug("Opening backup tarball for writing", logger.Ctx{"path": target})
 	tarFileWriter, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("Error opening backup tarball for writing %q: %w", target, err)
@@ -416,8 +415,8 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	var compressErr error
 
 	go func(resCh chan<- error) {
-		logger.Debug("Started backup tarball writer")
-		defer logger.Debug("Finished backup tarball writer")
+		l.Debug("Started backup tarball writer")
+		defer l.Debug("Finished backup tarball writer")
 		if compress != "none" {
 			compressErr = compressFile(compress, tarPipeReader, tarFileWriter)
 
@@ -432,7 +431,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	}(tarWriterRes)
 
 	// Write index file.
-	logger.Debug("Adding backup index file")
+	l.Debug("Adding backup index file")
 	err = volumeBackupWriteIndex(s, projectName, vol, pool, backupRow.OptimizedStorage, !backupRow.VolumeOnly, tarWriter)
 
 	// Check compression errors.

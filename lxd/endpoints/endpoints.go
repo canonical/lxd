@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/endpoints/listeners"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -241,13 +239,13 @@ func (e *Endpoints) up(config *Config) error {
 				e.serve(cluster)
 			}
 		} else if networkAddressErr != nil {
-			logger.Error("Cannot currently listen on https socket, re-trying once in 30s...", log.Ctx{"err": networkAddressErr})
+			logger.Error("Cannot currently listen on https socket, re-trying once in 30s...", logger.Ctx{"err": networkAddressErr})
 
 			go func() {
 				time.Sleep(30 * time.Second)
 				err := e.NetworkUpdateAddress(config.NetworkAddress)
 				if err != nil {
-					logger.Error("Still unable to listen on https socket", log.Ctx{"err": err})
+					logger.Error("Still unable to listen on https socket", logger.Ctx{"err": err})
 				}
 			}()
 		}
@@ -376,7 +374,7 @@ func (e *Endpoints) serve(kind kind) {
 		return
 	}
 
-	ctx := log.Ctx{"socket": listener.Addr()}
+	ctx := logger.Ctx{"socket": listener.Addr()}
 	if e.inherited[kind] {
 		ctx["inherited"] = true
 	}
@@ -407,7 +405,7 @@ func (e *Endpoints) closeListener(kind kind) error {
 	}
 	delete(e.listeners, kind)
 
-	logger.Info(" - closing socket", log.Ctx{"socket": listener.Addr()})
+	logger.Info(" - closing socket", logger.Ctx{"socket": listener.Addr()})
 
 	return listener.Close()
 }

@@ -20,7 +20,6 @@ import (
 
 	dqlite "github.com/canonical/go-dqlite"
 	client "github.com/canonical/go-dqlite/client"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
@@ -202,20 +201,20 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 			var heartbeatData APIHeartbeat
 			err := json.NewDecoder(r.Body).Decode(&heartbeatData)
 			if err != nil {
-				logger.Error("Failed decoding heartbeat", log.Ctx{"err": err})
+				logger.Error("Failed decoding heartbeat", logger.Ctx{"err": err})
 				http.Error(w, "400 Failed decoding heartbeat", http.StatusBadRequest)
 				return
 			}
 
 			isLeader, err := g.isLeader()
 			if err != nil {
-				logger.Error("Failed checking if leader", log.Ctx{"err": err})
+				logger.Error("Failed checking if leader", logger.Ctx{"err": err})
 				http.Error(w, "500 Failed checking if leader", http.StatusInternalServerError)
 				return
 			}
 
 			if heartbeatHandler == nil {
-				logger.Error("No heartbeat handler", log.Ctx{"err": err})
+				logger.Error("No heartbeat handler", logger.Ctx{"err": err})
 				return
 			}
 
@@ -903,7 +902,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			for i, server := range servers {
 				node, found := nodesByAddress[server.Address]
 				if !found {
-					logger.Warn("Cluster member info not found", log.Ctx{"address": server.Address})
+					logger.Warn("Cluster member info not found", logger.Ctx{"address": server.Address})
 				}
 
 				raftNodes[i].Name = node.Name
@@ -912,7 +911,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 			return nil
 		})
 		if err != nil {
-			logger.Warn("Failed getting raft nodes", log.Ctx{"err": err})
+			logger.Warn("Failed getting raft nodes", logger.Ctx{"err": err})
 		}
 	}
 
@@ -984,16 +983,16 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	}
 	revert.Add(func() { conn.Close() })
 
-	logger := logging.AddContext(logger.Log, log.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
-	logger.Info("Dqlite connected outbound")
+	l := logging.AddContext(logger.Log, logger.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
+	l.Info("Dqlite connected outbound")
 
 	remoteTCP, err := tcp.ExtractConn(conn)
 	if err != nil {
-		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+		l.Error("Failed extracting TCP connection from remote connection", logger.Ctx{"err": err})
 	} else {
 		err := tcp.SetTimeouts(remoteTCP)
 		if err != nil {
-			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+			l.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}
 	}
 
@@ -1075,17 +1074,17 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 // Copies data between a remote TLS network connection and a local unix socket.
 // Accepts name argument that can be used to identify the connection in the logs.
 func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.Conn) {
-	logger := logging.AddContext(logger.Log, log.Ctx{"name": name, "local": remote.LocalAddr(), "remote": remote.RemoteAddr()})
-	logger.Info("Dqlite proxy started")
-	defer logger.Info("Dqlite proxy stopped")
+	l := logging.AddContext(logger.Log, logger.Ctx{"name": name, "local": remote.LocalAddr(), "remote": remote.RemoteAddr()})
+	l.Info("Dqlite proxy started")
+	defer l.Info("Dqlite proxy stopped")
 
 	remoteTCP, err := tcp.ExtractConn(remote)
 	if err != nil {
-		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+		l.Error("Failed extracting TCP connection from remote connection", logger.Ctx{"err": err})
 	} else {
 		err := tcp.SetTimeouts(remoteTCP)
 		if err != nil {
-			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+			l.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}
 	}
 
@@ -1137,7 +1136,7 @@ func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.C
 
 	if errs[0] != nil || errs[1] != nil {
 		err := dqliteProxyError{first: errs[0], second: errs[1]}
-		logger.Warn("Dqlite proxy failed", log.Ctx{"err": err})
+		l.Warn("Dqlite proxy failed", logger.Ctx{"err": err})
 	}
 }
 

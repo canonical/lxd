@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/ip"
 	"github.com/lxc/lxd/lxd/revert"
@@ -86,7 +84,7 @@ func reconfigureNetworkInterfaces() {
 			return
 		}
 
-		logger.Error("Could not read network interface configuration directory", log.Ctx{"err": err})
+		logger.Error("Could not read network interface configuration directory", logger.Ctx{"err": err})
 		return
 	}
 
@@ -96,13 +94,13 @@ func reconfigureNetworkInterfaces() {
 	for _, f := range nicDirEntries {
 		nicBytes, err := ioutil.ReadFile(filepath.Join(deviceConfig.NICConfigDir, f.Name()))
 		if err != nil {
-			logger.Error("Could not read network interface configuration file", log.Ctx{"err": err})
+			logger.Error("Could not read network interface configuration file", logger.Ctx{"err": err})
 		}
 
 		var conf deviceConfig.NICConfig
 		err = json.Unmarshal(nicBytes, &conf)
 		if err != nil {
-			logger.Error("Could not parse network interface configuration file", log.Ctx{"err": err})
+			logger.Error("Could not parse network interface configuration file", logger.Ctx{"err": err})
 			return
 		}
 
@@ -189,13 +187,13 @@ func reconfigureNetworkInterfaces() {
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		logger.Error("Unable to read network interfaces", log.Ctx{"err": err})
+		logger.Error("Unable to read network interfaces", logger.Ctx{"err": err})
 	}
 
 	for _, iface := range ifaces {
 		err = configureNIC(iface)
 		if err != nil {
-			logger.Error("Unable to reconfigure network interface", log.Ctx{"interface": iface.Name, "err": err})
+			logger.Error("Unable to reconfigure network interface", logger.Ctx{"interface": iface.Name, "err": err})
 		}
 	}
 
