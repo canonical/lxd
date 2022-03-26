@@ -7,6 +7,21 @@ import (
 	"fmt"
 )
 
+// Ctx is the logging context.
+type Ctx map[string]interface{}
+func (c Ctx) toArray() []interface{} {
+	array := make([]interface{}, len(c)*2)
+
+	i := 0
+	for k, v := range c {
+		array[i] = k
+		array[i+1] = v
+		i += 2
+	}
+
+	return array
+}
+
 // Logger is the main logging interface
 type Logger interface {
 	Debug(msg string, ctx ...any)
