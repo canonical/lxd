@@ -254,7 +254,7 @@ func (op *Operation) done() {
 
 		err := removeDBOperation(op)
 		if err != nil {
-			logger.Warnf("Failed to delete operation %s: %s", op.id, err)
+			logger.Warn("Failed to delete operation", log.Ctx{"operation": op.id, "description": op.description, "status": op.status, "project": op.projectName, "err": err})
 		}
 	}()
 }
