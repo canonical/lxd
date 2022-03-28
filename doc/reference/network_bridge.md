@@ -22,6 +22,13 @@ devices:
      type: nic
 ```
 
+```{toctree}
+:maxdepth: 1
+
+Integrate with systemd-resolved </howto/network_bridge_resolved>
+Configure Firewalld </howto/network_bridge_firewalld>
+```
+
 Network forwards:
 
 Bridge networks support {doc}`network forwards <network-forwards>`.
