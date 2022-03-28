@@ -136,7 +136,7 @@ For example:
 source=@internal
 ```
 
-If your network supports [network peers](network-peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`.
+If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`.
 For example:
 
 ```bash

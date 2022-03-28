@@ -12,6 +12,7 @@ the parent network.
 :maxdepth: 1
 
 Set up OVN </howto/network_ovn_setup>
+Create routing relationships </howto/network_ovn_peers>
 ```
 
 Network forwards:
