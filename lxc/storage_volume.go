@@ -1333,7 +1333,7 @@ type cmdStorageVolumeList struct {
 
 func (c *cmdStorageVolumeList) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("list", i18n.G("[<remote>:]<pool>"))
+	cmd.Use = usage("list", i18n.G("[<remote>:]<pool> [<filter>...]"))
 	cmd.Aliases = []string{"ls"}
 	cmd.Short = i18n.G("List storage volumes")
 
@@ -1366,7 +1366,7 @@ Column shorthand chars:
 
 func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 	// Quick checks.
-	exit, err := c.global.CheckArgs(cmd, args, 1, 1)
+	exit, err := c.global.CheckArgs(cmd, args, 1, -1)
 	if exit {
 		return err
 	}
@@ -1383,7 +1383,13 @@ func (c *cmdStorageVolumeList) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf(i18n.G("Missing pool name"))
 	}
 
-	volumes, err := resource.server.GetStoragePoolVolumes(resource.name)
+	// Process the filters
+	filters := []string{}
+	if len(args) > 1 {
+		filters = append(filters, args[1:]...)
+	}
+
+	volumes, err := resource.server.GetStoragePoolVolumesWithFilter(resource.name, filters)
 	if err != nil {
 		return err
 	}
