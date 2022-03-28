@@ -1,9 +1,8 @@
 ---
-discourse: 11033,13021,7322,11567
+discourse: 13021
 ---
 
 # Networking
-
 
 ```{toctree}
 :maxdepth: 1
@@ -17,4 +16,5 @@ Configure LXD as BGP server </howto/network_bgp>
 /reference/network_bridge
 /reference/network_ovn
 /reference/network_external
+
 ```

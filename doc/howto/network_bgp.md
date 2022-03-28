@@ -1,3 +1,7 @@
+---
+discourse: 11567
+---
+
 # How to configure LXD as a BGP server
 
 LXD can act as a BGP server, effectively allowing to establish sessions with upstream BGP routers and announce the addresses and subnets that it's using.

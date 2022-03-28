@@ -10,6 +10,7 @@ The following network types are available:
 
 ```{list-table}
    :header-rows: 1
+
 * - Network type
   - Documentation
   - Configuration options
@@ -28,6 +29,7 @@ The following network types are available:
 * - `physical`
   - {ref}`network-physical`
   - {ref}`network-physical-options`
+
 ```
 
 ## Create a network

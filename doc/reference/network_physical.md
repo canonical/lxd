@@ -1,7 +1,8 @@
 (network-physical)=
 # Physical network
 
-The physical network type allows one to specify presets to use when connecting OVN networks to a parent interface.
+The physical network type allows one to specify presets to use when connecting OVN networks to a parent interface or to allow an instance to use a physical interface as a NIC.
+This allows the instance NIC itself to simply specify the `network` it is connecting to without knowing any of the underlying configuration details.
 
 (network-physical-options)=
 ## Configuration options
