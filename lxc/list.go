@@ -495,25 +495,29 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	if needsData && d.HasExtension("container_full") {
 		// Using the GetInstancesFull shortcut
 		var cts []api.InstanceFull
+
+		serverFilters, clientFilters := getServerSupportedFilters(filters, api.InstanceFull{})
 		if c.flagAllProjects {
-			cts, err = d.GetInstancesFullAllProjects(api.InstanceTypeAny)
+			cts, err = d.GetInstancesFullAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
 		} else {
-			cts, err = d.GetInstancesFull(api.InstanceTypeAny)
+			cts, err = d.GetInstancesFullWithFilter(api.InstanceTypeAny, serverFilters)
 		}
 		if err != nil {
 			return err
 		}
 
-		return c.showInstances(cts, filters, columns)
+		return c.showInstances(cts, clientFilters, columns)
 	}
 
 	// Get the list of instances
 	var cts []api.Instance
 	var ctslist []api.Instance
+	serverFilters, clientFilters := getServerSupportedFilters(filters, api.Instance{})
+
 	if c.flagAllProjects {
-		ctslist, err = d.GetInstancesAllProjects(api.InstanceTypeAny)
+		ctslist, err = d.GetInstancesAllProjectsWithFilter(api.InstanceTypeAny, serverFilters)
 	} else {
-		ctslist, err = d.GetInstances(api.InstanceTypeAny)
+		ctslist, err = d.GetInstancesWithFilter(api.InstanceTypeAny, serverFilters)
 	}
 	if err != nil {
 		return err
@@ -521,7 +525,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 
 	// Apply filters
 	for _, cinfo := range ctslist {
-		if !c.shouldShow(filters, &cinfo, nil, true) {
+		if !c.shouldShow(clientFilters, &cinfo, nil, true) {
 			continue
 		}
 
@@ -529,7 +533,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Fetch any remaining data and render the table
-	return c.listInstances(conf, d, cts, filters, columns)
+	return c.listInstances(conf, d, cts, clientFilters, columns)
 }
 
 func (c *cmdList) parseColumns(clustered bool) ([]column, bool, error) {
