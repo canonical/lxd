@@ -1429,12 +1429,12 @@ func autoUpdateImagesTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		logger.Infof("Updating images")
+		logger.Info("Updating images")
 		_, err = op.Run()
 		if err != nil {
 			logger.Error("Failed to update images", log.Ctx{"err": err})
 		}
-		logger.Infof("Done updating images")
+		logger.Info("Done updating images")
 	}
 
 	return f, task.Hourly()
