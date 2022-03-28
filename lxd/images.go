@@ -1594,7 +1594,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 			_, pool, _, err := d.cluster.GetStoragePool(fields[0])
 			if err != nil {
-				return fmt.Errorf("Failed to get pool info: %w", err)
+				return fmt.Errorf("Failed to get storage pool info: %w", err)
 			}
 
 			// Add the volume to the list if the pool is backed by remote
@@ -1619,14 +1619,14 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 	// for the requested image currently exists.
 	poolIDs, err := d.cluster.GetPoolsWithImage(newImage.Fingerprint)
 	if err != nil {
-		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": oldFingerprint})
+		logger.Error("Error getting image storage pools", log.Ctx{"err": err, "fingerprint": oldFingerprint})
 		return err
 	}
 
 	// Translate the IDs to poolNames.
 	poolNames, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 	if err != nil {
-		logger.Error("Error getting image pools", log.Ctx{"err": err, "fingerprint": oldFingerprint})
+		logger.Error("Error getting image storage pools", log.Ctx{"err": err, "fingerprint": oldFingerprint})
 		return err
 	}
 
@@ -1654,7 +1654,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 		resp, _, err := client.GetServer()
 		if err != nil {
-			logger.Error("Failed to retrieve information about cluster member", log.Ctx{"err": err, "address": nodeAddress})
+			logger.Error("Failed to retrieve information about cluster member", log.Ctx{"err": err, "remote": nodeAddress})
 		} else {
 			vol := ""
 
@@ -1685,7 +1685,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 				pool, _, err := client.GetStoragePool(fields[0])
 				if err != nil {
-					logger.Error("Failed to get pool info", log.Ctx{"err": err, "pool": fields[0]})
+					logger.Error("Failed to get storage pool info", log.Ctx{"err": err, "pool": fields[0]})
 				} else {
 					if shared.StringInSlice(pool.Driver, db.StorageRemoteDriverNames()) {
 						imageVolumes = append(imageVolumes, vol)
@@ -1751,12 +1751,12 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 			_, _, err = client.RawQuery("POST", "/internal/image-optimize", req, "")
 			if err != nil {
-				logger.Error("Failed to create image in pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": newImage.Fingerprint})
+				logger.Error("Failed creating new image in storage pool", log.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": newImage.Fingerprint})
 			}
 
 			err = client.DeleteStoragePoolVolume(poolName, "image", oldFingerprint)
 			if err != nil {
-				logger.Error("Failed to delete image from pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": oldFingerprint})
+				logger.Error("Failed deleting old image from storage pool", log.Ctx{"err": err, "remote": nodeAddress, "pool": poolName, "fingerprint": oldFingerprint})
 			}
 		}
 	}
