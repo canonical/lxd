@@ -915,7 +915,7 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 		}
 	}
 
-	// Only delete images if locally stored or running on initial member.
+	// Only perform the deletion of remote volumes on the server handling the request.
 	if !clusterNotification || !pool.Driver().Info().Remote {
 		// Only image volumes should remain now.
 		volumeNames, err := d.cluster.GetStoragePoolVolumesNames(pool.ID())
@@ -929,9 +929,9 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 				return response.InternalError(fmt.Errorf("Failed getting image info for %q: %w", volume, err))
 			}
 
-			err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, pool.Name())
+			err = pool.DeleteImage(imgInfo.Fingerprint, nil)
 			if err != nil {
-				return response.InternalError(fmt.Errorf("Error deleting image %q from pool: %w", volume, err))
+				return response.InternalError(fmt.Errorf("Error deleting image %q from storage pool %q: %w", imgInfo.Fingerprint, pool.Name(), err))
 			}
 		}
 	}
