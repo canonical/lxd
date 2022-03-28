@@ -210,3 +210,15 @@ func urlsToResourceNames(matchPathPrefix string, urls ...string) ([]string, erro
 
 	return resourceNames, nil
 }
+
+// parseFilters translates filters passed at client side to form acceptable by server-side API
+func parseFilters(filters []string) string {
+	var result []string
+	for _, filter := range filters {
+		if strings.Contains(filter, "=") {
+			membs := strings.SplitN(filter, "=", 2)
+			result = append(result, fmt.Sprintf("%s eq %s", membs[0], membs[1]))
+		}
+	}
+	return strings.Join(result, " and ")
+}

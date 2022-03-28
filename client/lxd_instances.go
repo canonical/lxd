@@ -116,6 +116,31 @@ func (r *ProtocolLXD) GetInstances(instanceType api.InstanceType) ([]api.Instanc
 	return instances, nil
 }
 
+// GetInstancesWithFilter returns a filtered list of instances.
+func (r *ProtocolLXD) GetInstancesWithFilter(instanceType api.InstanceType, filters []string) ([]api.Instance, error) {
+	if !r.HasExtension("api_filtering") {
+		return nil, fmt.Errorf("The server is missing the required \"api_filtering\" API extension")
+	}
+
+	instances := []api.Instance{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Set("recursion", "1")
+	v.Set("filter", parseFilters(filters))
+
+	// Fetch the raw value
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
 // GetInstancesAllProjects returns a list of instances from all projects.
 func (r *ProtocolLXD) GetInstancesAllProjects(instanceType api.InstanceType) ([]api.Instance, error) {
 	instances := []api.Instance{}
@@ -127,6 +152,36 @@ func (r *ProtocolLXD) GetInstancesAllProjects(instanceType api.InstanceType) ([]
 
 	v.Set("recursion", "1")
 	v.Set("all-projects", "true")
+
+	if !r.HasExtension("instance_all_projects") {
+		return nil, fmt.Errorf("The server is missing the required \"instance_all_projects\" API extension")
+	}
+
+	// Fetch the raw value
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// GetInstancesAllProjectsWithFilter returns a filtered list of instances from all projects.
+func (r *ProtocolLXD) GetInstancesAllProjectsWithFilter(instanceType api.InstanceType, filters []string) ([]api.Instance, error) {
+	if !r.HasExtension("api_filtering") {
+		return nil, fmt.Errorf("The server is missing the required \"api_filtering\" API extension")
+	}
+
+	instances := []api.Instance{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Set("recursion", "1")
+	v.Set("all-projects", "true")
+	v.Set("filter", parseFilters(filters))
 
 	if !r.HasExtension("instance_all_projects") {
 		return nil, fmt.Errorf("The server is missing the required \"instance_all_projects\" API extension")
@@ -181,6 +236,35 @@ func (r *ProtocolLXD) GetInstancesFull(instanceType api.InstanceType) ([]api.Ins
 	return instances, nil
 }
 
+// GetInstancesFullWithFilter returns a filtered list of instances including snapshots, backups and state.
+func (r *ProtocolLXD) GetInstancesFullWithFilter(instanceType api.InstanceType, filters []string) ([]api.InstanceFull, error) {
+	if !r.HasExtension("api_filtering") {
+		return nil, fmt.Errorf("The server is missing the required \"api_filtering\" API extension")
+	}
+
+	instances := []api.InstanceFull{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Set("recursion", "2")
+	v.Set("filter", parseFilters(filters))
+
+	if !r.HasExtension("container_full") {
+		return nil, fmt.Errorf("The server is missing the required \"container_full\" API extension")
+	}
+
+	// Fetch the raw value
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
 // GetInstancesFullAllProjects returns a list of instances including snapshots, backups and state from all projects.
 func (r *ProtocolLXD) GetInstancesFullAllProjects(instanceType api.InstanceType) ([]api.InstanceFull, error) {
 	instances := []api.InstanceFull{}
@@ -192,6 +276,40 @@ func (r *ProtocolLXD) GetInstancesFullAllProjects(instanceType api.InstanceType)
 
 	v.Set("recursion", "2")
 	v.Set("all-projects", "true")
+
+	if !r.HasExtension("container_full") {
+		return nil, fmt.Errorf("The server is missing the required \"container_full\" API extension")
+	}
+
+	if !r.HasExtension("instance_all_projects") {
+		return nil, fmt.Errorf("The server is missing the required \"instance_all_projects\" API extension")
+	}
+
+	// Fetch the raw value
+	_, err = r.queryStruct("GET", fmt.Sprintf("%s?%s", path, v.Encode()), nil, "", &instances)
+	if err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// GetInstancesFullAllProjectsWithFilter returns a filtered list of instances including snapshots, backups and state from all projects.
+func (r *ProtocolLXD) GetInstancesFullAllProjectsWithFilter(instanceType api.InstanceType, filters []string) ([]api.InstanceFull, error) {
+	if !r.HasExtension("api_filtering") {
+		return nil, fmt.Errorf("The server is missing the required \"api_filtering\" API extension")
+	}
+
+	instances := []api.InstanceFull{}
+
+	path, v, err := r.instanceTypeToPath(instanceType)
+	if err != nil {
+		return nil, err
+	}
+
+	v.Set("recursion", "2")
+	v.Set("all-projects", "true")
+	v.Set("filter", parseFilters(filters))
 
 	if !r.HasExtension("container_full") {
 		return nil, fmt.Errorf("The server is missing the required \"container_full\" API extension")

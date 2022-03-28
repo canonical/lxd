@@ -33,6 +33,26 @@ func (r *ProtocolLXD) GetImages() ([]api.Image, error) {
 	return images, nil
 }
 
+// GetImagesWithFilter returns a filtered list of available images as Image structs
+func (r *ProtocolLXD) GetImagesWithFilter(filters []string) ([]api.Image, error) {
+	if !r.HasExtension("api_filtering") {
+		return nil, fmt.Errorf("The server is missing the required \"api_filtering\" API extension")
+	}
+
+	images := []api.Image{}
+
+	v := url.Values{}
+	v.Set("recursion", "1")
+	v.Set("filter", parseFilters(filters))
+
+	_, err := r.queryStruct("GET", fmt.Sprintf("/images?%s", v.Encode()), nil, "", &images)
+	if err != nil {
+		return nil, err
+	}
+
+	return images, nil
+}
+
 // GetImageFingerprints returns a list of available image fingerprints
 func (r *ProtocolLXD) GetImageFingerprints() ([]string, error) {
 	// Fetch the raw URL values.
