@@ -12,6 +12,7 @@ discourse: 11033,13021,7322,11567
 Create and configure a network </howto/network_create>
 Configure network ACLs </howto/network_acls>
 Configure network forwards </howto/network_forwards>
+Configure network zones </howto/network_zones>
 Configure LXD as BGP server </howto/network_bgp>
 /reference/network_bridge
 /reference/network_ovn
