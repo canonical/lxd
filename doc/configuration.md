@@ -6,7 +6,6 @@ LXD stores the configuration for the following components:
 
 containers
 Instances <instances>
-Networks <networks>
 Network ACLs <network-acls>
 Network Forwards <network-forwards>
 Network Peers <network-peers>

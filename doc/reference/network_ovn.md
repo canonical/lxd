@@ -8,6 +8,11 @@ A LXD OVN network can be connected to an existing managed LXD bridge network in 
 access to the wider network. All connections from the OVN logical networks are NATed to a dynamic IP allocated by
 the parent network.
 
+```{toctree}
+:maxdepth: 1
+
+Set up OVN </howto/network_ovn_setup>
+```
 
 Network forwards:
 
