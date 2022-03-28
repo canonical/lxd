@@ -944,7 +944,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 				}
 
 				// Create the snapshot instance.
-				_, snapInstOp, err := instance.CreateInternal(state, snapArgs, true, nil, revert)
+				_, snapInstOp, err := instance.CreateInternal(state, snapArgs, true, revert)
 				if err != nil {
 					return fmt.Errorf("Failed creating instance snapshot record %q: %w", snapArgs.Name, err)
 				}

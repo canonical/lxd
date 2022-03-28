@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 
@@ -730,7 +731,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interfa
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return -1, nil, nil, ErrNoSuchObject
+			return -1, nil, nil, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
 		}
 
 		return -1, nil, nil, err

@@ -172,7 +172,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 // qemuCreate creates a new storage volume record and returns an initialised Instance.
 // Accepts a reverter that revert steps this function does will be added to. It is up to the caller to call the
 // revert's Fail() or Success() function as needed.
-func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]string, revert *revert.Reverter) (instance.Instance, error) {
+func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (instance.Instance, error) {
 	// Create the instance struct.
 	d := &qemu{
 		common: common{
@@ -268,40 +268,6 @@ func qemuCreate(s *state.State, args db.InstanceArgs, volumeConfig map[string]st
 	if !storagePoolSupported {
 		return nil, fmt.Errorf("Storage pool does not support instance type")
 	}
-
-	// Create a new database entry for the instance's storage volume.
-	if d.IsSnapshot() {
-		// Copy volume config from parent.
-		parentName, _, _ := shared.InstanceGetParentAndSnapshotName(args.Name)
-		_, parentVol, err := s.Cluster.GetLocalStoragePoolVolume(args.Project, parentName, db.StoragePoolVolumeTypeVM, d.storagePool.ID())
-		if err != nil {
-			return nil, fmt.Errorf("Failed loading source volume for snapshot: %w", err)
-		}
-
-		_, err = s.Cluster.CreateStorageVolumeSnapshot(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, d.storagePool.ID(), parentVol.Config, time.Time{})
-		if err != nil {
-			return nil, fmt.Errorf("Failed creating storage record for snapshot: %w", err)
-		}
-	} else {
-		// Fill default config for new instances.
-		if volumeConfig == nil {
-			volumeConfig = make(map[string]string)
-		}
-
-		err = d.storagePool.FillInstanceConfig(d, volumeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("Failed filling default config: %w", err)
-		}
-
-		_, err = s.Cluster.CreateStoragePoolVolume(args.Project, args.Name, "", db.StoragePoolVolumeTypeVM, d.storagePool.ID(), volumeConfig, db.StoragePoolVolumeContentTypeBlock)
-		if err != nil {
-			return nil, fmt.Errorf("Failed creating storage record: %w", err)
-		}
-	}
-
-	revert.Add(func() {
-		s.Cluster.RemoveStoragePoolVolume(args.Project, args.Name, db.StoragePoolVolumeTypeVM, d.storagePool.ID())
-	})
 
 	if !d.IsSnapshot() {
 		// Add devices to instance.

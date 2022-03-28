@@ -35,7 +35,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	defer revert.Fail()
 
 	// Create the instance record.
-	inst, instOp, err := instance.CreateInternal(d.State(), args, true, nil, revert)
+	inst, instOp, err := instance.CreateInternal(d.State(), args, true, revert)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -150,7 +150,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	args.BaseImage = hash
 
 	// Create the instance.
-	inst, instOp, err := instance.CreateInternal(s, args, true, nil, revert)
+	inst, instOp, err := instance.CreateInternal(s, args, true, revert)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -216,36 +216,11 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	// If we are not in refresh mode, then create a new instance as we are in copy mode.
 	if !opts.refresh {
 		// Create the instance.
-		inst, instOp, err = instance.CreateInternal(s, opts.targetInstance, true, nil, revert)
+		inst, instOp, err = instance.CreateInternal(s, opts.targetInstance, true, revert)
 		if err != nil {
 			return nil, fmt.Errorf("Failed creating instance record: %w", err)
 		}
 		defer instOp.Done(err)
-
-		// Override the storage volume to match the source (if exists on the same pool).
-		pool, err := storagePools.GetPoolByInstance(s, inst)
-		if err != nil {
-			return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
-		}
-
-		volType, err := storagePools.InstanceTypeToVolumeType(inst.Type())
-		if err != nil {
-			return nil, err
-		}
-
-		volDBType, err := storagePools.VolumeTypeToDBType(volType)
-		if err != nil {
-			return nil, err
-		}
-
-		src := opts.sourceInstance
-		_, srcVol, err := s.Cluster.GetLocalStoragePoolVolume(src.Project(), src.Name(), volDBType, pool.ID())
-		if err == nil {
-			err = s.Cluster.UpdateStoragePoolVolume(inst.Project(), inst.Name(), volDBType, pool.ID(), srcVol.Description, srcVol.Config)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to update instance volume config: %w", err)
-			}
-		}
 	}
 
 	// At this point we have already figured out the instance's root disk device so we can simply retrieve it
@@ -338,7 +313,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 			}
 
 			// Create the snapshots.
-			snapInst, snapInstOp, err := instance.CreateInternal(s, snapInstArgs, true, nil, revert)
+			snapInst, snapInstOp, err := instance.CreateInternal(s, snapInstArgs, true, revert)
 			if err != nil {
 				return nil, fmt.Errorf("Failed creating instance snapshot record %q: %w", newSnapName, err)
 			}
