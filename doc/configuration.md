@@ -8,7 +8,6 @@ containers
 Instances <instances>
 Network ACLs <network-acls>
 Network Forwards <network-forwards>
-Network Peers <network-peers>
 Network Zones <network-zones>
 Preseed files <preseed>
 profiles
