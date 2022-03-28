@@ -41,7 +41,6 @@ import (
 	projectutils "github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
@@ -1917,9 +1916,16 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 
 		// If we do have optimized pools, make sure we remove the volumes associated with the image.
 		if poolName != "" {
-			err = doDeleteImageFromPool(d.State(), fingerprint, poolName)
+			pool, err := storagePools.GetPoolByName(d.State(), poolName)
 			if err != nil {
-				logger.Error("Error deleting image from pool", log.Ctx{"err": err, "fingerprint": fingerprint})
+				logger.Error("Error loading storage pool to delete image", log.Ctx{"err": err, "pool": poolName, "fingerprint": fingerprint})
+				continue
+			}
+
+			err = pool.DeleteImage(fingerprint, op)
+			if err != nil {
+				logger.Error("Error deleting image from storage pool", log.Ctx{"err": err, "pool": pool.Name(), "fingerprint": fingerprint})
+				continue
 			}
 		}
 	}
@@ -2136,7 +2142,7 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Proj
 	}
 
 	// Delete them
-	for _, img := range images {
+	for _, fingerprint := range images {
 		// At each iteration we check if we got cancelled in the
 		// meantime. It is safe to abort here since anything not
 		// expired now will be expired at the next run.
@@ -2148,7 +2154,7 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Proj
 
 		// Get the IDs of all storage pools on which a storage volume
 		// for the requested image currently exists.
-		poolIDs, err := d.cluster.GetPoolsWithImage(img)
+		poolIDs, err := d.cluster.GetPoolsWithImage(fingerprint)
 		if err != nil {
 			continue
 		}
@@ -2159,15 +2165,20 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Proj
 			continue
 		}
 
-		for _, pool := range poolNames {
-			err := doDeleteImageFromPool(d.State(), img, pool)
+		for _, poolName := range poolNames {
+			pool, err := storagePools.GetPoolByName(d.State(), poolName)
 			if err != nil {
-				return fmt.Errorf("Error deleting image %q from storage pool %q: %w", img, pool, err)
+				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, fingerprint, err)
+			}
+
+			err = pool.DeleteImage(fingerprint, op)
+			if err != nil {
+				return fmt.Errorf("Error deleting image %q from storage pool %q: %w", fingerprint, pool.Name(), err)
 			}
 		}
 
 		// Remove main image file.
-		fname := filepath.Join(d.os.VarDir, "images", img)
+		fname := filepath.Join(d.os.VarDir, "images", fingerprint)
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil && !os.IsNotExist(err) {
@@ -2176,7 +2187,7 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Proj
 		}
 
 		// Remove the rootfs file for the image.
-		fname = filepath.Join(d.os.VarDir, "images", img) + ".rootfs"
+		fname = filepath.Join(d.os.VarDir, "images", fingerprint) + ".rootfs"
 		if shared.PathExists(fname) {
 			err = os.Remove(fname)
 			if err != nil && !os.IsNotExist(err) {
@@ -2184,30 +2195,21 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Proj
 			}
 		}
 
-		imgID, _, err := d.cluster.GetImage(img, db.ImageFilter{Project: &project.Name})
+		imgID, _, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &project.Name})
 		if err != nil {
-			return fmt.Errorf("Error retrieving image info for fingerprint %q and project %q: %w", img, project.Name, err)
+			return fmt.Errorf("Error retrieving image info for fingerprint %q and project %q: %w", fingerprint, project.Name, err)
 		}
 
 		// Remove the database entry for the image.
 		err = d.cluster.DeleteImage(imgID)
 		if err != nil {
-			return fmt.Errorf("Error deleting image %q from database: %w", img, err)
+			return fmt.Errorf("Error deleting image %q from database: %w", fingerprint, err)
 		}
 
-		d.State().Events.SendLifecycle(project.Name, lifecycle.ImageDeleted.Event(img, project.Name, op.Requestor(), nil))
+		d.State().Events.SendLifecycle(project.Name, lifecycle.ImageDeleted.Event(fingerprint, project.Name, op.Requestor(), nil))
 	}
 
 	return nil
-}
-
-func doDeleteImageFromPool(state *state.State, fingerprint string, storagePool string) error {
-	pool, err := storagePools.GetPoolByName(state, storagePool)
-	if err != nil {
-		return err
-	}
-
-	return pool.DeleteImage(fingerprint, nil)
 }
 
 // swagger:operation DELETE /1.0/images/{fingerprint} images image_delete
@@ -2294,23 +2296,22 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 
-		pools, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
+		poolNames, err := d.cluster.GetPoolNamesFromIDs(poolIDs)
 		if err != nil {
 			return err
 		}
 
-		for _, pool := range pools {
-			isRemote := false
-			poolID, err := d.cluster.GetStoragePoolID(pool)
-			if err == nil {
-				isRemote, _ = d.cluster.IsRemoteStorage(poolID)
+		for _, poolName := range poolNames {
+			pool, err := storagePools.GetPoolByName(d.State(), poolName)
+			if err != nil {
+				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, imgInfo.Fingerprint, err)
 			}
 
 			// Only perform the deletion of remote volumes on the server handling the request.
-			if !isRemote || isRemote && !isClusterNotification(r) {
-				err = doDeleteImageFromPool(d.State(), imgInfo.Fingerprint, pool)
+			if !isClusterNotification(r) || !pool.Driver().Info().Remote {
+				err = pool.DeleteImage(imgInfo.Fingerprint, op)
 				if err != nil {
-					return err
+					return fmt.Errorf("Error deleting image %q from storage pool %q: %w", imgInfo.Fingerprint, pool.Name(), err)
 				}
 			}
 		}
