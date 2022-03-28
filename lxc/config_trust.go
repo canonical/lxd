@@ -193,15 +193,16 @@ func (c *cmdConfigTrustAdd) Run(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if !c.global.flagQuiet {
-			opAPI := op.Get()
-			certificateToken, err := opAPI.ToCertificateAddToken()
-			if err != nil {
-				return fmt.Errorf(i18n.G("Failed converting token operation to certificate add token: %w"), err)
-			}
-
-			fmt.Printf(i18n.G("Client %s certificate add token: %s")+"\n", cert.Name, certificateToken.String())
+		opAPI := op.Get()
+		certificateToken, err := opAPI.ToCertificateAddToken()
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed converting token operation to certificate add token: %w"), err)
 		}
+
+		if !c.global.flagQuiet {
+			fmt.Printf(i18n.G("Client %s certificate add token:")+"\n", cert.Name)
+		}
+		fmt.Println(certificateToken.String())
 
 		return nil
 	}
