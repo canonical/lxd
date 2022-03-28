@@ -1,3 +1,5 @@
+# How to create and configure a network
+
 The desired type can be specified using the `--type` argument, e.g.
 
 ```bash
