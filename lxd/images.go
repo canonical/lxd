@@ -2190,7 +2190,8 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Proj
 		}
 
 		// Remove the database entry for the image.
-		if err = d.cluster.DeleteImage(imgID); err != nil {
+		err = d.cluster.DeleteImage(imgID)
+		if err != nil {
 			return fmt.Errorf("Error deleting image %q from database: %w", img, err)
 		}
 
