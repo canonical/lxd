@@ -2110,6 +2110,14 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 	}
 
 	stateChangeTaskFailure := false // Records whether any of the state change tasks failed.
+
+	// Handle potential OVN chassis changes.
+	err := networkUpdateOVNChassis(d.State(), heartbeatData, localAddress)
+	if err != nil {
+		stateChangeTaskFailure = true
+		logger.Error("Error restarting OVN networks", log.Ctx{"err": err})
+	}
+
 	if d.hasMemberStateChanged(heartbeatData) {
 		logger.Info("Cluster member state has changed", log.Ctx{"local": localAddress})
 
