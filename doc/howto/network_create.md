@@ -77,5 +77,6 @@ See {ref}`network-types` for links to the configuration options for each network
 There are separate commands to configure advanced networking features.
 See the following documentation:
 
+- {doc}`/howto/network_forwards`
 - {doc}`/howto/network_zones`
 - {doc}`/howto/network_ovn_peers` (OVN only)
