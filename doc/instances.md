@@ -302,6 +302,7 @@ It's only purpose it to stop inheritance of devices coming from profiles.
 To do so, just add a none type device with the same name of the one you wish to skip inheriting.
 It can be added in a profile being applied after the profile it originated from or directly on the instance.
 
+(instance_device_type_nic)=
 #### Type: nic
 LXD supports several different kinds of network devices (referred to as Network Interface Controller or NIC).
 

@@ -3,7 +3,8 @@
 
 The physical network type allows one to specify presets to use when connecting OVN networks to a parent interface.
 
-Network configuration properties:
+(network-physical-options)=
+## Configuration options
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
