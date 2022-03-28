@@ -1549,12 +1549,14 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 		}
 
 		if newImage != nil {
-			err := distributeImage(ctx, d, nodes, fingerprint, newImage)
-			if err != nil {
-				logger.Error("Failed to distribute new image", log.Ctx{"err": err, "fingerprint": newImage.Fingerprint})
+			if len(nodes) > 1 {
+				err := distributeImage(ctx, d, nodes, fingerprint, newImage)
+				if err != nil {
+					logger.Error("Failed to distribute new image", log.Ctx{"err": err, "fingerprint": newImage.Fingerprint})
 
-				if err == context.Canceled {
-					return nil
+					if err == context.Canceled {
+						return nil
+					}
 				}
 			}
 
