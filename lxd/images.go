@@ -2236,16 +2236,15 @@ func doDeleteImageFromPool(state *state.State, fingerprint string, storagePool s
 //     $ref: "#/responses/InternalServerError"
 func imageDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+
+	// Use the fingerprint we received in a LIKE query and use the full
+	// fingerprint we receive from the database in all further queries.
+	imgID, imgInfo, err := d.cluster.GetImage(mux.Vars(r)["fingerprint"], db.ImageFilter{Project: &projectName})
+	if err != nil {
+		return response.InternalError(err)
+	}
 
 	do := func(op *operations.Operation) error {
-		// Use the fingerprint we received in a LIKE query and use the full
-		// fingerprint we receive from the database in all further queries.
-		imgID, imgInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
-		if err != nil {
-			return err
-		}
-
 		if !isClusterNotification(r) {
 			// Check if the image being deleted is actually still
 			// referenced by other projects. In that case we don't want to
@@ -2333,7 +2332,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	resources := map[string][]string{}
-	resources["images"] = []string{fingerprint}
+	resources["images"] = []string{imgInfo.Fingerprint}
 
 	op, err := operations.OperationCreate(d.State(), projectName, operations.OperationClassTask, db.OperationImageDelete, resources, nil, do, nil, nil, r)
 	if err != nil {
