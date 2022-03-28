@@ -190,3 +190,21 @@ func TestGetSnapshotExpiry(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, time.Time{}, expiryDate)
 }
+
+func TestHasKey(t *testing.T) {
+	m1 := map[string]string{
+		"foo":   "bar",
+		"empty": "",
+	}
+
+	m2 := map[int]string{
+		1: "foo",
+	}
+
+	assert.True(t, HasKey("foo", m1))
+	assert.True(t, HasKey("empty", m1))
+	assert.False(t, HasKey("missing", m1))
+
+	assert.True(t, HasKey(1, m2))
+	assert.False(t, HasKey(0, m2))
+}
