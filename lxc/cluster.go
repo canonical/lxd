@@ -747,16 +747,16 @@ func (c *cmdClusterAdd) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !c.global.flagQuiet {
-		opAPI := op.Get()
-		joinToken, err := opAPI.ToClusterJoinToken()
-		if err != nil {
-			return fmt.Errorf("Failed converting token operation to join token: %w", err)
-		}
-
-		fmt.Printf(i18n.G("Member %s join token:")+"\n", resource.name)
-		fmt.Println(joinToken.String())
+	opAPI := op.Get()
+	joinToken, err := opAPI.ToClusterJoinToken()
+	if err != nil {
+		return fmt.Errorf("Failed converting token operation to join token: %w", err)
 	}
+
+	if !c.global.flagQuiet {
+		fmt.Printf(i18n.G("Member %s join token:")+"\n", resource.name)
+	}
+	fmt.Println(joinToken.String())
 
 	return nil
 }
