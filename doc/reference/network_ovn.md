@@ -1,5 +1,5 @@
 (network-ovn)=
-## network: ovn
+# OVN network
 
 The ovn network type allows the creation of logical networks using the OVN SDN. This can be useful for labs and
 multi-tenant environments where the same logical subnets are used in multiple discrete networks.

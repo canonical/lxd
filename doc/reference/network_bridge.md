@@ -1,5 +1,5 @@
 (network-bridge)=
-## network: bridge
+# Bridge network
 
 As one of the possible network configuration types under LXD, LXD supports creating and managing network bridges.
 LXD bridges can leverage underlying native Linux bridges and Open vSwitch.
@@ -119,7 +119,7 @@ lxc network set <network> <key> <value>
 ```
 
 
-### IPv6 prefix size
+## IPv6 prefix size
 For optimal operation, a prefix size of 64 is preferred.
 Larger subnets (prefix smaller than 64) should work properly too but
 aren't typically that useful for SLAAC.

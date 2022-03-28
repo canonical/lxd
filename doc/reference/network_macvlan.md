@@ -1,4 +1,5 @@
-## network: macvlan
+(network-macvlan)=
+# Macvlan network
 
 The macvlan network type allows one to specify presets to use when connecting instances to a parent interface
 using macvlan NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without

@@ -1,4 +1,6 @@
-### Allow DHCP, DNS with Firewalld
+# How to configure Firewalld
+
+## Allow DHCP, DNS with Firewalld
 
 In order to allow instances to access the DHCP and DNS server that LXD runs on the host when using firewalld
 you need to add the host's bridge interface to the `trusted` zone in firewalld.
@@ -18,7 +20,7 @@ firewall-cmd --zone=trusted --change-interface=lxdbr0 --permanent
 This will then allow LXD's own firewall rules to take effect.
 
 
-### How to let Firewalld control the LXD's iptables rules
+## How to let Firewalld control the LXD's iptables rules
 
 When using firewalld and LXD together, iptables rules can overlaps. For example, firewalld could erase LXD iptables rules if it is started after LXD daemon, then LXD container will not be able to do any oubound internet access.
 One way to fix it is to delegate to firewalld the LXD's iptables rules and to disable the LXD ones.

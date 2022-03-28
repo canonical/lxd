@@ -1,4 +1,5 @@
-## network: sriov
+(network-sriov)=
+# SR-IOV network
 
 The sriov network type allows one to specify presets to use when connecting instances to a parent interface
 using sriov NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
