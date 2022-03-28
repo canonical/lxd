@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-27 13:54-0400\n"
+"POT-Creation-Date: 2022-03-28 10:06-0400\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://hosted.weblate.org/projects/linux-containers/"
@@ -51,7 +51,7 @@ msgid ""
 "###   size: \"61203283968\""
 msgstr ""
 
-#: lxc/config_trust.go:232
+#: lxc/config_trust.go:233
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -695,7 +695,7 @@ msgstr ""
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:394
+#: lxc/config_trust.go:395
 msgid "COMMON NAME"
 msgstr ""
 
@@ -820,7 +820,7 @@ msgstr ""
 msgid "Card: %s (%s)"
 msgstr ""
 
-#: lxc/config_trust.go:600
+#: lxc/config_trust.go:601
 #, c-format
 msgid "Certificate add token for %s deleted"
 msgstr ""
@@ -842,7 +842,7 @@ msgstr ""
 
 #: lxc/config_trust.go:203
 #, c-format
-msgid "Client %s certificate add token: %s"
+msgid "Client %s certificate add token:"
 msgstr ""
 
 #: lxc/remote.go:549
@@ -951,7 +951,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr ""
 
 #: lxc/cluster.go:674 lxc/cluster_group.go:333 lxc/config.go:258
-#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:301
+#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:302
 #: lxc/image.go:454 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:501 lxc/project.go:312
@@ -1317,8 +1317,8 @@ msgstr ""
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
-#: lxc/config_trust.go:223 lxc/config_trust.go:335 lxc/config_trust.go:416
-#: lxc/config_trust.go:507 lxc/config_trust.go:550 lxc/config_trust.go:621
+#: lxc/config_trust.go:224 lxc/config_trust.go:336 lxc/config_trust.go:417
+#: lxc/config_trust.go:508 lxc/config_trust.go:551 lxc/config_trust.go:622
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169
 #: lxc/file.go:232 lxc/file.go:427 lxc/file.go:914 lxc/image.go:38
@@ -1523,7 +1523,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config_trust.go:397
+#: lxc/config_trust.go:398
 msgid "EXPIRY DATE"
 msgstr ""
 
@@ -1601,7 +1601,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:222 lxc/config_trust.go:223
+#: lxc/config_trust.go:223 lxc/config_trust.go:224
 msgid "Edit trust configurations as YAML"
 msgstr ""
 
@@ -1738,7 +1738,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:395 lxc/image.go:1037 lxc/image.go:1038
+#: lxc/config_trust.go:396 lxc/image.go:1037 lxc/image.go:1038
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr ""
@@ -1767,7 +1767,7 @@ msgstr ""
 msgid "Failed connecting to instance SFTP: %w"
 msgstr ""
 
-#: lxc/config_trust.go:200
+#: lxc/config_trust.go:199
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
@@ -1913,8 +1913,8 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:118 lxc/cluster.go:777
-#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:337
-#: lxc/config_trust.go:418 lxc/image.go:1027 lxc/image_alias.go:158
+#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:338
+#: lxc/config_trust.go:419 lxc/image.go:1027 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:888 lxc/network.go:978 lxc/network_acl.go:99
 #: lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89
 #: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:584
@@ -2113,7 +2113,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config_trust.go:396
+#: lxc/config_trust.go:397
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -2271,7 +2271,7 @@ msgstr ""
 msgid "Invalid argument %q"
 msgstr ""
 
-#: lxc/config_trust.go:376
+#: lxc/config_trust.go:377
 msgid "Invalid certificate"
 msgstr ""
 
@@ -2443,7 +2443,7 @@ msgstr ""
 msgid "List aliases"
 msgstr ""
 
-#: lxc/config_trust.go:415 lxc/config_trust.go:416
+#: lxc/config_trust.go:416 lxc/config_trust.go:417
 msgid "List all active certificate add tokens"
 msgstr ""
 
@@ -2681,7 +2681,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:334 lxc/config_trust.go:335
+#: lxc/config_trust.go:335 lxc/config_trust.go:336
 msgid "List trusted clients"
 msgstr ""
 
@@ -2982,7 +2982,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/config_trust.go:255 lxc/config_trust.go:646
+#: lxc/config_trust.go:256 lxc/config_trust.go:647
 msgid "Missing certificate fingerprint"
 msgstr ""
 
@@ -3172,7 +3172,7 @@ msgid "Must supply instance name for: "
 msgstr ""
 
 #: lxc/cluster.go:175 lxc/cluster.go:857 lxc/cluster_group.go:427
-#: lxc/config_trust.go:393 lxc/config_trust.go:488 lxc/list.go:567
+#: lxc/config_trust.go:394 lxc/config_trust.go:489 lxc/list.go:567
 #: lxc/network.go:951 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:674 lxc/storage.go:574
@@ -3345,7 +3345,7 @@ msgstr ""
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
-#: lxc/config_trust.go:607
+#: lxc/config_trust.go:608
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -3536,7 +3536,7 @@ msgstr ""
 
 #: lxc/cluster.go:675 lxc/cluster_group.go:334 lxc/config.go:259
 #: lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206
-#: lxc/config_trust.go:302 lxc/image.go:455 lxc/network.go:675
+#: lxc/config_trust.go:303 lxc/image.go:455 lxc/network.go:675
 #: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:978
@@ -3832,7 +3832,7 @@ msgstr ""
 msgid "Remove rules from an ACL"
 msgstr ""
 
-#: lxc/config_trust.go:506 lxc/config_trust.go:507
+#: lxc/config_trust.go:507 lxc/config_trust.go:508
 msgid "Remove trusted clients"
 msgstr ""
 
@@ -3951,7 +3951,7 @@ msgstr ""
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/config_trust.go:549 lxc/config_trust.go:550
+#: lxc/config_trust.go:550 lxc/config_trust.go:551
 msgid "Revoke certificate add token"
 msgstr ""
 
@@ -4363,7 +4363,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:620 lxc/config_trust.go:621
+#: lxc/config_trust.go:621 lxc/config_trust.go:622
 msgid "Show trust configurations"
 msgstr ""
 
@@ -4535,11 +4535,11 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:858 lxc/config_trust.go:489
+#: lxc/cluster.go:858 lxc/config_trust.go:490
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/config_trust.go:392 lxc/image.go:1044 lxc/image_alias.go:236
+#: lxc/config_trust.go:393 lxc/image.go:1044 lxc/image_alias.go:236
 #: lxc/list.go:573 lxc/network.go:952 lxc/network.go:1025 lxc/operation.go:162
 #: lxc/storage_volume.go:1431 lxc/warning.go:214
 msgid "TYPE"
@@ -5062,7 +5062,7 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr ""
 
 #: lxc/cluster.go:113 lxc/cluster.go:774 lxc/cluster_group.go:371
-#: lxc/config_trust.go:332 lxc/config_trust.go:414 lxc/monitor.go:31
+#: lxc/config_trust.go:333 lxc/config_trust.go:415 lxc/monitor.go:31
 #: lxc/network.go:881 lxc/network_acl.go:93 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
 #: lxc/storage.go:520 lxc/version.go:20 lxc/warning.go:69
@@ -5077,7 +5077,7 @@ msgstr ""
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr ""
 
-#: lxc/config_trust.go:504
+#: lxc/config_trust.go:505
 msgid "[<remote>:] <fingerprint>"
 msgstr ""
 
@@ -5085,7 +5085,7 @@ msgstr ""
 msgid "[<remote>:] <name>"
 msgstr ""
 
-#: lxc/config_trust.go:548
+#: lxc/config_trust.go:549
 msgid "[<remote>:] <token>"
 msgstr ""
 
@@ -5162,7 +5162,7 @@ msgstr ""
 msgid "[<remote>:]<cluster member>"
 msgstr ""
 
-#: lxc/config_trust.go:221 lxc/config_trust.go:619
+#: lxc/config_trust.go:222 lxc/config_trust.go:620
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
 
