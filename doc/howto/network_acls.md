@@ -136,6 +136,15 @@ For example:
 source=@internal
 ```
 
+If your network supports [network peers](network_ovn_peers.md), you can reference traffic to or from the peer connection by using a network subject selector in the format `@<network_name>/<peer_name>`.
+For example:
+
+```bash
+source=@ovn1/mypeer
+```
+
+When using a network subject selector, the network that has the ACL applied to it must have the specified peer connection.
+Otherwise, the ACL cannot be applied to it.
 
 ### Log traffic
 
