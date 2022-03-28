@@ -123,11 +123,26 @@ test_image_refresh() {
   # Ensure the images differ
   [ "${fp}" != "${new_fp}" ]
 
+  # Check original image exists before refresh.
+  lxc image info "${fp}"
+
+  if [ "${LXD_BACKEND}" != "dir" ]; then
+    # Check old storage volume record exists and new one doesn't.
+    lxd sql global 'select name from storage_volumes' | grep "${fp}"
+    ! lxd sql global 'select name from storage_volumes' | grep "${new_fp}" || false
+  fi
+
   # Refresh image
   lxc image refresh testimage
 
-  # Ensure the old image is gone
+  # Ensure the old image is gone.
   ! lxc image info "${fp}" || false
+
+  if [ "${LXD_BACKEND}" != "dir" ]; then
+    # Check old storage volume record has been replaced with new one.
+    ! lxd sql global 'select name from storage_volumes' | grep "${fp}" || false
+    lxd sql global 'select name from storage_volumes' | grep "${new_fp}"
+  fi
 
   # Cleanup
   lxc rm l2:c1
