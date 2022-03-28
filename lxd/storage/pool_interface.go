@@ -45,7 +45,6 @@ type Pool interface {
 	GetVolume(volumeType drivers.VolumeType, contentType drivers.ContentType, name string, config map[string]string) drivers.Volume
 
 	// Instances.
-	FillInstanceConfig(inst instance.Instance, config map[string]string) error
 	CreateInstance(inst instance.Instance, op *operations.Operation) error
 	CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error)
 	CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error
@@ -56,7 +55,7 @@ type Pool interface {
 	UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 	UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error
 	CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error)
-	ImportInstance(inst instance.Instance, op *operations.Operation) error
+	ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error
 
 	MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error
 	RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error
@@ -92,7 +91,7 @@ type Pool interface {
 	GetCustomVolumeUsage(projectName string, volName string) (int64, error)
 	MountCustomVolume(projectName string, volName string, op *operations.Operation) error
 	UnmountCustomVolume(projectName string, volName string, op *operations.Operation) (bool, error)
-	ImportCustomVolume(projectName string, poolVol backup.Config, op *operations.Operation) error
+	ImportCustomVolume(projectName string, poolVol *backup.Config, op *operations.Operation) error
 	RefreshCustomVolume(projectName string, srcProjectName string, volName, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error
 
 	// Custom volume snapshots.

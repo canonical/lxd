@@ -97,10 +97,6 @@ func (b *mockBackend) GetVolume(volType drivers.VolumeType, contentType drivers.
 	return drivers.Volume{}
 }
 
-func (b *mockBackend) FillInstanceConfig(inst instance.Instance, config map[string]string) error {
-	return nil
-}
-
 func (b *mockBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
 	return nil
 }
@@ -145,7 +141,7 @@ func (b *mockBackend) ListUnknownVolumes(op *operations.Operation) (map[string][
 	return nil, nil
 }
 
-func (b *mockBackend) ImportInstance(inst instance.Instance, op *operations.Operation) error {
+func (b *mockBackend) ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error {
 	return nil
 }
 
@@ -265,7 +261,7 @@ func (b *mockBackend) UnmountCustomVolume(projectName string, volName string, op
 	return true, nil
 }
 
-func (b *mockBackend) ImportCustomVolume(projectName string, poolVol backup.Config, op *operations.Operation) error {
+func (b *mockBackend) ImportCustomVolume(projectName string, poolVol *backup.Config, op *operations.Operation) error {
 	return nil
 }
 

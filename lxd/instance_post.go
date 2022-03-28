@@ -898,7 +898,7 @@ func instancePostCreateInstanceMountPoint(d *Daemon, inst instance.Instance) err
 		return fmt.Errorf("Failed loading pool of instance on target node: %w", err)
 	}
 
-	err = pool.ImportInstance(inst, nil)
+	err = pool.ImportInstance(inst, nil, nil)
 	if err != nil {
 		return fmt.Errorf("Failed creating mount point of instance on target node: %w", err)
 	}

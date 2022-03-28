@@ -389,7 +389,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				}
 
 				// Import custom volume and any snapshots.
-				err = pool.ImportCustomVolume(customStorageProjectName, *poolVol, nil)
+				err = pool.ImportCustomVolume(customStorageProjectName, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing custom volume %q in project %q: %w", poolVol.Volume.Name, projectName, err))
 				}
@@ -434,7 +434,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				}
 
 				// Recreate instance mount path and symlinks (must come after snapshot recovery).
-				err = pool.ImportInstance(inst, nil)
+				err = pool.ImportInstance(inst, poolVol, nil)
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed importing instance %q in project %q: %w", poolVol.Container.Name, projectName, err))
 				}
@@ -473,19 +473,13 @@ func internalRecoverImportInstance(s *state.State, pool storagePools.Pool, proje
 
 	internalImportRootDevicePopulate(pool.Name(), poolVol.Container.Devices, poolVol.Container.ExpandedDevices, profiles)
 
-	// Extract volume config from backup file if present.
-	var volConfig map[string]string
-	if poolVol.Volume != nil {
-		volConfig = poolVol.Volume.Config
-	}
-
 	dbInst := poolVol.ToInstanceDBArgs(projectName)
 
 	if dbInst.Type < 0 {
 		return nil, fmt.Errorf("Invalid instance type")
 	}
 
-	inst, instOp, err := instance.CreateInternal(s, *dbInst, false, volConfig, revert)
+	inst, instOp, err := instance.CreateInternal(s, *dbInst, false, revert)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating instance record: %w", err)
 	}
@@ -535,7 +529,7 @@ func internalRecoverImportInstanceSnapshot(s *state.State, pool storagePools.Poo
 		Name:         poolVol.Container.Name + shared.SnapshotDelimiter + snap.Name,
 		Profiles:     snap.Profiles,
 		Stateful:     snap.Stateful,
-	}, false, nil, revert)
+	}, false, revert)
 	if err != nil {
 		return fmt.Errorf("Failed creating instance snapshot record %q: %w", snap.Name, err)
 	}
