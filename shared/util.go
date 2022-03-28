@@ -598,6 +598,13 @@ func MkdirAllOwner(path string, perm os.FileMode, uid int, gid int) error {
 	return nil
 }
 
+// HasKey returns true if map has key.
+func HasKey[K comparable, V any](key K, m map[K]V) bool {
+	_, found := m[key]
+
+	return found
+}
+
 func StringInSlice(key string, list []string) bool {
 	for _, entry := range list {
 		if entry == key {
