@@ -1609,7 +1609,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 	// No need to return with an error as this is only an optimization in the
 	// distribution process. Instead, only log the error.
 	if err != nil {
-		logger.Warn("Failed to load config", log.Ctx{"err": err})
+		logger.Error("Failed to load config", log.Ctx{"err": err})
 	}
 
 	// Skip own node
@@ -1654,7 +1654,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 		resp, _, err := client.GetServer()
 		if err != nil {
-			logger.Warn("Failed to retrieve information about cluster member", log.Ctx{"err": err, "address": nodeAddress})
+			logger.Error("Failed to retrieve information about cluster member", log.Ctx{"err": err, "address": nodeAddress})
 		} else {
 			vol := ""
 
@@ -1685,7 +1685,7 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 				pool, _, err := client.GetStoragePool(fields[0])
 				if err != nil {
-					logger.Warn("Failed to get pool info", log.Ctx{"err": err, "pool": fields[0]})
+					logger.Error("Failed to get pool info", log.Ctx{"err": err, "pool": fields[0]})
 				} else {
 					if shared.StringInSlice(pool.Driver, db.StorageRemoteDriverNames()) {
 						imageVolumes = append(imageVolumes, vol)
@@ -1751,12 +1751,12 @@ func distributeImage(ctx context.Context, d *Daemon, nodes []string, oldFingerpr
 
 			_, _, err = client.RawQuery("POST", "/internal/image-optimize", req, "")
 			if err != nil {
-				logger.Debug("Failed to create image in pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": newImage.Fingerprint})
+				logger.Error("Failed to create image in pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": newImage.Fingerprint})
 			}
 
 			err = client.DeleteStoragePoolVolume(poolName, "image", oldFingerprint)
 			if err != nil {
-				logger.Debug("Failed to delete image from pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": oldFingerprint})
+				logger.Error("Failed to delete image from pool", log.Ctx{"err": err, "pool": poolName, "fingerprint": oldFingerprint})
 			}
 		}
 	}
@@ -1941,7 +1941,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			logger.Warn("Error deleting image file", log.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
+			logger.Error("Error deleting image file", log.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
 		}
 	}
 
@@ -1950,14 +1950,14 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			logger.Warn("Error deleting image rootfs file", log.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
+			logger.Error("Error deleting image rootfs file", log.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
 		}
 	}
 
 	// Remove database entry of the old image.
 	err = d.cluster.DeleteImage(id)
 	if err != nil {
-		logger.Warn("Error deleting image from database", log.Ctx{"fingerprint": fingerprint, "err": err})
+		logger.Error("Error deleting image from database", log.Ctx{"fingerprint": fingerprint, "err": err})
 	}
 
 	setRefreshResult(true)
