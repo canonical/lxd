@@ -10,6 +10,7 @@ discourse: 11033,13021,7322,11567
 
 /explanation/networks
 Create and configure a network </howto/network_create>
+Configure network ACLs </howto/network_acls>
 Configure LXD as BGP server </howto/network_bgp>
 /reference/network_bridge
 /reference/network_ovn
