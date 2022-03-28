@@ -10,6 +10,7 @@ package main
 // #cgo CFLAGS: -Werror=return-type -Wendif-labels -Werror=overflow
 // #cgo CFLAGS: -Wnested-externs -fexceptions
 // #cgo CFLAGS: -I include
+// #cgo LDFLAGS: -flto
 // #cgo pkg-config: lxc
 // #cgo pkg-config: libcap
 import "C"

@@ -8,3 +8,4 @@ package main
 // #cgo CFLAGS: -Werror=implicit-function-declaration
 // #cgo CFLAGS: -Werror=return-type -Wendif-labels -Werror=overflow
 // #cgo CFLAGS: -Wnested-externs -fexceptions
+// #cgo LDFLAGS: -flto
