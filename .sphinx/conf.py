@@ -129,5 +129,6 @@ ogp_image = "https://linuxcontainers.org/static/img/containers.png"
 redirects = {
     "index/index": "../index.html",
     "network-peers/index": "../howto/network_ovn_peers/index.html",
-    "network-acls/index": "../howto/network_acls/index.html"
+    "network-acls/index": "../howto/network_acls/index.html",
+    "network-forwards/index": "../howto/network_forwards/index.html"
 }
