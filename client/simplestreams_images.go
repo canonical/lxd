@@ -38,6 +38,11 @@ func (r *ProtocolSimpleStreams) GetImageFingerprints() ([]string, error) {
 	return fingerprints, nil
 }
 
+// GetImagesWithFilter returns a filtered list of available images as Image structs
+func (r *ProtocolSimpleStreams) GetImagesWithFilter(filters []string) ([]api.Image, error) {
+	return nil, fmt.Errorf("GetImagesWithFilter is not supported by the simplestreams protocol")
+}
+
 // GetImage returns an Image struct for the provided fingerprint
 func (r *ProtocolSimpleStreams) GetImage(fingerprint string) (*api.Image, string, error) {
 	image, err := r.ssClient.GetImage(fingerprint)
