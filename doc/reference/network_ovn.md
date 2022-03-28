@@ -15,15 +15,8 @@ Set up OVN </howto/network_ovn_setup>
 Create routing relationships </howto/network_ovn_peers>
 ```
 
-Network forwards:
-
-OVN networks support {doc}`network forwards <network-forwards>`.
-
-Network peers:
-
-OVN networks support [network peers](network-peers.md).
-
-Network configuration properties:
+(network-ovn-options)=
+## Configuration options
 
 Key                                  | Type      | Condition             | Default                   | Description
 :--                                  | :--       | :--                   | :--                       | :--

@@ -5,7 +5,8 @@ The sriov network type allows one to specify presets to use when connecting inst
 using sriov NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
 knowing any of the underlying configuration details.
 
-Network configuration properties:
+(network-sriov-options)=
+## Configuration options
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--

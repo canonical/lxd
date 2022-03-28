@@ -10,18 +10,6 @@ DHCP server and if desired also perform NAT for the bridge (this is the default.
 
 When a bridge is managed by LXD, configuration values under the `bridge` namespace can be used to configure it.
 
-Additionally, LXD can utilize a pre-existing Linux bridge. In this case, the bridge does not need to be created via
-`lxc network` and can simply be referenced in an instance or profile device configuration as follows:
-
-```
-devices:
-  eth0:
-     name: eth0
-     nictype: bridged
-     parent: br0
-     type: nic
-```
-
 ```{toctree}
 :maxdepth: 1
 
@@ -29,11 +17,8 @@ Integrate with systemd-resolved </howto/network_bridge_resolved>
 Configure Firewalld </howto/network_bridge_firewalld>
 ```
 
-Network forwards:
-
-Bridge networks support {doc}`network forwards <network-forwards>`.
-
-Network configuration properties:
+(network-bridge-options)=
+## Configuration options
 
 A complete list of configuration settings for LXD networks can be found below.
 
@@ -112,12 +97,6 @@ security.acls.default.ingress.action | string    | security.acls         | rejec
 security.acls.default.egress.action  | string    | security.acls         | reject                    | Action to use for egress traffic that doesn't match any ACL rule
 security.acls.default.ingress.logged | boolean   | security.acls         | false                     | Whether to log ingress traffic that doesn't match any ACL rule
 security.acls.default.egress.logged  | boolean   | security.acls         | false                     | Whether to log egress traffic that doesn't match any ACL rule
-Those keys can be set using the lxc tool with:
-
-```bash
-lxc network set <network> <key> <value>
-```
-
 
 ## IPv6 prefix size
 For optimal operation, a prefix size of 64 is preferred.
