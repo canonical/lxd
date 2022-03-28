@@ -44,78 +44,78 @@ The currently supported keys are:
 ```{rst-class} dec-font-size break-col-1 min-width-1-15
 ```
 
-Key                                         | Type      | Default           | Live update   | Condition                 | Description
-:--                                         | :---      | :------           | :----------   | :----------               | :----------
-agent.nic\_config                           | boolean   | false             | n/a           | virtual-machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).
-boot.autostart                              | boolean   | -                 | n/a           | -                         | Always start the instance when LXD starts (if not set, restore last state)
-boot.autostart.delay                        | integer   | 0                 | n/a           | -                         | Number of seconds to wait after the instance started before starting the next one
-boot.autostart.priority                     | integer   | 0                 | n/a           | -                         | What order to start the instances in (starting with highest)
-boot.host\_shutdown\_timeout                | integer   | 30                | yes           | -                         | Seconds to wait for instance to shutdown before it is force stopped
-boot.stop.priority                          | integer   | 0                 | n/a           | -                         | What order to shutdown the instances (starting with highest)
-cloud-init.network-config                   | string    | DHCP on eth0      | no            | -                         | Cloud-init network-config, content is used as seed value
-cloud-init.user-data                        | string    | #cloud-config     | no            | -                         | Cloud-init user-data, content is used as seed value
-cloud-init.vendor-data                      | string    | #cloud-config     | no            | -                         | Cloud-init vendor-data, content is used as seed value
-cluster.evacuate                            | string    | auto              | n/a           | -                         | What to do when evacuating the instance (auto, migrate, live-migrate, or stop)
-environment.\*                              | string    | -                 | yes (exec)    | -                         | key/value environment variables to export to the instance and set on exec
-limits.cpu                                  | string    | -                 | yes           | -                         | Number or range of CPUs to expose to the instance (defaults to 1 CPU for VMs)
-limits.cpu.allowance                        | string    | 100%              | yes           | container                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
-limits.cpu.priority                         | integer   | 10 (maximum)      | yes           | container                 | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
-limits.disk.priority                        | integer   | 5 (medium)        | yes           | -                         | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
-limits.hugepages.64KB                       | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 64 KB hugepages (Available hugepage sizes are architecture dependent.)
-limits.hugepages.1MB                        | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 MB hugepages (Available hugepage sizes are architecture dependent.)
-limits.hugepages.2MB                        | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 2 MB hugepages (Available hugepage sizes are architecture dependent.)
-limits.hugepages.1GB                        | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 GB hugepages (Available hugepage sizes are architecture dependent.)
-limits.kernel.\*                            | string    | -                 | no            | container                 | This limits kernel resources per instance (e.g. number of open files)
-limits.memory                               | string    | -                 | yes           | -                         | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below) (defaults to 1GiB for VMs)
-limits.memory.enforce                       | string    | hard              | yes           | container                 | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
-limits.memory.hugepages                     | boolean   | false             | no            | virtual-machine           | Controls whether to back the instance using hugepages rather than regular system memory
-limits.memory.swap                          | boolean   | true              | yes           | container                 | Controls whether to encourage/discourage swapping less used pages for this instance
-limits.memory.swap.priority                 | integer   | 10 (maximum)      | yes           | container                 | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
-limits.network.priority                     | integer   | 0 (minimum)       | yes           | -                         | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
-limits.processes                            | integer   | - (max)           | yes           | container                 | Maximum number of processes that can run in the instance
-linux.kernel\_modules                       | string    | -                 | yes           | container                 | Comma separated list of kernel modules to load before starting the instance
-linux.sysctl.*                              | string    | -                 | no            | container                 | Allow for modify sysctl settings
-migration.incremental.memory                | boolean   | false             | yes           | container                 | Incremental memory transfer of the instance's memory to reduce downtime
-migration.incremental.memory.goal           | integer   | 70                | yes           | container                 | Percentage of memory to have in sync before stopping the instance
-migration.incremental.memory.iterations     | integer   | 10                | yes           | container                 | Maximum number of transfer operations to go through before stopping the instance
-migration.stateful                          | boolean   | false             | no            | virtual-machine           | Allow for stateful stop/start and snapshots. This will prevent the use of some features that are incompatible with it
-nvidia.driver.capabilities                  | string    | compute,utility   | no            | container                 | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
-nvidia.runtime                              | boolean   | false             | no            | container                 | Pass the host NVIDIA and CUDA runtime libraries into the instance
-nvidia.require.cuda                         | string    | -                 | no            | container                 | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
-nvidia.require.driver                       | string    | -                 | no            | container                 | Version expression for the required driver version (sets libnvidia-container NVIDIA\_REQUIRE\_DRIVER)
-raw.apparmor                                | blob      | -                 | yes           | -                         | Apparmor profile entries to be appended to the generated profile
-raw.idmap                                   | blob      | -                 | no            | unprivileged container    | Raw idmap configuration (e.g. "both 1000 1000")
-raw.lxc                                     | blob      | -                 | no            | container                 | Raw LXC configuration to be appended to the generated one
-raw.qemu                                    | blob      | -                 | no            | virtual-machine           | Raw Qemu configuration to be appended to the generated command line
-raw.seccomp                                 | blob      | -                 | no            | container                 | Raw Seccomp configuration
-security.devlxd                             | boolean   | true              | no            | -                         | Controls the presence of /dev/lxd in the instance
-security.devlxd.images                      | boolean   | false             | no            | container                 | Controls the availability of the /1.0/images API over devlxd
-security.idmap.base                         | integer   | -                 | no            | unprivileged container    | The base host ID to use for the allocation (overrides auto-detection)
-security.idmap.isolated                     | boolean   | false             | no            | unprivileged container    | Use an idmap for this instance that is unique among instances with isolated set
-security.idmap.size                         | integer   | -                 | no            | unprivileged container    | The size of the idmap to use
-security.nesting                            | boolean   | false             | yes           | container                 | Support running lxd (nested) inside the instance
-security.privileged                         | boolean   | false             | no            | container                 | Runs the instance in privileged mode
-security.protection.delete                  | boolean   | false             | yes           | -                         | Prevents the instance from being deleted
-security.protection.shift                   | boolean   | false             | yes           | container                 | Prevents the instance's filesystem from being uid/gid shifted on startup
-security.agent.metrics                      | boolean   | true              | no            | virtual-machine           | Controls whether the lxd-agent is queried for state information and metrics
-security.secureboot                         | boolean   | true              | no            | virtual-machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
-security.syscalls.allow                     | string    | -                 | no            | container                 | A '\n' separated list of syscalls to allow (mutually exclusive with security.syscalls.deny\*)
-security.syscalls.deny                      | string    | -                 | no            | container                 | A '\n' separated list of syscalls to deny
-security.syscalls.deny\_compat              | boolean   | false             | no            | container                 | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
-security.syscalls.deny\_default             | boolean   | true              | no            | container                 | Enables the default syscall deny
-security.syscalls.intercept.bpf             | boolean   | false             | no            | container                 | Handles the `bpf` system call
-security.syscalls.intercept.bpf.devices     | boolean   | false             | no            | container                 | Allows `bpf` programs for the devices cgroup in the unified hierarchy to be loaded.
-security.syscalls.intercept.mknod           | boolean   | false             | no            | container                 | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
-security.syscalls.intercept.mount           | boolean   | false             | no            | container                 | Handles the `mount` system call
-security.syscalls.intercept.mount.allowed   | string    | -                 | yes           | container                 | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance
-security.syscalls.intercept.mount.fuse      | string    | -                 | yes           | container                 | Whether to redirect mounts of a given filesystem to their fuse implemenation (e.g. ext4=fuse2fs)
-security.syscalls.intercept.mount.shift     | boolean   | false             | yes           | container                 | Whether to mount shiftfs on top of filesystems handled through mount syscall interception
-security.syscalls.intercept.setxattr        | boolean   | false             | no            | container                 | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
-snapshots.schedule                          | string    | -                 | no            | -                         | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly> <@startup> <@never>`
-snapshots.schedule.stopped                  | bool      | false             | no            | -                         | Controls whether or not stopped instances are to be snapshoted automatically
-snapshots.pattern                           | string    | snap%d            | no            | -                         | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
-snapshots.expiry                            | string    | -                 | no            | -                         | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
-user.\*                                     | string    | -                 | n/a           | -                         | Free form user key/value storage (can be used in search)
+Key                                             | Type      | Default           | Live update   | Condition                 | Description
+:--                                             | :---      | :------           | :----------   | :----------               | :----------
+agent.nic\_config                               | boolean   | false             | n/a           | virtual-machine           | Set the name and MTU of the default network interfaces to be the same as the instance devices (this is automatic for containers).
+boot.autostart                                  | boolean   | -                 | n/a           | -                         | Always start the instance when LXD starts (if not set, restore last state)
+boot.autostart.delay                            | integer   | 0                 | n/a           | -                         | Number of seconds to wait after the instance started before starting the next one
+boot.autostart.priority                         | integer   | 0                 | n/a           | -                         | What order to start the instances in (starting with highest)
+boot.host\_shutdown\_timeout                    | integer   | 30                | yes           | -                         | Seconds to wait for instance to shutdown before it is force stopped
+boot.stop.priority                              | integer   | 0                 | n/a           | -                         | What order to shutdown the instances (starting with highest)
+cloud-init.network-config                       | string    | DHCP on eth0      | no            | -                         | Cloud-init network-config, content is used as seed value
+cloud-init.user-data                            | string    | #cloud-config     | no            | -                         | Cloud-init user-data, content is used as seed value
+cloud-init.vendor-data                          | string    | #cloud-config     | no            | -                         | Cloud-init vendor-data, content is used as seed value
+cluster.evacuate                                | string    | auto              | n/a           | -                         | What to do when evacuating the instance (auto, migrate, live-migrate, or stop)
+environment.\*                                  | string    | -                 | yes (exec)    | -                         | key/value environment variables to export to the instance and set on exec
+limits.cpu                                      | string    | -                 | yes           | -                         | Number or range of CPUs to expose to the instance (defaults to 1 CPU for VMs)
+limits.cpu.allowance                            | string    | 100%              | yes           | container                 | How much of the CPU can be used. Can be a percentage (e.g. 50%) for a soft limit or hard a chunk of time (25ms/100ms)
+limits.cpu.priority                             | integer   | 10 (maximum)      | yes           | container                 | CPU scheduling priority compared to other instances sharing the same CPUs (overcommit) (integer between 0 and 10)
+limits.disk.priority                            | integer   | 5 (medium)        | yes           | -                         | When under load, how much priority to give to the instance's I/O requests (integer between 0 and 10)
+limits.hugepages.64KB                           | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 64 KB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.1MB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 MB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.2MB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 2 MB hugepages (Available hugepage sizes are architecture dependent.)
+limits.hugepages.1GB                            | string    | -                 | yes           | container                 | Fixed value in bytes (various suffixes supported, see below) to limit number of 1 GB hugepages (Available hugepage sizes are architecture dependent.)
+limits.kernel.\*                                | string    | -                 | no            | container                 | This limits kernel resources per instance (e.g. number of open files)
+limits.memory                                   | string    | -                 | yes           | -                         | Percentage of the host's memory or fixed value in bytes (various suffixes supported, see below) (defaults to 1GiB for VMs)
+limits.memory.enforce                           | string    | hard              | yes           | container                 | If hard, instance can't exceed its memory limit. If soft, the instance can exceed its memory limit when extra host memory is available
+limits.memory.hugepages                         | boolean   | false             | no            | virtual-machine           | Controls whether to back the instance using hugepages rather than regular system memory
+limits.memory.swap                              | boolean   | true              | yes           | container                 | Controls whether to encourage/discourage swapping less used pages for this instance
+limits.memory.swap.priority                     | integer   | 10 (maximum)      | yes           | container                 | The higher this is set, the least likely the instance is to be swapped to disk (integer between 0 and 10)
+limits.network.priority                         | integer   | 0 (minimum)       | yes           | -                         | When under load, how much priority to give to the instance's network requests (integer between 0 and 10)
+limits.processes                                | integer   | - (max)           | yes           | container                 | Maximum number of processes that can run in the instance
+linux.kernel\_modules                           | string    | -                 | yes           | container                 | Comma separated list of kernel modules to load before starting the instance
+linux.sysctl.*                                  | string    | -                 | no            | container                 | Allow for modify sysctl settings
+migration.incremental.memory                    | boolean   | false             | yes           | container                 | Incremental memory transfer of the instance's memory to reduce downtime
+migration.incremental.memory.goal               | integer   | 70                | yes           | container                 | Percentage of memory to have in sync before stopping the instance
+migration.incremental.memory.iterations         | integer   | 10                | yes           | container                 | Maximum number of transfer operations to go through before stopping the instance
+migration.stateful                              | boolean   | false             | no            | virtual-machine           | Allow for stateful stop/start and snapshots. This will prevent the use of some features that are incompatible with it
+nvidia.driver.capabilities                      | string    | compute,utility   | no            | container                 | What driver capabilities the instance needs (sets libnvidia-container NVIDIA\_DRIVER\_CAPABILITIES)
+nvidia.runtime                                  | boolean   | false             | no            | container                 | Pass the host NVIDIA and CUDA runtime libraries into the instance
+nvidia.require.cuda                             | string    | -                 | no            | container                 | Version expression for the required CUDA version (sets libnvidia-container NVIDIA\_REQUIRE\_CUDA)
+nvidia.require.driver                           | string    | -                 | no            | container                 | Version expression for the required driver version (sets libnvidia-container NVIDIA\_REQUIRE\_DRIVER)
+raw.apparmor                                    | blob      | -                 | yes           | -                         | Apparmor profile entries to be appended to the generated profile
+raw.idmap                                       | blob      | -                 | no            | unprivileged container    | Raw idmap configuration (e.g. "both 1000 1000")
+raw.lxc                                         | blob      | -                 | no            | container                 | Raw LXC configuration to be appended to the generated one
+raw.qemu                                        | blob      | -                 | no            | virtual-machine           | Raw Qemu configuration to be appended to the generated command line
+raw.seccomp                                     | blob      | -                 | no            | container                 | Raw Seccomp configuration
+security.devlxd                                 | boolean   | true              | no            | -                         | Controls the presence of /dev/lxd in the instance
+security.devlxd.images                          | boolean   | false             | no            | container                 | Controls the availability of the /1.0/images API over devlxd
+security.idmap.base                             | integer   | -                 | no            | unprivileged container    | The base host ID to use for the allocation (overrides auto-detection)
+security.idmap.isolated                         | boolean   | false             | no            | unprivileged container    | Use an idmap for this instance that is unique among instances with isolated set
+security.idmap.size                             | integer   | -                 | no            | unprivileged container    | The size of the idmap to use
+security.nesting                                | boolean   | false             | yes           | container                 | Support running lxd (nested) inside the instance
+security.privileged                             | boolean   | false             | no            | container                 | Runs the instance in privileged mode
+security.protection.delete                      | boolean   | false             | yes           | -                         | Prevents the instance from being deleted
+security.protection.shift                       | boolean   | false             | yes           | container                 | Prevents the instance's filesystem from being uid/gid shifted on startup
+security.agent.metrics                          | boolean   | true              | no            | virtual-machine           | Controls whether the lxd-agent is queried for state information and metrics
+security.secureboot                             | boolean   | true              | no            | virtual-machine           | Controls whether UEFI secure boot is enabled with the default Microsoft keys
+security.syscalls.allow                         | string    | -                 | no            | container                 | A '\n' separated list of syscalls to allow (mutually exclusive with security.syscalls.deny\*)
+security.syscalls.deny                          | string    | -                 | no            | container                 | A '\n' separated list of syscalls to deny
+security.syscalls.deny\_compat                  | boolean   | false             | no            | container                 | On x86\_64 this enables blocking of compat\_\* syscalls, it is a no-op on other arches
+security.syscalls.deny\_default                 | boolean   | true              | no            | container                 | Enables the default syscall deny
+security.syscalls.intercept.bpf                 | boolean   | false             | no            | container                 | Handles the `bpf` system call
+security.syscalls.intercept.bpf.devices         | boolean   | false             | no            | container                 | Allows `bpf` programs for the devices cgroup in the unified hierarchy to be loaded.
+security.syscalls.intercept.mknod               | boolean   | false             | no            | container                 | Handles the `mknod` and `mknodat` system calls (allows creation of a limited subset of char/block devices)
+security.syscalls.intercept.mount               | boolean   | false             | no            | container                 | Handles the `mount` system call
+security.syscalls.intercept.mount.allowed       | string    | -                 | yes           | container                 | Specify a comma-separated list of filesystems that are safe to mount for processes inside the instance
+security.syscalls.intercept.mount.fuse          | string    | -                 | yes           | container                 | Whether to redirect mounts of a given filesystem to their fuse implemenation (e.g. ext4=fuse2fs)
+security.syscalls.intercept.mount.shift         | boolean   | false             | yes           | container                 | Whether to mount shiftfs on top of filesystems handled through mount syscall interception
+security.syscalls.intercept.setxattr            | boolean   | false             | no            | container                 | Handles the `setxattr` system call (allows setting a limited subset of restricted extended attributes)
+snapshots.schedule                              | string    | -                 | no            | -                         | Cron expression (`<minute> <hour> <dom> <month> <dow>`), or a comma separated list of schedule aliases `<@hourly> <@daily> <@midnight> <@weekly> <@monthly> <@annually> <@yearly> <@startup> <@never>`
+snapshots.schedule.stopped                      | bool      | false             | no            | -                         | Controls whether or not stopped instances are to be snapshoted automatically
+snapshots.pattern                               | string    | snap%d            | no            | -                         | Pongo2 template string which represents the snapshot name (used for scheduled snapshots and unnamed snapshots)
+snapshots.expiry                                | string    | -                 | no            | -                         | Controls when snapshots are to be deleted (expects expression like `1M 2H 3d 4w 5m 6y`)
+user.\*                                         | string    | -                 | n/a           | -                         | Free form user key/value storage (can be used in search)
 
 The following volatile keys are currently internally used by LXD:
 
