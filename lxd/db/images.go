@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -456,11 +457,11 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 	var image api.Image
 	var object Image
 	if fingerprintPrefix == "" {
-		return -1, nil, ErrNoSuchObject
+		return -1, nil, errors.New("No fingerprint prefix specified for the image")
 	}
 
 	if filter.Project == nil {
-		return -1, nil, errors.New("no project specified for the image")
+		return -1, nil, errors.New("No project specified for the image")
 	}
 
 	err := c.Transaction(func(tx *ClusterTx) error {
@@ -481,7 +482,7 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 
 		switch len(images) {
 		case 0:
-			return ErrNoSuchObject
+			return api.StatusErrorf(http.StatusNotFound, "Image not found")
 		case 1:
 			object = images[0]
 		default:
