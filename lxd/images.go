@@ -1551,7 +1551,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 		if newImage != nil {
 			err := distributeImage(ctx, d, nodes, fingerprint, newImage)
 			if err != nil {
-				logger.Error("Failed to distribute image", log.Ctx{"err": err, "fingerprint": newImage.Fingerprint})
+				logger.Error("Failed to distribute new image", log.Ctx{"err": err, "fingerprint": newImage.Fingerprint})
 
 				if err == context.Canceled {
 					return nil
@@ -1559,10 +1559,10 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 			}
 
 			for _, ID := range deleteIDs {
-				// Remove the database entry for the image.
+				// Remove the database entry for the image after distributing to cluster members.
 				err = d.cluster.DeleteImage(ID)
 				if err != nil {
-					logger.Error("Error deleting image from database", log.Ctx{"err": err, "fingerprint": fingerprint, "ID": ID})
+					logger.Error("Error deleting old image from database", log.Ctx{"err": err, "fingerprint": fingerprint, "ID": ID})
 				}
 			}
 		}
