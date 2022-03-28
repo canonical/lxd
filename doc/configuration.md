@@ -6,7 +6,6 @@ LXD stores the configuration for the following components:
 
 containers
 Instances <instances>
-Network Zones <network-zones>
 Preseed files <preseed>
 profiles
 Projects <projects>
