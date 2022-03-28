@@ -325,6 +325,7 @@ var APIExtensions = []string{
 	"images_target_project",
 	"cluster_migration_inconsistent_copy",
 	"cluster_ovn_chassis",
+	"container_syscall_intercept_sched_setscheduler",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
