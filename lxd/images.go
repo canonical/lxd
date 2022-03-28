@@ -3688,14 +3688,38 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 	fingerprint := mux.Vars(r)["fingerprint"]
-	imageId, imageInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
+	imageID, imageInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Begin background operation
 	run := func(op *operations.Operation) error {
-		_, err := autoUpdateImage(d.shutdownCtx, d, op, imageId, imageInfo, projectName, true)
+		nodes, err := d.cluster.GetNodesWithImageAndAutoUpdate(fingerprint, true)
+		if err != nil {
+			return fmt.Errorf("Error getting cluster members for refreshing image %q in project %q: %w", fingerprint, projectName, err)
+		}
+
+		newImage, err := autoUpdateImage(d.shutdownCtx, d, op, imageID, imageInfo, projectName, true)
+		if err != nil {
+			return fmt.Errorf("Failed to update image %q in project %q: %w", fingerprint, projectName, err)
+		}
+
+		if newImage != nil {
+			if len(nodes) > 1 {
+				err := distributeImage(d.shutdownCtx, d, nodes, fingerprint, newImage)
+				if err != nil {
+					return fmt.Errorf("Failed to distribute new image %q: %w", newImage.Fingerprint, err)
+				}
+			}
+
+			// Remove the database entry for the image after distributing to cluster members.
+			err = d.cluster.DeleteImage(imageID)
+			if err != nil {
+				logger.Error("Error deleting old image from database", log.Ctx{"err": err, "fingerprint": fingerprint, "ID": imageID})
+			}
+		}
+
 		return err
 	}
 
