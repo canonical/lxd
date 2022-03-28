@@ -566,7 +566,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 func (c *ClusterTx) getImagesByFingerprintPrefix(fingerprintPrefix string, filter ImageFilter) ([]Image, error) {
 	sql := `
 SELECT images.id, projects.name AS project, images.fingerprint, images.type, images.filename, images.size, images.public, images.architecture, images.creation_date, images.expiry_date, images.upload_date, images.cached, images.last_use_date, images.auto_update
-FROM images 
+FROM images
 JOIN projects ON images.project_id = projects.id
 WHERE images.fingerprint LIKE ?
 `
