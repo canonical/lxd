@@ -73,7 +73,7 @@ func networkUpdateOVNChassis(s *state.State, heartbeatData *cluster.APIHeartbeat
 	}
 
 	runChassis := !hasOVNChassis || localOVNChassis
-	if networkOVNChassis == nil || *networkOVNChassis != runChassis {
+	if networkOVNChassis != nil && *networkOVNChassis != runChassis {
 		// Detected that the local OVN chassis setup may be incorrect, restarting.
 		err := networkRestartOVN(s)
 		if err != nil {
