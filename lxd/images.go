@@ -1562,7 +1562,7 @@ func autoUpdateImages(ctx context.Context, d *Daemon) error {
 				// Remove the database entry for the image.
 				err = d.cluster.DeleteImage(ID)
 				if err != nil {
-					logger.Error("Error deleting image from database", log.Ctx{"err": err, "ID": ID})
+					logger.Error("Error deleting image from database", log.Ctx{"err": err, "fingerprint": fingerprint, "ID": ID})
 				}
 			}
 		}
