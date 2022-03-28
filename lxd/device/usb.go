@@ -173,7 +173,7 @@ func (d *usb) startVM() (*deviceConfig.RunConfig, error) {
 	for _, usb := range usbs {
 		if usbIsOurDevice(d.config, &usb) {
 			runConf.USBDevice = append(runConf.USBDevice, deviceConfig.USBDeviceItem{
-				DeviceName:     fmt.Sprintf("%s-%d", d.name, len(runConf.USBDevice)),
+				DeviceName:     d.getUniqueDeviceNameFromUSBEvent(usb),
 				HostDevicePath: fmt.Sprintf("/dev/bus/usb/%03d/%03d", usb.BusNum, usb.DevNum),
 			})
 		}
@@ -289,4 +289,12 @@ func (d *usb) loadRawValues(p string) (map[string]string, error) {
 	}
 
 	return values, nil
+}
+
+// getUniqueDeviceNameFromUSBEvent returns a unique device name including the bus and device number.
+// Previously, the device name contained a simple incremental value as suffix. This would make the
+// device unidentifiable when using hotplugging. Including the bus and device number makes the
+// device identifiable.
+func (d *usb) getUniqueDeviceNameFromUSBEvent(e USBEvent) string {
+	return fmt.Sprintf("%s-%03d-%03d", d.name, e.BusNum, e.DevNum)
 }
