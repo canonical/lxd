@@ -1941,7 +1941,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			logger.Debugf("Error deleting image file %s: %s", fname, err)
+			logger.Warn("Error deleting image file", log.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
 		}
 	}
 
@@ -1950,14 +1950,14 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 	if shared.PathExists(fname) {
 		err = os.Remove(fname)
 		if err != nil {
-			logger.Debugf("Error deleting image file %s: %s", fname, err)
+			logger.Warn("Error deleting image rootfs file", log.Ctx{"fingerprint": fingerprint, "file": fname, "err": err})
 		}
 	}
 
 	// Remove database entry of the old image.
 	err = d.cluster.DeleteImage(id)
 	if err != nil {
-		logger.Debugf("Error deleting image from database: %s", err)
+		logger.Warn("Error deleting image from database", log.Ctx{"fingerprint": fingerprint, "err": err})
 	}
 
 	setRefreshResult(true)
