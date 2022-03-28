@@ -1,4 +1,5 @@
-## network: physical
+(network-physical)=
+# Physical network
 
 The physical network type allows one to specify presets to use when connecting OVN networks to a parent interface.
 

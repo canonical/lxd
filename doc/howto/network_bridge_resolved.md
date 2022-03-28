@@ -1,4 +1,5 @@
-### Integration with systemd-resolved
+# How to integrate with systemd-resolved
+
 If the system running LXD uses systemd-resolved to perform DNS
 lookups, it's possible to notify resolved of the domain(s) that
 LXD is able to resolve.  This requires telling resolved the
