@@ -20,8 +20,15 @@ type MountInfo struct {
 	DiskPath string // The location of the block disk (if supported).
 }
 
+// Type represents a LXD storage pool type.
+type Type interface {
+	ValidateName(name string) error
+}
+
 // Pool represents a LXD storage pool.
 type Pool interface {
+	Type
+
 	// Pool.
 	ID() int64
 	Name() string
