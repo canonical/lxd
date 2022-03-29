@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
@@ -31,21 +30,6 @@ import (
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
-
-// ValidName validates the provided name, and returns an error if it's not a valid storage name.
-func ValidName(value string) error {
-	if strings.Contains(value, "/") {
-		return fmt.Errorf(`Storage name cannot contain "/"`)
-	}
-
-	for _, r := range value {
-		if unicode.IsSpace(r) {
-			return fmt.Errorf(`Storage name cannot contain white space`)
-		}
-	}
-
-	return nil
-}
 
 // ConfigDiff returns a diff of the provided configs. Additionally, it returns whether or not
 // only user properties have been changed.
