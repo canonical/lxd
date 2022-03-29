@@ -893,7 +893,7 @@ func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Respo
 
 // Used after to create the appropriate mounts point after an instance has been moved.
 func instancePostCreateInstanceMountPoint(d *Daemon, inst instance.Instance) error {
-	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(d.State(), inst)
 	if err != nil {
 		return fmt.Errorf("Failed loading pool of instance on target node: %w", err)
 	}
@@ -913,7 +913,7 @@ func migrateInstance(d *Daemon, r *http.Request, inst instance.Instance, targetN
 	}
 
 	// Check if we are migrating a ceph-based instance.
-	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(d.State(), inst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}

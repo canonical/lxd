@@ -3873,7 +3873,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	d.logger.Info("Restoring instance", ctxMap)
 
 	// Load the storage driver.
-	pool, err := storagePools.GetPoolByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -3947,7 +3947,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	// Clean things up.
 	d.cleanup()
 
-	pool, err := storagePools.GetPoolByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}

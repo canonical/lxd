@@ -1823,7 +1823,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 					return err
 				}
 
-				pool, err := storagePools.GetPoolByInstance(d.State(), ctStruct)
+				pool, err := storagePools.LoadByInstance(d.State(), ctStruct)
 				if err != nil {
 					return err
 				}
@@ -1979,7 +1979,7 @@ func upgradeFromStorageTypeLvm(name string, d *Daemon, defaultPoolName string, d
 						return err
 					}
 
-					pool, err := storagePools.GetPoolByInstance(d.State(), csStruct)
+					pool, err := storagePools.LoadByInstance(d.State(), csStruct)
 					if err != nil {
 						return err
 					}
@@ -3673,7 +3673,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 
 		// Start the storage if needed
-		pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+		pool, err := storagePools.LoadByInstance(d.State(), inst)
 		if err != nil {
 			return err
 		}

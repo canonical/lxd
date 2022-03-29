@@ -878,7 +878,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	contentType := InstanceContentType(inst)
 
 	// Get the source storage pool.
-	tmpPool, err := GetPoolByInstance(b.state, src)
+	tmpPool, err := LoadByInstance(b.state, src)
 	if err != nil {
 		return err
 	}
@@ -1333,7 +1333,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	}
 
 	// Get the source storage pool.
-	srcPool, err := GetPoolByInstance(b.state, src)
+	srcPool, err := LoadByInstance(b.state, src)
 	if err != nil {
 		return err
 	}
