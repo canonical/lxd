@@ -2601,6 +2601,16 @@ test_clustering_image_refresh() {
 
   pids=""
 
+  if [ "${driver}" != "dir" ]; then
+    # Check image storage volume records exist.
+    lxd sql global 'select name from storage_volumes'
+    if [ "${driver}" = "ceph" ]; then
+      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 1
+    else
+      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 3
+    fi
+  fi
+
   # Trigger image refresh on all nodes
   for lxd_dir in "${LXD_ONE_DIR}" "${LXD_TWO_DIR}" "${LXD_THREE_DIR}"; do
     LXD_DIR="${lxd_dir}" lxc query /internal/testing/image-refresh &
@@ -2611,6 +2621,18 @@ test_clustering_image_refresh() {
   for pid in ${pids}; do
     wait "${pid}"
   done
+
+  if [ "${driver}" != "dir" ]; then
+    lxd sql global 'select name from storage_volumes'
+    # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
+    if [ "${driver}" = "ceph" ]; then
+      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 0
+      lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}" | grep -Fx 1
+    else
+      lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 1
+      lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}" | grep -Fx 2
+    fi
+  fi
 
   # The projects default and bar should have received the new image
   # while project foo should still have the old image.
