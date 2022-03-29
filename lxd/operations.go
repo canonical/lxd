@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/rbac"
 	"github.com/lxc/lxd/lxd/request"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/lxd/task"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -1037,4 +1039,88 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return operations.ForwardedOperationWebSocket(r, id, source)
+}
+
+func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
+	f := func(ctx context.Context) {
+		localAddress, err := node.ClusterAddress(d.db)
+		if err != nil {
+			logger.Error("Failed to get current cluster member address", log.Ctx{"err": err})
+			return
+		}
+
+		leader, err := d.gateway.LeaderAddress()
+		if err != nil {
+			if errors.Is(err, cluster.ErrNodeIsNotClustered) {
+				return // No error if not clustered.
+			}
+
+			logger.Error("Failed to get leader cluster member address", log.Ctx{"err": err})
+			return
+		}
+
+		if localAddress != leader {
+			logger.Debug("Skipping remove orphaned operations task since we're not leader")
+			return
+		}
+
+		opRun := func(op *operations.Operation) error {
+			return autoRemoveOrphanedOperations(ctx, d)
+		}
+
+		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationRemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
+		if err != nil {
+			logger.Error("Failed to start remove orphaned operations operation", log.Ctx{"err": err})
+			return
+		}
+
+		_, err = op.Run()
+		if err != nil {
+			logger.Error("Failed to remove orphaned operations", log.Ctx{"err": err})
+			return
+		}
+	}
+
+	return f, task.Hourly()
+}
+
+// autoRemoveOrphanedOperations removes old operations from offline members. Operations can be left
+// behind if a cluster member abruptly becomes unreachable. If the affected cluster members comes
+// back online, these operations won't be cleaned up. We therefore need to periodically clean up
+// such operations.
+func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
+	logger.Debug("Removing orphaned operations across the cluster")
+
+	err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		// Get offline threshold.
+		offlineThreshold, err := tx.GetNodeOfflineThreshold()
+		if err != nil {
+			return fmt.Errorf("Load offline threshold config: %w", err)
+		}
+
+		nodes, err := tx.GetNodes()
+		if err != nil {
+			return fmt.Errorf("Failed to get nodes: %w", err)
+		}
+
+		for _, node := range nodes {
+			// Skip online nodes
+			if !node.IsOffline(offlineThreshold) {
+				continue
+			}
+
+			err = tx.DeleteOperations(node.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to delete operations: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to remove orphaned operations: %w", err)
+	}
+
+	logger.Debug("Done removing orphaned operations across the cluster")
+
+	return nil
 }
