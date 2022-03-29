@@ -149,7 +149,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	poolName, err := c.StoragePool()
 	suite.Req.Nil(err)
 
-	pool, err := storagePools.GetPoolByName(state, poolName)
+	pool, err := storagePools.LoadByName(state, poolName)
 	suite.Req.Nil(err)
 
 	_, err = state.Cluster.CreateStoragePoolVolume(c.Project(), c.Name(), "", db.StoragePoolVolumeContentTypeFS, pool.ID(), nil, db.StoragePoolVolumeContentTypeFS)

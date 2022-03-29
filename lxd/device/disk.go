@@ -405,7 +405,7 @@ func (d *disk) Register() error {
 	d.logger.Debug("Initialising mounted disk ref counter")
 
 	if d.config["path"] == "/" {
-		pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+		pool, err := storagePools.LoadByInstance(d.state, d.inst)
 		if err != nil {
 			return err
 		}
@@ -992,7 +992,7 @@ func (d *disk) applyQuota(unmount bool) error {
 	newSize := d.inst.ExpandedDevices()[rootDisk]["size"]
 	newMigrationSize := d.inst.ExpandedDevices()[rootDisk]["size.state"]
 
-	pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+	pool, err := storagePools.LoadByInstance(d.state, d.inst)
 	if err != nil {
 		return err
 	}

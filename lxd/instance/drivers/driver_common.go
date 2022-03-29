@@ -565,7 +565,7 @@ func (d *common) snapshotCommon(inst instance.Instance, name string, expiry time
 	}
 	defer snapInstOp.Done(err)
 
-	pool, err := storagePools.GetPoolByInstance(d.state, snap)
+	pool, err := storagePools.LoadByInstance(d.state, snap)
 	if err != nil {
 		return err
 	}

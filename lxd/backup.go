@@ -45,7 +45,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	defer revert.Fail()
 
 	// Get storage pool.
-	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
+	pool, err := storagePools.LoadByInstance(s, sourceInst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
