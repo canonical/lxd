@@ -71,6 +71,8 @@ func InitTLSConfig() *tls.Config {
 	// Restrict to TLS 1.3 unless LXD_INSECURE_TLS is set.
 	if IsFalseOrEmpty(os.Getenv("LXD_INSECURE_TLS")) {
 		config.MinVersion = tls.VersionTLS13
+	} else {
+		config.MinVersion = tls.VersionTLS12
 	}
 
 	return config
