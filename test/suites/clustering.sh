@@ -2514,10 +2514,11 @@ test_clustering_image_refresh() {
   bridge="${prefix}"
 
   # The random storage backend is not supported in clustering tests,
-  # since we need to have the same storage driver on all nodes.
-  driver="${LXD_BACKEND}"
-  if [ "${driver}" = "random" ] || [ "${driver}" = "lvm" ]; then
-    driver="dir"
+  # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
+  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | grep 'driver:' | awk '{print $2}')
+  if [ "${poolDriver}" = "lvm" ]; then
+    # LVM driver doesn't currently work for clustering tests which needs to be investigated.
+    poolDriver="dir"
   fi
 
   # Spawn first node
@@ -2525,7 +2526,7 @@ test_clustering_image_refresh() {
   LXD_ONE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_ONE_DIR}"
   ns1="${prefix}1"
-  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${driver}"
+  spawn_lxd_and_bootstrap_cluster "${ns1}" "${bridge}" "${LXD_ONE_DIR}" "${poolDriver}"
 
   LXD_DIR="${LXD_ONE_DIR}" lxc config set cluster.images_minimal_replica 1
   LXD_DIR="${LXD_ONE_DIR}" lxc config set images.auto_update_interval 1
@@ -2541,14 +2542,14 @@ test_clustering_image_refresh() {
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_TWO_DIR}"
   ns2="${prefix}2"
-  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${driver}"
+  spawn_lxd_and_join_cluster "${ns2}" "${bridge}" "${cert}" 2 1 "${LXD_TWO_DIR}" "${poolDriver}"
 
   # Spawn a third node
   setup_clustering_netns 3
   LXD_THREE_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
   chmod +x "${LXD_THREE_DIR}"
   ns3="${prefix}3"
-  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${driver}"
+  spawn_lxd_and_join_cluster "${ns3}" "${bridge}" "${cert}" 3 1 "${LXD_THREE_DIR}" "${poolDriver}"
 
   # Spawn public node which has a public testimage
   setup_clustering_netns 4
@@ -2601,10 +2602,10 @@ test_clustering_image_refresh() {
 
   pids=""
 
-  if [ "${driver}" != "dir" ]; then
+  if [ "${poolDriver}" != "dir" ]; then
     # Check image storage volume records exist.
     lxd sql global 'select name from storage_volumes'
-    if [ "${driver}" = "ceph" ]; then
+    if [ "${poolDriver}" = "ceph" ]; then
       lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 1
     else
       lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 3
@@ -2622,10 +2623,10 @@ test_clustering_image_refresh() {
     wait "${pid}"
   done
 
-  if [ "${driver}" != "dir" ]; then
+  if [ "${poolDriver}" != "dir" ]; then
     lxd sql global 'select name from storage_volumes'
     # Check image storage volume records actually removed from relevant members and replaced with new fingerprint.
-    if [ "${driver}" = "ceph" ]; then
+    if [ "${poolDriver}" = "ceph" ]; then
       lxd sql global 'select name from storage_volumes' | grep -Fc "${old_fingerprint}" | grep -Fx 0
       lxd sql global 'select name from storage_volumes' | grep -Fc "${new_fingerprint}" | grep -Fx 1
     else

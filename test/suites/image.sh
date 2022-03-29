@@ -103,6 +103,8 @@ test_image_refresh() {
 
   lxc_remote remote add l2 "${LXD2_ADDR}" --accept-certificate --password foo
 
+  poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | grep 'driver:' | awk '{print $2}')
+
   # Publish image
   lxc image copy testimage l2: --alias testimage --public
   fp="$(lxc image info l2:testimage | awk '/Fingerprint: / {print $2}')"
@@ -126,7 +128,7 @@ test_image_refresh() {
   # Check original image exists before refresh.
   lxc image info "${fp}"
 
-  if [ "${LXD_BACKEND}" != "dir" ]; then
+  if [ "${poolDriver}" != "dir" ]; then
     # Check old storage volume record exists and new one doesn't.
     lxd sql global 'select name from storage_volumes' | grep "${fp}"
     ! lxd sql global 'select name from storage_volumes' | grep "${new_fp}" || false
@@ -138,7 +140,7 @@ test_image_refresh() {
   # Ensure the old image is gone.
   ! lxc image info "${fp}" || false
 
-  if [ "${LXD_BACKEND}" != "dir" ]; then
+  if [ "${poolDriver}" != "dir" ]; then
     # Check old storage volume record has been replaced with new one.
     ! lxd sql global 'select name from storage_volumes' | grep "${fp}" || false
     lxd sql global 'select name from storage_volumes' | grep "${new_fp}"
