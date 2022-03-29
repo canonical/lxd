@@ -41,7 +41,7 @@ func instanceCreateAsEmpty(d *Daemon, args db.InstanceArgs) (instance.Instance, 
 	}
 	defer instOp.Done(err)
 
-	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(d.State(), inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -161,7 +161,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
 
-	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(d.State(), inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -324,7 +324,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 	}
 
 	// Copy the storage volume.
-	pool, err := storagePools.GetPoolByInstance(s, inst)
+	pool, err := storagePools.LoadByInstance(s, inst)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}

@@ -45,7 +45,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	defer revert.Fail()
 
 	// Get storage pool.
-	pool, err := storagePools.GetPoolByInstance(s, sourceInst)
+	pool, err := storagePools.LoadByInstance(s, sourceInst)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -338,7 +338,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	defer revert.Fail()
 
 	// Get storage pool.
-	pool, err := storagePools.GetPoolByName(s, poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}

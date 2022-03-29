@@ -719,7 +719,7 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 		return fmt.Errorf("No storage pool specified")
 	}
 
-	pool, err := storagePools.GetPoolByName(d.State(), storagePool)
+	pool, err := storagePools.LoadByName(d.State(), storagePool)
 	if err != nil {
 		return err
 	}
@@ -1918,7 +1918,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 
 		// If we do have optimized pools, make sure we remove the volumes associated with the image.
 		if poolName != "" {
-			pool, err := storagePools.GetPoolByName(d.State(), poolName)
+			pool, err := storagePools.LoadByName(d.State(), poolName)
 			if err != nil {
 				logger.Error("Error loading storage pool to delete image", log.Ctx{"err": err, "pool": poolName, "fingerprint": fingerprint})
 				continue
@@ -2024,7 +2024,7 @@ func pruneLeftoverImages(d *Daemon) {
 			}
 
 			// Load the pool.
-			pool, err := storagePools.GetPoolByName(d.State(), poolName)
+			pool, err := storagePools.LoadByName(d.State(), poolName)
 			if err != nil {
 				return err
 			}
@@ -2162,7 +2162,7 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Proj
 		}
 
 		for _, poolName := range poolNames {
-			pool, err := storagePools.GetPoolByName(d.State(), poolName)
+			pool, err := storagePools.LoadByName(d.State(), poolName)
 			if err != nil {
 				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, fingerprint, err)
 			}
@@ -2298,7 +2298,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, poolName := range poolNames {
-			pool, err := storagePools.GetPoolByName(d.State(), poolName)
+			pool, err := storagePools.LoadByName(d.State(), poolName)
 			if err != nil {
 				return fmt.Errorf("Error loading storage pool %q to delete image %q: %w", poolName, imgInfo.Fingerprint, err)
 			}

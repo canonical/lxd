@@ -262,7 +262,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		// Only perform expensive instance pool volume checks when not validating a profile and after
 		// device expansion has occurred (to avoid doing it twice during instance load).
 		if d.inst != nil && !d.inst.IsSnapshot() && len(instConf.ExpandedDevices()) > 0 {
-			d.pool, err = storagePools.GetPoolByName(d.state, d.config["pool"])
+			d.pool, err = storagePools.LoadByName(d.state, d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
 			}
@@ -405,7 +405,7 @@ func (d *disk) Register() error {
 	d.logger.Debug("Initialising mounted disk ref counter")
 
 	if d.config["path"] == "/" {
-		pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+		pool, err := storagePools.LoadByInstance(d.state, d.inst)
 		if err != nil {
 			return err
 		}
@@ -992,7 +992,7 @@ func (d *disk) applyQuota(unmount bool) error {
 	newSize := d.inst.ExpandedDevices()[rootDisk]["size"]
 	newMigrationSize := d.inst.ExpandedDevices()[rootDisk]["size.state"]
 
-	pool, err := storagePools.GetPoolByInstance(d.state, d.inst)
+	pool, err := storagePools.LoadByInstance(d.state, d.inst)
 	if err != nil {
 		return err
 	}

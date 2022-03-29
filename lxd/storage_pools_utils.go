@@ -124,7 +124,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	}
 
 	// Load pool record.
-	pool, err := storagePools.GetPoolByName(state, updatedReq.Name)
+	pool, err := storagePools.LoadByName(state, updatedReq.Name)
 	if err != nil {
 		return nil, err
 	}

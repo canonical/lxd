@@ -216,7 +216,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 	}
 
 	// Initialize the storage pool.
-	d.storagePool, err = storagePools.GetPoolByName(d.state, rootDiskDevice["pool"])
+	d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
@@ -3514,7 +3514,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 	d.logger.Info("Restoring container", ctxMap)
 
 	// Initialize storage interface for the container and mount the rootfs for criu state check.
-	pool, err := storagePools.GetPoolByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -3678,7 +3678,7 @@ func (d *lxc) Delete(force bool) error {
 		return err
 	}
 
-	pool, err := storagePools.GetPoolByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil && !response.IsNotFoundError(err) {
 		return err
 	} else if pool != nil {
@@ -3796,7 +3796,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	// Clean things up.
 	d.cleanup()
 
-	pool, err := storagePools.GetPoolByInstance(d.state, d)
+	pool, err := storagePools.LoadByInstance(d.state, d)
 	if err != nil {
 		return fmt.Errorf("Failed loading instance storage pool: %w", err)
 	}
@@ -5866,7 +5866,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 		var usage int64
 
 		if dev.Config["path"] == "/" {
-			pool, err := storagePools.GetPoolByInstance(d.state, d)
+			pool, err := storagePools.LoadByInstance(d.state, d)
 			if err != nil {
 				d.logger.Error("Error loading storage pool", log.Ctx{"err": err})
 				continue
@@ -5880,7 +5880,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 				continue
 			}
 		} else if dev.Config["pool"] != "" {
-			pool, err := storagePools.GetPoolByName(d.state, dev.Config["pool"])
+			pool, err := storagePools.LoadByName(d.state, dev.Config["pool"])
 			if err != nil {
 				d.logger.Error("Error loading storage pool", log.Ctx{"poolName": dev.Config["pool"], "err": err})
 				continue
@@ -7053,7 +7053,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 		if dev["pool"] != "" {
 			// Storage pool volume.
-			pool, err := storagePools.GetPoolByName(d.state, dev["pool"])
+			pool, err := storagePools.LoadByName(d.state, dev["pool"])
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get pool: %w", err)
 			}

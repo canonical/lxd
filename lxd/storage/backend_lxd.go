@@ -878,7 +878,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	contentType := InstanceContentType(inst)
 
 	// Get the source storage pool.
-	tmpPool, err := GetPoolByInstance(b.state, src)
+	tmpPool, err := LoadByInstance(b.state, src)
 	if err != nil {
 		return err
 	}
@@ -1087,7 +1087,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		srcPool = b // Source and target are in the same pool so share pool var.
 	} else {
 		// Source is in a different pool to target, so load the pool.
-		tmpPool, err := GetPoolByName(b.state, srcPoolName)
+		tmpPool, err := LoadByName(b.state, srcPoolName)
 		if err != nil {
 			return err
 		}
@@ -1333,7 +1333,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	}
 
 	// Get the source storage pool.
-	srcPool, err := GetPoolByInstance(b.state, src)
+	srcPool, err := LoadByInstance(b.state, src)
 	if err != nil {
 		return err
 	}
@@ -3106,7 +3106,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		srcPool = b // Source and target are in the same pool so share pool var.
 	} else {
 		// Source is in a different pool to target, so load the pool.
-		tmpPool, err := GetPoolByName(b.state, srcPoolName)
+		tmpPool, err := LoadByName(b.state, srcPoolName)
 		if err != nil {
 			return err
 		}

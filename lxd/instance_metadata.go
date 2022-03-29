@@ -89,7 +89,7 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -189,7 +189,7 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Start the storage if needed.
-	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(d.State(), inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -304,7 +304,7 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Start the storage if needed.
-	pool, err := storagePools.GetPoolByInstance(d.State(), inst)
+	pool, err := storagePools.LoadByInstance(d.State(), inst)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -410,7 +410,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -546,7 +546,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -650,7 +650,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	}
 
 	// Start the storage if needed
-	pool, err := storagePools.GetPoolByInstance(d.State(), c)
+	pool, err := storagePools.LoadByInstance(d.State(), c)
 	if err != nil {
 		return response.SmartError(err)
 	}
