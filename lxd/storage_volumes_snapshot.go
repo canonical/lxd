@@ -203,7 +203,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		pool, err := storagePools.LoadByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}
@@ -502,7 +502,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 
 	// Rename the snapshot.
 	snapshotRename := func(op *operations.Operation) error {
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		pool, err := storagePools.LoadByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}
@@ -859,7 +859,7 @@ func doStoragePoolVolumeSnapshotUpdate(d *Daemon, r *http.Request, poolName stri
 		expiry = *req.ExpiresAt
 	}
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -963,7 +963,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	snapshotDelete := func(op *operations.Operation) error {
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		pool, err := storagePools.LoadByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}
@@ -1038,7 +1038,7 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSn
 			continue // Deletion of this snapshot is already running, skip.
 		}
 
-		pool, err := storagePools.GetPoolByName(d.State(), s.PoolName)
+		pool, err := storagePools.LoadByName(d.State(), s.PoolName)
 		if err != nil {
 			customVolSnapshotsPruneRunning.Delete(s.ID)
 			return fmt.Errorf("Failed to get pool %q: %w", s.PoolName, err)
@@ -1238,7 +1238,7 @@ func autoCreateCustomVolumeSnapshots(ctx context.Context, d *Daemon, volumes []d
 				return
 			}
 
-			pool, err := storagePools.GetPoolByName(d.State(), v.PoolName)
+			pool, err := storagePools.LoadByName(d.State(), v.PoolName)
 			if err != nil {
 				logger.Error("Error retrieving pool", log.Ctx{"err": err, "pool": v.PoolName})
 				ch <- struct{}{}

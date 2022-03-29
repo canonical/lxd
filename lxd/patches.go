@@ -3571,7 +3571,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 	}
 
 	for _, poolName := range pools {
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		pool, err := storagePools.LoadByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}
@@ -3633,7 +3633,7 @@ func patchStorageApiPermissions(name string, d *Daemon) error {
 		}
 
 		for _, vol := range volumes {
-			pool, err := storagePools.GetPoolByName(d.State(), poolName)
+			pool, err := storagePools.LoadByName(d.State(), poolName)
 			if err != nil {
 				return err
 			}
@@ -3852,7 +3852,7 @@ func patchStorageApiRenameContainerSnapshotsDir(name string, d *Daemon) error {
 	// Iterate through all configured pools
 	for _, poolName := range pools {
 		// Make sure the pool is mounted
-		pool, err := storagePools.GetPoolByName(d.State(), poolName)
+		pool, err := storagePools.LoadByName(d.State(), poolName)
 		if err != nil {
 			return err
 		}

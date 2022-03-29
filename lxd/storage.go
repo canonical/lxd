@@ -118,7 +118,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 	initPool := func(poolName string) bool {
 		logger.Debug("Initializing storage pool", log.Ctx{"pool": poolName})
 
-		pool, err := storagePools.GetPoolByName(s, poolName)
+		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
 			if response.IsNotFoundError(err) {
 				return true // Nothing to activate as pool has been deleted.

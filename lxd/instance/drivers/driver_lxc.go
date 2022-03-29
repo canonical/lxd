@@ -216,7 +216,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 	}
 
 	// Initialize the storage pool.
-	d.storagePool, err = storagePools.GetPoolByName(d.state, rootDiskDevice["pool"])
+	d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}
@@ -5880,7 +5880,7 @@ func (d *lxc) diskState() map[string]api.InstanceStateDisk {
 				continue
 			}
 		} else if dev.Config["pool"] != "" {
-			pool, err := storagePools.GetPoolByName(d.state, dev.Config["pool"])
+			pool, err := storagePools.LoadByName(d.state, dev.Config["pool"])
 			if err != nil {
 				d.logger.Error("Error loading storage pool", log.Ctx{"poolName": dev.Config["pool"], "err": err})
 				continue
@@ -7053,7 +7053,7 @@ func (d *lxc) getFSStats() (*metrics.MetricSet, error) {
 
 		if dev["pool"] != "" {
 			// Storage pool volume.
-			pool, err := storagePools.GetPoolByName(d.state, dev["pool"])
+			pool, err := storagePools.LoadByName(d.state, dev["pool"])
 			if err != nil {
 				return nil, fmt.Errorf("Failed to get pool: %w", err)
 			}

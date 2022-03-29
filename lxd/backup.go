@@ -338,7 +338,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	defer revert.Fail()
 
 	// Get storage pool.
-	pool, err := storagePools.GetPoolByName(s, poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}

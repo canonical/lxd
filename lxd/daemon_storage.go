@@ -43,7 +43,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 			return err
 		}
 
-		pool, err := storagePools.GetPoolByName(s, poolName)
+		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
 			return err
 		}
@@ -99,7 +99,7 @@ func daemonStorageMount(s *state.State) error {
 			return err
 		}
 
-		pool, err := storagePools.GetPoolByName(s, poolName)
+		pool, err := storagePools.LoadByName(s, poolName)
 		if err != nil {
 			return err
 		}
@@ -174,7 +174,7 @@ func daemonStorageValidate(s *state.State, target string) error {
 		return fmt.Errorf("Storage volumes for use by LXD itself cannot have snapshots")
 	}
 
-	pool, err := storagePools.GetPoolByName(s, poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 			return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
 		}
 
-		pool, err := storagePools.GetPoolByName(s, sourcePool)
+		pool, err := storagePools.LoadByName(s, sourcePool)
 		if err != nil {
 			return err
 		}
@@ -299,7 +299,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 		return err
 	}
 
-	pool, err := storagePools.GetPoolByName(s, poolName)
+	pool, err := storagePools.LoadByName(s, poolName)
 	if err != nil {
 		return err
 	}
@@ -345,7 +345,7 @@ func daemonStorageMove(s *state.State, storageType string, target string) error 
 			return fmt.Errorf("Failed to move data over to directory %q: %w", destPath, err)
 		}
 
-		pool, err := storagePools.GetPoolByName(s, sourcePool)
+		pool, err := storagePools.LoadByName(s, sourcePool)
 		if err != nil {
 			return err
 		}

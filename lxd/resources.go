@@ -130,7 +130,7 @@ func storagePoolResourcesGet(d *Daemon, r *http.Request) response.Response {
 	poolName := mux.Vars(r)["name"]
 	var res *api.ResourcesStoragePool
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.InternalError(err)
 	}

@@ -144,7 +144,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 	// Iterate the pools finding unknown volumes and perform validation.
 	for _, p := range userPools {
-		pool, err := storagePools.GetPoolByName(d.State(), p.Name)
+		pool, err := storagePools.LoadByName(d.State(), p.Name)
 		if err != nil {
 			if response.IsNotFoundError(err) {
 				// If the pool DB record doesn't exist, and we are clustered, then don't proceed
@@ -369,7 +369,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 				}
 				logger.Debug("Marked storage pool local status as created", log.Ctx{"pool": pool.Name()})
 
-				newPool, err := storagePools.GetPoolByName(d.State(), pool.Name())
+				newPool, err := storagePools.LoadByName(d.State(), pool.Name())
 				if err != nil {
 					return response.SmartError(fmt.Errorf("Failed loading created storage pool %q: %w", pool.Name(), err))
 				}

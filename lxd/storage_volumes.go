@@ -606,7 +606,7 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 func doCustomVolumeRefresh(d *Daemon, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	var run func(op *operations.Operation) error
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -639,7 +639,7 @@ func doCustomVolumeRefresh(d *Daemon, r *http.Request, requestProjectName string
 func doVolumeCreateOrCopy(d *Daemon, r *http.Request, requestProjectName string, projectName string, poolName string, req *api.StorageVolumesPost) response.Response {
 	var run func(op *operations.Operation) error
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1109,7 +1109,7 @@ func storagePoolVolumeTypePostRename(d *Daemon, r *http.Request, poolName string
 	newVol := *vol
 	newVol.Name = req.Name
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1141,12 +1141,12 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 	newVol := *vol
 	newVol.Name = req.Name
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	newPool, err := storagePools.GetPoolByName(d.State(), req.Pool)
+	newPool, err := storagePools.LoadByName(d.State(), req.Pool)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1377,7 +1377,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1534,7 +1534,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1664,7 +1664,7 @@ func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the storage pool the storage volume is supposed to be attached to.
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1818,7 +1818,7 @@ func createStoragePoolVolumeFromBackup(d *Daemon, r *http.Request, requestProjec
 		defer backupFile.Close()
 		defer runRevert.Fail()
 
-		pool, err := storagePools.GetPoolByName(d.State(), bInfo.Pool)
+		pool, err := storagePools.LoadByName(d.State(), bInfo.Pool)
 		if err != nil {
 			return err
 		}

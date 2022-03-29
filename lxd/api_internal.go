@@ -647,7 +647,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	}
 
 	// Try to retrieve the storage pool the instance supposedly lives on.
-	pool, err := storagePools.GetPoolByName(d.State(), instancePoolName)
+	pool, err := storagePools.LoadByName(d.State(), instancePoolName)
 	if response.IsNotFoundError(err) {
 		// Create the storage pool db entry if it doesn't exist.
 		_, err = storagePoolDBCreate(d.State(), instancePoolName, "", backupConf.Pool.Driver, backupConf.Pool.Config)
@@ -655,7 +655,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			return fmt.Errorf("Create storage pool database entry: %w", err)
 		}
 
-		pool, err = storagePools.GetPoolByName(d.State(), instancePoolName)
+		pool, err = storagePools.LoadByName(d.State(), instancePoolName)
 		if err != nil {
 			return fmt.Errorf("Load storage pool database entry: %w", err)
 		}
