@@ -225,10 +225,10 @@ func LoadByName(state *state.State, name string) (Pool, error) {
 	return &pool, nil
 }
 
-// GetPoolByInstance retrieves the pool from the database using the instance's pool.
+// LoadByInstance retrieves the pool from the database using the instance's pool.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
 // driver does not support the instance's type then drivers.ErrNotSupported is returned.
-func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
+func LoadByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	poolName, err := inst.StoragePool()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting instance storage pool name: %w", err)
