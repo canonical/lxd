@@ -86,6 +86,17 @@ the kernel attack surface and so is generally considered to be safe,
 though you should keep in mind that any kind of system call interception
 makes for an easy way to overload the host system.
 
+### sched\_setscheduler
+The `sched_setscheduler` system call is used to manage process priority.
+
+Granting this may allow a user to significantly increase the priority of
+their processes, potentially taking a lot of system resources.
+
+It also allows access to schedulers like SCHED\_FIFO which are generally
+considered to be flawed and can significantly impact overall system
+stability. This is why under normal conditions, only the real root user
+(or global CAP\_SYS\_NICE) would allow its use.
+
 ### setxattr
 The `setxattr` system call is used to set extended attributes on files.
 
