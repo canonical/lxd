@@ -175,9 +175,9 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) 
 	return &pool, nil
 }
 
-// GetPoolByName retrieves the pool from the database by its name and returns a Pool interface.
+// LoadByName retrieves the pool from the database by its name and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-func GetPoolByName(state *state.State, name string) (Pool, error) {
+func LoadByName(state *state.State, name string) (Pool, error) {
 	// Handle mock requests.
 	if state.OS.MockMode {
 		pool := mockBackend{}
@@ -225,16 +225,16 @@ func GetPoolByName(state *state.State, name string) (Pool, error) {
 	return &pool, nil
 }
 
-// GetPoolByInstance retrieves the pool from the database using the instance's pool.
+// LoadByInstance retrieves the pool from the database using the instance's pool.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned. If the pool's
 // driver does not support the instance's type then drivers.ErrNotSupported is returned.
-func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
+func LoadByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	poolName, err := inst.StoragePool()
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting instance storage pool name: %w", err)
 	}
 
-	pool, err := GetPoolByName(s, poolName)
+	pool, err := LoadByName(s, poolName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
@@ -251,7 +251,7 @@ func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	}
 
 	// Return drivers not supported error for consistency with predefined errors returned by
-	// GetPoolByName (which can return drivers.ErrUnknownDriver).
+	// LoadByName (which can return drivers.ErrUnknownDriver).
 	return nil, drivers.ErrNotSupported
 }
 
@@ -295,7 +295,7 @@ func Patch(s *state.State, patchName string) error {
 	}
 
 	for _, poolName := range pools {
-		pool, err := GetPoolByName(s, poolName)
+		pool, err := LoadByName(s, poolName)
 		if err != nil {
 			if err == drivers.ErrUnknownDriver {
 				continue

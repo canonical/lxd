@@ -1669,7 +1669,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			}
 
 			for _, poolName := range pools {
-				pool, err := storagePools.GetPoolByName(s, poolName)
+				pool, err := storagePools.LoadByName(s, poolName)
 				if err != nil {
 					logger.Error("Failed to get storage pool", log.Ctx{"pool": poolName, "err": err})
 					continue

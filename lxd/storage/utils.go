@@ -803,7 +803,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 // VolumeUsedByExclusiveRemoteInstancesWithProfiles checks if custom volume is exclusively attached to a remote
 // instance. Returns the remote instance that has the volume exclusively attached. Returns nil if volume available.
 func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName string, projectName string, vol *api.StorageVolume) (*db.Instance, error) {
-	pool, err := GetPoolByName(s, poolName)
+	pool, err := LoadByName(s, poolName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
@@ -891,7 +891,7 @@ func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(respon
 			return nil
 		}
 
-		pool, err := GetPoolByInstance(s, snapInst)
+		pool, err := LoadByInstance(s, snapInst)
 		if err == nil {
 			// It is important that the snapshot not be mounted here as mounting a snapshot can trigger a very
 			// expensive filesystem UUID regeneration, so we rely on the driver implementation to get the info

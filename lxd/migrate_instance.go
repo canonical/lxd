@@ -353,7 +353,7 @@ func (s *migrationSourceWs) Do(state *state.State, migrateOp *operations.Operati
 
 	var poolMigrationTypes []migration.Type
 
-	pool, err := storagePools.GetPoolByInstance(state, s.instance)
+	pool, err := storagePools.LoadByInstance(state, s.instance)
 	if err != nil {
 		return err
 	}
@@ -878,7 +878,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 	// The function that will be executed to receive the sender's migration data.
 	var myTarget func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
 
-	pool, err := storagePools.GetPoolByInstance(state, c.src.instance)
+	pool, err := storagePools.LoadByInstance(state, c.src.instance)
 	if err != nil {
 		return err
 	}
