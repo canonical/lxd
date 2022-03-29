@@ -172,6 +172,25 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) 
 	return &pool, nil
 }
 
+// LoadByType loads a network by driver type.
+func LoadByType(state *state.State, driverType string) (Type, error) {
+	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": driverType})
+
+	driver, err := drivers.Load(state, driverType, "", nil, logger, nil, commonRules())
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup the pool struct.
+	pool := lxdBackend{}
+	pool.state = state
+	pool.driver = driver
+	pool.id = PoolIDTemporary
+	pool.logger = logger
+
+	return &pool, nil
+}
+
 // LoadByName retrieves the pool from the database by its name and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
 func LoadByName(state *state.State, name string) (Pool, error) {
