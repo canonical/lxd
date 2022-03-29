@@ -1737,17 +1737,20 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		// transfer the base image files too.
 		if args.MigrationType.FSType == migration.MigrationFSType_RSYNC {
 			fingerprint := inst.ExpandedConfig()["volatile.base_image"]
+			imageExists := false
 
-			// Confirm that the image is present in the project.
-			_, _, err = b.state.Cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
-			if err != nil && !response.IsNotFoundError(err) {
-				return err
+			if fingerprint != "" {
+				// Confirm that the image is present in the project.
+				_, _, err = b.state.Cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
+				if err != nil && !response.IsNotFoundError(err) {
+					return err
+				}
+
+				// Make sure that the image is available locally too (not guaranteed in clusters).
+				imageExists = err == nil && shared.PathExists(shared.VarPath("images", fingerprint))
 			}
 
-			// Then make sure that the image is available locally too (not guaranteed in clusters).
-			local := shared.PathExists(shared.VarPath("images", fingerprint))
-
-			if err == nil && local {
+			if imageExists {
 				logger.Debug("Using optimised migration from existing image", log.Ctx{"fingerprint": fingerprint})
 
 				// Populate the volume filler with the fingerprint and image filler
