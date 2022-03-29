@@ -144,8 +144,14 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 // localOnly is used for clustering where only a single node should do remote storage setup.
 func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"config": b.db.Config, "description": b.db.Description, "clientType": clientType})
-	l.Debug("create started")
-	defer l.Debug("create finished")
+	l.Debug("Create started")
+	defer l.Debug("Create finished")
+
+	// Validate config.
+	err := b.driver.Validate(b.db.Config)
+	if err != nil {
+		return err
+	}
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -157,7 +163,7 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 	}
 
 	// Create the storage path.
-	err := os.MkdirAll(path, 0711)
+	err = os.MkdirAll(path, 0711)
 	if err != nil {
 		return fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
 	}
@@ -176,12 +182,6 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 		// Dealing with a remote storage pool, we're done now.
 		revert.Success()
 		return nil
-	}
-
-	// Validate config.
-	err = b.driver.Validate(b.db.Config)
-	if err != nil {
-		return err
 	}
 
 	// Create the storage pool on the storage device.
