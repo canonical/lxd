@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -106,9 +107,8 @@ func (op *operation) Wait() error {
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
 		if op.Err != "" {
-			err := op.Err
 			op.handlerLock.Unlock()
-			return fmt.Errorf(err)
+			return errors.New(op.Err)
 		}
 
 		op.handlerLock.Unlock()
@@ -126,7 +126,7 @@ func (op *operation) Wait() error {
 
 	// We're done, parse the result
 	if op.Err != "" {
-		return fmt.Errorf(op.Err)
+		return errors.New(op.Err)
 	}
 
 	return nil
@@ -242,7 +242,7 @@ func (op *operation) setupListener() error {
 		close(chReady)
 
 		if op.Err != "" {
-			return fmt.Errorf(op.Err)
+			return errors.New(op.Err)
 		}
 
 		return nil
