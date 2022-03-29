@@ -5716,7 +5716,51 @@ func (d *qemu) CanMigrate() (bool, bool) {
 
 // DeviceEventHandler handles events occurring on the instance's devices.
 func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
-	return fmt.Errorf("DeviceEventHandler Not implemented")
+	if !d.IsRunning() {
+		return nil
+	}
+
+	if runConf == nil || len(runConf.Uevents) == 0 {
+		return nil
+	}
+
+	// Uevents will contain 1 entry at most, therefore we don't need to iterate through it.
+	for _, event := range runConf.Uevents[0] {
+		fields := strings.SplitN(event, "=", 2)
+
+		if fields[0] != "ACTION" {
+			continue
+		}
+
+		switch fields[1] {
+		case "add":
+			for _, usbDev := range runConf.USBDevice {
+				// This ensures that the device is actually removed from QEMU before adding it again.
+				// In most cases the device will already be removed, but it is possible that the
+				// device still exists in QEMU before trying to add it again.
+				// If a USB device is physically detached from a running VM while the LXD server
+				// itself is stopped, QEMU in theory will not delete the device.
+				err := d.deviceDetachUSB(usbDev)
+				if err != nil {
+					return err
+				}
+
+				err = d.deviceAttachUSB(usbDev)
+				if err != nil {
+					return err
+				}
+			}
+		case "remove":
+			for _, usbDev := range runConf.USBDevice {
+				err := d.deviceDetachUSB(usbDev)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // vsockID returns the vsock context ID, 3 being the first ID that can be used.
