@@ -5,6 +5,7 @@ package db
 
 import (
 	"database/sql"
+	"net/http"
 	"testing"
 	"time"
 
@@ -202,7 +203,8 @@ func (s *dbTestSuite) Test_ImageGet_for_missing_fingerprint() {
 	var err error
 
 	_, _, err = s.db.GetImage("unknown", ImageFilter{Project: &project})
-	s.Equal(err, ErrNoSuchObject)
+	_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+	s.True(matched)
 }
 
 func (s *dbTestSuite) Test_ImageExists_true() {
