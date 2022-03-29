@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v2"
 
@@ -72,6 +73,21 @@ func (b *lxdBackend) Name() string {
 // Description returns the storage pool description.
 func (b *lxdBackend) Description() string {
 	return b.db.Description
+}
+
+// ValidateName validates the provided name, and returns an error if it's not a valid storage name.
+func (b *lxdBackend) ValidateName(value string) error {
+	if strings.Contains(value, "/") {
+		return fmt.Errorf(`Storage name cannot contain "/"`)
+	}
+
+	for _, r := range value {
+		if unicode.IsSpace(r) {
+			return fmt.Errorf(`Storage name cannot contain white space`)
+		}
+	}
+
+	return nil
 }
 
 // Status returns the storage pool status.
