@@ -175,9 +175,9 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) 
 	return &pool, nil
 }
 
-// GetPoolByName retrieves the pool from the database by its name and returns a Pool interface.
+// LoadByName retrieves the pool from the database by its name and returns a Pool interface.
 // If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-func GetPoolByName(state *state.State, name string) (Pool, error) {
+func LoadByName(state *state.State, name string) (Pool, error) {
 	// Handle mock requests.
 	if state.OS.MockMode {
 		pool := mockBackend{}
