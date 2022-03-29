@@ -113,6 +113,12 @@ func (d *usb) Register() error {
 
 		runConf.Uevents = append(runConf.Uevents, e.UeventParts)
 
+		// Add the USB device to runConf so that the device handler can handle physical hotplugging.
+		runConf.USBDevice = append(runConf.USBDevice, deviceConfig.USBDeviceItem{
+			DeviceName:     d.getUniqueDeviceNameFromUSBEvent(e),
+			HostDevicePath: e.Path,
+		})
+
 		return &runConf, nil
 	}
 
