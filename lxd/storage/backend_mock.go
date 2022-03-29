@@ -36,6 +36,10 @@ func (b *mockBackend) Description() string {
 	return ""
 }
 
+func (b *mockBackend) ValidateName(value string) error {
+	return nil
+}
+
 func (b *mockBackend) Status() string {
 	return api.NetworkStatusUnknown
 }
