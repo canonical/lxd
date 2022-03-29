@@ -247,7 +247,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 	}
 
 	// Initialize the storage pool.
-	d.storagePool, err = storagePools.GetPoolByName(d.state, rootDiskDevice["pool"])
+	d.storagePool, err = storagePools.LoadByName(d.state, rootDiskDevice["pool"])
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool: %w", err)
 	}

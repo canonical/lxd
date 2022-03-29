@@ -94,7 +94,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Load the storage pool.
-	pool, err := storagePools.GetPoolByName(d.State(), poolName)
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}

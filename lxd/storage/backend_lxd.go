@@ -1087,7 +1087,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 		srcPool = b // Source and target are in the same pool so share pool var.
 	} else {
 		// Source is in a different pool to target, so load the pool.
-		tmpPool, err := GetPoolByName(b.state, srcPoolName)
+		tmpPool, err := LoadByName(b.state, srcPoolName)
 		if err != nil {
 			return err
 		}
@@ -3106,7 +3106,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		srcPool = b // Source and target are in the same pool so share pool var.
 	} else {
 		// Source is in a different pool to target, so load the pool.
-		tmpPool, err := GetPoolByName(b.state, srcPoolName)
+		tmpPool, err := LoadByName(b.state, srcPoolName)
 		if err != nil {
 			return err
 		}

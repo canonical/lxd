@@ -310,7 +310,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	instanceOnly := req.Source.InstanceOnly || req.Source.ContainerOnly
 
 	if !req.Source.Refresh {
-		_, err := storagePools.GetPoolByName(d.State(), storagePool)
+		_, err := storagePools.LoadByName(d.State(), storagePool)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -709,7 +709,7 @@ func createFromBackup(d *Daemon, r *http.Request, projectName string, data io.Re
 		defer backupFile.Close()
 		defer runRevert.Fail()
 
-		pool, err := storagePools.GetPoolByName(d.State(), bInfo.Pool)
+		pool, err := storagePools.LoadByName(d.State(), bInfo.Pool)
 		if err != nil {
 			return err
 		}

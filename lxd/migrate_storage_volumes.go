@@ -55,7 +55,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 
 	var poolMigrationTypes []migration.Type
 
-	pool, err := storagePools.GetPoolByName(state, poolName)
+	pool, err := storagePools.LoadByName(state, poolName)
 	if err != nil {
 		return err
 	}
@@ -272,7 +272,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 	// The function that will be executed to receive the sender's migration data.
 	var myTarget func(conn *websocket.Conn, op *operations.Operation, args MigrationSinkArgs) error
 
-	pool, err := storagePools.GetPoolByName(state, poolName)
+	pool, err := storagePools.LoadByName(state, poolName)
 	if err != nil {
 		return err
 	}

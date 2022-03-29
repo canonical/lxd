@@ -234,7 +234,7 @@ func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 		return nil, fmt.Errorf("Failed getting instance storage pool name: %w", err)
 	}
 
-	pool, err := GetPoolByName(s, poolName)
+	pool, err := LoadByName(s, poolName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
@@ -251,7 +251,7 @@ func GetPoolByInstance(s *state.State, inst instance.Instance) (Pool, error) {
 	}
 
 	// Return drivers not supported error for consistency with predefined errors returned by
-	// GetPoolByName (which can return drivers.ErrUnknownDriver).
+	// LoadByName (which can return drivers.ErrUnknownDriver).
 	return nil, drivers.ErrNotSupported
 }
 
@@ -295,7 +295,7 @@ func Patch(s *state.State, patchName string) error {
 	}
 
 	for _, poolName := range pools {
-		pool, err := GetPoolByName(s, poolName)
+		pool, err := LoadByName(s, poolName)
 		if err != nil {
 			if err == drivers.ErrUnknownDriver {
 				continue

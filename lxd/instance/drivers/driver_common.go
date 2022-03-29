@@ -1100,7 +1100,7 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 		return nil, err
 	}
 
-	pool, err := storagePools.GetPoolByName(d.state, poolName)
+	pool, err := storagePools.LoadByName(d.state, poolName)
 	if err != nil {
 		return nil, err
 	}

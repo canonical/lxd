@@ -262,7 +262,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 		// Only perform expensive instance pool volume checks when not validating a profile and after
 		// device expansion has occurred (to avoid doing it twice during instance load).
 		if d.inst != nil && !d.inst.IsSnapshot() && len(instConf.ExpandedDevices()) > 0 {
-			d.pool, err = storagePools.GetPoolByName(d.state, d.config["pool"])
+			d.pool, err = storagePools.LoadByName(d.state, d.config["pool"])
 			if err != nil {
 				return fmt.Errorf("Failed to get storage pool %q: %w", d.config["pool"], err)
 			}
