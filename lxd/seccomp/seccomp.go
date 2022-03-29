@@ -75,6 +75,7 @@ struct seccomp_notify_proxy_msg {
 	// followed by: seccomp_notif, seccomp_notif_resp, cookie
 };
 
+#define LXD_SCHED_PARAM_SIZE (sizeof(struct sched_param))
 #define SECCOMP_PROXY_MSG_SIZE (sizeof(struct seccomp_notify_proxy_msg))
 #define SECCOMP_NOTIFY_SIZE (sizeof(struct seccomp_notif))
 #define SECCOMP_RESPONSE_SIZE (sizeof(struct seccomp_notif_resp))
@@ -1533,18 +1534,15 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 // SchedSetschedulerArgs arguments for setxattr.
 type SchedSetschedulerArgs struct {
-	nsuid   int64
-	nsgid   int64
-	nsfsuid int64
-	nsfsgid int64
-	size    int
-	pid     int
-
-	target C.int
-	policy C.int
+	pidCaller     int
+	pidTarget     int
+	policy        C.int
+	schedPriority C.int
+	nsuid         int64
+	nsgid         int64
 }
 
-// HandleSetxattrSyscall handles setxattr syscalls.
+// HandleSchedSetschedulerSyscall handles setxattr syscalls.
 func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 	ctx := log.Ctx{"container": c.Name(),
 		"project":               c.Project(),
@@ -1560,14 +1558,14 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 	defer logger.Debug("Handling sched_setscheduler syscall", ctx)
 
 	args := SchedSetschedulerArgs{}
-	args.pid = int(siov.req.pid)
+	args.pidCaller = int(siov.req.pid)
 
-	pidFdNr, pidFd := MakePidFd(args.pid, s.s)
+	pidFdNr, pidFd := MakePidFd(args.pidCaller, s.s)
 	if pidFdNr >= 0 {
 		defer pidFd.Close()
 	}
 
-	uid, gid, fsuid, fsgid, err := TaskIDs(args.pid)
+	uid, gid, _, _, err := TaskIDs(args.pidCaller)
 	if err != nil {
 		if s.s.OS.SeccompListenerContinue {
 			ctx["syscall_continue"] = "true"
@@ -1589,16 +1587,81 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 		return int(-C.EINVAL)
 	}
 
+	// Only care about userns root for now.
 	args.nsuid, args.nsgid = idmapset.ShiftFromNs(uid, gid)
-	args.nsfsuid, args.nsfsgid = idmapset.ShiftFromNs(fsuid, fsgid)
+	if args.nsuid != 0 || args.nsgid != 0 {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EINVAL)
+	}
 
 	// int target
-	args.target = C.int(siov.req.data.args[0])
+	args.pidTarget = int(siov.req.data.args[0])
+	if args.pidTarget < 0 {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EINVAL)
+	}
+	// If the caller passed zero they want to change their own attributes.
+	if args.pidTarget == 0 {
+		args.pidTarget = args.pidCaller
+	}
+
+	// error out if policy < 0
+	if args.policy < 0 {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EINVAL)
+	}
 
 	// int policy
 	args.policy = C.int(siov.req.data.args[1])
 
-	logger.Errorf("sched_setscheduler: %+v", args)
+	schedParamArgs := C.struct_sched_param{}
+	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&schedParamArgs), C.LXD_SCHED_PARAM_SIZE, C.off_t(siov.req.data.args[2]))
+	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EPERM)
+	}
+	args.schedPriority = schedParamArgs.sched_priority
+
+	_, stderr, err := shared.RunCommandSplit(
+		nil,
+		[]*os.File{pidFd},
+		util.GetExecPath(),
+		"forksyscall",
+		"sched_setscheduler",
+		fmt.Sprintf("%d", args.pidCaller),
+		fmt.Sprintf("%d", pidFdNr),
+		fmt.Sprintf("%d", args.pidTarget),
+		fmt.Sprintf("%d", args.policy),
+		fmt.Sprintf("%d", args.schedPriority),
+	)
+	if err != nil {
+		errno, err := strconv.Atoi(stderr)
+		if err != nil || errno == C.ENOANO {
+			return int(-C.EPERM)
+		}
+
+		return -errno
+	}
 
 	return 0
 }
