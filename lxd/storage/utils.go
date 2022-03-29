@@ -388,7 +388,7 @@ func validatePoolCommonRules() map[string]func(string) error {
 		"volatile.initial_source": validate.IsAny,
 		"volume.size":             validate.Optional(validate.IsSize),
 		"size":                    validate.Optional(validate.IsSize),
-		"rsync.bwlimit":           validate.IsAny,
+		"rsync.bwlimit":           validate.Optional(validate.IsSize),
 		"rsync.compression":       validate.Optional(validate.IsBool),
 	}
 }
