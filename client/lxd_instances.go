@@ -448,7 +448,7 @@ func (r *ProtocolLXD) CreateInstanceFromImage(source ImageServer, image api.Imag
 	req.Source.Type = "image"
 
 	// Optimization for the local image case
-	if r == source {
+	if r.isSameServer(source) {
 		// Always use fingerprints for local case
 		req.Source.Fingerprint = image.Fingerprint
 		req.Source.Alias = ""
