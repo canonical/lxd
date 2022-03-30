@@ -28,6 +28,7 @@ type VolumeSourceArgs struct {
 	Data              any // Optional store to persist storage driver state between MultiSync phases.
 	ContentType       string
 	AllowInconsistent bool
+	Refresh           bool
 }
 
 // VolumeTargetArgs represents the arguments needed to setup a volume migration sink.
@@ -69,6 +70,8 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 		for _, feature := range preferredType.Features {
 			if feature == "compress" {
 				features.Compress = &hasFeature
+			} else if feature == ZFSFeatureMigrationHeader {
+				features.MigrationHeader = &hasFeature
 			}
 		}
 
@@ -86,6 +89,8 @@ func TypesToHeader(types ...Type) *MigrationHeader {
 				features.MigrationHeader = &hasFeature
 			} else if feature == BTRFSFeatureSubvolumes {
 				features.HeaderSubvolumes = &hasFeature
+			} else if feature == BTRFSFeatureSubvolumeUUIDs {
+				features.HeaderSubvolumeUuids = &hasFeature
 			}
 		}
 
@@ -165,6 +170,18 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 			for _, ourFeature := range ourType.Features {
 				if shared.StringInSlice(ourFeature, offeredFeatures) {
 					commonFeatures = append(commonFeatures, ourFeature)
+				}
+			}
+
+			if offer.Refresh != nil && *offer.Refresh == true {
+				// Optimized refresh with zfs only works if ZfsFeatureMigrationHeader is available.
+				if ourType.FSType == MigrationFSType_ZFS && !shared.StringInSlice(ZFSFeatureMigrationHeader, commonFeatures) {
+					continue
+				}
+
+				// Optimized refresh with btrfs only works if BtrfsFeatureSubvolumeUUIDs is available.
+				if ourType.FSType == MigrationFSType_BTRFS && !shared.StringInSlice(BTRFSFeatureSubvolumeUUIDs, commonFeatures) {
+					continue
 				}
 			}
 
