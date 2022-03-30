@@ -567,6 +567,61 @@ static void mount_emulate(void)
 	}
 }
 
+static bool lxd_cap_is_set(cap_t caps, cap_value_t cap, cap_flag_t flag)
+{
+	int ret;
+	cap_flag_value_t flagval;
+
+	ret = cap_get_flag(caps, cap, flag, &flagval);
+	if (ret < 0)
+		return false;
+
+	return flagval == CAP_SET;
+}
+
+static void sched_setscheduler_emulate(void)
+{
+	__do_close int pidfd = -EBADF, ns_fd = -EBADF;
+	pid_t pid_caller = -ESRCH, pid_target = -ESRCH;
+	int policy = -1, sched_priority = -1;
+	struct sched_param param = {};
+	cap_t caps;
+
+	pid_caller = atoi(advance_arg(true));
+
+	pidfd = atoi(advance_arg(true));
+	ns_fd = pidfd_nsfd(pidfd, pid_caller);
+	if (ns_fd < 0)
+		_exit(EXIT_FAILURE);
+
+	pid_target = atoi(advance_arg(true));
+	if (pid_target < 0)
+		_exit(EXIT_FAILURE);
+
+	policy = atoi(advance_arg(true));
+	if (policy < 0)
+		_exit(EXIT_FAILURE);
+
+	sched_priority = atoi(advance_arg(true));
+	if (sched_priority < 0)
+		_exit(EXIT_FAILURE);
+
+	param.sched_priority = sched_priority;
+
+	caps = cap_get_pid(pid_caller);
+	if (!caps)
+		_exit(EXIT_FAILURE);
+
+	if (!lxd_cap_is_set(caps, CAP_SYS_NICE, CAP_EFFECTIVE))
+		_exit(EXIT_FAILURE);
+
+	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWPID))
+		_exit(EXIT_FAILURE);
+
+	if (sched_setscheduler(pid_target, policy, &param))
+		_exit(EXIT_FAILURE);
+}
+
 void forksyscall(void)
 {
 	char *syscall = NULL;
@@ -584,6 +639,8 @@ void forksyscall(void)
 
 	if (strcmp(syscall, "mknod") == 0)
 		mknod_emulate();
+	else if (strcmp(syscall, "sched_setscheduler") == 0)
+		sched_setscheduler_emulate();
 	else if (strcmp(syscall, "setxattr") == 0)
 		setxattr_emulate();
 	else if (strcmp(syscall, "mount") == 0)

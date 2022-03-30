@@ -75,6 +75,7 @@ struct seccomp_notify_proxy_msg {
 	// followed by: seccomp_notif, seccomp_notif_resp, cookie
 };
 
+#define LXD_SCHED_PARAM_SIZE (sizeof(struct sched_param))
 #define SECCOMP_PROXY_MSG_SIZE (sizeof(struct seccomp_notify_proxy_msg))
 #define SECCOMP_NOTIFY_SIZE (sizeof(struct seccomp_notif))
 #define SECCOMP_RESPONSE_SIZE (sizeof(struct seccomp_notif_resp))
@@ -129,6 +130,7 @@ struct lxd_seccomp_data_arch {
 	int nr_setxattr;
 	int nr_mount;
 	int nr_bpf;
+	int nr_sched_setscheduler;
 };
 
 #define LXD_SECCOMP_NOTIFY_MKNOD    0
@@ -136,66 +138,67 @@ struct lxd_seccomp_data_arch {
 #define LXD_SECCOMP_NOTIFY_SETXATTR 2
 #define LXD_SECCOMP_NOTIFY_MOUNT 3
 #define LXD_SECCOMP_NOTIFY_BPF 4
+#define LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER 5
 
 // ordered by likelihood of usage...
 static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
-	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT, LXD_SECCOMP_NOTIFY_BPF },
+	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT, LXD_SECCOMP_NOTIFY_BPF, LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER },
 #ifdef AUDIT_ARCH_X86_64
-	{ AUDIT_ARCH_X86_64,      133, 259, 188, 165, 321 },
+	{ AUDIT_ARCH_X86_64,      133, 259, 188, 165, 321, 144 },
 #endif
 #ifdef AUDIT_ARCH_I386
-	{ AUDIT_ARCH_I386,         14, 297, 226,  21, 357 },
+	{ AUDIT_ARCH_I386,         14, 297, 226,  21, 357, 156 },
 #endif
 #ifdef AUDIT_ARCH_AARCH64
-	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21, 386 },
+	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21, 386, 156 },
 #endif
 #ifdef AUDIT_ARCH_ARM
-	{ AUDIT_ARCH_ARM,          14, 324, 226,  21, 386 },
+	{ AUDIT_ARCH_ARM,          14, 324, 226,  21, 386, 156 },
 #endif
 #ifdef AUDIT_ARCH_ARMEB
-	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21, 386 },
+	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21, 386, 156 },
 #endif
 #ifdef AUDIT_ARCH_S390
-	{ AUDIT_ARCH_S390,         14, 290, 224,  21, 386 },
+	{ AUDIT_ARCH_S390,         14, 290, 224,  21, 386, 156 },
 #endif
 #ifdef AUDIT_ARCH_S390X
-	{ AUDIT_ARCH_S390X,        14, 290, 224,  21, 351 },
+	{ AUDIT_ARCH_S390X,        14, 290, 224,  21, 351, 156 },
 #endif
 #ifdef AUDIT_ARCH_PPC
-	{ AUDIT_ARCH_PPC,          14, 288, 209,  21, 361 },
+	{ AUDIT_ARCH_PPC,          14, 288, 209,  21, 361, 156 },
 #endif
 #ifdef AUDIT_ARCH_PPC64
-	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21, 361 },
+	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21, 361, 156 },
 #endif
 #ifdef AUDIT_ARCH_PPC64LE
-	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361 },
+	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361, 156 },
 #endif
 #ifdef AUDIT_ARCH_RISCV64
-	{ AUDIT_ARCH_RISCV64,      -1,  33,   5,  40, 280 },
+	{ AUDIT_ARCH_RISCV64,      -1,  33,   5,  40, 280, -1 },
 #endif
 #ifdef AUDIT_ARCH_SPARC
-	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349 },
+	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349, 243 },
 #endif
 #ifdef AUDIT_ARCH_SPARC64
-	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167, 349 },
+	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167, 349, 243 },
 #endif
 #ifdef AUDIT_ARCH_MIPS
-	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21,  -1 },
+	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21,  -1, 141 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL
-	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21,  -1 },
+	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21,  -1, 141 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64
-	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160,  -1 },
+	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160,  -1, 141 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64N32
-	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160,  -1 },
+	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160,  -1, 141 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64
-	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160,  -1 },
+	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160,  -1, 141 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64N32
-	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160,  -1 },
+	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160,  -1, 141 },
 #endif
 };
 
@@ -229,6 +232,9 @@ static int seccomp_notify_get_syscall(struct seccomp_notif *req,
 
 		if (entry->nr_bpf == req->data.nr)
 			return LXD_SECCOMP_NOTIFY_BPF;
+
+		if (entry->nr_sched_setscheduler == req->data.nr)
+			return LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER;
 
 		break;
 	}
@@ -470,6 +476,7 @@ const lxdSeccompNotifyMknodat = C.LXD_SECCOMP_NOTIFY_MKNODAT
 const lxdSeccompNotifySetxattr = C.LXD_SECCOMP_NOTIFY_SETXATTR
 const lxdSeccompNotifyMount = C.LXD_SECCOMP_NOTIFY_MOUNT
 const lxdSeccompNotifyBpf = C.LXD_SECCOMP_NOTIFY_BPF
+const lxdSeccompNotifySchedSetscheduler = C.LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER
 
 const seccompHeader = `2
 `
@@ -495,6 +502,9 @@ mknodat notify [2,8192,SCMP_CMP_MASKED_EQ,61440]
 mknodat notify [2,24576,SCMP_CMP_MASKED_EQ,61440]
 `
 const seccompNotifySetxattr = `setxattr notify [3,1,SCMP_CMP_EQ]
+`
+
+const seccompNotifySchedSetscheduler = `sched_setscheduler notify
 `
 
 const seccompBlockNewMountAPI = `fsopen errno 38
@@ -631,6 +641,7 @@ func InstanceNeedsPolicy(c Instance) bool {
 		"security.syscalls.deny_compat",
 		"security.syscalls.blacklist_compat",
 		"security.syscalls.intercept.mknod",
+		"security.syscalls.intercept.sched_setscheduler",
 		"security.syscalls.intercept.setxattr",
 		"security.syscalls.intercept.mount",
 		"security.syscalls.intercept.bpf",
@@ -669,10 +680,11 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 	config := c.ExpandedConfig()
 
 	var keys = map[string]func(state *state.State) error{
-		"security.syscalls.intercept.mknod":    lxcSupportSeccompNotify,
-		"security.syscalls.intercept.setxattr": lxcSupportSeccompNotify,
-		"security.syscalls.intercept.mount":    lxcSupportSeccompNotifyContinue,
-		"security.syscalls.intercept.bpf":      lxcSupportSeccompNotifyAddfd,
+		"security.syscalls.intercept.mknod":              lxcSupportSeccompNotify,
+		"security.syscalls.intercept.sched_setscheduler": lxcSupportSeccompNotify,
+		"security.syscalls.intercept.setxattr":           lxcSupportSeccompNotify,
+		"security.syscalls.intercept.mount":              lxcSupportSeccompNotifyContinue,
+		"security.syscalls.intercept.bpf":                lxcSupportSeccompNotifyAddfd,
 	}
 
 	needed := false
@@ -757,6 +769,10 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 
 		if shared.IsTrue(config["security.syscalls.intercept.mknod"]) {
 			policy += seccompNotifyMknod
+		}
+
+		if shared.IsTrue(config["security.syscalls.intercept.sched_setscheduler"]) {
+			policy += seccompNotifySchedSetscheduler
 		}
 
 		if shared.IsTrue(config["security.syscalls.intercept.setxattr"]) {
@@ -1516,6 +1532,140 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 	return 0
 }
 
+// SchedSetschedulerArgs arguments for setxattr.
+type SchedSetschedulerArgs struct {
+	pidCaller     int
+	pidTarget     int
+	policy        C.int
+	schedPriority C.int
+	nsuid         int64
+	nsgid         int64
+}
+
+// HandleSchedSetschedulerSyscall handles setxattr syscalls.
+func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
+	ctx := log.Ctx{"container": c.Name(),
+		"project":               c.Project(),
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
+	}
+
+	defer logger.Debug("Handling sched_setscheduler syscall", ctx)
+
+	args := SchedSetschedulerArgs{}
+	args.pidCaller = int(siov.req.pid)
+
+	pidFdNr, pidFd := MakePidFd(args.pidCaller, s.s)
+	if pidFdNr >= 0 {
+		defer pidFd.Close()
+	}
+
+	uid, gid, _, _, err := TaskIDs(args.pidCaller)
+	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EPERM)
+	}
+
+	idmapset, err := c.CurrentIdmap()
+	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EINVAL)
+	}
+
+	// Only care about userns root for now.
+	args.nsuid, args.nsgid = idmapset.ShiftFromNs(uid, gid)
+	if args.nsuid != 0 || args.nsgid != 0 {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EINVAL)
+	}
+
+	// int target
+	args.pidTarget = int(siov.req.data.args[0])
+	if args.pidTarget < 0 {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EINVAL)
+	}
+	// If the caller passed zero they want to change their own attributes.
+	if args.pidTarget == 0 {
+		args.pidTarget = args.pidCaller
+	}
+
+	// error out if policy < 0
+	if args.policy < 0 {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EINVAL)
+	}
+
+	// int policy
+	args.policy = C.int(siov.req.data.args[1])
+
+	schedParamArgs := C.struct_sched_param{}
+	_, err = C.pread(C.int(siov.memFd), unsafe.Pointer(&schedParamArgs), C.LXD_SCHED_PARAM_SIZE, C.off_t(siov.req.data.args[2]))
+	if err != nil {
+		if s.s.OS.SeccompListenerContinue {
+			ctx["syscall_continue"] = "true"
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+			return 0
+		}
+
+		return int(-C.EPERM)
+	}
+	args.schedPriority = schedParamArgs.sched_priority
+
+	_, stderr, err := shared.RunCommandSplit(
+		nil,
+		[]*os.File{pidFd},
+		util.GetExecPath(),
+		"forksyscall",
+		"sched_setscheduler",
+		fmt.Sprintf("%d", args.pidCaller),
+		fmt.Sprintf("%d", pidFdNr),
+		fmt.Sprintf("%d", args.pidTarget),
+		fmt.Sprintf("%d", args.policy),
+		fmt.Sprintf("%d", args.schedPriority),
+	)
+	if err != nil {
+		errno, err := strconv.Atoi(stderr)
+		if err != nil || errno == C.ENOANO {
+			return int(-C.EPERM)
+		}
+
+		return -errno
+	}
+
+	return 0
+}
+
 // MountArgs arguments for mount.
 type MountArgs struct {
 	source    string
@@ -1934,6 +2084,8 @@ func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 		return s.HandleMountSyscall(c, siov)
 	case lxdSeccompNotifyBpf:
 		return s.HandleBpfSyscall(c, siov)
+	case lxdSeccompNotifySchedSetscheduler:
+		return s.HandleSchedSetschedulerSyscall(c, siov)
 	}
 
 	return int(-C.EINVAL)
