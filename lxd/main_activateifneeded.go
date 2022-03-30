@@ -54,15 +54,11 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	// Don't start a full daemon, we just need database access
 	d := defaultDaemon()
 
-	// Check if either the local database or the legacy local database
-	// files exists.
+	// Check if either the local database files exists.
 	path := d.os.LocalDatabasePath()
 	if !shared.PathExists(d.os.LocalDatabasePath()) {
-		path = d.os.LegacyLocalDatabasePath()
-		if !shared.PathExists(path) {
-			logger.Debugf("No local database, so no need to start the daemon now")
-			return nil
-		}
+		logger.Debugf("No local database, so no need to start the daemon now")
+		return nil
 	}
 
 	// Open the database directly to avoid triggering any initialization

@@ -1916,17 +1916,6 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 // Create a database connection and perform any updates needed.
 func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	logger.Info("Initializing local database")
-	// Rename the old database name if needed.
-	if shared.PathExists(d.os.LegacyLocalDatabasePath()) {
-		if shared.PathExists(d.os.LocalDatabasePath()) {
-			return nil, fmt.Errorf("Both legacy and new local database files exists")
-		}
-		logger.Info("Renaming local database file from lxd.db to database/local.db")
-		err := os.Rename(d.os.LegacyLocalDatabasePath(), d.os.LocalDatabasePath())
-		if err != nil {
-			return nil, fmt.Errorf("Failed to rename legacy local database file: %w", err)
-		}
-	}
 
 	// NOTE: we use the legacyPatches parameter to run a few
 	// legacy non-db updates that were in place before the

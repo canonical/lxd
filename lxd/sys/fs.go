@@ -14,11 +14,6 @@ func (s *OS) LocalDatabasePath() string {
 	return filepath.Join(s.VarDir, "database", "local.db")
 }
 
-// LegacyLocalDatabasePath returns the path of legacy local database file.
-func (s *OS) LegacyLocalDatabasePath() string {
-	return filepath.Join(s.VarDir, "lxd.db")
-}
-
 // GlobalDatabaseDir returns the path of the global database directory.
 func (s *OS) GlobalDatabaseDir() string {
 	return filepath.Join(s.VarDir, "database", "global")
