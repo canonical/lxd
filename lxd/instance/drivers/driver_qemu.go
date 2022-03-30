@@ -91,7 +91,8 @@ const qemuNetDevIDPrefix = "lxd_"
 const qemuBlockDevIDPrefix = "lxd_"
 
 // qemuSparseUSBPorts is the amount of sparse USB ports for VMs.
-const qemuSparseUSBPorts = 4
+// 4 are reserved, and the other 4 can be used for any USB device.
+const qemuSparseUSBPorts = 8
 
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
 
@@ -1741,6 +1742,13 @@ func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConf
 				}
 			}
 
+			for _, usbDev := range runConf.USBDevice {
+				err = d.deviceAttachUSB(usbDev)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			// If running, run post start hooks now (if not running LXD will run them
 			// once the instance is started).
 			err = d.runHooks(runConf.PostHooks)
@@ -1909,6 +1917,16 @@ func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
 			err = d.deviceDetachNIC(dev.Name())
 			if err != nil {
 				return err
+			}
+		}
+
+		// Detach USB drom running instance.
+		if configCopy["type"] == "usb" && runConf != nil {
+			for _, usbDev := range runConf.USBDevice {
+				err = d.deviceDetachUSB(usbDev)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -2567,20 +2585,13 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	// s390x doesn't really have USB.
 	if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
-		// Record the number of USB devices.
-		totalUSBdevs := 0
-
-		for _, runConf := range devConfs {
-			totalUSBdevs += len(runConf.USBDevice)
-		}
-
 		devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
 		err = qemuUSB.Execute(sb, map[string]interface{}{
 			"bus":           bus.name,
 			"devBus":        devBus,
 			"devAddr":       devAddr,
 			"multifunction": multi,
-			"ports":         totalUSBdevs + qemuSparseUSBPorts,
+			"ports":         qemuSparseUSBPorts,
 		})
 		if err != nil {
 			return "", nil, err
@@ -2726,10 +2737,12 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 		// Add USB devices.
 		for _, usbDev := range runConf.USBDevice {
-			err = d.addUSBDeviceConfig(sb, bus, usbDev)
+			monHook, err := d.addUSBDeviceConfig(usbDev)
 			if err != nil {
 				return "", nil, err
 			}
+
+			monHooks = append(monHooks, monHook)
 		}
 
 		// Add TPM device.
@@ -3527,21 +3540,43 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	return nil
 }
 
-func (d *qemu) addUSBDeviceConfig(sb *strings.Builder, bus *qemuBus, usbDev deviceConfig.USBDeviceItem) error {
-	tplFields := map[string]interface{}{
-		"hostDevice": usbDev.HostDevicePath,
-		"devName":    usbDev.DeviceName,
+func (d *qemu) addUSBDeviceConfig(usbDev deviceConfig.USBDeviceItem) (monitorHook, error) {
+	device := map[string]string{
+		"id":     fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName),
+		"driver": "usb-host",
+		"bus":    "qemu_usb.0",
 	}
 
-	err := qemuUSBDev.Execute(sb, tplFields)
-	if err != nil {
-		return err
+	monHook := func(m *qmp.Monitor) error {
+		revert := revert.New()
+		defer revert.Fail()
+
+		f, err := os.OpenFile(usbDev.HostDevicePath, unix.O_RDWR, 0)
+		if err != nil {
+			return fmt.Errorf("Failed to open host device: %w", err)
+		}
+		defer f.Close()
+
+		info, err := m.SendFileWithFDSet(device["id"], f, false)
+		if err != nil {
+			return fmt.Errorf("Failed to send file descriptor: %w", err)
+		}
+		revert.Add(func() {
+			m.RemoveFDFromFDSet(device["id"])
+		})
+
+		device["hostdevice"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
+
+		err = m.AddDevice(device)
+		if err != nil {
+			return fmt.Errorf("Failed to add device: %w", err)
+		}
+
+		revert.Success()
+		return nil
 	}
 
-	// Add path to external devPaths. This way, the path will be included in the apparmor profile.
-	d.devPaths = append(d.devPaths, usbDev.HostDevicePath)
-
-	return nil
+	return monHook, nil
 }
 
 func (d *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.RunConfigItem) error {
@@ -5681,7 +5716,51 @@ func (d *qemu) CanMigrate() (bool, bool) {
 
 // DeviceEventHandler handles events occurring on the instance's devices.
 func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
-	return fmt.Errorf("DeviceEventHandler Not implemented")
+	if !d.IsRunning() {
+		return nil
+	}
+
+	if runConf == nil || len(runConf.Uevents) == 0 {
+		return nil
+	}
+
+	// Uevents will contain 1 entry at most, therefore we don't need to iterate through it.
+	for _, event := range runConf.Uevents[0] {
+		fields := strings.SplitN(event, "=", 2)
+
+		if fields[0] != "ACTION" {
+			continue
+		}
+
+		switch fields[1] {
+		case "add":
+			for _, usbDev := range runConf.USBDevice {
+				// This ensures that the device is actually removed from QEMU before adding it again.
+				// In most cases the device will already be removed, but it is possible that the
+				// device still exists in QEMU before trying to add it again.
+				// If a USB device is physically detached from a running VM while the LXD server
+				// itself is stopped, QEMU in theory will not delete the device.
+				err := d.deviceDetachUSB(usbDev)
+				if err != nil {
+					return err
+				}
+
+				err = d.deviceAttachUSB(usbDev)
+				if err != nil {
+					return err
+				}
+			}
+		case "remove":
+			for _, usbDev := range runConf.USBDevice {
+				err := d.deviceDetachUSB(usbDev)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // vsockID returns the vsock context ID, 3 being the first ID that can be used.
@@ -6201,4 +6280,46 @@ func (d *qemu) agentMetricsEnabled() bool {
 	}
 
 	return false
+}
+
+func (d *qemu) deviceAttachUSB(usbConf deviceConfig.USBDeviceItem) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	monHook, err := d.addUSBDeviceConfig(usbConf)
+	if err != nil {
+		return err
+	}
+
+	err = monHook(monitor)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
+	// Check if the agent is running.
+	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	if err != nil {
+		return err
+	}
+
+	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, usbDev.DeviceName)
+
+	err = monitor.RemoveDevice(deviceID)
+	if err != nil && !api.StatusErrorCheck(err, http.StatusNotFound) {
+		return fmt.Errorf("Failed removing device: %w", err)
+	}
+
+	err = monitor.RemoveFDFromFDSet(deviceID)
+	if err != nil {
+		return fmt.Errorf("Failed removing FD set: %w", err)
+	}
+
+	return nil
 }

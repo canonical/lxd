@@ -110,19 +110,18 @@ func USBNewEvent(action string, vendor string, product string, major string, min
 		return USBEvent{}, err
 	}
 
-	busnumInt := 0
-	devnumInt := 0
+	busnumInt, err := strconv.Atoi(busnum)
+	if err != nil {
+		return USBEvent{}, err
+	}
+
+	devnumInt, err := strconv.Atoi(devnum)
+	if err != nil {
+		return USBEvent{}, err
+	}
+
 	path := devname
 	if devname == "" {
-		busnumInt, err = strconv.Atoi(busnum)
-		if err != nil {
-			return USBEvent{}, err
-		}
-
-		devnumInt, err = strconv.Atoi(devnum)
-		if err != nil {
-			return USBEvent{}, err
-		}
 		path = fmt.Sprintf("/dev/bus/usb/%03d/%03d", busnumInt, devnumInt)
 	} else {
 		if !filepath.IsAbs(devname) {
