@@ -264,7 +264,16 @@ EOF
     value: lxdtest-$(basename "${TEST_DIR}")-${ns}
 EOF
       fi
+      if [ "${driver}" = "lvm" ]; then
+        cat >> "${LXD_DIR}/preseed.yaml" <<EOF
+  - entity: storage-pool
+    name: data
+    key: lvm.vg_name
+    value: lxdtest-$(basename "${TEST_DIR}")-${ns}
+EOF
+      fi
     fi
+
     lxd init --preseed < "${LXD_DIR}/preseed.yaml"
   )
 }

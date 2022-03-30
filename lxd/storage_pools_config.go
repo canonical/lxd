@@ -45,12 +45,13 @@ var storagePoolConfigKeys = map[string]func(value string) error{
 	"cephfs.user.name":    validate.IsAny,
 
 	// valid drivers: lvm
-	"lvm.thinpool_name":       validate.IsAny,
-	"lvm.use_thinpool":        validate.Optional(validate.IsBool),
-	"lvm.vg_name":             validate.IsAny,
-	"volume.lvm.stripes":      validate.Optional(validate.IsUint32),
-	"volume.lvm.stripes.size": validate.Optional(validate.IsSize),
-	"lvm.vg.force_reuse":      validate.Optional(validate.IsBool),
+	"lvm.thinpool_name":          validate.IsAny,
+	"lvm.use_thinpool":           validate.Optional(validate.IsBool),
+	"lvm.thinpool_metadata_size": validate.Optional(validate.IsSize),
+	"lvm.vg_name":                validate.IsAny,
+	"volume.lvm.stripes":         validate.Optional(validate.IsUint32),
+	"volume.lvm.stripes.size":    validate.Optional(validate.IsSize),
+	"lvm.vg.force_reuse":         validate.Optional(validate.IsBool),
 
 	// valid drivers: btrfs, lvm, zfs
 	"size": validate.Optional(validate.IsSize),
