@@ -5,7 +5,7 @@ discourse: 12033,13128
 # How to configure network zones
 
 ```{note}
-Network zones are available for the {ref}`OVN network <network-ovn>` and the {ref}`Bridge network <network-bridge>`.
+Network zones are available for the {ref}`network-ovn` and the {ref}`network-bridge`.
 ```
 
 Network zones can be used to serve DNS records for LXD networks.
@@ -51,7 +51,7 @@ If you configure a zone for IPv4 reverse DNS records for `2.0.192.in-addr.arpa` 
 
 To make use of network zones, you must enable the built-in DNS server.
 
-To do so, set the `core.dns_address` configuration option (see {doc}`server`) to a local address on the LXD server.
+To do so, set the `core.dns_address` configuration option (see {ref}`server`) to a local address on the LXD server.
 This is the address on which the DNS server will listen.
 Note that in a LXD cluster, the address may be different on each cluster member.
 

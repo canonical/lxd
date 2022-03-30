@@ -1,3 +1,4 @@
+(server)=
 # Server configuration
 The server configuration is a simple set of key and values.
 
