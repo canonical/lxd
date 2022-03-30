@@ -1022,9 +1022,6 @@ func (d *qemu) Start(stateful bool) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Start accumulating external device paths.
-	d.devPaths = []string{}
-
 	// Rotate the log file.
 	logfile := d.LogFilePath()
 	if shared.PathExists(logfile) {
@@ -3022,7 +3019,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 
 		"devName":  driveConf.DevName,
 		"mountTag": mountTag,
-		"proxyFD":  proxyFD, // Pass by file descriptor, so don't add to d.devPaths for apparmor access.
+		"proxyFD":  proxyFD, // Pass by file descriptor
 		"readonly": readonly,
 		"protocol": "9p",
 	})
@@ -3099,9 +3096,6 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 		}
-
-		// Add src path to external devPaths. This way, the path will be included in the apparmor profile.
-		d.devPaths = append(d.devPaths, srcDevPath)
 	}
 
 	// QMP uses two separate values for the cache.
