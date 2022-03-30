@@ -47,7 +47,7 @@ func OpenNode(dir string, fresh func(*Node) error) (*Node, error) {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	initial, err := node.EnsureSchema(db, dir, nil)
+	initial, err := node.EnsureSchema(db, dir)
 	if err != nil {
 		return nil, err
 	}
