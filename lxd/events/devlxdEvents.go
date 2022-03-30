@@ -63,7 +63,7 @@ func (s *DevLXDServer) AddListener(instanceID int, connection *websocket.Conn, m
 }
 
 // Send broadcasts a custom event.
-func (s *DevLXDServer) Send(instanceID int, eventType string, eventMessage interface{}) error {
+func (s *DevLXDServer) Send(instanceID int, eventType string, eventMessage any) error {
 	encodedMessage, err := json.Marshal(eventMessage)
 	if err != nil {
 		return err

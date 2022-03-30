@@ -12,7 +12,7 @@ func TestSchema_Defaults(t *testing.T) {
 		"foo": {},
 		"bar": {Default: "x"},
 	}
-	values := map[string]interface{}{"foo": "", "bar": "x"}
+	values := map[string]any{"foo": "", "bar": "x"}
 	assert.Equal(t, values, schema.Defaults())
 }
 

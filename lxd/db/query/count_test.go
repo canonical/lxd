@@ -14,22 +14,22 @@ import (
 func TestCount(t *testing.T) {
 	cases := []struct {
 		where string
-		args  []interface{}
+		args  []any
 		count int
 	}{
 		{
 			"id=?",
-			[]interface{}{999},
+			[]any{999},
 			0,
 		},
 		{
 			"id=?",
-			[]interface{}{1},
+			[]any{1},
 			1,
 		},
 		{
 			"",
-			[]interface{}{},
+			[]any{},
 			2,
 		},
 	}

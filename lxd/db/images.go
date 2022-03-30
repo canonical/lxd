@@ -89,7 +89,7 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 		Certificate string
 		Alias       string
 	}{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		sources = append(sources, struct {
 			ID          int
 			Server      string
@@ -97,7 +97,7 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 			Certificate string
 			Alias       string
 		}{})
-		return []interface{}{
+		return []any{
 			&sources[i].ID,
 			&sources[i].Server,
 			&sources[i].Protocol,
@@ -176,9 +176,9 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 	// Get the aliases
 	aliases := []api.ImageAlias{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		aliases = append(aliases, api.ImageAlias{})
-		return []interface{}{
+		return []any{
 			&aliases[i].Name,
 			&aliases[i].Description,
 		}
@@ -321,7 +321,7 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 			"protocol",
 			"certificate",
 			"alias",
-		}, []interface{}{
+		}, []any{
 			id,
 			server,
 			protocolInt,
@@ -365,7 +365,7 @@ func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string
 			WHERE server=? AND protocol=? AND alias=? AND auto_update=1 AND images.architecture=?
 `
 
-	args := []interface{}{server, protocolInt, alias, architecture}
+	args := []any{server, protocolInt, alias, architecture}
 	if imageType != instancetype.Any {
 		q += "AND images.type=?\n"
 		args = append(args, imageType)
@@ -570,7 +570,7 @@ FROM images
 JOIN projects ON images.project_id = projects.id
 WHERE images.fingerprint LIKE ?
 `
-	args := []interface{}{fingerprintPrefix + "%"}
+	args := []any{fingerprintPrefix + "%"}
 	if filter.Project != nil {
 		sql += `AND project = ?
 	`
@@ -586,9 +586,9 @@ WHERE images.fingerprint LIKE ?
 
 	objects := []Image{}
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Image{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Project,
 			&objects[i].Fingerprint,
@@ -760,8 +760,8 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 		var fingerprint, description string
 		var imageType int
 
-		arg1 := []interface{}{project, name}
-		arg2 := []interface{}{&id, &fingerprint, &imageType, &description}
+		arg1 := []any{project, name}
+		arg2 := []any{&id, &fingerprint, &imageType, &description}
 		err = tx.tx.QueryRow(q, arg1...).Scan(arg2...)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -1118,7 +1118,7 @@ func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 // GetPoolNamesFromIDs get the names of the storage pools with the given IDs.
 func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	params := make([]string, len(poolIDs))
-	args := make([]interface{}, len(poolIDs))
+	args := make([]any, len(poolIDs))
 	for i, id := range poolIDs {
 		params[i] = "?"
 		args[i] = id

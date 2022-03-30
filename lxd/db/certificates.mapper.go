@@ -62,24 +62,24 @@ func (c *ClusterTx) GetCertificates(filter CertificateFilter) ([]Certificate, er
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Fingerprint != nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(certificateObjectsByFingerprint)
-		args = []interface{}{
+		args = []any{
 			filter.Fingerprint,
 		}
 	} else if filter.Fingerprint == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(certificateObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Certificate{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Fingerprint,
 			&objects[i].Type,
@@ -203,7 +203,7 @@ func (c *ClusterTx) CreateCertificate(object Certificate) (int64, error) {
 		return -1, fmt.Errorf("This \"certificates\" entry already exists")
 	}
 
-	args := make([]interface{}, 5)
+	args := make([]any, 5)
 
 	// Populate the statement arguments.
 	args[0] = object.Fingerprint

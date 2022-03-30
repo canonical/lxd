@@ -20,8 +20,8 @@ import (
 func (c *Cluster) GetStoragePoolVolumesNames(poolID int64) ([]string, error) {
 	var volumeName string
 	query := "SELECT name FROM storage_volumes_all WHERE storage_pool_id=? AND node_id=?"
-	inargs := []interface{}{poolID, c.nodeID}
-	outargs := []interface{}{volumeName}
+	inargs := []any{poolID, c.nodeID}
+	outargs := []any{volumeName}
 
 	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
@@ -54,8 +54,8 @@ JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.type = ?
 `
 
-	inargs := []interface{}{volumeType}
-	outargs := []interface{}{id, name, description, poolName, projectName, nodeID}
+	inargs := []any{volumeType}
+	outargs := []any{id, name, description, poolName, projectName, nodeID}
 
 	result, err := queryScan(c, stmt, inargs, outargs)
 	if err != nil {
@@ -97,8 +97,8 @@ JOIN projects ON projects.id = storage_volumes.project_id
 WHERE storage_volumes.id = ?
 `
 
-	inargs := []interface{}{volumeID}
-	outargs := []interface{}{&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName}
+	inargs := []any{volumeID}
+	outargs := []any{&response.ID, &response.Name, &response.Description, &response.PoolName, &response.Type, &response.ProjectName}
 
 	err := dbQueryRowScan(c, stmt, inargs, outargs)
 	if err != nil {
@@ -138,7 +138,7 @@ SELECT DISTINCT node_id
   JOIN storage_pools ON storage_pools.id = storage_volumes_all.storage_pool_id
  WHERE (projects.name=? OR storage_volumes_all.type=?) AND storage_volumes_all.storage_pool_id=? AND storage_pools.driver NOT IN %s`, query.Params(len(remoteDrivers)))
 
-		args := []interface{}{project, StoragePoolVolumeTypeCustom, poolID}
+		args := []any{project, StoragePoolVolumeTypeCustom, poolID}
 
 		for _, driver := range remoteDrivers {
 			args = append(args, driver)
@@ -234,8 +234,8 @@ SELECT storage_volumes_all.name
    AND storage_volumes_all.storage_pool_id=?
    AND storage_volumes_all.type=?
    AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
-	inargs := []interface{}{project, poolID, volumeType, nodeID}
-	outargs := []interface{}{poolName}
+	inargs := []any{project, poolID, volumeType, nodeID}
+	outargs := []any{poolName}
 
 	for _, driver := range remoteDrivers {
 		inargs = append(inargs, driver)
@@ -276,7 +276,7 @@ SELECT storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_vol
     AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
   ORDER BY storage_volumes_snapshots.id`, query.Params(len(remoteDrivers)))
 
-	args := []interface{}{poolID, volumeType, volumeName, projectName, c.nodeID}
+	args := []any{poolID, volumeType, volumeName, projectName, c.nodeID}
 	for _, driver := range remoteDrivers {
 		args = append(args, driver)
 	}
@@ -284,7 +284,7 @@ SELECT storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_vol
 	var snapshots []StorageVolumeArgs
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		err := tx.QueryScan(query, func(scan func(dest ...interface{}) error) error {
+		err := tx.QueryScan(query, func(scan func(dest ...any) error) error {
 			var s StorageVolumeArgs
 			var snapName string
 			var expiryDate sql.NullTime
@@ -326,7 +326,7 @@ func storageVolumeSnapshotConfig(tx *ClusterTx, volumeSnapshotID int64, volume *
 	q := "SELECT key, value FROM storage_volumes_snapshots_config WHERE storage_volume_snapshot_id = ?"
 
 	volume.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -619,7 +619,7 @@ SELECT storage_volumes_all.id
 	AND storage_volumes_all.type=?
 	AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
 
-	args := []interface{}{project, poolID, volumeName, volumeType, nodeID}
+	args := []any{project, poolID, volumeName, volumeType, nodeID}
 
 	for _, driver := range remoteDrivers {
 		args = append(args, driver)
@@ -719,9 +719,9 @@ type StorageVolumeArgs struct {
 func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volumeName string, volumeType int) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		nodes = append(nodes, NodeInfo{})
-		return []interface{}{&nodes[i].ID, &nodes[i].Address, &nodes[i].Name}
+		return []any{&nodes[i].ID, &nodes[i].Address, &nodes[i].Name}
 	}
 
 	sql := `
@@ -790,8 +790,8 @@ SELECT nodes.name FROM storage_volumes_all
   JOIN nodes ON nodes.id=storage_volumes_all.node_id
    WHERE storage_volumes_all.id=?
 `
-	inargs := []interface{}{volumeID}
-	outargs := []interface{}{&name}
+	inargs := []any{volumeID}
+	outargs := []any{&name}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
@@ -814,8 +814,8 @@ func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[s
 	} else {
 		query = "SELECT key, value FROM storage_volumes_config WHERE storage_volume_id=?"
 	}
-	inargs := []interface{}{volumeID}
-	outargs := []interface{}{key, value}
+	inargs := []any{volumeID}
+	outargs := []any{key, value}
 
 	results, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
@@ -838,8 +838,8 @@ func (c *Cluster) storageVolumeConfigGet(volumeID int64, isSnapshot bool) (map[s
 func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 	var description string
 	query := "SELECT description FROM storage_volumes_all WHERE id=?"
-	inargs := []interface{}{volumeID}
-	outargs := []interface{}{&description}
+	inargs := []any{volumeID}
+	outargs := []any{&description}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
@@ -856,8 +856,8 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
 	var contentType int
 	query := "SELECT content_type FROM storage_volumes_all WHERE id=?"
-	inargs := []interface{}{volumeID}
-	outargs := []interface{}{&contentType}
+	inargs := []any{volumeID}
+	outargs := []any{&contentType}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
@@ -888,8 +888,8 @@ SELECT storage_volumes_snapshots.name FROM storage_volumes_snapshots
    AND (storage_volumes.node_id=? OR storage_volumes.node_id IS NULL AND storage_pools.driver IN %s)
 `, query.Params(len(remoteDrivers)))
 	var numstr string
-	inargs := []interface{}{typ, name, pool, c.nodeID}
-	outfmt := []interface{}{numstr}
+	inargs := []any{typ, name, pool, c.nodeID}
+	outfmt := []any{numstr}
 
 	for _, driver := range remoteDrivers {
 		inargs = append(inargs, driver)
@@ -1003,7 +1003,7 @@ func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
 	stmt := fmt.Sprintf(
 		"DELETE FROM storage_volumes WHERE type=? AND name NOT IN %s",
 		query.Params(len(fingerprints)))
-	args := []interface{}{StoragePoolVolumeTypeImage}
+	args := []any{StoragePoolVolumeTypeImage}
 	for _, fingerprint := range fingerprints {
 		args = append(args, fingerprint)
 	}
@@ -1075,9 +1075,9 @@ WHERE storage_volumes.type = ? AND projects.name = ?
 	defer stmt.Close()
 
 	volumes := []StorageVolumeArgs{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		volumes = append(volumes, StorageVolumeArgs{})
-		return []interface{}{
+		return []any{
 			&volumes[i].ID,
 			&volumes[i].Name,
 			&volumes[i].PoolName,

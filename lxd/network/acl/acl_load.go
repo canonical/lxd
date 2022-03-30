@@ -78,7 +78,7 @@ func Exists(s *state.State, projectName string, name ...string) error {
 
 // UsedBy finds all networks, profiles and instance NICs that use any of the specified ACLs and executes usageFunc
 // once for each resource using one or more of the ACLs with info about the resource and matched ACLs being used.
-func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLNames []string, usageType interface{}, nicName string, nicConfig map[string]string) error, matchACLNames ...string) error {
+func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error, matchACLNames ...string) error {
 	if len(matchACLNames) <= 0 {
 		return nil
 	}
@@ -260,7 +260,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 	supportedNetTypes := []string{"bridge", "ovn"}
 
 	// Find all networks and instance/profile NICs that use any of the specified Network ACLs.
-	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType interface{}, _ string, nicConfig map[string]string) error {
+	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, _ string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
 		case db.Instance, db.Profile:
 			networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])

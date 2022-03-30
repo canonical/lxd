@@ -34,9 +34,9 @@ const (
 // instance is not running in clustered mode, an empty list is returned.
 func (n *NodeTx) GetRaftNodes() ([]RaftNode, error) {
 	nodes := []RaftNode{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		nodes = append(nodes, RaftNode{})
-		return []interface{}{&nodes[i].ID, &nodes[i].Address, &nodes[i].Role, &nodes[i].Name}
+		return []any{&nodes[i].ID, &nodes[i].Address, &nodes[i].Role, &nodes[i].Name}
 	}
 	stmt, err := n.tx.Prepare("SELECT id, address, role, name FROM raft_nodes ORDER BY id")
 	if err != nil {
@@ -84,7 +84,7 @@ func (n *NodeTx) GetRaftNodeAddress(id int64) (string, error) {
 // and it will replace whatever existing row has ID 1.
 func (n *NodeTx) CreateFirstRaftNode(address string, name string) error {
 	columns := []string{"id", "address", "name"}
-	values := []interface{}{int64(1), address, name}
+	values := []any{int64(1), address, name}
 	id, err := query.UpsertObject(n.tx, "raft_nodes", columns, values)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func (n *NodeTx) CreateFirstRaftNode(address string, name string) error {
 // dqlite Raft cluster. It returns the ID of the newly inserted row.
 func (n *NodeTx) CreateRaftNode(address string, name string) (int64, error) {
 	columns := []string{"address", "name"}
-	values := []interface{}{address, name}
+	values := []any{address, name}
 	return query.UpsertObject(n.tx, "raft_nodes", columns, values)
 }
 
@@ -125,7 +125,7 @@ func (n *NodeTx) ReplaceRaftNodes(nodes []RaftNode) error {
 
 	columns := []string{"id", "address", "role", "name"}
 	for _, node := range nodes {
-		values := []interface{}{node.ID, node.Address, node.Role, node.Name}
+		values := []any{node.ID, node.Address, node.Role, node.Name}
 		_, err := query.UpsertObject(n.tx, "raft_nodes", columns, values)
 		if err != nil {
 			return err

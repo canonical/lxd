@@ -918,7 +918,7 @@ func (r *ProtocolLXD) ExecInstance(instanceName string, exec api.InstanceExecPos
 
 		value, ok := opAPI.Metadata["fds"]
 		if ok {
-			values := value.(map[string]interface{})
+			values := value.(map[string]any)
 			for k, v := range values {
 				fds[k] = v.(string)
 			}
@@ -2067,7 +2067,7 @@ func (r *ProtocolLXD) ConsoleInstance(instanceName string, console api.InstanceC
 
 	value, ok := opAPI.Metadata["fds"]
 	if ok {
-		values := value.(map[string]interface{})
+		values := value.(map[string]any)
 		for k, v := range values {
 			fds[k] = v.(string)
 		}
@@ -2154,7 +2154,7 @@ func (r *ProtocolLXD) ConsoleInstanceDynamic(instanceName string, console api.In
 
 	value, ok := opAPI.Metadata["fds"]
 	if ok {
-		values := value.(map[string]interface{})
+		values := value.(map[string]any)
 		for k, v := range values {
 			fds[k] = v.(string)
 		}

@@ -33,7 +33,7 @@ func getServerName(op *Operation) (string, error) {
 	return "", nil
 }
 
-func (op *Operation) sendEvent(eventMessage interface{}) {
+func (op *Operation) sendEvent(eventMessage any) {
 	if op.events == nil {
 		return
 	}

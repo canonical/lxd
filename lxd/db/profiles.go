@@ -150,9 +150,9 @@ SELECT profiles.name
  JOIN projects ON projects.id = profiles.project_id
 WHERE projects.name = ?
 `)
-	inargs := []interface{}{project}
+	inargs := []any{project}
 	var name string
-	outfmt := []interface{}{name}
+	outfmt := []any{name}
 	result, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
@@ -265,9 +265,9 @@ func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][
 		   WHERE profiles.name=? AND projects.name=?)`
 
 	results := map[string][]string{}
-	inargs := []interface{}{profile, project}
+	inargs := []any{profile, project}
 	var name string
-	outfmt := []interface{}{name, name}
+	outfmt := []any{name, name}
 
 	output, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {

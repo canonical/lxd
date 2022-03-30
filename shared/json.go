@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-type Jmap map[string]interface{}
+type Jmap map[string]any
 
 func (m Jmap) GetString(key string) (string, error) {
 	if val, ok := m[key]; !ok {
@@ -19,7 +19,7 @@ func (m Jmap) GetString(key string) (string, error) {
 func (m Jmap) GetMap(key string) (Jmap, error) {
 	if val, ok := m[key]; !ok {
 		return nil, fmt.Errorf("Response was missing `%s`", key)
-	} else if val, ok := val.(map[string]interface{}); !ok {
+	} else if val, ok := val.(map[string]any); !ok {
 		return nil, fmt.Errorf("`%s` was not a map, got %T", key, m[key])
 	} else {
 		return val, nil

@@ -52,7 +52,7 @@ type execWs struct {
 	s                     *state.State
 }
 
-func (s *execWs) Metadata() interface{} {
+func (s *execWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
 		if fd == execWSControl {

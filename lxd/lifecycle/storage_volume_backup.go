@@ -21,7 +21,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a storage volume backup.
-func (a StorageVolumeBackupAction) Event(poolName string, volumeType string, volumeName string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a StorageVolumeBackupAction) Event(poolName string, volumeType string, volumeName string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("storage-volume-backup-%s", a)
 	parentName, backupName, _ := shared.InstanceGetParentAndSnapshotName(volumeName)
 	u := fmt.Sprintf("/1.0/storage-pools/%s/volumes/%s/%s/backups", url.PathEscape(poolName), url.PathEscape(volumeType), url.PathEscape(parentName))

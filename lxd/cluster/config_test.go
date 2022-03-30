@@ -17,7 +17,7 @@ func TestConfigLoad_Initial(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 
 	require.NoError(t, err)
-	assert.Equal(t, map[string]interface{}{}, config.Dump())
+	assert.Equal(t, map[string]any{}, config.Dump())
 
 	assert.Equal(t, float64(20), config.OfflineThreshold().Seconds())
 }
@@ -36,7 +36,7 @@ func TestConfigLoad_IgnoreInvalidKeys(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 
 	require.NoError(t, err)
-	values := map[string]interface{}{"core.proxy_http": "foo.bar"}
+	values := map[string]any{"core.proxy_http": "foo.bar"}
 	assert.Equal(t, values, config.Dump())
 }
 
@@ -48,7 +48,7 @@ func TestConfigLoad_Triggers(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 
 	require.NoError(t, err)
-	assert.Equal(t, map[string]interface{}{}, config.Dump())
+	assert.Equal(t, map[string]any{}, config.Dump())
 }
 
 // Offline threshold must be greater than the heartbeat interval.
@@ -59,7 +59,7 @@ func TestConfigLoad_OfflineThresholdValidator(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	_, err = config.Patch(map[string]interface{}{"cluster.offline_threshold": "2"})
+	_, err = config.Patch(map[string]any{"cluster.offline_threshold": "2"})
 	require.EqualError(t, err, "cannot set 'cluster.offline_threshold' to '2': Value must be greater than '10'")
 
 }
@@ -72,7 +72,7 @@ func TestConfigLoad_MaxVotersValidator(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	_, err = config.Patch(map[string]interface{}{"cluster.max_voters": "4"})
+	_, err = config.Patch(map[string]any{"cluster.max_voters": "4"})
 	require.EqualError(t, err, "cannot set 'cluster.max_voters' to '4': Value must be an odd number equal to or higher than 3")
 
 }
@@ -86,11 +86,11 @@ func TestConfig_ReplaceDeleteValues(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	changed, err := config.Replace(map[string]interface{}{"core.proxy_http": "foo.bar"})
+	changed, err := config.Replace(map[string]any{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
 	assert.Equal(t, map[string]string{"core.proxy_http": "foo.bar"}, changed)
 
-	_, err = config.Replace(map[string]interface{}{})
+	_, err = config.Replace(map[string]any{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "", config.ProxyHTTP())
@@ -109,10 +109,10 @@ func TestConfig_PatchKeepsValues(t *testing.T) {
 	config, err := cluster.ConfigLoad(tx)
 	require.NoError(t, err)
 
-	_, err = config.Replace(map[string]interface{}{"core.proxy_http": "foo.bar"})
+	_, err = config.Replace(map[string]any{"core.proxy_http": "foo.bar"})
 	assert.NoError(t, err)
 
-	_, err = config.Patch(map[string]interface{}{})
+	_, err = config.Patch(map[string]any{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, "foo.bar", config.ProxyHTTP())

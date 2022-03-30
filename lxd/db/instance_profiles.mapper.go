@@ -39,12 +39,12 @@ func (c *ClusterTx) GetProfileInstances() (map[int][]int, error) {
 	objects := make([]InstanceProfile, 0)
 
 	stmt := c.stmt(instanceProfileObjects)
-	args := []interface{}{}
+	args := []any{}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, InstanceProfile{})
-		return []interface{}{
+		return []any{
 			&objects[i].InstanceID,
 			&objects[i].ProfileID,
 			&objects[i].ApplyOrder,
@@ -74,12 +74,12 @@ func (c *ClusterTx) GetInstanceProfiles() (map[int][]int, error) {
 	objects := make([]InstanceProfile, 0)
 
 	stmt := c.stmt(instanceProfileObjects)
-	args := []interface{}{}
+	args := []any{}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, InstanceProfile{})
-		return []interface{}{
+		return []any{
 			&objects[i].InstanceID,
 			&objects[i].ProfileID,
 			&objects[i].ApplyOrder,
@@ -103,7 +103,7 @@ func (c *ClusterTx) GetInstanceProfiles() (map[int][]int, error) {
 // CreateInstanceProfile adds a new instance_profile to the database.
 // generator: instance_profile Create
 func (c *ClusterTx) CreateInstanceProfile(object InstanceProfile) (int64, error) {
-	args := make([]interface{}, 3)
+	args := make([]any, 3)
 
 	// Populate the statement arguments.
 	args[0] = object.InstanceID

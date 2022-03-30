@@ -46,7 +46,7 @@ func (c *cmdQuery) Command() *cobra.Command {
 	return cmd
 }
 
-func (c *cmdQuery) pretty(input interface{}) string {
+func (c *cmdQuery) pretty(input any) string {
 	pretty := bytes.NewBufferString("")
 	enc := json.NewEncoder(pretty)
 	enc.SetEscapeHTML(false)
@@ -90,7 +90,7 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Guess the encoding of the input
-	var data interface{}
+	var data any
 	err = json.Unmarshal([]byte(c.flagData), &data)
 	if err != nil {
 		data = c.flagData
@@ -162,7 +162,7 @@ func (c *cmdQuery) Run(cmd *cobra.Command, args []string) error {
 	if c.flagRespRaw {
 		fmt.Println(c.pretty(resp))
 	} else if resp.Metadata != nil && string(resp.Metadata) != "{}" {
-		var content interface{}
+		var content any
 		err := json.Unmarshal(resp.Metadata, &content)
 		if err != nil {
 			return err

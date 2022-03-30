@@ -75,35 +75,35 @@ func (c *ClusterTx) GetProfileURIs(filter ProfileFilter) ([]string, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Project != nil && filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(profileObjectsByProjectAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjectsByProject)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjectsByID)
-		args = []interface{}{
+		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Profile{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].ProjectID,
 			&objects[i].Project,
@@ -139,35 +139,35 @@ func (c *ClusterTx) GetProfiles(filter ProfileFilter) ([]Profile, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Project != nil && filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(profileObjectsByProjectAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjectsByProject)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjectsByID)
-		args = []interface{}{
+		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(profileObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Profile{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].ProjectID,
 			&objects[i].Project,
@@ -305,7 +305,7 @@ func (c *ClusterTx) CreateProfile(object Profile) (int64, error) {
 		return -1, fmt.Errorf("This \"profiles\" entry already exists")
 	}
 
-	args := make([]interface{}, 3)
+	args := make([]any, 3)
 
 	// Populate the statement arguments.
 	args[0] = object.Project

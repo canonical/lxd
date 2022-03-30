@@ -884,8 +884,8 @@ func FallbackMigrationType(contentType drivers.ContentType) migration.MigrationF
 
 // RenderSnapshotUsage can be used as an optional argument to Instance.Render() to return snapshot usage.
 // As this is a relatively expensive operation it is provided as an optional feature rather than on by default.
-func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(response interface{}) error {
-	return func(response interface{}) error {
+func RenderSnapshotUsage(s *state.State, snapInst instance.Instance) func(response any) error {
+	return func(response any) error {
 		apiRes, ok := response.(*api.InstanceSnapshot)
 		if !ok {
 			return nil

@@ -239,7 +239,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	}
 
 	// Track progress creating image.
-	metadata := make(map[string]interface{})
+	metadata := make(map[string]any)
 	imageProgressWriter := &ioprogress.ProgressWriter{
 		Tracker: &ioprogress.ProgressTracker{
 			Handler: func(value, speed int64) {
@@ -499,7 +499,7 @@ func imgPostURLInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *operatio
 	return info, nil
 }
 
-func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string, post *os.File, metadata map[string]interface{}) (*api.Image, error) {
+func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string, post *os.File, metadata map[string]any) (*api.Image, error) {
 	info := api.Image{}
 	var imageMeta *api.ImageMetadata
 	logger := logging.AddContext(logger.Log, log.Ctx{"function": "getImgPostInfo"})
@@ -822,7 +822,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	fingerprint := r.Header.Get("X-LXD-fingerprint")
 	projectName := projectParam(r)
 
-	var imageMetadata map[string]interface{}
+	var imageMetadata map[string]any
 
 	if !trusted && (secret == "" || fingerprint == "") {
 		return response.Forbidden(nil)
@@ -906,7 +906,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 	if !imageUpload && req.Source.Mode == "push" {
 		cleanup(builddir, post)
 
-		metadata := map[string]interface{}{
+		metadata := map[string]any{
 			"aliases":    req.Aliases,
 			"expires_at": req.ExpiresAt,
 			"properties": req.Properties,
@@ -1026,7 +1026,7 @@ func imagesPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	}
 
-	var metadata interface{}
+	var metadata any
 
 	if imageUpload && imageMetadata != nil {
 		secret, _ := shared.RandomCryptoString()
@@ -1151,7 +1151,7 @@ func getImageMetadata(fname string) (*api.ImageMetadata, string, error) {
 	return &result, imageType, nil
 }
 
-func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses []filter.Clause) (interface{}, error) {
+func doImagesGet(d *Daemon, recursion bool, project string, public bool, clauses []filter.Clause) (any, error) {
 	results, err := d.cluster.GetImagesFingerprints(project, public)
 	if err != nil {
 		return []string{}, err
@@ -1842,7 +1842,7 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 			return
 		}
 
-		metadata := map[string]interface{}{"refreshed": result}
+		metadata := map[string]any{"refreshed": result}
 		op.UpdateMetadata(metadata)
 
 		// Sent a lifecycle event if the refresh actually happened.
@@ -2522,7 +2522,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 		return response.NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
 	}
 
-	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
+	etag := []any{info.Public, info.AutoUpdate, info.Properties}
 	return response.SyncResponseETag(true, info, etag)
 }
 
@@ -2570,7 +2570,7 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate ETag
-	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
+	etag := []any{info.Public, info.AutoUpdate, info.Properties}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -2656,7 +2656,7 @@ func imagePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate ETag
-	etag := []interface{}{info.Public, info.AutoUpdate, info.Properties}
+	etag := []any{info.Public, info.AutoUpdate, info.Properties}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)

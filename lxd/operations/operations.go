@@ -99,7 +99,7 @@ type Operation struct {
 	status      api.StatusCode
 	url         string
 	resources   map[string][]string
-	metadata    map[string]interface{}
+	metadata    map[string]any
 	err         string
 	readonly    bool
 	canceler    *cancel.Canceler
@@ -125,7 +125,7 @@ type Operation struct {
 
 // OperationCreate creates a new operation and returns it. If it cannot be
 // created, it returns an error.
-func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType db.OperationType, opResources map[string][]string, opMetadata interface{}, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
+func OperationCreate(s *state.State, projectName string, opClass OperationClass, opType db.OperationType, opResources map[string][]string, opMetadata any, onRun func(*Operation) error, onCancel func(*Operation) error, onConnect func(*Operation, *http.Request, http.ResponseWriter) error, r *http.Request) (*Operation, error) {
 	// Don't allow new operations when LXD is shutting down.
 	if s != nil && s.ShutdownCtx.Err() == context.Canceled {
 		return nil, fmt.Errorf("LXD is shutting down")
@@ -558,7 +558,7 @@ func (op *Operation) UpdateResources(opResources map[string][]string) error {
 
 // UpdateMetadata updates the metadata of the operation. It returns an error
 // if the operation is not pending or running, or the operation is read-only.
-func (op *Operation) UpdateMetadata(opMetadata interface{}) error {
+func (op *Operation) UpdateMetadata(opMetadata any) error {
 	if op.status != api.Pending && op.status != api.Running {
 		return fmt.Errorf("Only pending or running operations can be updated")
 	}
@@ -589,7 +589,7 @@ func (op *Operation) UpdateMetadata(opMetadata interface{}) error {
 
 // ExtendMetadata updates the metadata of the operation with the additional data provided.
 // It returns an error if the operation is not pending or running, or the operation is read-only.
-func (op *Operation) ExtendMetadata(metadata interface{}) error {
+func (op *Operation) ExtendMetadata(metadata any) error {
 	// Quick checks.
 	if op.status != api.Pending && op.status != api.Running {
 		return fmt.Errorf("Only pending or running operations can be updated")
@@ -641,7 +641,7 @@ func (op *Operation) ID() string {
 }
 
 // Metadata returns the operation Metadata.
-func (op *Operation) Metadata() map[string]interface{} {
+func (op *Operation) Metadata() map[string]any {
 	return op.metadata
 }
 

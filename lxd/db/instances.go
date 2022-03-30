@@ -164,7 +164,7 @@ SELECT instances.name FROM instances
 func (c *ClusterTx) GetNodeAddressOfInstance(project string, name string, filter InstanceFilter) (string, error) {
 	var stmt string
 
-	args := make([]interface{}, 0, 4) // Expect up to 4 filters.
+	args := make([]any, 0, 4) // Expect up to 4 filters.
 	var filters strings.Builder
 
 	// Project filter.
@@ -257,7 +257,7 @@ func (c *ClusterTx) GetProjectAndInstanceNamesByNodeAddress(projects []string, f
 		return nil, err
 	}
 
-	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
+	args := make([]any, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
 	// Project filter.
@@ -398,7 +398,7 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 // GetProjectInstanceToNodeMap returns a map associating the project (key element 0) and name (key element 1) of each
 // instance in the given projects to the name of the node hosting the instance.
 func (c *ClusterTx) GetProjectInstanceToNodeMap(projects []string, filter InstanceFilter) (map[[2]string]string, error) {
-	args := make([]interface{}, 0, 2) // Expect up to 2 filters.
+	args := make([]any, 0, 2) // Expect up to 2 filters.
 	var filters strings.Builder
 
 	// Project filter.
@@ -565,10 +565,10 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 	if len(changes) > 0 {
 		query := insertSQL
 		exprs := []string{}
-		params := []interface{}{}
+		params := []any{}
 		for key, value := range changes {
 			exprs = append(exprs, "(?, ?, ?)")
-			params = append(params, []interface{}{id, key, value}...)
+			params = append(params, []any{id, key, value}...)
 		}
 
 		query += strings.Join(exprs, ",")
@@ -581,7 +581,7 @@ func (c *ClusterTx) configUpdate(id int, values map[string]string, insertSQL, de
 	// Delete keys
 	if len(deletes) > 0 {
 		query := fmt.Sprintf(deleteSQL, query.Params(len(deletes)))
-		params := []interface{}{}
+		params := []any{}
 		for _, key := range deletes {
 			params = append(params, key)
 		}
@@ -688,8 +688,8 @@ SELECT storage_pools.name FROM storage_pools
    AND storage_volumes_all.type IN(?,?)
    AND storage_volumes_all.project_id = instances.project_id
    AND (storage_volumes_all.node_id=? OR storage_volumes_all.node_id IS NULL AND storage_pools.driver IN %s)`, query.Params(len(remoteDrivers)))
-	inargs := []interface{}{projectName, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM, c.nodeID}
-	outargs := []interface{}{&poolName}
+	inargs := []any{projectName, instanceName, StoragePoolVolumeTypeContainer, StoragePoolVolumeTypeVM, c.nodeID}
+	outargs := []any{&poolName}
 
 	for _, driver := range remoteDrivers {
 		inargs = append(inargs, driver)
@@ -822,10 +822,10 @@ FROM instances_snapshots
 JOIN instances ON instances.id = instances_snapshots.instance_id
 WHERE type=? ORDER BY instances.name, instances_snapshots.name
 `)
-	inargs := []interface{}{instancetype.Container}
+	inargs := []any{instancetype.Container}
 	var container string
 	var snapshot string
-	outfmt := []interface{}{container, snapshot}
+	outfmt := []any{container, snapshot}
 	result, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return nil, err
@@ -859,8 +859,8 @@ SELECT instances_snapshots.name
 WHERE projects.name=? AND instances.name=?
 ORDER BY date(instances_snapshots.creation_date)
 `
-	inargs := []interface{}{project, name}
-	outfmt := []interface{}{name}
+	inargs := []any{project, name}
+	outfmt := []any{name}
 	dbResults, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return result, err
@@ -883,8 +883,8 @@ SELECT instances_snapshots.name
   JOIN projects ON projects.id = instances.project_id
 WHERE projects.name=? AND instances.name=?`
 	var numstr string
-	inargs := []interface{}{project, name}
-	outfmt := []interface{}{numstr}
+	inargs := []any{project, name}
+	outfmt := []any{numstr}
 	results, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return 0

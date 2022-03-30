@@ -117,7 +117,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 	buf.N()
 	buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
 	buf.L("var stmt *sql.Stmt")
-	buf.L("var args []interface{}")
+	buf.L("var args []any")
 	buf.N()
 
 	for i, filter := range filters {
@@ -128,7 +128,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 		buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 
 		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects", filter...))
-		buf.L("args = []interface{}{")
+		buf.L("args = []any{")
 
 		for _, name := range filter {
 			if name == "Parent" {
@@ -149,7 +149,7 @@ func (m *Method) uris(buf *file.Buffer) error {
 
 	buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
 	buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
-	buf.L("args = []interface{}{}")
+	buf.L("args = []any{}")
 	buf.L("} else {")
 	buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
 	buf.L("}")
@@ -202,23 +202,23 @@ func (m *Method) getMany(buf *file.Buffer) error {
 		stmtVar := stmtCodeVar(m.entity, "objects")
 		stmtLocal := stmtVar + "Local"
 		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
-		buf.L("fillParent := make([]interface{}, strings.Count(%s, \"%%s\"))", stmtLocal)
+		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
 		buf.N()
 		buf.L("stmt, err := c.prepare(fmt.Sprintf(%s, fillParent...))", stmtLocal)
 		m.ifErrNotNil(buf, "nil", "err")
-		buf.L("args := []interface{}{}")
+		buf.L("args := []any{}")
 	} else if mapping.Type == AssociationTable {
 		buf.L("stmt := c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
-		buf.L("args := []interface{}{}")
+		buf.L("args := []any{}")
 	} else {
 		filters, ignoredFilters := FiltersFromStmt(m.packages["db"], "objects", m.entity, mapping.Filters)
 		buf.N()
 		buf.L("// Pick the prepared statement and arguments to use based on active criteria.")
 		buf.L("var stmt *sql.Stmt")
-		buf.L("var args []interface{}")
+		buf.L("var args []any")
 		buf.N()
 
 		for i, filter := range filters {
@@ -229,7 +229,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 			buf.L("%s %s {", branch, activeCriteria(filter, ignoredFilters[i]))
 
 			buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects", filter...))
-			buf.L("args = []interface{}{")
+			buf.L("args = []any{")
 
 			for _, name := range filter {
 				if name == "Parent" {
@@ -250,7 +250,7 @@ func (m *Method) getMany(buf *file.Buffer) error {
 
 		buf.L("%s %s {", branch, activeCriteria([]string{}, FieldNames(mapping.Filters)))
 		buf.L("stmt = c.stmt(%s)", stmtCodeVar(m.entity, "objects"))
-		buf.L("args = []interface{}{}")
+		buf.L("args = []any{}")
 		buf.L("} else {")
 		buf.L("return nil, fmt.Errorf(\"No statement exists for the given Filter\")")
 		buf.L("}")
@@ -517,7 +517,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		stmtVar := stmtCodeVar(m.entity, "create")
 		stmtLocal := stmtVar + "Local"
 		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
-		buf.L("fillParent := make([]interface{}, strings.Count(%s, \"%%s\"))", stmtLocal)
+		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")
@@ -566,7 +566,7 @@ func (m *Method) create(buf *file.Buffer, replace bool) error {
 		}
 
 		fields := mapping.ColumnFields("ID")
-		buf.L("args := make([]interface{}, %d)", len(fields))
+		buf.L("args := make([]any, %d)", len(fields))
 		buf.N()
 
 		buf.L("// Populate the statement arguments. ")
@@ -805,7 +805,7 @@ func (m *Method) delete(buf *file.Buffer, deleteOne bool) error {
 		stmtVar := stmtCodeVar(m.entity, "delete")
 		stmtLocal := stmtVar + "Local"
 		buf.L("%s := strings.Replace(%s, \"%%s_id\", fmt.Sprintf(\"%%s_id\", parent), -1)", stmtLocal, stmtVar)
-		buf.L("fillParent := make([]interface{}, strings.Count(%s, \"%%s\"))", stmtLocal)
+		buf.L("fillParent := make([]any, strings.Count(%s, \"%%s\"))", stmtLocal)
 		buf.L("for i := range fillParent {")
 		buf.L("fillParent[i] = strings.Replace(parent, \"_\", \"s_\", -1) + \"s\"")
 		buf.L("}")

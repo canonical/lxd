@@ -81,11 +81,11 @@ func (c *ClusterTx) GetWarnings(filter WarningFilter) ([]Warning, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.EntityTypeCode != nil && filter.EntityID != nil && filter.ID == nil && filter.UUID == nil && filter.Status == nil {
 		stmt = c.stmt(warningObjectsByNodeAndTypeCodeAndProjectAndEntityTypeCodeAndEntityID)
-		args = []interface{}{
+		args = []any{
 			filter.Node,
 			filter.TypeCode,
 			filter.Project,
@@ -94,43 +94,43 @@ func (c *ClusterTx) GetWarnings(filter WarningFilter) ([]Warning, error) {
 		}
 	} else if filter.Node != nil && filter.TypeCode != nil && filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
 		stmt = c.stmt(warningObjectsByNodeAndTypeCodeAndProject)
-		args = []interface{}{
+		args = []any{
 			filter.Node,
 			filter.TypeCode,
 			filter.Project,
 		}
 	} else if filter.Node != nil && filter.TypeCode != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
 		stmt = c.stmt(warningObjectsByNodeAndTypeCode)
-		args = []interface{}{
+		args = []any{
 			filter.Node,
 			filter.TypeCode,
 		}
 	} else if filter.UUID != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
 		stmt = c.stmt(warningObjectsByUUID)
-		args = []interface{}{
+		args = []any{
 			filter.UUID,
 		}
 	} else if filter.Status != nil && filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil {
 		stmt = c.stmt(warningObjectsByStatus)
-		args = []interface{}{
+		args = []any{
 			filter.Status,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.UUID == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
 		stmt = c.stmt(warningObjectsByProject)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 		}
 	} else if filter.ID == nil && filter.UUID == nil && filter.Project == nil && filter.Node == nil && filter.TypeCode == nil && filter.EntityTypeCode == nil && filter.EntityID == nil && filter.Status == nil {
 		stmt = c.stmt(warningObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Warning{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Node,
 			&objects[i].Project,

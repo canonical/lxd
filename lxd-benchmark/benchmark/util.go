@@ -10,7 +10,7 @@ func getContainerName(count int, index int) string {
 	return fmt.Sprintf(nameFormat, index+1)
 }
 
-func logf(format string, args ...interface{}) {
+func logf(format string, args ...any) {
 	fmt.Printf(fmt.Sprintf("[%s] %s\n", time.Now().Format(time.StampMilli), format), args...)
 }
 

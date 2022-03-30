@@ -146,7 +146,7 @@ func (r *ProtocolLXD) RequireAuthenticated(authenticated bool) {
 // RawQuery allows directly querying the LXD API
 //
 // This should only be used by internal LXD tools.
-func (r *ProtocolLXD) RawQuery(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
+func (r *ProtocolLXD) RawQuery(method string, path string, data any, ETag string) (*api.Response, string, error) {
 	// Generate the URL
 	url := fmt.Sprintf("%s%s", r.httpBaseURL.String(), path)
 
@@ -162,7 +162,7 @@ func (r *ProtocolLXD) RawWebsocket(path string) (*websocket.Conn, error) {
 
 // RawOperation allows direct querying of a LXD API endpoint returning
 // background operations.
-func (r *ProtocolLXD) RawOperation(method string, path string, data interface{}, ETag string) (Operation, string, error) {
+func (r *ProtocolLXD) RawOperation(method string, path string, data any, ETag string) (Operation, string, error) {
 	return r.queryOperation(method, path, data, ETag)
 }
 
@@ -193,7 +193,7 @@ func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 	return &response, etag, nil
 }
 
-func (r *ProtocolLXD) rawQuery(method string, url string, data interface{}, ETag string) (*api.Response, string, error) {
+func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string) (*api.Response, string, error) {
 	var req *http.Request
 	var err error
 
@@ -291,7 +291,7 @@ func (r *ProtocolLXD) setQueryAttributes(uri string) (string, error) {
 	return fields.String(), nil
 }
 
-func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag string) (*api.Response, string, error) {
+func (r *ProtocolLXD) query(method string, path string, data any, ETag string) (*api.Response, string, error) {
 	// Generate the URL
 	url := fmt.Sprintf("%s/1.0%s", r.httpBaseURL.String(), path)
 
@@ -305,7 +305,7 @@ func (r *ProtocolLXD) query(method string, path string, data interface{}, ETag s
 	return r.rawQuery(method, url, data, ETag)
 }
 
-func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, ETag string, target interface{}) (string, error) {
+func (r *ProtocolLXD) queryStruct(method string, path string, data any, ETag string, target any) (string, error) {
 	resp, etag, err := r.query(method, path, data, ETag)
 	if err != nil {
 		return "", err
@@ -323,7 +323,7 @@ func (r *ProtocolLXD) queryStruct(method string, path string, data interface{}, 
 	return etag, nil
 }
 
-func (r *ProtocolLXD) queryOperation(method string, path string, data interface{}, ETag string) (Operation, string, error) {
+func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag string) (Operation, string, error) {
 	// Attempt to setup an early event listener
 	listener, err := r.GetEvents()
 	if err != nil {

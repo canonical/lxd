@@ -1506,7 +1506,7 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 	return func(vol drivers.Volume, rootBlockPath string, allowUnsafeResize bool) (int64, error) {
 		var tracker *ioprogress.ProgressTracker
 		if op != nil { // Not passed when being done as part of pre-migration setup.
-			metadata := make(map[string]interface{})
+			metadata := make(map[string]any)
 			tracker = &ioprogress.ProgressTracker{
 				Handler: func(percent, speed int64) {
 					shared.SetProgressMetadata(metadata, "create_instance_from_image_unpack", "Unpack", percent, 0, speed)

@@ -20,7 +20,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a profile.
-func (a ProfileAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a ProfileAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("profile-%s", a)
 	u := fmt.Sprintf("/1.0/profiles/%s", url.PathEscape(name))
 	if projectName != project.Default {

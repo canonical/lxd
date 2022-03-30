@@ -52,7 +52,7 @@ type Operation struct {
 
 	// Operation specific metadata
 	// Example: {"command": ["bash"], "environment": {"HOME": "/root", "LANG": "C.UTF-8", "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "TERM": "xterm", "USER": "root"}, "fds": {"0": "da3046cf02c0116febf4ef3fe4eaecdf308e720c05e5a9c730ce1a6f15417f66", "1": "05896879d8692607bd6e4a09475667da3b5f6714418ab0ee0e5720b4c57f754b"}, "interactive": true}
-	Metadata map[string]interface{} `json:"metadata" yaml:"metadata"`
+	Metadata map[string]any `json:"metadata" yaml:"metadata"`
 
 	// Whether the operation can be canceled
 	// Example: false
@@ -71,9 +71,9 @@ type Operation struct {
 
 // ToCertificateAddToken creates a certificate add token from the operation metadata.
 func (op *Operation) ToCertificateAddToken() (*CertificateAddToken, error) {
-	req, ok := op.Metadata["request"].(map[string]interface{})
+	req, ok := op.Metadata["request"].(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("Operation request is type %T not map[string]interface{}", op.Metadata["request"])
+		return nil, fmt.Errorf("Operation request is type %T not map[string]any", op.Metadata["request"])
 	}
 
 	clientName, ok := req["name"].(string)
@@ -91,9 +91,9 @@ func (op *Operation) ToCertificateAddToken() (*CertificateAddToken, error) {
 		return nil, fmt.Errorf("Operation fingerprint is type %T not string", op.Metadata["fingerprint"])
 	}
 
-	addresses, ok := op.Metadata["addresses"].([]interface{})
+	addresses, ok := op.Metadata["addresses"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("Operation addresses is type %T not []interface{}", op.Metadata["addresses"])
+		return nil, fmt.Errorf("Operation addresses is type %T not []any", op.Metadata["addresses"])
 	}
 
 	joinToken := CertificateAddToken{
@@ -132,9 +132,9 @@ func (op *Operation) ToClusterJoinToken() (*ClusterMemberJoinToken, error) {
 		return nil, fmt.Errorf("Operation fingerprint is type %T not string", op.Metadata["fingerprint"])
 	}
 
-	addresses, ok := op.Metadata["addresses"].([]interface{})
+	addresses, ok := op.Metadata["addresses"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("Operation addresses is type %T not []interface{}", op.Metadata["addresses"])
+		return nil, fmt.Errorf("Operation addresses is type %T not []any", op.Metadata["addresses"])
 	}
 
 	joinToken := ClusterMemberJoinToken{

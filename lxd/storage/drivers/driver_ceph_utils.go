@@ -536,7 +536,7 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 		return []string{}, err
 	}
 
-	var data []map[string]interface{}
+	var data []map[string]any
 	err = json.Unmarshal([]byte(msg), &data)
 	if err != nil {
 		return []string{}, err

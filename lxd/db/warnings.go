@@ -218,7 +218,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 		return -1, fmt.Errorf("This warning already exists")
 	}
 
-	args := make([]interface{}, 12)
+	args := make([]any, 12)
 
 	// Populate the statement arguments.
 	if object.Node != "" {

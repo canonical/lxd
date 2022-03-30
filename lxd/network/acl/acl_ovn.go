@@ -742,7 +742,7 @@ func OVNApplyNetworkBaselineRules(client *openvswitch.OVN, switchName openvswitc
 // The combination of ignoring the specifified usage type and explicit keep ACLs allows the caller to ensure that
 // the desired ACLs are considered unused by the usage type even if the referring config has not yet been removed
 // from the database.
-func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclProjectName string, ignoreUsageType interface{}, ignoreUsageNicName string, keepACLs ...string) error {
+func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *openvswitch.OVN, aclProjectName string, ignoreUsageType any, ignoreUsageNicName string, keepACLs ...string) error {
 	// Get map of ACL names to DB IDs (used for generating OVN port group names).
 	aclNameIDs, err := s.Cluster.GetNetworkACLIDsByNames(aclProjectName)
 	if err != nil {
@@ -809,7 +809,7 @@ func OVNPortGroupDeleteIfUnused(s *state.State, logger logger.Logger, client *op
 	// Find alls ACLs that are either directly referred to by OVN entities (networks, instance/profile NICs)
 	// or indirectly by being referred to by a ruleset of another ACL that is itself in use by OVN entities.
 	// For the indirectly referred to ACLs, store a list of the ACLs that are referring to it.
-	err = UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType interface{}, nicName string, nicConfig map[string]string) error {
+	err = UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, nicName string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
 		case db.Instance:
 			ignoreInst, isIgnoreInst := ignoreUsageType.(instance.Instance)

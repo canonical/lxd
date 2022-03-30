@@ -14,8 +14,8 @@ func newCredentialsChecker() credentialsChecker {
 	return credentialsChecker{creds: map[string]string{}}
 }
 
-func (c *credentialsChecker) Check(form interface{}) bool {
-	m := form.(map[string]interface{})
+func (c *credentialsChecker) Check(form any) bool {
+	m := form.(map[string]any)
 	username := m["username"].(string)
 	password := m["password"].(string)
 	pass, ok := c.creds[username]

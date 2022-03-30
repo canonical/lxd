@@ -19,7 +19,7 @@ func newBuffer() *Buffer {
 }
 
 // L accumulates a single line of source code.
-func (b *Buffer) L(format string, a ...interface{}) {
+func (b *Buffer) L(format string, a ...any) {
 	fmt.Fprintf(b.buf, format, a...)
 	b.N()
 }

@@ -69,29 +69,29 @@ func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(projectObjectsByName)
-		args = []interface{}{
+		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Name == nil {
 		stmt = c.stmt(projectObjectsByID)
-		args = []interface{}{
+		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(projectObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Project{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Description,
 			&objects[i].Name,
@@ -124,29 +124,29 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(projectObjectsByName)
-		args = []interface{}{
+		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Name == nil {
 		stmt = c.stmt(projectObjectsByID)
-		args = []interface{}{
+		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(projectObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Project{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Description,
 			&objects[i].Name,
@@ -233,7 +233,7 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 		return -1, fmt.Errorf("This \"projects\" entry already exists")
 	}
 
-	args := make([]interface{}, 2)
+	args := make([]any, 2)
 
 	// Populate the statement arguments.
 	args[0] = object.Description

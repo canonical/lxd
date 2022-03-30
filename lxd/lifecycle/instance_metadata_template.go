@@ -19,7 +19,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on instance metadata templates.
-func (a InstanceMetadataTemplateAction) Event(inst instance, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a InstanceMetadataTemplateAction) Event(inst instance, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("instance-metadata-template-%s", a)
 	u := fmt.Sprintf("/1.0/instances/%s/metadata/templates", url.PathEscape(inst.Name()))
 

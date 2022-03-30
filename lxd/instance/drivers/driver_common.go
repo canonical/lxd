@@ -593,7 +593,7 @@ func (d *common) updateProgress(progress string) {
 
 	meta := d.op.Metadata()
 	if meta == nil {
-		meta = make(map[string]interface{})
+		meta = make(map[string]any)
 	}
 
 	if meta["container_progress"] != progress {

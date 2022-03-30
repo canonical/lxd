@@ -143,7 +143,7 @@ var projectStateCmd = APIEndpoint{
 func projectsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
-	var result interface{}
+	var result any
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.ProjectFilter{}
 		if recursion {
@@ -353,7 +353,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	etag := []interface{}{
+	etag := []any{
 		project.Description,
 		project.Config,
 	}
@@ -405,7 +405,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate ETag
-	etag := []interface{}{
+	etag := []any{
 		project.Description,
 		project.Config,
 	}
@@ -472,7 +472,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate ETag
-	etag := []interface{}{
+	etag := []any{
 		project.Description,
 		project.Config,
 	}

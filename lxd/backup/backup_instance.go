@@ -99,7 +99,7 @@ func (b *InstanceBackup) Rename(newName string) error {
 
 	oldName := b.name
 	b.name = newName
-	b.state.Events.SendLifecycle(b.instance.Project(), lifecycle.InstanceBackupRenamed.Event(b.name, b.instance, map[string]interface{}{"old_name": oldName}))
+	b.state.Events.SendLifecycle(b.instance.Project(), lifecycle.InstanceBackupRenamed.Event(b.name, b.instance, map[string]any{"old_name": oldName}))
 	return nil
 }
 

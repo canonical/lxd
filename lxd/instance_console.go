@@ -60,7 +60,7 @@ type consoleWs struct {
 	protocol string
 }
 
-func (s *consoleWs) Metadata() interface{} {
+func (s *consoleWs) Metadata() any {
 	fds := shared.Jmap{}
 	for fd, secret := range s.fds {
 		if fd == -1 {

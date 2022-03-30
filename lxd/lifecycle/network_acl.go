@@ -26,7 +26,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a network acl.
-func (a NetworkACLAction) Event(n networkACL, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a NetworkACLAction) Event(n networkACL, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("network-acl-%s", a)
 
 	u := fmt.Sprintf("/1.0/network-acls/%s", url.PathEscape(n.Info().Name))

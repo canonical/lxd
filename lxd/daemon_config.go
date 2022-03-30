@@ -8,8 +8,8 @@ import (
 	"github.com/lxc/lxd/shared"
 )
 
-func daemonConfigRender(state *state.State) (map[string]interface{}, error) {
-	config := map[string]interface{}{}
+func daemonConfigRender(state *state.State) (map[string]any, error) {
+	config := map[string]any{}
 
 	// Turn the config into a JSON-compatible map
 	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {

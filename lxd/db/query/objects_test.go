@@ -17,7 +17,7 @@ func TestSelectObjects_Error(t *testing.T) {
 		error string
 	}{
 		{
-			func(int) []interface{} { return make([]interface{}, 1) },
+			func(int) []any { return make([]any, 1) },
 			"SELECT id, name FROM test",
 			"sql: expected 2 destination arguments in Scan, not 1",
 		},
@@ -44,9 +44,9 @@ func TestSelectObjects(t *testing.T) {
 	}, 1)
 	object := objects[0]
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		require.Equal(t, 0, i, "expected at most one row to be yielded")
-		return []interface{}{&object.ID, &object.Name}
+		return []any{&object.ID, &object.Name}
 	}
 
 	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
@@ -63,17 +63,17 @@ func TestSelectObjects(t *testing.T) {
 func TestUpsertObject_Error(t *testing.T) {
 	cases := []struct {
 		columns []string
-		values  []interface{}
+		values  []any
 		error   string
 	}{
 		{
 			[]string{},
-			[]interface{}{},
+			[]any{},
 			"columns length is zero",
 		},
 		{
 			[]string{"id"},
-			[]interface{}{2, "egg"},
+			[]any{2, "egg"},
 			"columns length does not match values length",
 		},
 	}
@@ -91,7 +91,7 @@ func TestUpsertObject_Error(t *testing.T) {
 func TestUpsertObject_Insert(t *testing.T) {
 	tx := newTxForObjects(t)
 
-	id, err := query.UpsertObject(tx, "test", []string{"name"}, []interface{}{"egg"})
+	id, err := query.UpsertObject(tx, "test", []string{"name"}, []any{"egg"})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), id)
 
@@ -101,9 +101,9 @@ func TestUpsertObject_Insert(t *testing.T) {
 	}, 1)
 	object := objects[0]
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		require.Equal(t, 0, i, "expected at most one row to be yielded")
-		return []interface{}{&object.ID, &object.Name}
+		return []any{&object.ID, &object.Name}
 	}
 
 	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")
@@ -120,7 +120,7 @@ func TestUpsertObject_Insert(t *testing.T) {
 func TestUpsertObject_Update(t *testing.T) {
 	tx := newTxForObjects(t)
 
-	id, err := query.UpsertObject(tx, "test", []string{"id", "name"}, []interface{}{1, "egg"})
+	id, err := query.UpsertObject(tx, "test", []string{"id", "name"}, []any{1, "egg"})
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 
@@ -130,9 +130,9 @@ func TestUpsertObject_Update(t *testing.T) {
 	}, 1)
 	object := objects[0]
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		require.Equal(t, 0, i, "expected at most one row to be yielded")
-		return []interface{}{&object.ID, &object.Name}
+		return []any{&object.ID, &object.Name}
 	}
 
 	stmt, err := tx.Prepare("SELECT id, name FROM test WHERE name=?")

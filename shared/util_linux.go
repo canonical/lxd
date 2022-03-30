@@ -259,7 +259,7 @@ func Uname() (*Utsname, error) {
 	}, nil
 }
 
-func intArrayToString(arr interface{}) string {
+func intArrayToString(arr any) string {
 	slice := reflect.ValueOf(arr)
 	s := ""
 	for i := 0; i < slice.Len(); i++ {

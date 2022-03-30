@@ -38,9 +38,9 @@ func selectUnclusteredNodesCount(tx *sql.Tx) (int, error) {
 func selectNodesVersions(tx *sql.Tx) ([][2]int, error) {
 	versions := [][2]int{}
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		versions = append(versions, [2]int{})
-		return []interface{}{&versions[i][0], &versions[i][1]}
+		return []any{&versions[i][0], &versions[i][1]}
 	}
 
 	stmt, err := tx.Prepare("SELECT schema, api_extensions FROM nodes WHERE state=0")

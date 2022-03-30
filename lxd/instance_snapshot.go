@@ -426,7 +426,7 @@ func snapshotPatch(d *Daemon, r *http.Request, snapInst instance.Instance, name 
 //     $ref: "#/responses/InternalServerError"
 func snapshotPut(d *Daemon, r *http.Request, snapInst instance.Instance, name string) response.Response {
 	// Validate the ETag
-	etag := []interface{}{snapInst.ExpiryDate()}
+	etag := []any{snapInst.ExpiryDate()}
 	err := util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -547,7 +547,7 @@ func snapshotGet(s *state.State, snapInst instance.Instance, name string) respon
 		return response.SmartError(err)
 	}
 
-	etag := []interface{}{snapInst.ExpiryDate()}
+	etag := []any{snapInst.ExpiryDate()}
 	return response.SyncResponseETag(true, render.(*api.InstanceSnapshot), etag)
 }
 

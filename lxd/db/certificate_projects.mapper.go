@@ -39,12 +39,12 @@ func (c *ClusterTx) GetCertificateProjects() (map[int][]int, error) {
 	objects := make([]CertificateProject, 0)
 
 	stmt := c.stmt(certificateProjectObjects)
-	args := []interface{}{}
+	args := []any{}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, CertificateProject{})
-		return []interface{}{
+		return []any{
 			&objects[i].CertificateID,
 			&objects[i].ProjectID,
 		}
@@ -84,7 +84,7 @@ func (c *ClusterTx) DeleteCertificateProjects(object Certificate) error {
 // CreateCertificateProject adds a new certificate_project to the database.
 // generator: certificate_project Create
 func (c *ClusterTx) CreateCertificateProject(object CertificateProject) (int64, error) {
-	args := make([]interface{}, 2)
+	args := make([]any, 2)
 
 	// Populate the statement arguments.
 	args[0] = object.CertificateID
