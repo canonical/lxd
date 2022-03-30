@@ -50,11 +50,6 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   {{ .path }}/** rwk,
   {{ .devicesPath }}/** rwk,
 
-  # Instance specific external device paths
-{{- range $index, $element := .externalDevPaths}}
-  {{$element}} rwk,
-{{- end }}
-
   # Needed for lxd fork commands
   {{ .exePath }} mr,
   @{PROC}/@{pid}/cmdline r,
