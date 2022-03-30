@@ -285,7 +285,7 @@ func (d *lvm) Create() error {
 
 	// Create thin pool if needed.
 	if d.usesThinpool() && !thinPoolExists {
-		err = d.createDefaultThinPool(d.Info().Version, d.config["lvm.vg_name"], d.thinpoolName())
+		err = d.createDefaultThinPool(d.Info().Version, d.config["lvm.vg_name"], d.thinpoolName(), d.config["lvm.thinpool_metadata_size"])
 		if err != nil {
 			return err
 		}
@@ -425,6 +425,7 @@ func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
 		"lvm.vg_name":                validate.IsAny,
 		"lvm.thinpool_name":          validate.IsAny,
+		"lvm.thinpool_metadata_size": validate.Optional(validate.IsSize),
 		"lvm.use_thinpool":           validate.Optional(validate.IsBool),
 		"volume.block.mount_options": validate.IsAny,
 		"volume.block.filesystem":    validate.Optional(validate.IsOneOf(lvmAllowedFilesystems...)),
@@ -438,8 +439,14 @@ func (d *lvm) Validate(config map[string]string) error {
 		return err
 	}
 
-	if shared.IsFalse(config["lvm.use_thinpool"]) && config["lvm.thinpool_name"] != "" {
-		return fmt.Errorf("The key lvm.use_thinpool cannot be set to false when lvm.thinpool_name is set")
+	if shared.IsFalse(config["lvm.use_thinpool"]) {
+		if config["lvm.thinpool_name"] != "" {
+			return fmt.Errorf("The key lvm.use_thinpool cannot be set to false when lvm.thinpool_name is set")
+		}
+
+		if config["lvm.thinpool_metadata_size"] != "" {
+			return fmt.Errorf("The key lvm.use_thinpool cannot be set to false when lvm.thinpool_metadata_size is set")
+		}
 	}
 
 	return nil
@@ -449,6 +456,10 @@ func (d *lvm) Validate(config map[string]string) error {
 func (d *lvm) Update(changedConfig map[string]string) error {
 	if _, changed := changedConfig["lvm.use_thinpool"]; changed {
 		return fmt.Errorf("lvm.use_thinpool cannot be changed")
+	}
+
+	if _, changed := changedConfig["lvm.thinpool_metadata_size"]; changed {
+		return fmt.Errorf("lvm.thinpool_metadata_size cannot be changed")
 	}
 
 	if _, changed := changedConfig["volume.lvm.stripes"]; changed && d.usesThinpool() {

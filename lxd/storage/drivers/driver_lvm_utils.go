@@ -199,9 +199,10 @@ func (d *lvm) logicalVolumeExists(volDevPath string) (bool, error) {
 	return true, nil
 }
 
-// createDefaultThinPool creates the default thinpool as 100% the size of the volume group with a 1G
-// meta data volume.
-func (d *lvm) createDefaultThinPool(lvmVersion, vgName, thinPoolName string) error {
+// createDefaultThinPool creates the default thinpool as 100% the free size of the volume group.
+// Accepts thinpoolMetadataSize argument, which if >0 will manually set metadata size for the thinpool, otherwise
+// LVM will pick an appropriate size.
+func (d *lvm) createDefaultThinPool(lvmVersion, vgName, thinPoolName string, thinpoolMetadataSize string) error {
 	isRecent, err := d.lvmVersionIsAtLeast(lvmVersion, "2.02.99")
 	if err != nil {
 		return fmt.Errorf("Error checking LVM version: %w", err)
@@ -212,8 +213,16 @@ func (d *lvm) createDefaultThinPool(lvmVersion, vgName, thinPoolName string) err
 	args := []string{
 		"--yes",
 		"--wipesignatures", "y",
-		"--poolmetadatasize", "1G",
 		"--thinpool", lvmThinPool,
+	}
+
+	thinpoolMetadataSizeBytes, err := d.roundedSizeBytesString(thinpoolMetadataSize)
+	if err != nil {
+		return fmt.Errorf("Invalid thinpool metadata size %q: %w", thinpoolMetadataSize, err)
+	}
+
+	if thinpoolMetadataSizeBytes > 0 {
+		args = append(args, "--poolmetadatasize", fmt.Sprintf("%db", thinpoolMetadataSizeBytes))
 	}
 
 	if isRecent {
@@ -280,6 +289,10 @@ func (d *lvm) roundedSizeBytesString(size string) (int64, error) {
 	sizeBytes, err := units.ParseByteSizeString(size)
 	if err != nil {
 		return 0, err
+	}
+
+	if sizeBytes <= 0 {
+		return 0, nil
 	}
 
 	// LVM tools require sizes in multiples of 512 bytes.

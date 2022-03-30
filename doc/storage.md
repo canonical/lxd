@@ -425,6 +425,7 @@ losetup -l
 Key                           | Type                          | Default                                 | Description
 :--                           | :---                          | :------                                 | :----------
 lvm.thinpool\_name            | string                        | LXDThinPool                             | Thin pool where volumes are created
+lvm.thinpool\_metadata\_size  | string                        | 0 (auto)                                | The size of the thinpool metadata volume. The default is to let LVM calculate an appropriate size
 lvm.use\_thinpool             | bool                          | true                                    | Whether the storage pool uses a thinpool for logical volumes
 lvm.vg.force\_reuse           | bool                          | false                                   | Force using an existing non-empty volume group
 lvm.vg\_name                  | string                        | name of the pool                        | Name of the volume group to create
