@@ -25,11 +25,6 @@ func (s *OS) GlobalDatabasePath() string {
 	return filepath.Join(s.GlobalDatabaseDir(), "db.bin")
 }
 
-// LegacyGlobalDatabasePath returns the path of legacy global database file.
-func (s *OS) LegacyGlobalDatabasePath() string {
-	return filepath.Join(s.VarDir, "raft", "db.bin")
-}
-
 // initDirs Make sure all our directories are available.
 func (s *OS) initDirs() error {
 	dirs := []struct {
