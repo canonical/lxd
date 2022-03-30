@@ -433,3 +433,34 @@ func ValidateZfsVolBlocksize(vol Volume) func(value string) error {
 		return ValidateZfsBlocksize(value)
 	}
 }
+
+// ZFSDataset is the structure used to store information about a dataset.
+type ZFSDataset struct {
+	Name string `json:"name" yaml:"name"`
+	GUID string `json:"guid" yaml:"guid"`
+}
+
+// ZFSMetaDataHeader is the meta data header about the datasets being sent/stored.
+type ZFSMetaDataHeader struct {
+	SnapshotDatasets []ZFSDataset `json:"snapshot_datasets" yaml:"snapshot_datasets"`
+}
+
+func (d *zfs) datasetHeader(vol Volume, snapshots []string) (*ZFSMetaDataHeader, error) {
+	migrationHeader := ZFSMetaDataHeader{
+		SnapshotDatasets: make([]ZFSDataset, len(snapshots)),
+	}
+
+	for i, snapName := range snapshots {
+		snapVol, _ := vol.NewSnapshot(snapName)
+
+		guid, err := d.getDatasetProperty(d.dataset(snapVol, false), "guid")
+		if err != nil {
+			return nil, err
+		}
+
+		migrationHeader.SnapshotDatasets[i].Name = snapName
+		migrationHeader.SnapshotDatasets[i].GUID = guid
+	}
+
+	return &migrationHeader, nil
+}
