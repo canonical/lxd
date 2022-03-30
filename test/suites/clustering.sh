@@ -920,9 +920,9 @@ test_clustering_storage_single_node() {
   # Create the storage pool directly, without the two-stage process.
   if [ -n "${driver_config_node}" ]; then
     # shellcheck disable=SC2086
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}" ${driver_config_node}
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}" ${driver_config_node}
   else
-    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${driver}"
+    LXD_DIR="${LXD_ONE_DIR}" lxc storage create pool1 "${poolDriver}"
   fi
 
   # Delete the storage pool
