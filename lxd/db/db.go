@@ -37,13 +37,9 @@ type Node struct {
 // The fresh hook parameter is used by the daemon to mark all known patch names
 // as applied when a brand new database is created.
 //
-// The legacyPatches parameter is used as a mean to apply the legacy V10, V11,
-// V15, V29 and V30 non-db updates during the database upgrade sequence, to
-// avoid any change in semantics wrt the old logic (see PR #3322).
-//
 // Return the newly created Node object, and a Dump of the pre-clustering data
 // if we've migrating to a cluster-aware version.
-func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*LegacyPatch) (*Node, *Dump, error) {
+func OpenNode(dir string, fresh func(*Node) error) (*Node, *Dump, error) {
 	// When updating the node database schema we'll detect if we're
 	// transitioning to the dqlite-based database and dump all the data
 	// before purging the schema. This data will be then imported by the
@@ -58,7 +54,6 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	legacyHook := legacyPatchHook(legacyPatches)
 	hook := func(version int, tx *sql.Tx) error {
 		if version == node.UpdateFromPreClustering {
 			logger.Debug("Loading pre-clustering sqlite data")
@@ -68,7 +63,8 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 				return err
 			}
 		}
-		return legacyHook(version, tx)
+
+		return nil
 	}
 	initial, err := node.EnsureSchema(db, dir, hook)
 	if err != nil {

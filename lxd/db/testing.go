@@ -26,7 +26,7 @@ func NewTestNode(t *testing.T) (*Node, func()) {
 	dir, err := ioutil.TempDir("", "lxd-db-test-node-")
 	require.NoError(t, err)
 
-	db, _, err := OpenNode(dir, nil, nil)
+	db, _, err := OpenNode(dir, nil)
 	require.NoError(t, err)
 
 	cleanup := func() {

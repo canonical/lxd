@@ -1929,7 +1929,7 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	}
 	var err error
 	var dump *db.Dump
-	d.db, dump, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook, nil)
+	d.db, dump, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating database: %s", err)
 	}
