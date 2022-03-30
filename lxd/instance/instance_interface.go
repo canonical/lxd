@@ -89,9 +89,6 @@ type Instance interface {
 	Delete(force bool) error
 	Export(w io.Writer, properties map[string]string, expiration time.Time) (api.ImageMetadata, error)
 
-	// Used for security.
-	DevPaths() []string
-
 	// Live configuration.
 	CGroup() (*cgroup.CGroup, error)
 	VolatileSet(changes map[string]string) error
