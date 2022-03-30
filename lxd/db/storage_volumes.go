@@ -1011,26 +1011,6 @@ func (c *Cluster) RemoveStorageVolumeImages(fingerprints []string) error {
 	return err
 }
 
-// UpgradeStorageVolumConfigToLVMThinPoolNameKey upgrades the config keys of LVM
-// volumes.
-func (c *Cluster) UpgradeStorageVolumConfigToLVMThinPoolNameKey() error {
-	err := exec(c, "UPDATE storage_pools_config SET key='lvm.thinpool_name' WHERE key='volume.lvm.thinpool_name';")
-	if err != nil {
-		return err
-	}
-
-	err = exec(c, "DELETE FROM storage_volumes_config WHERE key='lvm.thinpool_name';")
-	if err != nil {
-		return err
-	}
-	err = exec(c, "DELETE FROM storage_volumes_snapshots_config WHERE key='lvm.thinpool_name';")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // Convert a volume integer type code to its human-readable name.
 func storagePoolVolumeTypeToName(volumeType int) (string, error) {
 	switch volumeType {

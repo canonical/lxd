@@ -939,13 +939,6 @@ func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 	return pool, nil
 }
 
-// FillMissingStoragePoolDriver fills the driver of all storage pools without a
-// driver, setting it to 'zfs'.
-func (c *Cluster) FillMissingStoragePoolDriver() error {
-	err := exec(c, "UPDATE storage_pools SET driver='zfs', description='' WHERE driver=''")
-	return err
-}
-
 // StoragePoolNodeConfigKeys lists all storage pool config keys which are node-specific.
 var StoragePoolNodeConfigKeys = []string{
 	"size",
