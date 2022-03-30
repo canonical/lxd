@@ -531,7 +531,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	s := d.State()
 
 	// First deal with config specific to the local daemon
-	nodeValues := map[string]interface{}{}
+	nodeValues := map[string]any{}
 
 	for key := range node.ConfigSchema {
 		value, ok := req.Config[key]
@@ -661,7 +661,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 			return err
 		}
 		serverPut := server.Writable()
-		serverPut.Config = make(map[string]interface{})
+		serverPut.Config = make(map[string]any)
 		// Only propagated cluster-wide changes
 		for key, value := range clusterChanged {
 			serverPut.Config[key] = value

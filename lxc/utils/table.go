@@ -21,7 +21,7 @@ const (
 )
 
 // RenderTable renders tabular data in various formats.
-func RenderTable(format string, header []string, data [][]string, raw interface{}) error {
+func RenderTable(format string, header []string, data [][]string, raw any) error {
 	switch format {
 	case TableFormatTable:
 		table := getBaseTable(header, data)

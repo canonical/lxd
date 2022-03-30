@@ -145,7 +145,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	var result interface{}
+	var result any
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.ProfileFilter{
 			Project: &projectName,
@@ -338,7 +338,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	etag := []interface{}{resp.Config, resp.Description, resp.Devices}
+	etag := []any{resp.Config, resp.Description, resp.Devices}
 	return response.SyncResponseETag(true, resp, etag)
 }
 
@@ -416,7 +416,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the ETag.
-	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
+	etag := []any{profile.Config, profile.Description, profile.Devices}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)
@@ -511,7 +511,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the ETag.
-	etag := []interface{}{profile.Config, profile.Description, profile.Devices}
+	etag := []any{profile.Config, profile.Description, profile.Devices}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)

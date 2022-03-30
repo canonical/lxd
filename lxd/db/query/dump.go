@@ -95,8 +95,8 @@ func dumpTable(ctx context.Context, tx *sql.Tx, table, schema string) (string, e
 
 	// Generate an INSERT statement for each row.
 	for i := 0; rows.Next(); i++ {
-		raw := make([]interface{}, len(columns)) // Raw column values
-		row := make([]interface{}, len(columns))
+		raw := make([]any, len(columns)) // Raw column values
+		row := make([]any, len(columns))
 		for i := range raw {
 			row[i] = &raw[i]
 		}

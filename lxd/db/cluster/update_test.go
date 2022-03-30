@@ -758,7 +758,7 @@ func TestUpdateFromV34(t *testing.T) {
 
 	row := tx.QueryRow("SELECT id, node_id FROM storage_volumes")
 	var id int
-	var nodeID interface{}
+	var nodeID any
 	require.NoError(t, row.Scan(&id, &nodeID))
 	assert.Equal(t, id, 2)
 	assert.Equal(t, nodeID, nil)

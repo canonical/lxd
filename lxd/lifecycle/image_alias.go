@@ -20,7 +20,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an image alias.
-func (a ImageAliasAction) Event(image string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a ImageAliasAction) Event(image string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("image-alias-%s", a)
 	u := fmt.Sprintf("/1.0/images/aliases/%s", url.PathEscape(image))
 	if projectName != project.Default {

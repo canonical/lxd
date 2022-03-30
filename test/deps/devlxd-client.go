@@ -57,7 +57,7 @@ func devlxdMonitor(c http.Client) {
 			return
 		}
 
-		message := make(map[string]interface{})
+		message := make(map[string]any)
 		err = json.Unmarshal(data, &message)
 		if err != nil {
 			return

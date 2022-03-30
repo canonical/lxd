@@ -1061,7 +1061,7 @@ func JSONMarshal(idmapSet *IdmapSet) (string, error) {
 func GetIdmapSet() *IdmapSet {
 	idmapSet, err := DefaultIdmapSet("", "")
 	if err != nil {
-		logger.Warn("Error reading default uid/gid map", map[string]interface{}{"err": err.Error()})
+		logger.Warn("Error reading default uid/gid map", map[string]any{"err": err.Error()})
 		logger.Warnf("Only privileged containers will be able to run")
 		idmapSet = nil
 	} else {

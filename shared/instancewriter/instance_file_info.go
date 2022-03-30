@@ -40,7 +40,7 @@ func (f *FileInfo) IsDir() bool {
 }
 
 // Sys returns further unix attributes for a file owned by root.
-func (f *FileInfo) Sys() interface{} {
+func (f *FileInfo) Sys() any {
 	return &tar.Header{
 		Uid:        0,
 		Gid:        0,

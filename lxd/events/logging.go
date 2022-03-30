@@ -33,7 +33,7 @@ func (h Handler) Log(r *log.Record) error {
 	return nil
 }
 
-func logContextMap(ctx []interface{}) map[string]string {
+func logContextMap(ctx []any) map[string]string {
 	var key string
 	ctxMap := map[string]string{}
 

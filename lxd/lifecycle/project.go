@@ -19,7 +19,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a project.
-func (a ProjectAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a ProjectAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("project-%s", a)
 	u := fmt.Sprintf("/1.0/projects/%s", url.PathEscape(name))
 

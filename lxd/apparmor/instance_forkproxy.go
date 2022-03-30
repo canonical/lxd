@@ -151,7 +151,7 @@ func forkproxyProfile(sysOS *sys.OS, inst instance, dev device) (string, error) 
 
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err = forkproxyProfileTpl.Execute(sb, map[string]interface{}{
+	err = forkproxyProfileTpl.Execute(sb, map[string]any{
 		"name":        ForkproxyProfileName(inst, dev),
 		"varPath":     shared.VarPath(""),
 		"rootPath":    rootPath,

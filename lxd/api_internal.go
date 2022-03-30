@@ -389,10 +389,10 @@ type internalSQLBatch struct {
 }
 
 type internalSQLResult struct {
-	Type         string          `json:"type" yaml:"type"`
-	Columns      []string        `json:"columns" yaml:"columns"`
-	Rows         [][]interface{} `json:"rows" yaml:"rows"`
-	RowsAffected int64           `json:"rows_affected" yaml:"rows_affected"`
+	Type         string   `json:"type" yaml:"type"`
+	Columns      []string `json:"columns" yaml:"columns"`
+	Rows         [][]any  `json:"rows" yaml:"rows"`
+	RowsAffected int64    `json:"rows_affected" yaml:"rows_affected"`
 }
 
 // Perform a database dump.
@@ -513,8 +513,8 @@ func internalSQLSelect(tx *sql.Tx, query string, result *internalSQLResult) erro
 	}
 
 	for rows.Next() {
-		row := make([]interface{}, len(result.Columns))
-		rowPointers := make([]interface{}, len(result.Columns))
+		row := make([]any, len(result.Columns))
+		rowPointers := make([]any, len(result.Columns))
 		for i := range row {
 			rowPointers[i] = &row[i]
 		}

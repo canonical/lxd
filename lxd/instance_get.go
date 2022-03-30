@@ -123,8 +123,8 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var state interface{}
-	var etag interface{}
+	var state any
+	var etag any
 	if recursion == 0 {
 		state, etag, err = c.Render()
 	} else {

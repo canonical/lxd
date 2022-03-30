@@ -72,7 +72,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 	// be used internally by instanceRefreshTypes to terminate gracefully,
 	// otherwise we'll wrap instanceRefreshTypes in a goroutine and force
 	// returning in case the context expires.
-	_, hasCancellationSupport := interface{}(&http.Request{}).(util.ContextAwareRequest)
+	_, hasCancellationSupport := any(&http.Request{}).(util.ContextAwareRequest)
 	f := func(ctx context.Context) {
 		opRun := func(op *operations.Operation) error {
 			if hasCancellationSupport {
@@ -110,7 +110,7 @@ func instanceRefreshTypesTask(d *Daemon) (task.Func, task.Schedule) {
 
 func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 	// Attempt to download the new definitions
-	downloadParse := func(filename string, target interface{}) error {
+	downloadParse := func(filename string, target any) error {
 		url := fmt.Sprintf("https://images.linuxcontainers.org/meta/instance-types/%s", filename)
 
 		httpClient, err := util.HTTPClient("", d.proxy)
@@ -125,7 +125,7 @@ func instanceRefreshTypes(ctx context.Context, d *Daemon) error {
 
 		httpReq.Header.Set("User-Agent", version.UserAgent)
 
-		cancelableRequest, ok := interface{}(httpReq).(util.ContextAwareRequest)
+		cancelableRequest, ok := any(httpReq).(util.ContextAwareRequest)
 		if ok {
 			httpReq = cancelableRequest.WithContext(ctx)
 		}

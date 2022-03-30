@@ -41,7 +41,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an instance.
-func (a InstanceAction) Event(inst instance, ctx map[string]interface{}) api.EventLifecycle {
+func (a InstanceAction) Event(inst instance, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("instance-%s", a)
 	url := api.NewURL().Path(version.APIVersion, "instances", inst.Name()).Project(inst.Project())
 

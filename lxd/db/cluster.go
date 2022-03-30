@@ -76,24 +76,24 @@ func (c *ClusterTx) GetClusterGroups(filter ClusterGroupFilter) ([]ClusterGroup,
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(clusterGroupObjectsByName)
-		args = []interface{}{
+		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(clusterGroupObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, ClusterGroup{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Name,
 			&objects[i].Description,
@@ -194,7 +194,7 @@ func (c *ClusterTx) CreateClusterGroup(object ClusterGroup) (int64, error) {
 		return -1, fmt.Errorf("This cluster group already exists")
 	}
 
-	args := make([]interface{}, 2)
+	args := make([]any, 2)
 
 	// Populate the statement arguments.
 	args[0] = object.Name
@@ -331,18 +331,18 @@ WHERE cluster_groups.name = ?`
 // GetClusterGroupURIs returns all available ClusterGroup URIs.
 // generator: ClusterGroup URIs
 func (c *ClusterTx) GetClusterGroupURIs(filter ClusterGroupFilter) ([]string, error) {
-	var args []interface{}
+	var args []any
 	var sql string
 	if filter.Name != nil && filter.ID == nil {
 		sql = `SELECT cluster_groups.name FROM cluster_groups
 WHERE cluster_groups.name = ? ORDER BY cluster_groups.name
 `
-		args = []interface{}{
+		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
 		sql = `SELECT cluster_groups.name FROM cluster_groups ORDER BY cluster_groups.name`
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}

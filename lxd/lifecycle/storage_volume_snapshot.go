@@ -22,7 +22,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a storage volume snapshot.
-func (a StorageVolumeSnapshotAction) Event(v volume, volumeType string, projectName string, op *operations.Operation, ctx map[string]interface{}) api.EventLifecycle {
+func (a StorageVolumeSnapshotAction) Event(v volume, volumeType string, projectName string, op *operations.Operation, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("storage-volume-snapshot-%s", a)
 	parentName, snapshotName, _ := shared.InstanceGetParentAndSnapshotName(v.Name())
 	u := fmt.Sprintf("/1.0/storage-pools/%s/volumes/%s/%s/snapshots", url.PathEscape(v.Pool()), url.PathEscape(volumeType), url.PathEscape(parentName))

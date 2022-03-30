@@ -71,8 +71,8 @@ type NetworkPeer struct {
 }
 
 // Etag returns the values used for etag generation.
-func (p *NetworkPeer) Etag() []interface{} {
-	return []interface{}{p.Name, p.Description, p.Config}
+func (p *NetworkPeer) Etag() []any {
+	return []any{p.Name, p.Description, p.Config}
 }
 
 // Writable converts a full NetworkPeer struct into a NetworkPeerPut struct (filters read-only fields).

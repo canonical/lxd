@@ -1034,7 +1034,7 @@ func patchStorageApi(name string, d *Daemon) error {
 		if err != nil {
 			return err
 		}
-		_, err = config.Patch(map[string]interface{}{
+		_, err = config.Patch(map[string]any{
 			"storage.lvm_fstype":           "",
 			"storage.lvm_mount_options":    "",
 			"storage.lvm_thinpool_name":    "",

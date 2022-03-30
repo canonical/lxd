@@ -362,7 +362,7 @@ func (d *qemu) getAgentClient() (*http.Client, error) {
 	return agent, nil
 }
 
-func (d *qemu) getMonitorEventHandler() func(event string, data map[string]interface{}) {
+func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) {
 	// Create local variables from instance properties we need so as not to keep references to instance around
 	// after we have returned the callback function.
 	projectName := d.Project()
@@ -370,7 +370,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]inter
 	state := d.state
 	logger := d.logger
 
-	return func(event string, data map[string]interface{}) {
+	return func(event string, data map[string]any) {
 		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET"}) {
 			return // Don't bother loading the instance from DB if we aren't going to handle the event.
 		}
@@ -2471,7 +2471,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	var sb *strings.Builder = &strings.Builder{}
 	var monHooks []monitorHook
 
-	err := qemuBase.Execute(sb, map[string]interface{}{
+	err := qemuBase.Execute(sb, map[string]any{
 		"architecture": d.architectureName,
 	})
 	if err != nil {
@@ -2483,7 +2483,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
-	err = qemuDriveFirmware.Execute(sb, map[string]interface{}{
+	err = qemuDriveFirmware.Execute(sb, map[string]any{
 		"architecture": d.architectureName,
 		"roPath":       filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
 		"nvramPath":    d.nvramPath(),
@@ -2492,7 +2492,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
-	err = qemuControlSocket.Execute(sb, map[string]interface{}{
+	err = qemuControlSocket.Execute(sb, map[string]any{
 		"path": d.monitorPath(),
 	})
 	if err != nil {
@@ -2510,7 +2510,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// total of 256 devices, but this assumes 32 chassis * 8 function. By using VFs for the internal fixed
 	// devices we avoid consuming a chassis for each one. See also the qemuPCIDeviceIDStart constant.
 	devBus, devAddr, multi := bus.allocate(busFunctionGroupGeneric)
-	err = qemuBalloon.Execute(sb, map[string]interface{}{
+	err = qemuBalloon.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2521,7 +2521,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuRNG.Execute(sb, map[string]interface{}{
+	err = qemuRNG.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2532,7 +2532,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuKeyboard.Execute(sb, map[string]interface{}{
+	err = qemuKeyboard.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2543,7 +2543,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuTablet.Execute(sb, map[string]interface{}{
+	err = qemuTablet.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2554,7 +2554,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuVsock.Execute(sb, map[string]interface{}{
+	err = qemuVsock.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2567,7 +2567,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-	err = qemuSerial.Execute(sb, map[string]interface{}{
+	err = qemuSerial.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2583,7 +2583,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// s390x doesn't really have USB.
 	if d.architecture != osarch.ARCH_64BIT_S390_BIG_ENDIAN {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroupGeneric)
-		err = qemuUSB.Execute(sb, map[string]interface{}{
+		err = qemuUSB.Execute(sb, map[string]any{
 			"bus":           bus.name,
 			"devBus":        devBus,
 			"devAddr":       devAddr,
@@ -2596,7 +2596,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	err = qemuSCSI.Execute(sb, map[string]interface{}{
+	err = qemuSCSI.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2609,7 +2609,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Always export the config directory as a 9p config drive, in case the host or VM guest doesn't support
 	// virtio-fs.
 	devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
-	err = qemuDriveConfig.Execute(sb, map[string]interface{}{
+	err = qemuDriveConfig.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2628,7 +2628,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	configSockPath, _ := d.configVirtiofsdPaths()
 	if shared.PathExists(configSockPath) {
 		devBus, devAddr, multi = bus.allocate(busFunctionGroup9p)
-		err = qemuDriveConfig.Execute(sb, map[string]interface{}{
+		err = qemuDriveConfig.Execute(sb, map[string]any{
 			"bus":           bus.name,
 			"devBus":        devBus,
 			"devAddr":       devAddr,
@@ -2643,7 +2643,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	}
 
 	devBus, devAddr, multi = bus.allocate(busFunctionGroupNone)
-	err = qemuGPU.Execute(sb, map[string]interface{}{
+	err = qemuGPU.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -2798,7 +2798,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 		cpus = "1"
 	}
 
-	ctx := map[string]interface{}{
+	ctx := map[string]any{
 		"architecture":        d.architectureName,
 		"qemuMemObjectFormat": qemuMemObjectFormat,
 	}
@@ -2893,7 +2893,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	ctx["memory"] = nodeMemory
 
 	if sb != nil {
-		err = qemuMemory.Execute(sb, map[string]interface{}{
+		err = qemuMemory.Execute(sb, map[string]any{
 			"architecture": d.architectureName,
 			"memSizeBytes": memSizeBytes,
 		})
@@ -2985,7 +2985,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 		devBus, devAddr, multi := bus.allocate(busFunctionGroup9p)
 
 		// Add virtio-fs device as this will be preferred over 9p.
-		err := qemuDriveDir.Execute(sb, map[string]interface{}{
+		err := qemuDriveDir.Execute(sb, map[string]any{
 			"bus":           bus.name,
 			"devBus":        devBus,
 			"devAddr":       devAddr,
@@ -3011,7 +3011,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 
 	proxyFD := d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), driveConf.DevName))
 
-	return qemuDriveDir.Execute(sb, map[string]interface{}{
+	return qemuDriveDir.Execute(sb, map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -3111,9 +3111,9 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 
 	escapedDeviceName := filesystem.PathNameEncode(driveConf.DevName)
 
-	blockDev := map[string]interface{}{
+	blockDev := map[string]any{
 		"aio": aioMode,
-		"cache": map[string]interface{}{
+		"cache": map[string]any{
 			"direct":   directCache,
 			"no-flush": noFlushCache,
 		},
@@ -3239,7 +3239,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		}
 	}
 
-	var qemuNetDev map[string]interface{}
+	var qemuNetDev map[string]any
 
 	// Detect MACVTAP interface types and figure out which tap device is being used.
 	// This is so we can open a file handle to the tap device and pass it to the qemu process.
@@ -3254,7 +3254,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 			return nil, fmt.Errorf("Error parsing tap device ifindex: %w", err)
 		}
 
-		qemuNetDev = map[string]interface{}{
+		qemuNetDev = map[string]any{
 			"id":    fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 			"type":  "tap",
 			"vhost": true,
@@ -3271,7 +3271,7 @@ func (d *qemu) addNetDevConfig(cpuCount int, busName string, qemuDev map[string]
 		qemuDev["mac"] = devHwaddr
 	} else if shared.PathExists(fmt.Sprintf("/sys/class/net/%s/tun_flags", nicName)) {
 		// Detect TAP (via TUN driver) device.
-		qemuNetDev = map[string]interface{}{
+		qemuNetDev = map[string]any{
 			"id":         fmt.Sprintf("%s%s", qemuNetDevIDPrefix, escapedDeviceName),
 			"type":       "tap",
 			"vhost":      true,
@@ -3415,7 +3415,7 @@ func (d *qemu) addPCIDevConfig(sb *strings.Builder, bus *qemuBus, pciConfig []de
 	}
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -3461,7 +3461,7 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 	}()
 
 	devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"bus":           bus.name,
 		"devBus":        devBus,
 		"devAddr":       devAddr,
@@ -3505,7 +3505,7 @@ func (d *qemu) addGPUDevConfig(sb *strings.Builder, bus *qemuBus, gpuConfig []de
 			if strings.HasPrefix(iommuSlotName, prefix) && iommuSlotName != pciSlotName {
 				// Add VF device without VGA mode to qemu config.
 				devBus, devAddr, multi := bus.allocate(fmt.Sprintf("lxd_%s", devName))
-				tplFields := map[string]interface{}{
+				tplFields := map[string]any{
 					"bus":           bus.name,
 					"devBus":        devBus,
 					"devAddr":       devAddr,
@@ -3584,7 +3584,7 @@ func (d *qemu) addTPMDeviceConfig(sb *strings.Builder, tpmConfig []deviceConfig.
 		}
 	}
 
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"devName": devName,
 		"path":    socketPath,
 	}
@@ -3947,7 +3947,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		}
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]interface{}{"snapshot": source.Name()}))
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": source.Name()}))
 	d.logger.Info("Restored instance", ctxMap)
 	return nil
 }
@@ -4104,9 +4104,9 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	d.logger.Info("Renamed instance", ctxMap)
 
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
 	}
 
 	revert.Success()
@@ -4471,7 +4471,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 				continue
 			}
 
-			msg := map[string]interface{}{
+			msg := map[string]any{
 				"key":       key,
 				"old_value": oldExpandedConfig[key],
 				"value":     d.expandedConfig[key],
@@ -5447,10 +5447,10 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 }
 
 // Render returns info about the instance.
-func (d *qemu) Render(options ...func(response interface{}) error) (interface{}, interface{}, error) {
+func (d *qemu) Render(options ...func(response any) error) (any, any, error) {
 	if d.IsSnapshot() {
 		// Prepare the ETag
-		etag := []interface{}{d.expiryDate}
+		etag := []any{d.expiryDate}
 
 		snapState := api.InstanceSnapshot{
 			CreatedAt:       d.creationDate,
@@ -5479,7 +5479,7 @@ func (d *qemu) Render(options ...func(response interface{}) error) (interface{},
 	}
 
 	// Prepare the ETag
-	etag := []interface{}{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	etag := []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 	statusCode := d.statusCode()
 
 	instState := api.Instance{
@@ -5514,7 +5514,7 @@ func (d *qemu) Render(options ...func(response interface{}) error) (interface{},
 }
 
 // RenderFull returns all info about the instance.
-func (d *qemu) RenderFull() (*api.InstanceFull, interface{}, error) {
+func (d *qemu) RenderFull() (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull doesn't work with snapshots")
 	}
@@ -6009,7 +6009,7 @@ func (d *qemu) cpuTopology(limit string) (int, int, int, map[uint64]uint64, map[
 	return nrSockets, nrCores, nrThreads, vcpus, numaNodes, nil
 }
 
-func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]interface{}) error {
+func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
 	event["timestamp"] = time.Now()

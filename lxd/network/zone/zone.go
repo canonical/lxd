@@ -124,8 +124,8 @@ func (d *zone) isUsed() (bool, error) {
 }
 
 // Etag returns the values used for etag generation.
-func (d *zone) Etag() []interface{} {
-	return []interface{}{d.info.Name, d.info.Description, d.info.Config}
+func (d *zone) Etag() []any {
+	return []any{d.info.Name, d.info.Description, d.info.Config}
 }
 
 // validateName checks name is valid.
@@ -447,7 +447,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 
 	// Template the zone file.
 	sb := &strings.Builder{}
-	err = zoneTemplate.Execute(sb, map[string]interface{}{
+	err = zoneTemplate.Execute(sb, map[string]any{
 		"primary":     primary,
 		"nameservers": nameservers,
 		"zone":        d.info.Name,

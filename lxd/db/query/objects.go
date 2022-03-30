@@ -8,7 +8,7 @@ import (
 
 // SelectObjects executes a statement which must yield rows with a specific
 // columns schema. It invokes the given Dest hook for each yielded row.
-func SelectObjects(stmt *sql.Stmt, dest Dest, args ...interface{}) error {
+func SelectObjects(stmt *sql.Stmt, dest Dest, args ...any) error {
 	rows, err := stmt.Query(args...)
 	if err != nil {
 		return err
@@ -32,15 +32,15 @@ func SelectObjects(stmt *sql.Stmt, dest Dest, args ...interface{}) error {
 // Dest is a function that is expected to return the objects to pass to the
 // 'dest' argument of sql.Rows.Scan(). It is invoked by SelectObjects once per
 // yielded row, and it will be passed the index of the row being scanned.
-type Dest func(i int) []interface{}
+type Dest func(i int) []any
 
 // UpsertObject inserts or replaces a new row with the given column values, to
 // the given table using columns order. For example:
 //
-// UpsertObject(tx, "cars", []string{"id", "brand"}, []interface{}{1, "ferrari"})
+// UpsertObject(tx, "cars", []string{"id", "brand"}, []any{1, "ferrari"})
 //
 // The number of elements in 'columns' must match the one in 'values'.
-func UpsertObject(tx *sql.Tx, table string, columns []string, values []interface{}) (int64, error) {
+func UpsertObject(tx *sql.Tx, table string, columns []string, values []any) (int64, error) {
 	n := len(columns)
 	if n == 0 {
 		return -1, fmt.Errorf("columns length is zero")

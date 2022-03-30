@@ -136,7 +136,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 		config, err := node.ConfigLoad(tx)
 		require.NoError(h.t, err)
 		address := servers[0].Listener.Addr().String()
-		values := map[string]interface{}{"cluster.https_address": address}
+		values := map[string]any{"cluster.https_address": address}
 		_, err = config.Patch(values)
 		require.NoError(h.t, err)
 		return nil
@@ -192,7 +192,7 @@ func newRestServer(cert *shared.CertInfo) *httptest.Server {
 
 	mux.HandleFunc("/1.0/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		config := map[string]interface{}{"cluster.https_address": server.Listener.Addr().String()}
+		config := map[string]any{"cluster.https_address": server.Listener.Addr().String()}
 		metadata := api.ServerPut{Config: config}
 		util.WriteJSON(w, api.ResponseRaw{Metadata: metadata}, nil)
 	})

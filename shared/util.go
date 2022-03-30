@@ -701,7 +701,7 @@ func IsBlockdevPath(pathName string) bool {
 }
 
 // DeepCopy copies src to dest by using encoding/gob so its not that fast.
-func DeepCopy(src, dest interface{}) error {
+func DeepCopy(src, dest any) error {
 	buff := new(bytes.Buffer)
 	enc := gob.NewEncoder(buff)
 	dec := gob.NewDecoder(buff)
@@ -804,8 +804,8 @@ func TextEditor(inPath string, inContent []byte) ([]byte, error) {
 	return content, nil
 }
 
-func ParseMetadata(metadata interface{}) (map[string]interface{}, error) {
-	newMetadata := make(map[string]interface{})
+func ParseMetadata(metadata any) (map[string]any, error) {
+	newMetadata := make(map[string]any)
 	s := reflect.ValueOf(metadata)
 	if !s.IsValid() {
 		return nil, nil
@@ -978,7 +978,7 @@ func EscapePathFstab(path string) string {
 	return r.Replace(path)
 }
 
-func SetProgressMetadata(metadata map[string]interface{}, stage, displayPrefix string, percent, processed, speed int64) {
+func SetProgressMetadata(metadata map[string]any, stage, displayPrefix string, percent, processed, speed int64) {
 	progress := make(map[string]string)
 	// stage, percent, speed sent for API callers.
 	progress["stage"] = stage

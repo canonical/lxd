@@ -25,7 +25,7 @@ type VolumeSourceArgs struct {
 	TrackProgress     bool
 	MultiSync         bool
 	FinalSync         bool
-	Data              interface{} // Optional store to persist storage driver state between MultiSync phases.
+	Data              any // Optional store to persist storage driver state between MultiSync phases.
 	ContentType       string
 	AllowInconsistent bool
 }
@@ -197,7 +197,7 @@ func MatchTypes(offer *MigrationHeader, fallbackType MigrationFSType, ourTypes [
 func progressWrapperRender(op *operations.Operation, key string, description string, progressInt int64, speedInt int64) {
 	meta := op.Metadata()
 	if meta == nil {
-		meta = make(map[string]interface{})
+		meta = make(map[string]any)
 	}
 
 	progress := fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(progressInt, 2), units.GetByteSizeString(speedInt, 2))

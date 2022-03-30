@@ -110,42 +110,42 @@ func TestChange(t *testing.T) {
 
 	cases := []struct {
 		title  string
-		values map[string]interface{} // New values
-		result map[string]string      // Expected values after change
+		values map[string]any    // New values
+		result map[string]string // Expected values after change
 	}{
 		{
 			`plain change of regular key`,
-			map[string]interface{}{"foo": "world"},
+			map[string]any{"foo": "world"},
 			map[string]string{"foo": "world"},
 		},
 		{
 			`key setter is honored`,
-			map[string]interface{}{"bar": "y"},
+			map[string]any{"bar": "y"},
 			map[string]string{"bar": "Y"},
 		},
 		{
 			`bool true values are normalized`,
-			map[string]interface{}{"egg": "yes"},
+			map[string]any{"egg": "yes"},
 			map[string]string{"egg": "true"},
 		},
 		{
 			`bool false values are normalized`,
-			map[string]interface{}{"yuk": "0"},
+			map[string]any{"yuk": "0"},
 			map[string]string{"yuk": "false"},
 		},
 		{
 			`the special value 'true' is a passthrough for hidden keys`,
-			map[string]interface{}{"xyz": true},
+			map[string]any{"xyz": true},
 			map[string]string{"xyz": "sekret"},
 		},
 		{
 			`the special value nil is converted to empty string`,
-			map[string]interface{}{"foo": nil},
+			map[string]any{"foo": nil},
 			map[string]string{"foo": ""},
 		},
 		{
 			`multiple values are all mutated`,
-			map[string]interface{}{"foo": "x", "bar": "hey", "egg": "0"},
+			map[string]any{"foo": "x", "bar": "hey", "egg": "0"},
 			map[string]string{"foo": "x", "bar": "HEY", "egg": ""},
 		},
 	}
@@ -175,32 +175,32 @@ func TestMap_ChangeReturnsChangedKeys(t *testing.T) {
 
 	cases := []struct {
 		title   string
-		changes map[string]interface{} // New values
-		changed map[string]string      // Keys that should have actually changed
+		changes map[string]any    // New values
+		changed map[string]string // Keys that should have actually changed
 	}{
 		{
 			`plain single change`,
-			map[string]interface{}{"foo": "no"},
+			map[string]any{"foo": "no"},
 			map[string]string{"foo": "false"},
 		},
 		{
 			`unchanged boolean value, even if it's spelled 'yes' and not 'true'`,
-			map[string]interface{}{"foo": "yes"},
+			map[string]any{"foo": "yes"},
 			map[string]string{},
 		},
 		{
 			`unset value`,
-			map[string]interface{}{"foo": ""},
+			map[string]any{"foo": ""},
 			map[string]string{"foo": "false"},
 		},
 		{
 			`unchanged value, since it matches the default`,
-			map[string]interface{}{"foo": "true", "bar": "egg"},
+			map[string]any{"foo": "true", "bar": "egg"},
 			map[string]string{},
 		},
 		{
 			`multiple changes`,
-			map[string]interface{}{"foo": "false", "bar": "baz"},
+			map[string]any{"foo": "false", "bar": "baz"},
 			map[string]string{"foo": "false", "bar": "baz"},
 		},
 	}
@@ -226,27 +226,27 @@ func TestMap_ChangeError(t *testing.T) {
 
 	var cases = []struct {
 		title   string
-		changes map[string]interface{}
+		changes map[string]any
 		message string
 	}{
 		{
 			`schema has no key with the given name`,
-			map[string]interface{}{"xxx": ""},
+			map[string]any{"xxx": ""},
 			"cannot set 'xxx' to '': unknown key",
 		},
 		{
 			`validation fails`,
-			map[string]interface{}{"foo": "yyy"},
+			map[string]any{"foo": "yyy"},
 			"cannot set 'foo' to 'yyy': invalid boolean",
 		},
 		{
 			`custom setter fails`,
-			map[string]interface{}{"egg": "xxx"},
+			map[string]any{"egg": "xxx"},
 			"cannot set 'egg' to 'xxx': boom",
 		},
 		{
 			`non string value`,
-			map[string]interface{}{"egg": 123},
+			map[string]any{"egg": 123},
 			"cannot set 'egg': invalid type int",
 		},
 	}
@@ -278,7 +278,7 @@ func TestMap_Dump(t *testing.T) {
 	m, err := config.Load(schema, values)
 	assert.NoError(t, err)
 
-	dump := map[string]interface{}{
+	dump := map[string]any{
 		"foo": "hello",
 		"egg": true,
 	}

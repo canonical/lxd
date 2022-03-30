@@ -131,8 +131,8 @@ type NetworkForward struct {
 }
 
 // Etag returns the values used for etag generation.
-func (f *NetworkForward) Etag() []interface{} {
-	return []interface{}{f.ListenAddress, f.Description, f.Config, f.Ports}
+func (f *NetworkForward) Etag() []any {
+	return []any{f.ListenAddress, f.Description, f.Config, f.Ports}
 }
 
 // Writable converts a full NetworkForward struct into a NetworkForwardPut struct (filters read-only fields).

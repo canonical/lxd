@@ -232,7 +232,7 @@ func instancesGet(d *Daemon, r *http.Request) response.Response {
 	return response.InternalError(fmt.Errorf("DB is locked"))
 }
 
-func doInstancesGet(d *Daemon, r *http.Request) (interface{}, error) {
+func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	resultString := []string{}
 	resultList := []*api.Instance{}
 	resultFullList := []*api.InstanceFull{}

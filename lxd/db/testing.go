@@ -156,7 +156,7 @@ func newDir(t *testing.T) (string, func()) {
 }
 
 func newLogFunc(t *testing.T) client.LogFunc {
-	return func(l client.LogLevel, format string, a ...interface{}) {
+	return func(l client.LogLevel, format string, a ...any) {
 		format = fmt.Sprintf("%s: %s", l.String(), format)
 		t.Logf(format, a...)
 	}
