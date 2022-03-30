@@ -1646,3 +1646,8 @@ Introduces a new `ovn-chassis` cluster role which allows for specifying what clu
 
 ## container\_syscall\_intercept\_sched\_setscheduler
 Adds the `security.syscalls.intercept.sched_setscheduler` to allow advanced process priority management in containers.
+
+## storage\_lvm\_thinpool\_metadata\_size
+Introduces the ability to specify the thinpool metadata volume size via `storage.thinpool_metadata_size`.
+
+If this is not specified then the default is to let LVM pick an appropriate thinpool metadata volume size.
