@@ -153,11 +153,11 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNodeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Node,
@@ -165,104 +165,104 @@ func (c *ClusterTx) GetInstances(filter InstanceFilter) ([]Instance, error) {
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Name,
 		}
 	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNameAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 			filter.Name,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNameAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Name,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndType)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 		}
 	} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 			filter.Node,
 		}
 	} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Name,
 		}
 	} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNodeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Node,
 			filter.Name,
 		}
 	} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByType)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProject)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 		}
 	} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNode)
-		args = []interface{}{
+		args = []any{
 			filter.Node,
 		}
 	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByName)
-		args = []interface{}{
+		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByID)
-		args = []interface{}{
+		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Instance{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Project,
 			&objects[i].Name,
@@ -373,11 +373,11 @@ func (c *ClusterTx) GetInstanceURIs(filter InstanceFilter) ([]string, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.Name != nil && filter.ID == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNodeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Node,
@@ -385,104 +385,104 @@ func (c *ClusterTx) GetInstanceURIs(filter InstanceFilter) ([]string, error) {
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndTypeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 			filter.Name,
 		}
 	} else if filter.Type != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNameAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 			filter.Name,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Name != nil && filter.Node != nil && filter.ID == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNameAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Name,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Type != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndType)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Type,
 		}
 	} else if filter.Type != nil && filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 			filter.Node,
 		}
 	} else if filter.Type != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByTypeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.Node != nil && filter.ID == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndNode)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Node,
 		}
 	} else if filter.Project != nil && filter.Name != nil && filter.ID == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProjectAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Name,
 		}
 	} else if filter.Node != nil && filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNodeAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Node,
 			filter.Name,
 		}
 	} else if filter.Type != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil {
 		stmt = c.stmt(instanceObjectsByType)
-		args = []interface{}{
+		args = []any{
 			filter.Type,
 		}
 	} else if filter.Project != nil && filter.ID == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByProject)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 		}
 	} else if filter.Node != nil && filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByNode)
-		args = []interface{}{
+		args = []any{
 			filter.Node,
 		}
 	} else if filter.Name != nil && filter.ID == nil && filter.Project == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByName)
-		args = []interface{}{
+		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjectsByID)
-		args = []interface{}{
+		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Project == nil && filter.Name == nil && filter.Node == nil && filter.Type == nil {
 		stmt = c.stmt(instanceObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Instance{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Project,
 			&objects[i].Name,
@@ -574,7 +574,7 @@ func (c *ClusterTx) CreateInstance(object Instance) (int64, error) {
 		return -1, fmt.Errorf("This \"instances\" entry already exists")
 	}
 
-	args := make([]interface{}, 11)
+	args := make([]any, 11)
 
 	// Populate the statement arguments.
 	args[0] = object.Project

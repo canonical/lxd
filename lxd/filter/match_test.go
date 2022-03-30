@@ -33,7 +33,7 @@ func TestMatch_Instance(t *testing.T) {
 		},
 		Status: "Running",
 	}
-	cases := map[string]interface{}{
+	cases := map[string]any{
 		"architecture eq x86_64":                                         true,
 		"architecture eq i686":                                           false,
 		"name eq c1 and status eq Running":                               true,
@@ -62,7 +62,7 @@ func TestMatch_Image(t *testing.T) {
 		},
 		Architecture: "i686",
 	}
-	cases := map[string]interface{}{
+	cases := map[string]any{
 		"properties.os eq Ubuntu": true,
 		"architecture eq x86_64":  false,
 	}

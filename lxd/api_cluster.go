@@ -371,7 +371,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 			return fmt.Errorf("Cannot use wildcard core.https_address %q for cluster.https_address. Please specify a new cluster.https_address or core.https_address", address)
 		}
 
-		_, err = config.Patch(map[string]interface{}{
+		_, err = config.Patch(map[string]any{
 			"cluster.https_address": address,
 		})
 		if err != nil {
@@ -441,7 +441,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
 
-			_, err = config.Patch(map[string]interface{}{
+			_, err = config.Patch(map[string]any{
 				"core.https_address":    req.ServerAddress,
 				"cluster.https_address": req.ServerAddress,
 			})
@@ -470,7 +470,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
 			}
-			_, err = config.Patch(map[string]interface{}{
+			_, err = config.Patch(map[string]any{
 				"cluster.https_address": address,
 			})
 			return err
@@ -1196,7 +1196,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	// the joining member will not have to specify a joining address during the join process.
 	// Use anonymous interface type to align with how the API response will be returned for consistency when
 	// retrieving remote operations.
-	onlineNodeAddresses := make([]interface{}, 0)
+	onlineNodeAddresses := make([]any, 0)
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the offline threshold.
@@ -1278,7 +1278,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	meta := map[string]interface{}{
+	meta := map[string]any{
 		"serverName":  req.ServerName, // Add server name to allow validation of name during join process.
 		"secret":      joinSecret,
 		"fingerprint": fingerprint,
@@ -2689,7 +2689,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			evacuateClusterSetState(d, nodeName, db.ClusterMemberStateCreated)
 		})
 
-		metadata := make(map[string]interface{})
+		metadata := make(map[string]any)
 
 		for _, inst := range instances {
 			// Check if migratable.
@@ -2874,7 +2874,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 		var source lxd.InstanceServer
 		var sourceNode db.NodeInfo
 
-		metadata := make(map[string]interface{})
+		metadata := make(map[string]any)
 
 		// Restart the local instances.
 		for _, inst := range localInstances {
@@ -3200,7 +3200,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 	recursion := util.IsRecursionRequest(r)
 
-	var result interface{}
+	var result any
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		if recursion {
@@ -3571,7 +3571,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	req := clusterGroup.Writable()
 
 	// Validate the ETag.
-	etag := []interface{}{clusterGroup.Description, clusterGroup.Members}
+	etag := []any{clusterGroup.Description, clusterGroup.Members}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)

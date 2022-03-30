@@ -1304,7 +1304,7 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 	volume.UsedBy = project.FilterUsedBy(r, volumeUsedBy)
 
-	etag := []interface{}{volumeName, volume.Type, volume.Config}
+	etag := []any{volumeName, volume.Type, volume.Config}
 
 	return response.SyncResponseETag(true, volume, etag)
 }
@@ -1399,7 +1399,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the ETag
-	etag := []interface{}{volumeName, vol.Type, vol.Config}
+	etag := []any{volumeName, vol.Type, vol.Config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {
@@ -1556,7 +1556,7 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the ETag.
-	etag := []interface{}{volumeName, vol.Type, vol.Config}
+	etag := []any{volumeName, vol.Type, vol.Config}
 
 	err = util.EtagCheck(r, etag)
 	if err != nil {

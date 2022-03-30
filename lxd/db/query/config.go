@@ -11,7 +11,7 @@ import (
 // additional WHERE filters can be specified.
 //
 // Returns a map of key names to their associated values.
-func SelectConfig(tx *sql.Tx, table string, where string, args ...interface{}) (map[string]string, error) {
+func SelectConfig(tx *sql.Tx, table string, where string, args ...any) (map[string]string, error) {
 	query := fmt.Sprintf("SELECT key, value FROM %s", table)
 	if where != "" {
 		query += fmt.Sprintf(" WHERE %s", where)
@@ -79,7 +79,7 @@ func upsertConfig(tx *sql.Tx, table string, values map[string]string) error {
 
 	query := fmt.Sprintf("INSERT OR REPLACE INTO %s (key, value) VALUES", table)
 	exprs := []string{}
-	params := []interface{}{}
+	params := []any{}
 	for key, value := range values {
 		exprs = append(exprs, "(?, ?)")
 		params = append(params, key)
@@ -99,7 +99,7 @@ func deleteConfig(tx *sql.Tx, table string, keys []string) error {
 	}
 
 	query := fmt.Sprintf("DELETE FROM %s WHERE key IN %s", table, Params(n))
-	values := make([]interface{}, n)
+	values := make([]any, n)
 	for i, key := range keys {
 		values[i] = key
 	}

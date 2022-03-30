@@ -676,7 +676,7 @@ func (c *cmdConfigShow) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Instance or snapshot config
-		var brief interface{}
+		var brief any
 
 		if shared.IsSnapshot(resource.name) {
 			// Snapshot

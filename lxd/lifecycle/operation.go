@@ -21,7 +21,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an operation.
-func (a OperationAction) Event(op operation, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a OperationAction) Event(op operation, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("operation-%s", a)
 	u := fmt.Sprintf("/1.0/operations/%s", url.PathEscape(op.ID()))
 

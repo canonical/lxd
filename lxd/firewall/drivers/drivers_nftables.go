@@ -192,7 +192,7 @@ func (d Nftables) hostVersion() (*version.DottedVersion, error) {
 
 // networkSetupForwardingPolicy allows forwarding dependent on boolean argument
 func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *bool, ip6Allow *bool) error {
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
@@ -233,7 +233,7 @@ func (d Nftables) networkSetupForwardingPolicy(networkName string, ip4Allow *boo
 func (d Nftables) networkSetupOutboundNAT(networkName string, SNATV4 *SNATOpts, SNATV6 *SNATOpts) error {
 	rules := make(map[string]*SNATOpts, 0)
 
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
@@ -271,7 +271,7 @@ func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersions [
 		}
 	}
 
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
@@ -288,7 +288,7 @@ func (d Nftables) networkSetupICMPDHCPDNSAccess(networkName string, ipVersions [
 }
 
 func (d Nftables) networkSetupACLChainAndJumpRules(networkName string) error {
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
@@ -393,7 +393,7 @@ func (d Nftables) InstanceSetupBridgeFilter(projectName string, instanceName str
 		return err
 	}
 
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"family":         "bridge",
@@ -491,13 +491,13 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	targetAddressStr := forward.TargetAddress.String()
 
 	// Generate slices of rules to add.
-	var dnatRules []map[string]interface{}
-	var snatRules []map[string]interface{}
+	var dnatRules []map[string]any
+	var snatRules []map[string]any
 
 	targetPortRanges := portRangesFromSlice(forward.TargetPorts)
 	for _, targetPortRange := range targetPortRanges {
 		targetPortRangeStr := portRangeStr(targetPortRange, "-")
-		snatRules = append(snatRules, map[string]interface{}{
+		snatRules = append(snatRules, map[string]any{
 			"ipFamily":    ipFamily,
 			"protocol":    forward.Protocol,
 			"targetHost":  targetAddressStr,
@@ -517,7 +517,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 			}
 		}
 
-		dnatRules = append(dnatRules, map[string]interface{}{
+		dnatRules = append(dnatRules, map[string]any{
 			"ipFamily":      ipFamily,
 			"protocol":      forward.Protocol,
 			"listenAddress": listenAddressStr,
@@ -527,7 +527,7 @@ func (d Nftables) InstanceSetupProxyNAT(projectName string, instanceName string,
 	}
 
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"chainPrefix":    "", // Empty prefix for backwards compatibility with existing device chains.
@@ -566,7 +566,7 @@ func (d Nftables) InstanceClearProxyNAT(projectName string, instanceName string,
 
 // applyNftConfig loads the specified config template and then applies it to the common template before sending to
 // the nft command to be atomically applied to the system.
-func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]interface{}) error {
+func (d Nftables) applyNftConfig(tpl *template.Template, tplFields map[string]any) error {
 	// Load the specified template into the common template's parse tree under the nftableContentTemplate
 	// name so that the nftableContentTemplate template can use it with the generic name.
 	_, err := nftablesCommonTable.AddParseTree(nftablesContentTemplate, tpl.Tree)
@@ -633,7 +633,7 @@ func (d Nftables) removeChains(families []string, chainSuffix string, chains ...
 // InstanceSetupRPFilter activates reverse path filtering for the specified instance device on the host interface.
 func (d Nftables) InstanceSetupRPFilter(projectName string, instanceName string, deviceName string, hostName string) error {
 	deviceLabel := d.instanceDeviceLabel(projectName, instanceName, deviceName)
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"deviceLabel":    deviceLabel,
@@ -694,7 +694,7 @@ func (d Nftables) NetworkApplyACLRules(networkName string, rules []ACLRule) erro
 		}
 	}
 
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"networkName":    networkName,
@@ -916,8 +916,8 @@ func (d Nftables) aclRulePortToACLMatch(direction string, portCriteria ...string
 
 // NetworkApplyForwards apply network address forward rules to firewall.
 func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForward) error {
-	var dnatRules []map[string]interface{}
-	var snatRules []map[string]interface{}
+	var dnatRules []map[string]any
+	var snatRules []map[string]any
 
 	// Build up rules, ordering by port specific listen rules first, followed by default target rules.
 	// This is so the generated firewall rules will apply the port specific rules first.
@@ -977,7 +977,7 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 						targetDest = fmt.Sprintf("[%s]:%d", targetAddressStr, targetPort)
 					}
 
-					dnatRules = append(dnatRules, map[string]interface{}{
+					dnatRules = append(dnatRules, map[string]any{
 						"ipFamily":      ipFamily,
 						"protocol":      rule.Protocol,
 						"listenAddress": listenAddressStr,
@@ -989,7 +989,7 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 
 					// Only add >1 hairpin NAT rules if multiple target ports being used.
 					if i == 0 || targetPortsLen != 1 {
-						snatRules = append(snatRules, map[string]interface{}{
+						snatRules = append(snatRules, map[string]any{
 							"ipFamily":    ipFamily,
 							"protocol":    rule.Protocol,
 							"targetHost":  targetAddressStr,
@@ -1005,14 +1005,14 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 					targetDest = fmt.Sprintf("[%s]", targetAddressStr)
 				}
 
-				dnatRules = append(dnatRules, map[string]interface{}{
+				dnatRules = append(dnatRules, map[string]any{
 					"ipFamily":      ipFamily,
 					"listenAddress": listenAddressStr,
 					"targetDest":    targetDest,
 					"targetHost":    targetAddressStr,
 				})
 
-				snatRules = append(snatRules, map[string]interface{}{
+				snatRules = append(snatRules, map[string]any{
 					"ipFamily":   ipFamily,
 					"targetHost": targetAddressStr,
 				})
@@ -1022,7 +1022,7 @@ func (d Nftables) NetworkApplyForwards(networkName string, rules []AddressForwar
 		}
 	}
 
-	tplFields := map[string]interface{}{
+	tplFields := map[string]any{
 		"namespace":      nftablesNamespace,
 		"chainSeparator": nftablesChainSeparator,
 		"chainPrefix":    "fwd", // Differentiate from proxy device forwards.

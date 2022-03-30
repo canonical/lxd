@@ -48,13 +48,13 @@ func (c *ClusterTx) GetNonPendingNetworkIDs() (map[string]map[string]int64, erro
 		projectName string
 	}{}
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		networks = append(networks, struct {
 			id          int64
 			name        string
 			projectName string
 		}{})
-		return []interface{}{&networks[i].id, &networks[i].name, &networks[i].projectName}
+		return []any{&networks[i].id, &networks[i].name, &networks[i].projectName}
 
 	}
 
@@ -108,7 +108,7 @@ func (c *ClusterTx) getCreatedNetworks(projectName string) (map[string]map[int64
 	WHERE networks.state = ?
 	`)
 
-	args := []interface{}{networkCreated}
+	args := []any{networkCreated}
 
 	if projectName != "" {
 		sb.WriteString(" AND projects.name = ?")
@@ -203,8 +203,8 @@ func (c *Cluster) GetNetworkNameAndProjectWithID(networkID int) (string, string,
 
 	q := `SELECT networks.name, projects.name FROM networks JOIN projects ON projects.id=networks.project_id WHERE networks.id=?`
 
-	inargs := []interface{}{networkID}
-	outargs := []interface{}{&networkName, &projectName}
+	inargs := []any{networkID}
+	outargs := []any{&networkName, &projectName}
 
 	err := dbQueryRowScan(c, q, inargs, outargs)
 	if err != nil {
@@ -231,7 +231,7 @@ func (c *ClusterTx) CreateNetworkConfig(networkID, nodeID int64, config map[stri
 func (c *ClusterTx) NetworkNodeJoin(networkID, nodeID int64) error {
 	columns := []string{"network_id", "node_id", "state"}
 	// Create network node with networkCreated state as we expect the network to already be setup.
-	values := []interface{}{networkID, nodeID, networkCreated}
+	values := []any{networkID, nodeID, networkCreated}
 	_, err := query.UpsertObject(c.tx, "networks_nodes", columns, values)
 	return err
 }
@@ -293,12 +293,12 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 	}{}
 
 	var errConsistency error
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		// Ensure that there is at most one network with the given name.
 		if i != 0 {
 			errConsistency = fmt.Errorf("More than one network exists with the given name")
 		}
-		return []interface{}{&network.id, &network.state, &network.netType}
+		return []any{&network.id, &network.state, &network.netType}
 	}
 
 	stmt, err := c.tx.Prepare("SELECT id, state, type FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name=?")
@@ -325,7 +325,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 
 		// No existing network with the given name was found, let's create one.
 		columns := []string{"project_id", "name", "type", "description"}
-		values := []interface{}{projectID, name, netType, ""}
+		values := []any{projectID, name, netType, ""}
 		networkID, err = query.UpsertObject(c.tx, "networks", columns, values)
 		if err != nil {
 			return err
@@ -359,7 +359,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 
 	// Insert the node-specific configuration with state networkPending.
 	columns := []string{"network_id", "node_id", "state"}
-	values := []interface{}{networkID, nodeInfo.ID, networkPending}
+	values := []any{networkID, nodeInfo.ID, networkPending}
 	_, err = query.UpsertObject(c.tx, "networks_nodes", columns, values)
 	if err != nil {
 		return err
@@ -445,9 +445,9 @@ func (c *ClusterTx) UpdateNetwork(id int64, description string, config map[strin
 // NetworkNodes returns the nodes keyed by node ID that the given network is defined on.
 func (c *ClusterTx) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
 	nodes := []NetworkNode{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		nodes = append(nodes, NetworkNode{})
-		return []interface{}{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
+		return []any{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
 	}
 
 	stmt, err := c.tx.Prepare(`
@@ -500,9 +500,9 @@ func (c *Cluster) GetCreatedNetworks(project string) ([]string, error) {
 }
 
 // Get all networks matching the given WHERE filter (if given).
-func (c *Cluster) networks(project string, where string, args ...interface{}) ([]string, error) {
+func (c *Cluster) networks(project string, where string, args ...any) ([]string, error) {
 	q := "SELECT name FROM networks WHERE project_id = (SELECT id FROM projects WHERE name = ?)"
-	inargs := []interface{}{project}
+	inargs := []any{project}
 
 	if where != "" {
 		q += fmt.Sprintf(" AND %s", where)
@@ -512,7 +512,7 @@ func (c *Cluster) networks(project string, where string, args ...interface{}) ([
 	}
 
 	var name string
-	outfmt := []interface{}{name}
+	outfmt := []any{name}
 	result, err := queryScan(c, q, inargs, outfmt)
 	if err != nil {
 		return []string{}, err
@@ -612,7 +612,7 @@ func (c *Cluster) getPartialNetworkByProjectAndName(tx *ClusterTx, projectName s
 		WHERE n.project_id = (SELECT id FROM projects WHERE name = ? LIMIT 1)
 		AND n.name=?
 	`)
-	args := []interface{}{projectName, networkName}
+	args := []any{projectName, networkName}
 
 	if stateFilter > -1 {
 		q.WriteString(" AND n.state=?")
@@ -719,8 +719,8 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 	value := ""
 
 	q := "SELECT networks.id, networks.name, networks_config.value FROM networks LEFT JOIN networks_config ON networks.id=networks_config.network_id WHERE networks_config.key=\"bridge.external_interfaces\" AND networks_config.node_id=?"
-	arg1 := []interface{}{c.nodeID}
-	arg2 := []interface{}{id, name, value}
+	arg1 := []any{c.nodeID}
+	arg2 := []any{id, name, value}
 	result, err := queryScan(c, q, arg1, arg2)
 	if err != nil {
 		return -1, nil, err
@@ -768,7 +768,7 @@ func (c *Cluster) getNetworkConfig(tx *ClusterTx, networkID int64, network *api.
 
 	network.Config = map[string]string{}
 
-	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -805,7 +805,7 @@ func (c *Cluster) CreateNetwork(projectName string, name string, description str
 
 		// Insert a node-specific entry pointing to ourselves with state networkPending.
 		columns := []string{"network_id", "node_id", "state"}
-		values := []interface{}{id, c.nodeID, networkPending}
+		values := []any{id, c.nodeID, networkPending}
 		_, err = query.UpsertObject(tx.tx, "networks_nodes", columns, values)
 		if err != nil {
 			return err
@@ -861,7 +861,7 @@ func networkConfigAdd(tx *sql.Tx, networkID, nodeID int64, config map[string]str
 		if v == "" {
 			continue
 		}
-		var nodeIDValue interface{}
+		var nodeIDValue any
 		if !shared.StringInSlice(k, NodeSpecificNetworkConfig) {
 			nodeIDValue = nil
 		} else {

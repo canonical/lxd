@@ -18,7 +18,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a Certificate.
-func (a CertificateAction) Event(fingerprint string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a CertificateAction) Event(fingerprint string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("certificate-%s", a)
 
 	u := fmt.Sprintf("/1.0/certificates/%s", url.PathEscape(fingerprint))

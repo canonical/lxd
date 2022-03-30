@@ -141,7 +141,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 			Handler: func(value, speed int64) {
 				meta := op.Metadata()
 				if meta == nil {
-					meta = make(map[string]interface{})
+					meta = make(map[string]any)
 				}
 
 				progressText := fmt.Sprintf("%s (%s/s)", units.GetByteSizeString(value, 2), units.GetByteSizeString(speed, 2))

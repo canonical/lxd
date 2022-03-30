@@ -63,34 +63,34 @@ func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.UUID != nil && filter.ID == nil && filter.NodeID == nil {
 		stmt = c.stmt(operationObjectsByUUID)
-		args = []interface{}{
+		args = []any{
 			filter.UUID,
 		}
 	} else if filter.NodeID != nil && filter.ID == nil && filter.UUID == nil {
 		stmt = c.stmt(operationObjectsByNodeID)
-		args = []interface{}{
+		args = []any{
 			filter.NodeID,
 		}
 	} else if filter.ID != nil && filter.NodeID == nil && filter.UUID == nil {
 		stmt = c.stmt(operationObjectsByID)
-		args = []interface{}{
+		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.NodeID == nil && filter.UUID == nil {
 		stmt = c.stmt(operationObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Operation{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].UUID,
 			&objects[i].NodeAddress,
@@ -112,7 +112,7 @@ func (c *ClusterTx) GetOperations(filter OperationFilter) ([]Operation, error) {
 // CreateOrReplaceOperation adds a new operation to the database.
 // generator: operation CreateOrReplace
 func (c *ClusterTx) CreateOrReplaceOperation(object Operation) (int64, error) {
-	args := make([]interface{}, 4)
+	args := make([]any, 4)
 
 	// Populate the statement arguments.
 	args[0] = object.UUID

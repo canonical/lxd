@@ -176,7 +176,7 @@ func (m *Monitor) RemoveFDFromFDSet(name string) error {
 			}
 
 			if opaque == name {
-				args := map[string]interface{}{
+				args := map[string]any{
 					"fdset-id": fdSet.ID,
 				}
 
@@ -351,7 +351,7 @@ func (m *Monitor) SetMemoryBalloonSizeBytes(sizeBytes int64) error {
 }
 
 // AddBlockDevice adds a block device.
-func (m *Monitor) AddBlockDevice(blockDev map[string]interface{}, device map[string]string) error {
+func (m *Monitor) AddBlockDevice(blockDev map[string]any, device map[string]string) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -362,7 +362,7 @@ func (m *Monitor) AddBlockDevice(blockDev map[string]interface{}, device map[str
 		}
 
 		revert.Add(func() {
-			blockDevDel := map[string]interface{}{
+			blockDevDel := map[string]any{
 				"node-name": blockDev["devName"],
 			}
 
@@ -447,7 +447,7 @@ func (m *Monitor) RemoveDevice(deviceID string) error {
 }
 
 // AddNIC adds a NIC device.
-func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string) error {
+func (m *Monitor) AddNIC(netDev map[string]any, device map[string]string) error {
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -458,7 +458,7 @@ func (m *Monitor) AddNIC(netDev map[string]interface{}, device map[string]string
 		}
 
 		revert.Add(func() {
-			netDevDel := map[string]interface{}{
+			netDevDel := map[string]any{
 				"id": netDev["id"],
 			}
 

@@ -444,7 +444,7 @@ func (c *ClusterTx) SetDescription(id int64, description string) error {
 }
 
 // Nodes returns all LXD nodes part of the cluster.
-func (c *ClusterTx) nodes(pending bool, where string, args ...interface{}) ([]NodeInfo, error) {
+func (c *ClusterTx) nodes(pending bool, where string, args ...any) ([]NodeInfo, error) {
 	// Get node roles
 	sql := "SELECT node_id, role FROM nodes_roles"
 
@@ -521,9 +521,9 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 
 	// Process node entries
 	nodes := []NodeInfo{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		nodes = append(nodes, NodeInfo{})
-		return []interface{}{
+		return []any{
 			&nodes[i].ID,
 			&nodes[i].Name,
 			&nodes[i].Address,
@@ -547,7 +547,7 @@ JOIN cluster_groups ON cluster_groups.id = nodes_cluster_groups.group_id`
 		sql += fmt.Sprintf("WHERE state!=? ")
 	}
 
-	args = append([]interface{}{ClusterMemberStatePending}, args...)
+	args = append([]any{ClusterMemberStatePending}, args...)
 
 	if where != "" {
 		sql += fmt.Sprintf("AND %s ", where)
@@ -612,7 +612,7 @@ func (c *ClusterTx) CreateNode(name string, address string) (int64, error) {
 // architecture explicitly.
 func (c *ClusterTx) CreateNodeWithArch(name string, address string, arch int) (int64, error) {
 	columns := []string{"name", "address", "schema", "api_extensions", "arch", "description"}
-	values := []interface{}{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch, ""}
+	values := []any{name, address, cluster.SchemaVersion, version.APIExtensionsCount(), arch, ""}
 	return query.UpsertObject(c.tx, "nodes", columns, values)
 }
 
@@ -754,7 +754,7 @@ func (c *ClusterTx) UpdateNodeClusterGroups(id int64, groups []string) error {
 
 // UpdateNodeFailureDomain changes the failure domain of a node.
 func (c *ClusterTx) UpdateNodeFailureDomain(id int64, domain string) error {
-	var domainID interface{}
+	var domainID any
 
 	if domain == "" {
 		return fmt.Errorf("Failure domain name can't be empty")
@@ -843,12 +843,12 @@ func (c *ClusterTx) GetNodesFailureDomains() (map[string]uint64, error) {
 		FailureDomainID int64
 	}{}
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		rows = append(rows, struct {
 			Address         string
 			FailureDomainID int64
 		}{})
-		return []interface{}{&rows[len(rows)-1].Address, &rows[len(rows)-1].FailureDomainID}
+		return []any{&rows[len(rows)-1].Address, &rows[len(rows)-1].FailureDomainID}
 	}
 
 	err = query.SelectObjects(stmt, dest)
@@ -878,12 +878,12 @@ func (c *ClusterTx) GetFailureDomainsNames() (map[uint64]string, error) {
 		Name string
 	}{}
 
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		rows = append(rows, struct {
 			ID   int64
 			Name string
 		}{})
-		return []interface{}{&rows[len(rows)-1].ID, &rows[len(rows)-1].Name}
+		return []any{&rows[len(rows)-1].ID, &rows[len(rows)-1].Name}
 	}
 
 	err = query.SelectObjects(stmt, dest)
@@ -959,12 +959,12 @@ func (c *ClusterTx) NodeIsEmpty(id int64) (string, error) {
 		fingerprint string
 		nodeID      int64
 	}{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		images = append(images, struct {
 			fingerprint string
 			nodeID      int64
 		}{})
-		return []interface{}{&images[i].fingerprint, &images[i].nodeID}
+		return []any{&images[i].fingerprint, &images[i].nodeID}
 
 	}
 	stmt, err := c.tx.Prepare(`

@@ -277,7 +277,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 		meta := op.Metadata()
 		if meta == nil {
-			meta = make(map[string]interface{})
+			meta = make(map[string]any)
 		}
 
 		if meta["download_progress"] != progress.Text {

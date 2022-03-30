@@ -34,7 +34,7 @@ func TestValueOf_Instance(t *testing.T) {
 		Status: "Running",
 	}
 
-	cases := map[string]interface{}{}
+	cases := map[string]any{}
 	cases["architecture"] = "x86_64"
 	cases["created_at"] = date
 	cases["config.image.os"] = "BusyBox"

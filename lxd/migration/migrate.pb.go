@@ -1294,7 +1294,7 @@ func file_lxd_migration_migrate_proto_rawDescGZIP() []byte {
 
 var file_lxd_migration_migrate_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_lxd_migration_migrate_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
-var file_lxd_migration_migrate_proto_goTypes = []interface{}{
+var file_lxd_migration_migrate_proto_goTypes = []any{
 	(MigrationFSType)(0),      // 0: migration.MigrationFSType
 	(CRIUType)(0),             // 1: migration.CRIUType
 	(*IDMapType)(nil),         // 2: migration.IDMapType
@@ -1337,7 +1337,7 @@ func file_lxd_migration_migrate_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_lxd_migration_migrate_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*IDMapType); i {
 			case 0:
 				return &v.state
@@ -1349,7 +1349,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*Config); i {
 			case 0:
 				return &v.state
@@ -1361,7 +1361,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*Device); i {
 			case 0:
 				return &v.state
@@ -1373,7 +1373,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[3].Exporter = func(v any, i int) any {
 			switch v := v.(*Snapshot); i {
 			case 0:
 				return &v.state
@@ -1385,7 +1385,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*RsyncFeatures); i {
 			case 0:
 				return &v.state
@@ -1397,7 +1397,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[5].Exporter = func(v any, i int) any {
 			switch v := v.(*ZfsFeatures); i {
 			case 0:
 				return &v.state
@@ -1409,7 +1409,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*BtrfsFeatures); i {
 			case 0:
 				return &v.state
@@ -1421,7 +1421,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[7].Exporter = func(v any, i int) any {
 			switch v := v.(*MigrationHeader); i {
 			case 0:
 				return &v.state
@@ -1433,7 +1433,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[8].Exporter = func(v any, i int) any {
 			switch v := v.(*MigrationControl); i {
 			case 0:
 				return &v.state
@@ -1445,7 +1445,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[9].Exporter = func(v any, i int) any {
 			switch v := v.(*MigrationSync); i {
 			case 0:
 				return &v.state
@@ -1457,7 +1457,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[10].Exporter = func(v any, i int) any {
 			switch v := v.(*DumpStatsEntry); i {
 			case 0:
 				return &v.state
@@ -1469,7 +1469,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[11].Exporter = func(v any, i int) any {
 			switch v := v.(*RestoreStatsEntry); i {
 			case 0:
 				return &v.state
@@ -1481,7 +1481,7 @@ func file_lxd_migration_migrate_proto_init() {
 				return nil
 			}
 		}
-		file_lxd_migration_migrate_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+		file_lxd_migration_migrate_proto_msgTypes[12].Exporter = func(v any, i int) any {
 			switch v := v.(*StatsEntry); i {
 			case 0:
 				return &v.state

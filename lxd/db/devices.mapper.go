@@ -33,7 +33,7 @@ func (c *ClusterTx) GetDevices(parent string) (map[int][]Device, error) {
 	objects := make([]Device, 0)
 
 	deviceObjectsLocal := strings.Replace(deviceObjects, "%s_id", fmt.Sprintf("%s_id", parent), -1)
-	fillParent := make([]interface{}, strings.Count(deviceObjectsLocal, "%s"))
+	fillParent := make([]any, strings.Count(deviceObjectsLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
@@ -43,12 +43,12 @@ func (c *ClusterTx) GetDevices(parent string) (map[int][]Device, error) {
 		return nil, err
 	}
 
-	args := []interface{}{}
+	args := []any{}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Device{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].ReferenceID,
 			&objects[i].Name,
@@ -90,7 +90,7 @@ func (c *ClusterTx) GetDevices(parent string) (map[int][]Device, error) {
 // generator: device Create
 func (c *ClusterTx) CreateDevice(parent string, object Device) error {
 	deviceCreateLocal := strings.Replace(deviceCreate, "%s_id", fmt.Sprintf("%s_id", parent), -1)
-	fillParent := make([]interface{}, strings.Count(deviceCreateLocal, "%s"))
+	fillParent := make([]any, strings.Count(deviceCreateLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
@@ -152,7 +152,7 @@ func (c *ClusterTx) UpdateDevice(parent string, referenceID int, devices map[str
 // generator: device DeleteMany
 func (c *ClusterTx) DeleteDevices(parent string, referenceID int) error {
 	deviceDeleteLocal := strings.Replace(deviceDelete, "%s_id", fmt.Sprintf("%s_id", parent), -1)
-	fillParent := make([]interface{}, strings.Count(deviceDeleteLocal, "%s"))
+	fillParent := make([]any, strings.Count(deviceDeleteLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}

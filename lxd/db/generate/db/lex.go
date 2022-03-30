@@ -96,9 +96,9 @@ func dbTxType(db string) string {
 // Return the code for a "dest" function, to be passed as parameter to
 // query.SelectObjects in order to scan a single row.
 func destFunc(slice string, typ string, fields []*Field) string {
-	f := fmt.Sprintf(`func(i int) []interface{} {
+	f := fmt.Sprintf(`func(i int) []any {
                       %s = append(%s, %s{})
-                      return []interface{}{
+                      return []any{
 `, slice, slice, typ)
 
 	for _, field := range fields {

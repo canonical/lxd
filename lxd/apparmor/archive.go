@@ -113,7 +113,7 @@ func archiveProfile(outputPath string, allowedCommandPaths []string) (string, er
 
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err = archiveProfileTpl.Execute(sb, map[string]interface{}{
+	err = archiveProfileTpl.Execute(sb, map[string]any{
 		"name":                ArchiveProfileName(outputPath),
 		"outputPath":          outputPath,
 		"rootPath":            rootPath,

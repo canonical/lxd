@@ -47,11 +47,11 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 	// Dump all tables.
 	dump := &Dump{
 		Schema: map[string][]string{},
-		Data:   map[string][][]interface{}{},
+		Data:   map[string][][]any{},
 	}
 	for _, table := range preClusteringTables {
 		logger.Debugf("Loading data from table %s", table)
-		data := [][]interface{}{}
+		data := [][]any{}
 		stmt := fmt.Sprintf("SELECT * FROM %s", table)
 
 		rows, err := tx.Query(stmt)
@@ -67,8 +67,8 @@ DELETE FROM storage_volumes_config WHERE storage_volume_id NOT IN (SELECT id FRO
 		dump.Schema[table] = columns
 
 		for rows.Next() {
-			values := make([]interface{}, len(columns))
-			row := make([]interface{}, len(columns))
+			values := make([]any, len(columns))
+			row := make([]any, len(columns))
 			for i := range values {
 				row[i] = &values[i]
 			}
@@ -255,7 +255,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 
 // Insert a row in one of the nodes association tables (storage_pools_nodes,
 // networks_nodes, images_nodes).
-func importNodeAssociation(entity string, columns []string, row []interface{}, tx *sql.Tx) error {
+func importNodeAssociation(entity string, columns []string, row []any, tx *sql.Tx) error {
 	stmt := fmt.Sprintf(
 		"INSERT INTO %ss_nodes(%s_id, node_id) VALUES(?, 1)", entity, entity)
 	var id int64
@@ -283,7 +283,7 @@ type Dump struct {
 
 	// Map a table name to all the rows it contains. Each row is a slice
 	// of interfaces.
-	Data map[string][][]interface{}
+	Data map[string][][]any
 }
 
 var preClusteringTables = []string{

@@ -23,7 +23,7 @@ func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
 	var aclNames []string
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var aclName string
 
 			err := scan(&aclName)
@@ -53,7 +53,7 @@ func (c *Cluster) GetNetworkACLIDsByNames(project string) (map[string]int64, err
 	acls := make(map[string]int64)
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var aclID int64
 			var aclName string
 
@@ -163,7 +163,7 @@ func networkACLConfig(tx *ClusterTx, id int64, acl *api.NetworkACL) error {
 	`
 
 	acl.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)

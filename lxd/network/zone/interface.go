@@ -17,7 +17,7 @@ type NetworkZone interface {
 	ID() int64
 	Project() string
 	Info() *api.NetworkZone
-	Etag() []interface{}
+	Etag() []any
 	UsedBy() ([]string, error)
 	Content() (*strings.Builder, error)
 

@@ -15,7 +15,7 @@ type NetworkACL interface {
 	ID() int64
 	Project() string
 	Info() *api.NetworkACL
-	Etag() []interface{}
+	Etag() []any
 	UsedBy() ([]string, error)
 
 	// GetLog.

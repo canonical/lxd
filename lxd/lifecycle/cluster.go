@@ -19,7 +19,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a cluster.
-func (a ClusterAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a ClusterAction) Event(name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("cluster-%s", a)
 	u := fmt.Sprintf("/1.0/cluster/%s", url.PathEscape(name))
 

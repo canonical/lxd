@@ -20,7 +20,7 @@ import (
 func (c *Cluster) CreateNetworkForward(networkID int64, memberSpecific bool, info *api.NetworkForwardsPost) (int64, error) {
 	var err error
 	var forwardID int64
-	var nodeID interface{}
+	var nodeID any
 
 	if memberSpecific {
 		nodeID = c.nodeID
@@ -174,7 +174,7 @@ func (c *Cluster) DeleteNetworkForward(networkID int64, forwardID int64) error {
 // all members.
 func (c *Cluster) GetNetworkForward(networkID int64, memberSpecific bool, listenAddress string) (int64, *api.NetworkForward, error) {
 	var q *strings.Builder = &strings.Builder{}
-	args := []interface{}{networkID, listenAddress}
+	args := []any{networkID, listenAddress}
 
 	q.WriteString(`
 	SELECT
@@ -244,7 +244,7 @@ func networkForwardConfig(tx *ClusterTx, forwardID int64, forward *api.NetworkFo
 	`
 
 	forward.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -269,7 +269,7 @@ func networkForwardConfig(tx *ClusterTx, forwardID int64, forward *api.NetworkFo
 // all members.
 func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64, memberSpecific bool) (map[int64]string, error) {
 	var q *strings.Builder = &strings.Builder{}
-	args := []interface{}{networkID}
+	args := []any{networkID}
 
 	q.WriteString(`
 	SELECT
@@ -287,7 +287,7 @@ func (c *Cluster) GetNetworkForwardListenAddresses(networkID int64, memberSpecif
 	forwards := make(map[int64]string)
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q.String(), func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var forwardID int64 = int64(-1)
 			var listenAddress string
 
@@ -328,7 +328,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesByUplink(uplinkNetwor
 	`
 	forwards := make(map[string]map[int64][]string)
 
-	err := c.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -373,7 +373,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember() (map[strin
 	`
 	forwards := make(map[string]map[int64][]string)
 
-	err := c.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	err := c.QueryScan(q, func(scan func(dest ...any) error) error {
 		var projectName string
 		var networkID int64 = int64(-1)
 		var listenAddress string
@@ -407,7 +407,7 @@ func (c *ClusterTx) GetProjectNetworkForwardListenAddressesOnMember() (map[strin
 // all members.
 func (c *Cluster) GetNetworkForwards(networkID int64, memberSpecific bool) (map[int64]*api.NetworkForward, error) {
 	var q *strings.Builder = &strings.Builder{}
-	args := []interface{}{networkID}
+	args := []any{networkID}
 
 	q.WriteString(`
 	SELECT
@@ -430,7 +430,7 @@ func (c *Cluster) GetNetworkForwards(networkID int64, memberSpecific bool) (map[
 	forwards := make(map[int64]*api.NetworkForward)
 
 	err = c.Transaction(func(tx *ClusterTx) error {
-		err = tx.QueryScan(q.String(), func(scan func(dest ...interface{}) error) error {
+		err = tx.QueryScan(q.String(), func(scan func(dest ...any) error) error {
 			var forwardID int64 = int64(-1)
 			var portsJSON string
 			var forward api.NetworkForward

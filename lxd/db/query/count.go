@@ -6,7 +6,7 @@ import (
 )
 
 // Count returns the number of rows in the given table.
-func Count(tx *sql.Tx, table string, where string, args ...interface{}) (int, error) {
+func Count(tx *sql.Tx, table string, where string, args ...any) (int, error) {
 	stmt := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
 	if where != "" {
 		stmt += fmt.Sprintf(" WHERE %s", where)

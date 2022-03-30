@@ -15,7 +15,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on the server configuration
-func (a ConfigAction) Event(requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a ConfigAction) Event(requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("config-%s", a)
 	u := fmt.Sprintf("/1.0")
 

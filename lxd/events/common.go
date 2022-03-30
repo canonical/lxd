@@ -134,7 +134,7 @@ func (e *listenerCommon) Close() {
 }
 
 // WriteJSON message to the connection.
-func (e *listenerCommon) WriteJSON(v interface{}) error {
+func (e *listenerCommon) WriteJSON(v any) error {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 

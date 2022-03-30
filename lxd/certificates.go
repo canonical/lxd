@@ -596,7 +596,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			req.Projects = []string{}
 		}
 
-		meta := map[string]interface{}{
+		meta := map[string]any{
 			"secret":      joinSecret,
 			"fingerprint": fingerprint,
 			"addresses":   addresses,
