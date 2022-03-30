@@ -68,9 +68,15 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info.Protocol = "lxd"
 	info.URL = r.httpBaseURL.String()
 	info.SocketPath = r.httpUnixPath
+
 	info.Project = r.project
 	if info.Project == "" {
 		info.Project = "default"
+	}
+
+	info.Target = r.clusterTarget
+	if info.Target == "" && r.server != nil {
+		info.Target = r.server.Environment.ServerName
 	}
 
 	urls := []string{}
@@ -93,6 +99,38 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info.Addresses = urls
 
 	return &info, nil
+}
+
+func (r *ProtocolLXD) isSameServer(server Server) bool {
+	// Short path checking if the two structs are identical.
+	if r == server {
+		return true
+	}
+
+	// Short path if either of the structs are nil.
+	if r == nil || server == nil {
+		return false
+	}
+
+	// When dealing with uninitialized servers, we can't safely compare.
+	if r.server == nil {
+		return false
+	}
+
+	// Get the connection info from both servers.
+	srcInfo, err := r.GetConnectionInfo()
+	if err != nil {
+		return false
+	}
+
+	dstInfo, err := server.GetConnectionInfo()
+	if err != nil {
+		return false
+	}
+
+	// Check whether we're dealing with the same server.
+	return srcInfo.Protocol == dstInfo.Protocol && srcInfo.Certificate == dstInfo.Certificate &&
+		srcInfo.Project == dstInfo.Project && srcInfo.Target == dstInfo.Target
 }
 
 // GetHTTPClient returns the http client used for the connection. This can be used to set custom http options.
