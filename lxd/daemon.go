@@ -1478,6 +1478,9 @@ func (d *Daemon) startClusterTasks() {
 	// Auto-sync images across the cluster (hourly)
 	d.clusterTasks.Add(autoSyncImagesTask(d))
 
+	// Remove orphaned operations
+	d.clusterTasks.Add(autoRemoveOrphanedOperationsTask(d))
+
 	// Start all background tasks
 	d.clusterTasks.Start(d.shutdownCtx)
 }
