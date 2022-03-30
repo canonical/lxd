@@ -2516,10 +2516,6 @@ test_clustering_image_refresh() {
   # The random storage backend is not supported in clustering tests,
   # since we need to have the same storage driver on all nodes, so use the driver chosen for the standalone pool.
   poolDriver=$(lxc storage show "$(lxc profile device get default root pool)" | grep 'driver:' | awk '{print $2}')
-  if [ "${poolDriver}" = "lvm" ]; then
-    # LVM driver doesn't currently work for clustering tests which needs to be investigated.
-    poolDriver="dir"
-  fi
 
   # Spawn first node
   setup_clustering_netns 1
