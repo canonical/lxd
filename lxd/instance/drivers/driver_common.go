@@ -45,7 +45,6 @@ type common struct {
 	creationDate    time.Time
 	dbType          instancetype.Type
 	description     string
-	devPaths        []string
 	ephemeral       bool
 	expandedConfig  map[string]string
 	expandedDevices deviceConfig.Devices
@@ -90,14 +89,6 @@ func (d *common) Type() instancetype.Type {
 // Description returns the instance's description.
 func (d *common) Description() string {
 	return d.description
-}
-
-// DevPaths() returns a list of /dev devices which the instance requires access to.
-// This is function is only safe to call from within the security
-// packages as called during instance startup, the rest of the time this
-// will likely return nil.
-func (d *common) DevPaths() []string {
-	return d.devPaths
 }
 
 // IsEphemeral returns whether the instanc is ephemeral or not.

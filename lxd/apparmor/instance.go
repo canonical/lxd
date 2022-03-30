@@ -23,7 +23,6 @@ type instance interface {
 	Type() instancetype.Type
 	LogPath() string
 	Path() string
-	DevPaths() []string
 	DevicesPath() string
 }
 
@@ -183,14 +182,6 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			return "", err
 		}
 
-		externalDevPaths := inst.DevPaths()
-		for i := range externalDevPaths {
-			externalDevPaths[i], err = filepath.EvalSymlinks(externalDevPaths[i])
-			if err != nil {
-				return "", err
-			}
-		}
-
 		ovmfPath := "/usr/share/OVMF"
 		if os.Getenv("LXD_OVMF_PATH") != "" {
 			ovmfPath = os.Getenv("LXD_OVMF_PATH")
@@ -208,17 +199,16 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 		}
 
 		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
-			"externalDevPaths": externalDevPaths,
-			"devicesPath":      inst.DevicesPath(),
-			"exePath":          execPath,
-			"libraryPath":      strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
-			"logPath":          inst.LogPath(),
-			"name":             InstanceProfileName(inst),
-			"path":             path,
-			"raw":              rawContent,
-			"rootPath":         rootPath,
-			"snap":             shared.InSnap(),
-			"ovmfPath":         ovmfPath,
+			"devicesPath": inst.DevicesPath(),
+			"exePath":     execPath,
+			"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),
+			"logPath":     inst.LogPath(),
+			"name":        InstanceProfileName(inst),
+			"path":        path,
+			"raw":         rawContent,
+			"rootPath":    rootPath,
+			"snap":        shared.InSnap(),
+			"ovmfPath":    ovmfPath,
 		})
 		if err != nil {
 			return "", err
