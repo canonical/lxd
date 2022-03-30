@@ -790,55 +790,6 @@ func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 	})
 }
 
-// LegacyContainersList returns the names of all the containers.
-//
-// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
-// use it for new code.
-func (c *Cluster) LegacyContainersList() ([]string, error) {
-	q := fmt.Sprintf("SELECT name FROM instances WHERE type=? ORDER BY name")
-
-	var ret []string
-
-	err := c.Transaction(func(tx *ClusterTx) error {
-		var err error
-		ret, err = query.SelectStrings(tx.tx, q, instancetype.Container)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return ret, nil
-}
-
-// LegacySnapshotsList returns the names of all the snapshots.
-//
-// NOTE: this is a pre-projects legacy API that is used only by patches. Don't
-// use it for new code.
-func (c *Cluster) LegacySnapshotsList() ([]string, error) {
-	q := fmt.Sprintf(`
-SELECT instances.name, instances_snapshots.name
-FROM instances_snapshots
-JOIN instances ON instances.id = instances_snapshots.instance_id
-WHERE type=? ORDER BY instances.name, instances_snapshots.name
-`)
-	inargs := []any{instancetype.Container}
-	var container string
-	var snapshot string
-	outfmt := []any{container, snapshot}
-	result, err := queryScan(c, q, inargs, outfmt)
-	if err != nil {
-		return nil, err
-	}
-
-	var ret []string
-	for _, r := range result {
-		ret = append(ret, r[0].(string)+shared.SnapshotDelimiter+r[1].(string))
-	}
-
-	return ret, nil
-}
-
 // UpdateInstanceSnapshotCreationDate updates the creation_date field of the instance snapshot with ID.
 func (c *Cluster) UpdateInstanceSnapshotCreationDate(instanceID int, date time.Time) error {
 	stmt := `UPDATE instances_snapshots SET creation_date=? WHERE id=?`

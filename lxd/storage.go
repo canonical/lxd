@@ -97,24 +97,6 @@ func storageStartup(s *state.State, forceCheck bool) error {
 		initPools[poolName] = struct{}{}
 	}
 
-	// In case the daemon got killed during upgrade we will already have a
-	// valid storage pool entry but it might have gotten messed up and so we
-	// cannot perform StoragePoolCheck(). This case can be detected by
-	// looking at the patches db: If we already have a storage pool defined
-	// but the upgrade somehow got messed up then there will be no
-	// "storage_api" entry in the db.
-	if len(initPools) > 0 && !forceCheck {
-		appliedPatches, err := s.Node.GetAppliedPatches()
-		if err != nil {
-			return err
-		}
-
-		if !shared.StringInSlice("storage_api", appliedPatches) {
-			logger.Warn(`Incorrectly applied "storage_api" patch, skipping storage pool initialization as it might be corrupt`)
-			return nil
-		}
-	}
-
 	initPool := func(poolName string) bool {
 		logger.Debug("Initializing storage pool", log.Ctx{"pool": poolName})
 

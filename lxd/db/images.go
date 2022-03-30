@@ -1143,16 +1143,6 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 	return poolNames, nil
 }
 
-// UpdateImageUploadDate updates the upload_date column and an image row.
-func (c *Cluster) UpdateImageUploadDate(id int, uploadedAt time.Time) error {
-	q := "UPDATE images SET upload_date=? WHERE id=?"
-	err := c.Transaction(func(tx *ClusterTx) error {
-		_, err := tx.tx.Exec(q, uploadedAt, id)
-		return err
-	})
-	return err
-}
-
 // GetImages returns all images.
 func (c *Cluster) GetImages() (map[string][]string, error) {
 	images := make(map[string][]string) // key is fingerprint, value is list of projects
