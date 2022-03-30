@@ -107,11 +107,6 @@ func (n *Node) Close() error {
 	return n.db.Close()
 }
 
-// Begin a new transaction against the local database. Legacy method.
-func (n *Node) Begin() (*sql.Tx, error) {
-	return begin(n.db)
-}
-
 // Cluster mediates access to LXD's data stored in the cluster dqlite database.
 type Cluster struct {
 	db         *sql.DB // Handle to the cluster dqlite database, gated behind gRPC SQL.
