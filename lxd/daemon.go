@@ -984,7 +984,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Initialize the database */
-	dump, err := initializeDbObject(d)
+	err = initializeDbObject(d)
 	if err != nil {
 		return err
 	}
@@ -1134,7 +1134,7 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteclient.LogDebug))
 		}
 
-		d.cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, dump, options...)
+		d.cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
 			break
@@ -1913,7 +1913,7 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 }
 
 // Create a database connection and perform any updates needed.
-func initializeDbObject(d *Daemon) (*db.Dump, error) {
+func initializeDbObject(d *Daemon) error {
 	logger.Info("Initializing local database")
 
 	// Hook to run when the local database is created from scratch. It will
@@ -1928,13 +1928,12 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 		return nil
 	}
 	var err error
-	var dump *db.Dump
-	d.db, dump, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook)
+	d.db, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating database: %s", err)
+		return fmt.Errorf("Error creating database: %s", err)
 	}
 
-	return dump, nil
+	return nil
 }
 
 // hasMemberStateChanged returns true if the number of members, their addresses or state has changed.

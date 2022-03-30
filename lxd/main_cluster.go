@@ -129,7 +129,7 @@ func (c *cmdClusterEdit) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("The LXD daemon is running, please stop it first.")
 	}
 
-	database, _, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil)
+	database, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil)
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func (c *cmdClusterShow) Command() *cobra.Command {
 }
 
 func (c *cmdClusterShow) Run(cmd *cobra.Command, args []string) error {
-	database, _, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil)
+	database, err := db.OpenNode(filepath.Join(sys.DefaultOS().VarDir, "database"), nil)
 	if err != nil {
 		return err
 	}
@@ -350,7 +350,7 @@ func (c *cmdClusterListDatabase) Command() *cobra.Command {
 func (c *cmdClusterListDatabase) Run(cmd *cobra.Command, args []string) error {
 	os := sys.DefaultOS()
 
-	db, _, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil)
+	db, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil)
 	if err != nil {
 		return fmt.Errorf("Failed to open local database: %w", err)
 	}
@@ -404,7 +404,7 @@ func (c *cmdClusterRecoverFromQuorumLoss) Run(cmd *cobra.Command, args []string)
 
 	os := sys.DefaultOS()
 
-	db, _, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil)
+	db, err := db.OpenNode(filepath.Join(os.VarDir, "database"), nil)
 	if err != nil {
 		return fmt.Errorf("Failed to open local database: %w", err)
 	}

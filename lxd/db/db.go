@@ -37,38 +37,19 @@ type Node struct {
 // The fresh hook parameter is used by the daemon to mark all known patch names
 // as applied when a brand new database is created.
 //
-// Return the newly created Node object, and a Dump of the pre-clustering data
-// if we've migrating to a cluster-aware version.
-func OpenNode(dir string, fresh func(*Node) error) (*Node, *Dump, error) {
-	// When updating the node database schema we'll detect if we're
-	// transitioning to the dqlite-based database and dump all the data
-	// before purging the schema. This data will be then imported by the
-	// daemon into the dqlite database.
-	var dump *Dump
-
+// Return the newly created Node object.
+func OpenNode(dir string, fresh func(*Node) error) (*Node, error) {
 	db, err := node.Open(dir)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	hook := func(version int, tx *sql.Tx) error {
-		if version == node.UpdateFromPreClustering {
-			logger.Debug("Loading pre-clustering sqlite data")
-			var err error
-			dump, err = LoadPreClusteringData(tx)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-	initial, err := node.EnsureSchema(db, dir, hook)
+	initial, err := node.EnsureSchema(db, dir, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	node := &Node{
@@ -80,12 +61,12 @@ func OpenNode(dir string, fresh func(*Node) error) (*Node, *Dump, error) {
 		if fresh != nil {
 			err := fresh(node)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 		}
 	}
 
-	return node, dump, nil
+	return node, nil
 }
 
 // ForLegacyPatches is a aid for the hack in initializeDbObject, which sets
