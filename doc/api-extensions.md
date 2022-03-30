@@ -1643,3 +1643,6 @@ members.
 
 ## cluster\_ovn\_chassis
 Introduces a new `ovn-chassis` cluster role which allows for specifying what cluster member should act as an OVN chassis.
+
+## container\_syscall\_intercept\_sched\_setscheduler
+Adds the `security.syscalls.intercept.sched_setscheduler` to allow advanced process priority management in containers.
