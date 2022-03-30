@@ -291,6 +291,10 @@ func (d *lvm) roundedSizeBytesString(size string) (int64, error) {
 		return 0, err
 	}
 
+	if sizeBytes <= 0 {
+		return 0, nil
+	}
+
 	// LVM tools require sizes in multiples of 512 bytes.
 	const minSizeBytes = 512
 	if sizeBytes < minSizeBytes {
