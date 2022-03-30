@@ -23,7 +23,7 @@ test_sql() {
   # Local database dump
   SQLITE_DUMP="${TEST_DIR}/dump.db"
   lxd sql local .dump | sqlite3 "${SQLITE_DUMP}"
-  sqlite3 "${SQLITE_DUMP}" "SELECT * FROM patches" | grep -q invalid_profile_names
+  sqlite3 "${SQLITE_DUMP}" "SELECT * FROM patches" | grep -q dnsmasq_entries_include_device_name
   rm -f "${SQLITE_DUMP}"
 
   # Local database schema dump
