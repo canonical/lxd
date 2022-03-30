@@ -139,7 +139,7 @@ type migrationSourceWs struct {
 	allConnected chan struct{}
 }
 
-func (s *migrationSourceWs) Metadata() interface{} {
+func (s *migrationSourceWs) Metadata() any {
 	secrets := shared.Jmap{
 		"control": s.controlSecret,
 		"fs":      s.fsSecret,
@@ -320,7 +320,7 @@ func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 	return conn, err
 }
 
-func (s *migrationSink) Metadata() interface{} {
+func (s *migrationSink) Metadata() any {
 	secrets := shared.Jmap{
 		"control": s.dest.controlSecret,
 		"fs":      s.dest.fsSecret,

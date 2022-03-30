@@ -7,9 +7,9 @@ import (
 
 // Error generated when trying to set a certain config key to certain value.
 type Error struct {
-	Name   string      // The name of the key this error is associated with.
-	Value  interface{} // The value that the key was tried to be set to.
-	Reason string      // Human-readable reason of the error.
+	Name   string // The name of the key this error is associated with.
+	Value  any    // The value that the key was tried to be set to.
+	Reason string // Human-readable reason of the error.
 }
 
 // Error implements the error interface.
@@ -45,6 +45,6 @@ func (l ErrorList) Less(i, j int) bool { return l[i].Name < l[j].Name }
 func (l ErrorList) sort() { sort.Sort(l) }
 
 // Add adds an Error with given key name, value and reason.
-func (l *ErrorList) add(name string, value interface{}, reason string) {
+func (l *ErrorList) add(name string, value any, reason string) {
 	*l = append(*l, &Error{name, value, reason})
 }

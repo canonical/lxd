@@ -1,7 +1,7 @@
 package filter
 
 // Match returns true if the given object matches the given filter.
-func Match(obj interface{}, clauses []Clause) bool {
+func Match(obj any, clauses []Clause) bool {
 	match := true
 
 	for _, clause := range clauses {

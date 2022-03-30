@@ -71,10 +71,10 @@ func (c *ClusterTx) GetStoragePoolUsedBy(name string, allNodes bool) ([]string, 
 		nodeID      *int64
 	}
 	var vols []vol
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		vols = append(vols, vol{})
 
-		return []interface{}{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
+		return []any{&vols[i].volName, &vols[i].volType, &vols[i].projectName, &vols[i].nodeID}
 	}
 
 	nodePredicate := "node_id=?"
@@ -95,7 +95,7 @@ SELECT storage_volumes.name, storage_volumes.type, projects.name, storage_volume
 		return nil, err
 	}
 
-	args := []interface{}{id}
+	args := []any{id}
 	if !allNodes {
 		args = append(args, c.nodeID)
 	}
@@ -208,12 +208,12 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 		id   int64
 		name string
 	}{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		pools = append(pools, struct {
 			id   int64
 			name string
 		}{})
-		return []interface{}{&pools[i].id, &pools[i].name}
+		return []any{&pools[i].id, &pools[i].name}
 
 	}
 	stmt, err := c.tx.Prepare("SELECT id, name FROM storage_pools WHERE NOT state=?")
@@ -240,7 +240,7 @@ func (c *ClusterTx) GetNonPendingStoragePoolsNamesToIDs() (map[string]int64, err
 func (c *ClusterTx) UpdateStoragePoolAfterNodeJoin(poolID, nodeID int64) error {
 	columns := []string{"storage_pool_id", "node_id", "state"}
 	// Create storage pool node with storagePoolCreated state as we expect the pool to already be setup.
-	values := []interface{}{poolID, nodeID, storagePoolCreated}
+	values := []any{poolID, nodeID, storagePoolCreated}
 	_, err := query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
 		return fmt.Errorf("failed to add storage pools node entry: %w", err)
@@ -384,12 +384,12 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 	}{}
 
 	var errConsistency error
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		// Ensure that there is at most one pool with the given name.
 		if i != 0 {
 			errConsistency = fmt.Errorf("more than one pool exists with the given name")
 		}
-		return []interface{}{&pool.id, &pool.driver, &pool.state}
+		return []any{&pool.id, &pool.driver, &pool.state}
 	}
 	stmt, err := c.tx.Prepare("SELECT id, driver, state FROM storage_pools WHERE name=?")
 	if err != nil {
@@ -409,7 +409,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 		// No existing pool with the given name was found, let's create
 		// one.
 		columns := []string{"name", "driver", "description"}
-		values := []interface{}{name, driver, ""}
+		values := []any{name, driver, ""}
 		poolID, err = query.UpsertObject(c.tx, "storage_pools", columns, values)
 		if err != nil {
 			return err
@@ -443,7 +443,7 @@ func (c *ClusterTx) CreatePendingStoragePool(node, name, driver string, conf map
 
 	// Insert a node-specific entry pointing to ourselves with state storagePoolPending.
 	columns := []string{"storage_pool_id", "node_id", "state"}
-	values := []interface{}{poolID, nodeInfo.ID, storagePoolPending}
+	values := []any{poolID, nodeInfo.ID, storagePoolPending}
 	_, err = query.UpsertObject(c.tx, "storage_pools_nodes", columns, values)
 	if err != nil {
 		return err
@@ -485,9 +485,9 @@ func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error 
 // storagePoolNodes returns the nodes keyed by node ID that the given storage pool is defined on.
 func (c *ClusterTx) storagePoolNodes(poolID int64) (map[int64]StoragePoolNode, error) {
 	nodes := []StoragePoolNode{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		nodes = append(nodes, StoragePoolNode{})
-		return []interface{}{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
+		return []any{&nodes[i].ID, &nodes[i].Name, &nodes[i].State}
 	}
 
 	stmt, err := c.tx.Prepare(`
@@ -595,11 +595,11 @@ func (c *Cluster) GetCreatedStoragePoolNames() ([]string, error) {
 }
 
 // Get all storage pools matching the given WHERE filter (if given).
-func (c *Cluster) storagePools(where string, args ...interface{}) ([]string, error) {
+func (c *Cluster) storagePools(where string, args ...any) ([]string, error) {
 	var name string
 	stmt := "SELECT name FROM storage_pools"
-	inargs := []interface{}{}
-	outargs := []interface{}{name}
+	inargs := []any{}
+	outargs := []any{name}
 
 	if where != "" {
 		stmt += fmt.Sprintf(" WHERE %s", where)
@@ -630,8 +630,8 @@ func (c *Cluster) storagePools(where string, args ...interface{}) ([]string, err
 func (c *Cluster) GetStoragePoolDrivers() ([]string, error) {
 	var poolDriver string
 	query := "SELECT DISTINCT driver FROM storage_pools"
-	inargs := []interface{}{}
-	outargs := []interface{}{poolDriver}
+	inargs := []any{}
+	outargs := []any{poolDriver}
 
 	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
@@ -654,8 +654,8 @@ func (c *Cluster) GetStoragePoolDrivers() ([]string, error) {
 func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 	poolID := int64(-1)
 	query := "SELECT id FROM storage_pools WHERE name=?"
-	inargs := []interface{}{poolName}
-	outargs := []interface{}{&poolID}
+	inargs := []any{poolName}
+	outargs := []any{&poolID}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
@@ -687,7 +687,7 @@ func (c *Cluster) GetStoragePoolWithID(poolID int) (int64, *api.StoragePool, map
 }
 
 // GetStoragePool returns a single storage pool.
-func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...interface{}) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
+func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...any) (int64, *api.StoragePool, map[int64]StoragePoolNode, error) {
 	var err error
 	var q *strings.Builder = &strings.Builder{}
 	q.WriteString("SELECT id, name, driver, description, state FROM storage_pools WHERE ")
@@ -780,7 +780,7 @@ func (c *Cluster) getStoragePoolConfig(tx *ClusterTx, poolID int64, pool *api.St
 
 	pool.Config = map[string]string{}
 
-	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -815,7 +815,7 @@ func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poo
 
 		// Insert a node-specific entry pointing to ourselves with state storagePoolPending.
 		columns := []string{"storage_pool_id", "node_id", "state"}
-		values := []interface{}{id, c.nodeID, storagePoolPending}
+		values := []any{id, c.nodeID, storagePoolPending}
 		_, err = query.UpsertObject(tx.tx, "storage_pools_nodes", columns, values)
 		if err != nil {
 			return err
@@ -847,7 +847,7 @@ func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[strin
 		if v == "" {
 			continue
 		}
-		var nodeIDValue interface{}
+		var nodeIDValue any
 		if !shared.StringInSlice(k, StoragePoolNodeConfigKeys) {
 			nodeIDValue = nil
 		} else {

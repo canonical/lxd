@@ -124,7 +124,7 @@ func (d *common) usedBy(firstOnly bool) ([]string, error) {
 	usedBy := []string{}
 
 	// Find all networks, profiles and instance NICs that use this Network ACL.
-	err := UsedBy(d.state, d.projectName, func(_ []string, usageType interface{}, _ string, _ map[string]string) error {
+	err := UsedBy(d.state, d.projectName, func(_ []string, usageType any, _ string, _ map[string]string) error {
 		switch u := usageType.(type) {
 		case db.Instance:
 			uri := fmt.Sprintf("/%s/instances/%s", version.APIVersion, u.Name)
@@ -191,8 +191,8 @@ func (d *common) isUsed() (bool, error) {
 }
 
 // Etag returns the values used for etag generation.
-func (d *common) Etag() []interface{} {
-	return []interface{}{d.info.Name, d.info.Description, d.info.Ingress, d.info.Egress, d.info.Config}
+func (d *common) Etag() []any {
+	return []any{d.info.Name, d.info.Description, d.info.Ingress, d.info.Egress, d.info.Config}
 }
 
 // validateName checks name is valid.

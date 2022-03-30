@@ -1044,7 +1044,7 @@ func dqliteMemoryDial(bindAddress string) client.DialFunc {
 const databaseEndpoint = "/internal/database"
 
 // DqliteLog redirects dqlite's logs to our own logger
-func DqliteLog(l client.LogLevel, format string, a ...interface{}) {
+func DqliteLog(l client.LogLevel, format string, a ...any) {
 	format = fmt.Sprintf("Dqlite: %s", format)
 	switch l {
 	case client.LogDebug:

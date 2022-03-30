@@ -35,8 +35,8 @@ type Response interface {
 // Sync response
 type syncResponse struct {
 	success   bool
-	etag      interface{}
-	metadata  interface{}
+	etag      any
+	metadata  any
 	location  string
 	code      int
 	headers   map[string]string
@@ -44,21 +44,21 @@ type syncResponse struct {
 }
 
 // EmptySyncResponse represents an empty syncResponse.
-var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]interface{})}
+var EmptySyncResponse = &syncResponse{success: true, metadata: make(map[string]any)}
 
 // SyncResponse returns a new syncResponse with the success and metadata fields
 // set to the provided values.
-func SyncResponse(success bool, metadata interface{}) Response {
+func SyncResponse(success bool, metadata any) Response {
 	return &syncResponse{success: success, metadata: metadata}
 }
 
 // SyncResponseETag returns a new syncResponse with an etag.
-func SyncResponseETag(success bool, metadata interface{}, etag interface{}) Response {
+func SyncResponseETag(success bool, metadata any, etag any) Response {
 	return &syncResponse{success: success, metadata: metadata, etag: etag}
 }
 
 // SyncResponseLocation returns a new syncResponse with a location.
-func SyncResponseLocation(success bool, metadata interface{}, location string) Response {
+func SyncResponseLocation(success bool, metadata any, location string) Response {
 	return &syncResponse{success: success, metadata: metadata, location: location}
 }
 
@@ -69,7 +69,7 @@ func SyncResponseRedirect(address string) Response {
 }
 
 // SyncResponseHeaders returns a new syncResponse with headers.
-func SyncResponseHeaders(success bool, metadata interface{}, headers map[string]string) Response {
+func SyncResponseHeaders(success bool, metadata any, headers map[string]string) Response {
 	return &syncResponse{success: success, metadata: metadata, headers: headers}
 }
 

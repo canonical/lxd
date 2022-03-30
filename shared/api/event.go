@@ -44,7 +44,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			return EventLogRecord{}, err
 		}
 
-		ctx := []interface{}{}
+		ctx := []any{}
 		for k, v := range e.Context {
 			ctx = append(ctx, k)
 			ctx = append(ctx, v)
@@ -64,7 +64,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			return EventLogRecord{}, err
 		}
 
-		ctx := []interface{}{}
+		ctx := []any{}
 		for k, v := range e.Context {
 			ctx = append(ctx, k)
 			ctx = append(ctx, v)
@@ -95,7 +95,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			Time: event.Timestamp,
 			Lvl:  "info",
 			Msg:  fmt.Sprintf("ID: %s, Class: %s, Description: %s", e.ID, e.Class, e.Description),
-			Ctx: []interface{}{
+			Ctx: []any{
 				"CreatedAt", e.CreatedAt,
 				"UpdatedAt", e.UpdatedAt,
 				"Status", e.Status,
@@ -118,7 +118,7 @@ type EventLogRecord struct {
 	Time time.Time
 	Lvl  string
 	Msg  string
-	Ctx  []interface{}
+	Ctx  []any
 }
 
 // EventLogging represents a logging type event entry (admin only)
@@ -132,9 +132,9 @@ type EventLogging struct {
 //
 // API extension: event_lifecycle
 type EventLifecycle struct {
-	Action  string                 `yaml:"action" json:"action"`
-	Source  string                 `yaml:"source" json:"source"`
-	Context map[string]interface{} `yaml:"context,omitempty" json:"context,omitempty"`
+	Action  string         `yaml:"action" json:"action"`
+	Source  string         `yaml:"source" json:"source"`
+	Context map[string]any `yaml:"context,omitempty" json:"context,omitempty"`
 
 	// API extension: event_lifecycle_requestor
 	Requestor *EventLifecycleRequestor `yaml:"requestor,omitempty" json:"requestor,omitempty"`

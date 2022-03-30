@@ -109,7 +109,7 @@ func (s *Server) SendLifecycle(projectName string, event api.EventLifecycle) {
 }
 
 // Send broadcasts a custom event.
-func (s *Server) Send(projectName string, eventType string, eventMessage interface{}) error {
+func (s *Server) Send(projectName string, eventType string, eventMessage any) error {
 	encodedMessage, err := json.Marshal(eventMessage)
 	if err != nil {
 		return err

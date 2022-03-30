@@ -135,12 +135,12 @@ func updateFromV39(tx *sql.Tx) error {
 		ID      uint64
 		Address string
 	}{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		nodes = append(nodes, struct {
 			ID      uint64
 			Address string
 		}{})
-		return []interface{}{&nodes[i].ID, &nodes[i].Address}
+		return []any{&nodes[i].ID, &nodes[i].Address}
 	}
 	stmt, err := tx.Prepare("SELECT id, address FROM raft_nodes")
 	if err != nil {

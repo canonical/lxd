@@ -28,7 +28,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a storage volume.
-func (a StorageVolumeAction) Event(v volume, volumeType string, projectName string, op *operations.Operation, ctx map[string]interface{}) api.EventLifecycle {
+func (a StorageVolumeAction) Event(v volume, volumeType string, projectName string, op *operations.Operation, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("storage-volume-%s", a)
 	u := fmt.Sprintf("/1.0/storage-pools/%s/volumes", url.PathEscape(v.Pool()))
 	if volumeType != "" {

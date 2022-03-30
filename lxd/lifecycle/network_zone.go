@@ -32,7 +32,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on a network zone.
-func (a NetworkZoneAction) Event(n networkZone, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a NetworkZoneAction) Event(n networkZone, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("network-zone-%s", a)
 
 	u := fmt.Sprintf("/1.0/network-zones/%s", url.PathEscape(n.Info().Name))
@@ -49,7 +49,7 @@ func (a NetworkZoneAction) Event(n networkZone, requestor *api.EventLifecycleReq
 }
 
 // Event creates the lifecycle event for an action on a network zone record.
-func (a NetworkZoneRecordAction) Event(n networkZone, name string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a NetworkZoneRecordAction) Event(n networkZone, name string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("network-zone-record-%s", a)
 
 	u := fmt.Sprintf("/1.0/network-zones/%s/records/%s", url.PathEscape(n.Info().Name), url.PathEscape(name))

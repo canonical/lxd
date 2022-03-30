@@ -8,7 +8,7 @@ import (
 
 // SelectStrings executes a statement which must yield rows with a single string
 // column. It returns the list of column values.
-func SelectStrings(tx *sql.Tx, query string, args ...interface{}) ([]string, error) {
+func SelectStrings(tx *sql.Tx, query string, args ...any) ([]string, error) {
 	values := []string{}
 	scan := func(rows *sql.Rows) error {
 		var value string
@@ -30,7 +30,7 @@ func SelectStrings(tx *sql.Tx, query string, args ...interface{}) ([]string, err
 
 // SelectIntegers executes a statement which must yield rows with a single integer
 // column. It returns the list of column values.
-func SelectIntegers(tx *sql.Tx, query string, args ...interface{}) ([]int, error) {
+func SelectIntegers(tx *sql.Tx, query string, args ...any) ([]int, error) {
 	values := []int{}
 	scan := func(rows *sql.Rows) error {
 		var value int
@@ -62,7 +62,7 @@ func InsertStrings(tx *sql.Tx, stmt string, values []string) error {
 	}
 
 	params := make([]string, n)
-	args := make([]interface{}, n)
+	args := make([]any, n)
 	for i, value := range values {
 		params[i] = "(?)"
 		args[i] = value
@@ -76,7 +76,7 @@ func InsertStrings(tx *sql.Tx, stmt string, values []string) error {
 // Execute the given query and ensure that it yields rows with a single column
 // of the given database type. For every row yielded, execute the given
 // scanner.
-func scanSingleColumn(tx *sql.Tx, query string, args []interface{}, typeName string, scan scanFunc) error {
+func scanSingleColumn(tx *sql.Tx, query string, args []any, typeName string, scan scanFunc) error {
 	rows, err := tx.Query(query, args...)
 	if err != nil {
 		return err

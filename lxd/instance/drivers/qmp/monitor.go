@@ -28,7 +28,7 @@ type Monitor struct {
 	agentReadyMu  sync.Mutex
 	disconnected  bool
 	chDisconnect  chan struct{}
-	eventHandler  func(name string, data map[string]interface{})
+	eventHandler  func(name string, data map[string]any)
 	serialCharDev string
 }
 
@@ -42,7 +42,7 @@ func (m *Monitor) start() error {
 		}
 
 		// Read the ringbuffer.
-		args := map[string]interface{}{
+		args := map[string]any{
 			"device": m.serialCharDev,
 			"size":   RingbufSize,
 			"format": "utf8",
@@ -133,7 +133,7 @@ func (m *Monitor) ping() error {
 }
 
 // run executes a command.
-func (m *Monitor) run(cmd string, args interface{}, resp interface{}) error {
+func (m *Monitor) run(cmd string, args any, resp any) error {
 	// Check if disconnected
 	if m.disconnected {
 		return ErrMonitorDisconnect
@@ -141,8 +141,8 @@ func (m *Monitor) run(cmd string, args interface{}, resp interface{}) error {
 
 	// Run the command.
 	requestArgs := struct {
-		Execute   string      `json:"execute"`
-		Arguments interface{} `json:"arguments,omitempty"`
+		Execute   string `json:"execute"`
+		Arguments any    `json:"arguments,omitempty"`
 	}{
 		Execute:   cmd,
 		Arguments: args,
@@ -183,7 +183,7 @@ func (m *Monitor) run(cmd string, args interface{}, resp interface{}) error {
 }
 
 // Connect creates or retrieves an existing QMP monitor for the path.
-func Connect(path string, serialCharDev string, eventHandler func(name string, data map[string]interface{})) (*Monitor, error) {
+func Connect(path string, serialCharDev string, eventHandler func(name string, data map[string]any)) (*Monitor, error) {
 	monitorsLock.Lock()
 	defer monitorsLock.Unlock()
 

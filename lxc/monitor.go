@@ -152,7 +152,7 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 		}
 
 		// Read back to a clean interface
-		var rawEvent interface{}
+		var rawEvent any
 		err = json.Unmarshal(jsonRender, &rawEvent)
 		if err != nil {
 			chError <- err

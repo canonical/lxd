@@ -22,7 +22,7 @@ func (c *Cluster) GetNetworkZones(project string) ([]string, error) {
 	var zoneNames []string
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var zoneName string
 
 			err := scan(&zoneName)
@@ -52,7 +52,7 @@ func (c *Cluster) GetNetworkZoneKeys() (map[string]string, error) {
 
 	secrets := map[string]string{}
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var name string
 			var peer string
 			var secret string
@@ -95,7 +95,7 @@ func (c *Cluster) GetNetworksForZone(projectName string, zoneName string) ([]str
 	var networkNames []string
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var networkName string
 
 			err := scan(&networkName)
@@ -204,7 +204,7 @@ func networkZoneConfig(tx *ClusterTx, id int64, zone *api.NetworkZone) error {
 	`
 
 	zone.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)
@@ -323,7 +323,7 @@ func (c *Cluster) GetNetworkZoneRecordNames(zone int64) ([]string, error) {
 
 	var recordNames []string
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var recordName string
 
 			err := scan(&recordName)
@@ -398,7 +398,7 @@ func networkZoneRecordConfig(tx *ClusterTx, id int64, record *api.NetworkZoneRec
 	`
 
 	record.Config = make(map[string]string)
-	return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+	return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 		var key, value string
 
 		err := scan(&key, &value)

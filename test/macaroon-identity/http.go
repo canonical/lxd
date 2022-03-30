@@ -52,6 +52,6 @@ func (s *httpService) LogRequest(req *http.Request) {
 }
 
 // Fail returns an HTTP error with the specified message
-func (s *httpService) Fail(w http.ResponseWriter, code int, msg string, args ...interface{}) {
+func (s *httpService) Fail(w http.ResponseWriter, code int, msg string, args ...any) {
 	http.Error(w, fmt.Sprintf(msg, args...), code)
 }

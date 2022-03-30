@@ -19,7 +19,7 @@ const (
 )
 
 // Event creates the lifecycle event for an action on an storage pool.
-func (a StoragePoolAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]interface{}) api.EventLifecycle {
+func (a StoragePoolAction) Event(name string, projectName string, requestor *api.EventLifecycleRequestor, ctx map[string]any) api.EventLifecycle {
 	eventType := fmt.Sprintf("storage-pool-%s", a)
 	u := fmt.Sprintf("/1.0/storage-pools/%s", url.PathEscape(name))
 

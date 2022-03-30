@@ -1320,7 +1320,7 @@ func (d *lxc) IdmappedStorage(path string) idmap.IdmapStorageType {
 	return mode
 }
 
-func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]interface{}) error {
+func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]any) error {
 	event := shared.Jmap{}
 	event["type"] = eventType
 	event["timestamp"] = time.Now()
@@ -3237,13 +3237,13 @@ func (d *lxc) getLxcState() (liblxc.State, error) {
 }
 
 // Render renders the state of the instance.
-func (d *lxc) Render(options ...func(response interface{}) error) (interface{}, interface{}, error) {
+func (d *lxc) Render(options ...func(response any) error) (any, any, error) {
 	// Ignore err as the arch string on error is correct (unknown)
 	architectureName, _ := osarch.ArchitectureName(d.architecture)
 
 	if d.IsSnapshot() {
 		// Prepare the ETag
-		etag := []interface{}{d.expiryDate}
+		etag := []any{d.expiryDate}
 
 		snapState := api.InstanceSnapshot{
 			CreatedAt:       d.creationDate,
@@ -3272,7 +3272,7 @@ func (d *lxc) Render(options ...func(response interface{}) error) (interface{}, 
 	}
 
 	// Prepare the ETag
-	etag := []interface{}{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
+	etag := []any{d.architecture, d.localConfig, d.localDevices, d.ephemeral, d.profiles}
 
 	statusCode := d.statusCode()
 	instState := api.Instance{
@@ -3307,7 +3307,7 @@ func (d *lxc) Render(options ...func(response interface{}) error) (interface{}, 
 }
 
 // RenderFull renders the full state of the instance.
-func (d *lxc) RenderFull() (*api.InstanceFull, interface{}, error) {
+func (d *lxc) RenderFull() (*api.InstanceFull, any, error) {
 	if d.IsSnapshot() {
 		return nil, nil, fmt.Errorf("RenderFull only works with containers")
 	}
@@ -3629,7 +3629,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]interface{}{"snapshot": sourceContainer.Name()}))
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRestored.Event(d, map[string]any{"snapshot": sourceContainer.Name()}))
 	d.logger.Info("Restored container", ctxMap)
 
 	return nil
@@ -3928,9 +3928,9 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	d.logger.Info("Renamed container", ctxMap)
 	if d.snapshot {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotRenamed.Event(d, map[string]any{"old_name": oldName}))
 	} else {
-		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]interface{}{"old_name": oldName}))
+		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceRenamed.Event(d, map[string]any{"old_name": oldName}))
 	}
 
 	revert.Success()
@@ -4617,7 +4617,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 				continue
 			}
 
-			msg := map[string]interface{}{
+			msg := map[string]any{
 				"key":       key,
 				"old_value": oldExpandedConfig[key],
 				"value":     d.expandedConfig[key],
@@ -4631,7 +4631,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 
 		// Device changes
 		for k, m := range removeDevices {
-			msg := map[string]interface{}{
+			msg := map[string]any{
 				"action": "removed",
 				"name":   k,
 				"config": m,
@@ -4644,7 +4644,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		for k, m := range updateDevices {
-			msg := map[string]interface{}{
+			msg := map[string]any{
 				"action": "updated",
 				"name":   k,
 				"config": m,
@@ -4657,7 +4657,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 
 		for k, m := range addDevices {
-			msg := map[string]interface{}{
+			msg := map[string]any{
 				"action": "added",
 				"name":   k,
 				"config": m,

@@ -71,7 +71,7 @@ func forkdnsProfile(sysOS *sys.OS, n network) (string, error) {
 
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
-	err = forkdnsProfileTpl.Execute(sb, map[string]interface{}{
+	err = forkdnsProfileTpl.Execute(sb, map[string]any{
 		"name":        ForkdnsProfileName(n),
 		"networkName": n.Name(),
 		"varPath":     shared.VarPath(""),

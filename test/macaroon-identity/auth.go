@@ -82,7 +82,7 @@ func (s *authService) thirdPartyChecker(ctx context.Context, req *http.Request, 
 	}, nil
 }
 
-func writeJSON(w http.ResponseWriter, code int, val interface{}) error {
+func writeJSON(w http.ResponseWriter, code int, val any) error {
 	data, err := json.Marshal(val)
 	if err != nil {
 		return err
@@ -143,6 +143,6 @@ func (s *authService) getRandomToken() string {
 	return base64.StdEncoding.EncodeToString(uuid)
 }
 
-func (s *authService) bakeryFail(w http.ResponseWriter, msg string, args ...interface{}) {
+func (s *authService) bakeryFail(w http.ResponseWriter, msg string, args ...any) {
 	httpbakery.WriteError(context.TODO(), w, fmt.Errorf(msg, args...))
 }

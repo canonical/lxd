@@ -33,7 +33,7 @@ func (c *ClusterTx) GetConfig(parent string) (map[int]map[string]string, error) 
 	objects := make([]Config, 0)
 
 	configObjectsLocal := strings.Replace(configObjects, "%s_id", fmt.Sprintf("%s_id", parent), -1)
-	fillParent := make([]interface{}, strings.Count(configObjectsLocal, "%s"))
+	fillParent := make([]any, strings.Count(configObjectsLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
@@ -43,12 +43,12 @@ func (c *ClusterTx) GetConfig(parent string) (map[int]map[string]string, error) 
 		return nil, err
 	}
 
-	args := []interface{}{}
+	args := []any{}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, Config{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].ReferenceID,
 			&objects[i].Key,
@@ -82,7 +82,7 @@ func (c *ClusterTx) CreateConfig(parent string, object Config) error {
 	}
 
 	configCreateLocal := strings.Replace(configCreate, "%s_id", fmt.Sprintf("%s_id", parent), -1)
-	fillParent := make([]interface{}, strings.Count(configCreateLocal, "%s"))
+	fillParent := make([]any, strings.Count(configCreateLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}
@@ -130,7 +130,7 @@ func (c *ClusterTx) UpdateConfig(parent string, referenceID int, config map[stri
 // generator: config DeleteMany
 func (c *ClusterTx) DeleteConfig(parent string, referenceID int) error {
 	configDeleteLocal := strings.Replace(configDelete, "%s_id", fmt.Sprintf("%s_id", parent), -1)
-	fillParent := make([]interface{}, strings.Count(configDeleteLocal, "%s"))
+	fillParent := make([]any, strings.Count(configDeleteLocal, "%s"))
 	for i := range fillParent {
 		fillParent[i] = strings.Replace(parent, "_", "s_", -1) + "s"
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 // StatusErrorf returns a new StatusError containing the specified status and message.
-func StatusErrorf(status int, format string, a ...interface{}) StatusError {
+func StatusErrorf(status int, format string, a ...any) StatusError {
 	var msg string
 	if len(a) > 0 {
 		msg = fmt.Sprintf(format, a...)

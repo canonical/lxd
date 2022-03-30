@@ -148,7 +148,7 @@ type ServerStorageDriverInfo struct {
 type ServerPut struct {
 	// Server configuration map (refer to doc/server.md)
 	// Example: {"core.https_address": ":8443", "core.trust_password": true}
-	Config map[string]interface{} `json:"config" yaml:"config"`
+	Config map[string]any `json:"config" yaml:"config"`
 }
 
 // ServerUntrusted represents a LXD server for an untrusted client

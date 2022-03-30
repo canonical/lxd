@@ -156,7 +156,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 	// Render the profile.
 	var sb *strings.Builder = &strings.Builder{}
 	if inst.Type() == instancetype.Container {
-		err = lxcProfileTpl.Execute(sb, map[string]interface{}{
+		err = lxcProfileTpl.Execute(sb, map[string]any{
 			"feature_cgns":     sysOS.CGInfo.Namespacing,
 			"feature_cgroup2":  sysOS.CGInfo.Layout == cgroup.CgroupsUnified || sysOS.CGInfo.Layout == cgroup.CgroupsHybrid,
 			"feature_stacking": sysOS.AppArmorStacking && !sysOS.AppArmorStacked,
@@ -198,7 +198,7 @@ func instanceProfile(sysOS *sys.OS, inst instance) (string, error) {
 			execPath = execPathFull
 		}
 
-		err = qemuProfileTpl.Execute(sb, map[string]interface{}{
+		err = qemuProfileTpl.Execute(sb, map[string]any{
 			"devicesPath": inst.DevicesPath(),
 			"exePath":     execPath,
 			"libraryPath": strings.Split(os.Getenv("LD_LIBRARY_PATH"), ":"),

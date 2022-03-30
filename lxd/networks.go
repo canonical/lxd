@@ -754,7 +754,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	etag := []interface{}{n.Name, n.Managed, n.Type, n.Description, n.Config}
+	etag := []any{n.Name, n.Managed, n.Type, n.Description, n.Config}
 
 	return response.SyncResponseETag(true, &n, etag)
 }
@@ -1056,7 +1056,7 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	requestor := request.CreateRequestor(r)
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkRenamed.Event(n, requestor, map[string]interface{}{"old_name": name}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkRenamed.Event(n, requestor, map[string]any{"old_name": name}))
 
 	return response.SyncResponseLocation(true, nil, fmt.Sprintf("/%s/networks/%s", version.APIVersion, req.Name))
 }
@@ -1143,7 +1143,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Validate the ETag.
-	etag := []interface{}{n.Name(), n.IsManaged(), n.Type(), n.Description(), etagConfig}
+	etag := []any{n.Name(), n.IsManaged(), n.Type(), n.Description(), etagConfig}
 	err = util.EtagCheck(r, etag)
 	if err != nil {
 		return response.PreconditionFailed(err)

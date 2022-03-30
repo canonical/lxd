@@ -39,12 +39,12 @@ func devLxdServer(d *Daemon) *http.Server {
 }
 
 type devLxdResponse struct {
-	content interface{}
+	content any
 	code    int
 	ctype   string
 }
 
-func okResponse(ct interface{}, ctype string) *devLxdResponse {
+func okResponse(ct any, ctype string) *devLxdResponse {
 	return &devLxdResponse{ct, http.StatusOK, ctype}
 }
 

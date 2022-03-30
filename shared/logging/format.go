@@ -70,7 +70,7 @@ func TerminalFormat() log.Format {
 // LogfmtFormat return a formatter for a text log file
 func LogfmtFormat() log.Format {
 	return log.FormatFunc(func(r *log.Record) []byte {
-		common := []interface{}{r.KeyNames.Time, r.Time, r.KeyNames.Lvl, r.Lvl, r.KeyNames.Msg, r.Msg}
+		common := []any{r.KeyNames.Time, r.Time, r.KeyNames.Lvl, r.Lvl, r.KeyNames.Msg, r.Msg}
 		buf := &bytes.Buffer{}
 
 		logfmt(buf, common, 0, false)
@@ -81,7 +81,7 @@ func LogfmtFormat() log.Format {
 	})
 }
 
-func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, sorted bool) {
+func logfmt(buf *bytes.Buffer, ctx []any, color int, sorted bool) {
 	entries := []string{}
 
 	for i := 0; i < len(ctx); i += 2 {
@@ -114,7 +114,7 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, sorted bool) {
 	buf.WriteByte('\n')
 }
 
-func formatShared(value interface{}) (result interface{}) {
+func formatShared(value any) (result any) {
 	defer func() {
 		if err := recover(); err != nil {
 			if v := reflect.ValueOf(value); v.Kind() == reflect.Ptr && v.IsNil() {
@@ -141,7 +141,7 @@ func formatShared(value interface{}) (result interface{}) {
 }
 
 // formatValue formats a value for serialization
-func formatLogfmtValue(value interface{}) string {
+func formatLogfmtValue(value any) string {
 	if value == nil {
 		return "nil"
 	}

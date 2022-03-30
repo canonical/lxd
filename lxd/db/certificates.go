@@ -123,9 +123,9 @@ ORDER BY certificates.fingerprint
 		if err != nil {
 			return err
 		}
-		dest := func(i int) []interface{} {
+		dest := func(i int) []any {
 			objects = append(objects, Certificate{})
-			return []interface{}{
+			return []any{
 				&objects[i].ID,
 				&objects[i].Fingerprint,
 				&objects[i].Type,
@@ -194,14 +194,14 @@ func (n *NodeTx) GetCertificates() ([]Certificate, error) {
 		name        string
 		certificate string
 	}{}
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		dbCerts = append(dbCerts, struct {
 			fingerprint string
 			certType    CertificateType
 			name        string
 			certificate string
 		}{})
-		return []interface{}{&dbCerts[i].fingerprint, &dbCerts[i].certType, &dbCerts[i].name, &dbCerts[i].certificate}
+		return []any{&dbCerts[i].fingerprint, &dbCerts[i].certType, &dbCerts[i].name, &dbCerts[i].certificate}
 	}
 
 	stmt, err := n.tx.Prepare("SELECT fingerprint, type, name, certificate FROM certificates")

@@ -62,32 +62,32 @@ func (c *ClusterTx) GetInstanceSnapshots(filter InstanceSnapshotFilter) ([]Insta
 
 	// Pick the prepared statement and arguments to use based on active criteria.
 	var stmt *sql.Stmt
-	var args []interface{}
+	var args []any
 
 	if filter.Project != nil && filter.Instance != nil && filter.Name != nil {
 		stmt = c.stmt(instanceSnapshotObjectsByProjectAndInstanceAndName)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Instance,
 			filter.Name,
 		}
 	} else if filter.Project != nil && filter.Instance != nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotObjectsByProjectAndInstance)
-		args = []interface{}{
+		args = []any{
 			filter.Project,
 			filter.Instance,
 		}
 	} else if filter.Project == nil && filter.Instance == nil && filter.Name == nil {
 		stmt = c.stmt(instanceSnapshotObjects)
-		args = []interface{}{}
+		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
 	}
 
 	// Dest function for scanning a row.
-	dest := func(i int) []interface{} {
+	dest := func(i int) []any {
 		objects = append(objects, InstanceSnapshot{})
-		return []interface{}{
+		return []any{
 			&objects[i].ID,
 			&objects[i].Project,
 			&objects[i].Instance,
@@ -219,7 +219,7 @@ func (c *ClusterTx) CreateInstanceSnapshot(object InstanceSnapshot) (int64, erro
 		return -1, fmt.Errorf("This \"instances_snapshots\" entry already exists")
 	}
 
-	args := make([]interface{}, 7)
+	args := make([]any, 7)
 
 	// Populate the statement arguments.
 	args[0] = object.Project

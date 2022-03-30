@@ -185,7 +185,7 @@ CREATE TABLE certificates_projects_new (
 	UNIQUE (certificate_id, project_id)
 );
 
-INSERT INTO certificates_projects_new (certificate_id, project_id) SELECT certificate_id, project_id FROM certificates_projects; 
+INSERT INTO certificates_projects_new (certificate_id, project_id) SELECT certificate_id, project_id FROM certificates_projects;
 
 CREATE TABLE images_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -206,7 +206,7 @@ CREATE TABLE images_new (
     FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
 );
 
-INSERT INTO images_new (id, fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date, cached, last_use_date, auto_update, project_id, type) 
+INSERT INTO images_new (id, fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date, cached, last_use_date, auto_update, project_id, type)
 	SELECT id, fingerprint, filename, size, public, architecture, creation_date, expiry_date, upload_date, cached, last_use_date, auto_update, project_id, type FROM images;
 
 CREATE TABLE images_aliases_new (
@@ -220,7 +220,7 @@ CREATE TABLE images_aliases_new (
     FOREIGN KEY (project_id) REFERENCES projects_new (id) ON DELETE CASCADE
 );
 
-INSERT INTO images_aliases_new (id, name, image_id, description, project_id) 
+INSERT INTO images_aliases_new (id, name, image_id, description, project_id)
 	SELECT id, name, image_id, IFNULL(description, ''), project_id FROM images_aliases;
 
 CREATE TABLE nodes_new (
@@ -1666,8 +1666,8 @@ ORDER BY storage_volumes.name
 		ID   int
 		Name string
 	}, count)
-	dest := func(i int) []interface{} {
-		return []interface{}{
+	dest := func(i int) []any {
+		return []any{
 			&volumes[i].ID,
 			&volumes[i].Name,
 		}
@@ -1732,8 +1732,8 @@ CREATE TABLE storage_volumes_new (
 		ContentType   int
 	}, count)
 
-	dest = func(i int) []interface{} {
-		return []interface{}{
+	dest = func(i int) []any {
+		return []any{
 			&storageVolumes[i].ID,
 			&storageVolumes[i].Name,
 			&storageVolumes[i].StoragePoolID,
@@ -1781,8 +1781,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		Value           string
 	}, count)
 
-	dest = func(i int) []interface{} {
-		return []interface{}{
+	dest = func(i int) []any {
+		return []any{
 			&storageVolumeConfigs[i].ID,
 			&storageVolumeConfigs[i].StorageVolumeID,
 			&storageVolumeConfigs[i].Key,
@@ -1814,8 +1814,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		ExpiryDate      sql.NullTime
 	}, count)
 
-	dest = func(i int) []interface{} {
-		return []interface{}{
+	dest = func(i int) []any {
+		return []any{
 			&storageVolumeSnapshots[i].ID,
 			&storageVolumeSnapshots[i].StorageVolumeID,
 			&storageVolumeSnapshots[i].Name,
@@ -1847,8 +1847,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
 		Value                   string
 	}, count)
 
-	dest = func(i int) []interface{} {
-		return []interface{}{
+	dest = func(i int) []any {
+		return []any{
 			&storageVolumeSnapshotConfigs[i].ID,
 			&storageVolumeSnapshotConfigs[i].StorageVolumeSnapshotID,
 			&storageVolumeSnapshotConfigs[i].Key,
@@ -2158,8 +2158,8 @@ func updateFromV25(tx *sql.Tx) error {
 		ProjectID     int
 		Config        map[string]string
 	}, count)
-	dest := func(i int) []interface{} {
-		return []interface{}{
+	dest := func(i int) []any {
+		return []any{
 			&snapshots[i].ID,
 			&snapshots[i].Name,
 			&snapshots[i].StoragePoolID,
@@ -2675,8 +2675,8 @@ CREATE VIEW instances_snapshots_devices_ref (
 		ExpiryDate   sql.NullTime
 	}, count)
 
-	dest := func(i int) []interface{} {
-		return []interface{}{
+	dest := func(i int) []any {
+		return []any{
 			&instances[i].ID,
 			&instances[i].Name,
 			&instances[i].Type,
@@ -2724,8 +2724,8 @@ SELECT id, name, type, creation_date, stateful, coalesce(description, ''), expir
 		Value      string
 	}, count)
 
-	dest = func(i int) []interface{} {
-		return []interface{}{
+	dest = func(i int) []any {
+		return []any{
 			&configs[i].ID,
 			&configs[i].InstanceID,
 			&configs[i].Key,
@@ -2773,8 +2773,8 @@ SELECT instances_config.id, instance_id, key, value
 		Type       int
 	}, count)
 
-	dest = func(i int) []interface{} {
-		return []interface{}{
+	dest = func(i int) []any {
+		return []any{
 			&devices[i].ID,
 			&devices[i].InstanceID,
 			&devices[i].Name,
@@ -2855,7 +2855,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 			tx,
 			"instances_snapshots",
 			columns,
-			[]interface{}{
+			[]any{
 				instanceID,
 				snapshotName,
 				instance.CreationDate,
@@ -2879,7 +2879,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 				tx,
 				"instances_snapshots_config",
 				columns,
-				[]interface{}{
+				[]any{
 					id,
 					key,
 					value,
@@ -2901,7 +2901,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 				tx,
 				"instances_snapshots_devices",
 				columns,
-				[]interface{}{
+				[]any{
 					id,
 					name,
 					device.Type,
@@ -2920,7 +2920,7 @@ SELECT instances_devices.id, instance_id, instances_devices.name, instances_devi
 					tx,
 					"instances_snapshots_devices_config",
 					columns,
-					[]interface{}{
+					[]any{
 						deviceID,
 						key,
 						value,
@@ -3730,8 +3730,8 @@ FROM storage_volumes
 		return err
 	}
 	defer stmt.Close()
-	err = query.SelectObjects(stmt, func(i int) []interface{} {
-		return []interface{}{
+	err = query.SelectObjects(stmt, func(i int) []any {
+		return []any{
 			&volumes[i].ID,
 			&volumes[i].Name,
 			&volumes[i].StoragePoolID,
@@ -3754,7 +3754,7 @@ FROM storage_volumes
 				// This node already has the volume row
 				continue
 			}
-			values := []interface{}{
+			values := []any{
 				volume.Name,
 				volume.StoragePoolID,
 				nodeID,

@@ -106,8 +106,8 @@ func (c *Cluster) UpdateStorageVolumeSnapshot(project, volumeName string, volume
 func (c *Cluster) GetStorageVolumeSnapshotsNames(volumeID int64) ([]string, error) {
 	var snapshotName string
 	query := "SELECT name FROM storage_volumes_snapshots WHERE storage_volume_id=?"
-	inargs := []interface{}{volumeID}
-	outargs := []interface{}{snapshotName}
+	inargs := []any{volumeID}
+	outargs := []any{snapshotName}
 
 	result, err := queryScan(c, query, inargs, outargs)
 	if err != nil {
@@ -138,8 +138,8 @@ JOIN projects ON projects.id=volumes.project_id
 JOIN storage_pools ON storage_pools.id=volumes.storage_pool_id
 WHERE volumes.id=?
 `
-	arg1 := []interface{}{snapshotID}
-	outfmt := []interface{}{&args.ID, &args.Name, &args.PoolName, &args.Type, &args.ProjectName}
+	arg1 := []any{snapshotID}
+	outfmt := []any{&args.ID, &args.Name, &args.PoolName, &args.Type, &args.ProjectName}
 	err := dbQueryRowScan(c, q, arg1, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -163,8 +163,8 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 	var expiry time.Time
 
 	query := "SELECT expiry_date FROM storage_volumes_snapshots WHERE id=?"
-	inargs := []interface{}{volumeID}
-	outargs := []interface{}{&expiry}
+	inargs := []any{volumeID}
+	outargs := []any{&expiry}
 
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
@@ -190,7 +190,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 	var snapshots []StorageVolumeArgs
 
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.QueryScan(q, func(scan func(dest ...interface{}) error) error {
+		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var snap StorageVolumeArgs
 			var snapName string
 			var volName string

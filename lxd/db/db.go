@@ -519,7 +519,7 @@ func DqliteLatestSegment() (string, error) {
 	return "none", nil
 }
 
-func dbQueryRowScan(c *Cluster, q string, args []interface{}, outargs []interface{}) error {
+func dbQueryRowScan(c *Cluster, q string, args []any, outargs []any) error {
 	return c.retry(func() error {
 		return query.Transaction(c.db, func(tx *sql.Tx) error {
 			return tx.QueryRow(q, args...).Scan(outargs...)
@@ -527,8 +527,8 @@ func dbQueryRowScan(c *Cluster, q string, args []interface{}, outargs []interfac
 	})
 }
 
-func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface{}) ([][]interface{}, error) {
-	result := [][]interface{}{}
+func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, error) {
+	result := [][]any{}
 
 	err := c.retry(func() error {
 		return query.Transaction(c.db, func(tx *sql.Tx) error {
@@ -539,7 +539,7 @@ func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface
 			defer rows.Close()
 
 			for rows.Next() {
-				ptrargs := make([]interface{}, len(outargs))
+				ptrargs := make([]any, len(outargs))
 				for i := range outargs {
 					switch t := outargs[i].(type) {
 					case string:
@@ -562,7 +562,7 @@ func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface
 				if err != nil {
 					return err
 				}
-				newargs := make([]interface{}, len(outargs))
+				newargs := make([]any, len(outargs))
 				for i := range ptrargs {
 					switch t := outargs[i].(type) {
 					case string:
@@ -587,7 +587,7 @@ func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface
 		})
 	})
 	if err != nil {
-		return [][]interface{}{}, err
+		return [][]any{}, err
 	}
 
 	return result, nil
@@ -602,16 +602,16 @@ func doDbQueryScan(c *Cluster, q string, args []interface{}, outargs []interface
  *   arguments, i.e.
  *      var arg1 string
  *      var arg2 int
- *      outfmt := {}interface{}{arg1, arg2}
+ *      outfmt := {}any{arg1, arg2}
  *
  * The result will be an array (one per output row) of arrays (one per output argument)
  * of interfaces, containing pointers to the actual output arguments.
  */
-func queryScan(c *Cluster, q string, inargs []interface{}, outfmt []interface{}) ([][]interface{}, error) {
+func queryScan(c *Cluster, q string, inargs []any, outfmt []any) ([][]any, error) {
 	return doDbQueryScan(c, q, inargs, outfmt)
 }
 
-func exec(c *Cluster, q string, args ...interface{}) error {
+func exec(c *Cluster, q string, args ...any) error {
 	err := c.retry(func() error {
 		return query.Transaction(c.db, func(tx *sql.Tx) error {
 			_, err := tx.Exec(q, args...)
