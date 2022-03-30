@@ -66,6 +66,7 @@ const (
 	OperationClusterMemberEvacuate
 	OperationClusterMemberRestore
 	OperationCertificateAddToken
+	OperationRemoveOrphanedOperations
 )
 
 // Description return a human-readable description of the operation type.
@@ -179,6 +180,8 @@ func (t OperationType) Description() string {
 		return "Evacuating cluster member"
 	case OperationClusterMemberRestore:
 		return "Restoring cluster member"
+	case OperationRemoveOrphanedOperations:
+		return "Remove orphaned operations"
 	default:
 		return "Executing operation"
 	}
