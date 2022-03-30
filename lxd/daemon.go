@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -1917,20 +1916,6 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	logger.Info("Initializing local database")
 
-	// NOTE: we use the legacyPatches parameter to run a few
-	// legacy non-db updates that were in place before the
-	// patches mechanism was introduced in lxd/patches.go. The
-	// rest of non-db patches will be applied separately via
-	// patchesApplyAll. See PR #3322 for more details.
-	legacy := map[int]*db.LegacyPatch{}
-	for i, patch := range legacyPatches {
-		legacy[i] = &db.LegacyPatch{
-			Hook: func(tx *sql.Tx) error {
-				return patch(tx)
-			},
-		}
-	}
-
 	// Hook to run when the local database is created from scratch. It will
 	// create the default profile and mark all patches as applied.
 	freshHook := func(db *db.Node) error {
@@ -1944,7 +1929,7 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 	}
 	var err error
 	var dump *db.Dump
-	d.db, dump, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook, legacy)
+	d.db, dump, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating database: %s", err)
 	}
