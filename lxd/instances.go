@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
@@ -23,7 +21,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 var instancesCmd = APIEndpoint{
@@ -255,7 +252,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			continue
 		}
 
-		instLogger := logging.AddContext(logger.Log, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
+		instLogger := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 
 		// Try to start the instance.
 		var attempt = 0
@@ -267,16 +264,16 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 					break // Don't log or retry instances that are not ready to start yet.
 				}
 
-				instLogger.Warn("Failed auto start instance attempt", log.Ctx{"attempt": attempt, "maxAttempts": maxAttempts, "err": err})
+				instLogger.Warn("Failed auto start instance attempt", logger.Ctx{"attempt": attempt, "maxAttempts": maxAttempts, "err": err})
 
 				if attempt >= maxAttempts {
 					// If unable to start after 3 tries, record a warning.
 					warnErr := s.Cluster.UpsertWarningLocalNode(inst.Project(), cluster.TypeInstance, inst.ID(), db.WarningInstanceAutostartFailure, fmt.Sprintf("%v", err))
 					if warnErr != nil {
-						instLogger.Warn("Failed to create instance autostart failure warning", log.Ctx{"err": warnErr})
+						instLogger.Warn("Failed to create instance autostart failure warning", logger.Ctx{"err": warnErr})
 					}
 
-					instLogger.Error("Failed to auto start instance", log.Ctx{"err": err})
+					instLogger.Error("Failed to auto start instance", logger.Ctx{"err": err})
 
 					break
 				}
@@ -289,7 +286,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			// Resolve any previous warning.
 			warnErr := warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, inst.Project(), db.WarningInstanceAutostartFailure, cluster.TypeInstance, inst.ID())
 			if warnErr != nil {
-				instLogger.Warn("Failed to resolve instance autostart failure warning", log.Ctx{"err": warnErr})
+				instLogger.Warn("Failed to resolve instance autostart failure warning", logger.Ctx{"err": warnErr})
 			}
 
 			// Wait the auto-start delay if set.
@@ -366,7 +363,7 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 			if shared.PathExists(backupYamlPath) {
 				inst, err = instance.LoadFromBackup(s, projectName, filepath.Join(instancePaths[instanceType], file.Name()), false)
 				if err != nil {
-					logger.Warn("Failed loading instance", log.Ctx{"project": projectName, "instance": instanceName, "backup_file": backupYamlPath, "err": err})
+					logger.Warn("Failed loading instance", logger.Ctx{"project": projectName, "instance": instanceName, "backup_file": backupYamlPath, "err": err})
 				}
 			}
 
@@ -382,7 +379,7 @@ func instancesOnDisk(s *state.State) ([]instance.Instance, error) {
 
 				inst, err = instance.Load(s, *instDBArgs, nil)
 				if err != nil {
-					logger.Warn("Failed loading instance", log.Ctx{"project": projectName, "instance": instanceName, "err": err})
+					logger.Warn("Failed loading instance", logger.Ctx{"project": projectName, "instance": instanceName, "err": err})
 					continue
 				}
 			}
@@ -429,10 +426,10 @@ func instancesShutdown(s *state.State, instances []instance.Instance) error {
 
 				err := inst.Shutdown(time.Second * time.Duration(timeoutSeconds))
 				if err != nil {
-					logger.Warn("Failed shutting down instance, forcefully stopping", log.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
+					logger.Warn("Failed shutting down instance, forcefully stopping", logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
 					err = inst.Stop(false)
 					if err != nil {
-						logger.Warn("Failed forcefully stopping instance", log.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
+						logger.Warn("Failed forcefully stopping instance", logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "err": err})
 					}
 				}
 

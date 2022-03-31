@@ -10,13 +10,10 @@ import (
 	"os"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 var debug bool
@@ -142,7 +139,7 @@ func (r *syncResponse) Render(w http.ResponseWriter) error {
 
 	var debugLogger logger.Logger
 	if debug {
-		debugLogger = logging.AddContext(logger.Log, log.Ctx{"http_code": code})
+		debugLogger = logger.AddContext(logger.Log, logger.Ctx{"http_code": code})
 	}
 
 	return util.WriteJSON(w, resp, debugLogger)
@@ -261,7 +258,7 @@ func (r *errorResponse) Render(w http.ResponseWriter) error {
 	}
 
 	if debug {
-		debugLogger := logging.AddContext(logger.Log, log.Ctx{"http_code": r.code})
+		debugLogger := logger.AddContext(logger.Log, logger.Ctx{"http_code": r.code})
 		util.DebugJSON("Error Response", captured, debugLogger)
 	}
 

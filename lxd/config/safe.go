@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -20,7 +18,7 @@ func SafeLoad(schema Schema, values map[string]string) (Map, error) {
 		}
 		for _, error := range errors {
 			message := fmt.Sprintf("Invalid configuration key: %s", error.Reason)
-			logger.Error(message, log.Ctx{"key": error.Name})
+			logger.Error(message, logger.Ctx{"key": error.Name})
 		}
 	}
 

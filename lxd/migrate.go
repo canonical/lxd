@@ -18,7 +18,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -181,11 +180,11 @@ func (s *migrationSourceWs) Connect(op *operations.Operation, r *http.Request, w
 
 	remoteTCP, err := tcp.ExtractConn(c.UnderlyingConn())
 	if err != nil {
-		logger.Error("Failed extracting TCP connection from remote connection", log.Ctx{"err": err})
+		logger.Error("Failed extracting TCP connection from remote connection", logger.Ctx{"err": err})
 	} else {
 		err := tcp.SetTimeouts(remoteTCP)
 		if err != nil {
-			logger.Error("Failed setting TCP timeouts on remote connection", log.Ctx{"err": err})
+			logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
 		}
 	}
 

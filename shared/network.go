@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -197,7 +196,7 @@ func WebsocketSendStream(conn *websocket.Conn, r io.Reader, bufferSize int) chan
 
 			err := conn.WriteMessage(websocket.BinaryMessage, buf)
 			if err != nil {
-				logger.Debug("Got err writing", log.Ctx{"err": err})
+				logger.Debug("Got err writing", logger.Ctx{"err": err})
 				break
 			}
 		}
@@ -225,13 +224,13 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 			}
 
 			if err != nil {
-				logger.Debug("WebsocketRecvStream got error getting next reader", log.Ctx{"err": err})
+				logger.Debug("WebsocketRecvStream got error getting next reader", logger.Ctx{"err": err})
 				break
 			}
 
 			buf, err := ioutil.ReadAll(r)
 			if err != nil {
-				logger.Debug("WebsocketRecvStream got error writing to writer", log.Ctx{"err": err})
+				logger.Debug("WebsocketRecvStream got error writing to writer", logger.Ctx{"err": err})
 				break
 			}
 
@@ -245,7 +244,7 @@ func WebsocketRecvStream(w io.Writer, conn *websocket.Conn) chan bool {
 				break
 			}
 			if err != nil {
-				logger.Debug("WebsocketRecvStream error writing buf", log.Ctx{"err": err})
+				logger.Debug("WebsocketRecvStream error writing buf", logger.Ctx{"err": err})
 				break
 			}
 		}
@@ -321,7 +320,7 @@ func defaultReader(conn *websocket.Conn, r io.ReadCloser, readDone chan<- bool) 
 
 		err := conn.WriteMessage(websocket.BinaryMessage, buf)
 		if err != nil {
-			logger.Debug("Got err writing", log.Ctx{"err": err})
+			logger.Debug("Got err writing", logger.Ctx{"err": err})
 			break
 		}
 	}
@@ -335,7 +334,7 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 	for {
 		mt, r, err := conn.NextReader()
 		if err != nil {
-			logger.Debug("DefaultWriter got error getting next reader", log.Ctx{"err": err})
+			logger.Debug("DefaultWriter got error getting next reader", logger.Ctx{"err": err})
 			break
 		}
 
@@ -351,7 +350,7 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 
 		buf, err := ioutil.ReadAll(r)
 		if err != nil {
-			logger.Debug("DefaultWriter got error writing to writer", log.Ctx{"err": err})
+			logger.Debug("DefaultWriter got error writing to writer", logger.Ctx{"err": err})
 			break
 		}
 		i, err := w.Write(buf)
@@ -360,7 +359,7 @@ func DefaultWriter(conn *websocket.Conn, w io.WriteCloser, writeDone chan<- bool
 			break
 		}
 		if err != nil {
-			logger.Debug("DefaultWriter error writing buf", log.Ctx{"err": err})
+			logger.Debug("DefaultWriter error writing buf", logger.Ctx{"err": err})
 			break
 		}
 	}

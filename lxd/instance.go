@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -446,7 +444,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotCreate, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start create snapshot operation", log.Ctx{"err": err})
+			logger.Error("Failed to start create snapshot operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -454,7 +452,7 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to create scheduled container snapshots", log.Ctx{"err": err})
+			logger.Error("Failed to create scheduled container snapshots", logger.Ctx{"err": err})
 		}
 
 		logger.Info("Done creating scheduled container snapshots")
@@ -482,21 +480,21 @@ func autoCreateContainerSnapshots(ctx context.Context, d *Daemon, instances []in
 		go func() {
 			snapshotName, err := instance.NextSnapshotName(d.State(), c, "snap%d")
 			if err != nil {
-				logger.Error("Error retrieving next snapshot name", log.Ctx{"err": err, "container": c})
+				logger.Error("Error retrieving next snapshot name", logger.Ctx{"err": err, "container": c})
 				ch <- nil
 				return
 			}
 
 			expiry, err := shared.GetSnapshotExpiry(time.Now(), c.ExpandedConfig()["snapshots.expiry"])
 			if err != nil {
-				logger.Error("Error getting expiry date", log.Ctx{"err": err, "container": c})
+				logger.Error("Error getting expiry date", logger.Ctx{"err": err, "container": c})
 				ch <- nil
 				return
 			}
 
 			err = c.Snapshot(snapshotName, expiry, false)
 			if err != nil {
-				logger.Error("Error creating snapshots", log.Ctx{"err": err, "container": c})
+				logger.Error("Error creating snapshots", logger.Ctx{"err": err, "container": c})
 			}
 
 			ch <- nil
@@ -516,7 +514,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Load all local instances
 		allInstances, err := instance.LoadNodeAll(d.State(), instancetype.Any)
 		if err != nil {
-			logger.Error("Failed to load instances for snapshot expiry", log.Ctx{"err": err})
+			logger.Error("Failed to load instances for snapshot expiry", logger.Ctx{"err": err})
 			return
 		}
 
@@ -525,7 +523,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		for _, c := range allInstances {
 			snapshots, err := c.Snapshots()
 			if err != nil {
-				logger.Error("Failed to list instance snapshots", log.Ctx{"err": err, "instance": c.Name(), "project": c.Project()})
+				logger.Error("Failed to list instance snapshots", logger.Ctx{"err": err, "instance": c.Name(), "project": c.Project()})
 				continue
 			}
 
@@ -553,7 +551,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationSnapshotsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start expired instance snapshots operation", log.Ctx{"err": err})
+			logger.Error("Failed to start expired instance snapshots operation", logger.Ctx{"err": err})
 			return
 		}
 
@@ -561,7 +559,7 @@ func pruneExpiredInstanceSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to remove expired instance snapshots", log.Ctx{"err": err})
+			logger.Error("Failed to remove expired instance snapshots", logger.Ctx{"err": err})
 		}
 
 		logger.Info("Done pruning expired instance snapshots")

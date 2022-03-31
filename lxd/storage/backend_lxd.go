@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
@@ -38,7 +37,6 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 var unavailablePools = make(map[string]struct{})
@@ -129,9 +127,9 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 // Create creates the storage pool layout on the storage device.
 // localOnly is used for clustering where only a single node should do remote storage setup.
 func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"config": b.db.Config, "description": b.db.Description, "clientType": clientType})
-	logger.Debug("create started")
-	defer logger.Debug("create finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"config": b.db.Config, "description": b.db.Description, "clientType": clientType})
+	l.Debug("create started")
+	defer l.Debug("create finished")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -217,9 +215,9 @@ func (b *lxdBackend) GetVolume(volType drivers.VolumeType, contentType drivers.C
 
 // GetResources returns utilisation information about the pool.
 func (b *lxdBackend) GetResources() (*api.ResourcesStoragePool, error) {
-	logger := logging.AddContext(b.logger, nil)
-	logger.Debug("GetResources started")
-	defer logger.Debug("GetResources finished")
+	l := logger.AddContext(b.logger, nil)
+	l.Debug("GetResources started")
+	defer l.Debug("GetResources finished")
 
 	return b.driver.GetResources()
 }
@@ -251,9 +249,9 @@ func (b *lxdBackend) IsUsed() (bool, error) {
 
 // Update updates the pool config.
 func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"newDesc": newDesc, "newConfig": newConfig})
-	logger.Debug("Update started")
-	defer logger.Debug("Update finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"newDesc": newDesc, "newConfig": newConfig})
+	l.Debug("Update started")
+	defer l.Debug("Update finished")
 
 	// Validate config.
 	err := b.driver.Validate(newConfig)
@@ -305,9 +303,9 @@ func (b *lxdBackend) warningsDelete() error {
 
 // Delete removes the pool.
 func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"clientType": clientType})
-	logger.Debug("Delete started")
-	defer logger.Debug("Delete finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"clientType": clientType})
+	l.Debug("Delete started")
+	defer l.Debug("Delete finished")
 
 	// Delete any persistent warnings for pool.
 	err := b.warningsDelete()
@@ -350,7 +348,7 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 				if err != nil {
 					return fmt.Errorf("Failed deleting left over image volume %q (%s): %w", vol.Name(), vol.ContentType(), err)
 				}
-				logger.Warn("Deleted left over image volume", log.Ctx{"volName": vol.Name(), "contentType": vol.ContentType()})
+				l.Warn("Deleted left over image volume", logger.Ctx{"volName": vol.Name(), "contentType": vol.ContentType()})
 			}
 		}
 
@@ -376,9 +374,9 @@ func (b *lxdBackend) Delete(clientType request.ClientType, op *operations.Operat
 
 // Mount mounts the storage pool.
 func (b *lxdBackend) Mount() (bool, error) {
-	logger := logging.AddContext(b.logger, nil)
-	logger.Debug("Mount started")
-	defer logger.Debug("Mount finished")
+	l := logger.AddContext(b.logger, nil)
+	l.Debug("Mount started")
+	defer l.Debug("Mount finished")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -426,9 +424,9 @@ func (b *lxdBackend) Mount() (bool, error) {
 
 // Unmount unmounts the storage pool.
 func (b *lxdBackend) Unmount() (bool, error) {
-	logger := logging.AddContext(b.logger, nil)
-	logger.Debug("Unmount started")
-	defer logger.Debug("Unmount finished")
+	l := logger.AddContext(b.logger, nil)
+	l.Debug("Unmount started")
+	defer l.Debug("Unmount finished")
 
 	return b.driver.Unmount()
 }
@@ -601,9 +599,9 @@ func (b *lxdBackend) instanceEffectiveRootVolume(inst instance.Instance, volConf
 
 // CreateInstance creates an empty instance.
 func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("CreateInstance started")
-	defer logger.Debug("CreateInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("CreateInstance started")
+	defer l.Debug("CreateInstance finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -662,9 +660,9 @@ func (b *lxdBackend) CreateInstance(inst instance.Instance, op *operations.Opera
 // created in the database to run any storage layer finalisations, and a revert hook that can be
 // run if the instance database load process fails that will remove anything created thus far.
 func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) (func(instance.Instance) error, revert.Hook, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
-	logger.Debug("CreateInstanceFromBackup started")
-	defer logger.Debug("CreateInstanceFromBackup finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": srcBackup.Project, "instance": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
+	l.Debug("CreateInstanceFromBackup started")
+	defer l.Debug("CreateInstanceFromBackup finished")
 
 	// Get the volume name on storage.
 	volStorageName := project.Instance(srcBackup.Project, srcBackup.Name)
@@ -737,8 +735,8 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 	// containing the instance's root disk device's config so that the driver's post hook function can access
 	// that config to perform any post instance creation setup.
 	postHook = func(inst instance.Instance) error {
-		logger.Debug("CreateInstanceFromBackup post hook started")
-		defer logger.Debug("CreateInstanceFromBackup post hook finished")
+		l.Debug("CreateInstanceFromBackup post hook started")
+		defer l.Debug("CreateInstanceFromBackup post hook finished")
 
 		postHookRevert := revert.New()
 		defer postHookRevert.Fail()
@@ -787,7 +785,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 		// so that any volume initialisation has been completed first.
 		if rootDiskConf["size"] != "" {
 			size := rootDiskConf["size"]
-			logger.Debug("Applying volume quota from root disk config", log.Ctx{"size": size})
+			l.Debug("Applying volume quota from root disk config", logger.Ctx{"size": size})
 
 			allowUnsafeResize := false
 
@@ -812,7 +810,7 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 				// to the equivalent size on the target storage driver, don't fail as the backup
 				// has still been restored successfully.
 				if errors.Is(err, drivers.ErrCannotBeShrunk) {
-					logger.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
+					l.Warn("Could not apply volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": rootDiskConf["size"]})
 				} else {
 					return fmt.Errorf("Failed applying volume quota to root disk: %w", err)
 				}
@@ -831,12 +829,12 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 					vmStateSize = deviceConfig.DefaultVMBlockFilesystemSize
 				}
 
-				logger.Debug("Applying filesystem volume quota from root disk config", log.Ctx{"size.state": vmStateSize})
+				l.Debug("Applying filesystem volume quota from root disk config", logger.Ctx{"size.state": vmStateSize})
 
 				fsVol := vol.NewVMBlockFilesystemVolume()
 				err := b.driver.SetVolumeQuota(fsVol, vmStateSize, allowUnsafeResize, op)
 				if errors.Is(err, drivers.ErrCannotBeShrunk) {
-					logger.Warn("Could not apply VM filesystem volume quota from root disk config as restored volume cannot be shrunk", log.Ctx{"size": rootDiskConf["size"]})
+					l.Warn("Could not apply VM filesystem volume quota from root disk config as restored volume cannot be shrunk", logger.Ctx{"size": rootDiskConf["size"]})
 				} else if err != nil {
 					return fmt.Errorf("Failed applying filesystem volume quota to root disk: %w", err)
 				}
@@ -853,9 +851,9 @@ func (b *lxdBackend) CreateInstanceFromBackup(srcBackup backup.Info, srcData io.
 
 // CreateInstanceFromCopy copies an instance volume and optionally its snapshots to new volume(s).
 func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance.Instance, snapshots bool, allowInconsistent bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
-	logger.Debug("CreateInstanceFromCopy started")
-	defer logger.Debug("CreateInstanceFromCopy finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "snapshots": snapshots})
+	l.Debug("CreateInstanceFromCopy started")
+	defer l.Debug("CreateInstanceFromCopy finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -941,7 +939,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	revert.Add(func() { b.DeleteInstance(inst, op) })
 
 	if b.Name() == srcPool.Name() {
-		logger.Debug("CreateInstanceFromCopy same-pool mode detected")
+		l.Debug("CreateInstanceFromCopy same-pool mode detected")
 
 		// Get the src volume name on storage.
 		srcVolStorageName := project.Instance(src.Project(), src.Name())
@@ -977,7 +975,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	} else {
 		// We are copying volumes between storage pools so use migration system as it will
 		// be able to negotiate a common transfer method between pool types.
-		logger.Debug("CreateInstanceFromCopy cross-pool mode detected")
+		l.Debug("CreateInstanceFromCopy cross-pool mode detected")
 
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, false)
@@ -1068,9 +1066,9 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 // Snapshots that are not present in the source but are in the destination are removed from the
 // destination if snapshots are included in the synchronization.
 func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "snapshots": snapshots})
-	logger.Debug("RefreshCustomVolume started")
-	defer logger.Debug("RefreshCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "snapshots": snapshots})
+	l.Debug("RefreshCustomVolume started")
+	defer l.Debug("RefreshCustomVolume finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -1193,7 +1191,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
 
 	if srcPool == b {
-		logger.Debug("RefreshCustomVolume same-pool mode detected")
+		l.Debug("RefreshCustomVolume same-pool mode detected")
 		err = b.driver.RefreshVolume(vol, srcVol, srcSnapVols, op)
 		if err != nil {
 			return err
@@ -1210,7 +1208,7 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			}
 		}
 	} else {
-		logger.Debug("RefreshCustomVolume cross-pool mode detected")
+		l.Debug("RefreshCustomVolume cross-pool mode detected")
 
 		// Negotiate the migration type to use.
 		offeredTypes := srcPool.MigrationTypes(contentType, true)
@@ -1311,9 +1309,9 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 // Snapshots that are not present in the source but are in the destination are removed from the
 // destination if snapshots are included in the synchronisation.
 func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instance, srcSnapshots []instance.Instance, allowInconsistent bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "srcSnapshots": len(srcSnapshots)})
-	logger.Debug("RefreshInstance started")
-	defer logger.Debug("RefreshInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name(), "srcSnapshots": len(srcSnapshots)})
+	l.Debug("RefreshInstance started")
+	defer l.Debug("RefreshInstance finished")
 
 	if inst.Type() != src.Type() {
 		return fmt.Errorf("Instance types must match")
@@ -1368,7 +1366,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	}
 
 	if b.Name() == srcPool.Name() {
-		logger.Debug("RefreshInstance same-pool mode detected")
+		l.Debug("RefreshInstance same-pool mode detected")
 
 		// If we are copying snapshots, retrieve a list of all snapshots from source volume.
 		var srcSnapshotVolRows map[string]db.StorageVolumeArgs
@@ -1411,7 +1409,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 	} else {
 		// We are copying volumes between storage pools so use migration system as it will
 		// be able to negotiate a common transfer method between pool types.
-		logger.Debug("RefreshInstance cross-pool mode detected")
+		l.Debug("RefreshInstance cross-pool mode detected")
 
 		// Retrieve a list of snapshots we are copying.
 		snapshotNames := []string{}
@@ -1522,9 +1520,9 @@ func (b *lxdBackend) imageFiller(fingerprint string, op *operations.Operation) f
 // CreateInstanceFromImage creates a new volume for an instance populated with the image requested.
 // On failure caller is expected to call DeleteInstance() to clean up.
 func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("CreateInstanceFromImage started")
-	defer logger.Debug("CreateInstanceFromImage finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("CreateInstanceFromImage started")
+	defer l.Debug("CreateInstanceFromImage finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -1590,7 +1588,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// Derive the volume size to use for a new volume when copying from a source volume.
 		// Where possible (if the source volume has a volatile.rootfs.size property), it checks that the
 		// source volume isn't larger than the volume's "size" and the pool's "volume.size" setting.
-		logger.Debug("Checking volume size")
+		l.Debug("Checking volume size")
 		newVolSize, err := vol.ConfigSizeFromSource(imgVol)
 		if err != nil {
 			return err
@@ -1598,7 +1596,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 
 		// Set the derived size directly as the "size" property on the new volume so that it is applied.
 		vol.SetConfigSize(newVolSize)
-		logger.Debug("Set new volume size", log.Ctx{"size": newVolSize})
+		l.Debug("Set new volume size", logger.Ctx{"size": newVolSize})
 
 		// Proceed to create a new volume by copying the optimized image volume.
 		err = b.driver.CreateVolumeFromCopy(*vol, imgVol, false, op)
@@ -1609,7 +1607,7 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 		// This is slower but allows for individual volumes to be created from an image that are smaller
 		// than the pool's volume settings.
 		if errors.Is(err, drivers.ErrCannotBeShrunk) {
-			logger.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
+			l.Debug("Cached image volume is larger than new volume and cannot be shrunk, creating non-optimized volume")
 
 			volFiller := drivers.VolumeFiller{
 				Fingerprint: fingerprint,
@@ -1642,9 +1640,9 @@ func (b *lxdBackend) CreateInstanceFromImage(inst instance.Instance, fingerprint
 // CreateInstanceFromMigration receives an instance being migrated.
 // The args.Name and args.Config fields are ignored and, instance properties are used instead.
 func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
-	logger.Debug("CreateInstanceFromMigration started")
-	defer logger.Debug("CreateInstanceFromMigration finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	l.Debug("CreateInstanceFromMigration started")
+	defer l.Debug("CreateInstanceFromMigration finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -1716,10 +1714,10 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 	// This way if the volume being received is larger than the pool default size, the block volume created
 	// will still be able to accommodate it.
 	if args.VolumeSize > 0 && contentType == drivers.ContentTypeBlock {
-		b.logger.Debug("Setting volume size from offer header", log.Ctx{"size": args.VolumeSize})
+		b.logger.Debug("Setting volume size from offer header", logger.Ctx{"size": args.VolumeSize})
 		args.Config["size"] = fmt.Sprintf("%d", args.VolumeSize)
 	} else if args.Config["size"] != "" {
-		b.logger.Debug("Using volume size from root disk config", log.Ctx{"size": args.Config["size"]})
+		b.logger.Debug("Using volume size from root disk config", logger.Ctx{"size": args.Config["size"]})
 	}
 
 	volExists := b.driver.HasVolume(*vol)
@@ -1752,7 +1750,7 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 			}
 
 			if imageExists {
-				logger.Debug("Using optimised migration from existing image", log.Ctx{"fingerprint": fingerprint})
+				l.Debug("Using optimised migration from existing image", logger.Ctx{"fingerprint": fingerprint})
 
 				// Populate the volume filler with the fingerprint and image filler
 				// function that can be used by the driver to pre-populate the
@@ -1797,9 +1795,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 
 // RenameInstance renames the instance's root volume and any snapshot volumes.
 func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
-	logger.Debug("RenameInstance started")
-	defer logger.Debug("RenameInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
+	l.Debug("RenameInstance started")
+	defer l.Debug("RenameInstance finished")
 
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance cannot be a snapshot")
@@ -1917,9 +1915,9 @@ func (b *lxdBackend) RenameInstance(inst instance.Instance, newName string, op *
 
 // DeleteInstance removes the instance's root volume (all snapshots need to be removed first).
 func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("DeleteInstance started")
-	defer logger.Debug("DeleteInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("DeleteInstance started")
+	defer l.Debug("DeleteInstance finished")
 
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance must not be a snapshot")
@@ -1951,7 +1949,7 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 
 	// Delete the volume from the storage device. Must come after snapshots are removed.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
-	logger.Debug("Deleting instance volume", log.Ctx{"volName": volStorageName})
+	l.Debug("Deleting instance volume", logger.Ctx{"volName": volStorageName})
 
 	if b.driver.HasVolume(vol) {
 		err = b.driver.DeleteVolume(vol, op)
@@ -1982,9 +1980,9 @@ func (b *lxdBackend) DeleteInstance(inst instance.Instance, op *operations.Opera
 
 // UpdateInstance updates an instance volume's config.
 func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
-	logger.Debug("UpdateInstance started")
-	defer logger.Debug("UpdateInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
+	l.Debug("UpdateInstance started")
+	defer l.Debug("UpdateInstance finished")
 
 	if inst.IsSnapshot() {
 		return fmt.Errorf("Instance cannot be a snapshot")
@@ -2070,9 +2068,9 @@ func (b *lxdBackend) UpdateInstance(inst instance.Instance, newDesc string, newC
 // UpdateInstanceSnapshot updates an instance snapshot volume's description.
 // Volume config is not allowed to be updated and will return an error.
 func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
-	logger.Debug("UpdateInstanceSnapshot started")
-	defer logger.Debug("UpdateInstanceSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "newDesc": newDesc, "newConfig": newConfig})
+	l.Debug("UpdateInstanceSnapshot started")
+	defer l.Debug("UpdateInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
 		return fmt.Errorf("Instance must be a snapshot")
@@ -2095,9 +2093,9 @@ func (b *lxdBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc stri
 // MigrateInstance sends an instance volume for migration.
 // The args.Name field is ignored and the name of the instance is used instead.
 func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
-	logger.Debug("MigrateInstance started")
-	defer logger.Debug("MigrateInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "args": args})
+	l.Debug("MigrateInstance started")
+	defer l.Debug("MigrateInstance finished")
 
 	// rsync+dd can't handle running source instances
 	if inst.IsRunning() && args.MigrationType.FSType == migration.MigrationFSType_BLOCK_AND_RSYNC {
@@ -2151,9 +2149,9 @@ func (b *lxdBackend) MigrateInstance(inst instance.Instance, conn io.ReadWriteCl
 
 // BackupInstance creates an instance backup.
 func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "optimized": optimized, "snapshots": snapshots})
-	logger.Debug("BackupInstance started")
-	defer logger.Debug("BackupInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "optimized": optimized, "snapshots": snapshots})
+	l.Debug("BackupInstance started")
+	defer l.Debug("BackupInstance finished")
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -2203,9 +2201,9 @@ func (b *lxdBackend) BackupInstance(inst instance.Instance, tarWriter *instancew
 
 // GetInstanceUsage returns the disk usage of the instance's root volume.
 func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("GetInstanceUsage started")
-	defer logger.Debug("GetInstanceUsage finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("GetInstanceUsage started")
+	defer l.Debug("GetInstanceUsage finished")
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -2224,9 +2222,9 @@ func (b *lxdBackend) GetInstanceUsage(inst instance.Instance) (int64, error) {
 // SetInstanceQuota sets the quota on the instance's root volume.
 // Returns ErrInUse if the instance is running and the storage driver doesn't support online resizing.
 func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size, "vm_state_size": vmStateSize})
-	logger.Debug("SetInstanceQuota started")
-	defer logger.Debug("SetInstanceQuota finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "size": size, "vm_state_size": vmStateSize})
+	l.Debug("SetInstanceQuota started")
+	defer l.Debug("SetInstanceQuota finished")
 
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -2267,9 +2265,9 @@ func (b *lxdBackend) SetInstanceQuota(inst instance.Instance, size string, vmSta
 
 // MountInstance mounts the instance's root volume.
 func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("MountInstance started")
-	defer logger.Debug("MountInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("MountInstance started")
+	defer l.Debug("MountInstance finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -2328,9 +2326,9 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 
 // UnmountInstance unmounts the instance's root volume.
 func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("UnmountInstance started")
-	defer logger.Debug("UnmountInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("UnmountInstance started")
+	defer l.Debug("UnmountInstance finished")
 
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
@@ -2394,9 +2392,9 @@ func (b *lxdBackend) getInstanceDisk(inst instance.Instance) (string, error) {
 
 // CreateInstanceSnapshot creates a snaphot of an instance volume.
 func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name()})
-	logger.Debug("CreateInstanceSnapshot started")
-	defer logger.Debug("CreateInstanceSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name()})
+	l.Debug("CreateInstanceSnapshot started")
+	defer l.Debug("CreateInstanceSnapshot finished")
 
 	if inst.Type() != src.Type() {
 		return fmt.Errorf("Instance types must match")
@@ -2475,9 +2473,9 @@ func (b *lxdBackend) CreateInstanceSnapshot(inst instance.Instance, src instance
 
 // RenameInstanceSnapshot renames an instance snapshot.
 func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
-	logger.Debug("RenameInstanceSnapshot started")
-	defer logger.Debug("RenameInstanceSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "newName": newName})
+	l.Debug("RenameInstanceSnapshot started")
+	defer l.Debug("RenameInstanceSnapshot finished")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -2547,9 +2545,9 @@ func (b *lxdBackend) RenameInstanceSnapshot(inst instance.Instance, newName stri
 
 // DeleteInstanceSnapshot removes the snapshot volume for the supplied snapshot instance.
 func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("DeleteInstanceSnapshot started")
-	defer logger.Debug("DeleteInstanceSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("DeleteInstanceSnapshot started")
+	defer l.Debug("DeleteInstanceSnapshot finished")
 
 	parentName, snapName, isSnap := shared.InstanceGetParentAndSnapshotName(inst.Name())
 	if !inst.IsSnapshot() || !isSnap {
@@ -2569,7 +2567,7 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 
 	// Delete the snapshot from the storage device.
 	// Must come before DB VolumeDBDelete so that the volume ID is still available.
-	logger.Debug("Deleting instance snapshot volume", log.Ctx{"volName": parentStorageName, "snapshotName": snapName})
+	l.Debug("Deleting instance snapshot volume", logger.Ctx{"volName": parentStorageName, "snapshotName": snapName})
 
 	snapVolName := drivers.GetSnapshotVolumeName(parentStorageName, snapName)
 
@@ -2600,9 +2598,9 @@ func (b *lxdBackend) DeleteInstanceSnapshot(inst instance.Instance, op *operatio
 
 // RestoreInstanceSnapshot restores an instance snapshot.
 func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name()})
-	logger.Debug("RestoreInstanceSnapshot started")
-	defer logger.Debug("RestoreInstanceSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name(), "src": src.Name()})
+	l.Debug("RestoreInstanceSnapshot started")
+	defer l.Debug("RestoreInstanceSnapshot finished")
 
 	if inst.Type() != src.Type() {
 		return fmt.Errorf("Instance types must match")
@@ -2686,9 +2684,9 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 // MountInstanceSnapshot mounts an instance snapshot. It is mounted as read only so that the
 // snapshot cannot be modified.
 func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("MountInstanceSnapshot started")
-	defer logger.Debug("MountInstanceSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("MountInstanceSnapshot started")
+	defer l.Debug("MountInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
 		return nil, fmt.Errorf("Instance must be a snapshot")
@@ -2731,9 +2729,9 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 
 // UnmountInstanceSnapshot unmounts an instance snapshot.
 func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("UnmountInstanceSnapshot started")
-	defer logger.Debug("UnmountInstanceSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("UnmountInstanceSnapshot started")
+	defer l.Debug("UnmountInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
 		return false, fmt.Errorf("Instance must be a snapshot")
@@ -2774,9 +2772,9 @@ func (b *lxdBackend) poolBlockFilesystem() string {
 // volume settings ("volume.size" and "block.filesystem" if applicable). If not the optimized volume is removed
 // and regenerated to apply the pool's current volume settings.
 func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint})
-	logger.Debug("EnsureImage started")
-	defer logger.Debug("EnsureImage finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"fingerprint": fingerprint})
+	l.Debug("EnsureImage started")
+	defer l.Debug("EnsureImage finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -2827,7 +2825,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 		imgVol = b.GetVolume(drivers.VolumeTypeImage, contentType, fingerprint, imgDBVol.Config)
 
 		if b.Driver().Info().BlockBacking && imgVol.Config()["block.filesystem"] != b.poolBlockFilesystem() {
-			logger.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
+			l.Debug("Filesystem of pool has changed since cached image volume created, regenerating image volume")
 			err = b.DeleteImage(fingerprint, op)
 			if err != nil {
 				return err
@@ -2846,7 +2844,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 			// This takes into account the existing volume's "volatile.rootfs.size" setting if set so
 			// as to avoid trying to shrink a larger image volume back to the default size when it is
 			// allowed to be larger than the default as the pool doesn't specify a volume.size.
-			logger.Debug("Checking image volume size")
+			l.Debug("Checking image volume size")
 			newVolSize, err := imgVol.ConfigSizeFromSource(imgVol)
 			if err != nil {
 				return err
@@ -2856,12 +2854,12 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 			// Try applying the current size policy to the existing volume. If it is the same the
 			// driver should make no changes, and if not then attempt to resize it to the new policy.
-			logger.Debug("Setting image volume size", "size", imgVol.ConfigSize())
+			l.Debug("Setting image volume size", "size", imgVol.ConfigSize())
 			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), false, op)
 			if errors.Is(err, drivers.ErrCannotBeShrunk) || errors.Is(err, drivers.ErrNotSupported) {
 				// If the driver cannot resize the existing image volume to the new policy size
 				// then delete the image volume and try to recreate using the new policy settings.
-				logger.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
+				l.Debug("Volume size of pool has changed since cached image volume created and cached volume cannot be resized, regenerating image volume")
 				err = b.DeleteImage(fingerprint, op)
 				if err != nil {
 					return err
@@ -2880,7 +2878,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 			// We have an unrecorded on-disk volume, assume it's a partial unpack and delete it.
 			// This can occur if LXD process exits unexpectedly during an image unpack or if the
 			// storage pool has been recovered (which would not recreate the image volume DB records).
-			logger.Warn("Deleting leftover/partially unpacked image volume")
+			l.Warn("Deleting leftover/partially unpacked image volume")
 			err = b.driver.DeleteVolume(imgVol, op)
 			if err != nil {
 				return fmt.Errorf("Failed deleting leftover/partially unpacked image volume: %w", err)
@@ -2922,9 +2920,9 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 // DeleteImage removes an image from the database and underlying storage device if needed.
 func (b *lxdBackend) DeleteImage(fingerprint string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint})
-	logger.Debug("DeleteImage started")
-	defer logger.Debug("DeleteImage finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"fingerprint": fingerprint})
+	l.Debug("DeleteImage started")
+	defer l.Debug("DeleteImage finished")
 
 	// We need to lock this operation to ensure that the image is not being deleted multiple times.
 	unlock := locking.Lock(drivers.OperationLockName("DeleteImage", b.name, drivers.VolumeTypeImage, "", fingerprint))
@@ -3022,18 +3020,18 @@ func (b *lxdBackend) updateVolumeDescriptionOnly(project string, volName string,
 
 // UpdateImage updates image config.
 func (b *lxdBackend) UpdateImage(fingerprint, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"fingerprint": fingerprint, "newDesc": newDesc, "newConfig": newConfig})
-	logger.Debug("UpdateImage started")
-	defer logger.Debug("UpdateImage finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"fingerprint": fingerprint, "newDesc": newDesc, "newConfig": newConfig})
+	l.Debug("UpdateImage started")
+	defer l.Debug("UpdateImage finished")
 
 	return b.updateVolumeDescriptionOnly(project.Default, fingerprint, db.StoragePoolVolumeTypeImage, newDesc, newConfig, op)
 }
 
 // CreateCustomVolume creates an empty custom volume.
 func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc string, config map[string]string, contentType drivers.ContentType, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "desc": desc, "config": config, "contentType": contentType})
-	logger.Debug("CreateCustomVolume started")
-	defer logger.Debug("CreateCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName, "desc": desc, "config": config, "contentType": contentType})
+	l.Debug("CreateCustomVolume started")
+	defer l.Debug("CreateCustomVolume finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -3079,7 +3077,7 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 		return err
 	}
 
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
 	revert.Success()
 	return nil
@@ -3088,9 +3086,9 @@ func (b *lxdBackend) CreateCustomVolume(projectName string, volName string, desc
 // CreateCustomVolumeFromCopy creates a custom volume from an existing custom volume.
 // It copies the snapshots from the source volume by default, but can be disabled if requested.
 func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectName string, volName string, desc string, config map[string]string, srcPoolName, srcVolName string, snapshots bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "snapshots": snapshots})
-	logger.Debug("CreateCustomVolumeFromCopy started")
-	defer logger.Debug("CreateCustomVolumeFromCopy finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "srcProjectName": srcProjectName, "volName": volName, "desc": desc, "config": config, "srcPoolName": srcPoolName, "srcVolName": srcVolName, "snapshots": snapshots})
+	l.Debug("CreateCustomVolumeFromCopy started")
+	defer l.Debug("CreateCustomVolumeFromCopy finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -3186,7 +3184,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// If the source and target are in the same pool then use CreateVolumeFromCopy rather than
 	// migration system as it will be quicker.
 	if srcPool == b {
-		logger.Debug("CreateCustomVolumeFromCopy same-pool mode detected")
+		l.Debug("CreateCustomVolumeFromCopy same-pool mode detected")
 
 		// Get the volume name on storage.
 		volStorageName := project.StorageVolume(projectName, volName)
@@ -3228,7 +3226,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 			return err
 		}
 
-		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+		b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
 		revert.Success()
 		return nil
@@ -3236,7 +3234,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 	// We are copying volumes between storage pools so use migration system as it will be able
 	// to negotiate a common transfer method between pool types.
-	logger.Debug("CreateCustomVolumeFromCopy cross-pool mode detected")
+	l.Debug("CreateCustomVolumeFromCopy cross-pool mode detected")
 
 	// Negotiate the migration type to use.
 	offeredTypes := srcPool.MigrationTypes(contentType, false)
@@ -3337,9 +3335,9 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 // MigrateCustomVolume sends a volume for migration.
 func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCloser, args *migration.VolumeSourceArgs, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": args.Name, "args": args})
-	logger.Debug("MigrateCustomVolume started")
-	defer logger.Debug("MigrateCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": args})
+	l.Debug("MigrateCustomVolume started")
+	defer l.Debug("MigrateCustomVolume finished")
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, args.Name)
@@ -3367,9 +3365,9 @@ func (b *lxdBackend) MigrateCustomVolume(projectName string, conn io.ReadWriteCl
 
 // CreateCustomVolumeFromMigration receives a volume being migrated.
 func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io.ReadWriteCloser, args migration.VolumeTargetArgs, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": args.Name, "args": args})
-	logger.Debug("CreateCustomVolumeFromMigration started")
-	defer logger.Debug("CreateCustomVolumeFromMigration finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": args.Name, "args": args})
+	l.Debug("CreateCustomVolumeFromMigration started")
+	defer l.Debug("CreateCustomVolumeFromMigration finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -3440,7 +3438,7 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 		return err
 	}
 
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
 	revert.Success()
 	return nil
@@ -3448,9 +3446,9 @@ func (b *lxdBackend) CreateCustomVolumeFromMigration(projectName string, conn io
 
 // RenameCustomVolume renames a custom volume and its snapshots.
 func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newVolName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newVolName": newVolName})
-	logger.Debug("RenameCustomVolume started")
-	defer logger.Debug("RenameCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName, "newVolName": newVolName})
+	l.Debug("RenameCustomVolume started")
+	defer l.Debug("RenameCustomVolume finished")
 
 	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume name cannot be a snapshot")
@@ -3530,7 +3528,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	}
 
 	vol = b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(volume.ContentType), newVolStorageName, nil)
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRenamed.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"old_name": volName}))
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRenamed.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"old_name": volName}))
 
 	revert.Success()
 	return nil
@@ -3568,9 +3566,9 @@ func (b *lxdBackend) detectChangedConfig(curConfig, newConfig map[string]string)
 
 // UpdateCustomVolume applies the supplied config to the custom volume.
 func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newDesc string, newConfig map[string]string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig})
-	logger.Debug("UpdateCustomVolume started")
-	defer logger.Debug("UpdateCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig})
+	l.Debug("UpdateCustomVolume started")
+	defer l.Debug("UpdateCustomVolume finished")
 
 	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume name cannot be a snapshot")
@@ -3671,9 +3669,9 @@ func (b *lxdBackend) UpdateCustomVolume(projectName string, volName string, newD
 // UpdateCustomVolumeSnapshot updates the description of a custom volume snapshot.
 // Volume config is not allowed to be updated and will return an error.
 func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName string, newDesc string, newConfig map[string]string, newExpiryDate time.Time, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig, "newExpiryDate": newExpiryDate})
-	logger.Debug("UpdateCustomVolumeSnapshot started")
-	defer logger.Debug("UpdateCustomVolumeSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName, "newDesc": newDesc, "newConfig": newConfig, "newExpiryDate": newExpiryDate})
+	l.Debug("UpdateCustomVolumeSnapshot started")
+	defer l.Debug("UpdateCustomVolumeSnapshot finished")
 
 	if !shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume must be a snapshot")
@@ -3717,9 +3715,9 @@ func (b *lxdBackend) UpdateCustomVolumeSnapshot(projectName string, volName stri
 
 // DeleteCustomVolume removes a custom volume and its snapshots.
 func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName})
-	logger.Debug("DeleteCustomVolume started")
-	defer logger.Debug("DeleteCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName})
+	l.Debug("DeleteCustomVolume started")
+	defer l.Debug("DeleteCustomVolume finished")
 
 	_, _, isSnap := shared.InstanceGetParentAndSnapshotName(volName)
 	if isSnap {
@@ -3825,9 +3823,9 @@ func (b *lxdBackend) GetCustomVolumeUsage(projectName, volName string) (int64, e
 
 // MountCustomVolume mounts a custom volume.
 func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName})
-	logger.Debug("MountCustomVolume started")
-	defer logger.Debug("MountCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName})
+	l.Debug("MountCustomVolume started")
+	defer l.Debug("MountCustomVolume finished")
 
 	err := b.isStatusReady()
 	if err != nil {
@@ -3848,9 +3846,9 @@ func (b *lxdBackend) MountCustomVolume(projectName, volName string, op *operatio
 
 // UnmountCustomVolume unmounts a custom volume.
 func (b *lxdBackend) UnmountCustomVolume(projectName, volName string, op *operations.Operation) (bool, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName})
-	logger.Debug("UnmountCustomVolume started")
-	defer logger.Debug("UnmountCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName})
+	l.Debug("UnmountCustomVolume started")
+	defer l.Debug("UnmountCustomVolume finished")
 
 	_, volume, err := b.state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
 	if err != nil {
@@ -3872,9 +3870,9 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backup.Conf
 		return fmt.Errorf("Invalid pool volume config supplied")
 	}
 
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": poolVol.Volume.Name})
-	logger.Debug("ImportCustomVolume started")
-	defer logger.Debug("ImportCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": poolVol.Volume.Name})
+	l.Debug("ImportCustomVolume started")
+	defer l.Debug("ImportCustomVolume finished")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -3924,7 +3922,7 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backup.Conf
 
 	// Create snapshot mount paths and snapshot parent directory if needed.
 	for _, poolVolSnap := range poolVol.VolumeSnapshots {
-		logger.Debug("Ensuring instance snapshot mount path", log.Ctx{"snapshot": poolVolSnap.Name})
+		l.Debug("Ensuring instance snapshot mount path", logger.Ctx{"snapshot": poolVolSnap.Name})
 
 		snapVol, err := vol.NewSnapshot(poolVolSnap.Name)
 		if err != nil {
@@ -3943,9 +3941,9 @@ func (b *lxdBackend) ImportCustomVolume(projectName string, poolVol *backup.Conf
 
 // CreateCustomVolumeSnapshot creates a snapshot of a custom volume.
 func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, newExpiryDate time.Time, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newExpiryDate": newExpiryDate})
-	logger.Debug("CreateCustomVolumeSnapshot started")
-	defer logger.Debug("CreateCustomVolumeSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName, "newExpiryDate": newExpiryDate})
+	l.Debug("CreateCustomVolumeSnapshot started")
+	defer l.Debug("CreateCustomVolumeSnapshot finished")
 
 	if shared.IsSnapshot(volName) {
 		return fmt.Errorf("Volume cannot be snapshot")
@@ -4014,7 +4012,7 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"type": vol.Type()}))
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotCreated.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"type": vol.Type()}))
 
 	revert.Success()
 	return nil
@@ -4022,9 +4020,9 @@ func (b *lxdBackend) CreateCustomVolumeSnapshot(projectName, volName string, new
 
 // RenameCustomVolumeSnapshot renames a custom volume.
 func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, newSnapshotName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName})
-	logger.Debug("RenameCustomVolumeSnapshot started")
-	defer logger.Debug("RenameCustomVolumeSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName, "newSnapshotName": newSnapshotName})
+	l.Debug("RenameCustomVolumeSnapshot started")
+	defer l.Debug("RenameCustomVolumeSnapshot finished")
 
 	parentName, oldSnapshotName, isSnap := shared.InstanceGetParentAndSnapshotName(volName)
 	if !isSnap {
@@ -4063,16 +4061,16 @@ func (b *lxdBackend) RenameCustomVolumeSnapshot(projectName, volName string, new
 		return err
 	}
 
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotRenamed.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"old_name": oldSnapshotName}))
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeSnapshotRenamed.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"old_name": oldSnapshotName}))
 
 	return nil
 }
 
 // DeleteCustomVolumeSnapshot removes a custom volume snapshot.
 func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName})
-	logger.Debug("DeleteCustomVolumeSnapshot started")
-	defer logger.Debug("DeleteCustomVolumeSnapshot finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName})
+	l.Debug("DeleteCustomVolumeSnapshot started")
+	defer l.Debug("DeleteCustomVolumeSnapshot finished")
 
 	isSnap := shared.IsSnapshot(volName)
 
@@ -4125,9 +4123,9 @@ func (b *lxdBackend) DeleteCustomVolumeSnapshot(projectName, volName string, op 
 
 // RestoreCustomVolume restores a custom volume from a snapshot.
 func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotName string, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volName": volName, "snapshotName": snapshotName})
-	logger.Debug("RestoreCustomVolume started")
-	defer logger.Debug("RestoreCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volName": volName, "snapshotName": snapshotName})
+	l.Debug("RestoreCustomVolume started")
+	defer l.Debug("RestoreCustomVolume finished")
 
 	// Quick checks.
 	if shared.IsSnapshot(volName) {
@@ -4211,7 +4209,7 @@ func (b *lxdBackend) RestoreCustomVolume(projectName, volName string, snapshotNa
 		return err
 	}
 
-	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRestored.Event(vol, string(vol.Type()), projectName, op, log.Ctx{"snapshot": snapshotName}))
+	b.state.Events.SendLifecycle(projectName, lifecycle.StorageVolumeRestored.Event(vol, string(vol.Type()), projectName, op, logger.Ctx{"snapshot": snapshotName}))
 
 	return nil
 }
@@ -4232,9 +4230,9 @@ func (b *lxdBackend) createStorageStructure(path string) error {
 
 // UpdateInstanceBackupFile writes the instance's config to the backup.yaml file on the storage device.
 func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("UpdateInstanceBackupFile started")
-	defer logger.Debug("UpdateInstanceBackupFile finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("UpdateInstanceBackupFile started")
+	defer l.Debug("UpdateInstanceBackupFile finished")
 
 	// We only write backup files out for actual instances.
 	if inst.IsSnapshot() {
@@ -4332,9 +4330,9 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 // on the storage device are ignored. The remaining set of snapshots that exist on both the storage device and the
 // backup config are returned. They set can be used to re-create the snapshot database entries when importing.
 func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config, projectName string, deleteMissing bool, op *operations.Operation) ([]*api.InstanceSnapshot, error) {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "instance": backupConf.Container.Name, "deleteMissing": deleteMissing})
-	logger.Debug("CheckInstanceBackupFileSnapshots started")
-	defer logger.Debug("CheckInstanceBackupFileSnapshots finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "instance": backupConf.Container.Name, "deleteMissing": deleteMissing})
+	l.Debug("CheckInstanceBackupFileSnapshots started")
+	defer l.Debug("CheckInstanceBackupFileSnapshots finished")
 
 	instType, err := instancetype.New(string(backupConf.Container.Type))
 	if err != nil {
@@ -4396,7 +4394,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 			return nil, fmt.Errorf("Failed to delete snapshot %q: %w", driverSnapOnly, err)
 		}
 
-		logger.Warn("Deleted snapshot as not present in backup config", log.Ctx{"snapshot": driverSnapOnly})
+		l.Warn("Deleted snapshot as not present in backup config", logger.Ctx{"snapshot": driverSnapOnly})
 	}
 
 	// Check the snapshots in backup config exist on storage device.
@@ -4418,7 +4416,7 @@ func (b *lxdBackend) CheckInstanceBackupFileSnapshots(backupConf *backup.Config,
 				return nil, fmt.Errorf("Snapshot %q exists in backup config but not on storage device: %w", backupFileSnapOnly, ErrBackupSnapshotsMismatch)
 			}
 
-			logger.Warn("Skipped snapshot in backup config as not present on storage device", log.Ctx{"snapshot": backupFileSnap})
+			l.Warn("Skipped snapshot in backup config as not present on storage device", logger.Ctx{"snapshot": backupFileSnap})
 			continue // Skip snapshots missing on storage device.
 		}
 
@@ -4737,9 +4735,9 @@ func (b *lxdBackend) detectUnknownCustomVolume(vol *drivers.Volume, projectVols 
 // If the instance exists on the local cluster member then the local mount status is restored as needed.
 // If the optional poolVol argument is provided then it is used to create the storage volume database records.
 func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backup.Config, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": inst.Project(), "instance": inst.Name()})
-	logger.Debug("ImportInstance started")
-	defer logger.Debug("ImportInstance finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+	l.Debug("ImportInstance started")
+	defer l.Debug("ImportInstance finished")
 
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
@@ -4841,7 +4839,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backup.Conf
 
 	// Only attempt to restore mount status on instance's local cluster member.
 	if inst.Location() == nodeName {
-		logger.Debug("Restoring local instance mount status")
+		l.Debug("Restoring local instance mount status")
 
 		if inst.IsRunning() {
 			// If the instance is running then this implies the volume is mounted, but if the LXD
@@ -4880,7 +4878,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backup.Conf
 	if len(snapshots) > 0 {
 		for _, snapName := range snapshots {
 			_, snapOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapName)
-			logger.Debug("Ensuring instance snapshot mount path", log.Ctx{"snapshot": snapOnlyName})
+			l.Debug("Ensuring instance snapshot mount path", logger.Ctx{"snapshot": snapOnlyName})
 
 			snapVol, err := vol.NewSnapshot(snapOnlyName)
 			if err != nil {
@@ -4904,9 +4902,9 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backup.Conf
 }
 
 func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarWriter *instancewriter.InstanceTarWriter, optimized bool, snapshots bool, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
-	logger.Debug("BackupCustomVolume started")
-	defer logger.Debug("BackupCustomVolume finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": projectName, "volume": volName, "optimized": optimized, "snapshots": snapshots})
+	l.Debug("BackupCustomVolume started")
+	defer l.Debug("BackupCustomVolume finished")
 
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(projectName, volName)
@@ -4942,9 +4940,9 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 }
 
 func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData io.ReadSeeker, op *operations.Operation) error {
-	logger := logging.AddContext(b.logger, log.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
-	logger.Debug("CreateCustomVolumeFromBackup started")
-	defer logger.Debug("CreateCustomVolumeFromBackup finished")
+	l := logger.AddContext(b.logger, logger.Ctx{"project": srcBackup.Project, "volume": srcBackup.Name, "snapshots": srcBackup.Snapshots, "optimizedStorage": *srcBackup.OptimizedStorage})
+	l.Debug("CreateCustomVolumeFromBackup started")
+	defer l.Debug("CreateCustomVolumeFromBackup finished")
 
 	if srcBackup.Config == nil || srcBackup.Config.Volume == nil {
 		return fmt.Errorf("Valid volume config not found in index")
@@ -5037,7 +5035,7 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		return fmt.Errorf("Custom volume restore doesn't support post hooks")
 	}
 
-	b.state.Events.SendLifecycle(srcBackup.Project, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), srcBackup.Project, op, log.Ctx{"type": vol.Type()}))
+	b.state.Events.SendLifecycle(srcBackup.Project, lifecycle.StorageVolumeCreated.Event(vol, string(vol.Type()), srcBackup.Project, op, logger.Ctx{"type": vol.Type()}))
 
 	revert.Success()
 	return nil

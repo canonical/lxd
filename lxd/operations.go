@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -105,7 +104,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 
 			_, opAPI, err := op.Render()
 			if err != nil {
-				logger.Warn("Failed to render operation", log.Ctx{"operation": op, "err": err})
+				logger.Warn("Failed to render operation", logger.Ctx{"operation": op, "err": err})
 			} else if opAPI.MayCancel {
 				op.Cancel()
 			}
@@ -575,7 +574,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		for _, node := range nodes {
 			if node.Address == memberAddress {
 				if node.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations list", log.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat})
+					logger.Warn("Excluding offline member from operations list", logger.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat})
 					return false
 				}
 
@@ -605,7 +604,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 		// Get operation data.
 		ops, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
-			log.Warn("Failed getting operations from member", log.Ctx{"address": memberAddress, "err": err})
+			logger.Warn("Failed getting operations from member", logger.Ctx{"address": memberAddress, "err": err})
 			continue
 		}
 
@@ -708,7 +707,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 		for _, node := range nodes {
 			if node.Address == memberAddress {
 				if node.IsOffline(offlineThreshold) {
-					logger.Warn("Excluding offline member from operations by type list", log.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat, "opType": opType})
+					logger.Warn("Excluding offline member from operations by type list", logger.Ctx{"member": node.Name, "address": node.Address, "ID": node.ID, "lastHeartbeat": node.Heartbeat, "opType": opType})
 					return false
 				}
 
@@ -739,7 +738,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 		// Get all remote operations in project.
 		remoteOps, err := client.UseProject(projectName).GetOperations()
 		if err != nil {
-			log.Warn("Failed getting operations from member", log.Ctx{"address": memberAddress, "err": err})
+			logger.Warn("Failed getting operations from member", logger.Ctx{"address": memberAddress, "err": err})
 			continue
 		}
 
@@ -1045,7 +1044,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		localAddress, err := node.ClusterAddress(d.db)
 		if err != nil {
-			logger.Error("Failed to get current cluster member address", log.Ctx{"err": err})
+			logger.Error("Failed to get current cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1055,7 +1054,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 				return // No error if not clustered.
 			}
 
-			logger.Error("Failed to get leader cluster member address", log.Ctx{"err": err})
+			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
@@ -1070,13 +1069,13 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationRemoveOrphanedOperations, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start remove orphaned operations operation", log.Ctx{"err": err})
+			logger.Error("Failed to start remove orphaned operations operation", logger.Ctx{"err": err})
 			return
 		}
 
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to remove orphaned operations", log.Ctx{"err": err})
+			logger.Error("Failed to remove orphaned operations", logger.Ctx{"err": err})
 			return
 		}
 	}

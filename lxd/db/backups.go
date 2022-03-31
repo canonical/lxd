@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -222,7 +220,7 @@ func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
 
 		logger.Debug(
 			"Calling SQL Query",
-			log.Ctx{
+			logger.Ctx{
 				"query":   "UPDATE instances_backups SET name = ? WHERE name = ?",
 				"oldName": oldName,
 				"newName": newName})
@@ -491,7 +489,7 @@ func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
 
 		logger.Debug(
 			"Calling SQL Query",
-			log.Ctx{
+			logger.Ctx{
 				"query":   "UPDATE storage_volumes_backups SET name = ? WHERE name = ?",
 				"oldName": oldName,
 				"newName": newName})

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -18,6 +16,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -236,7 +235,7 @@ func (d *nicRouted) checkIPAvailability(parent string) error {
 			defer cancel()
 			inUse, err := isIPAvailable(ctx, address, parent)
 			if err != nil {
-				d.logger.Warn("Failed checking IP address available on parent network", log.Ctx{"IP": address, "parent": parent, "err": err})
+				d.logger.Warn("Failed checking IP address available on parent network", logger.Ctx{"IP": address, "parent": parent, "err": err})
 			}
 
 			if inUse {

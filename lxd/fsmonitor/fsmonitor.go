@@ -1,8 +1,6 @@
 package fsmonitor
 
 import (
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/fsmonitor/drivers"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -21,14 +19,14 @@ func (fs *fsMonitor) PrefixPath() string {
 // inotify event, f() is called.
 // Note: If f() returns false, the watch is removed.
 func (fs *fsMonitor) Watch(path string, identifier string, f func(path string, event string) bool) error {
-	fs.logger.Info("Watching path", log.Ctx{"path": path})
+	fs.logger.Info("Watching path", logger.Ctx{"path": path})
 
 	return fs.driver.Watch(path, identifier, f)
 }
 
 // Unwatch removes the given path from the watchlist.
 func (fs *fsMonitor) Unwatch(path string, identifier string) error {
-	fs.logger.Info("Unwatching path", log.Ctx{"path": path})
+	fs.logger.Info("Unwatching path", logger.Ctx{"path": path})
 
 	return fs.driver.Unwatch(path, identifier)
 }

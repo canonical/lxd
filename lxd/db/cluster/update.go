@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/db/schema"
 	"github.com/lxc/lxd/shared"
@@ -1430,7 +1428,7 @@ func updateFromV42(tx *sql.Tx) error {
 	}
 
 	for _, r := range dupeRows {
-		logger.Warn("Found duplicated storage pool config rows", log.Ctx{"storagePoolID": r.storagePoolID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "dupeRowIDs": r.dupeRowIDs})
+		logger.Warn("Found duplicated storage pool config rows", logger.Ctx{"storagePoolID": r.storagePoolID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "dupeRowIDs": r.dupeRowIDs})
 
 		rowIDs := strings.Split(r.dupeRowIDs, ",")
 
@@ -1445,7 +1443,7 @@ func updateFromV42(tx *sql.Tx) error {
 			if err != nil {
 				return fmt.Errorf("Failed deleting storage pool config row with ID %d: %w", rowID, err)
 			}
-			logger.Warn("Deleted duplicated storage pool config row", log.Ctx{"storagePoolID": r.storagePoolID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "rowID": rowID})
+			logger.Warn("Deleted duplicated storage pool config row", logger.Ctx{"storagePoolID": r.storagePoolID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "rowID": rowID})
 		}
 	}
 
@@ -1499,7 +1497,7 @@ func updateFromV41(tx *sql.Tx) error {
 	}
 
 	for _, r := range dupeRows {
-		logger.Warn("Found duplicated network config rows", log.Ctx{"networkID": r.networkID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "dupeRowIDs": r.dupeRowIDs})
+		logger.Warn("Found duplicated network config rows", logger.Ctx{"networkID": r.networkID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "dupeRowIDs": r.dupeRowIDs})
 
 		rowIDs := strings.Split(r.dupeRowIDs, ",")
 
@@ -1514,7 +1512,7 @@ func updateFromV41(tx *sql.Tx) error {
 			if err != nil {
 				return fmt.Errorf("Failed deleting network config row with ID %d: %w", rowID, err)
 			}
-			logger.Warn("Deleted duplicated network config row", log.Ctx{"networkID": r.networkID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "rowID": rowID})
+			logger.Warn("Deleted duplicated network config row", logger.Ctx{"networkID": r.networkID, "nodeID": r.nodeID, "key": r.key, "value": r.value, "rowCount": r.rowCount, "rowID": rowID})
 		}
 	}
 

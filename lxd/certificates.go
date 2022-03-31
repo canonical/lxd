@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -182,7 +181,7 @@ func updateCertificateCache(d *Daemon) {
 		return err
 	})
 	if err != nil {
-		logger.Warn("Failed reading certificates from global database", log.Ctx{"err": err})
+		logger.Warn("Failed reading certificates from global database", logger.Ctx{"err": err})
 		return
 	}
 
@@ -193,13 +192,13 @@ func updateCertificateCache(d *Daemon) {
 
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
-			logger.Warn("Failed decoding certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			logger.Warn("Failed decoding certificate", logger.Ctx{"name": dbCert.Name, "err": err})
 			continue
 		}
 
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			logger.Warn("Failed parsing certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			logger.Warn("Failed parsing certificate", logger.Ctx{"name": dbCert.Name, "err": err})
 			continue
 		}
 
@@ -220,7 +219,7 @@ func updateCertificateCache(d *Daemon) {
 		return tx.ReplaceCertificates(localCerts)
 	})
 	if err != nil {
-		logger.Warn("Failed writing certificates to local database", log.Ctx{"err": err})
+		logger.Warn("Failed writing certificates to local database", logger.Ctx{"err": err})
 		// Don't return here, as we still should update the in-memory cache to allow the cluster to
 		// continue functioning, and hopefully the write will succeed on next update.
 	}
@@ -255,13 +254,13 @@ func updateCertificateCacheFromLocal(d *Daemon) error {
 
 		certBlock, _ := pem.Decode([]byte(dbCert.Certificate))
 		if certBlock == nil {
-			logger.Warn("Failed decoding certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			logger.Warn("Failed decoding certificate", logger.Ctx{"name": dbCert.Name, "err": err})
 			continue
 		}
 
 		cert, err := x509.ParseCertificate(certBlock.Bytes)
 		if err != nil {
-			logger.Warn("Failed parsing certificate", log.Ctx{"name": dbCert.Name, "err": err})
+			logger.Warn("Failed parsing certificate", logger.Ctx{"name": dbCert.Name, "err": err})
 			continue
 		}
 
@@ -535,7 +534,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 				} else {
 					// Otherwise check if password matches trust password.
 					if util.PasswordCheck(secret, req.Password) != nil {
-						logger.Warn("Bad trust password", log.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+						logger.Warn("Bad trust password", logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
 						return response.Forbidden(nil)
 					}
 				}

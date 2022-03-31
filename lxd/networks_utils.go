@@ -1,8 +1,6 @@
 package main
 
 import (
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/network"
@@ -77,7 +75,7 @@ func networkUpdateOVNChassis(s *state.State, heartbeatData *cluster.APIHeartbeat
 		// Detected that the local OVN chassis setup may be incorrect, restarting.
 		err := networkRestartOVN(s)
 		if err != nil {
-			logger.Error("Error restarting OVN networks", log.Ctx{"err": err})
+			logger.Error("Error restarting OVN networks", logger.Ctx{"err": err})
 		}
 	}
 

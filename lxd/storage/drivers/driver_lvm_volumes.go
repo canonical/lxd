@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
@@ -21,6 +20,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/validate"
 )
 
@@ -386,7 +386,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 		return nil
 	}
 
-	logCtx := log.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)}
+	logCtx := logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)}
 
 	// Activate volume if needed.
 	activated, err := d.activateVolume(volDevPath)
@@ -519,7 +519,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		}
 
 		if volType == "" {
-			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": rawName})
+			d.logger.Debug("Ignoring unrecognised volume type", logger.Ctx{"name": rawName})
 			continue // Ignore unrecognised volume.
 		}
 
@@ -527,7 +527,7 @@ func (d *lvm) ListVolumes() ([]Volume, error) {
 		if lvSnapSepCount%2 != 0 {
 			// If snapshot separator count is odd, then this means we have a lone lvmSnapshotSeparator
 			// that is not part of the lvmEscapedHyphen pair, which means this volume is a snapshot.
-			d.logger.Debug("Ignoring snapshot volume", log.Ctx{"name": rawName})
+			d.logger.Debug("Ignoring snapshot volume", logger.Ctx{"name": rawName})
 			continue // Ignore snapshot volumes.
 		}
 
@@ -619,7 +619,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 			if err != nil {
 				return fmt.Errorf("Failed to mount LVM logical volume: %w", err)
 			}
-			d.logger.Debug("Mounted logical volume", log.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
+			d.logger.Debug("Mounted logical volume", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 		}
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, mount the filesystem volume.
@@ -653,7 +653,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		mountPath := vol.MountPath()
 		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
@@ -661,7 +661,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 			if err != nil {
 				return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
 			}
-			d.logger.Debug("Unmounted logical volume", log.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
+			d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
 
 			// We only deactivate filesystem volumes if an unmount was needed to better align with our
 			// unmount return value indicator.
@@ -686,7 +686,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 		if !keepBlockDev && shared.PathExists(volDevPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
@@ -962,7 +962,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 					mountOptions += ",nouuid"
 				}
 			} else {
-				d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": tmpVolFsType})
+				d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volDevPath, "fs": tmpVolFsType})
 				err = regenerateFilesystemUUID(mountVol.ConfigBlockFilesystem(), volDevPath)
 				if err != nil {
 					return false, err
@@ -975,7 +975,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		if err != nil {
 			return false, fmt.Errorf("Failed to mount LVM snapshot volume: %w", err)
 		}
-		d.logger.Debug("Mounted logical volume snapshot", log.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
+		d.logger.Debug("Mounted logical volume snapshot", logger.Ctx{"dev": volDevPath, "path": mountPath, "options": mountOptions})
 
 		revert.Success()
 		return true, nil
@@ -1017,7 +1017,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 		if err != nil {
 			return false, fmt.Errorf("Failed to unmount LVM snapshot volume: %w", err)
 		}
-		d.logger.Debug("Unmounted logical volume snapshot", log.Ctx{"path": mountPath})
+		d.logger.Debug("Unmounted logical volume snapshot", logger.Ctx{"path": mountPath})
 
 		// Check if a temporary snapshot exists, and if so remove it.
 		tmpVolName := fmt.Sprintf("%s%s", snapVol.name, tmpVolSuffix)
@@ -1162,7 +1162,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 				return err
 			}
 
-			d.logger.Debug("Regenerating filesystem UUID", log.Ctx{"dev": volDevPath, "fs": vol.ConfigBlockFilesystem()})
+			d.logger.Debug("Regenerating filesystem UUID", logger.Ctx{"dev": volDevPath, "fs": vol.ConfigBlockFilesystem()})
 			err = regenerateFilesystemUUID(vol.ConfigBlockFilesystem(), volDevPath)
 			if err != nil {
 				return err

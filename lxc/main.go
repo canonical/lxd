@@ -15,7 +15,6 @@ import (
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -402,7 +401,7 @@ Or for a virtual machine: lxc launch ubuntu:20.04 --vm`)+"\n")
 	c.conf.UserAgent = version.UserAgent
 
 	// Setup the logger
-	logger.Log, err = logging.GetLogger("", "", c.flagLogVerbose, c.flagLogDebug, nil)
+	err = logger.InitLogger("", "", c.flagLogVerbose, c.flagLogDebug, nil)
 	if err != nil {
 		return err
 	}

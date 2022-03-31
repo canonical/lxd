@@ -21,7 +21,6 @@ import (
 	"github.com/lxc/lxd/lxd/vsock"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 type cmdAgent struct {
@@ -46,11 +45,10 @@ func (c *cmdAgent) Command() *cobra.Command {
 
 func (c *cmdAgent) Run(cmd *cobra.Command, args []string) error {
 	// Setup logger.
-	log, err := logging.GetLogger("", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
+	err := logger.InitLogger("", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
 	if err != nil {
 		os.Exit(1)
 	}
-	logger.Log = log
 
 	logger.Info("Starting")
 	defer logger.Info("Stopped")

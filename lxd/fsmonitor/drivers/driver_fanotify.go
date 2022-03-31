@@ -11,7 +11,8 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
+
+	"github.com/lxc/lxd/shared/logger"
 )
 
 var fanotifyLoaded bool
@@ -91,7 +92,7 @@ func (d *fanotify) getEvents(mountFd int) {
 				return
 			}
 
-			d.logger.Error("Failed to read event", log.Ctx{"err": err})
+			d.logger.Error("Failed to read event", logger.Ctx{"err": err})
 			continue
 		}
 
@@ -101,7 +102,7 @@ func (d *fanotify) getEvents(mountFd int) {
 
 		err = binary.Read(rd, binary.LittleEndian, &event)
 		if err != nil {
-			d.logger.Error("Failed to read event metadata", log.Ctx{"err": err})
+			d.logger.Error("Failed to read event metadata", logger.Ctx{"err": err})
 			continue
 		}
 
@@ -110,7 +111,7 @@ func (d *fanotify) getEvents(mountFd int) {
 
 		err = binary.Read(rd, binary.LittleEndian, &fid)
 		if err != nil {
-			d.logger.Error("Failed to read event fid", log.Ctx{"err": err})
+			d.logger.Error("Failed to read event fid", logger.Ctx{"err": err})
 			continue
 		}
 
@@ -126,7 +127,7 @@ func (d *fanotify) getEvents(mountFd int) {
 
 		err = binary.Read(rd, binary.LittleEndian, &fhInfo)
 		if err != nil {
-			d.logger.Error("Failed to read file handle info", log.Ctx{"err": err})
+			d.logger.Error("Failed to read file handle info", logger.Ctx{"err": err})
 			continue
 		}
 
@@ -135,7 +136,7 @@ func (d *fanotify) getEvents(mountFd int) {
 
 		err = binary.Read(rd, binary.LittleEndian, fileHandle)
 		if err != nil {
-			d.logger.Error("Failed to read file handle", log.Ctx{"err": err})
+			d.logger.Error("Failed to read file handle", logger.Ctx{"err": err})
 			continue
 		}
 
@@ -145,7 +146,7 @@ func (d *fanotify) getEvents(mountFd int) {
 		if err != nil {
 			errno := err.(unix.Errno)
 			if errno != unix.ESTALE {
-				d.logger.Error("Failed to open file", log.Ctx{"err": err})
+				d.logger.Error("Failed to open file", logger.Ctx{"err": err})
 			}
 			continue
 		}
@@ -154,7 +155,7 @@ func (d *fanotify) getEvents(mountFd int) {
 		// Determine the directory of the created or deleted file.
 		target, err := os.Readlink(fmt.Sprintf("/proc/self/fd/%d", fd))
 		if err != nil {
-			d.logger.Error("Failed to read symlink", log.Ctx{"err": err})
+			d.logger.Error("Failed to read symlink", logger.Ctx{"err": err})
 			continue
 		}
 		unix.Close(fd)

@@ -198,11 +198,11 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 	var err error
 
 	// Log the request
-	logger.Debug("Sending request to LXD",
-		"method", method,
-		"url", url,
-		"etag", ETag,
-	)
+	logger.Debug("Sending request to LXD", logger.Ctx{
+		"method": method,
+		"url":    url,
+		"etag":   ETag,
+	})
 
 	// Get a new HTTP request setup
 	if data != nil {

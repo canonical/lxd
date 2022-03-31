@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
@@ -519,7 +518,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 				return fmt.Errorf("Network already partially created. Please do not specify any global config when re-running create")
 			}
 
-			logger.Debug("Skipping global network create as global config already partially created", log.Ctx{"project": projectName, "network": req.Name})
+			logger.Debug("Skipping global network create as global config already partially created", logger.Ctx{"project": projectName, "network": req.Name})
 			return nil
 		}
 
@@ -574,7 +573,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	if err != nil {
 		return err
 	}
-	logger.Debug("Created network on local cluster member", log.Ctx{"project": projectName, "network": req.Name})
+	logger.Debug("Created network on local cluster member", logger.Ctx{"project": projectName, "network": req.Name})
 
 	// Notify other nodes to create the network.
 	err = notifier(func(client lxd.InstanceServer) error {
@@ -607,7 +606,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 		if err != nil {
 			return err
 		}
-		logger.Debug("Created network on cluster member", log.Ctx{"project": n.Project(), "network": n.Name(), "member": server.Environment.ServerName, "config": nodeReq.Config})
+		logger.Debug("Created network on cluster member", logger.Ctx{"project": n.Project(), "network": n.Name(), "member": server.Environment.ServerName, "config": nodeReq.Config})
 
 		return nil
 	})
@@ -622,7 +621,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	if err != nil {
 		return err
 	}
-	logger.Debug("Marked network global status as created", log.Ctx{"project": projectName, "network": req.Name})
+	logger.Debug("Marked network global status as created", logger.Ctx{"project": projectName, "network": req.Name})
 
 	return nil
 }
@@ -646,7 +645,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 	}
 
 	if n.LocalStatus() == api.NetworkStatusCreated {
-		logger.Debug("Skipping local network create as already created", log.Ctx{"project": n.Project(), "network": n.Name()})
+		logger.Debug("Skipping local network create as already created", logger.Ctx{"project": n.Project(), "network": n.Name()})
 		return nil
 	}
 
@@ -674,7 +673,7 @@ func doNetworksCreate(d *Daemon, n network.Network, clientType clusterRequest.Cl
 	if err != nil {
 		return err
 	}
-	logger.Debug("Marked network local status as created", log.Ctx{"project": n.Project(), "network": n.Name()})
+	logger.Debug("Marked network local status as created", logger.Ctx{"project": n.Project(), "network": n.Name()})
 
 	revert.Success()
 	return nil
@@ -1391,7 +1390,7 @@ func networkStartup(s *state.State) error {
 			return err
 		}
 
-		logger.Info("Initialized network", log.Ctx{"project": n.Project(), "name": n.Name()})
+		logger.Info("Initialized network", logger.Ctx{"project": n.Project(), "name": n.Name()})
 
 		// Network initialized successfully so remove it from the list so its not retried.
 		pn := network.ProjectNetwork{
@@ -1455,7 +1454,7 @@ func networkStartup(s *state.State) error {
 				continue
 			}
 
-			logger.Error("Failed initializing network", log.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+			logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
 			continue
 		}
@@ -1465,7 +1464,7 @@ func networkStartup(s *state.State) error {
 	for _, n := range deferredNetworks {
 		err = initNetwork(n)
 		if err != nil {
-			logger.Error("Failed initializing network", log.Ctx{"project": n.Project(), "network": n.Name(), "err": err})
+			logger.Error("Failed initializing network", logger.Ctx{"project": n.Project(), "network": n.Name(), "err": err})
 
 			continue
 		}
@@ -1492,7 +1491,7 @@ func networkStartup(s *state.State) error {
 					for pn := range initNetworks {
 						err := loadAndInitNetwork(pn.ProjectName, pn.NetworkName, false)
 						if err != nil {
-							logger.Error("Failed initializing network", log.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
+							logger.Error("Failed initializing network", logger.Ctx{"project": pn.ProjectName, "network": pn.NetworkName, "err": err})
 
 							continue
 						}
@@ -1509,7 +1508,7 @@ func networkStartup(s *state.State) error {
 					if tryInstancesStart {
 						instances, err := instance.LoadNodeAll(s, instancetype.Any)
 						if err != nil {
-							logger.Warn("Failed loading instances to start", log.Ctx{"err": err})
+							logger.Warn("Failed loading instances to start", logger.Ctx{"err": err})
 						} else {
 							instancesStart(s, instances)
 						}
@@ -1557,7 +1556,7 @@ func networkShutdown(s *state.State) error {
 
 			err = n.Stop()
 			if err != nil {
-				logger.Error("Failed to bring down network", log.Ctx{"err": err, "project": projectName, "name": name})
+				logger.Error("Failed to bring down network", logger.Ctx{"err": err, "project": projectName, "name": name})
 			}
 		}
 	}

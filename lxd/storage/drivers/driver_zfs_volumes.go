@@ -18,7 +18,6 @@ import (
 
 	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/backup"
@@ -30,6 +29,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -308,7 +308,7 @@ func (d *zfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcData 
 
 	// Define function to unpack a volume from a backup tarball file.
 	unpackVolume := func(v Volume, r io.ReadSeeker, unpacker []string, srcFile string, target string) error {
-		d.Logger().Debug("Unpacking optimized volume", log.Ctx{"source": srcFile, "target": target})
+		d.Logger().Debug("Unpacking optimized volume", logger.Ctx{"source": srcFile, "target": target})
 
 		targetPath := fmt.Sprintf("%s/storage-pools/%s", shared.VarPath(""), target)
 		tr, cancelFunc, err := archive.CompressedTarReader(context.Background(), r, unpacker, d.state.OS, targetPath)
@@ -1044,7 +1044,7 @@ func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op
 			// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 				return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 			}
 
@@ -1061,7 +1061,7 @@ func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op
 				// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 				// refresh instead.
 				if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-					d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+					d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 					return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 				}
 
@@ -1090,7 +1090,7 @@ func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op
 		// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 		// refresh instead.
 		if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-			d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+			d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 			return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 		}
 
@@ -1107,7 +1107,7 @@ func (d *zfs) RefreshVolume(vol Volume, srcVol Volume, srcSnapshots []Volume, op
 			// Don't fail here. If it's not possible to perform an optimized refresh, do a generic
 			// refresh instead.
 			if errors.Is(err, ErrSnapshotDoesNotMatchIncrementalSource) {
-				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", log.Ctx{"err": err})
+				d.logger.Debug("Unable to perform an optimized refresh, doing a generic refresh", logger.Ctx{"err": err})
 				return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, true, op)
 			}
 
@@ -1504,7 +1504,7 @@ func (d *zfs) ListVolumes() ([]Volume, error) {
 		}
 
 		if volType == "" {
-			d.logger.Debug("Ignoring unrecognised volume type", log.Ctx{"name": zfsVolName})
+			d.logger.Debug("Ignoring unrecognised volume type", logger.Ctx{"name": zfsVolName})
 			continue // Ignore unrecognised volume.
 		}
 
@@ -1582,7 +1582,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 				return err
 			}
 
-			d.logger.Debug("Mounted ZFS dataset", log.Ctx{"dev": dataset, "path": mountPath})
+			d.logger.Debug("Mounted ZFS dataset", logger.Ctx{"dev": dataset, "path": mountPath})
 		}
 	} else if vol.contentType == ContentTypeBlock {
 		// For block devices, we make them appear.
@@ -1603,7 +1603,7 @@ func (d *zfs) MountVolume(vol Volume, op *operations.Operation) error {
 			// Wait half a second to give udev a chance to kick in.
 			time.Sleep(500 * time.Millisecond)
 
-			d.logger.Debug("Activated ZFS volume", log.Ctx{"dev": dataset})
+			d.logger.Debug("Activated ZFS volume", logger.Ctx{"dev": dataset})
 		}
 
 		if vol.IsVMBlock() {
@@ -1636,7 +1636,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 		mountPath := vol.MountPath()
 		if filesystem.IsMountPoint(mountPath) {
 			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 				return false, ErrInUse
 			}
 
@@ -1646,7 +1646,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 				return false, err
 			}
 
-			d.logger.Debug("Unmounted ZFS dataset", log.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
+			d.logger.Debug("Unmounted ZFS dataset", logger.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
 			ourUnmount = true
 		}
 	} else if vol.contentType == ContentTypeBlock {
@@ -1668,7 +1668,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 			if current == "dev" {
 				if refCount > 0 {
-					d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+					d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 					return false, ErrInUse
 				}
 
@@ -1690,7 +1690,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 					}
 
 					if !shared.PathExists(devPath) {
-						d.logger.Debug("Deactivated ZFS volume", log.Ctx{"volName": vol.name, "dev": dataset})
+						d.logger.Debug("Deactivated ZFS volume", logger.Ctx{"volName": vol.name, "dev": dataset})
 						break
 					}
 
@@ -1699,7 +1699,7 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 					}
 
 					// Wait for ZFS a chance to flush and udev to remove the device path.
-					d.logger.Debug("Waiting for ZFS volume to deactivate", log.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
+					d.logger.Debug("Waiting for ZFS volume to deactivate", logger.Ctx{"volName": vol.name, "dev": dataset, "path": devPath, "attempt": i})
 
 					if i <= 5 {
 						// Retry more quickly early on.
@@ -2015,7 +2015,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	reverter.Add(func() {
 		shared.RunCommand("zfs", "destroy", srcSnapshot)
 	})
-	d.logger.Debug("Created backup snapshot", log.Ctx{"dev": srcSnapshot})
+	d.logger.Debug("Created backup snapshot", logger.Ctx{"dev": srcSnapshot})
 
 	// Mount the snapshot directly (not possible through ZFS tools), so that the volume is
 	// already mounted by the time genericVFSBackupVolume tries to mount it below,
@@ -2025,7 +2025,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	d.logger.Debug("Mounted ZFS snapshot dataset", log.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
+	d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": vol.MountPath()})
 
 	reverter.Add(func() {
 		_, err := forceUnmount(tmpDir)
@@ -2033,7 +2033,7 @@ func (d *zfs) readonlySnapshot(vol Volume) (string, *revert.Reverter, error) {
 			return
 		}
 
-		d.logger.Debug("Unmounted ZFS snapshot dataset", log.Ctx{"dev": srcSnapshot, "path": tmpDir})
+		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": srcSnapshot, "path": tmpDir})
 	})
 
 	defer reverter.Success()
@@ -2101,7 +2101,7 @@ func (d *zfs) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 		defer os.Remove(tmpFile.Name())
 
 		// Write the subvolume to the file.
-		d.logger.Debug("Generating optimized volume file", log.Ctx{"sourcePath": path, "file": tmpFile.Name(), "name": fileName})
+		d.logger.Debug("Generating optimized volume file", logger.Ctx{"sourcePath": path, "file": tmpFile.Name(), "name": fileName})
 
 		// Write the subvolume to the file.
 		err = shared.RunCommandWithFds(nil, tmpFile, "zfs", args...)
@@ -2306,7 +2306,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 				return false, err
 			}
 
-			d.logger.Debug("Mounted ZFS snapshot dataset", log.Ctx{"dev": snapshotDataset, "path": mountPath})
+			d.logger.Debug("Mounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
 			ourMounts++
 		}
 	} else if snapVol.contentType == ContentTypeBlock {
@@ -2349,7 +2349,7 @@ func (d *zfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 			// Wait half a second to give udev a chance to kick in.
 			time.Sleep(500 * time.Millisecond)
 
-			d.logger.Debug("Activated ZFS snapshot volume", log.Ctx{"dev": snapshotDataset})
+			d.logger.Debug("Activated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
 			ourMounts++
 		}
 
@@ -2398,7 +2398,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 			return false, err
 		}
 
-		d.logger.Debug("Deactivated ZFS snapshot volume", log.Ctx{"dev": snapshotDataset})
+		d.logger.Debug("Deactivated ZFS snapshot volume", logger.Ctx{"dev": snapshotDataset})
 
 		// Ensure snap volume parent is deactivated in case we activated it when mounting snapshot.
 		_, err = d.UnmountVolume(parentVol, false, op)
@@ -2416,7 +2416,7 @@ func (d *zfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 			return false, err
 		}
 
-		d.logger.Debug("Unmounted ZFS snapshot dataset", log.Ctx{"dev": snapshotDataset, "path": mountPath})
+		d.logger.Debug("Unmounted ZFS snapshot dataset", logger.Ctx{"dev": snapshotDataset, "path": mountPath})
 		return true, nil
 	}
 

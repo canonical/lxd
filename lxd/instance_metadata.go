@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/lxd/instance"
@@ -22,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // swagger:operation GET /1.0/instances/{name}/metadata instances instance_metadata_get
@@ -480,7 +480,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	files[0].Filename = templateName
 	files[0].Cleanup = func() { os.Remove(tempfile.Name()) }
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateRetrieved.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
 	return response.FileResponse(r, files, nil)
 }
@@ -588,7 +588,7 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 		return response.InternalError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateCreated.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateCreated.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
 	return response.EmptySyncResponse
 }
@@ -682,7 +682,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 		return response.InternalError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateDeleted.Event(c, request.CreateRequestor(r), log.Ctx{"path": templateName}))
+	d.State().Events.SendLifecycle(projectName, lifecycle.InstanceMetadataTemplateDeleted.Event(c, request.CreateRequestor(r), logger.Ctx{"path": templateName}))
 
 	return response.EmptySyncResponse
 }

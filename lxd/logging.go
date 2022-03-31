@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -30,14 +28,14 @@ func expireLogsTask(state *state.State) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(state, "", operations.OperationClassTask, db.OperationLogsExpire, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start log expiry operation", log.Ctx{"err": err})
+			logger.Error("Failed to start log expiry operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Infof("Expiring log files")
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to expire logs", log.Ctx{"err": err})
+			logger.Error("Failed to expire logs", logger.Ctx{"err": err})
 		}
 		logger.Infof("Done expiring log files")
 	}
