@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-28 10:06-0400\n"
+"POT-Creation-Date: 2022-03-31 13:32-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1160,11 +1160,11 @@ msgstr ""
 msgid "Columns"
 msgstr "Столбцы"
 
-#: lxc/main.go:79
+#: lxc/main.go:78
 msgid "Command line client for LXD"
 msgstr ""
 
-#: lxc/main.go:80
+#: lxc/main.go:79
 msgid ""
 "Command line client for LXD\n"
 "\n"
@@ -1590,7 +1590,7 @@ msgstr ""
 #: lxc/image.go:1378 lxc/image.go:1437 lxc/image.go:1489 lxc/image.go:1545
 #: lxc/image_alias.go:25 lxc/image_alias.go:61 lxc/image_alias.go:108
 #: lxc/image_alias.go:153 lxc/image_alias.go:255 lxc/import.go:29
-#: lxc/info.go:35 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:80
+#: lxc/info.go:35 lxc/init.go:40 lxc/launch.go:25 lxc/list.go:50 lxc/main.go:79
 #: lxc/manpage.go:22 lxc/monitor.go:33 lxc/move.go:37 lxc/network.go:33
 #: lxc/network.go:128 lxc/network.go:213 lxc/network.go:286 lxc/network.go:360
 #: lxc/network.go:410 lxc/network.go:495 lxc/network.go:580 lxc/network.go:703
@@ -1771,7 +1771,7 @@ msgstr "Копирование образа: %s"
 msgid "Don't require user confirmation for using --force"
 msgstr ""
 
-#: lxc/main.go:97
+#: lxc/main.go:96
 msgid "Don't show progress information"
 msgstr ""
 
@@ -2167,7 +2167,7 @@ msgstr ""
 msgid "Force the removal of running instances"
 msgstr ""
 
-#: lxc/main.go:93
+#: lxc/main.go:92
 msgid "Force using the local unix socket"
 msgstr ""
 
@@ -2410,7 +2410,7 @@ msgstr ""
 msgid "If the snapshot name already exists, delete and create a new one"
 msgstr ""
 
-#: lxc/main.go:380
+#: lxc/main.go:379
 msgid ""
 "If this is your first time running LXD on this machine, you should also run: "
 "lxd init"
@@ -2634,7 +2634,7 @@ msgstr ""
 msgid "Invalid new snapshot name, parent volume must be the same as source"
 msgstr ""
 
-#: lxc/main.go:476
+#: lxc/main.go:475
 msgid "Invalid number of arguments"
 msgstr ""
 
@@ -3778,7 +3778,7 @@ msgstr ""
 msgid "Optimized Storage"
 msgstr ""
 
-#: lxc/main.go:94
+#: lxc/main.go:93
 msgid "Override the source project"
 msgstr ""
 
@@ -3840,7 +3840,7 @@ msgstr ""
 msgid "Partitions:"
 msgstr ""
 
-#: lxc/main.go:343
+#: lxc/main.go:342
 #, fuzzy, c-format
 msgid "Password for %s: "
 msgstr "Пароль администратора для %s: "
@@ -3893,7 +3893,7 @@ msgstr ""
 msgid "Pretty rendering (short for --format=pretty)"
 msgstr ""
 
-#: lxc/main.go:92
+#: lxc/main.go:91
 msgid "Print help"
 msgstr ""
 
@@ -3901,7 +3901,7 @@ msgstr ""
 msgid "Print the raw response"
 msgstr ""
 
-#: lxc/main.go:91
+#: lxc/main.go:90
 msgid "Print version number"
 msgstr ""
 
@@ -4595,11 +4595,11 @@ msgstr ""
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 
-#: lxc/main.go:95
+#: lxc/main.go:94
 msgid "Show all debug messages"
 msgstr ""
 
-#: lxc/main.go:96
+#: lxc/main.go:95
 msgid "Show all information messages"
 msgstr ""
 
@@ -4646,7 +4646,7 @@ msgstr ""
 msgid "Show instance or server information"
 msgstr ""
 
-#: lxc/main.go:259 lxc/main.go:260
+#: lxc/main.go:258 lxc/main.go:259
 msgid "Show less common commands"
 msgstr ""
 
@@ -5039,7 +5039,7 @@ msgstr ""
 msgid "This LXD server is not available on the network"
 msgstr ""
 
-#: lxc/main.go:281
+#: lxc/main.go:280
 msgid ""
 "This client hasn't been configured to use a remote LXD server yet.\n"
 "As your platform can't run native Linux instances, you must connect to a "
@@ -5075,7 +5075,7 @@ msgstr ""
 msgid "To detach from the console, press: <ctrl>+a q"
 msgstr ""
 
-#: lxc/main.go:385
+#: lxc/main.go:384
 msgid ""
 "To start your first container, try: lxc launch ubuntu:20.04\n"
 "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
@@ -5340,7 +5340,7 @@ msgid ""
 "Use storage driver optimized format (can only be restored on a similar pool)"
 msgstr ""
 
-#: lxc/main.go:98
+#: lxc/main.go:97
 msgid "Use with help or --help to view sub-commands"
 msgstr ""
 
@@ -6834,7 +6834,11 @@ msgstr ""
 msgid "yes"
 msgstr "да"
 
-#, fuzzy
+#, fuzzy, c-format
+#~ msgid "Client %s certificate add token: %s"
+#~ msgstr "Копирование образа: %s"
+
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Принять сертификат"
 
@@ -7060,10 +7064,11 @@ msgstr "да"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Сертификат клиента хранится на сервере: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Невозможно прочитать из стандартного ввода: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %s"
 #~ msgstr "Имя контейнера: %s"
 
@@ -7071,6 +7076,6 @@ msgstr "да"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Копирование образа: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Копирование образа: %s"
