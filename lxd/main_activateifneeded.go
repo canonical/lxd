@@ -67,7 +67,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	d.db = db.ForLegacyPatches(sqldb)
+	d.db = db.DirectAccess(sqldb)
 
 	// Load the configured address from the database
 	address, err := node.HTTPSAddress(d.db)

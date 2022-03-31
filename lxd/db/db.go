@@ -69,10 +69,9 @@ func OpenNode(dir string, fresh func(*Node) error) (*Node, error) {
 	return node, nil
 }
 
-// ForLegacyPatches is a aid for the hack in initializeDbObject, which sets
-// the db-related Deamon attributes upfront, to be backward compatible with the
-// legacy patches that need to interact with the database.
-func ForLegacyPatches(db *sql.DB) *Node {
+// DirectAccess is a bit of a hack which allows getting a database Node struct from any standard Go sql.DB.
+// This is primarily used to access the "db.bin" read-only copy of the database during startup.
+func DirectAccess(db *sql.DB) *Node {
 	return &Node{db: db}
 }
 
