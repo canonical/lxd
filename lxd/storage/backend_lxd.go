@@ -2854,7 +2854,7 @@ func (b *lxdBackend) EnsureImage(fingerprint string, op *operations.Operation) e
 
 			// Try applying the current size policy to the existing volume. If it is the same the
 			// driver should make no changes, and if not then attempt to resize it to the new policy.
-			l.Debug("Setting image volume size", "size", imgVol.ConfigSize())
+			l.Debug("Setting image volume size", logger.Ctx{"size": imgVol.ConfigSize()})
 			err = b.driver.SetVolumeQuota(imgVol, imgVol.ConfigSize(), false, op)
 			if errors.Is(err, drivers.ErrCannotBeShrunk) || errors.Is(err, drivers.ErrNotSupported) {
 				// If the driver cannot resize the existing image volume to the new policy size
