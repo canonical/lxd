@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,7 +16,7 @@ func init() {
 	logger := logrus.StandardLogger()
 	logger.SetOutput(ioutil.Discard)
 
-	Log = logger
+	Log = newWrapper(logger)
 }
 
 // InitLogger intializes a full logging instance.
@@ -68,80 +67,7 @@ func InitLogger(filepath string, syslogName string, verbose bool, debug bool, ho
 	}
 
 	// Set the logger.
-	Log = logger
+	Log = newWrapper(logger)
 
 	return nil
-}
-
-// Debug logs a message (with optional context) at the DEBUG log level
-func Debug(msg string, ctx ...Ctx) {
-	var logCtx Ctx
-	if len(ctx) > 0 {
-		logCtx = ctx[0]
-	}
-
-	Log.Debug(msg, logCtx)
-}
-
-// Info logs a message (with optional context) at the INFO log level
-func Info(msg string, ctx ...Ctx) {
-	var logCtx Ctx
-	if len(ctx) > 0 {
-		logCtx = ctx[0]
-	}
-
-	Log.Info(msg, logCtx)
-}
-
-// Warn logs a message (with optional context) at the WARNING log level
-func Warn(msg string, ctx ...Ctx) {
-	var logCtx Ctx
-	if len(ctx) > 0 {
-		logCtx = ctx[0]
-	}
-
-	Log.Warn(msg, logCtx)
-}
-
-// Error logs a message (with optional context) at the ERROR log level
-func Error(msg string, ctx ...Ctx) {
-	var logCtx Ctx
-	if len(ctx) > 0 {
-		logCtx = ctx[0]
-	}
-
-	Log.Error(msg, logCtx)
-}
-
-// Infof logs at the INFO log level using a standard printf format string
-func Infof(format string, args ...any) {
-	if Log != nil {
-		Log.Info(fmt.Sprintf(format, args...))
-	}
-}
-
-// Debugf logs at the DEBUG log level using a standard printf format string
-func Debugf(format string, args ...any) {
-	if Log != nil {
-		Log.Debug(fmt.Sprintf(format, args...))
-	}
-}
-
-// Warnf logs at the WARNING log level using a standard printf format string
-func Warnf(format string, args ...any) {
-	if Log != nil {
-		Log.Warn(fmt.Sprintf(format, args...))
-	}
-}
-
-// Errorf logs at the ERROR log level using a standard printf format string
-func Errorf(format string, args ...any) {
-	if Log != nil {
-		Log.Error(fmt.Sprintf(format, args...))
-	}
-}
-
-// AddContext returns a new logger with the context added.
-func AddContext(logger Logger, ctx Ctx) *logrus.Entry {
-	return logger.WithFields(logrus.Fields(ctx))
 }
