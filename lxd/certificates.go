@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -624,12 +625,9 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check validity.
-	if time.Now().Before(cert.NotBefore) {
-		return response.BadRequest(fmt.Errorf("The provided certificate isn't valid yet"))
-	}
-
-	if time.Now().After(cert.NotAfter) {
-		return response.BadRequest(fmt.Errorf("The provided certificate is expired"))
+	err = certificateValidate(cert)
+	if err != nil {
+		return response.BadRequest(err)
 	}
 
 	// Calculate the fingerprint.
@@ -947,12 +945,9 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, req api.CertificatePu
 			dbCert.Fingerprint = shared.CertFingerprint(cert)
 
 			// Check validity.
-			if time.Now().Before(cert.NotBefore) {
-				return response.BadRequest(fmt.Errorf("The provided certificate isn't valid yet"))
-			}
-
-			if time.Now().After(cert.NotAfter) {
-				return response.BadRequest(fmt.Errorf("The provided certificate is expired"))
+			err = certificateValidate(cert)
+			if err != nil {
+				return response.BadRequest(err)
 			}
 		}
 
@@ -1038,4 +1033,28 @@ func certificateDelete(d *Daemon, r *http.Request) response.Response {
 	d.State().Events.SendLifecycle(project.Default, lifecycle.CertificateDeleted.Event(fingerprint, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
+}
+
+func certificateValidate(cert *x509.Certificate) error {
+	if time.Now().Before(cert.NotBefore) {
+		return fmt.Errorf("The provided certificate isn't valid yet")
+	}
+
+	if time.Now().After(cert.NotAfter) {
+		return fmt.Errorf("The provided certificate is expired")
+	}
+
+	if cert.PublicKeyAlgorithm == x509.RSA {
+		pubKey, ok := cert.PublicKey.(*rsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("Unable to validate the RSA certificate")
+		}
+
+		// Check that we're dealing with at least 2048bit (Size returns a value in bytes).
+		if pubKey.Size()*8 < 2048 {
+			return fmt.Errorf("RSA key is too weak (minimum of 2048bit)")
+		}
+	}
+
+	return nil
 }
