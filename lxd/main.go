@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/rsync"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -64,11 +63,10 @@ func (c *cmdGlobal) Run(cmd *cobra.Command, args []string) error {
 		syslog = "lxd"
 	}
 
-	log, err := logging.GetLogger(syslog, c.flagLogFile, c.flagLogVerbose, c.flagLogDebug, events.NewEventHandler())
+	err = logger.InitLogger(c.flagLogFile, syslog, c.flagLogVerbose, c.flagLogDebug, events.NewEventHandler())
 	if err != nil {
 		return err
 	}
-	logger.Log = log
 
 	return nil
 }

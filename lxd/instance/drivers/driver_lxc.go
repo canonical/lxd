@@ -59,7 +59,6 @@ import (
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/units"
@@ -163,7 +162,7 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			logger:       logging.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			logger:       logger.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -378,7 +377,7 @@ func lxcInstantiate(s *state.State, args db.InstanceArgs, expandedDevices device
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			logger:       logging.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			logger:       logger.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -1375,7 +1374,7 @@ func (d *lxc) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (devi
 
 // deviceAdd loads a new device and calls its Add() function.
 func (d *lxc) deviceAdd(dev device.Device, instanceRunning bool) error {
-	logger := logging.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
 	logger.Debug("Adding device")
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -1388,7 +1387,7 @@ func (d *lxc) deviceAdd(dev device.Device, instanceRunning bool) error {
 // deviceStart loads a new device and calls its Start() function.
 func (d *lxc) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
 	configCopy := dev.Config()
-	logger := logging.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Starting device")
 
 	revert := revert.New()
@@ -1560,7 +1559,7 @@ func (d *lxc) deviceUpdate(deviceName string, rawConfig deviceConfig.Device, old
 // container's network namespace is unmounted (which is required for NIC device cleanup).
 func (d *lxc) deviceStop(dev device.Device, instanceRunning bool, stopHookNetnsPath string) error {
 	configCopy := dev.Config()
-	logger := logging.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Stopping device")
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -1738,7 +1737,7 @@ func (d *lxc) deviceHandleMounts(mounts []deviceConfig.MountEntryItem) error {
 
 // deviceRemove loads a new device and calls its Remove() function.
 func (d *lxc) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	l := logging.AddContext(d.logger, logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	l := logger.AddContext(d.logger, logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	l.Debug("Removing device")
 
 	dev, err := d.deviceLoad(deviceName, rawConfig)

@@ -20,7 +20,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -68,7 +67,7 @@ type common struct {
 
 // init initialise internal variables.
 func (n *common) init(state *state.State, id int64, projectName string, netInfo *api.Network, netNodes map[int64]db.NetworkNode) {
-	n.logger = logging.AddContext(logger.Log, logger.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
+	n.logger = logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "driver": netInfo.Type, "network": netInfo.Name})
 	n.id = id
 	n.project = projectName
 	n.name = netInfo.Name

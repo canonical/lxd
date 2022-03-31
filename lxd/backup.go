@@ -30,13 +30,12 @@ import (
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/units"
 )
 
 // Create a new backup.
 func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.Instance, op *operations.Operation) error {
-	l := logging.AddContext(logger.Log, logger.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": sourceInst.Project(), "instance": sourceInst.Name(), "name": args.Name})
 	l.Debug("Instance backup started")
 	defer l.Debug("Instance backup finished")
 
@@ -329,7 +328,7 @@ func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 }
 
 func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, projectName string, poolName string, volumeName string) error {
-	l := logging.AddContext(logger.Log, logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
+	l := logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "storage_volume": volumeName, "name": args.Name})
 	l.Debug("Volume backup started")
 	defer l.Debug("Volume backup finished")
 

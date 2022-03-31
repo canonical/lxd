@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/storage/drivers"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 // PoolIDTemporary is used to indicate a temporary pool instance that is not in the database.
@@ -75,7 +74,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 		pool := mockBackend{}
 		pool.name = info.Name
 		pool.state = state
-		pool.logger = logging.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
+		pool.logger = logger.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
 		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
@@ -92,7 +91,7 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 		info.Config = map[string]string{}
 	}
 
-	logger := logging.AddContext(logger.Log, logger.Ctx{"driver": info.Driver, "pool": info.Name})
+	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": info.Driver, "pool": info.Name})
 
 	// Load the storage driver.
 	driver, err := drivers.Load(state, info.Driver, info.Name, info.Config, logger, volIDFuncMake(state, poolID), commonRules())
@@ -132,7 +131,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) 
 		pool := mockBackend{}
 		pool.name = dbPool.Name
 		pool.state = state
-		pool.logger = logging.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
+		pool.logger = logger.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
 		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
@@ -142,7 +141,7 @@ func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) 
 		return &pool, nil
 	}
 
-	logger := logging.AddContext(logger.Log, logger.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
+	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
 
 	// Load the storage driver.
 	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), commonRules())
@@ -181,7 +180,7 @@ func LoadByName(state *state.State, name string) (Pool, error) {
 		pool := mockBackend{}
 		pool.name = name
 		pool.state = state
-		pool.logger = logging.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
+		pool.logger = logger.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
 		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
 		if err != nil {
 			return nil, err
@@ -202,7 +201,7 @@ func LoadByName(state *state.State, name string) (Pool, error) {
 		dbPool.Config = map[string]string{}
 	}
 
-	logger := logging.AddContext(logger.Log, logger.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
+	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
 
 	// Load the storage driver.
 	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), commonRules())

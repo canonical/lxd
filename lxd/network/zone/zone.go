@@ -17,7 +17,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
 )
@@ -39,7 +38,7 @@ func (d *zone) init(state *state.State, id int64, projectName string, info *api.
 		d.info = info
 	}
 
-	d.logger = logging.AddContext(logger.Log, logger.Ctx{"project": projectName, "networkzone": d.info.Name})
+	d.logger = logger.AddContext(logger.Log, logger.Ctx{"project": projectName, "networkzone": d.info.Name})
 	d.id = id
 	d.projectName = projectName
 	d.state = state

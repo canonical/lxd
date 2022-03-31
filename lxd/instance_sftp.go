@@ -14,7 +14,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/tcp"
 )
 
@@ -127,7 +126,7 @@ func (r *sftpServeResponse) Render(w http.ResponseWriter) error {
 	}
 
 	ctx, cancel := context.WithCancel(r.req.Context())
-	l := logging.AddContext(logger.Log, logger.Ctx{
+	l := logger.AddContext(logger.Log, logger.Ctx{
 		"project":  r.projectName,
 		"instance": r.instName,
 		"local":    remoteConn.LocalAddr(),

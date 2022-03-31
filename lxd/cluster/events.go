@@ -13,7 +13,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 // eventHubMinHosts is the minimum number of members that must have the event-hub role to trigger switching into
@@ -304,7 +303,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		// Connect to remote concurrently and add to active listeners if successful.
 		wg.Add(1)
 		go func(m APIHeartbeatMember) {
-			l := logging.AddContext(logger.Log, logger.Ctx{"local": localAddress, "remote": m.Address})
+			l := logger.AddContext(logger.Log, logger.Ctx{"local": localAddress, "remote": m.Address})
 
 			defer wg.Done()
 			listener, err := eventsConnect(m.Address, endpoints.NetworkCert(), serverCert())

@@ -13,7 +13,6 @@ import (
 
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 const fixtures string = `
@@ -58,7 +57,7 @@ func (s *dbTestSuite) CreateTestDb() (*Cluster, func()) {
 
 	// Setup logging if main() hasn't been called/when testing
 	if logger.Log == nil {
-		logger.Log, err = logging.GetLogger("", "", true, true, nil)
+		err = logger.InitLogger("", "", true, true, nil)
 		s.Nil(err)
 	}
 

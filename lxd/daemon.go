@@ -63,7 +63,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -620,7 +619,7 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 			}
 
 			r.Body = shared.BytesReadCloser{Buf: newBody}
-			util.DebugJSON("API Request", captured, logging.AddContext(logger.Log, logCtx))
+			util.DebugJSON("API Request", captured, logger.AddContext(logger.Log, logCtx))
 		}
 
 		// Actually process the request

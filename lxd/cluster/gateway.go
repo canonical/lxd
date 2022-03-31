@@ -27,7 +27,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/tcp"
 )
 
@@ -983,7 +982,7 @@ func dqliteNetworkDial(ctx context.Context, name string, addr string, g *Gateway
 	}
 	revert.Add(func() { conn.Close() })
 
-	l := logging.AddContext(logger.Log, logger.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
+	l := logger.AddContext(logger.Log, logger.Ctx{"name": name, "local": conn.LocalAddr(), "remote": conn.RemoteAddr()})
 	l.Info("Dqlite connected outbound")
 
 	remoteTCP, err := tcp.ExtractConn(conn)
@@ -1074,7 +1073,7 @@ func runDqliteProxy(stopCh chan struct{}, bindAddress string, acceptCh chan net.
 // Copies data between a remote TLS network connection and a local unix socket.
 // Accepts name argument that can be used to identify the connection in the logs.
 func dqliteProxy(name string, stopCh chan struct{}, remote net.Conn, local net.Conn) {
-	l := logging.AddContext(logger.Log, logger.Ctx{"name": name, "local": remote.LocalAddr(), "remote": remote.RemoteAddr()})
+	l := logger.AddContext(logger.Log, logger.Ctx{"name": name, "local": remote.LocalAddr(), "remote": remote.RemoteAddr()})
 	l.Info("Dqlite proxy started")
 	defer l.Info("Dqlite proxy stopped")
 
