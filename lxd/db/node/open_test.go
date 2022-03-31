@@ -1,7 +1,6 @@
 package node_test
 
 import (
-	"database/sql"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -30,15 +29,9 @@ func TestEnsureSchema(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	hookHasRun := false
-	hook := func(int, *sql.Tx) error {
-		hookHasRun = true
-		return nil
-	}
-	initial, err := node.EnsureSchema(db, dir, hook)
+	initial, err := node.EnsureSchema(db, dir)
 	require.NoError(t, err)
 	assert.Equal(t, 0, initial)
-	assert.False(t, hookHasRun) // Because we use a schema.Fresh()
 }
 
 // Create a new temporary directory, along with a function to clean it up.
