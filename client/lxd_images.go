@@ -614,7 +614,9 @@ func (r *ProtocolLXD) tryCopyImage(req api.ImagesPost, urls []string) (RemoteOpe
 func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *ImageCopyArgs) (RemoteOperation, error) {
 	// Quick checks.
 	if r.isSameServer(source) {
-		return nil, fmt.Errorf("The source and target servers must be different")
+		srcInfo, _ := source.GetConnectionInfo()
+		dstInfo, _ := r.GetConnectionInfo()
+		return nil, fmt.Errorf("The source and target servers must be different: %+v vs %+v", srcInfo, dstInfo)
 	}
 
 	// Get source server connection information

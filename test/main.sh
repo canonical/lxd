@@ -153,6 +153,8 @@ if [ "$#" -gt 0 ] && [ "$1" != "all" ] && [ "$1" != "cluster" ] && [ "$1" != "st
   exit
 fi
 
+run_test test_clustering_containers "clustering containers"
+if false; then
 if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_check_deps "checking dependencies"
     run_test test_static_analysis "static analysis"
@@ -298,6 +300,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_filtering "API filtering"
     run_test test_warnings "Warnings"
     run_test test_metrics "Metrics"
+fi
 fi
 
 # shellcheck disable=SC2034
