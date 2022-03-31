@@ -6,8 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/state"
@@ -73,7 +71,7 @@ func UnixHotplugRunHandlers(state *state.State, event *UnixHotplugEvent) {
 
 		runConf, err := hook(*event)
 		if err != nil {
-			logger.Error("Unix hotplug event hook failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
+			logger.Error("Unix hotplug event hook failed", logger.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 			continue
 		}
 
@@ -82,13 +80,13 @@ func UnixHotplugRunHandlers(state *state.State, event *UnixHotplugEvent) {
 		if runConf != nil {
 			instance, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 			if err != nil {
-				logger.Error("Unix hotplug event loading instance failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
+				logger.Error("Unix hotplug event loading instance failed", logger.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 				continue
 			}
 
 			err = instance.DeviceEventHandler(runConf)
 			if err != nil {
-				logger.Error("Unix hotplug event instance handler failed", log.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
+				logger.Error("Unix hotplug event instance handler failed", logger.Ctx{"err": err, "project": projectName, "instance": instanceName, "device": deviceName})
 				continue
 			}
 		}

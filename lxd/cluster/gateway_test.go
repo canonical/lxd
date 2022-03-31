@@ -15,7 +15,6 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -180,7 +179,6 @@ func TestGateway_RaftNodesNotLeader(t *testing.T) {
 
 // Create a new test Gateway with the given parameters, and ensure no error happens.
 func newGateway(t *testing.T, node *db.Node, networkCert *shared.CertInfo, serverCert *shared.CertInfo) *cluster.Gateway {
-	logging.Testing(t)
 	require.NoError(t, os.Mkdir(filepath.Join(node.Dir(), "global"), 0755))
 	serverCertFunc := func() *shared.CertInfo { return serverCert }
 	gateway, err := cluster.NewGateway(context.Background(), node, networkCert, serverCertFunc, cluster.Latency(0.2), cluster.LogLevel("TRACE"))

@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
@@ -185,7 +183,7 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 
 				instanceMetrics, err := inst.Metrics()
 				if err != nil {
-					logger.Warn("Failed to get instance metrics", log.Ctx{"instance": inst.Name(), "project": inst.Project(), "err": err})
+					logger.Warn("Failed to get instance metrics", logger.Ctx{"instance": inst.Name(), "project": inst.Project(), "err": err})
 					return
 				}
 

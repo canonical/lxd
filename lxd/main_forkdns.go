@@ -18,7 +18,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/dnsutil"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 type cmdForkDNS struct {
@@ -345,11 +344,10 @@ func (c *cmdForkDNS) Run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Missing required arguments")
 	}
 
-	log, err := logging.GetLogger("lxd-forkdns", "", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
+	err := logger.InitLogger("", "lxd-forkdns", c.global.flagLogVerbose, c.global.flagLogDebug, nil)
 	if err != nil {
 		return err
 	}
-	logger.Log = log
 
 	// Setup watcher on servers file.
 	watcher, err := fsnotify.NewWatcher()

@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -17,6 +15,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/ioprogress"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -365,7 +364,7 @@ func (d *cephfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Ope
 
 	refCount := vol.MountRefCountDecrement()
 	if refCount > 0 {
-		d.logger.Debug("Skipping unmount as in use", log.Ctx{"volName": vol.name, "refCount": refCount})
+		d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
 		return false, ErrInUse
 	}
 

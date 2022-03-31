@@ -5,8 +5,6 @@ import (
 	"os/exec"
 	"strings"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
@@ -210,13 +208,13 @@ func (d *common) ApplyPatch(name string) error {
 func (d *common) moveGPTAltHeader(devPath string) error {
 	path, err := exec.LookPath("sgdisk")
 	if err != nil {
-		d.logger.Warn("Skipped moving GPT alternative header to end of disk as sgdisk command not found", log.Ctx{"dev": devPath})
+		d.logger.Warn("Skipped moving GPT alternative header to end of disk as sgdisk command not found", logger.Ctx{"dev": devPath})
 		return nil
 	}
 
 	_, err = shared.RunCommand(path, "--move-second-header", devPath)
 	if err == nil {
-		d.logger.Debug("Moved GPT alternative header to end of disk", log.Ctx{"dev": devPath})
+		d.logger.Debug("Moved GPT alternative header to end of disk", logger.Ctx{"dev": devPath})
 		return nil
 	}
 
@@ -254,7 +252,7 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller) err
 		allowUnsafeResize = true
 	}
 
-	vol.driver.Logger().Debug("Running filler function", log.Ctx{"dev": devPath, "path": vol.MountPath()})
+	vol.driver.Logger().Debug("Running filler function", logger.Ctx{"dev": devPath, "path": vol.MountPath()})
 	volSize, err := filler.Fill(vol, devPath, allowUnsafeResize)
 	if err != nil {
 		return err

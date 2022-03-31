@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -58,7 +56,7 @@ func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
 func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *ImageDownloadArgs) (*api.Image, error) {
 	var err error
-	var ctxMap log.Ctx
+	var ctxMap logger.Ctx
 
 	var remote lxd.ImageServer
 	var info *api.Image
@@ -207,7 +205,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	if imgInfo != nil {
 		info = imgInfo
-		ctxMap = log.Ctx{"fingerprint": info.Fingerprint}
+		ctxMap = logger.Ctx{"fingerprint": info.Fingerprint}
 		logger.Debug("Image already exists in the DB", ctxMap)
 
 		// If not requested in a particular pool, we're done.
@@ -250,9 +248,9 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Begin downloading
 	if op == nil {
-		ctxMap = log.Ctx{"alias": alias, "server": args.Server}
+		ctxMap = logger.Ctx{"alias": alias, "server": args.Server}
 	} else {
-		ctxMap = log.Ctx{"trigger": op.URL(), "fingerprint": fp, "operation": op.ID(), "alias": alias, "server": args.Server}
+		ctxMap = logger.Ctx{"trigger": op.URL(), "fingerprint": fp, "operation": op.ID(), "alias": alias, "server": args.Server}
 	}
 	logger.Info("Downloading image", ctxMap)
 
@@ -529,7 +527,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		requestor = request.CreateRequestor(r)
 	}
 
-	d.State().Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, log.Ctx{"type": info.Type}))
+	d.State().Events.SendLifecycle(args.ProjectName, lifecycle.ImageCreated.Event(info.Fingerprint, args.ProjectName, requestor, logger.Ctx{"type": info.Type}))
 
 	return info, nil
 }

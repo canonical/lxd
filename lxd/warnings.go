@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/filter"
@@ -415,14 +414,14 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 
 		op, err := operations.OperationCreate(d.State(), "", operations.OperationClassTask, db.OperationWarningsPruneResolved, nil, nil, opRun, nil, nil, nil)
 		if err != nil {
-			logger.Error("Failed to start prune resolved warnings operation", log.Ctx{"err": err})
+			logger.Error("Failed to start prune resolved warnings operation", logger.Ctx{"err": err})
 			return
 		}
 
 		logger.Info("Pruning resolved warnings")
 		_, err = op.Run()
 		if err != nil {
-			logger.Error("Failed to prune resolved warnings", log.Ctx{"err": err})
+			logger.Error("Failed to prune resolved warnings", logger.Ctx{"err": err})
 		}
 		logger.Info("Done pruning resolved warnings")
 	}

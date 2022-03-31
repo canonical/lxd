@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
@@ -115,13 +113,13 @@ func appArmorCanStack() bool {
 	parts := strings.Split(strings.TrimSpace(content), ".")
 
 	if len(parts) == 0 {
-		logger.Warn("Unknown apparmor domain version", log.Ctx{"version": content})
+		logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
 		return false
 	}
 
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
-		logger.Warn("Unknown apparmor domain version", log.Ctx{"version": content})
+		logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
 		return false
 	}
 
@@ -129,7 +127,7 @@ func appArmorCanStack() bool {
 	if len(parts) == 2 {
 		minor, err = strconv.Atoi(parts[1])
 		if err != nil {
-			logger.Warn("Unknown apparmor domain version", log.Ctx{"version": content})
+			logger.Warn("Unknown apparmor domain version", logger.Ctx{"version": content})
 			return false
 		}
 	}

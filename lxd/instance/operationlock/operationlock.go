@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -66,7 +64,7 @@ func Create(projectName string, instanceName string, action Action, createReusua
 		if op.reusable && reuseExisting {
 			// Reset operation timeout without releasing lock or deadlocking using Reset() function.
 			op.chanReset <- struct{}{}
-			logger.Debug("Instance operation lock reused", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
+			logger.Debug("Instance operation lock reused", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
 
 			return op, nil
 		}
@@ -83,7 +81,7 @@ func Create(projectName string, instanceName string, action Action, createReusua
 	op.chanReset = make(chan struct{}, 0)
 
 	instanceOperations[opKey] = op
-	logger.Debug("Instance operation lock created", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
+	logger.Debug("Instance operation lock created", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable})
 
 	go func(op *InstanceOperation) {
 		for {
@@ -140,7 +138,7 @@ func CreateWaitGet(projectName string, instanceName string, action Action, inher
 
 	// Operation action matches one the inheritable actions, return the operation.
 	if op.ActionMatch(inheritableActions...) {
-		logger.Debug("Instance operation lock inherited", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable, "inheritedByAction": action})
+		logger.Debug("Instance operation lock inherited", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable, "inheritedByAction": action})
 
 		return op, nil
 	}
@@ -232,5 +230,5 @@ func (op *InstanceOperation) Done(err error) {
 	op.err = err
 	delete(instanceOperations, opKey) // Delete before closing chanDone.
 	close(op.chanDone)
-	logger.Debug("Instance operation lock finished", log.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable, "err": err})
+	logger.Debug("Instance operation lock finished", logger.Ctx{"project": op.projectName, "instance": op.instanceName, "action": op.action, "reusable": op.reusable, "err": err})
 }

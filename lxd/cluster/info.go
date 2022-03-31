@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
 	"github.com/lxc/lxd/shared"
@@ -37,7 +35,7 @@ func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 		info.Address = "1"
 	}
 
-	logger.Info("Starting database node", log15.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
+	logger.Info("Starting database node", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 
 	// Rename legacy data directory if needed.
 	dir := filepath.Join(database.Dir(), "global")

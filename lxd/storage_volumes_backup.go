@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
@@ -21,6 +19,7 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/version"
 )
 
@@ -385,7 +384,7 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 			return fmt.Errorf("Create volume backup: %w", err)
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupCreated.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), log.Ctx{"type": volumeTypeName}))
+		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupCreated.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), logger.Ctx{"type": volumeTypeName}))
 
 		return nil
 	}
@@ -592,7 +591,7 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 			return err
 		}
 
-		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRenamed.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), log.Ctx{"old_name": backupName}))
+		d.State().Events.SendLifecycle(projectName, lifecycle.StorageVolumeBackupRenamed.Event(poolName, volumeTypeName, volumeName, projectName, op.Requestor(), logger.Ctx{"old_name": backupName}))
 
 		return nil
 	}

@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -27,16 +26,16 @@ import (
 // DebugJSON helper to log JSON.
 // Accepts a title to prefix the JSON log with, a *bytes.Bufffer containing the JSON and a logger to use for
 // logging the the JSON (allowing for custom context to be added to the log).
-func DebugJSON(title string, r *bytes.Buffer, logger logger.Logger) {
+func DebugJSON(title string, r *bytes.Buffer, l logger.Logger) {
 	pretty := &bytes.Buffer{}
 	if err := json.Indent(pretty, r.Bytes(), "\t", "\t"); err != nil {
-		logger.Debug("Error indenting JSON", log.Ctx{"err": err})
+		l.Debug("Error indenting JSON", logger.Ctx{"err": err})
 		return
 	}
 
 	// Print the JSON without the last "\n"
 	str := pretty.String()
-	logger.Debug(fmt.Sprintf("%s\n\t%s", title, str[0:len(str)-1]))
+	l.Debug(fmt.Sprintf("%s\n\t%s", title, str[0:len(str)-1]))
 }
 
 // WriteJSON encodes the body as JSON and sends it back to the client
@@ -181,7 +180,7 @@ func CheckTrustState(cert x509.Certificate, trustedCerts map[string]x509.Certifi
 	// Check whether client certificate is in trust store.
 	for fingerprint, v := range trustedCerts {
 		if bytes.Compare(cert.Raw, v.Raw) == 0 {
-			logger.Debug("Matched trusted cert", log.Ctx{"fingerprint": fingerprint, "subject": v.Subject})
+			logger.Debug("Matched trusted cert", logger.Ctx{"fingerprint": fingerprint, "subject": v.Subject})
 			return true, fingerprint
 		}
 	}

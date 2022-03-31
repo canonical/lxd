@@ -10,8 +10,6 @@ import (
 	"time"
 	"unicode"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -30,7 +28,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
@@ -469,9 +466,9 @@ func validateVolumeCommonRules(vol drivers.Volume) map[string]func(string) error
 // 	- Unpack metadata tarball into mountPath.
 //	- Check rootBlockPath is a file and convert qcow2 file into raw format in rootBlockPath.
 func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blockBackend bool, sysOS *sys.OS, allowUnsafeResize bool, tracker *ioprogress.ProgressTracker) (int64, error) {
-	logger := logging.AddContext(logger.Log, log.Ctx{"imageFile": imageFile, "vol": vol.Name()})
-	logger.Info("Image unpack started")
-	defer logger.Info("Image unpack stopped")
+	l := logger.AddContext(logger.Log, logger.Ctx{"imageFile": imageFile, "vol": vol.Name()})
+	l.Info("Image unpack started")
+	defer l.Info("Image unpack stopped")
 
 	// For all formats, first unpack the metadata (or combined) tarball into destPath.
 	imageRootfsFile := imageFile + ".rootfs"
@@ -552,7 +549,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 		}
 		imgVol := drivers.NewVolume(nil, "", drivers.VolumeTypeImage, drivers.ContentTypeBlock, "", imgVolConfig, nil)
 
-		logger.Debug("Checking image unpack size")
+		l.Debug("Checking image unpack size")
 		newVolSize, err := vol.ConfigSizeFromSource(imgVol)
 		if err != nil {
 			return -1, err
@@ -567,7 +564,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			// If the target volume's size is smaller than the image unpack size, then we need to
 			// increase the target volume's size.
 			if volSizeBytes < imgInfo.VirtualSize {
-				logger.Debug("Increasing volume size", log.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize})
+				l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize})
 				err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
 				if err != nil {
 					return -1, fmt.Errorf("Error increasing volume size: %w", err)
@@ -577,7 +574,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 
 		// Convert the qcow2 format to a raw block device using qemu's dd mode to avoid issues with
 		// loop backed storage pools. Use the MinBlockBoundary block size to speed up conversion.
-		logger.Debug("Converting qcow2 image to raw disk", log.Ctx{"imgPath": imgPath, "dstPath": dstPath})
+		l.Debug("Converting qcow2 image to raw disk", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath})
 		_, err = shared.RunCommand("qemu-img", "dd", "-f", "qcow2", "-O", "raw", fmt.Sprintf("bs=%d", drivers.MinBlockBoundary), fmt.Sprintf("if=%s", imgPath), fmt.Sprintf("of=%s", dstPath))
 		if err != nil {
 			return -1, fmt.Errorf("Failed converting image to raw at %q: %w", dstPath, err)

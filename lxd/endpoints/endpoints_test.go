@@ -16,7 +16,6 @@ import (
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +25,6 @@ import (
 // associated with the endpoints (e.g. the temporary LXD var dir and any
 // goroutine that was spawned by the tomb).
 func newEndpoints(t *testing.T) (*endpoints.Endpoints, *endpoints.Config, func()) {
-	logging.Testing(t)
 	dir, err := ioutil.TempDir("", "lxd-endpoints-test-")
 	require.NoError(t, err)
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "devlxd"), 0755))

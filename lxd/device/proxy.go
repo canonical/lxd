@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	"github.com/lxc/lxd/lxd/apparmor"
@@ -414,15 +413,15 @@ func (d *proxy) setupNAT() error {
 	err = network.BridgeNetfilterEnabled(ipVersion)
 	if err != nil {
 		msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the proxy listen IP", ipVersion)
-		d.logger.Warn(msg, log.Ctx{"err": err})
+		d.logger.Warn(msg, logger.Ctx{"err": err})
 		err := d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 		if err != nil {
-			logger.Warn("Failed to create warning", log.Ctx{"err": err})
+			logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 		}
 	} else {
 		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 		if err != nil {
-			logger.Warn("Failed to resolve warning", log.Ctx{"err": err})
+			logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 		}
 
 		if hostName == "" {
@@ -567,7 +566,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 func (d *proxy) Remove() error {
 	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 	if err != nil {
-		logger.Warn("Failed to delete warning", log.Ctx{"err": err})
+		logger.Warn("Failed to delete warning", logger.Ctx{"err": err})
 	}
 
 	// Delete apparmor profile.

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/device"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -129,7 +127,7 @@ func SupportedInstanceTypes() (map[instancetype.Type]instance.Info, []db.Warning
 		driverInfo := instanceDriver().Info()
 
 		if driverInfo.Error != nil || driverInfo.Version == "" {
-			logger.Warn("Instance type not operational", log.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
+			logger.Warn("Instance type not operational", logger.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
 			instanceTypesWarnings = append(instanceTypesWarnings, db.Warning{
 				TypeCode:    db.WarningInstanceTypeNotOperational,
 				LastMessage: fmt.Sprintf("%v", driverInfo.Error),

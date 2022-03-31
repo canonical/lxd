@@ -30,7 +30,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
@@ -65,7 +64,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
@@ -133,7 +131,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			logger:       logging.AddContext(logger.Log, log.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			logger:       logger.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -189,7 +187,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			logger:       logging.AddContext(logger.Log, log.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			logger:       logger.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -218,7 +216,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 		d.lastUsedDate = time.Time{}
 	}
 
-	d.logger.Info("Creating instance", log.Ctx{"ephemeral": d.ephemeral})
+	d.logger.Info("Creating instance", logger.Ctx{"ephemeral": d.ephemeral})
 
 	// Load the config.
 	err = d.init()
@@ -302,7 +300,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 		revert.Add(func() { d.maasDelete(d) })
 	}
 
-	d.logger.Info("Created instance", log.Ctx{"ephemeral": d.ephemeral})
+	d.logger.Info("Created instance", logger.Ctx{"ephemeral": d.ephemeral})
 
 	if d.snapshot {
 		d.state.Events.SendLifecycle(d.project, lifecycle.InstanceSnapshotCreated.Event(d, nil))
@@ -368,7 +366,6 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 	projectName := d.Project()
 	instanceName := d.Name()
 	state := d.state
-	logger := d.logger
 
 	return func(event string, data map[string]any) {
 		if !shared.StringInSlice(event, []string{"SHUTDOWN", "RESET"}) {
@@ -378,12 +375,12 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 		inst, err := instance.LoadByProjectAndName(state, projectName, instanceName)
 		if err != nil {
 			// If DB not available, try loading from backup file.
-			logger.Warn("Failed loading instance from database, trying backup file", log.Ctx{"err": err})
+			d.logger.Warn("Failed loading instance from database, trying backup file", logger.Ctx{"err": err})
 
 			instancePath := filepath.Join(shared.VarPath("virtual-machines"), project.Instance(projectName, instanceName))
 			inst, err = instance.LoadFromBackup(state, projectName, instancePath, false)
 			if err != nil {
-				logger.Error("Failed loading instance", log.Ctx{"err": err})
+				d.logger.Error("Failed loading instance", logger.Ctx{"err": err})
 				return
 			}
 		}
@@ -395,15 +392,15 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 			// restarting the guest, and instead forcefully shutdown and restart the guest from LXD.
 			entry, ok := data["reason"]
 			if ok && entry == "guest-reset" {
-				logger.Debug("Instance guest restart")
+				d.logger.Debug("Instance guest restart")
 				err = inst.Restart(0) // Using 0 timeout will call inst.Stop() then inst.Start().
 				if err != nil {
-					logger.Error("Failed to restart instance", log.Ctx{"err": err})
+					d.logger.Error("Failed to restart instance", logger.Ctx{"err": err})
 					return
 				}
 			}
 		} else if event == "SHUTDOWN" {
-			logger.Debug("Instance stopped")
+			d.logger.Debug("Instance stopped")
 
 			target := "stop"
 			entry, ok := data["reason"]
@@ -413,7 +410,7 @@ func (d *qemu) getMonitorEventHandler() func(event string, data map[string]any) 
 
 			err = inst.(*qemu).onStop(target)
 			if err != nil {
-				logger.Error("Failed to cleanly stop instance", log.Ctx{"err": err})
+				d.logger.Error("Failed to cleanly stop instance", logger.Ctx{"err": err})
 				return
 			}
 		}
@@ -573,8 +570,8 @@ func (d *qemu) pidWait(timeout time.Duration, op *operationlock.InstanceOperatio
 
 // onStop is run when the instance stops.
 func (d *qemu) onStop(target string) error {
-	d.logger.Debug("onStop hook started", log.Ctx{"target": target})
-	defer d.logger.Debug("onStop hook finished", log.Ctx{"target": target})
+	d.logger.Debug("onStop hook started", logger.Ctx{"target": target})
+	defer d.logger.Debug("onStop hook finished", logger.Ctx{"target": target})
 
 	// Create/pick up operation.
 	op, instanceInitiated, err := d.onStopOperationSetup(target)
@@ -593,7 +590,7 @@ func (d *qemu) onStop(target string) error {
 		d.logger.Debug("VM process finished")
 	} else {
 		// Log a warning, but continue clean up as best we can.
-		d.logger.Error("VM process failed to stop", log.Ctx{"timeout": waitTimeout})
+		d.logger.Error("VM process failed to stop", logger.Ctx{"timeout": waitTimeout})
 	}
 
 	// Reset timeout to 30s.
@@ -603,7 +600,7 @@ func (d *qemu) onStop(target string) error {
 	err = d.VolatileSet(map[string]string{"volatile.last_state.power": "STOPPED"})
 	if err != nil {
 		// Don't return an error here as we still want to cleanup the instance even if DB not available.
-		d.logger.Error("Failed recording last power state", log.Ctx{"err": err})
+		d.logger.Error("Failed recording last power state", logger.Ctx{"err": err})
 	}
 
 	// Cleanup.
@@ -661,8 +658,8 @@ func (d *qemu) onStop(target string) error {
 
 // Shutdown shuts the instance down.
 func (d *qemu) Shutdown(timeout time.Duration) error {
-	d.logger.Debug("Shutdown started", log.Ctx{"timeout": timeout})
-	defer d.logger.Debug("Shutdown finished", log.Ctx{"timeout": timeout})
+	d.logger.Debug("Shutdown started", logger.Ctx{"timeout": timeout})
+	defer d.logger.Debug("Shutdown finished", logger.Ctx{"timeout": timeout})
 
 	// Must be run prior to creating the operation lock.
 	statusCode := d.statusCode()
@@ -823,7 +820,7 @@ func (d *qemu) killQemuProcess(pid int) error {
 	// the parent of the process, and we have still sent the kill signal as per the function's description.
 	_, err = proc.Wait()
 	if err != nil {
-		d.logger.Warn("Failed to collect VM process exit status", log.Ctx{"pid": pid})
+		d.logger.Warn("Failed to collect VM process exit status", logger.Ctx{"pid": pid})
 	}
 
 	return nil
@@ -987,8 +984,8 @@ func (d *qemu) validateStartup(stateful bool) error {
 
 // Start starts the instance.
 func (d *qemu) Start(stateful bool) error {
-	d.logger.Debug("Start started", log.Ctx{"stateful": stateful})
-	defer d.logger.Debug("Start finished", log.Ctx{"stateful": stateful})
+	d.logger.Debug("Start started", logger.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Start finished", logger.Ctx{"stateful": stateful})
 
 	err := d.validateStartup(stateful)
 	if err != nil {
@@ -1148,7 +1145,7 @@ func (d *qemu) Start(stateful bool) error {
 		revert.Add(func() {
 			err := d.deviceStop(dev, false)
 			if err != nil {
-				d.logger.Error("Failed to cleanup device", log.Ctx{"device": dev.Name(), "err": err})
+				d.logger.Error("Failed to cleanup device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		})
 
@@ -1198,7 +1195,7 @@ func (d *qemu) Start(stateful bool) error {
 	if err != nil {
 		var errUnsupported device.UnsupportedError
 		if errors.As(err, &errUnsupported) {
-			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", log.Ctx{"err": errUnsupported})
+			d.logger.Warn("Unable to use virtio-fs for config drive, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
 			if errUnsupported == device.ErrMissingVirtiofsd {
 				// Create a warning if virtiofsd is missing.
@@ -1426,7 +1423,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	pid, err := d.pid()
 	if err != nil || pid <= 0 {
-		d.logger.Error("Failed to get VM process ID", log.Ctx{"err": err, "pid": pid})
+		d.logger.Error("Failed to get VM process ID", logger.Ctx{"err": err, "pid": pid})
 		op.Done(err)
 		return err
 	}
@@ -1649,14 +1646,14 @@ func (d *qemu) RegisterDevices() {
 		}
 
 		if err != nil {
-			d.logger.Error("Failed to load device to register", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
+			d.logger.Error("Failed to load device to register", logger.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
 			continue
 		}
 
 		// Check whether device wants to register for any events.
 		err = dev.Register()
 		if err != nil {
-			d.logger.Error("Failed to register device", log.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
+			d.logger.Error("Failed to register device", logger.Ctx{"err": err, "instance": d.Name(), "device": entry.Name})
 			continue
 		}
 	}
@@ -1698,7 +1695,7 @@ func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (dev
 // deviceStart loads a new device and calls its Start() function.
 func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
 	configCopy := dev.Config()
-	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Starting device")
 
 	revert := revert.New()
@@ -1870,7 +1867,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 		}
 
 		pciDeviceName := fmt.Sprintf("%s%d", busDevicePortPrefix, pciDevID)
-		d.logger.Debug("Using PCI bus device to hotplug NIC into", log.Ctx{"device": deviceName, "port": pciDeviceName})
+		d.logger.Debug("Using PCI bus device to hotplug NIC into", logger.Ctx{"device": deviceName, "port": pciDeviceName})
 		qemuDev["bus"] = pciDeviceName
 		qemuDev["addr"] = "00.0"
 	}
@@ -1896,7 +1893,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 // deviceStop loads a new device and calls its Stop() function.
 func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
 	configCopy := dev.Config()
-	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Stopping device")
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -2012,7 +2009,7 @@ func (d *qemu) deviceDetachNIC(deviceName string) error {
 				return fmt.Errorf("Failed to detach NIC after %v: %w", waitDuration, err)
 			}
 
-			d.logger.Debug("Waiting for NIC device to be detached", log.Ctx{"device": deviceName})
+			d.logger.Debug("Waiting for NIC device to be detached", logger.Ctx{"device": deviceName})
 			time.Sleep(time.Second * time.Duration(2))
 		}
 	}
@@ -2053,7 +2050,7 @@ func (d *qemu) generateConfigShare() error {
 	// Add the VM agent.
 	lxdAgentSrcPath, err := exec.LookPath("lxd-agent")
 	if err != nil {
-		d.logger.Warn("lxd-agent not found, skipping its inclusion in the VM config drive", log.Ctx{"err": err})
+		d.logger.Warn("lxd-agent not found, skipping its inclusion in the VM config drive", logger.Ctx{"err": err})
 	} else {
 		// Install agent into config drive dir if found.
 		lxdAgentSrcPath, err = filepath.EvalSymlinks(lxdAgentSrcPath)
@@ -2083,7 +2080,7 @@ func (d *qemu) generateConfigShare() error {
 		// Only install the lxd-agent into config drive if the existing one is different to the source one.
 		// Otherwise we would end up copying it again and this can cause unnecessary snapshot usage.
 		if lxdAgentNeedsInstall {
-			d.logger.Debug("Installing lxd-agent", log.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
+			d.logger.Debug("Installing lxd-agent", logger.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
 			err = shared.FileCopy(lxdAgentSrcPath, lxdAgentInstallPath)
 			if err != nil {
 				return err
@@ -2105,7 +2102,7 @@ func (d *qemu) generateConfigShare() error {
 				return fmt.Errorf("Failed setting lxd-agent timestamps: %w", err)
 			}
 		} else {
-			d.logger.Debug("Skipping lxd-agent install as unchanged", log.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
+			d.logger.Debug("Skipping lxd-agent install as unchanged", logger.Ctx{"srcPath": lxdAgentSrcPath, "installPath": lxdAgentInstallPath})
 		}
 	}
 
@@ -3079,7 +3076,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 			if fsType == "zfs" || fsType == "btrfs" {
 				if driveConf.FSType != "iso9660" {
 					// Only warn about using writeback cache if the drive image is writable.
-					d.logger.Warn("Using writeback cache I/O", log.Ctx{"DevPath": srcDevPath, "fsType": fsType})
+					d.logger.Warn("Using writeback cache I/O", logger.Ctx{"DevPath": srcDevPath, "fsType": fsType})
 				}
 
 				aioMode = "threads"
@@ -3092,7 +3089,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 			}
 		} else if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
 			// If drive config indicates we need to use unsafe I/O then use it.
-			d.logger.Warn("Using unsafe cache I/O", log.Ctx{"DevPath": srcDevPath})
+			d.logger.Warn("Using unsafe cache I/O", logger.Ctx{"DevPath": srcDevPath})
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 		}
@@ -3657,8 +3654,8 @@ func (d *qemu) forceStop() error {
 
 // Stop the VM.
 func (d *qemu) Stop(stateful bool) error {
-	d.logger.Debug("Stop started", log.Ctx{"stateful": stateful})
-	defer d.logger.Debug("Stop finished", log.Ctx{"stateful": stateful})
+	d.logger.Debug("Stop started", logger.Ctx{"stateful": stateful})
+	defer d.logger.Debug("Stop finished", logger.Ctx{"stateful": stateful})
 
 	// Must be run prior to creating the operation lock.
 	// Allow stop to proceed if statusCode is Error as we may need to forcefully kill the QEMU process.
@@ -3842,7 +3839,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	}
 	defer op.Done(nil)
 
-	var ctxMap log.Ctx
+	var ctxMap logger.Ctx
 
 	// Stop the instance.
 	wasRunning := false
@@ -3893,7 +3890,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 
 	}
 
-	ctxMap = log.Ctx{
+	ctxMap = logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
@@ -3955,7 +3952,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 // Rename the instance. Accepts an argument to enable applying deferred TemplateTriggerRename.
 func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	oldName := d.Name()
-	ctxMap := log.Ctx{
+	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate,
@@ -4586,7 +4583,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 				// with stop, as in the scenario that a new version of LXD has additional
 				// validation restrictions than older versions we still need to allow previously
 				// valid devices to be stopped.
-				d.logger.Error("Device stop validation failed", log.Ctx{"devName": dd.Name, "err": err})
+				d.logger.Error("Device stop validation failed", logger.Ctx{"devName": dd.Name, "err": err})
 			}
 
 			// If a device was returned from deviceLoad even if validation fails, then try and stop.
@@ -4626,7 +4623,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to load device to add, skipping as non-user requested", log.Ctx{"device": dev.Name(), "err": err})
+			d.logger.Error("Failed to load device to add, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
 
 			continue
 		}
@@ -4639,7 +4636,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 
 			// If update is non-user requested (i.e from a snapshot restore), there's nothing we can
 			// do to fix the config and we don't want to prevent the snapshot restore so log and allow.
-			d.logger.Error("Failed to add device, skipping as non-user requested", log.Ctx{"device": dev.Name(), "err": err})
+			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
 		}
 
 		revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), instanceRunning) })
@@ -4707,7 +4704,7 @@ func (d *qemu) removeUnixDevices() error {
 		devicePath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(devicePath)
 		if err != nil {
-			d.logger.Error("Failed removing unix device", log.Ctx{"err": err, "path": devicePath})
+			d.logger.Error("Failed removing unix device", logger.Ctx{"err": err, "path": devicePath})
 		}
 	}
 
@@ -4739,7 +4736,7 @@ func (d *qemu) removeDiskDevices() error {
 		diskPath := filepath.Join(d.DevicesPath(), f.Name())
 		err := os.Remove(diskPath)
 		if err != nil {
-			d.logger.Error("Failed to remove disk device path", log.Ctx{"err": err, "path": diskPath})
+			d.logger.Error("Failed to remove disk device path", logger.Ctx{"err": err, "path": diskPath})
 		}
 	}
 
@@ -4767,13 +4764,13 @@ func (d *qemu) cleanupDevices() {
 	// Clear up the config drive virtiofsd process.
 	err := device.DiskVMVirtiofsdStop(d.configVirtiofsdPaths())
 	if err != nil {
-		d.logger.Warn("Failed cleaning up config drive virtiofsd", log.Ctx{"err": err})
+		d.logger.Warn("Failed cleaning up config drive virtiofsd", logger.Ctx{"err": err})
 	}
 
 	// Clear up the config drive mount.
 	err = d.configDriveMountPathClear()
 	if err != nil {
-		d.logger.Warn("Failed cleaning up config drive mount", log.Ctx{"err": err})
+		d.logger.Warn("Failed cleaning up config drive mount", logger.Ctx{"err": err})
 	}
 
 	for _, dd := range d.expandedDevices.Reversed() {
@@ -4787,14 +4784,14 @@ func (d *qemu) cleanupDevices() {
 			// If deviceLoad fails for any other reason then just log the error and proceed with stop,
 			// as in the scenario that a new version of LXD has additional validation restrictions than
 			// older versions we still need to allow previously valid devices to be stopped.
-			d.logger.Error("Device stop validation failed", log.Ctx{"device": dd.Name, "err": err})
+			d.logger.Error("Device stop validation failed", logger.Ctx{"device": dd.Name, "err": err})
 		}
 
 		// If a device was returned from deviceLoad even if validation fails, then try and stop.
 		if dev != nil {
 			err = d.deviceStop(dev, false)
 			if err != nil {
-				d.logger.Error("Failed to stop device", log.Ctx{"device": dev.Name(), "err": err})
+				d.logger.Error("Failed to stop device", logger.Ctx{"device": dev.Name(), "err": err})
 			}
 		}
 	}
@@ -4812,7 +4809,7 @@ func (d *qemu) init() error {
 
 // Delete the instance.
 func (d *qemu) Delete(force bool) error {
-	ctxMap := log.Ctx{
+	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
@@ -4876,7 +4873,7 @@ func (d *qemu) Delete(force bool) error {
 		// Delete the MAAS entry.
 		err = d.maasDelete(d)
 		if err != nil {
-			d.logger.Error("Failed deleting instance MAAS record", log.Ctx{"err": err})
+			d.logger.Error("Failed deleting instance MAAS record", logger.Ctx{"err": err})
 			return err
 		}
 
@@ -4894,7 +4891,7 @@ func (d *qemu) Delete(force bool) error {
 
 	// Remove the database record of the instance or snapshot instance.
 	if err := d.state.Cluster.DeleteInstance(d.Project(), d.Name()); err != nil {
-		d.logger.Error("Failed deleting instance entry", log.Ctx{"project": d.Project()})
+		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project()})
 		return err
 	}
 
@@ -4927,7 +4924,7 @@ func (d *qemu) Delete(force bool) error {
 }
 
 func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
 	logger.Debug("Adding device")
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -4938,8 +4935,8 @@ func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
 }
 
 func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	logger := logging.AddContext(d.logger, log.Ctx{"device": deviceName, "type": rawConfig["type"]})
-	logger.Debug("Removing device")
+	l := logger.AddContext(d.logger, logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	l.Debug("Removing device")
 
 	dev, err := d.deviceLoad(deviceName, rawConfig)
 
@@ -4957,7 +4954,7 @@ func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, in
 			return fmt.Errorf("Device remove validation failed for %q: %w", deviceName, err)
 		}
 
-		logger.Error("Device remove validation failed", log.Ctx{"err": err})
+		l.Error("Device remove validation failed", logger.Ctx{"err": err})
 	}
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -4969,7 +4966,7 @@ func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, in
 
 // Export publishes the instance.
 func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time.Time) (api.ImageMetadata, error) {
-	ctxMap := log.Ctx{
+	ctxMap := logger.Ctx{
 		"created":   d.creationDate,
 		"ephemeral": d.ephemeral,
 		"used":      d.lastUsedDate}
@@ -5004,7 +5001,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 		err = tarWriter.WriteFile(path[offset:], path, fi, false)
 		if err != nil {
-			d.logger.Debug("Error tarring up", log.Ctx{"path": path, "err": err})
+			d.logger.Debug("Error tarring up", logger.Ctx{"path": path, "err": err})
 			return err
 		}
 
@@ -5139,7 +5136,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		fi, err := os.Lstat(fnam)
 		if err != nil {
 			tarWriter.Close()
-			d.logger.Debug("Error statting during export", log.Ctx{"fileName": fnam})
+			d.logger.Debug("Error statting during export", logger.Ctx{"fileName": fnam})
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
@@ -5152,7 +5149,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		}
 		if err != nil {
 			tarWriter.Close()
-			d.logger.Debug("Error writing to tarfile", log.Ctx{"err": err})
+			d.logger.Debug("Error writing to tarfile", logger.Ctx{"err": err})
 			d.logger.Error("Failed exporting instance", ctxMap)
 			return meta, err
 		}
@@ -5355,7 +5352,7 @@ func (d *qemu) console() (*os.File, chan error, error) {
 		vmConsoleLock.Unlock()
 	}()
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, log.Ctx{"type": instance.ConsoleTypeConsole}))
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeConsole}))
 
 	return console, chDisconnect, nil
 }
@@ -5373,7 +5370,7 @@ func (d *qemu) vga() (*os.File, chan error, error) {
 	}
 	conn.Close()
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, log.Ctx{"type": instance.ConsoleTypeVGA}))
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeVGA}))
 
 	return file, nil, nil
 }
@@ -5390,7 +5387,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
+		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	revert.Add(agent.Disconnect)
@@ -5440,7 +5437,7 @@ func (d *qemu) Exec(req api.InstanceExecPost, stdin *os.File, stdout *os.File, s
 		controlResCh:     controlResCh,
 	}
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, log.Ctx{"command": req.Command}))
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceExec.Event(d, logger.Ctx{"command": req.Command}))
 
 	revert.Success()
 	return instCmd, nil
@@ -5585,7 +5582,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 			status, err = d.agentGetState()
 			if err != nil {
 				if err != errQemuAgentOffline {
-					d.logger.Warn("Could not get VM state from agent", log.Ctx{"err": err})
+					d.logger.Warn("Could not get VM state from agent", logger.Ctx{"err": err})
 				}
 
 				// Fallback data if agent is not reachable.
@@ -5637,7 +5634,7 @@ func (d *qemu) renderState(statusCode api.StatusCode) (*api.InstanceState, error
 	status.StatusCode = statusCode
 	status.Disk, err = d.diskState()
 	if err != nil && !errors.Is(err, storageDrivers.ErrNotSupported) {
-		d.logger.Warn("Error getting disk usage", log.Ctx{"err": err})
+		d.logger.Warn("Error getting disk usage", logger.Ctx{"err": err})
 	}
 
 	return status, nil
@@ -6022,7 +6019,7 @@ func (d *qemu) devlxdEventSend(eventType string, eventMessage map[string]any) er
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"err": err})
+		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"err": err})
 		return fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
@@ -6209,7 +6206,7 @@ func (d *qemu) getAgentMetrics() (*metrics.MetricSet, error) {
 
 	agent, err := lxd.ConnectLXDHTTP(nil, client)
 	if err != nil {
-		d.logger.Error("Failed to connect to lxd-agent", log.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
+		d.logger.Error("Failed to connect to lxd-agent", logger.Ctx{"project": d.Project(), "instance": d.Name(), "err": err})
 		return nil, fmt.Errorf("Failed to connect to lxd-agent")
 	}
 	defer agent.Disconnect()
@@ -6243,7 +6240,7 @@ func (d *qemu) getNetworkState() (map[string]api.InstanceStateNetwork, error) {
 
 		dev, err := d.deviceLoad(k, m)
 		if err != nil {
-			d.logger.Warn("Could not load device", log.Ctx{"device": k, "err": err})
+			d.logger.Warn("Could not load device", logger.Ctx{"device": k, "err": err})
 			continue
 		}
 

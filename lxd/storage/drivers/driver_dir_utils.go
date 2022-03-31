@@ -3,10 +3,9 @@ package drivers
 import (
 	"fmt"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/quota"
+	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -107,7 +106,7 @@ func (d *dir) setQuota(path string, volID int64, sizeBytes int64) error {
 	if err != nil || !ok {
 		if sizeBytes > 0 {
 			// Skipping quota as underlying filesystem doesn't suppport project quotas.
-			d.logger.Warn("The backing filesystem doesn't support quotas, skipping set quota", log.Ctx{"path": path, "size": sizeBytes, "volID": volID})
+			d.logger.Warn("The backing filesystem doesn't support quotas, skipping set quota", logger.Ctx{"path": path, "size": sizeBytes, "volID": volID})
 		}
 
 		return nil

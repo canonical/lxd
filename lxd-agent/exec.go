@@ -16,7 +16,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
-	log "gopkg.in/inconshreveable/log15.v2"
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/operations"
@@ -24,7 +23,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"
 )
 
@@ -364,15 +362,15 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(exitStatus, err)
 	}
 
-	logger := logging.AddContext(logger.Log, log.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
-	logger.Debug("Instance process started")
+	l := logger.AddContext(logger.Log, logger.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
+	l.Debug("Instance process started")
 
 	wgEOF.Add(1)
 	go func() {
 		defer wgEOF.Done()
 
-		logger.Debug("Exec control handler started")
-		defer logger.Debug("Exec control handler finished")
+		l.Debug("Exec control handler started")
+		defer l.Debug("Exec control handler finished")
 
 		s.connsLock.Lock()
 		conn := s.conns[-1]
@@ -389,16 +387,16 @@ func (s *execWs) Do(op *operations.Operation) error {
 				}
 
 				if mt == websocket.CloseMessage {
-					logger.Warn("Got exec control websocket close message, killing command")
+					l.Warn("Got exec control websocket close message, killing command")
 				} else {
-					logger.Warn("Failed getting exec control websocket reader, killing command", log.Ctx{"err": err})
+					l.Warn("Failed getting exec control websocket reader, killing command", logger.Ctx{"err": err})
 				}
 
 				err := unix.Kill(cmd.Process.Pid, unix.SIGKILL)
 				if err != nil {
-					logger.Error("Failed to send SIGKILL")
+					l.Error("Failed to send SIGKILL")
 				} else {
-					logger.Info("Sent SIGKILL")
+					l.Info("Sent SIGKILL")
 				}
 
 				return
@@ -413,7 +411,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				default:
 				}
 
-				logger.Warn("Failed reading control websocket message, killing command", log.Ctx{"err": err})
+				l.Warn("Failed reading control websocket message, killing command", logger.Ctx{"err": err})
 
 				return
 			}
@@ -421,34 +419,34 @@ func (s *execWs) Do(op *operations.Operation) error {
 			command := api.ContainerExecControl{}
 
 			if err := json.Unmarshal(buf, &command); err != nil {
-				logger.Debug("Failed to unmarshal control socket command", log.Ctx{"err": err})
+				l.Debug("Failed to unmarshal control socket command", logger.Ctx{"err": err})
 				continue
 			}
 
 			if command.Command == "window-resize" && s.interactive {
 				winchWidth, err := strconv.Atoi(command.Args["width"])
 				if err != nil {
-					logger.Debug("Unable to extract window width", log.Ctx{"err": err})
+					l.Debug("Unable to extract window width", logger.Ctx{"err": err})
 					continue
 				}
 
 				winchHeight, err := strconv.Atoi(command.Args["height"])
 				if err != nil {
-					logger.Debug("Unable to extract window height", log.Ctx{"err": err})
+					l.Debug("Unable to extract window height", logger.Ctx{"err": err})
 					continue
 				}
 
 				err = shared.SetSize(int(ptys[0].Fd()), winchWidth, winchHeight)
 				if err != nil {
-					logger.Debug("Failed to set window size", log.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
+					l.Debug("Failed to set window size", logger.Ctx{"err": err, "width": winchWidth, "height": winchHeight})
 					continue
 				}
 			} else if command.Command == "signal" {
 				if err := unix.Kill(cmd.Process.Pid, unix.Signal(command.Signal)); err != nil {
-					logger.Debug("Failed forwarding signal", log.Ctx{"err": err, "signal": command.Signal})
+					l.Debug("Failed forwarding signal", logger.Ctx{"err": err, "signal": command.Signal})
 					continue
 				}
-				logger.Info("Forwarded signal", log.Ctx{"signal": command.Signal})
+				l.Info("Forwarded signal", logger.Ctx{"signal": command.Signal})
 			}
 		}
 	}()
@@ -458,8 +456,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 		go func() {
 			defer wgEOF.Done()
 
-			logger.Debug("Exec mirror websocket started", log.Ctx{"number": 0})
-			defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": 0})
+			l.Debug("Exec mirror websocket started", logger.Ctx{"number": 0})
+			defer l.Debug("Exec mirror websocket finished", logger.Ctx{"number": 0})
 
 			s.connsLock.Lock()
 			conn := s.conns[0]
@@ -475,8 +473,8 @@ func (s *execWs) Do(op *operations.Operation) error {
 		wgEOF.Add(len(ttys) - 1)
 		for i := 0; i < len(ttys); i++ {
 			go func(i int) {
-				logger.Debug("Exec mirror websocket started", log.Ctx{"number": i})
-				defer logger.Debug("Exec mirror websocket finished", log.Ctx{"number": i})
+				l.Debug("Exec mirror websocket started", logger.Ctx{"number": i})
+				defer l.Debug("Exec mirror websocket finished", logger.Ctx{"number": i})
 
 				if i == 0 {
 					s.connsLock.Lock()
@@ -500,6 +498,6 @@ func (s *execWs) Do(op *operations.Operation) error {
 
 	exitStatus, err := shared.ExitStatus(cmd.Wait())
 
-	logger.Debug("Instance process stopped", log.Ctx{"exitStatus": exitStatus})
+	l.Debug("Instance process stopped", logger.Ctx{"exitStatus": exitStatus})
 	return finisher(exitStatus, nil)
 }

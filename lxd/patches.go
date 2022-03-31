@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
@@ -801,7 +799,7 @@ func patchUpdateFromV11(_ *sql.Tx) error {
 		if shared.PathExists(oldPath) && !shared.PathExists(newPath) {
 			logger.Info(
 				"Moving snapshot",
-				log.Ctx{
+				logger.Ctx{
 					"snapshot": cName,
 					"oldPath":  oldPath,
 					"newPath":  newPath})
@@ -814,7 +812,7 @@ func patchUpdateFromV11(_ *sql.Tx) error {
 			if err != nil {
 				logger.Error(
 					"Failed rsync snapshot",
-					log.Ctx{
+					logger.Ctx{
 						"snapshot": cName,
 						"output":   string(output),
 						"err":      err})
@@ -826,7 +824,7 @@ func patchUpdateFromV11(_ *sql.Tx) error {
 			if err := os.RemoveAll(oldPath); err != nil {
 				logger.Error(
 					"Failed to remove the old snapshot path",
-					log.Ctx{
+					logger.Ctx{
 						"snapshot": cName,
 						"oldPath":  oldPath,
 						"err":      err})
@@ -894,11 +892,11 @@ func patchUpdateFromV15(tx *sql.Tx) error {
 		newLVName = strings.Replace(newLVName, shared.SnapshotDelimiter, "-", -1)
 
 		if cName == newLVName {
-			logger.Debug("No need to rename, skipping", log.Ctx{"cName": cName, "newLVName": newLVName})
+			logger.Debug("No need to rename, skipping", logger.Ctx{"cName": cName, "newLVName": newLVName})
 			continue
 		}
 
-		logger.Debug("About to rename cName in lv upgrade", log.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
+		logger.Debug("About to rename cName in lv upgrade", logger.Ctx{"lvLinkPath": lvLinkPath, "cName": cName, "newLVName": newLVName})
 
 		_, err := shared.RunCommand("lvrename", vgName, cName, newLVName)
 		if err != nil {

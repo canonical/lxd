@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/migration"
 	"github.com/lxc/lxd/lxd/operations"
@@ -170,7 +168,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 
 		path := shared.AddSlash(mountPath)
 
-		d.Logger().Debug("Sending filesystem volume", log.Ctx{"volName": vol.name, "path": path, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
+		d.Logger().Debug("Sending filesystem volume", logger.Ctx{"volName": vol.name, "path": path, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
 		err := rsync.Send(vol.name, path, conn, wrapper, volSrcArgs.MigrationType.Features, bwlimit, s.OS.ExecPath, rsyncArgs...)
 
 		status, _ := shared.ExitStatus(err)
@@ -211,7 +209,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 			}
 		}
 
-		d.Logger().Debug("Sending block volume", log.Ctx{"volName": vol.name, "path": path})
+		d.Logger().Debug("Sending block volume", logger.Ctx{"volName": vol.name, "path": path})
 		_, err = io.Copy(conn, fromPipe)
 		if err != nil {
 			return fmt.Errorf("Error copying %q to migration connection: %w", path, err)
@@ -301,7 +299,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			wrapper = migration.ProgressTracker(op, "fs_progress", volName)
 		}
 
-		d.Logger().Debug("Receiving filesystem volume", log.Ctx{"volName": volName, "path": path})
+		d.Logger().Debug("Receiving filesystem volume", logger.Ctx{"volName": volName, "path": path})
 		return rsync.Recv(path, conn, wrapper, volTargetArgs.MigrationType.Features)
 	}
 
@@ -326,7 +324,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 		}
 
-		d.Logger().Debug("Receiving block volume", log.Ctx{"volName": volName, "path": path})
+		d.Logger().Debug("Receiving block volume", logger.Ctx{"volName": volName, "path": path})
 		_, err = io.Copy(to, fromPipe)
 		if err != nil {
 			return fmt.Errorf("Error copying from migration connection to %q: %w", path, err)
@@ -372,7 +370,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 
 			// Create the snapshot itself.
-			d.Logger().Debug("Creating snapshot", log.Ctx{"volName": snapVol.Name()})
+			d.Logger().Debug("Creating snapshot", logger.Ctx{"volName": snapVol.Name()})
 			err = d.CreateVolumeSnapshot(snapVol, op)
 			if err != nil {
 				return err
@@ -402,7 +400,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 
 		// Receive the final main volume sync if needed.
 		if volTargetArgs.Live && (vol.contentType != ContentTypeBlock || vol.volType != VolumeTypeCustom) {
-			d.Logger().Debug("Starting main volume final sync", log.Ctx{"volName": vol.name, "path": path})
+			d.Logger().Debug("Starting main volume final sync", logger.Ctx{"volName": vol.name, "path": path})
 			err = recvFSVol(vol.name, conn, path)
 			if err != nil {
 				return err
@@ -495,7 +493,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				if v.IsVMBlock() {
 					logMsg := "Copying virtual machine config volume"
 
-					d.Logger().Debug(logMsg, log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+					d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": mountPath, "prefix": prefix})
 					err = filepath.Walk(mountPath, func(srcPath string, fi os.FileInfo, err error) error {
 						if err != nil {
 							return err
@@ -526,7 +524,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					logMsg = "Copying custom block volume"
 				}
 
-				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
+				d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": blockPath, "file": name, "size": blockDiskSize})
 				from, err := os.Open(blockPath)
 				if err != nil {
 					return fmt.Errorf("Error opening file for reading %q: %w", blockPath, err)
@@ -550,7 +548,7 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 					logMsg = "Copying custom filesystem volume"
 				}
 
-				d.Logger().Debug(logMsg, log.Ctx{"sourcePath": mountPath, "prefix": prefix})
+				d.Logger().Debug(logMsg, logger.Ctx{"sourcePath": mountPath, "prefix": prefix})
 
 				// Follow the target if mountPath is a symlink.
 				// Functions like filepath.Walk() won't list any directory content otherwise.
@@ -682,7 +680,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 			args = append(args, srcPrefix)
 
 			// Extract filesystem volume.
-			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), log.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
+			d.Logger().Debug(fmt.Sprintf("Unpacking %s filesystem volume", volTypeName), logger.Ctx{"source": srcPrefix, "target": mountPath, "args": args})
 			srcData.Seek(0, 0)
 
 			f, err := os.OpenFile(mountPath, os.O_RDONLY, 0)
@@ -737,7 +735,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 					defer to.Close()
 
 					// Restore original size of volume from raw block backup file size.
-					d.Logger().Debug("Setting volume size from source", log.Ctx{"source": srcFile, "target": targetPath, "size": hdr.Size})
+					d.Logger().Debug("Setting volume size from source", logger.Ctx{"source": srcFile, "target": targetPath, "size": hdr.Size})
 
 					// Allow potentially destructive resize of volume as we are going to be
 					// overwriting it entirely anyway. This allows shrinking of block volumes.
@@ -752,7 +750,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 						logMsg = "Unpacking custom block volume"
 					}
 
-					d.Logger().Debug(logMsg, log.Ctx{"source": srcFile, "target": targetPath})
+					d.Logger().Debug(logMsg, logger.Ctx{"source": srcFile, "target": targetPath})
 					_, err = io.Copy(to, tr)
 					if err != nil {
 						return err
@@ -819,7 +817,7 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 			return nil, nil, err
 		}
 
-		d.Logger().Debug("Creating volume snapshot", log.Ctx{"snapshotName": snapVol.Name()})
+		d.Logger().Debug("Creating volume snapshot", logger.Ctx{"snapshotName": snapVol.Name()})
 		err = d.CreateVolumeSnapshot(snapVol, op)
 		if err != nil {
 			return nil, nil, err
@@ -941,7 +939,7 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 				snapVol := NewVolume(d, d.Name(), vol.volType, vol.contentType, fullSnapName, vol.config, vol.poolConfig)
 
 				// Create the snapshot itself.
-				d.Logger().Debug("Creating snapshot", log.Ctx{"volName": snapVol.Name()})
+				d.Logger().Debug("Creating snapshot", logger.Ctx{"volName": snapVol.Name()})
 				err = d.CreateVolumeSnapshot(snapVol, op)
 				if err != nil {
 					return err

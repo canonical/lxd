@@ -14,7 +14,6 @@ import (
 
 	"github.com/flosch/pongo2"
 	"github.com/pborman/uuid"
-	log "gopkg.in/inconshreveable/log15.v2"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
 	lxd "github.com/lxc/lxd/client"
@@ -586,13 +585,13 @@ func DeleteSnapshots(s *state.State, projectName, instanceName string) error {
 	for _, snapName := range results {
 		snapInst, err := LoadByProjectAndName(s, projectName, snapName)
 		if err != nil {
-			logger.Error("DeleteSnapshots: Failed to load the snapshot", log.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
+			logger.Error("DeleteSnapshots: Failed to load the snapshot", logger.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
 			continue
 		}
 
 		err = snapInst.Delete(true)
 		if err != nil {
-			logger.Error("DeleteSnapshots: Failed to delete the snapshot", log.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
+			logger.Error("DeleteSnapshots: Failed to delete the snapshot", logger.Ctx{"project": projectName, "instance": instanceName, "snapshot": snapName, "err": err})
 		}
 	}
 
@@ -1085,7 +1084,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := Create(s, args, revert)
 	if err != nil {
-		logger.Error("Failed initialising instance", log.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
+		logger.Error("Failed initialising instance", logger.Ctx{"project": args.Project, "instance": args.Name, "type": args.Type, "err": err})
 		return nil, nil, fmt.Errorf("Failed initialising instance: %w", err)
 	}
 
