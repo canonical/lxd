@@ -27,7 +27,7 @@ func InitLogger(filepath string, syslogName string, verbose bool, debug bool, ho
 	logger.SetOutput(io.Discard)
 
 	// Setup the formatter.
-	logger.Formatter = &logrus.TextFormatter{FullTimestamp: true, ForceColors: termios.IsTerminal(int(os.Stderr.Fd()))}
+	logger.Formatter = &logrus.TextFormatter{PadLevelText: true, FullTimestamp: true, ForceColors: termios.IsTerminal(int(os.Stderr.Fd()))}
 
 	// Setup log level.
 	levels := []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel, logrus.WarnLevel}
