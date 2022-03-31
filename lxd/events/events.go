@@ -134,7 +134,7 @@ func (s *Server) Inject(event api.Event, eventSource EventSource) {
 			return
 		}
 
-		if !s.debug && logEntry.Level == "dbug" {
+		if !s.debug && logEntry.Level == "debug" {
 			return
 		}
 
