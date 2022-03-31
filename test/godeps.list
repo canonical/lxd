@@ -10,7 +10,6 @@ github.com/lxc/lxd/shared/simplestreams
 github.com/lxc/lxd/shared/tcp
 github.com/lxc/lxd/shared/units
 github.com/pkg/sftp
-gopkg.in/inconshreveable/log15.v2
 gopkg.in/juju/environschema.v1/form
 gopkg.in/macaroon-bakery.v2/bakery
 gopkg.in/macaroon-bakery.v2/httpbakery
