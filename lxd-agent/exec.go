@@ -23,7 +23,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/netutils"
 )
 
@@ -363,7 +362,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 		return finisher(exitStatus, err)
 	}
 
-	l := logging.AddContext(logger.Log, logger.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
+	l := logger.AddContext(logger.Log, logger.Ctx{"PID": cmd.Process.Pid, "interactive": s.interactive})
 	l.Debug("Instance process started")
 
 	wgEOF.Add(1)
