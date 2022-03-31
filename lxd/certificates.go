@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -560,7 +561,7 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 
 		cert, err = x509.ParseCertificate(data)
 		if err != nil {
-			return response.BadRequest(fmt.Errorf("invalid certificate material: %w", err))
+			return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
 		}
 	} else if req.Token {
 		// Get all addresses the server is listening on. This is encoded in the certificate token,
@@ -620,6 +621,15 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		cert = r.TLS.PeerCertificates[len(r.TLS.PeerCertificates)-1]
 	} else {
 		return response.BadRequest(fmt.Errorf("Can't use TLS data on non-TLS link"))
+	}
+
+	// Check validity.
+	if time.Now().Before(cert.NotBefore) {
+		return response.BadRequest(fmt.Errorf("The provided certificate isn't valid yet"))
+	}
+
+	if time.Now().After(cert.NotAfter) {
+		return response.BadRequest(fmt.Errorf("The provided certificate is expired"))
 	}
 
 	// Calculate the fingerprint.
@@ -930,11 +940,20 @@ func doCertificateUpdate(d *Daemon, dbInfo db.Certificate, req api.CertificatePu
 
 			cert, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
-				return response.BadRequest(fmt.Errorf("invalid certificate material: %w", err))
+				return response.BadRequest(fmt.Errorf("Invalid certificate material: %w", err))
 			}
 
 			dbCert.Certificate = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
 			dbCert.Fingerprint = shared.CertFingerprint(cert)
+
+			// Check validity.
+			if time.Now().Before(cert.NotBefore) {
+				return response.BadRequest(fmt.Errorf("The provided certificate isn't valid yet"))
+			}
+
+			if time.Now().After(cert.NotAfter) {
+				return response.BadRequest(fmt.Errorf("The provided certificate is expired"))
+			}
 		}
 
 		// Update the database record.
