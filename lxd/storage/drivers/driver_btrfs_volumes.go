@@ -986,7 +986,7 @@ func (d *btrfs) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, 
 
 			// Add that to the requested filesystem size (to ignore it from the quota).
 			sizeBytes += blockSize
-			d.logger.Debug("Accounting for VM image file size", "sizeBytes", sizeBytes)
+			d.logger.Debug("Accounting for VM image file size", logger.Ctx{"sizeBytes": sizeBytes})
 		}
 
 		// Apply the limit to referenced data in qgroup.
