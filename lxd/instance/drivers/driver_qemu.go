@@ -64,7 +64,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/instancewriter"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/lxc/lxd/shared/osarch"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/units"
@@ -132,7 +131,7 @@ func qemuInstantiate(s *state.State, args db.InstanceArgs, expandedDevices devic
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			logger:       logging.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			logger:       logger.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -188,7 +187,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 			lastUsedDate: args.LastUsedDate,
 			localConfig:  args.Config,
 			localDevices: args.Devices,
-			logger:       logging.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
+			logger:       logger.AddContext(logger.Log, logger.Ctx{"instanceType": args.Type, "instance": args.Name, "project": args.Project}),
 			name:         args.Name,
 			node:         args.Node,
 			profiles:     args.Profiles,
@@ -1696,7 +1695,7 @@ func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (dev
 // deviceStart loads a new device and calls its Start() function.
 func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
 	configCopy := dev.Config()
-	logger := logging.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Starting device")
 
 	revert := revert.New()
@@ -1894,7 +1893,7 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 // deviceStop loads a new device and calls its Stop() function.
 func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
 	configCopy := dev.Config()
-	logger := logging.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
 	logger.Debug("Stopping device")
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -4925,7 +4924,7 @@ func (d *qemu) Delete(force bool) error {
 }
 
 func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
-	logger := logging.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
 	logger.Debug("Adding device")
 
 	if instanceRunning && !dev.CanHotPlug() {
@@ -4936,7 +4935,7 @@ func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
 }
 
 func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	l := logging.AddContext(d.logger, logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	l := logger.AddContext(d.logger, logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	l.Debug("Removing device")
 
 	dev, err := d.deviceLoad(deviceName, rawConfig)

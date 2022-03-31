@@ -10,7 +10,6 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/sys"
 	"github.com/lxc/lxd/shared"
-	"github.com/lxc/lxd/shared/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,9 +32,6 @@ func TestIntegration_UnixSocket(t *testing.T) {
 //
 // Return a function that can be used to cleanup every associated state.
 func newTestDaemon(t *testing.T) (*Daemon, func()) {
-	// Logging
-	resetLogger := logging.Testing(t)
-
 	// OS
 	os, osCleanup := sys.NewTestOS(t)
 
@@ -46,7 +42,6 @@ func newTestDaemon(t *testing.T) (*Daemon, func()) {
 	cleanup := func() {
 		daemon.Stop(context.Background(), unix.SIGQUIT)
 		osCleanup()
-		resetLogger()
 	}
 
 	return daemon, cleanup

@@ -7,13 +7,12 @@ import (
 	"github.com/lxc/lxd/lxd/fsmonitor/drivers"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 // New creates a new FSMonitor instance.
 func New(ctx context.Context, path string) (FSMonitor, error) {
 	startMonitor := func(driverName string) (drivers.Driver, logger.Logger, error) {
-		logger := logging.AddContext(logger.Log, logger.Ctx{"driver": driverName})
+		logger := logger.AddContext(logger.Log, logger.Ctx{"driver": driverName})
 
 		driver, err := drivers.Load(ctx, logger, driverName, path)
 		if err != nil {

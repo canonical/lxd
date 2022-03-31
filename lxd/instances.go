@@ -21,7 +21,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 var instancesCmd = APIEndpoint{
@@ -253,7 +252,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			continue
 		}
 
-		instLogger := logging.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
+		instLogger := logger.AddContext(logger.Log, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 
 		// Try to start the instance.
 		var attempt = 0

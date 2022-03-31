@@ -6,7 +6,6 @@ import (
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 // deviceCommon represents the common struct for all devices.
@@ -31,7 +30,7 @@ func (d *deviceCommon) init(inst instance.Instance, state *state.State, name str
 		logCtx["instance"] = inst.Name()
 	}
 
-	d.logger = logging.AddContext(logger.Log, logCtx)
+	d.logger = logger.AddContext(logger.Log, logCtx)
 	d.inst = inst
 	d.name = name
 	d.config = conf
