@@ -1534,6 +1534,7 @@ func (s *Server) HandleSetxattrSyscall(c Instance, siov *Iovec) int {
 
 // SchedSetschedulerArgs arguments for setxattr.
 type SchedSetschedulerArgs struct {
+	switchPidns   int
 	pidCaller     int
 	pidTarget     int
 	policy        C.int
@@ -1599,7 +1600,8 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 		return int(-C.EINVAL)
 	}
 
-	// int target
+	// The target pid is only valid in the container's pid namespace as
+	// we're taking it from the raw system call arguments.
 	args.pidTarget = int(siov.req.data.args[0])
 	if args.pidTarget < 0 {
 		if s.s.OS.SeccompListenerContinue {
@@ -1610,9 +1612,17 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 
 		return int(-C.EINVAL)
 	}
+
 	// If the caller passed zero they want to change their own attributes.
 	if args.pidTarget == 0 {
+		// This pid is relative to our pid namespace so we need to
+		// inform forksyscall to not switch pid namespaces when
+		// emulating the system call.
 		args.pidTarget = args.pidCaller
+		args.switchPidns = 0
+	} else {
+		// The pid is relative to the container's pid namespace.
+		args.switchPidns = 1
 	}
 
 	// error out if policy < 0
@@ -1650,6 +1660,7 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 		"sched_setscheduler",
 		fmt.Sprintf("%d", args.pidCaller),
 		fmt.Sprintf("%d", pidFdNr),
+		fmt.Sprintf("%d", args.switchPidns),
 		fmt.Sprintf("%d", args.pidTarget),
 		fmt.Sprintf("%d", args.policy),
 		fmt.Sprintf("%d", args.schedPriority),
