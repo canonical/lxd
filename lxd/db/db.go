@@ -37,42 +37,19 @@ type Node struct {
 // The fresh hook parameter is used by the daemon to mark all known patch names
 // as applied when a brand new database is created.
 //
-// The legacyPatches parameter is used as a mean to apply the legacy V10, V11,
-// V15, V29 and V30 non-db updates during the database upgrade sequence, to
-// avoid any change in semantics wrt the old logic (see PR #3322).
-//
-// Return the newly created Node object, and a Dump of the pre-clustering data
-// if we've migrating to a cluster-aware version.
-func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*LegacyPatch) (*Node, *Dump, error) {
-	// When updating the node database schema we'll detect if we're
-	// transitioning to the dqlite-based database and dump all the data
-	// before purging the schema. This data will be then imported by the
-	// daemon into the dqlite database.
-	var dump *Dump
-
+// Return the newly created Node object.
+func OpenNode(dir string, fresh func(*Node) error) (*Node, error) {
 	db, err := node.Open(dir)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
-	legacyHook := legacyPatchHook(legacyPatches)
-	hook := func(version int, tx *sql.Tx) error {
-		if version == node.UpdateFromPreClustering {
-			logger.Debug("Loading pre-clustering sqlite data")
-			var err error
-			dump, err = LoadPreClusteringData(tx)
-			if err != nil {
-				return err
-			}
-		}
-		return legacyHook(version, tx)
-	}
-	initial, err := node.EnsureSchema(db, dir, hook)
+	initial, err := node.EnsureSchema(db, dir)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	node := &Node{
@@ -84,12 +61,12 @@ func OpenNode(dir string, fresh func(*Node) error, legacyPatches map[int]*Legacy
 		if fresh != nil {
 			err := fresh(node)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 		}
 	}
 
-	return node, dump, nil
+	return node, nil
 }
 
 // ForLegacyPatches is a aid for the hack in initializeDbObject, which sets
@@ -128,11 +105,6 @@ func (n *Node) Transaction(f func(*NodeTx) error) error {
 // Close the database facade.
 func (n *Node) Close() error {
 	return n.db.Close()
-}
-
-// Begin a new transaction against the local database. Legacy method.
-func (n *Node) Begin() (*sql.Tx, error) {
-	return begin(n.db)
 }
 
 // Cluster mediates access to LXD's data stored in the cluster dqlite database.

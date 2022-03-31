@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -985,7 +984,7 @@ func (d *Daemon) init() error {
 	}
 
 	/* Initialize the database */
-	dump, err := initializeDbObject(d)
+	err = initializeDbObject(d)
 	if err != nil {
 		return err
 	}
@@ -1135,7 +1134,7 @@ func (d *Daemon) init() error {
 			options = append(options, driver.WithTracing(dqliteclient.LogDebug))
 		}
 
-		d.cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, dump, options...)
+		d.cluster, err = db.OpenCluster(context.Background(), "db.bin", store, clusterAddress, dir, d.config.DqliteSetupTimeout, nil, options...)
 		if err == nil {
 			logger.Info("Initialized global database")
 			break
@@ -1914,33 +1913,8 @@ func (d *Daemon) setupMAASController(server string, key string, machine string) 
 }
 
 // Create a database connection and perform any updates needed.
-func initializeDbObject(d *Daemon) (*db.Dump, error) {
+func initializeDbObject(d *Daemon) error {
 	logger.Info("Initializing local database")
-	// Rename the old database name if needed.
-	if shared.PathExists(d.os.LegacyLocalDatabasePath()) {
-		if shared.PathExists(d.os.LocalDatabasePath()) {
-			return nil, fmt.Errorf("Both legacy and new local database files exists")
-		}
-		logger.Info("Renaming local database file from lxd.db to database/local.db")
-		err := os.Rename(d.os.LegacyLocalDatabasePath(), d.os.LocalDatabasePath())
-		if err != nil {
-			return nil, fmt.Errorf("Failed to rename legacy local database file: %w", err)
-		}
-	}
-
-	// NOTE: we use the legacyPatches parameter to run a few
-	// legacy non-db updates that were in place before the
-	// patches mechanism was introduced in lxd/patches.go. The
-	// rest of non-db patches will be applied separately via
-	// patchesApplyAll. See PR #3322 for more details.
-	legacy := map[int]*db.LegacyPatch{}
-	for i, patch := range legacyPatches {
-		legacy[i] = &db.LegacyPatch{
-			Hook: func(tx *sql.Tx) error {
-				return patch(tx)
-			},
-		}
-	}
 
 	// Hook to run when the local database is created from scratch. It will
 	// create the default profile and mark all patches as applied.
@@ -1954,13 +1928,12 @@ func initializeDbObject(d *Daemon) (*db.Dump, error) {
 		return nil
 	}
 	var err error
-	var dump *db.Dump
-	d.db, dump, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook, legacy)
+	d.db, err = db.OpenNode(filepath.Join(d.os.VarDir, "database"), freshHook)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating database: %s", err)
+		return fmt.Errorf("Error creating database: %s", err)
 	}
 
-	return dump, nil
+	return nil
 }
 
 // hasMemberStateChanged returns true if the number of members, their addresses or state has changed.
