@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"gopkg.in/inconshreveable/log15.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/lxc/lxd/client"
@@ -13,7 +14,6 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/i18n"
-	"github.com/lxc/lxd/shared/logging"
 )
 
 type cmdMonitor struct {
@@ -104,9 +104,9 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	logLvl := log15.LvlDebug
+	logLevel := logrus.DebugLevel
 	if c.flagLogLevel != "" {
-		logLvl, err = log15.LvlFromString(c.flagLogLevel)
+		logLevel, err = logrus.ParseLevel(c.flagLogLevel)
 		if err != nil {
 			return err
 		}
@@ -116,31 +116,47 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 
 	handler := func(event api.Event) {
 		if c.flagFormat == "pretty" {
-			format := logging.TerminalFormat()
+			// Parse the event.
 			record, err := event.ToLogging()
 			if err != nil {
 				chError <- err
 				return
 			}
 
-			lvl, err := log15.LvlFromString(record.Lvl)
+			if record.Lvl == "dbug" {
+				record.Lvl = "debug"
+			}
+
+			// Get the log level.
+			msgLevel, err := logrus.ParseLevel(record.Lvl)
 			if err != nil {
 				chError <- err
 				return
 			}
 
-			log15Record := log15.Record{
-				Time: record.Time,
-				Lvl:  lvl,
-				Msg:  record.Msg,
-				Ctx:  record.Ctx,
-			}
-			// Check log level for logging type
-			// `lifecycle` type have fixed `info` log level
-			if event.Type == "logging" && (log15Record.Lvl > logLvl) {
+			// Check log level.
+			if msgLevel > logLevel {
 				return
 			}
-			fmt.Printf("%s", format.Format(&log15Record))
+
+			// Setup logrus.
+			logger := &logrus.Logger{
+				Out: os.Stdout,
+			}
+			entry := &logrus.Entry{Logger: logger}
+			entry.Data = c.unpackCtx(record.Ctx)
+			entry.Message = record.Msg
+			entry.Time = record.Time
+			entry.Level = msgLevel
+			format := logrus.TextFormatter{FullTimestamp: true, PadLevelText: true}
+
+			line, err := format.Format(entry)
+			if err != nil {
+				chError <- err
+				return
+			}
+
+			fmt.Print(string(line))
 			return
 		}
 
@@ -188,4 +204,20 @@ func (c *cmdMonitor) Run(cmd *cobra.Command, args []string) error {
 	}()
 
 	return <-chError
+}
+
+func (c *cmdMonitor) unpackCtx(ctx []any) logrus.Fields {
+	out := logrus.Fields{}
+
+	var key string
+	for _, entry := range ctx {
+		if key == "" {
+			key = fmt.Sprintf("%v", entry)
+		} else {
+			out[key] = fmt.Sprintf("%v", entry)
+			key = ""
+		}
+	}
+
+	return out
 }
