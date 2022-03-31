@@ -3,7 +3,7 @@ package events
 import (
 	"fmt"
 
-	log "gopkg.in/inconshreveable/log15.v2"
+	"github.com/sirupsen/logrus"
 
 	"github.com/lxc/lxd/shared/api"
 )
@@ -16,34 +16,34 @@ type Handler struct {
 }
 
 // NewEventHandler creates and returns a new event handler.
-func NewEventHandler() *Handler {
+func NewEventHandler() logrus.Hook {
 	return &Handler{}
 }
 
-// Log sends a new logging event.
-func (h Handler) Log(r *log.Record) error {
+// Fire sends a new logging event.
+func (h Handler) Fire(entry *logrus.Entry) error {
 	if LoggingServer == nil {
-		return fmt.Errorf("No configured event server for logging messages")
+		return nil
 	}
 
 	LoggingServer.Send("", "logging", api.EventLogging{
-		Message: r.Msg,
-		Level:   r.Lvl.String(),
-		Context: logContextMap(r.Ctx)})
+		Message: entry.Message,
+		Level:   entry.Level.String(),
+		Context: logContextMap(entry.Data),
+	})
 	return nil
 }
 
-func logContextMap(ctx []any) map[string]string {
-	var key string
+// Levels returns the list of supported log levels.
+func (h Handler) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func logContextMap(ctx logrus.Fields) map[string]string {
 	ctxMap := map[string]string{}
 
-	for _, entry := range ctx {
-		if key == "" {
-			key = entry.(string)
-		} else {
-			ctxMap[key] = fmt.Sprintf("%v", entry)
-			key = ""
-		}
+	for k, v := range ctx {
+		ctxMap[k] = fmt.Sprintf("%v", v)
 	}
 
 	return ctxMap
