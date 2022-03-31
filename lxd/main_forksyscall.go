@@ -584,6 +584,7 @@ static void sched_setscheduler_emulate(void)
 	__do_close int pidfd = -EBADF, ns_fd = -EBADF;
 	pid_t pid_caller = -ESRCH, pid_target = -ESRCH;
 	int policy = -1, sched_priority = -1;
+	int switch_pidns = 0;
 	struct sched_param param = {};
 	cap_t caps;
 
@@ -593,6 +594,8 @@ static void sched_setscheduler_emulate(void)
 	ns_fd = pidfd_nsfd(pidfd, pid_caller);
 	if (ns_fd < 0)
 		_exit(EXIT_FAILURE);
+
+	switch_pidns = atoi(advance_arg(true));
 
 	pid_target = atoi(advance_arg(true));
 	if (pid_target < 0)
@@ -615,7 +618,7 @@ static void sched_setscheduler_emulate(void)
 	if (!lxd_cap_is_set(caps, CAP_SYS_NICE, CAP_EFFECTIVE))
 		_exit(EXIT_FAILURE);
 
-	if (!change_namespaces(pidfd, ns_fd, CLONE_NEWPID))
+	if (switch_pidns && !change_namespaces(pidfd, ns_fd, CLONE_NEWPID))
 		_exit(EXIT_FAILURE);
 
 	if (sched_setscheduler(pid_target, policy, &param))
