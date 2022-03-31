@@ -393,6 +393,7 @@ type ConnectionInfo struct {
 	URL         string
 	SocketPath  string
 	Project     string
+	Target      string
 }
 
 // The BackupFileRequest struct is used for a backup download request.
