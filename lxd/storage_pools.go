@@ -383,7 +383,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	// Check that no node-specific config key has been defined.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.StoragePoolNodeConfigKeys) {
-			return fmt.Errorf("Config key %q is node-specific", key)
+			return fmt.Errorf("Config key %q is cluster member specific", key)
 		}
 	}
 
@@ -715,7 +715,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 			// If no target is specified, then ensure only non-node-specific config keys are changed.
 			for k := range req.Config {
 				if shared.StringInSlice(k, db.StoragePoolNodeConfigKeys) {
-					return response.BadRequest(fmt.Errorf("Config key %q is node-specific", k))
+					return response.BadRequest(fmt.Errorf("Config key %q is cluster member specific", k))
 				}
 			}
 		} else {
@@ -724,7 +724,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 			// If a target is specified, then ensure only node-specific config keys are changed.
 			for k, v := range req.Config {
 				if !shared.StringInSlice(k, db.StoragePoolNodeConfigKeys) && curConfig[k] != v {
-					return response.BadRequest(fmt.Errorf("Config key %q may not be used as node-specific key", k))
+					return response.BadRequest(fmt.Errorf("Config key %q may not be used as cluster member specific key", k))
 				}
 			}
 		}
