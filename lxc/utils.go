@@ -85,7 +85,7 @@ func profileDeviceAdd(client lxd.InstanceServer, name string, devName string, de
 	return nil
 }
 
-// Create the specified image alises, updating those that already exist.
+// Create the specified image aliases, updating those that already exist.
 func ensureImageAliases(client lxd.InstanceServer, aliases []api.ImageAlias, fingerprint string) error {
 	if len(aliases) == 0 {
 		return nil
