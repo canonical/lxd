@@ -40,6 +40,10 @@ func (b *mockBackend) ValidateName(value string) error {
 	return nil
 }
 
+func (b *mockBackend) Validate(config map[string]string) error {
+	return nil
+}
+
 func (b *mockBackend) Status() string {
 	return api.NetworkStatusUnknown
 }
