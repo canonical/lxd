@@ -196,7 +196,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 				}
 				appendNodeID()
 			case "storage_pools_config":
-				// The keys listed in StoragePoolNodeConfigKeys
+				// The keys listed in NodeSpecificStorageConfig
 				// are the only ones which are not global to the
 				// cluster, so all other keys will have a NULL
 				// node_id.
@@ -208,7 +208,7 @@ INSERT INTO projects_config (project_id, key, value) VALUES (1, 'features.storag
 					}
 				}
 				key := row[index].(string)
-				if !shared.StringInSlice(key, StoragePoolNodeConfigKeys) {
+				if !shared.StringInSlice(key, NodeSpecificStorageConfig) {
 					nullNodeID = true
 					break
 				}
