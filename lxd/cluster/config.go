@@ -372,10 +372,3 @@ func passwordSetter(value string) (string, error) {
 
 	return value, nil
 }
-
-func deprecatedStorage(value string) (string, error) {
-	if value == "" {
-		return "", nil
-	}
-	return "", fmt.Errorf("deprecated: use storage pool configuration")
-}
