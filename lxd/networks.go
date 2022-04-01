@@ -492,7 +492,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
-			return fmt.Errorf("Config key %q is node-specific", key)
+			return fmt.Errorf("Config key %q is cluster member specific", key)
 		}
 	}
 
@@ -1161,7 +1161,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 			// If no target is specified, then ensure only non-node-specific config keys are changed.
 			for k := range req.Config {
 				if shared.StringInSlice(k, db.NodeSpecificNetworkConfig) {
-					return response.BadRequest(fmt.Errorf("Config key %q is node-specific", k))
+					return response.BadRequest(fmt.Errorf("Config key %q is cluster member specific", k))
 				}
 			}
 		} else {
