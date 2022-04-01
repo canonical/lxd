@@ -114,6 +114,16 @@ func (d *lvm) Create() error {
 			d.config["lvm.vg_name"] = d.name
 		}
 
+		// Pick a default size of the loop file if not specified.
+		if d.config["size"] == "" {
+			defaultSize, err := loopFileSizeDefault()
+			if err != nil {
+				return err
+			}
+
+			d.config["size"] = fmt.Sprintf("%dGB", defaultSize)
+		}
+
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
 			return err

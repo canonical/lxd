@@ -133,6 +133,16 @@ func (d *zfs) Create() error {
 			return fmt.Errorf("zfs.pool_name can't point to a dataset when source isn't set")
 		}
 
+		// Pick a default size of the loop file if not specified.
+		if d.config["size"] == "" {
+			defaultSize, err := loopFileSizeDefault()
+			if err != nil {
+				return err
+			}
+
+			d.config["size"] = fmt.Sprintf("%dGB", defaultSize)
+		}
+
 		// Create the loop file itself.
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
