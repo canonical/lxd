@@ -17,7 +17,7 @@ import (
 
 // swagger:operation GET / server api_get
 //
-// Get the supported API enpoints
+// Get the supported API endpoints
 //
 // Returns a list of supported API versions (URLs).
 //

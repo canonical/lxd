@@ -302,7 +302,7 @@ func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]st
 			}
 
 			// Anything else must be a referenced ACL name.
-			// Record newly seen referenced ACL into authoriative list.
+			// Record newly seen referenced ACL into authoritative list.
 			referencedACLNames[subject] = struct{}{}
 		}
 	}

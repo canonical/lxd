@@ -1705,7 +1705,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	name := mux.Vars(r)["name"]
 
 	// Redirect all requests to the leader, which is the one with
-	// knowning what nodes are part of the raft cluster.
+	// knowing what nodes are part of the raft cluster.
 	localAddress, err := node.ClusterAddress(d.db)
 	if err != nil {
 		return response.SmartError(err)
