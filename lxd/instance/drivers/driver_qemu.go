@@ -1253,7 +1253,7 @@ func (d *qemu) Start(stateful bool) error {
 
 		// x86_64 requires the use of topoext when SMT is used.
 		_, _, nrThreads, _, _, err := d.cpuTopology(d.expandedConfig["limits.cpu"])
-		if err != nil && nrThreads > 1 {
+		if err == nil && nrThreads > 1 {
 			cpuExtensions = append(cpuExtensions, "topoext")
 		}
 	}
