@@ -465,11 +465,6 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		nodeReq.Config[key] = value
 	}
 
-	err = storagePoolValidate(d.State(), req.Name, req.Driver, nodeReq.Config)
-	if err != nil {
-		return err
-	}
-
 	updatedConfig, err := storagePoolCreateLocal(d.State(), poolID, req, clientType)
 	if err != nil {
 		return err
