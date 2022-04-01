@@ -422,6 +422,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 
 func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
+		"size":                       validate.Optional(validate.IsSize),
 		"lvm.vg_name":                validate.IsAny,
 		"lvm.thinpool_name":          validate.IsAny,
 		"lvm.thinpool_metadata_size": validate.Optional(validate.IsSize),

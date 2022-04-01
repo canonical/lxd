@@ -334,6 +334,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *zfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
+		"size":          validate.Optional(validate.IsSize),
 		"zfs.pool_name": validate.IsAny,
 		"zfs.clone_copy": validate.Optional(func(value string) error {
 			if value == "rebase" {

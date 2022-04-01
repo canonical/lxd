@@ -270,6 +270,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *btrfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
+		"size":                validate.Optional(validate.IsSize),
 		"btrfs.mount_options": validate.IsAny,
 	}
 
