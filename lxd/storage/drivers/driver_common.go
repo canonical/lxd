@@ -52,7 +52,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 		checkedFields[k] = struct{}{} //Mark field as checked.
 		err := validator(config[k])
 		if err != nil {
-			return fmt.Errorf("Invalid value for pool %q option %q: %w", d.name, k, err)
+			return fmt.Errorf("Invalid value for option %q: %w", k, err)
 		}
 	}
 
@@ -68,7 +68,7 @@ func (d *common) validatePool(config map[string]string, driverRules map[string]f
 			continue
 		}
 
-		return fmt.Errorf("Invalid option for pool %q option %q", d.name, k)
+		return fmt.Errorf("Invalid option %q", k)
 	}
 
 	return nil
