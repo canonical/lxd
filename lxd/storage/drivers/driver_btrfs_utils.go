@@ -370,33 +370,35 @@ func (d *btrfs) getSubvolumesMetaData(vol Volume) ([]BTRFSSubVolume, error) {
 
 	poolMountPath := GetPoolMountPath(vol.pool)
 
-	// List all subvolumes in the given filesystem with their UUIDs and received UUIDs.
-	err = shared.RunCommandWithFds(nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
-	if err != nil {
-		return nil, err
-	}
-
-	uuidMap := make(map[string]string)
-	receivedUUIDMap := make(map[string]string)
-
-	scanner := bufio.NewScanner(strings.NewReader(stdout.String()))
-
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-
-		if len(fields) != 13 {
-			continue
+	if !d.state.OS.RunningInUserNS {
+		// List all subvolumes in the given filesystem with their UUIDs and received UUIDs.
+		err = shared.RunCommandWithFds(nil, &stdout, "btrfs", "subvolume", "list", "-u", "-R", poolMountPath)
+		if err != nil {
+			return nil, err
 		}
 
-		uuidMap[filepath.Join(poolMountPath, fields[12])] = fields[10]
+		uuidMap := make(map[string]string)
+		receivedUUIDMap := make(map[string]string)
 
-		if fields[8] != "-" {
-			receivedUUIDMap[filepath.Join(poolMountPath, fields[12])] = fields[8]
+		scanner := bufio.NewScanner(strings.NewReader(stdout.String()))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			if len(fields) != 13 {
+				continue
+			}
+
+			uuidMap[filepath.Join(poolMountPath, fields[12])] = fields[10]
+
+			if fields[8] != "-" {
+				receivedUUIDMap[filepath.Join(poolMountPath, fields[12])] = fields[8]
+			}
 		}
-	}
 
-	for i, subVol := range subVols {
-		subVols[i].UUID = uuidMap[filepath.Join(vol.MountPath(), subVol.Path)]
+		for i, subVol := range subVols {
+			subVols[i].UUID = uuidMap[filepath.Join(vol.MountPath(), subVol.Path)]
+		}
 	}
 
 	return subVols, nil
