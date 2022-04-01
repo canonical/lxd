@@ -3142,6 +3142,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 		"bus":     "qemu_scsi.0",
 		"channel": "0",
 		"lun":     "1",
+		"serial":  fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName),
 	}
 
 	if bootIndexes != nil {
