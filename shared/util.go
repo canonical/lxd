@@ -614,6 +614,28 @@ func StringInSlice(key string, list []string) bool {
 	return false
 }
 
+// RemoveElementsFromStringSlice returns a slice equivalent to removing the given elements from the given list.
+// Elements not present in the list are ignored.
+func RemoveElementsFromStringSlice(list []string, elements ...string) []string {
+	for i := len(elements) - 1; i >= 0; i-- {
+		element := elements[i]
+		match := false
+		for j := len(list) - 1; j >= 0; j-- {
+			if element == list[j] {
+				match = true
+				list = append(list[:j], list[j+1:]...)
+				break
+			}
+		}
+
+		if match {
+			elements = append(elements[:i], elements[i+1:]...)
+		}
+	}
+
+	return list
+}
+
 // StringHasPrefix returns true if value has one of the supplied prefixes.
 func StringHasPrefix(value string, prefixes ...string) bool {
 	for _, prefix := range prefixes {
