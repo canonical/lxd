@@ -25,7 +25,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	if config == nil {
 		config = map[string]string{}
 	}
-	err = storagePoolValidate(poolName, driver, config)
+	err = storagePoolValidate(s, poolName, driver, config)
 	if err != nil {
 		return -1, err
 	}
@@ -45,9 +45,14 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	return id, nil
 }
 
-func storagePoolValidate(poolName string, driverName string, config map[string]string) error {
+func storagePoolValidate(s *state.State, poolName string, driverName string, config map[string]string) error {
+	poolType, err := storagePools.LoadByType(s, driverName)
+	if err != nil {
+		return err
+	}
+
 	// Check if the storage pool name is valid.
-	err := storagePools.ValidName(poolName)
+	err = poolType.ValidateName(poolName)
 	if err != nil {
 		return err
 	}
