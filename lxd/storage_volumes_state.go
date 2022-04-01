@@ -13,6 +13,7 @@ import (
 	storagePools "github.com/lxc/lxd/lxd/storage"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
+	"github.com/lxc/lxd/shared/units"
 )
 
 var storagePoolVolumeTypeStateCmd = APIEndpoint{
@@ -122,12 +123,25 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 
 	// Prepare the state struct.
 	state := api.StorageVolumeState{}
+	state.Usage = &api.StorageVolumeStateUsage{}
 
-	// Only fill usage struct if receiving a valid value.
+	// Only fill 'used' field if receiving a valid value.
 	if used >= 0 {
-		state.Usage = &api.StorageVolumeStateUsage{
-			Used: uint64(used),
-		}
+		state.Usage.Used = uint64(used)
+	}
+
+	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	total, err := units.ParseByteSizeString(vol.Config["size"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	if total >= 0 {
+		state.Usage.Total = total
 	}
 
 	return response.SyncResponse(true, state)
