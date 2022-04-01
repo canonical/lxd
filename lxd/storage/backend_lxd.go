@@ -90,6 +90,11 @@ func (b *lxdBackend) ValidateName(value string) error {
 	return nil
 }
 
+// Validate storage pool config.
+func (b *lxdBackend) Validate(config map[string]string) error {
+	return b.Driver().Validate(config)
+}
+
 // Status returns the storage pool status.
 func (b *lxdBackend) Status() string {
 	return b.db.Status
