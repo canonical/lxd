@@ -152,8 +152,14 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 	l.Debug("Create started")
 	defer l.Debug("Create finished")
 
+	// Validate name.
+	err := b.ValidateName(b.name)
+	if err != nil {
+		return err
+	}
+
 	// Validate config.
-	err := b.driver.Validate(b.db.Config)
+	err = b.driver.Validate(b.db.Config)
 	if err != nil {
 		return err
 	}
