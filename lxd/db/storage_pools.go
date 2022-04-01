@@ -939,8 +939,8 @@ func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 	return pool, nil
 }
 
-// StoragePoolNodeConfigKeys lists all storage pool config keys which are node-specific.
-var StoragePoolNodeConfigKeys = []string{
+// NodeSpecificStorageConfig lists all storage pool config keys which are node-specific.
+var NodeSpecificStorageConfig = []string{
 	"size",
 	"source",
 	"volatile.initial_source",
