@@ -151,12 +151,6 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
-	// Validate the name
-	err = storagePools.ValidName(req.Name)
-	if err != nil {
-		return response.BadRequest(err)
-	}
-
 	// Check that this isn't a restricted volume
 	used, err := storagePools.VolumeUsedByDaemon(d.State(), poolName, volumeName)
 	if err != nil {
@@ -167,14 +161,20 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 		return response.BadRequest(fmt.Errorf("Volumes used by LXD itself cannot have snapshots"))
 	}
 
-	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.GetStoragePoolID(poolName)
+	// Retrieve the storage pool (and check if the storage pool exists).
+	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
+	// Validate the snapshot name using same rule as pool name.
+	err = pool.ValidateName(req.Name)
+	if err != nil {
+		return response.BadRequest(err)
+	}
+
 	// Ensure that the snapshot doesn't already exist.
-	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, poolID)
+	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, pool.ID())
 	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.SmartError(err)
@@ -184,7 +184,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the parent volume so we can get the config.
-	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
+	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -202,11 +202,6 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Create the snapshot.
 	snapshot := func(op *operations.Operation) error {
-		pool, err := storagePools.LoadByName(d.State(), poolName)
-		if err != nil {
-			return err
-		}
-
 		return pool.CreateCustomVolumeSnapshot(projectName, volumeName, req.Name, expiry, op)
 	}
 
