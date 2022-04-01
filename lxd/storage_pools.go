@@ -266,7 +266,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 		// This is an internal request which triggers the actual
 		// creation of the pool across all nodes, after they have been
 		// previously defined.
-		err = storagePoolValidate(req.Name, req.Driver, req.Config)
+		err = storagePoolValidate(d.State(), req.Name, req.Driver, req.Config)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -294,7 +294,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			}
 		}
 
-		err = storagePoolValidate(req.Name, req.Driver, req.Config)
+		err = storagePoolValidate(d.State(), req.Name, req.Driver, req.Config)
 		if err != nil {
 			return response.BadRequest(err)
 		}
@@ -465,7 +465,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 		nodeReq.Config[key] = value
 	}
 
-	err = storagePoolValidate(req.Name, req.Driver, nodeReq.Config)
+	err = storagePoolValidate(d.State(), req.Name, req.Driver, nodeReq.Config)
 	if err != nil {
 		return err
 	}
