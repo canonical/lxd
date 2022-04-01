@@ -14,7 +14,7 @@ import (
 )
 
 // storagePoolDBCreate creates a storage pool DB entry and returns the created Pool ID.
-func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) (int64, error) {
+func storagePoolDBCreate(s *state.State, poolName string, poolDescription string, driver string, config map[string]string) (int64, error) {
 	// Check that the storage pool does not already exist.
 	_, err := s.Cluster.GetStoragePoolID(poolName)
 	if err == nil {
