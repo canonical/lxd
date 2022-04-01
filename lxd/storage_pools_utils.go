@@ -25,6 +25,7 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	if config == nil {
 		config = map[string]string{}
 	}
+
 	err = storagePoolValidate(s, poolName, driver, config)
 	if err != nil {
 		return -1, err
