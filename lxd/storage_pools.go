@@ -816,7 +816,7 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 	}
 
 	// Validate the configuration.
-	err := storagePoolValidateConfig(pool.Name(), pool.Driver().Info().Name, req.Config, pool.Driver().Config())
+	err := pool.Validate(req.Config)
 	if err != nil {
 		return response.BadRequest(err)
 	}
