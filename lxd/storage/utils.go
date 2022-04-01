@@ -276,11 +276,11 @@ func VolumeDBDelete(pool *lxdBackend, projectName string, volumeName string, vol
 
 // SupportedPoolTypes the types of pools supported.
 // Deprecated: this is being replaced with drivers.SupportedDrivers()
-var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
+var supportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
 
 // StorageVolumeConfigKeys config validation for btrfs, ceph, cephfs, dir, lvm, zfs types.
 // Deprecated: these are being moved to the per-storage-driver implementations.
-var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
+var storageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 	"block.filesystem": func(value string) ([]string, error) {
 		err := validate.Optional(validate.IsOneOf("btrfs", "ext4", "xfs"))(value)
 		if err != nil {
@@ -293,14 +293,14 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 		return []string{"ceph", "lvm"}, validate.IsAny(value)
 	},
 	"security.shifted": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.Optional(validate.IsBool)(value)
+		return supportedPoolTypes, validate.Optional(validate.IsBool)(value)
 	},
 	"security.unmapped": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.Optional(validate.IsBool)(value)
+		return supportedPoolTypes, validate.Optional(validate.IsBool)(value)
 	},
 	"size": func(value string) ([]string, error) {
 		if value == "" {
-			return SupportedPoolTypes, nil
+			return supportedPoolTypes, nil
 		}
 
 		_, err := units.ParseByteSizeString(value)
@@ -308,13 +308,13 @@ var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
 			return nil, err
 		}
 
-		return SupportedPoolTypes, nil
+		return supportedPoolTypes, nil
 	},
 	"volatile.idmap.last": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.IsAny(value)
+		return supportedPoolTypes, validate.IsAny(value)
 	},
 	"volatile.idmap.next": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.IsAny(value)
+		return supportedPoolTypes, validate.IsAny(value)
 	},
 	"zfs.remove_snapshots": func(value string) ([]string, error) {
 		err := validate.Optional(validate.IsBool)(value)
@@ -360,7 +360,7 @@ func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolD
 		}
 
 		// Validate storage volume config keys.
-		validator, ok := StorageVolumeConfigKeys[key]
+		validator, ok := storageVolumeConfigKeys[key]
 		if !ok {
 			return nil, fmt.Errorf("Invalid storage volume configuration key: %s", key)
 		}
