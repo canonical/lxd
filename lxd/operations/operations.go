@@ -231,8 +231,13 @@ func (op *Operation) done() {
 	op.lock.Unlock()
 
 	go func() {
+		shutdownCtx := context.Background()
+		if op.state != nil {
+			shutdownCtx = op.state.ShutdownCtx
+		}
+
 		select {
-		case <-op.state.ShutdownCtx.Done():
+		case <-shutdownCtx.Done():
 			return // Expect all operation records to be removed by waitForOperations in one query.
 		case <-time.After(time.Second * 5): // Wait 5s before removing from internal map and database.
 		}

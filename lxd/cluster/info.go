@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -37,21 +36,8 @@ func loadInfo(database *db.Node, cert *shared.CertInfo) (*db.RaftNode, error) {
 
 	logger.Info("Starting database node", logger.Ctx{"id": info.ID, "local": info.Address, "role": info.Role})
 
-	// Rename legacy data directory if needed.
-	dir := filepath.Join(database.Dir(), "global")
-	legacyDir := filepath.Join(database.Dir(), "..", "raft")
-	if shared.PathExists(legacyDir) {
-		if shared.PathExists(dir) {
-			return nil, fmt.Errorf("both legacy and new global database directories exist")
-		}
-		logger.Info("Renaming global database directory from raft/ to database/global/")
-		err := os.Rename(legacyDir, dir)
-		if err != nil {
-			return nil, fmt.Errorf("failed to rename legacy global database directory: %w", err)
-		}
-	}
-
 	// Data directory
+	dir := filepath.Join(database.Dir(), "global")
 	if !shared.PathExists(dir) {
 		err := os.Mkdir(dir, 0750)
 		if err != nil {
