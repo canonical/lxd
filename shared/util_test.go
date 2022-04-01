@@ -208,3 +208,43 @@ func TestHasKey(t *testing.T) {
 	assert.True(t, HasKey(1, m2))
 	assert.False(t, HasKey(0, m2))
 }
+
+func TestRemoveElementsFromStringSlice(t *testing.T) {
+	type test struct {
+		elementsToRemove []string
+		list             []string
+		expectedList     []string
+	}
+	tests := []test{
+		{
+			elementsToRemove: []string{"one", "two", "three"},
+			list:             []string{"one", "two", "three", "four", "five"},
+			expectedList:     []string{"four", "five"},
+		},
+		{
+			elementsToRemove: []string{"two", "three", "four"},
+			list:             []string{"one", "two", "three", "four", "five"},
+			expectedList:     []string{"one", "five"},
+		},
+		{
+			elementsToRemove: []string{"two", "three", "four"},
+			list:             []string{"two", "three"},
+			expectedList:     []string{},
+		},
+		{
+			elementsToRemove: []string{"two", "two", "two"},
+			list:             []string{"two"},
+			expectedList:     []string{},
+		},
+		{
+			elementsToRemove: []string{"two", "two", "two"},
+			list:             []string{"one", "two", "three", "four", "five"},
+			expectedList:     []string{"one", "three", "four", "five"},
+		},
+	}
+
+	for _, tt := range tests {
+		gotList := RemoveElementsFromStringSlice(tt.list, tt.elementsToRemove...)
+		assert.ElementsMatch(t, tt.expectedList, gotList)
+	}
+}
