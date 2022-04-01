@@ -107,6 +107,11 @@ func (d *lvm) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Set default thin pool name if not specified.
+	if d.usesThinpool() && d.config["lvm.thinpool_name"] == "" {
+		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
+	}
+
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
 		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
