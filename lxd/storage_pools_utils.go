@@ -58,7 +58,7 @@ func storagePoolValidate(s *state.State, poolName string, driverName string, con
 	}
 
 	// Validate the requested storage pool configuration.
-	err = storagePoolValidateConfig(poolName, driverName, config, nil)
+	err = poolType.Validate(config)
 	if err != nil {
 		return err
 	}
