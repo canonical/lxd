@@ -31,12 +31,6 @@ func storagePoolDBCreate(s *state.State, poolName string, poolDescription string
 		return -1, err
 	}
 
-	// Fill in the defaults.
-	err = storagePoolFillDefault(poolName, driver, config)
-	if err != nil {
-		return -1, err
-	}
-
 	// Create the database entry for the storage pool.
 	id, err := dbStoragePoolCreateAndUpdateCache(s, poolName, poolDescription, driver, config)
 	if err != nil {
