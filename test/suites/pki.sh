@@ -9,6 +9,8 @@ test_pki() {
   (
     set -e
     cd "${TEST_DIR}/pki"
+    export EASYRSA_KEY_SIZE=4096
+
     # shellcheck disable=SC1091
     if [ -e pkitool ]; then
         . ./vars
