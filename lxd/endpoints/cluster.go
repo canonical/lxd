@@ -11,7 +11,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
-// ClusterAddress returns the cluster addresss of the cluster endpoint, or an
+// ClusterAddress returns the cluster address of the cluster endpoint, or an
 // empty string if there's no cluster endpoint.
 func (e *Endpoints) ClusterAddress() string {
 	e.mu.RLock()
