@@ -78,21 +78,17 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost, clien
 	// so that it doesn't need to be explicitly called in every failing
 	// return path. Track whether or not we want to undo the changes
 	// using a closure.
-	tryUndo := true
-	defer func() {
-		if !tryUndo {
-			return
-		}
+	revert := revert.New()
+	defer revert.Fail()
 
-		dbStoragePoolDeleteAndUpdateCache(state, req.Name)
-	}()
+	revert.Add(func() { dbStoragePoolDeleteAndUpdateCache(state, req.Name) })
 
 	_, err = storagePoolCreateLocal(state, id, req, clientType)
 	if err != nil {
 		return err
 	}
 
-	tryUndo = false
+	revert.Success()
 	return nil
 }
 
