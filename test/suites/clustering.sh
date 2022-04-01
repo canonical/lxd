@@ -3363,8 +3363,8 @@ test_clustering_events() {
   done
 
   # Switch into event-hub mode.
-  printf "roles: [\"database\", \"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_ONE_DIR}" lxc cluster edit node1
-  printf "roles: [\"database\", \"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_TWO_DIR}" lxc cluster edit node2
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role add node1 event-hub
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role add node2 event-hub
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub | grep -Fx 2
 
@@ -3397,7 +3397,7 @@ test_clustering_events() {
   done
 
   # Switch into full-mesh mode by removing one event-hub role so there is <2 in the cluster.
-  printf "roles: [\"database\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_ONE_DIR}" lxc cluster edit node1
+  LXD_DIR="${LXD_ONE_DIR}" lxc cluster role remove node1 event-hub
   LXD_DIR="${LXD_ONE_DIR}" lxc cluster list | grep -Fc event-hub | grep -Fx 1
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
@@ -3422,9 +3422,9 @@ test_clustering_events() {
   done
 
   # Switch back into event-hub mode by giving the role to node4 and node5.
-  printf "roles: [\"database\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_TWO_DIR}" lxc cluster edit node2
-  printf "roles: [\"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_FOUR_DIR}" lxc cluster edit node4
-  printf "roles: [\"event-hub\"]\nfailure_domain: \"default\"\ngroups: [\"default\"]"  | LXD_DIR="${LXD_FIVE_DIR}" lxc cluster edit node5
+  LXD_DIR="${LXD_TWO_DIR}" lxc cluster role remove node2 event-hub
+  LXD_DIR="${LXD_FOUR_DIR}" lxc cluster role add node4 event-hub
+  LXD_DIR="${LXD_FIVE_DIR}" lxc cluster role add node5 event-hub
 
   sleep 1 # Wait for notification heartbeat to distribute new roles.
   LXD_DIR="${LXD_ONE_DIR}" lxc info | grep -F "server_event_mode: hub-client"
