@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-03-31 13:32-0400\n"
+"POT-Creation-Date: 2022-04-01 18:00+0100\n"
 "PO-Revision-Date: 2022-03-10 15:07+0000\n"
 "Last-Translator: Luigi Operoso <brokenpip3@gmail.com>\n"
 "Language-Team: Italian <https://hosted.weblate.org/projects/linux-containers/"
@@ -477,7 +477,7 @@ msgstr ""
 "###   source: /home/chb/mnt/lxd_test/default.img\n"
 "###   zfs.pool_name: default"
 
-#: lxc/cluster.go:605
+#: lxc/cluster.go:608
 msgid ""
 "### This is a yaml representation of the cluster member.\n"
 "### Any line starting with a '# will be ignored."
@@ -629,7 +629,7 @@ msgstr "ALIAS"
 msgid "ALIASES"
 msgstr "ALIAS"
 
-#: lxc/cluster.go:178 lxc/image.go:1041 lxc/list.go:556
+#: lxc/cluster.go:181 lxc/image.go:1041 lxc/list.go:556
 msgid "ARCHITECTURE"
 msgstr "ARCHITETTURA"
 
@@ -708,6 +708,11 @@ msgstr ""
 msgid "Add profiles to instances"
 msgstr ""
 
+#: lxc/cluster_role.go:48 lxc/cluster_role.go:49
+#, fuzzy
+msgid "Add roles to a cluster member"
+msgstr "Il nome del container è: %s"
+
 #: lxc/network_acl.go:727 lxc/network_acl.go:728
 msgid "Add rules to an ACL"
 msgstr ""
@@ -755,7 +760,7 @@ msgstr "Architettura: %s"
 msgid "Architecture: %v"
 msgstr "Architettura: %s"
 
-#: lxc/cluster.go:1111
+#: lxc/cluster.go:1114
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
@@ -1086,7 +1091,7 @@ msgstr ""
 msgid "Cluster group %s renamed to %s"
 msgstr ""
 
-#: lxc/cluster.go:932
+#: lxc/cluster.go:935
 #, c-format
 msgid "Cluster join token for %s:%s deleted"
 msgstr ""
@@ -1101,7 +1106,7 @@ msgstr ""
 msgid "Cluster member %s removed from group %s"
 msgstr ""
 
-#: lxc/cluster.go:707 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
+#: lxc/cluster.go:710 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
 #: lxc/config.go:617 lxc/config.go:736 lxc/copy.go:53 lxc/info.go:47
 #: lxc/init.go:54 lxc/move.go:58 lxc/network.go:288 lxc/network.go:706
 #: lxc/network.go:764 lxc/network.go:1101 lxc/network.go:1168
@@ -1121,7 +1126,7 @@ msgstr ""
 msgid "Cluster member name"
 msgstr ""
 
-#: lxc/cluster.go:579
+#: lxc/cluster.go:582
 msgid "Clustering enabled"
 msgstr ""
 
@@ -1162,7 +1167,7 @@ msgstr ""
 msgid "Config key/value to apply to the target instance"
 msgstr ""
 
-#: lxc/cluster.go:674 lxc/cluster_group.go:333 lxc/config.go:258
+#: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:258
 #: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:302
 #: lxc/image.go:454 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
@@ -1265,27 +1270,27 @@ msgstr ""
 msgid "Could not create server cert dir"
 msgstr ""
 
-#: lxc/cluster.go:996
+#: lxc/cluster.go:999
 #, fuzzy, c-format
 msgid "Could not find certificate file path: %s"
 msgstr "Certificato del client salvato dal server: "
 
-#: lxc/cluster.go:1000
+#: lxc/cluster.go:1003
 #, c-format
 msgid "Could not find certificate key file path: %s"
 msgstr ""
 
-#: lxc/cluster.go:1005
+#: lxc/cluster.go:1008
 #, fuzzy, c-format
 msgid "Could not read certificate file: %s with error: %v"
 msgstr "Certificato del client salvato dal server: "
 
-#: lxc/cluster.go:1010
+#: lxc/cluster.go:1013
 #, fuzzy, c-format
 msgid "Could not read certificate key file: %s with error: %v"
 msgstr "Certificato del client salvato dal server: "
 
-#: lxc/cluster.go:1027
+#: lxc/cluster.go:1030
 #, c-format
 msgid "Could not write new remote certificate for remote '%s' with error: %v"
 msgstr ""
@@ -1413,7 +1418,7 @@ msgstr ""
 msgid "DEFAULT TARGET ADDRESS"
 msgstr ""
 
-#: lxc/cluster.go:180 lxc/cluster_group.go:428 lxc/image.go:1040
+#: lxc/cluster.go:183 lxc/cluster_group.go:428 lxc/image.go:1040
 #: lxc/image_alias.go:237 lxc/list.go:559 lxc/network.go:956
 #: lxc/network_acl.go:149 lxc/network_forward.go:145 lxc/network_peer.go:141
 #: lxc/network_zone.go:139 lxc/network_zone.go:702 lxc/operation.go:163
@@ -1523,14 +1528,15 @@ msgstr ""
 
 #: lxc/action.go:31 lxc/action.go:50 lxc/action.go:70 lxc/action.go:91
 #: lxc/alias.go:22 lxc/alias.go:57 lxc/alias.go:103 lxc/alias.go:147
-#: lxc/alias.go:198 lxc/cluster.go:30 lxc/cluster.go:116 lxc/cluster.go:198
-#: lxc/cluster.go:247 lxc/cluster.go:294 lxc/cluster.go:346 lxc/cluster.go:375
-#: lxc/cluster.go:425 lxc/cluster.go:508 lxc/cluster.go:593 lxc/cluster.go:706
-#: lxc/cluster.go:776 lxc/cluster.go:874 lxc/cluster.go:953 lxc/cluster.go:1059
-#: lxc/cluster.go:1078 lxc/cluster_group.go:30 lxc/cluster_group.go:79
+#: lxc/alias.go:198 lxc/cluster.go:30 lxc/cluster.go:119 lxc/cluster.go:201
+#: lxc/cluster.go:250 lxc/cluster.go:297 lxc/cluster.go:349 lxc/cluster.go:378
+#: lxc/cluster.go:428 lxc/cluster.go:511 lxc/cluster.go:596 lxc/cluster.go:709
+#: lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1062
+#: lxc/cluster.go:1081 lxc/cluster_group.go:30 lxc/cluster_group.go:79
 #: lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261
 #: lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518
-#: lxc/cluster_group.go:564 lxc/config.go:30 lxc/config.go:92 lxc/config.go:363
+#: lxc/cluster_group.go:564 lxc/cluster_role.go:23 lxc/cluster_role.go:49
+#: lxc/cluster_role.go:103 lxc/config.go:30 lxc/config.go:92 lxc/config.go:363
 #: lxc/config.go:455 lxc/config.go:613 lxc/config.go:733
 #: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:196
 #: lxc/config_device.go:274 lxc/config_device.go:345 lxc/config_device.go:438
@@ -1726,7 +1732,7 @@ msgstr "Utilizzo disco:"
 msgid "Display instances from all projects"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:430
+#: lxc/cluster.go:433
 msgid "Don't require user confirmation for using --force"
 msgstr ""
 
@@ -1765,7 +1771,7 @@ msgstr ""
 msgid "Edit a cluster group"
 msgstr ""
 
-#: lxc/cluster.go:592 lxc/cluster.go:593
+#: lxc/cluster.go:595 lxc/cluster.go:596
 msgid "Edit cluster member configurations as YAML"
 msgstr ""
 
@@ -1842,11 +1848,11 @@ msgstr ""
 msgid "Empty column entry (redundant, leading or trailing command) in '%s'"
 msgstr ""
 
-#: lxc/cluster.go:507
+#: lxc/cluster.go:510
 msgid "Enable clustering on a single non-clustered LXD server"
 msgstr ""
 
-#: lxc/cluster.go:508
+#: lxc/cluster.go:511
 msgid ""
 "Enable clustering on a single non-clustered LXD server\n"
 "\n"
@@ -1878,12 +1884,12 @@ msgstr ""
 msgid "Error updating template file: %s"
 msgstr ""
 
-#: lxc/cluster.go:1058 lxc/cluster.go:1059
+#: lxc/cluster.go:1061 lxc/cluster.go:1062
 #, fuzzy
 msgid "Evacuate cluster member"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:1135
+#: lxc/cluster.go:1138
 #, fuzzy, c-format
 msgid "Evacuating cluster member: %s"
 msgstr "Il nome del container è: %s"
@@ -1964,7 +1970,7 @@ msgstr "Creazione del container in corso"
 msgid "Exporting the image: %s"
 msgstr ""
 
-#: lxc/cluster.go:179
+#: lxc/cluster.go:182
 msgid "FAILURE DOMAIN"
 msgstr ""
 
@@ -2099,7 +2105,7 @@ msgstr "'%s' non è un tipo di file supportato."
 msgid "Fingerprint: %s"
 msgstr ""
 
-#: lxc/cluster.go:1086
+#: lxc/cluster.go:1089
 msgid "Force evacuation without user confirmation"
 msgstr ""
 
@@ -2107,7 +2113,7 @@ msgstr ""
 msgid "Force pseudo-terminal allocation"
 msgstr ""
 
-#: lxc/cluster.go:429
+#: lxc/cluster.go:432
 msgid "Force removing a member, even if degraded"
 msgstr ""
 
@@ -2123,7 +2129,7 @@ msgstr ""
 msgid "Force using the local unix socket"
 msgstr ""
 
-#: lxc/cluster.go:437
+#: lxc/cluster.go:440
 #, c-format
 msgid ""
 "Forcefully removing a server from the cluster should only be done as a last\n"
@@ -2147,7 +2153,7 @@ msgid ""
 "Are you really sure you want to force removing %s? (yes/no): "
 msgstr ""
 
-#: lxc/alias.go:105 lxc/cluster.go:118 lxc/cluster.go:777
+#: lxc/alias.go:105 lxc/cluster.go:121 lxc/cluster.go:780
 #: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:338
 #: lxc/config_trust.go:419 lxc/image.go:1027 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:888 lxc/network.go:978 lxc/network_acl.go:99
@@ -2222,7 +2228,7 @@ msgstr ""
 msgid "Get runtime information on networks"
 msgstr ""
 
-#: lxc/cluster.go:246
+#: lxc/cluster.go:249
 #, fuzzy
 msgid "Get values for cluster member configuration keys"
 msgstr "Il nome del container è: %s"
@@ -2652,7 +2658,7 @@ msgstr ""
 msgid "LXD automatically uses either spicy or remote-viewer when present."
 msgstr ""
 
-#: lxc/cluster.go:152 lxc/cluster.go:811 lxc/cluster.go:901 lxc/cluster.go:992
+#: lxc/cluster.go:155 lxc/cluster.go:814 lxc/cluster.go:904 lxc/cluster.go:995
 #: lxc/cluster_group.go:410
 msgid "LXD server isn't part of a cluster"
 msgstr ""
@@ -2695,7 +2701,7 @@ msgstr "Alias:"
 msgid "List all active certificate add tokens"
 msgstr "Il nome del container è: %s"
 
-#: lxc/cluster.go:775 lxc/cluster.go:776
+#: lxc/cluster.go:778 lxc/cluster.go:779
 #, fuzzy
 msgid "List all active cluster member join tokens"
 msgstr "Il nome del container è: %s"
@@ -2705,7 +2711,7 @@ msgstr "Il nome del container è: %s"
 msgid "List all the cluster groups"
 msgstr "Il nome del container è: %s"
 
-#: lxc/cluster.go:115 lxc/cluster.go:116
+#: lxc/cluster.go:118 lxc/cluster.go:119
 msgid "List all the cluster members"
 msgstr ""
 
@@ -3025,7 +3031,7 @@ msgstr ""
 msgid "MEMORY USAGE%"
 msgstr ""
 
-#: lxc/cluster.go:182
+#: lxc/cluster.go:185
 msgid "MESSAGE"
 msgstr ""
 
@@ -3065,6 +3071,11 @@ msgstr ""
 #: lxc/cluster.go:29 lxc/cluster.go:30
 msgid "Manage cluster members"
 msgstr ""
+
+#: lxc/cluster_role.go:22 lxc/cluster_role.go:23
+#, fuzzy
+msgid "Manage cluster roles"
+msgstr "Il nome del container è: %s"
 
 #: lxc/alias.go:21 lxc/alias.go:22
 msgid "Manage command aliases"
@@ -3176,8 +3187,8 @@ msgstr ""
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect "
-"\"custom\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect \"custom"
+"\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -3202,17 +3213,27 @@ msgstr ""
 msgid "Mdev profiles:"
 msgstr ""
 
-#: lxc/cluster.go:757
+#: lxc/cluster_role.go:84
+#, c-format
+msgid "Member %q already has role %q"
+msgstr ""
+
+#: lxc/cluster_role.go:138
+#, c-format
+msgid "Member %q does not have role %q"
+msgstr ""
+
+#: lxc/cluster.go:760
 #, c-format
 msgid "Member %s join token:"
 msgstr ""
 
-#: lxc/cluster.go:492
+#: lxc/cluster.go:495
 #, c-format
 msgid "Member %s removed"
 msgstr ""
 
-#: lxc/cluster.go:405
+#: lxc/cluster.go:408
 #, c-format
 msgid "Member %s renamed to %s"
 msgstr ""
@@ -3257,8 +3278,8 @@ msgstr ""
 msgid "Missing cluster group name"
 msgstr "Il nome del container è: %s"
 
-#: lxc/cluster.go:626 lxc/cluster.go:1107 lxc/cluster_group.go:110
-#: lxc/cluster_group.go:469
+#: lxc/cluster.go:629 lxc/cluster.go:1110 lxc/cluster_group.go:110
+#: lxc/cluster_group.go:469 lxc/cluster_role.go:71 lxc/cluster_role.go:125
 #, fuzzy
 msgid "Missing cluster member name"
 msgstr "Il nome del container è: %s"
@@ -3448,7 +3469,7 @@ msgstr ""
 msgid "Must supply instance name for: "
 msgstr ""
 
-#: lxc/cluster.go:175 lxc/cluster.go:857 lxc/cluster_group.go:427
+#: lxc/cluster.go:178 lxc/cluster.go:860 lxc/cluster_group.go:427
 #: lxc/config_trust.go:394 lxc/config_trust.go:489 lxc/list.go:567
 #: lxc/network.go:951 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:623
@@ -3627,7 +3648,7 @@ msgstr ""
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
 
-#: lxc/cluster.go:939
+#: lxc/cluster.go:942
 #, c-format
 msgid "No cluster join token for member %s on remote: %s"
 msgstr ""
@@ -3792,7 +3813,7 @@ msgstr ""
 msgid "Please provide client name: "
 msgstr ""
 
-#: lxc/cluster.go:731
+#: lxc/cluster.go:734
 #, fuzzy
 msgid "Please provide cluster member name: "
 msgstr "Il nome del container è: %s"
@@ -3814,7 +3835,7 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/cluster.go:675 lxc/cluster_group.go:334 lxc/config.go:259
+#: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:259
 #: lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206
 #: lxc/config_trust.go:303 lxc/image.go:455 lxc/network.go:675
 #: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
@@ -3983,7 +4004,7 @@ msgstr ""
 msgid "RESOURCE"
 msgstr ""
 
-#: lxc/cluster.go:177
+#: lxc/cluster.go:180
 msgid "ROLES"
 msgstr ""
 
@@ -4067,7 +4088,7 @@ msgstr ""
 msgid "Remove a cluster member from a cluster group"
 msgstr "Il nome del container è: %s"
 
-#: lxc/cluster.go:424 lxc/cluster.go:425
+#: lxc/cluster.go:427 lxc/cluster.go:428
 msgid "Remove a member from the cluster"
 msgstr ""
 
@@ -4113,6 +4134,11 @@ msgstr ""
 msgid "Remove remotes"
 msgstr ""
 
+#: lxc/cluster_role.go:102 lxc/cluster_role.go:103
+#, fuzzy
+msgid "Remove roles from a cluster member"
+msgstr "Il nome del container è: %s"
+
 #: lxc/network_acl.go:848 lxc/network_acl.go:849
 msgid "Remove rules from an ACL"
 msgstr ""
@@ -4125,7 +4151,7 @@ msgstr ""
 msgid "Rename a cluster group"
 msgstr ""
 
-#: lxc/cluster.go:374 lxc/cluster.go:375
+#: lxc/cluster.go:377 lxc/cluster.go:378
 msgid "Rename a cluster member"
 msgstr ""
 
@@ -4177,7 +4203,7 @@ msgstr ""
 msgid "Render: %s (%s)"
 msgstr ""
 
-#: lxc/cluster.go:705 lxc/cluster.go:706
+#: lxc/cluster.go:708 lxc/cluster.go:709
 msgid "Request a join token for adding a cluster member"
 msgstr ""
 
@@ -4201,7 +4227,7 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr ""
 
-#: lxc/cluster.go:1077 lxc/cluster.go:1078
+#: lxc/cluster.go:1080 lxc/cluster.go:1081
 #, fuzzy
 msgid "Restore cluster member"
 msgstr "Il nome del container è: %s"
@@ -4222,7 +4248,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr ""
 
-#: lxc/cluster.go:1133
+#: lxc/cluster.go:1136
 #, fuzzy, c-format
 msgid "Restoring cluster member: %s"
 msgstr "Il nome del container è: %s"
@@ -4245,7 +4271,7 @@ msgstr ""
 msgid "Revoke certificate add token"
 msgstr "Il nome del container è: %s"
 
-#: lxc/cluster.go:873
+#: lxc/cluster.go:876
 #, fuzzy
 msgid "Revoke cluster member join token"
 msgstr "Il nome del container è: %s"
@@ -4284,7 +4310,7 @@ msgstr ""
 msgid "SSH client disconnected %q"
 msgstr ""
 
-#: lxc/cluster.go:181 lxc/list.go:572 lxc/network.go:958
+#: lxc/cluster.go:184 lxc/list.go:572 lxc/network.go:958
 #: lxc/network_peer.go:143 lxc/storage.go:583
 msgid "STATE"
 msgstr ""
@@ -4334,7 +4360,7 @@ msgstr ""
 msgid "Server version: %s\n"
 msgstr ""
 
-#: lxc/cluster.go:293
+#: lxc/cluster.go:296
 #, fuzzy
 msgid "Set a cluster member's configuration keys"
 msgstr "Il nome del container è: %s"
@@ -4542,7 +4568,7 @@ msgstr "Il nome del container è: %s"
 msgid "Show content of instance file templates"
 msgstr ""
 
-#: lxc/cluster.go:197 lxc/cluster.go:198
+#: lxc/cluster.go:200 lxc/cluster.go:201
 msgid "Show details of a cluster member"
 msgstr ""
 
@@ -4803,7 +4829,7 @@ msgstr ""
 msgid "Store the instance state"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:1032
+#: lxc/cluster.go:1035
 #, c-format
 msgid "Successfully updated cluster certificates for remote %s"
 msgstr ""
@@ -4838,7 +4864,7 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:858 lxc/config_trust.go:490
+#: lxc/cluster.go:861 lxc/config_trust.go:490
 msgid "TOKEN"
 msgstr ""
 
@@ -4915,7 +4941,7 @@ msgstr ""
 msgid "The instance you are starting doesn't have any network attached to it."
 msgstr ""
 
-#: lxc/cluster.go:277
+#: lxc/cluster.go:280
 #, fuzzy, c-format
 msgid "The key %q does not exist on cluster member %q"
 msgstr "Il nome del container è: %s"
@@ -4956,11 +4982,11 @@ msgstr ""
 msgid "There is no \"image name\".  Did you want an alias?"
 msgstr ""
 
-#: lxc/cluster.go:562
+#: lxc/cluster.go:565
 msgid "This LXD server is already clustered"
 msgstr ""
 
-#: lxc/cluster.go:552
+#: lxc/cluster.go:555
 #, fuzzy
 msgid "This LXD server is not available on the network"
 msgstr "Import da directory non disponibile su questa piattaforma"
@@ -5087,7 +5113,7 @@ msgstr ""
 msgid "UPLOAD DATE"
 msgstr ""
 
-#: lxc/cluster.go:176 lxc/remote.go:675
+#: lxc/cluster.go:179 lxc/remote.go:675
 msgid "URL"
 msgstr ""
 
@@ -5151,7 +5177,7 @@ msgstr ""
 msgid "Unknown output type %q"
 msgstr ""
 
-#: lxc/cluster.go:345
+#: lxc/cluster.go:348
 #, fuzzy
 msgid "Unset a cluster member's configuration keys"
 msgstr "Il nome del container è: %s"
@@ -5233,12 +5259,12 @@ msgstr ""
 msgid "Up delay"
 msgstr ""
 
-#: lxc/cluster.go:952
+#: lxc/cluster.go:955
 #, fuzzy
 msgid "Update cluster certificate"
 msgstr "Accetta certificato"
 
-#: lxc/cluster.go:954
+#: lxc/cluster.go:957
 msgid ""
 "Update cluster certificate with PEM certificate and key read from input "
 "files."
@@ -5277,7 +5303,7 @@ msgstr ""
 msgid "User ID to run the command as (default 0)"
 msgstr ""
 
-#: lxc/cluster.go:456 lxc/delete.go:48
+#: lxc/cluster.go:459 lxc/delete.go:48
 msgid "User aborted delete operation"
 msgstr ""
 
@@ -5379,7 +5405,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:113 lxc/cluster.go:774 lxc/cluster_group.go:371
+#: lxc/cluster.go:116 lxc/cluster.go:777 lxc/cluster_group.go:371
 #: lxc/config_trust.go:333 lxc/config_trust.go:415 lxc/monitor.go:31
 #: lxc/network.go:881 lxc/network_acl.go:93 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
@@ -5393,7 +5419,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:] <backup file> [<instance name>]"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:950
+#: lxc/cluster.go:953
 #, fuzzy
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr "Creazione del container in corso"
@@ -5403,7 +5429,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:] <fingerprint>"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:506
+#: lxc/cluster.go:509
 #, fuzzy
 msgid "[<remote>:] <name>"
 msgstr "Creazione del container in corso"
@@ -5499,7 +5525,7 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<alias> <new-name>"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:591
+#: lxc/cluster.go:594
 #, fuzzy
 msgid "[<remote>:]<cluster member>"
 msgstr "Creazione del container in corso"
@@ -5668,8 +5694,8 @@ msgid ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:196 lxc/cluster.go:422 lxc/cluster.go:872 lxc/cluster.go:1057
-#: lxc/cluster.go:1076
+#: lxc/cluster.go:199 lxc/cluster.go:425 lxc/cluster.go:875 lxc/cluster.go:1060
+#: lxc/cluster.go:1079
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr "Creazione del container in corso"
@@ -5679,19 +5705,24 @@ msgstr "Creazione del container in corso"
 msgid "[<remote>:]<member> <group>"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:245 lxc/cluster.go:344
+#: lxc/cluster.go:248 lxc/cluster.go:347
 #, fuzzy
 msgid "[<remote>:]<member> <key>"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:292
+#: lxc/cluster.go:295
 #, fuzzy
 msgid "[<remote>:]<member> <key>=<value>..."
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:372
+#: lxc/cluster.go:375
 #, fuzzy
 msgid "[<remote>:]<member> <new-name>"
+msgstr "Creazione del container in corso"
+
+#: lxc/cluster_role.go:47 lxc/cluster_role.go:101
+#, fuzzy
+msgid "[<remote>:]<member> <role[,role...]>"
 msgstr "Creazione del container in corso"
 
 #: lxc/network.go:357 lxc/network.go:578 lxc/network.go:759 lxc/network.go:974
@@ -6030,7 +6061,7 @@ msgstr "Creazione del container in corso"
 msgid "[[<remote>:]<image>] [<remote>:][<name>] [< config"
 msgstr "Creazione del container in corso"
 
-#: lxc/cluster.go:704
+#: lxc/cluster.go:707
 #, fuzzy
 msgid "[[<remote>:]<member>]"
 msgstr "Creazione del container in corso"
@@ -6082,7 +6113,7 @@ msgid ""
 "    Rename existing alias \"list\" to \"my-list\"."
 msgstr ""
 
-#: lxc/cluster.go:595
+#: lxc/cluster.go:598
 msgid ""
 "lxc cluster edit <cluster member> < member.yaml\n"
 "    Update a cluster member using the content of member.yaml"
@@ -6313,8 +6344,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called "
-"\"data\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called \"data"
+"\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
@@ -6371,16 +6402,16 @@ msgstr ""
 msgid "y"
 msgstr ""
 
-#: lxc/cluster.go:455 lxc/delete.go:47 lxc/image.go:907 lxc/image.go:912
+#: lxc/cluster.go:458 lxc/delete.go:47 lxc/image.go:907 lxc/image.go:912
 #: lxc/image.go:1095
 msgid "yes"
 msgstr "si"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Il nome del container è: %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Accetta certificato"
 
@@ -6481,11 +6512,10 @@ msgstr "si"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificato del client salvato dal server: "
 
-#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Impossible leggere da stdin: %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "Invalid key=value configuration: %s"
 #~ msgstr "Proprietà errata: %s"
 
@@ -6493,6 +6523,6 @@ msgstr "si"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Il nome del container è: %s"
 
-#, fuzzy, c-format
+#, fuzzy
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Il nome del container è: %s"
