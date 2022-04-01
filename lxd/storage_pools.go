@@ -486,6 +486,13 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 
 		nodeReq := req
 
+		// Clone fresh node config so we don't modify req.Config with this node's specific config which
+		// could result in it being sent to other nodes later.
+		nodeReq.Config = make(map[string]string, len(req.Config))
+		for k, v := range req.Config {
+			nodeReq.Config[k] = v
+		}
+
 		// Merge node specific config items into global config.
 		for key, value := range configs[server.Environment.ServerName] {
 			nodeReq.Config[key] = value
