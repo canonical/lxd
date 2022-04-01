@@ -1651,3 +1651,6 @@ Adds the `security.syscalls.intercept.sched_setscheduler` to allow advanced proc
 Introduces the ability to specify the thinpool metadata volume size via `storage.thinpool_metadata_size`.
 
 If this is not specified then the default is to let LVM pick an appropriate thinpool metadata volume size.
+
+## storage\_volume\_state\_total
+This adds 'total' field to the `GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/state` API.
