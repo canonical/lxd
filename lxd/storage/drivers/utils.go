@@ -857,3 +857,24 @@ func BlockDiskSizeBytes(blockDiskPath string) (int64, error) {
 func OperationLockName(operationName string, poolName string, volType VolumeType, contentType ContentType, volName string) string {
 	return fmt.Sprintf("%s/%s/%s/%s/%s", operationName, poolName, volType, contentType, volName)
 }
+
+// loopFileSizeDefault returns the size in Gigabytes to use as the default size for a pool loop file.
+// This is based on the free space available in LXD's VarPath().
+func loopFileSizeDefault() (uint64, error) {
+	st := unix.Statfs_t{}
+	err := unix.Statfs(shared.VarPath(), &st)
+	if err != nil {
+		return 0, fmt.Errorf("Couldn't statfs %q: %w", shared.VarPath(), err)
+	}
+
+	/* choose 5 GB < x < 30GB, where x is 20% of the disk size */
+	defaultSize := uint64(st.Frsize) * st.Blocks / (1024 * 1024 * 1024) / 5
+	if defaultSize > 30 {
+		defaultSize = 30
+	}
+	if defaultSize < 5 {
+		defaultSize = 5
+	}
+
+	return defaultSize, nil
+}
