@@ -8,7 +8,6 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -93,32 +92,8 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Make a copy of the req for later diff.
-	var updatedReq api.StoragePoolsPost
-	shared.DeepCopy(&req, &updatedReq)
-
-	// Make sure that we don't pass a nil to the next function.
-	if updatedReq.Config == nil {
-		updatedReq.Config = map[string]string{}
-	}
-
-	// Fill in the node specific defaults.
-	err := storagePoolFillDefault(updatedReq.Name, updatedReq.Driver, updatedReq.Config)
-	if err != nil {
-		return nil, err
-	}
-
-	configDiff, _ := storagePools.ConfigDiff(req.Config, updatedReq.Config)
-	if len(configDiff) > 0 {
-		// Update the database entry for the storage pool.
-		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedReq.Config)
-		if err != nil {
-			return nil, fmt.Errorf("Error updating storage pool config after local fill defaults for %q: %w", req.Name, err)
-		}
-	}
-
 	// Load pool record.
-	pool, err := storagePools.LoadByName(state, updatedReq.Name)
+	pool, err := storagePools.LoadByName(state, req.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +122,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	// reflect this change. This can e.g. happen, when we create a loop file image. This means we append ".img"
 	// to the path the user gave us and update the config in the storage callback. So diff the config here to
 	// see if something like this has happened.
-	configDiff, _ = storagePools.ConfigDiff(updatedReq.Config, pool.Driver().Config())
+	configDiff, _ := storagePools.ConfigDiff(req.Config, pool.Driver().Config())
 	if len(configDiff) > 0 {
 		// Update the database entry for the storage pool.
 		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, pool.Driver().Config())
