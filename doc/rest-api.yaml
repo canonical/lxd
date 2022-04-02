@@ -5631,7 +5631,7 @@ paths:
                 example: sync
                 type: string
             type: object
-      summary: Get the supported API enpoints
+      summary: Get the supported API endpoints
       tags:
       - server
   /1.0:
