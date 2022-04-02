@@ -16,7 +16,6 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/resources"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -828,7 +827,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 		}
 
 		// Check valid listen port(s) supplied.
-		listenPortRanges := util.SplitNTrimSpace(portSpec.ListenPort, ",", -1, true)
+		listenPortRanges := shared.SplitNTrimSpace(portSpec.ListenPort, ",", -1, true)
 		if len(listenPortRanges) <= 0 {
 			return nil, fmt.Errorf("Missing listen port in port specification %d", portSpecID)
 		}
@@ -857,7 +856,7 @@ func (n *common) forwardValidate(listenAddress net.IP, forward *api.NetworkForwa
 		}
 
 		// Check valid target port(s) supplied.
-		targetPortRanges := util.SplitNTrimSpace(portSpec.TargetPort, ",", -1, true)
+		targetPortRanges := shared.SplitNTrimSpace(portSpec.TargetPort, ",", -1, true)
 
 		if len(targetPortRanges) > 0 {
 			// Target ports can be at maximum the same length as listen ports.
@@ -1044,7 +1043,7 @@ func (n *common) peerUsedBy(peerName string, firstOnly bool) ([]string, error) {
 
 	rulesUsePeer := func(rules []api.NetworkACLRule) bool {
 		for _, rule := range rules {
-			for _, subject := range util.SplitNTrimSpace(rule.Source, ",", -1, true) {
+			for _, subject := range shared.SplitNTrimSpace(rule.Source, ",", -1, true) {
 				if !strings.HasPrefix(subject, "@") {
 					continue
 				}

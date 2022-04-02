@@ -29,7 +29,6 @@ import (
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -875,7 +874,7 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		// Load restricted groups from project.
 		var allowedGroups []string
 		if !isClusterNotification(r) && shared.IsTrue(targetProject.Config["restricted"]) {
-			allowedGroups = util.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
+			allowedGroups = shared.SplitNTrimSpace(targetProject.Config["restricted.cluster.groups"], ",", -1, true)
 		} else {
 			allowedGroups = nil
 		}

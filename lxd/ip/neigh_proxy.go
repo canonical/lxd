@@ -4,7 +4,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -21,7 +20,7 @@ func (n *NeighProxy) Show() ([]NeighProxy, error) {
 		return nil, err
 	}
 
-	lines := util.SplitNTrimSpace(out, "\n", -1, true)
+	lines := shared.SplitNTrimSpace(out, "\n", -1, true)
 	entries := make([]NeighProxy, 0, len(lines))
 
 	for _, line := range lines {

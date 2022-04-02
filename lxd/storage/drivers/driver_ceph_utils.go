@@ -16,7 +16,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
@@ -95,7 +94,7 @@ func (d *ceph) rbdCreateVolume(vol Volume, size string) error {
 	}
 
 	if d.config["ceph.rbd.features"] != "" {
-		for _, feature := range util.SplitNTrimSpace(d.config["ceph.rbd.features"], ",", -1, true) {
+		for _, feature := range shared.SplitNTrimSpace(d.config["ceph.rbd.features"], ",", -1, true) {
 			cmd = append(cmd, "--image-feature", feature)
 		}
 	} else {
@@ -337,7 +336,7 @@ func (d *ceph) rbdCreateClone(sourceVol Volume, sourceSnapshotName string, targe
 	}
 
 	if d.config["ceph.rbd.features"] != "" {
-		for _, feature := range util.SplitNTrimSpace(d.config["ceph.rbd.features"], ",", -1, true) {
+		for _, feature := range shared.SplitNTrimSpace(d.config["ceph.rbd.features"], ",", -1, true) {
 			cmd = append(cmd, "--image-feature", feature)
 		}
 	} else {
