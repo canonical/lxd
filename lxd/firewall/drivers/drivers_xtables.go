@@ -13,7 +13,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -590,7 +589,7 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 
 	// Add subject filters.
 	if rule.Source != "" {
-		matchArgs, err := d.aclRuleSubjectToACLMatch("source", ipVersion, util.SplitNTrimSpace(rule.Source, ",", -1, false)...)
+		matchArgs, err := d.aclRuleSubjectToACLMatch("source", ipVersion, shared.SplitNTrimSpace(rule.Source, ",", -1, false)...)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -603,7 +602,7 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 	}
 
 	if rule.Destination != "" {
-		matchArgs, err := d.aclRuleSubjectToACLMatch("destination", ipVersion, util.SplitNTrimSpace(rule.Destination, ",", -1, false)...)
+		matchArgs, err := d.aclRuleSubjectToACLMatch("destination", ipVersion, shared.SplitNTrimSpace(rule.Destination, ",", -1, false)...)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -620,11 +619,11 @@ func (d Xtables) aclRuleCriteriaToArgs(networkName string, ipVersion uint, rule 
 		args = append(args, "-p", rule.Protocol)
 
 		if rule.SourcePort != "" {
-			args = append(args, d.aclRulePortToACLMatch("sports", util.SplitNTrimSpace(rule.SourcePort, ",", -1, false)...)...)
+			args = append(args, d.aclRulePortToACLMatch("sports", shared.SplitNTrimSpace(rule.SourcePort, ",", -1, false)...)...)
 		}
 
 		if rule.DestinationPort != "" {
-			args = append(args, d.aclRulePortToACLMatch("dports", util.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...)...)
+			args = append(args, d.aclRulePortToACLMatch("dports", shared.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...)...)
 		}
 	} else if shared.StringInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
 		var icmpIPVersion uint
@@ -1391,7 +1390,7 @@ func (d Xtables) iptablesChainExists(ipVersion uint, table string, chain string)
 		return false, false, nil
 	}
 
-	for _, rule := range util.SplitNTrimSpace(strings.TrimSpace(rules), "\n", -1, true) {
+	for _, rule := range shared.SplitNTrimSpace(strings.TrimSpace(rules), "\n", -1, true) {
 		if strings.HasPrefix(rule, "-A") {
 			return true, true, nil
 		}

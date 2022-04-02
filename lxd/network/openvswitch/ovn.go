@@ -9,7 +9,6 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -636,7 +635,7 @@ func (o *OVN) logicalSwitchFindAssociatedPortGroups(switchName OVNSwitch) ([]OVN
 		return nil, err
 	}
 
-	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	lines := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	portGroups := make([]OVNPortGroup, 0, len(lines))
 
 	for _, line := range lines {
@@ -891,7 +890,7 @@ func (o *OVN) logicalSwitchDNSRecordsDelete(switchName OVNSwitch) error {
 
 	args := []string{}
 
-	for _, uuid := range util.SplitNTrimSpace(strings.TrimSpace(uuids), "\n", -1, true) {
+	for _, uuid := range shared.SplitNTrimSpace(strings.TrimSpace(uuids), "\n", -1, true) {
 		if len(args) > 0 {
 			args = append(args, "--")
 		}
@@ -939,7 +938,7 @@ func (o *OVN) logicalSwitchPortACLRules(portName OVNSwitchPort) ([]string, error
 		return nil, err
 	}
 
-	ruleUUIDs := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	ruleUUIDs := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 
 	return ruleUUIDs, nil
 }
@@ -952,7 +951,7 @@ func (o *OVN) LogicalSwitchPorts(switchName OVNSwitch) (map[OVNSwitchPort]OVNSwi
 		return nil, err
 	}
 
-	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	lines := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	ports := make(map[OVNSwitchPort]OVNSwitchPortUUID, len(lines))
 
 	for _, line := range lines {
@@ -980,7 +979,7 @@ func (o *OVN) LogicalSwitchPortUUID(portName OVNSwitchPort) (OVNSwitchPortUUID, 
 		return "", err
 	}
 
-	portParts := util.SplitNTrimSpace(portInfo, ",", 2, false)
+	portParts := shared.SplitNTrimSpace(portInfo, ",", 2, false)
 	if len(portParts) == 2 {
 		if portParts[1] == string(portName) {
 			return OVNSwitchPortUUID(portParts[0]), nil
@@ -1410,10 +1409,10 @@ func (o *OVN) PortGroupInfo(portGroupName OVNPortGroup) (OVNPortGroupUUID, bool,
 		return "", false, err
 	}
 
-	groupParts := util.SplitNTrimSpace(groupInfo, ",", 3, true)
+	groupParts := shared.SplitNTrimSpace(groupInfo, ",", 3, true)
 	if len(groupParts) == 3 {
 		if groupParts[1] == string(portGroupName) {
-			aclParts := util.SplitNTrimSpace(groupParts[2], ",", -1, true)
+			aclParts := shared.SplitNTrimSpace(groupParts[2], ",", -1, true)
 
 			return OVNPortGroupUUID(groupParts[0]), len(aclParts) > 0, nil
 		}
@@ -1480,7 +1479,7 @@ func (o *OVN) PortGroupListByProject(projectID int64) ([]OVNPortGroup, error) {
 		return nil, err
 	}
 
-	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	lines := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	portGroups := make([]OVNPortGroup, 0, len(lines))
 
 	for _, line := range lines {
@@ -1896,7 +1895,7 @@ func (o *OVN) LogicalRouterRoutes(routerName OVNRouter) ([]OVNRouterRoute, error
 		return nil, err
 	}
 
-	lines := util.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
+	lines := shared.SplitNTrimSpace(strings.TrimSpace(output), "\n", -1, true)
 	routes := make([]OVNRouterRoute, 0)
 
 	mainTable := true // Assume output starts with main table (supports ovn versions without multiple tables).

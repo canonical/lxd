@@ -962,7 +962,7 @@ func projectValidateName(name string) error {
 // projectValidateRestrictedSubnets checks that the project's restricted.networks.subnets are properly formatted
 // and are within the specified uplink network's routes.
 func projectValidateRestrictedSubnets(s *state.State, value string) error {
-	for _, subnetRaw := range util.SplitNTrimSpace(value, ",", -1, false) {
+	for _, subnetRaw := range shared.SplitNTrimSpace(value, ",", -1, false) {
 		subnetParts := strings.SplitN(subnetRaw, ":", 2)
 		if len(subnetParts) != 2 {
 			return fmt.Errorf(`Subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
@@ -993,7 +993,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 				continue
 			}
 
-			uplinkRoutes, err = network.SubnetParseAppend(uplinkRoutes, util.SplitNTrimSpace(uplink.Config[k], ",", -1, false)...)
+			uplinkRoutes, err = network.SubnetParseAppend(uplinkRoutes, shared.SplitNTrimSpace(uplink.Config[k], ",", -1, false)...)
 			if err != nil {
 				return err
 			}
