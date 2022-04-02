@@ -171,7 +171,7 @@ func (n *ovn) uplinkRoutes(uplink *api.Network) ([]*net.IPNet, error) {
 			continue
 		}
 
-		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, util.SplitNTrimSpace(uplink.Config[k], ",", -1, false)...)
+		uplinkRoutes, err = SubnetParseAppend(uplinkRoutes, shared.SplitNTrimSpace(uplink.Config[k], ",", -1, false)...)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +188,7 @@ func (n *ovn) projectRestrictedSubnets(p *db.Project, uplinkNetworkName string) 
 	if shared.IsTrue(p.Config["restricted"]) && p.Config["restricted.networks.subnets"] != "" {
 		projectRestrictedSubnets = []*net.IPNet{} // Empty slice indicates no allowed subnets.
 
-		for _, subnetRaw := range util.SplitNTrimSpace(p.Config["restricted.networks.subnets"], ",", -1, false) {
+		for _, subnetRaw := range shared.SplitNTrimSpace(p.Config["restricted.networks.subnets"], ",", -1, false) {
 			subnetParts := strings.SplitN(subnetRaw, ":", 2)
 			if len(subnetParts) != 2 {
 				return nil, fmt.Errorf(`Project subnet %q invalid, must be in the format of "<uplink network>:<subnet>"`, subnetRaw)
@@ -569,7 +569,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	// Check Security ACLs exist.
 	if config["security.acls"] != "" {
-		err = acl.Exists(n.state, n.project, util.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(n.state, n.project, shared.SplitNTrimSpace(config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -754,7 +754,7 @@ func (n *ovn) getDomainName() string {
 // getDNSSearchList returns OVN DHCP DNS search list. If no search list set returns getDomainName() as list.
 func (n *ovn) getDNSSearchList() []string {
 	if n.config["dns.search"] != "" {
-		return util.SplitNTrimSpace(n.config["dns.search"], ",", -1, false)
+		return shared.SplitNTrimSpace(n.config["dns.search"], ",", -1, false)
 	}
 
 	return []string{n.getDomainName()}
@@ -891,7 +891,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 		v.dnsIPv4 = nil
 		v.dnsIPv6 = nil
 
-		nsList := util.SplitNTrimSpace(uplinkNetConf["dns.nameservers"], ",", -1, false)
+		nsList := shared.SplitNTrimSpace(uplinkNetConf["dns.nameservers"], ",", -1, false)
 		for _, ns := range nsList {
 			nsIP := net.ParseIP(ns)
 			if nsIP == nil {
@@ -1665,7 +1665,7 @@ func (n *ovn) allowedUplinkNetworks(p *db.Project) ([]string, error) {
 	}
 
 	// Parse the allowed uplinks and return any that are present in the actual defined networks.
-	allowedRestrictedUplinks := util.SplitNTrimSpace(p.Config["restricted.networks.uplinks"], ",", -1, false)
+	allowedRestrictedUplinks := shared.SplitNTrimSpace(p.Config["restricted.networks.uplinks"], ",", -1, false)
 
 	for _, allowedRestrictedUplink := range allowedRestrictedUplinks {
 		if shared.StringInSlice(allowedRestrictedUplink, uplinkNetworkNames) {
@@ -2215,7 +2215,7 @@ func (n *ovn) setup(update bool) error {
 	}
 
 	// Ensure any network assigned security ACL port groups are created ready for instance NICs to use.
-	securityACLS := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+	securityACLS := shared.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
 	if len(securityACLS) > 0 {
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
 		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
@@ -2486,7 +2486,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 		}
 
 		// Check for port groups that will become unused (and need deleting) as this network is deleted.
-		securityACLs := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+		securityACLs := shared.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
 		if len(securityACLs) > 0 {
 			err = acl.OVNPortGroupDeleteIfUnused(n.state, n.logger, client, n.project, &api.Network{Name: n.name}, "")
 			if err != nil {
@@ -2679,7 +2679,7 @@ func (n *ovn) instanceNICGetRoutes(nicConfig map[string]string) []net.IPNet {
 	routeKeys := []string{"ipv4.routes", "ipv4.routes.external", "ipv6.routes", "ipv6.routes.external"}
 
 	for _, key := range routeKeys {
-		for _, routeStr := range util.SplitNTrimSpace(nicConfig[key], ",", -1, true) {
+		for _, routeStr := range shared.SplitNTrimSpace(nicConfig[key], ",", -1, true) {
 			_, route, err := net.ParseCIDR(routeStr)
 			if err != nil {
 				continue // Skip invalid routes (should never happen).
@@ -2760,8 +2760,8 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		}
 
 		// Work out which ACLs have been added and removed.
-		oldACLs := util.SplitNTrimSpace(oldNetwork.Config["security.acls"], ",", -1, true)
-		newACLs := util.SplitNTrimSpace(newNetwork.Config["security.acls"], ",", -1, true)
+		oldACLs := shared.SplitNTrimSpace(oldNetwork.Config["security.acls"], ",", -1, true)
+		newACLs := shared.SplitNTrimSpace(newNetwork.Config["security.acls"], ",", -1, true)
 		removedACLs := []string{}
 		for _, oldACL := range oldACLs {
 			if !shared.StringInSlice(oldACL, newACLs) {
@@ -2811,7 +2811,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 
 		// Apply ACL changes to running instance NICs that use this network.
 		err = usedByInstanceDevices(n.state, n.project, n.name, func(inst db.Instance, nicName string, nicConfig map[string]string) error {
-			nicACLs := util.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
+			nicACLs := shared.SplitNTrimSpace(nicConfig["security.acls"], ",", -1, true)
 
 			// Get logical port UUID and name.
 			instancePortName := n.getInstanceDevicePortName(inst.Config["volatile.uuid"], nicName)
@@ -3000,7 +3000,7 @@ func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) ([]*
 			continue
 		}
 
-		internalRoutes, err = SubnetParseAppend(internalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
+		internalRoutes, err = SubnetParseAppend(internalRoutes, shared.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Invalid %q value: %w", key, err)
 		}
@@ -3012,7 +3012,7 @@ func (n *ovn) instanceDevicePortRoutesParse(deviceConfig map[string]string) ([]*
 			continue
 		}
 
-		externalRoutes, err = SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
+		externalRoutes, err = SubnetParseAppend(externalRoutes, shared.SplitNTrimSpace(deviceConfig[key], ",", -1, false)...)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Invalid %q value: %w", key, err)
 		}
@@ -3428,8 +3428,8 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 	}
 
 	// Merge network and NIC assigned security ACL lists.
-	netACLNames := util.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
-	nicACLNames := util.SplitNTrimSpace(opts.DeviceConfig["security.acls"], ",", -1, true)
+	netACLNames := shared.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
+	nicACLNames := shared.SplitNTrimSpace(opts.DeviceConfig["security.acls"], ",", -1, true)
 
 	for _, aclName := range netACLNames {
 		if !shared.StringInSlice(aclName, nicACLNames) {
@@ -3801,7 +3801,7 @@ func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]
 			// For OVN NICs that are connected to networks that use the same uplink as we do, check
 			// if they have any external routes configured, and if so add them to the list to return.
 			for _, key := range []string{"ipv4.routes.external", "ipv6.routes.external"} {
-				for _, cidr := range util.SplitNTrimSpace(devConfig[key], ",", -1, true) {
+				for _, cidr := range shared.SplitNTrimSpace(devConfig[key], ",", -1, true) {
 					_, ipNet, _ := net.ParseCIDR(cidr)
 					if ipNet == nil {
 						// Sip if NIC device doesn't have a valid route.

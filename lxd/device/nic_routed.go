@@ -215,14 +215,14 @@ func (d *nicRouted) checkIPAvailability(parent string) error {
 	var addresses []net.IP
 
 	if shared.IsTrueOrEmpty(d.config["ipv4.neighbor_probe"]) {
-		ipv4Addrs := util.SplitNTrimSpace(d.config["ipv4.address"], ",", -1, true)
+		ipv4Addrs := shared.SplitNTrimSpace(d.config["ipv4.address"], ",", -1, true)
 		for _, addr := range ipv4Addrs {
 			addresses = append(addresses, net.ParseIP(addr))
 		}
 	}
 
 	if shared.IsTrueOrEmpty(d.config["ipv6.neighbor_probe"]) {
-		ipv6Addrs := util.SplitNTrimSpace(d.config["ipv6.address"], ",", -1, true)
+		ipv6Addrs := shared.SplitNTrimSpace(d.config["ipv6.address"], ",", -1, true)
 		for _, addr := range ipv6Addrs {
 			addresses = append(addresses, net.ParseIP(addr))
 		}
@@ -364,7 +364,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 			ipFamilyArg = ip.FamilyV6
 		}
 
-		addresses := util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+		addresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
 
 		// Add host-side gateway addresses.
 		if len(addresses) > 0 {
@@ -435,7 +435,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		if d.config[fmt.Sprintf("%s.routes", keyPrefix)] != "" {
-			routes := util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.routes", keyPrefix)], ",", -1, true)
+			routes := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.routes", keyPrefix)], ",", -1, true)
 
 			if len(addresses) == 0 {
 				return nil, fmt.Errorf("%s.routes requires %s.address to be set", keyPrefix, keyPrefix)
@@ -476,7 +476,7 @@ func (d *nicRouted) Start() (*deviceConfig.RunConfig, error) {
 		}...)
 
 		for _, keyPrefix := range []string{"ipv4", "ipv6"} {
-			ipAddresses := util.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
+			ipAddresses := shared.SplitNTrimSpace(d.config[fmt.Sprintf("%s.address", keyPrefix)], ",", -1, true)
 
 			// Use a fixed address as the auto next-hop default gateway if using this IP family.
 			if len(ipAddresses) > 0 && nicHasAutoGateway(d.config[fmt.Sprintf("%s.gateway", keyPrefix)]) {
@@ -607,7 +607,7 @@ func (d *nicRouted) postStop() error {
 	// Delete IP neighbour proxy entries on the parent.
 	if d.effectiveParentName != "" {
 		for _, key := range []string{"ipv4.address", "ipv6.address"} {
-			for _, addr := range util.SplitNTrimSpace(d.config[key], ",", -1, true) {
+			for _, addr := range shared.SplitNTrimSpace(d.config[key], ",", -1, true) {
 				neighProxy := &ip.NeighProxy{
 					DevName: d.effectiveParentName,
 					Addr:    net.ParseIP(addr),

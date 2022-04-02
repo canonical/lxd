@@ -8,7 +8,6 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -95,7 +94,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 			return fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
 		}
 
-		netACLNames := util.SplitNTrimSpace(network.Config["security.acls"], ",", -1, true)
+		netACLNames := shared.SplitNTrimSpace(network.Config["security.acls"], ",", -1, true)
 		matchedACLNames := []string{}
 		for _, netACLName := range netACLNames {
 			if shared.StringInSlice(netACLName, matchACLNames) {
@@ -167,7 +166,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 
 		// Ingress rules can specify ACL names in their Source subjects.
 		for _, rule := range aclInfo.Ingress {
-			for _, subject := range util.SplitNTrimSpace(rule.Source, ",", -1, true) {
+			for _, subject := range shared.SplitNTrimSpace(rule.Source, ",", -1, true) {
 
 				// Look for new matching ACLs, but ignore our own ACL reference in our own rules.
 				if shared.StringInSlice(subject, matchACLNames) && !shared.StringInSlice(subject, matchedACLNames) && subject != aclInfo.Name {
@@ -178,7 +177,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 
 		// Egress rules can specify ACL names in their Destination subjects.
 		for _, rule := range aclInfo.Egress {
-			for _, subject := range util.SplitNTrimSpace(rule.Destination, ",", -1, true) {
+			for _, subject := range shared.SplitNTrimSpace(rule.Destination, ",", -1, true) {
 
 				// Look for new matching ACLs, but ignore our own ACL reference in our own rules.
 				if shared.StringInSlice(subject, matchACLNames) && !shared.StringInSlice(subject, matchedACLNames) && subject != aclInfo.Name {
@@ -238,7 +237,7 @@ func isInUseByDevice(d deviceConfig.Device, matchACLNames ...string) []string {
 		return matchedACLNames
 	}
 
-	for _, nicACLName := range util.SplitNTrimSpace(d["security.acls"], ",", -1, true) {
+	for _, nicACLName := range shared.SplitNTrimSpace(d["security.acls"], ",", -1, true) {
 		if shared.StringInSlice(nicACLName, matchACLNames) {
 			matchedACLNames = append(matchedACLNames, nicACLName)
 		}

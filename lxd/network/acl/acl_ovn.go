@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/network/openvswitch"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -308,11 +307,11 @@ func ovnAddReferencedACLs(info *api.NetworkACL, referencedACLNames map[string]st
 	}
 
 	for _, rule := range info.Ingress {
-		addACLNamesFrom(util.SplitNTrimSpace(rule.Source, ",", -1, true))
+		addACLNamesFrom(shared.SplitNTrimSpace(rule.Source, ",", -1, true))
 	}
 
 	for _, rule := range info.Egress {
-		addACLNamesFrom(util.SplitNTrimSpace(rule.Destination, ",", -1, true))
+		addACLNamesFrom(shared.SplitNTrimSpace(rule.Destination, ",", -1, true))
 	}
 }
 
@@ -447,7 +446,7 @@ func ovnRuleCriteriaToOVNACLRule(direction string, rule *api.NetworkACLRule, por
 
 	// Add subject filters.
 	if rule.Source != "" {
-		match, netSpecificMatch, networkPeers, err := ovnRuleSubjectToOVNACLMatch("src", aclNameIDs, peerTargetNetIDs, util.SplitNTrimSpace(rule.Source, ",", -1, false)...)
+		match, netSpecificMatch, networkPeers, err := ovnRuleSubjectToOVNACLMatch("src", aclNameIDs, peerTargetNetIDs, shared.SplitNTrimSpace(rule.Source, ",", -1, false)...)
 		if err != nil {
 			return openvswitch.OVNACLRule{}, false, nil, err
 		}
@@ -461,7 +460,7 @@ func ovnRuleCriteriaToOVNACLRule(direction string, rule *api.NetworkACLRule, por
 	}
 
 	if rule.Destination != "" {
-		match, netSpecificMatch, networkPeers, err := ovnRuleSubjectToOVNACLMatch("dst", aclNameIDs, peerTargetNetIDs, util.SplitNTrimSpace(rule.Destination, ",", -1, false)...)
+		match, netSpecificMatch, networkPeers, err := ovnRuleSubjectToOVNACLMatch("dst", aclNameIDs, peerTargetNetIDs, shared.SplitNTrimSpace(rule.Destination, ",", -1, false)...)
 		if err != nil {
 			return openvswitch.OVNACLRule{}, false, nil, err
 		}
@@ -479,11 +478,11 @@ func ovnRuleCriteriaToOVNACLRule(direction string, rule *api.NetworkACLRule, por
 		matchParts = append(matchParts, fmt.Sprintf("%s", rule.Protocol))
 
 		if rule.SourcePort != "" {
-			matchParts = append(matchParts, ovnRulePortToOVNACLMatch(rule.Protocol, "src", util.SplitNTrimSpace(rule.SourcePort, ",", -1, false)...))
+			matchParts = append(matchParts, ovnRulePortToOVNACLMatch(rule.Protocol, "src", shared.SplitNTrimSpace(rule.SourcePort, ",", -1, false)...))
 		}
 
 		if rule.DestinationPort != "" {
-			matchParts = append(matchParts, ovnRulePortToOVNACLMatch(rule.Protocol, "dst", util.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...))
+			matchParts = append(matchParts, ovnRulePortToOVNACLMatch(rule.Protocol, "dst", shared.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...))
 		}
 	} else if shared.StringInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
 		matchParts = append(matchParts, fmt.Sprintf("%s", rule.Protocol))
@@ -1030,7 +1029,7 @@ func ovnParseLogEntry(input string, prefix string) string {
 
 	// Parse the ACL log entry.
 	aclEntry := map[string]string{}
-	for _, entry := range util.SplitNTrimSpace(fields[4], ",", -1, true) {
+	for _, entry := range shared.SplitNTrimSpace(fields[4], ",", -1, true) {
 		pair := strings.Split(entry, "=")
 		if len(pair) != 2 {
 			continue

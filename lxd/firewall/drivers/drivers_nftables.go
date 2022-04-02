@@ -13,7 +13,6 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/lxc/lxd/lxd/project"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/validate"
 	"github.com/lxc/lxd/shared/version"
@@ -729,7 +728,7 @@ func (d Nftables) aclRuleCriteriaToRules(networkName string, ipVersion uint, rul
 	isPartialRule := false
 
 	if rule.Source != "" {
-		matchArgs, partial, err := d.aclRuleSubjectToACLMatch("saddr", ipVersion, util.SplitNTrimSpace(rule.Source, ",", -1, false)...)
+		matchArgs, partial, err := d.aclRuleSubjectToACLMatch("saddr", ipVersion, shared.SplitNTrimSpace(rule.Source, ",", -1, false)...)
 		if err != nil {
 			return "", false, err
 		}
@@ -746,7 +745,7 @@ func (d Nftables) aclRuleCriteriaToRules(networkName string, ipVersion uint, rul
 	}
 
 	if rule.Destination != "" {
-		matchArgs, partial, err := d.aclRuleSubjectToACLMatch("daddr", ipVersion, util.SplitNTrimSpace(rule.Destination, ",", -1, false)...)
+		matchArgs, partial, err := d.aclRuleSubjectToACLMatch("daddr", ipVersion, shared.SplitNTrimSpace(rule.Destination, ",", -1, false)...)
 		if err != nil {
 			return "", false, err
 		}
@@ -767,11 +766,11 @@ func (d Nftables) aclRuleCriteriaToRules(networkName string, ipVersion uint, rul
 		args = append(args, "meta", "l4proto", rule.Protocol)
 
 		if rule.SourcePort != "" {
-			args = append(args, d.aclRulePortToACLMatch("sport", util.SplitNTrimSpace(rule.SourcePort, ",", -1, false)...)...)
+			args = append(args, d.aclRulePortToACLMatch("sport", shared.SplitNTrimSpace(rule.SourcePort, ",", -1, false)...)...)
 		}
 
 		if rule.DestinationPort != "" {
-			args = append(args, d.aclRulePortToACLMatch("dport", util.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...)...)
+			args = append(args, d.aclRulePortToACLMatch("dport", shared.SplitNTrimSpace(rule.DestinationPort, ",", -1, false)...)...)
 		}
 	} else if shared.StringInSlice(rule.Protocol, []string{"icmp4", "icmp6"}) {
 		var icmpIPVersion uint
