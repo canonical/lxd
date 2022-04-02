@@ -12,7 +12,6 @@ import (
 	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/rbac"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/idmap"
@@ -416,7 +415,7 @@ func checkAggregateLimits(info *projectInfo, aggregateKeys []string) error {
 func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.IdmapEntry, error) {
 	var idmaps []idmap.IdmapEntry
 
-	for _, listItem := range util.SplitNTrimSpace(listValue, ",", -1, true) {
+	for _, listItem := range shared.SplitNTrimSpace(listValue, ",", -1, true) {
 		rangeStart, rangeSize, err := validate.ParseUint32Range(listItem)
 		if err != nil {
 			return nil, err

@@ -5,7 +5,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 )
 
@@ -58,7 +57,7 @@ func (n *Neigh) Show() ([]Neigh, error) {
 
 	neighbours := []Neigh{}
 
-	for _, line := range util.SplitNTrimSpace(out, "\n", -1, true) {
+	for _, line := range shared.SplitNTrimSpace(out, "\n", -1, true) {
 		// Split fields and early validation.
 		fields := strings.Fields(line)
 		if len(fields) != 4 {

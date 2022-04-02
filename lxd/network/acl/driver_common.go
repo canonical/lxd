@@ -317,7 +317,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 	// Validate Source field.
 	if rule.Source != "" {
-		srcHasName, srcHasIPv4, srcHasIPv6, err = d.validateRuleSubjects("Source", direction, util.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjectNames)
+		srcHasName, srcHasIPv4, srcHasIPv6, err = d.validateRuleSubjects("Source", direction, shared.SplitNTrimSpace(rule.Source, ",", -1, false), validSubjectNames)
 		if err != nil {
 			return fmt.Errorf("Invalid Source: %w", err)
 		}
@@ -325,7 +325,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 	// Validate Destination field.
 	if rule.Destination != "" {
-		dstHasName, dstHasIPv4, dstHasIPv6, err = d.validateRuleSubjects("Destination", direction, util.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjectNames)
+		dstHasName, dstHasIPv4, dstHasIPv6, err = d.validateRuleSubjects("Destination", direction, shared.SplitNTrimSpace(rule.Destination, ",", -1, false), validSubjectNames)
 		if err != nil {
 			return fmt.Errorf("Invalid Destination: %w", err)
 		}
@@ -361,7 +361,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 		// Validate SourcePort field.
 		if rule.SourcePort != "" {
-			err := d.validatePorts(util.SplitNTrimSpace(rule.SourcePort, ",", -1, false))
+			err := d.validatePorts(shared.SplitNTrimSpace(rule.SourcePort, ",", -1, false))
 			if err != nil {
 				return fmt.Errorf("Invalid Source port: %w", err)
 			}
@@ -369,7 +369,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 
 		// Validate DestinationPort field.
 		if rule.DestinationPort != "" {
-			err := d.validatePorts(util.SplitNTrimSpace(rule.DestinationPort, ",", -1, false))
+			err := d.validatePorts(shared.SplitNTrimSpace(rule.DestinationPort, ",", -1, false))
 			if err != nil {
 				return fmt.Errorf("Invalid Destination port: %w", err)
 			}
