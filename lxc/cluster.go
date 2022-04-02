@@ -477,7 +477,7 @@ func (c *cmdClusterRemove) Run(cmd *cobra.Command, args []string) error {
 
 	resource := resources[0]
 
-	// Prompt for confiromation if --force is used.
+	// Prompt for confirmation if --force is used.
 	if !c.flagNonInteractive && c.flagForce {
 		err := c.promptConfirmation(resource.name)
 		if err != nil {
@@ -942,7 +942,7 @@ func (c *cmdClusterRevokeToken) Run(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf(i18n.G("No cluster join token for member %s on remote: %s"), resource.name, resource.remote)
 }
 
-// Update Certificatess
+// Update Certificates
 type cmdClusterUpdateCertificate struct {
 	global  *cmdGlobal
 	cluster *cmdCluster
