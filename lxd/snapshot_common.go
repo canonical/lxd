@@ -9,6 +9,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"github.com/lxc/lxd/lxd/util"
+	"github.com/lxc/lxd/shared"
 )
 
 // SnapshotScheduleAliases contains the mapping of scheduling aliases to cron syntax
@@ -42,7 +43,7 @@ func buildCronSpecs(spec string, subjectID int64) []string {
 	var result []string
 
 	if strings.Contains(spec, ", ") {
-		for _, curSpec := range util.SplitNTrimSpace(spec, ",", -1, true) {
+		for _, curSpec := range shared.SplitNTrimSpace(spec, ",", -1, true) {
 
 			entry := getCronSyntax(curSpec, subjectID)
 			if entry != "" {

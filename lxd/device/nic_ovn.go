@@ -198,7 +198,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 			continue
 		}
 
-		externalRoutes, err = network.SubnetParseAppend(externalRoutes, util.SplitNTrimSpace(d.config[k], ",", -1, false)...)
+		externalRoutes, err = network.SubnetParseAppend(externalRoutes, shared.SplitNTrimSpace(d.config[k], ",", -1, false)...)
 		if err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 
 	// Check Security ACLs exist.
 	if d.config["security.acls"] != "" {
-		err = acl.Exists(d.state, networkProjectName, util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
+		err = acl.Exists(d.state, networkProjectName, shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)...)
 		if err != nil {
 			return err
 		}
@@ -432,8 +432,8 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 	// Apply any changes needed when assigned ACLs change.
 	if d.config["security.acls"] != oldConfig["security.acls"] {
 		// Work out which ACLs have been removed and remove logical port from those groups.
-		oldACLs := util.SplitNTrimSpace(oldConfig["security.acls"], ",", -1, true)
-		newACLs := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+		oldACLs := shared.SplitNTrimSpace(oldConfig["security.acls"], ",", -1, true)
+		newACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
 		removedACLs := []string{}
 		for _, oldACL := range oldACLs {
 			if !shared.StringInSlice(oldACL, newACLs) {
@@ -596,7 +596,7 @@ func (d *nicOVN) postStop() error {
 // Remove is run when the device is removed from the instance or the instance is deleted.
 func (d *nicOVN) Remove() error {
 	// Check for port groups that will become unused (and need deleting) as this NIC is deleted.
-	securityACLs := util.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
+	securityACLs := shared.SplitNTrimSpace(d.config["security.acls"], ",", -1, true)
 	if len(securityACLs) > 0 {
 		client, err := openvswitch.NewOVN(d.state)
 		if err != nil {

@@ -181,7 +181,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 
 			// Check that none of the supplied VLAN IDs are VLAN 0 when using a native Linux managed
 			// bridge, as not supported.
-			networkVLANList, err := networkVLANListExpand(util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true))
+			networkVLANList, err := networkVLANListExpand(shared.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true))
 			if err != nil {
 				return err
 			}
@@ -403,7 +403,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 		}
 
 		// Check that none of the supplied VLAN IDs are the same as the untagged VLAN ID.
-		for _, vlanID := range util.SplitNTrimSpace(value, ",", -1, true) {
+		for _, vlanID := range shared.SplitNTrimSpace(value, ",", -1, true) {
 			if vlanID == d.config["vlan"] {
 				return fmt.Errorf("Tagged VLAN ID %q cannot be the same as untagged VLAN ID", vlanID)
 			}
@@ -534,10 +534,10 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 
 	// Apply host-side routes to bridge interface.
 	routes := []string{}
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
 	err = networkNICRouteAdd(d.config["parent"], routes...)
 	if err != nil {
 		return nil, err
@@ -706,18 +706,18 @@ func (d *nicBridged) Update(oldDevices deviceConfig.Devices, isRunning bool) err
 		// Remove old host-side routes from bridge interface.
 
 		oldRoutes := []string{}
-		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true)...)
-		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)
-		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv4.routes.external"], ",", -1, true)...)
-		oldRoutes = append(oldRoutes, util.SplitNTrimSpace(oldConfig["ipv6.routes.external"], ",", -1, true)...)
+		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv4.routes"], ",", -1, true)...)
+		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv6.routes"], ",", -1, true)...)
+		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv4.routes.external"], ",", -1, true)...)
+		oldRoutes = append(oldRoutes, shared.SplitNTrimSpace(oldConfig["ipv6.routes.external"], ",", -1, true)...)
 		networkNICRouteDelete(oldConfig["parent"], oldRoutes...)
 
 		// Apply host-side routes to bridge interface.
 		routes := []string{}
-		routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
-		routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
-		routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
-		routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
+		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
+		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+		routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
 		err = networkNICRouteAdd(d.config["parent"], routes...)
 		if err != nil {
 			return err
@@ -815,10 +815,10 @@ func (d *nicBridged) postStop() error {
 
 	// Remove host-side routes from bridge interface.
 	routes := []string{}
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
-	routes = append(routes, util.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv4.routes.external"], ",", -1, true)...)
+	routes = append(routes, shared.SplitNTrimSpace(d.config["ipv6.routes.external"], ",", -1, true)...)
 	networkNICRouteDelete(d.config["parent"], routes...)
 
 	if shared.IsTrue(d.config["security.mac_filtering"]) || shared.IsTrue(d.config["security.ipv4_filtering"]) || shared.IsTrue(d.config["security.ipv6_filtering"]) {
@@ -1155,8 +1155,8 @@ func allowedIPNets(config deviceConfig.Device) (IPv4Nets []*net.IPNet, IPv6Nets 
 		}
 
 		// Get remaining allowed routes from config.
-		routes = append(routes, util.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes", ipVersion)], ",", -1, true)...)
-		routes = append(routes, util.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes.external", ipVersion)], ",", -1, true)...)
+		routes = append(routes, shared.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes", ipVersion)], ",", -1, true)...)
+		routes = append(routes, shared.SplitNTrimSpace(config[fmt.Sprintf("ipv%d.routes.external", ipVersion)], ",", -1, true)...)
 
 		var allowedNets []*net.IPNet
 		for _, route := range routes {
@@ -1480,7 +1480,7 @@ func (d *nicBridged) setupNativeBridgePortVLANs(hostName string) error {
 
 	// Add any tagged VLAN memberships.
 	if d.config["vlan.tagged"] != "" {
-		networkVLANList, err := networkVLANListExpand(util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true))
+		networkVLANList, err := networkVLANListExpand(shared.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true))
 		if err != nil {
 			return err
 		}
@@ -1525,7 +1525,7 @@ func (d *nicBridged) setupOVSBridgePortVLANs(hostName string) error {
 
 	// Add any tagged VLAN memberships.
 	if d.config["vlan.tagged"] != "" {
-		intNetworkVLANs, err := networkVLANListExpand(util.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true))
+		intNetworkVLANs, err := networkVLANListExpand(shared.SplitNTrimSpace(d.config["vlan.tagged"], ",", -1, true))
 		if err != nil {
 			return err
 		}

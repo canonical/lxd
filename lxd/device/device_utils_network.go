@@ -23,7 +23,6 @@ import (
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -534,7 +533,7 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) 
 	// Add the prefixes.
 	bgpOwner := fmt.Sprintf("instance_%d_%s", d.inst.ID(), d.name)
 	if config["ipv4.routes.external"] != "" {
-		for _, prefix := range util.SplitNTrimSpace(config["ipv4.routes.external"], ",", -1, true) {
+		for _, prefix := range shared.SplitNTrimSpace(config["ipv4.routes.external"], ",", -1, true) {
 			_, prefixNet, err := net.ParseCIDR(prefix)
 			if err != nil {
 				return err
@@ -548,7 +547,7 @@ func bgpAddPrefix(d *deviceCommon, n network.Network, config map[string]string) 
 	}
 
 	if config["ipv6.routes.external"] != "" {
-		for _, prefix := range util.SplitNTrimSpace(config["ipv6.routes.external"], ",", -1, true) {
+		for _, prefix := range shared.SplitNTrimSpace(config["ipv6.routes.external"], ",", -1, true) {
 			_, prefixNet, err := net.ParseCIDR(prefix)
 			if err != nil {
 				return err

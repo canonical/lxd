@@ -5,7 +5,6 @@ import (
 
 	firewallDrivers "github.com/lxc/lxd/lxd/firewall/drivers"
 	"github.com/lxc/lxd/lxd/state"
-	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
@@ -60,7 +59,7 @@ func FirewallApplyACLRules(s *state.State, logger logger.Logger, aclProjectName 
 	logPrefix := aclNet.Name
 
 	// Load ACLs specified by network.
-	for _, aclName := range util.SplitNTrimSpace(aclNet.Config["security.acls"], ",", -1, true) {
+	for _, aclName := range shared.SplitNTrimSpace(aclNet.Config["security.acls"], ",", -1, true) {
 		_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
 		if err != nil {
 			return fmt.Errorf("Failed loading ACL %q for network %q: %w", aclName, aclNet.Name, err)
