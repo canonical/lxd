@@ -3,8 +3,6 @@ package storage
 import (
 	"fmt"
 
-	"github.com/lxc/lxd/lxd/cluster/request"
-	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
@@ -112,62 +110,21 @@ func NewTemporary(state *state.State, info *api.StoragePool) (Pool, error) {
 	return &pool, nil
 }
 
-// CreatePool creates a new storage pool on disk and returns a Pool interface.
-// If the pool's driver is not recognised then drivers.ErrUnknownDriver is returned.
-// Deprecated, used only by patches.
-func CreatePool(state *state.State, poolID int64, dbPool *api.StoragePoolsPost) (Pool, error) {
-	// Quick checks.
-	if dbPool == nil {
-		return nil, ErrNilValue
-	}
+// LoadByType loads a network by driver type.
+func LoadByType(state *state.State, driverType string) (Type, error) {
+	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": driverType})
 
-	// Ensure a config map exists.
-	if dbPool.Config == nil {
-		dbPool.Config = map[string]string{}
-	}
-
-	// Handle mock requests.
-	if state.OS.MockMode {
-		pool := mockBackend{}
-		pool.name = dbPool.Name
-		pool.state = state
-		pool.logger = logger.AddContext(logger.Log, logger.Ctx{"driver": "mock", "pool": pool.name})
-		driver, err := drivers.Load(state, "mock", "", nil, pool.logger, nil, nil)
-		if err != nil {
-			return nil, err
-		}
-		pool.driver = driver
-
-		return &pool, nil
-	}
-
-	logger := logger.AddContext(logger.Log, logger.Ctx{"driver": dbPool.Driver, "pool": dbPool.Name})
-
-	// Load the storage driver.
-	driver, err := drivers.Load(state, dbPool.Driver, dbPool.Name, dbPool.Config, logger, volIDFuncMake(state, poolID), commonRules())
+	driver, err := drivers.Load(state, driverType, "", nil, logger, nil, commonRules())
 	if err != nil {
 		return nil, err
 	}
 
 	// Setup the pool struct.
 	pool := lxdBackend{}
-	pool.driver = driver
-	pool.id = poolID
-	pool.db = api.StoragePool{
-		StoragePoolPut: dbPool.StoragePoolPut,
-		Name:           dbPool.Name,
-		Driver:         dbPool.Driver,
-	}
-	pool.name = dbPool.Name
 	pool.state = state
+	pool.driver = driver
+	pool.id = PoolIDTemporary
 	pool.logger = logger
-	pool.nodes = map[int64]db.StoragePoolNode{} // Nodes unknown at this point.
-
-	// Create the pool itself on the storage device..
-	err = pool.Create(request.ClientTypeNormal, nil)
-	if err != nil {
-		return nil, err
-	}
 
 	return &pool, nil
 }

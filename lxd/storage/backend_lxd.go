@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v2"
 
@@ -74,6 +75,26 @@ func (b *lxdBackend) Description() string {
 	return b.db.Description
 }
 
+// ValidateName validates the provided name, and returns an error if it's not a valid storage name.
+func (b *lxdBackend) ValidateName(value string) error {
+	if strings.Contains(value, "/") {
+		return fmt.Errorf(`Storage name cannot contain "/"`)
+	}
+
+	for _, r := range value {
+		if unicode.IsSpace(r) {
+			return fmt.Errorf(`Storage name cannot contain white space`)
+		}
+	}
+
+	return nil
+}
+
+// Validate storage pool config.
+func (b *lxdBackend) Validate(config map[string]string) error {
+	return b.Driver().Validate(config)
+}
+
 // Status returns the storage pool status.
 func (b *lxdBackend) Status() string {
 	return b.db.Status
@@ -128,8 +149,20 @@ func (b *lxdBackend) MigrationTypes(contentType drivers.ContentType, refresh boo
 // localOnly is used for clustering where only a single node should do remote storage setup.
 func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"config": b.db.Config, "description": b.db.Description, "clientType": clientType})
-	l.Debug("create started")
-	defer l.Debug("create finished")
+	l.Debug("Create started")
+	defer l.Debug("Create finished")
+
+	// Validate name.
+	err := b.ValidateName(b.name)
+	if err != nil {
+		return err
+	}
+
+	// Validate config.
+	err = b.driver.Validate(b.db.Config)
+	if err != nil {
+		return err
+	}
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -141,7 +174,7 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 	}
 
 	// Create the storage path.
-	err := os.MkdirAll(path, 0711)
+	err = os.MkdirAll(path, 0711)
 	if err != nil {
 		return fmt.Errorf("Failed to create storage pool directory %q: %w", path, err)
 	}
@@ -160,12 +193,6 @@ func (b *lxdBackend) Create(clientType request.ClientType, op *operations.Operat
 		// Dealing with a remote storage pool, we're done now.
 		revert.Success()
 		return nil
-	}
-
-	// Validate config.
-	err = b.driver.Validate(b.db.Config)
-	if err != nil {
-		return err
 	}
 
 	// Create the storage pool on the storage device.

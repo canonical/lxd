@@ -109,6 +109,16 @@ func (d *btrfs) Create() error {
 		// Create a loop based pool.
 		d.config["source"] = loopPath
 
+		// Pick a default size of the loop file if not specified.
+		if d.config["size"] == "" {
+			defaultSize, err := loopFileSizeDefault()
+			if err != nil {
+				return err
+			}
+
+			d.config["size"] = fmt.Sprintf("%dGB", defaultSize)
+		}
+
 		// Create the loop file itself.
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
@@ -270,6 +280,7 @@ func (d *btrfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *btrfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
+		"size":                validate.Optional(validate.IsSize),
 		"btrfs.mount_options": validate.IsAny,
 	}
 
