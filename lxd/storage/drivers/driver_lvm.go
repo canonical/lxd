@@ -107,11 +107,26 @@ func (d *lvm) Create() error {
 	revert := revert.New()
 	defer revert.Fail()
 
+	// Set default thin pool name if not specified.
+	if d.usesThinpool() && d.config["lvm.thinpool_name"] == "" {
+		d.config["lvm.thinpool_name"] = lvmThinpoolDefaultName
+	}
+
 	if d.config["source"] == "" || d.config["source"] == defaultSource {
 		// We are using a LXD internal loopback file.
 		d.config["source"] = defaultSource
 		if d.config["lvm.vg_name"] == "" {
 			d.config["lvm.vg_name"] = d.name
+		}
+
+		// Pick a default size of the loop file if not specified.
+		if d.config["size"] == "" {
+			defaultSize, err := loopFileSizeDefault()
+			if err != nil {
+				return err
+			}
+
+			d.config["size"] = fmt.Sprintf("%dGB", defaultSize)
 		}
 
 		size, err := units.ParseByteSizeString(d.config["size"])
@@ -422,6 +437,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 
 func (d *lvm) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
+		"size":                       validate.Optional(validate.IsSize),
 		"lvm.vg_name":                validate.IsAny,
 		"lvm.thinpool_name":          validate.IsAny,
 		"lvm.thinpool_metadata_size": validate.Optional(validate.IsSize),

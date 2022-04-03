@@ -848,7 +848,7 @@ func storagePoolConfigAdd(tx *sql.Tx, poolID, nodeID int64, poolConfig map[strin
 			continue
 		}
 		var nodeIDValue any
-		if !shared.StringInSlice(k, StoragePoolNodeConfigKeys) {
+		if !shared.StringInSlice(k, NodeSpecificStorageConfig) {
 			nodeIDValue = nil
 		} else {
 			nodeIDValue = nodeID
@@ -939,8 +939,8 @@ func (c *Cluster) RemoveStoragePool(poolName string) (*api.StoragePool, error) {
 	return pool, nil
 }
 
-// StoragePoolNodeConfigKeys lists all storage pool config keys which are node-specific.
-var StoragePoolNodeConfigKeys = []string{
+// NodeSpecificStorageConfig lists all storage pool config keys which are node-specific.
+var NodeSpecificStorageConfig = []string{
 	"size",
 	"source",
 	"volatile.initial_source",

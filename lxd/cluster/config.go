@@ -284,16 +284,6 @@ var ConfigSchema = config.Schema{
 	"rbac.api.url":                   {},
 	"rbac.expiry":                    {Type: config.Int64, Default: "3600"},
 
-	// Keys deprecated since the implementation of the storage api.
-	"storage.lvm_fstype":           {Setter: deprecatedStorage, Default: "ext4"},
-	"storage.lvm_mount_options":    {Setter: deprecatedStorage, Default: "discard"},
-	"storage.lvm_thinpool_name":    {Setter: deprecatedStorage, Default: "LXDThinPool"},
-	"storage.lvm_vg_name":          {Setter: deprecatedStorage},
-	"storage.lvm_volume_size":      {Setter: deprecatedStorage, Default: "10GiB"},
-	"storage.zfs_pool_name":        {Setter: deprecatedStorage},
-	"storage.zfs_remove_snapshots": {Setter: deprecatedStorage, Type: config.Bool},
-	"storage.zfs_use_refquota":     {Setter: deprecatedStorage, Type: config.Bool},
-
 	// OVN networking global keys.
 	"network.ovn.integration_bridge":    {Default: "br-int"},
 	"network.ovn.northbound_connection": {Default: "unix:/var/run/ovn/ovnnb_db.sock"},
@@ -381,11 +371,4 @@ func passwordSetter(value string) (string, error) {
 	value = hex.EncodeToString(buf)
 
 	return value, nil
-}
-
-func deprecatedStorage(value string) (string, error) {
-	if value == "" {
-		return "", nil
-	}
-	return "", fmt.Errorf("deprecated: use storage pool configuration")
 }

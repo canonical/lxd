@@ -133,6 +133,16 @@ func (d *zfs) Create() error {
 			return fmt.Errorf("zfs.pool_name can't point to a dataset when source isn't set")
 		}
 
+		// Pick a default size of the loop file if not specified.
+		if d.config["size"] == "" {
+			defaultSize, err := loopFileSizeDefault()
+			if err != nil {
+				return err
+			}
+
+			d.config["size"] = fmt.Sprintf("%dGB", defaultSize)
+		}
+
 		// Create the loop file itself.
 		size, err := units.ParseByteSizeString(d.config["size"])
 		if err != nil {
@@ -334,6 +344,7 @@ func (d *zfs) Delete(op *operations.Operation) error {
 // Validate checks that all provide keys are supported and that no conflicting or missing configuration is present.
 func (d *zfs) Validate(config map[string]string) error {
 	rules := map[string]func(value string) error{
+		"size":          validate.Optional(validate.IsSize),
 		"zfs.pool_name": validate.IsAny,
 		"zfs.clone_copy": validate.Optional(func(value string) error {
 			if value == "rebase" {

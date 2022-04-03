@@ -492,7 +492,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 	// Check that no node-specific config key has been supplied in request.
 	for key := range req.Config {
 		if shared.StringInSlice(key, db.NodeSpecificNetworkConfig) {
-			return fmt.Errorf("Config key %q is node-specific", key)
+			return fmt.Errorf("Config key %q is cluster member specific", key)
 		}
 	}
 
@@ -569,11 +569,18 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 		return err
 	}
 
+	netConfig := n.Config()
+
 	err = doNetworksCreate(d, n, clientType)
 	if err != nil {
 		return err
 	}
-	logger.Debug("Created network on local cluster member", logger.Ctx{"project": projectName, "network": req.Name})
+	logger.Debug("Created network on local cluster member", logger.Ctx{"project": projectName, "network": req.Name, "config": netConfig})
+
+	// Remove this node's node specific config keys.
+	for _, key := range db.NodeSpecificNetworkConfig {
+		delete(netConfig, key)
+	}
 
 	// Notify other nodes to create the network.
 	err = notifier(func(client lxd.InstanceServer) error {
@@ -582,24 +589,26 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 			return err
 		}
 
-		// Create fresh request based on existing network to send to node.
-		nodeReq := api.NetworksPost{
-			NetworkPut: api.NetworkPut{
-				Config:      n.Config(),
-				Description: n.Description(),
-			},
-			Name: n.Name(),
-			Type: n.Type(),
-		}
-
-		// Remove node-specific config keys.
-		for _, key := range db.NodeSpecificNetworkConfig {
-			delete(nodeReq.Config, key)
+		// Clone the network config for this node so we don't modify it and potentially end up sending
+		// this node's config to another node.
+		nodeConfig := make(map[string]string, len(netConfig))
+		for k, v := range netConfig {
+			nodeConfig[k] = v
 		}
 
 		// Merge node specific config items into global config.
 		for key, value := range nodeConfigs[server.Environment.ServerName] {
-			nodeReq.Config[key] = value
+			nodeConfig[key] = value
+		}
+
+		// Create fresh request based on existing network to send to node.
+		nodeReq := api.NetworksPost{
+			NetworkPut: api.NetworkPut{
+				Config:      nodeConfig,
+				Description: n.Description(),
+			},
+			Name: n.Name(),
+			Type: n.Type(),
 		}
 
 		err = client.UseProject(n.Project()).CreateNetwork(nodeReq)
@@ -1161,7 +1170,7 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 			// If no target is specified, then ensure only non-node-specific config keys are changed.
 			for k := range req.Config {
 				if shared.StringInSlice(k, db.NodeSpecificNetworkConfig) {
-					return response.BadRequest(fmt.Errorf("Config key %q is node-specific", k))
+					return response.BadRequest(fmt.Errorf("Config key %q is cluster member specific", k))
 				}
 			}
 		} else {

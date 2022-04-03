@@ -881,7 +881,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 				continue
 			}
 
-			if !shared.StringInSlice(config.Key, db.StoragePoolNodeConfigKeys) {
+			if !shared.StringInSlice(config.Key, db.NodeSpecificStorageConfig) {
 				logger.Warnf("Ignoring config key %q for storage pool %q", config.Key, config.Name)
 				continue
 			}
@@ -2461,7 +2461,7 @@ func clusterCheckStoragePoolsMatch(cluster *db.Cluster, reqPools []api.StoragePo
 				return fmt.Errorf("Mismatching driver for storage pool %s", name)
 			}
 			// Exclude the keys which are node-specific.
-			exclude := db.StoragePoolNodeConfigKeys
+			exclude := db.NodeSpecificStorageConfig
 			err = util.CompareConfigs(pool.Config, reqPool.Config, exclude)
 			if err != nil {
 				return fmt.Errorf("Mismatching config for storage pool %s: %w", name, err)

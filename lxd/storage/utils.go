@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
@@ -28,24 +27,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/validate"
 )
-
-// ValidName validates the provided name, and returns an error if it's not a valid storage name.
-func ValidName(value string) error {
-	if strings.Contains(value, "/") {
-		return fmt.Errorf(`Storage name cannot contain "/"`)
-	}
-
-	for _, r := range value {
-		if unicode.IsSpace(r) {
-			return fmt.Errorf(`Storage name cannot contain white space`)
-		}
-	}
-
-	return nil
-}
 
 // ConfigDiff returns a diff of the provided configs. Additionally, it returns whether or not
 // only user properties have been changed.
@@ -290,66 +273,6 @@ func VolumeDBDelete(pool *lxdBackend, projectName string, volumeName string, vol
 	return nil
 }
 
-// SupportedPoolTypes the types of pools supported.
-// Deprecated: this is being replaced with drivers.SupportedDrivers()
-var SupportedPoolTypes = []string{"btrfs", "ceph", "cephfs", "dir", "lvm", "zfs"}
-
-// StorageVolumeConfigKeys config validation for btrfs, ceph, cephfs, dir, lvm, zfs types.
-// Deprecated: these are being moved to the per-storage-driver implementations.
-var StorageVolumeConfigKeys = map[string]func(value string) ([]string, error){
-	"block.filesystem": func(value string) ([]string, error) {
-		err := validate.Optional(validate.IsOneOf("btrfs", "ext4", "xfs"))(value)
-		if err != nil {
-			return nil, err
-		}
-
-		return []string{"ceph", "lvm"}, nil
-	},
-	"block.mount_options": func(value string) ([]string, error) {
-		return []string{"ceph", "lvm"}, validate.IsAny(value)
-	},
-	"security.shifted": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.Optional(validate.IsBool)(value)
-	},
-	"security.unmapped": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.Optional(validate.IsBool)(value)
-	},
-	"size": func(value string) ([]string, error) {
-		if value == "" {
-			return SupportedPoolTypes, nil
-		}
-
-		_, err := units.ParseByteSizeString(value)
-		if err != nil {
-			return nil, err
-		}
-
-		return SupportedPoolTypes, nil
-	},
-	"volatile.idmap.last": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.IsAny(value)
-	},
-	"volatile.idmap.next": func(value string) ([]string, error) {
-		return SupportedPoolTypes, validate.IsAny(value)
-	},
-	"zfs.remove_snapshots": func(value string) ([]string, error) {
-		err := validate.Optional(validate.IsBool)(value)
-		if err != nil {
-			return nil, err
-		}
-
-		return []string{"zfs"}, nil
-	},
-	"zfs.use_refquota": func(value string) ([]string, error) {
-		err := validate.Optional(validate.IsBool)(value)
-		if err != nil {
-			return nil, err
-		}
-
-		return []string{"zfs"}, nil
-	},
-}
-
 // VolumeDBSnapshotsGet loads a list of snapshots volumes from the database.
 func VolumeDBSnapshotsGet(state *state.State, poolID int64, projectName string, volume string, volumeType drivers.VolumeType) ([]db.StorageVolumeArgs, error) {
 	volDBType, err := VolumeTypeToDBType(volumeType)
@@ -365,46 +288,13 @@ func VolumeDBSnapshotsGet(state *state.State, poolID int64, projectName string, 
 	return snapshots, nil
 }
 
-// VolumePropertiesTranslate validates the supplied volume config and removes any keys that are not
-// suitable for the volume's driver type.
-func VolumePropertiesTranslate(targetConfig map[string]string, targetParentPoolDriver string) (map[string]string, error) {
-	newConfig := make(map[string]string, len(targetConfig))
-	for key, val := range targetConfig {
-		// User keys are not validated.
-		if strings.HasPrefix(key, "user.") {
-			continue
-		}
-
-		// Validate storage volume config keys.
-		validator, ok := StorageVolumeConfigKeys[key]
-		if !ok {
-			return nil, fmt.Errorf("Invalid storage volume configuration key: %s", key)
-		}
-
-		validStorageDrivers, err := validator(val)
-		if err != nil {
-			return nil, err
-		}
-
-		// Drop invalid keys.
-		if !shared.StringInSlice(targetParentPoolDriver, validStorageDrivers) {
-			continue
-		}
-
-		newConfig[key] = val
-	}
-
-	return newConfig, nil
-}
-
 // validatePoolCommonRules returns a map of pool config rules common to all drivers.
 func validatePoolCommonRules() map[string]func(string) error {
 	return map[string]func(string) error{
 		"source":                  validate.IsAny,
 		"volatile.initial_source": validate.IsAny,
 		"volume.size":             validate.Optional(validate.IsSize),
-		"size":                    validate.Optional(validate.IsSize),
-		"rsync.bwlimit":           validate.IsAny,
+		"rsync.bwlimit":           validate.Optional(validate.IsSize),
 		"rsync.compression":       validate.Optional(validate.IsBool),
 	}
 }

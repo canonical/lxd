@@ -8,13 +8,12 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/state"
 	storagePools "github.com/lxc/lxd/lxd/storage"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
 // storagePoolDBCreate creates a storage pool DB entry and returns the created Pool ID.
-func storagePoolDBCreate(s *state.State, poolName, poolDescription string, driver string, config map[string]string) (int64, error) {
+func storagePoolDBCreate(s *state.State, poolName string, poolDescription string, driver string, config map[string]string) (int64, error) {
 	// Check that the storage pool does not already exist.
 	_, err := s.Cluster.GetStoragePoolID(poolName)
 	if err == nil {
@@ -25,13 +24,8 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	if config == nil {
 		config = map[string]string{}
 	}
-	err = storagePoolValidate(poolName, driver, config)
-	if err != nil {
-		return -1, err
-	}
 
-	// Fill in the defaults.
-	err = storagePoolFillDefault(poolName, driver, config)
+	err = storagePoolValidate(s, poolName, driver, config)
 	if err != nil {
 		return -1, err
 	}
@@ -45,15 +39,20 @@ func storagePoolDBCreate(s *state.State, poolName, poolDescription string, drive
 	return id, nil
 }
 
-func storagePoolValidate(poolName string, driverName string, config map[string]string) error {
+func storagePoolValidate(s *state.State, poolName string, driverName string, config map[string]string) error {
+	poolType, err := storagePools.LoadByType(s, driverName)
+	if err != nil {
+		return err
+	}
+
 	// Check if the storage pool name is valid.
-	err := storagePools.ValidName(poolName)
+	err = poolType.ValidateName(poolName)
 	if err != nil {
 		return err
 	}
 
 	// Validate the requested storage pool configuration.
-	err = storagePoolValidateConfig(poolName, driverName, config, nil)
+	err = poolType.Validate(config)
 	if err != nil {
 		return err
 	}
@@ -72,21 +71,17 @@ func storagePoolCreateGlobal(state *state.State, req api.StoragePoolsPost, clien
 	// so that it doesn't need to be explicitly called in every failing
 	// return path. Track whether or not we want to undo the changes
 	// using a closure.
-	tryUndo := true
-	defer func() {
-		if !tryUndo {
-			return
-		}
+	revert := revert.New()
+	defer revert.Fail()
 
-		dbStoragePoolDeleteAndUpdateCache(state, req.Name)
-	}()
+	revert.Add(func() { dbStoragePoolDeleteAndUpdateCache(state, req.Name) })
 
 	_, err = storagePoolCreateLocal(state, id, req, clientType)
 	if err != nil {
 		return err
 	}
 
-	tryUndo = false
+	revert.Success()
 	return nil
 }
 
@@ -97,32 +92,8 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Make a copy of the req for later diff.
-	var updatedReq api.StoragePoolsPost
-	shared.DeepCopy(&req, &updatedReq)
-
-	// Make sure that we don't pass a nil to the next function.
-	if updatedReq.Config == nil {
-		updatedReq.Config = map[string]string{}
-	}
-
-	// Fill in the node specific defaults.
-	err := storagePoolFillDefault(updatedReq.Name, updatedReq.Driver, updatedReq.Config)
-	if err != nil {
-		return nil, err
-	}
-
-	configDiff, _ := storagePools.ConfigDiff(req.Config, updatedReq.Config)
-	if len(configDiff) > 0 {
-		// Update the database entry for the storage pool.
-		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, updatedReq.Config)
-		if err != nil {
-			return nil, fmt.Errorf("Error updating storage pool config after local fill defaults for %q: %w", req.Name, err)
-		}
-	}
-
 	// Load pool record.
-	pool, err := storagePools.LoadByName(state, updatedReq.Name)
+	pool, err := storagePools.LoadByName(state, req.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +122,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	// reflect this change. This can e.g. happen, when we create a loop file image. This means we append ".img"
 	// to the path the user gave us and update the config in the storage callback. So diff the config here to
 	// see if something like this has happened.
-	configDiff, _ = storagePools.ConfigDiff(updatedReq.Config, pool.Driver().Config())
+	configDiff, _ := storagePools.ConfigDiff(req.Config, pool.Driver().Config())
 	if len(configDiff) > 0 {
 		// Update the database entry for the storage pool.
 		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, pool.Driver().Config())

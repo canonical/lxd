@@ -26,6 +26,9 @@ const lvmSnapshotSeparator = "-"
 // lvmEscapedHyphen used to escape hyphens in volume names to avoid conflicts with lvmSnapshotSeparator.
 const lvmEscapedHyphen = "--"
 
+// lvmThinpoolDefaultName is the default name for the thinpool volume.
+const lvmThinpoolDefaultName = "LXDThinPool"
+
 var errLVMNotFound = fmt.Errorf("Not found")
 
 // usesThinpool indicates whether the config specifies to use a thin pool or not.
@@ -40,7 +43,7 @@ func (d *lvm) thinpoolName() string {
 		return d.config["lvm.thinpool_name"]
 	}
 
-	return "LXDThinPool"
+	return lvmThinpoolDefaultName
 }
 
 // openLoopFile opens a loopback file and disable auto detach.
