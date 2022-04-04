@@ -5452,6 +5452,12 @@ definitions:
   StorageVolumeStateUsage:
     description: StorageVolumeStateUsage represents the disk usage of a volume
     properties:
+      total:
+        description: Storage volume size in bytes
+        example: 5189222192
+        format: int64
+        type: integer
+        x-go-name: Total
       used:
         description: Used space in bytes
         example: 1693552640
