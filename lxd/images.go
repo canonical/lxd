@@ -2241,6 +2241,22 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	do := func(op *operations.Operation) error {
+		// Lock this operation to ensure that concurrent image operations don't conflict.
+		// Other operations will wait for this one to finish.
+		unlock := d.imageOperationLock(imgInfo.Fingerprint)
+		defer unlock()
+
+		// Check image still exists and another request hasn't removed it since we resolved the image
+		// fingerprint above.
+		exist, err := d.cluster.ImageExists(projectName, imgInfo.Fingerprint)
+		if err != nil {
+			return err
+		}
+
+		if !exist {
+			return api.StatusErrorf(http.StatusNotFound, "Image not found")
+		}
+
 		if !isClusterNotification(r) {
 			// Check if the image being deleted is actually still
 			// referenced by other projects. In that case we don't want to
