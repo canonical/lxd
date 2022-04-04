@@ -72,7 +72,7 @@ func (a *inMemoryAddr) String() string {
 // possibly filling it with the default port if it's missing. It will also wrap a bare IPv6 address with square
 // brackets if needed.
 func CanonicalNetworkAddress(address string, defaultPort int) string {
-	_, _, err := net.SplitHostPort(address)
+	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		ip := net.ParseIP(address)
 		if ip != nil {
@@ -84,6 +84,9 @@ func CanonicalNetworkAddress(address string, defaultPort int) string {
 			// a port number, so append the default port.
 			address = fmt.Sprintf("%s:%d", address, defaultPort)
 		}
+	} else if port == "" && address[len(address)-1] == ':' {
+		// An address that ends with a trailing colon will be parsed as having an empty port.
+		address = net.JoinHostPort(host, fmt.Sprintf("%d", defaultPort))
 	}
 
 	return address
