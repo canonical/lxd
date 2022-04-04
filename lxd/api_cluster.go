@@ -622,11 +622,23 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 					Name:        trustedCert.Name,
 					Certificate: trustedCert.Certificate,
 					Restricted:  trustedCert.Restricted,
-					Projects:    trustedCert.Projects,
 				}
 
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
-				_, err = d.cluster.CreateCertificate(dbCert)
+
+				err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+					id, err := tx.CreateCertificate(dbCert)
+					if err != nil {
+						return err
+					}
+
+					err = tx.UpdateCertificateProjects(int(id), trustedCert.Projects)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				})
 				if err != nil && err.Error() != "This certificate already exists" {
 					return fmt.Errorf("Failed adding local trusted certificate %q (%s): %w", trustedCert.Name, trustedCert.Fingerprint, err)
 				}

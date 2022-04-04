@@ -95,6 +95,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	}
 	defer c.Close() // This ensures the go routine below is ended when this function ends.
 
+	var excludeLocations []string
 	// Get the current local serverName and store it for the events.
 	// We do that now to avoid issues with changes to the name and to limit
 	// the number of DB access to just one per connection.
@@ -105,6 +106,24 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		}
 
 		d.events.SetLocalLocation(serverName)
+
+		if isClusterNotification(r) {
+			ctx := r.Context()
+
+			// Try and match cluster member certificate fingerprint to member name.
+			fingerprint, found := ctx.Value(request.CtxUsername).(string)
+			if found {
+				cert, err := tx.GetCertificateByFingerprintPrefix(fingerprint)
+				if err != nil {
+					return fmt.Errorf("Failed matching client certificate to cluster member: %w", err)
+				}
+
+				// Add the cluster member client's name to the excluded locations so that we can avoid
+				// looping the event back to them when they send us an event via recvFunc.
+				excludeLocations = append(excludeLocations, cert.Name)
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -113,8 +132,6 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 
 	var recvFunc events.EventHandler
 	var excludeSources []events.EventSource
-	var excludeLocations []string
-
 	if isClusterNotification(r) {
 		// If client is another cluster member, it will already be pulling events from other cluster
 		// members so no need to also deliver forwarded events that this member receives.
@@ -124,21 +141,6 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 			// Inject event received via push from event listener client so its forwarded to
 			// other event hub members (if operating in event hub mode).
 			d.events.Inject(event, events.EventSourcePush)
-		}
-
-		ctx := r.Context()
-
-		// Try and match cluster member certificate fingerprint to member name.
-		fingerprint, found := ctx.Value(request.CtxUsername).(string)
-		if found {
-			cert, err := d.State().Cluster.GetCertificate(fingerprint)
-			if err != nil {
-				return fmt.Errorf("Failed matching client certificate to cluster member: %w", err)
-			}
-
-			// Add the cluster member client's name to the excluded locations so that we can avoid
-			// looping the event back to them when they send us an event via recvFunc.
-			excludeLocations = append(excludeLocations, cert.Name)
 		}
 	}
 
