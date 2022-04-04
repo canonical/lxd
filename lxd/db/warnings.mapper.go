@@ -8,6 +8,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -169,7 +170,7 @@ func (c *ClusterTx) GetWarning(uuid string) (*Warning, error) {
 
 	switch len(objects) {
 	case 0:
-		return nil, ErrNoSuchObject
+		return nil, api.StatusErrorf(http.StatusNotFound, "Warning not found")
 	case 1:
 		return &objects[0], nil
 	default:
@@ -228,7 +229,7 @@ func (c *ClusterTx) GetWarningID(uuid string) (int64, error) {
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
-		return -1, ErrNoSuchObject
+		return -1, api.StatusErrorf(http.StatusNotFound, "Warning not found")
 	}
 	var id int64
 	err = rows.Scan(&id)
@@ -252,7 +253,8 @@ func (c *ClusterTx) GetWarningID(uuid string) (int64, error) {
 func (c *ClusterTx) WarningExists(uuid string) (bool, error) {
 	_, err := c.GetWarningID(uuid)
 	if err != nil {
-		if err == ErrNoSuchObject {
+		_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+		if matched {
 			return false, nil
 		}
 		return false, err

@@ -8,6 +8,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -152,7 +153,7 @@ func (c *ClusterTx) GetInstanceSnapshot(project string, instance string, name st
 
 	switch len(objects) {
 	case 0:
-		return nil, ErrNoSuchObject
+		return nil, api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
 	case 1:
 		return &objects[0], nil
 	default:
@@ -173,7 +174,7 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 
 	// Ensure we read one and only one row.
 	if !rows.Next() {
-		return -1, ErrNoSuchObject
+		return -1, api.StatusErrorf(http.StatusNotFound, "InstanceSnapshot not found")
 	}
 	var id int64
 	err = rows.Scan(&id)
@@ -197,7 +198,8 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 func (c *ClusterTx) InstanceSnapshotExists(project string, instance string, name string) (bool, error) {
 	_, err := c.GetInstanceSnapshotID(project, instance, name)
 	if err != nil {
-		if err == ErrNoSuchObject {
+		_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+		if matched {
 			return false, nil
 		}
 		return false, err

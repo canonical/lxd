@@ -8,6 +8,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
@@ -154,7 +155,7 @@ func (c *ClusterTx) GetImage(project string, fingerprint string) (*Image, error)
 
 	switch len(objects) {
 	case 0:
-		return nil, ErrNoSuchObject
+		return nil, api.StatusErrorf(http.StatusNotFound, "Image not found")
 	case 1:
 		return &objects[0], nil
 	default:
