@@ -2237,7 +2237,7 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	// fingerprint we receive from the database in all further queries.
 	imgID, imgInfo, err := d.cluster.GetImage(mux.Vars(r)["fingerprint"], db.ImageFilter{Project: &projectName})
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	do := func(op *operations.Operation) error {
