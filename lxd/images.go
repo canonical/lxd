@@ -2237,10 +2237,26 @@ func imageDelete(d *Daemon, r *http.Request) response.Response {
 	// fingerprint we receive from the database in all further queries.
 	imgID, imgInfo, err := d.cluster.GetImage(mux.Vars(r)["fingerprint"], db.ImageFilter{Project: &projectName})
 	if err != nil {
-		return response.InternalError(err)
+		return response.SmartError(err)
 	}
 
 	do := func(op *operations.Operation) error {
+		// Lock this operation to ensure that concurrent image operations don't conflict.
+		// Other operations will wait for this one to finish.
+		unlock := d.imageOperationLock(imgInfo.Fingerprint)
+		defer unlock()
+
+		// Check image still exists and another request hasn't removed it since we resolved the image
+		// fingerprint above.
+		exist, err := d.cluster.ImageExists(projectName, imgInfo.Fingerprint)
+		if err != nil {
+			return err
+		}
+
+		if !exist {
+			return api.StatusErrorf(http.StatusNotFound, "Image not found")
+		}
+
 		if !isClusterNotification(r) {
 			// Check if the image being deleted is actually still
 			// referenced by other projects. In that case we don't want to
@@ -3102,12 +3118,12 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The target field is required"))
 	}
 
-	imageId, _, err := d.cluster.GetImage(req.Target, db.ImageFilter{Project: &projectName})
+	imageID, _, err := d.cluster.GetImage(req.Target, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.UpdateImageAlias(id, imageId, req.Description)
+	err = d.cluster.UpdateImageAlias(id, imageID, req.Description)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3192,12 +3208,12 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		alias.Description = description
 	}
 
-	imageId, _, err := d.cluster.GetImage(alias.Target, db.ImageFilter{Project: &projectName})
+	imageID, _, err := d.cluster.GetImage(alias.Target, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.UpdateImageAlias(id, imageId, alias.Description)
+	err = d.cluster.UpdateImageAlias(id, imageID, alias.Description)
 	if err != nil {
 		return response.SmartError(err)
 	}
