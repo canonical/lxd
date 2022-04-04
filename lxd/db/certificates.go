@@ -66,7 +66,6 @@ type Certificate struct {
 	Name        string
 	Certificate string
 	Restricted  bool
-	Projects    []string
 }
 
 // ToAPIType returns the API equivalent type.
@@ -83,17 +82,27 @@ func (cert *Certificate) ToAPIType() string {
 	return api.CertificateTypeUnknown
 }
 
-// ToAPI converts the database Certificate struct to an api.Certificate entry.
-func (cert *Certificate) ToAPI() api.Certificate {
+// ToAPI converts the database Certificate struct to an api.Certificate
+// entry filling fields from the database as necessary.
+func (cert *Certificate) ToAPI(tx *ClusterTx) (*api.Certificate, error) {
 	resp := api.Certificate{}
 	resp.Fingerprint = cert.Fingerprint
 	resp.Certificate = cert.Certificate
 	resp.Name = cert.Name
 	resp.Restricted = cert.Restricted
-	resp.Projects = cert.Projects
 	resp.Type = cert.ToAPIType()
 
-	return resp
+	projects, err := tx.GetCertificateProjects(cert.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp.Projects = make([]string, len(projects))
+	for i, p := range projects {
+		resp.Projects[i] = p.Name
+	}
+
+	return &resp, nil
 }
 
 // CertificateFilter specifies potential query parameter fields.
@@ -103,54 +112,35 @@ type CertificateFilter struct {
 	Type        *CertificateType
 }
 
-// GetCertificate gets an CertBaseInfo object from the database.
+// GetCertificateByFingerprintPrefix gets an CertBaseInfo object from the database.
 // The argument fingerprint will be queried with a LIKE query, means you can
 // pass a shortform and will get the full fingerprint.
 // There can never be more than one certificate with a given fingerprint, as it is
 // enforced by a UNIQUE constraint in the schema.
-func (c *Cluster) GetCertificate(fingerprintPrefix string) (*Certificate, error) {
+func (c *ClusterTx) GetCertificateByFingerprintPrefix(fingerprintPrefix string) (*Certificate, error) {
 	var err error
 	var cert *Certificate
-	objects := []Certificate{}
-	err = c.Transaction(func(tx *ClusterTx) error {
-		sql := `
-SELECT certificates.id, certificates.fingerprint, certificates.type, certificates.name, certificates.certificate, certificates.restricted
+	sql := `
+SELECT certificates.fingerprint
 FROM certificates
 WHERE certificates.fingerprint LIKE ?
 ORDER BY certificates.fingerprint
 		`
-		stmt, err := tx.prepare(sql)
-		if err != nil {
-			return err
-		}
-		dest := func(i int) []any {
-			objects = append(objects, Certificate{})
-			return []any{
-				&objects[i].ID,
-				&objects[i].Fingerprint,
-				&objects[i].Type,
-				&objects[i].Name,
-				&objects[i].Certificate,
-				&objects[i].Restricted,
-			}
-		}
 
-		err = query.SelectObjects(stmt, dest, fingerprintPrefix+"%")
-		if err != nil {
-			return fmt.Errorf("Failed to fetch certificates: %w", err)
-		}
+	fingerprints, err := query.SelectStrings(c.tx, sql, fingerprintPrefix+"%")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch certificates fingerprints matching prefix %q: %w", fingerprintPrefix, err)
+	}
 
-		if len(objects) > 1 {
-			return fmt.Errorf("More than one certificate matches")
-		}
+	if len(fingerprints) > 1 {
+		return nil, fmt.Errorf("More than one certificate matches")
+	}
 
-		if len(objects) == 0 {
-			return ErrNoSuchObject
-		}
+	if len(fingerprints) == 0 {
+		return nil, ErrNoSuchObject
+	}
 
-		cert, err = tx.GetCertificate(objects[0].Fingerprint)
-		return err
-	})
+	cert, err = c.GetCertificate(fingerprints[0])
 	if err != nil {
 		return nil, err
 	}
@@ -158,30 +148,39 @@ ORDER BY certificates.fingerprint
 	return cert, nil
 }
 
-// CreateCertificate stores a CertInfo object in the db, it will ignore the ID
-// field from the CertInfo.
-func (c *Cluster) CreateCertificate(cert Certificate) (int64, error) {
+// CreateCertificateWithProjects stores a CertInfo object in the db, and associates it to a list of project names.
+// It will ignore the ID field from the CertInfo.
+func (c *ClusterTx) CreateCertificateWithProjects(cert Certificate, projectNames []string) (int64, error) {
 	var id int64
 	var err error
-	err = c.Transaction(func(tx *ClusterTx) error {
-		id, err = tx.CreateCertificate(cert)
-		return err
-	})
+	id, err = c.CreateCertificate(cert)
+	if err != nil {
+		return -1, err
+	}
+
+	err = c.UpdateCertificateProjects(int(id), projectNames)
+	if err != nil {
+		return -1, err
+	}
+
 	return id, err
 }
 
-// DeleteCertificate deletes a certificate from the db.
-func (c *Cluster) DeleteCertificate(fingerprint string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.DeleteCertificate(fingerprint)
-	})
-	return err
-}
-
 // UpdateCertificate updates a certificate in the db.
-func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate) error {
+func (c *Cluster) UpdateCertificate(fingerprint string, cert Certificate, projectNames []string) error {
 	err := c.Transaction(func(tx *ClusterTx) error {
-		return tx.UpdateCertificate(fingerprint, cert)
+		// Get the ID for the certificate.
+		id, err := tx.GetCertificateID(fingerprint)
+		if err != nil {
+			return err
+		}
+
+		err = tx.UpdateCertificate(fingerprint, cert)
+		if err != nil {
+			return err
+		}
+
+		return tx.UpdateCertificateProjects(int(id), projectNames)
 	})
 	return err
 }

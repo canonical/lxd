@@ -5,13 +5,13 @@ package db
 
 // CertificateProjectGenerated is an interface of generated methods for CertificateProject
 type CertificateProjectGenerated interface {
-	// GetCertificateProjects returns all available certificate_projects.
+	// GetCertificateProjects returns all available Projects for the Certificate.
 	// generator: certificate_project GetMany
-	GetCertificateProjects() (map[int][]int, error)
+	GetCertificateProjects(certificateID int) ([]Project, error)
 
 	// DeleteCertificateProjects deletes the certificate_project matching the given key parameters.
 	// generator: certificate_project DeleteMany
-	DeleteCertificateProjects(object Certificate) error
+	DeleteCertificateProjects(certificateID int) error
 
 	// CreateCertificateProject adds a new certificate_project to the database.
 	// generator: certificate_project Create
@@ -19,5 +19,5 @@ type CertificateProjectGenerated interface {
 
 	// UpdateCertificateProjects updates the certificate_project matching the given key parameters.
 	// generator: certificate_project Update
-	UpdateCertificateProjects(object Certificate) error
+	UpdateCertificateProjects(certificateID int, projectNames []string) error
 }
