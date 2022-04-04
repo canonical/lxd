@@ -3102,12 +3102,12 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("The target field is required"))
 	}
 
-	imageId, _, err := d.cluster.GetImage(req.Target, db.ImageFilter{Project: &projectName})
+	imageID, _, err := d.cluster.GetImage(req.Target, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.UpdateImageAlias(id, imageId, req.Description)
+	err = d.cluster.UpdateImageAlias(id, imageID, req.Description)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3192,12 +3192,12 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 		alias.Description = description
 	}
 
-	imageId, _, err := d.cluster.GetImage(alias.Target, db.ImageFilter{Project: &projectName})
+	imageID, _, err := d.cluster.GetImage(alias.Target, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.UpdateImageAlias(id, imageId, alias.Description)
+	err = d.cluster.UpdateImageAlias(id, imageID, alias.Description)
 	if err != nil {
 		return response.SmartError(err)
 	}
