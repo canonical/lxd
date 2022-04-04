@@ -111,7 +111,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	// time may also arrive at the conclusion that the image doesn't exist on this cluster member and then
 	// think it needs to download the image and store the record in the database as well, which will lead to
 	// duplicate record errors.
-	unlock := d.imageDownloadLock(img.Fingerprint)
+	unlock := d.imageOperationLock(img.Fingerprint)
 
 	nodeAddress, err := s.Cluster.LocateImage(hash)
 	if err != nil {

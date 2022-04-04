@@ -45,12 +45,12 @@ type ImageDownloadArgs struct {
 	SourceProjectName string
 }
 
-// imageDownloadLock acquires a lock for downloading/transferring an image and returns the unlock function.
-func (d *Daemon) imageDownloadLock(fingerprint string) locking.UnlockFunc {
-	logger.Debugf("Acquiring lock for image download of %q", fingerprint)
-	defer logger.Debugf("Lock acquired for image download of %q", fingerprint)
+// imageOperationLock acquires a lock for operating on an image and returns the unlock function.
+func (d *Daemon) imageOperationLock(fingerprint string) locking.UnlockFunc {
+	logger.Debugf("Acquiring lock for image %q", fingerprint)
+	defer logger.Debugf("Lock acquired for image %q", fingerprint)
 
-	return locking.Lock(fmt.Sprintf("ImageDownload_%s", fingerprint))
+	return locking.Lock(fmt.Sprintf("ImageOperation_%s", fingerprint))
 }
 
 // ImageDownload resolves the image fingerprint and if not in the database, downloads it
@@ -120,7 +120,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Ensure we are the only ones operating on this image.
-	unlock := d.imageDownloadLock(fp)
+	unlock := d.imageOperationLock(fp)
 	defer unlock()
 
 	// If auto-update is on and we're being given the image by
