@@ -158,6 +158,11 @@ func (ctw *InstanceTarWriter) WriteFile(name string, srcPath string, fi os.FileI
 		if err != nil {
 			return fmt.Errorf("Failed to copy file content %q: %w", srcPath, err)
 		}
+
+		err = f.Close()
+		if err != nil {
+			return fmt.Errorf("Failed to close file %q: %w", srcPath, err)
+		}
 	}
 
 	return nil
