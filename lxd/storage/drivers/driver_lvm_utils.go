@@ -739,13 +739,23 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 }
 
 // activateVolume activates an LVM logical volume if not already present. Returns true if activated, false if not.
-func (d *lvm) activateVolume(volDevPath string) (bool, error) {
+func (d *lvm) activateVolume(vol Volume) (bool, error) {
+	var volDevPath string
+
+	if d.usesThinpool() {
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+	} else {
+		// Use parent for non-thinpool vols as activating the parent volume also activates its snapshots.
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
+	}
+
 	if !shared.PathExists(volDevPath) {
 		_, err := shared.RunCommand("lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
 		if err != nil {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
-		d.logger.Debug("Activated logical volume", logger.Ctx{"dev": volDevPath})
+		d.logger.Debug("Activated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
 		return true, nil
 	}
 
@@ -753,13 +763,23 @@ func (d *lvm) activateVolume(volDevPath string) (bool, error) {
 }
 
 // deactivateVolume deactivates an LVM logical volume if present. Returns true if deactivated, false if not.
-func (d *lvm) deactivateVolume(volDevPath string) (bool, error) {
+func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
+	var volDevPath string
+
+	if d.usesThinpool() {
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+	} else {
+		// Use parent for non-thinpool vols as deactivating the parent volume also activates its snapshots.
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
+	}
+
 	if shared.PathExists(volDevPath) {
 		_, err := shared.RunCommand("lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
 		if err != nil {
 			return false, fmt.Errorf("Failed to deactivate LVM logical volume %q: %w", volDevPath, err)
 		}
-		d.logger.Debug("Deactivated logical volume", logger.Ctx{"dev": volDevPath})
+		d.logger.Debug("Deactivated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
 		return true, nil
 	}
 
