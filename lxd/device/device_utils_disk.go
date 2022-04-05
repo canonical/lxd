@@ -119,7 +119,7 @@ func DiskMount(srcPath string, dstPath string, readonly bool, recursive bool, pr
 func DiskMountClear(mntPath string) error {
 	if shared.PathExists(mntPath) {
 		if filesystem.IsMountPoint(mntPath) {
-			err := unix.Unmount(mntPath, unix.MNT_DETACH)
+			err := storageDrivers.TryUnmount(mntPath, 0)
 			if err != nil {
 				return fmt.Errorf("Failed unmounting %q: %w", mntPath, err)
 			}
