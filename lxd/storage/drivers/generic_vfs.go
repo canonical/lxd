@@ -542,6 +542,11 @@ func genericVFSBackupVolume(d Driver, vol Volume, tarWriter *instancewriter.Inst
 				if err != nil {
 					return fmt.Errorf("Error copying %q as %q to tarball: %w", blockPath, name, err)
 				}
+
+				err = from.Close()
+				if err != nil {
+					return fmt.Errorf("Failed to close file %q: %w", blockPath, err)
+				}
 			} else {
 				logMsg := "Copying container filesystem volume"
 				if vol.volType == VolumeTypeCustom {
