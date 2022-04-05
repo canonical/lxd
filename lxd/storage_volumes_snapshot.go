@@ -1099,7 +1099,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			if v.NodeID == localNodeID {
 				// Always include local volumes.
 				volumes = append(volumes, v)
-				logger.Debug("Scheduling local auto custom volume snapshot", logger.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+				logger.Debug("Scheduling local auto custom volume snapshot", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName})
 			} else if v.NodeID < 0 {
 				// Keep a separate list of remote volumes in order to select a member to perform
 				// the snapshot later.
@@ -1156,7 +1156,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 					if nodeCount > 1 {
 						selectedNodeID, err := util.GetStableRandomInt64FromList(int64(v.ID), onlineNodeIDs)
 						if err != nil {
-							logger.Error("Failed scheduling remote auto custom volume snapshot task", logger.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName, "err": err})
+							logger.Error("Failed scheduling remote auto custom volume snapshot task", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName, "err": err})
 							continue
 						}
 
@@ -1166,7 +1166,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 						}
 					}
 
-					logger.Debug("Scheduling remote auto custom volume snapshot", logger.Ctx{"vol": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+					logger.Debug("Scheduling remote auto custom volume snapshot", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName})
 					volumes = append(volumes, v)
 				}
 			}
