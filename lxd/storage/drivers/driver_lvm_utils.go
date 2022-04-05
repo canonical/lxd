@@ -601,7 +601,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		// volumes with the same UUID to be mounted at the same time). This should be done before volume
 		// resize as some filesystems will need to mount the filesystem to resize.
 		if renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
-			_, err = d.activateVolume(volDevPath)
+			_, err = d.activateVolume(vol)
 			if err != nil {
 				return err
 			}
