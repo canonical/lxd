@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -239,24 +240,35 @@ func (v Volume) EnsureMountPath() error {
 func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) error, op *operations.Operation) error {
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
-	if v.IsSnapshot() {
-		ourMount, err := v.driver.MountVolumeSnapshot(v, op)
-		if err != nil {
-			return err
-		}
+	var err error
+	var ourMount bool
 
-		if ourMount {
-			defer v.driver.UnmountVolumeSnapshot(v, op)
-		}
+	if v.IsSnapshot() {
+		ourMount, err = v.driver.MountVolumeSnapshot(v, op)
 	} else {
-		err := v.driver.MountVolume(v, op)
-		if err != nil {
-			return err
-		}
-		defer v.driver.UnmountVolume(v, false, op)
+		err = v.driver.MountVolume(v, op)
+	}
+	if err != nil {
+		return err
 	}
 
-	return task(v.MountPath(), op)
+	err = task(v.MountPath(), op)
+	if err != nil {
+		return err
+	}
+
+	if v.IsSnapshot() {
+		if ourMount {
+			_, err = v.driver.UnmountVolumeSnapshot(v, op)
+		}
+	} else {
+		_, err = v.driver.UnmountVolume(v, false, op)
+	}
+	if err != nil && !errors.Is(err, ErrInUse) {
+		return err
+	}
+
+	return nil
 }
 
 // UnmountTask runs the supplied task after unmounting the volume if needed.
