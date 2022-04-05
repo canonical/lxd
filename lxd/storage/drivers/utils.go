@@ -17,6 +17,7 @@ import (
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/idmap"
+	"github.com/lxc/lxd/shared/logger"
 )
 
 // MinBlockBoundary minimum block boundary size to use.
@@ -181,6 +182,7 @@ func TryUnmount(path string, flags int) error {
 			break
 		}
 
+		logger.Debug("Failed to unmount", logger.Ctx{"path": path, "attempt": i, "err": err})
 		time.Sleep(500 * time.Millisecond)
 	}
 
