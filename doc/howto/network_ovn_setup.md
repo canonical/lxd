@@ -1,4 +1,8 @@
+(network-ovn-setup)=
 # How to set up OVN with LXD
+
+```{youtube} https://www.youtube.com/watch?v=1M__Rm9iZb8
+```
 
 This will create a standalone OVN network that is connected to the parent network lxdbr0 for outbound connectivity.
 
