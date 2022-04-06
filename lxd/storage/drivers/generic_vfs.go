@@ -215,6 +215,11 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 			return fmt.Errorf("Error copying %q to migration connection: %w", path, err)
 		}
 
+		err = from.Close()
+		if err != nil {
+			return fmt.Errorf("Failed to close file %q: %w", path, err)
+		}
+
 		return nil
 	}
 
