@@ -67,8 +67,8 @@ ipv4.dhcp.expiry                     | string    | ipv4 dhcp             | 1h   
 ipv4.dhcp.gateway                    | string    | ipv4 dhcp             | ipv4.address              | Address of the gateway for the subnet
 ipv4.dhcp.ranges                     | string    | ipv4 dhcp             | all addresses             | Comma separated list of IP ranges to use for DHCP (FIRST-LAST format)
 ipv4.firewall                        | boolean   | ipv4 address          | true                      | Whether to generate filtering firewall rules for this network
-ipv4.nat.address                     | string    | ipv4 address          | -                         | The source address used for outbound traffic from the bridge
 ipv4.nat                             | boolean   | ipv4 address          | false                     | Whether to NAT (defaults to true for regular bridges where ipv4.address is generated and always defaults to true for fan bridges)
+ipv4.nat.address                     | string    | ipv4 address          | -                         | The source address used for outbound traffic from the bridge
 ipv4.nat.order                       | string    | ipv4 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
 ipv4.ovn.ranges                      | string    | -                     | -                         | Comma separate list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv4.routes                          | string    | ipv4 address          | -                         | Comma separated list of additional IPv4 CIDR subnets to route to the bridge
@@ -79,8 +79,8 @@ ipv6.dhcp.expiry                     | string    | ipv6 dhcp             | 1h   
 ipv6.dhcp.ranges                     | string    | ipv6 stateful dhcp    | all addresses             | Comma separated list of IPv6 ranges to use for DHCP (FIRST-LAST format)
 ipv6.dhcp.stateful                   | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 ipv6.firewall                        | boolean   | ipv6 address          | true                      | Whether to generate filtering firewall rules for this network
-ipv6.nat.address                     | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
 ipv6.nat                             | boolean   | ipv6 address          | false                     | Whether to NAT (will default to true if unset and a random ipv6.address is generated)
+ipv6.nat.address                     | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
 ipv6.nat.order                       | string    | ipv6 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
 ipv6.ovn.ranges                      | string    | -                     | -                         | Comma separate list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
 ipv6.routes                          | string    | ipv6 address          | -                         | Comma separated list of additional IPv6 CIDR subnets to route to the bridge
@@ -88,6 +88,11 @@ ipv6.routing                         | boolean   | ipv6 address          | true 
 maas.subnet.ipv4                     | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
 maas.subnet.ipv6                     | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
 raw.dnsmasq                          | string    | -                     | -                         | Additional dnsmasq configuration to append to the configuration file
+security.acls                        | string    | -                     | -                         | Comma separated list of Network ACLs to apply to NICs connected to this network (see {ref}`network-acls-bridge-limitations`)
+security.acls.default.egress.action  | string    | security.acls         | reject                    | Action to use for egress traffic that doesn't match any ACL rule
+security.acls.default.egress.logged  | boolean   | security.acls         | false                     | Whether to log egress traffic that doesn't match any ACL rule
+security.acls.default.ingress.action | string    | security.acls         | reject                    | Action to use for ingress traffic that doesn't match any ACL rule
+security.acls.default.ingress.logged | boolean   | security.acls         | false                     | Whether to log ingress traffic that doesn't match any ACL rule
 tunnel.NAME.group                    | string    | vxlan                 | 239.0.0.1                 | Multicast address for vxlan (used if local and remote aren't set)
 tunnel.NAME.id                       | integer   | vxlan                 | 0                         | Specific tunnel ID to use for the vxlan tunnel
 tunnel.NAME.interface                | string    | vxlan                 | -                         | Specific host interface to use for the tunnel
@@ -96,11 +101,6 @@ tunnel.NAME.port                     | integer   | vxlan                 | 0    
 tunnel.NAME.protocol                 | string    | standard mode         | -                         | Tunneling protocol ("vxlan" or "gre")
 tunnel.NAME.remote                   | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
 tunnel.NAME.ttl                      | integer   | vxlan                 | 1                         | Specific TTL to use for multicast routing topologies
-security.acls                        | string    | -                     | -                         | Comma separated list of Network ACLs to apply to NICs connected to this network (see {ref}`network-acls-bridge-limitations`)
-security.acls.default.ingress.action | string    | security.acls         | reject                    | Action to use for ingress traffic that doesn't match any ACL rule
-security.acls.default.egress.action  | string    | security.acls         | reject                    | Action to use for egress traffic that doesn't match any ACL rule
-security.acls.default.ingress.logged | boolean   | security.acls         | false                     | Whether to log ingress traffic that doesn't match any ACL rule
-security.acls.default.egress.logged  | boolean   | security.acls         | false                     | Whether to log egress traffic that doesn't match any ACL rule
 
 ## IPv6 prefix size
 For optimal operation, a prefix size of 64 is preferred.
