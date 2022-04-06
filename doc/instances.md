@@ -339,6 +339,7 @@ The following NICs can be specified using only the `nictype` property:
  - [p2p](#nic-p2p): Creates a virtual device pair, putting one side in the instance and leaving the other side on the host.
  - [routed](#nic-routed): Creates a virtual device pair to connect the host to the instance and sets up static routes and proxy ARP/NDP entries to allow the instance to join the network of a designated parent interface.
 
+(instance_device_type_nic_bridged)=
 ##### nic: bridged
 
 Supported instance types: container, VM
