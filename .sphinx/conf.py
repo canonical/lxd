@@ -11,7 +11,6 @@ copyright = "2014-%s %s" % (datetime.date.today().year, author)
 with open("../shared/version/flex.go") as fd:
     version = fd.read().split("\n")[-2].split()[-1].strip("\"")
 
-sys.path.append(os.path.abspath("_extensions"))
 
 # Extensions.
 extensions = [
@@ -19,7 +18,7 @@ extensions = [
     "sphinx_tabs.tabs",
     "sphinx_reredirects",
     "sphinxext.opengraph",
-    "youtube-link",
+    "youtube-links",
     "related-links"
 ]
 
