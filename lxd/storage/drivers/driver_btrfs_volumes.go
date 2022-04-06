@@ -242,6 +242,13 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		return "", fmt.Errorf("Could not find %q", srcFile)
 	}
 
+	type btrfsCopyOp struct {
+		src  string
+		dest string
+	}
+
+	var copyOps []btrfsCopyOp
+
 	// unpackVolume unpacks all subvolumes in a LXD volume from a backup tarball file.
 	unpackVolume := func(v Volume, srcFilePrefix string) error {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
@@ -262,6 +269,13 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 			// Define where we will move the subvolume after it is unpacked.
 			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
 
+			tmpUnpackDir := filepath.Join(tmpUnpackDir, snapName)
+
+			err := os.MkdirAll(tmpUnpackDir, 0100)
+			if err != nil {
+				return fmt.Errorf("Failed creating directory %q: %w", tmpUnpackDir, err)
+			}
+
 			d.Logger().Debug("Unpacking optimized volume", logger.Ctx{"name": v.name, "source": srcFilePath, "unpackPath": tmpUnpackDir, "path": subVolTargetPath})
 
 			// Unpack the volume into the temporary unpackDir.
@@ -270,14 +284,10 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 				return err
 			}
 
-			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
-
-			// Move unpacked subvolume into its final location.
-			err = os.Rename(unpackedSubVolPath, subVolTargetPath)
-			if err != nil {
-				return err
-			}
+			copyOps = append(copyOps, btrfsCopyOp{
+				src:  unpackedSubVolPath,
+				dest: subVolTargetPath,
+			})
 		}
 
 		return nil
@@ -327,6 +337,22 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 	err = unpackVolume(vol, srcFilePrefix)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	for _, copyOp := range copyOps {
+		err = d.setSubvolumeReadonlyProperty(copyOp.src, false)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Clear the target for the subvol to use.
+		os.Remove(copyOp.dest)
+
+		// Move unpacked subvolume into its final location.
+		err = os.Rename(copyOp.src, copyOp.dest)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Restore readonly property on subvolumes that need it.
