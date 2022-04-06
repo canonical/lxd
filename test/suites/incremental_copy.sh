@@ -1,28 +1,16 @@
 test_incremental_copy() {
-  # shellcheck disable=2039
-  local lxd_backend
-  lxd_backend=$(storage_backend "$LXD_DIR")
-
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
   do_copy "" ""
 
   # cross-pool copy
-  if [ "${lxd_backend}" != 'dir' ]; then
-    # FIXME: Skip copies across old and new backends for now
-    if ! storage_compatible "dir" "${lxd_backend}"; then
-        true
-        return
-    fi
-
-    # shellcheck disable=2039
-    local source_pool
-    source_pool="lxdtest-$(basename "${LXD_DIR}")-dir-pool"
-    lxc storage create "${source_pool}" dir
-    do_copy "${source_pool}" "lxdtest-$(basename "${LXD_DIR}")"
-    lxc storage rm "${source_pool}"
-  fi
+  # shellcheck disable=2039
+  local source_pool
+  source_pool="lxdtest-$(basename "${LXD_DIR}")-dir-pool"
+  lxc storage create "${source_pool}" dir
+  do_copy "${source_pool}" "lxdtest-$(basename "${LXD_DIR}")"
+  lxc storage rm "${source_pool}"
 }
 
 do_copy() {
