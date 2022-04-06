@@ -2491,7 +2491,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 
 	// Allow disabling the UEFI firmware.
 	if shared.StringInSlice("-bios", rawOptions) || shared.StringInSlice("-kernel", rawOptions) {
-		d.logger.Warn("Starting VM without standard firmware (-bios or -kernel was provided)")
+		d.logger.Warn("Starting VM without default firmware (-bios or -kernel in raw.qemu)")
 	} else {
 		err = qemuDriveFirmware.Execute(sb, map[string]any{
 			"architecture": d.architectureName,
