@@ -99,6 +99,9 @@ func GetAllXattr(path string) (xattrs map[string]string, err error) {
 	// two calls.
 	pre, err := llistxattr(path, nil)
 	if err != nil || pre < 0 {
+		if err == unix.EOPNOTSUPP {
+			return nil, nil
+		}
 		return nil, err
 	}
 	if pre == 0 {
