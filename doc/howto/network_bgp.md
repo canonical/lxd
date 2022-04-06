@@ -16,10 +16,16 @@ The addresses and networks currently being advertised are:
 At this time, there isn't a way to only announce some specific routes/addresses to particular peers.
 Instead it's currently recommended to filter prefixes on the upstream routers.
 
+## Configure the BGP server
+
 For this to work, `core.bgp_address`, `core.bgp_asn` and `core.bgp_routerid` must be set.
 Once those are set, LXD will start listening for BGP sessions.
 
+### Configure next-hop (`bridge` only)
+
 Peers can be defined on both `bridged` and `physical` managed networks. Additionally in the `bridged` case, a set of per-server configuration keys are also available to override the next-hop. When those aren't specified, the next-hop defaults to the address used for the BGP session.
+
+### Configure BGP peers for OVN networks
 
 The `physical` network case is used for `ovn` networks where the uplink network is the one holding the list of allowed subnets and the BGP configuration.
 
