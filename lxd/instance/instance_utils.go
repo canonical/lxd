@@ -1173,18 +1173,26 @@ func IsSameLogicalInstance(inst Instance, dbInst *db.Instance) bool {
 // RuntimeLiblxcVersionAtLeast checks if the system's liblxc matches the
 // provided version requirement
 func RuntimeLiblxcVersionAtLeast(version string, major int, minor int, micro int) bool {
+	// Strip git versioning from pre-release snapshots.
+	version = strings.Split(version, "~")[0]
+
+	// Convert devel indicator into a valid version.
 	version = strings.Replace(version, " (devel)", "-devel", 1)
+
+	// Split the version into its major, minor and micro parts.
 	parts := strings.Split(version, ".")
 	partsLen := len(parts)
 	if partsLen == 0 {
 		return false
 	}
 
+	// If the last part includes -devel, assume everything is supported.
 	develParts := strings.Split(parts[partsLen-1], "-")
 	if len(develParts) == 2 && develParts[1] == "devel" {
 		return true
 	}
 
+	// Actually parse and compare the version string now.
 	maj := -1
 	min := -1
 	mic := -1
