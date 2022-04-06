@@ -2,6 +2,7 @@
 discourse: 13223
 ---
 
+(network-acls)=
 # How to configure network ACLs
 
 ```{note}
