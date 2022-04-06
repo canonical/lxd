@@ -2,6 +2,7 @@
 discourse: 11567
 ---
 
+(network-bgp)=
 # How to configure LXD as a BGP server
 
 ```{note}
