@@ -2480,13 +2480,27 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		return "", nil, err
 	}
 
-	err = qemuDriveFirmware.Execute(sb, map[string]any{
-		"architecture": d.architectureName,
-		"roPath":       filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
-		"nvramPath":    d.nvramPath(),
-	})
-	if err != nil {
-		return "", nil, err
+	// Parse raw.qemu.
+	rawOptions := []string{}
+	if d.expandedConfig["raw.qemu"] != "" {
+		rawOptions, err = shellquote.Split(d.expandedConfig["raw.qemu"])
+		if err != nil {
+			return "", nil, err
+		}
+	}
+
+	// Allow disabling the UEFI firmware.
+	if shared.StringInSlice("-bios", rawOptions) || shared.StringInSlice("-kernel", rawOptions) {
+		d.logger.Warn("Starting VM without standard firmware (-bios or -kernel was provided)")
+	} else {
+		err = qemuDriveFirmware.Execute(sb, map[string]any{
+			"architecture": d.architectureName,
+			"roPath":       filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
+			"nvramPath":    d.nvramPath(),
+		})
+		if err != nil {
+			return "", nil, err
+		}
 	}
 
 	err = qemuControlSocket.Execute(sb, map[string]any{
