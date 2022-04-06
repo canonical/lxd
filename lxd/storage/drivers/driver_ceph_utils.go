@@ -157,7 +157,7 @@ func (d *ceph) rbdMapVolume(vol Volume) (string, error) {
 
 	devPath = strings.TrimSpace(devPath[idx:])
 
-	d.logger.Debug("Activated RBD volume", logger.Ctx{"vol": rbdName, "dev": devPath})
+	d.logger.Debug("Activated RBD volume", logger.Ctx{"volName": rbdName, "dev": devPath})
 	return devPath, nil
 }
 
@@ -185,7 +185,7 @@ again:
 				if exitError.ExitCode() == 22 {
 					// EINVAL (already unmapped).
 					if ourDeactivate {
-						d.logger.Debug("Deactivated RBD volume", logger.Ctx{"vol": rbdVol})
+						d.logger.Debug("Deactivated RBD volume", logger.Ctx{"volName": rbdVol})
 					}
 
 					return nil
@@ -213,7 +213,7 @@ again:
 		goto again
 	}
 
-	d.logger.Debug("Deactivated RBD volume", logger.Ctx{"vol": rbdVol})
+	d.logger.Debug("Deactivated RBD volume", logger.Ctx{"volName": rbdVol})
 
 	return nil
 }
