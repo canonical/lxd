@@ -18,6 +18,9 @@ const (
 	// CtxProtocol is the protocol field in request context.
 	CtxProtocol = "protocol"
 
+	// CtxTrusted is the trusted field in the request context.
+	CtxTrusted = "trusted"
+
 	// CtxForwardedAddress is the forwarded address field in request context.
 	CtxForwardedAddress = "forwarded_address"
 
