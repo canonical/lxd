@@ -542,16 +542,11 @@ func (d *btrfs) loadOptimizedBackupHeader(r io.ReadSeeker, mountPath string) (*B
 	return nil, fmt.Errorf("Optimized backup header file not found")
 }
 
-// receiveSubVolume receives a subvolume from an io.Reader into the receivePath, then sets it writable and returns
-// the path to the received subvolume.
+// receiveSubVolume receives a subvolume from an io.Reader into the receivePath and returns the path to the received subvolume.
 func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error) {
-	// Check target path is empty before receive.
 	files, err := ioutil.ReadDir(receivePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
-	}
-	if len(files) > 0 {
-		return "", fmt.Errorf("Target path is not empty %q", receivePath)
 	}
 
 	err = shared.RunCommandWithFds(r, nil, "btrfs", "receive", "-e", receivePath)
@@ -560,22 +555,35 @@ func (d *btrfs) receiveSubVolume(r io.Reader, receivePath string) (string, error
 	}
 
 	// Check contents of target path is expected after receive.
-	files, err = ioutil.ReadDir(receivePath)
+	newFiles, err := ioutil.ReadDir(receivePath)
 	if err != nil {
 		return "", fmt.Errorf("Failed listing contents of %q: %w", receivePath, err)
 	}
 
-	if len(files) != 1 {
-		return "", fmt.Errorf("Unpack target path contains %d files, expected 1 file after unpack", len(files))
+	filename := ""
+
+	// Identify the latest received path.
+	for _, a := range newFiles {
+		found := false
+
+		for _, b := range files {
+			if a.Name() == b.Name() {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			filename = a.Name()
+			break
+		}
 	}
 
-	subVolPath := filepath.Join(receivePath, files[0].Name())
-
-	// Set writable to allow subvolume to be moved (or deleted if needed) later.
-	err = d.setSubvolumeReadonlyProperty(subVolPath, false)
-	if err != nil {
-		return "", err
+	if filename == "" {
+		return "", fmt.Errorf("Failed to determine received subvolume")
 	}
+
+	subVolPath := filepath.Join(receivePath, filename)
 
 	return subVolPath, nil
 }
