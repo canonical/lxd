@@ -10,9 +10,9 @@ knowing any of the underlying configuration details.
 
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
-maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
-maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+gvrp                            | boolean   | -                     | false                     | Register VLAN using GARP VLAN Registration Protocol
 mtu                             | integer   | -                     | -                         | The MTU of the new interface
 parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
 vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
-gvrp                            | boolean   | -                     | false                     | Register VLAN using GARP VLAN Registration Protocol
+maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
+maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
