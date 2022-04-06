@@ -83,10 +83,6 @@ test_storage_local_volume_handling() {
 
     for source_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
       for target_driver in "btrfs" "ceph" "cephfs" "dir" "lvm" "zfs"; do
-        # FIXME: Skip copies across old and new backends for now
-        storage_compatible "${source_driver}" "${target_driver}" || continue
-        storage_compatible "${target_driver}" "${source_driver}" || continue
-
         # shellcheck disable=SC2235
         if [ "$source_driver" != "$target_driver" ] \
             && ([ "$lxd_backend" = "$source_driver" ] || ([ "$lxd_backend" = "ceph" ] && [ "$source_driver" = "cephfs" ] && [ -n "${LXD_CEPH_CEPHFS:-}" ])) \

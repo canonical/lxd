@@ -129,17 +129,3 @@ umount_loops() {
     fi
 }
 
-storage_compatible() {
-    if [ "${1}" = "cephfs" ] || [ "${1}" = "dir" ] || [ "${1}" = "btrfs" ] || [ "${1}" = "lvm" ] || [ "${1}" = "zfs" ] || [ "${1}" = "ceph" ]; then
-        if [ "${2}" = "cephfs" ] || [ "${2}" = "dir" ] || [ "${2}" = "btrfs" ] || [ "${2}" = "lvm" ] || [ "${2}" = "zfs" ] || [ "${2}" = "ceph" ]; then
-            true
-            return
-        else
-            false
-            return
-        fi
-    fi
-
-    true
-    return
-}

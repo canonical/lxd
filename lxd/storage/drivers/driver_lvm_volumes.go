@@ -136,18 +136,6 @@ func (d *lvm) CreateVolumeFromCopy(vol, srcVol Volume, copySnapshots bool, op *o
 		return nil
 	}
 
-	// Before doing a generic volume copy, we need to ensure volume (or snap volume parent) is activated to
-	// avoid failing with warnings about changing the origin of the snapshot when trying to activate it.
-	parent, _, _ := shared.InstanceGetParentAndSnapshotName(srcVol.Name())
-	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], srcVol.volType, srcVol.contentType, parent)
-	activated, err := d.activateVolume(volDevPath)
-	if err != nil {
-		return err
-	}
-	if activated {
-		defer d.deactivateVolume(volDevPath)
-	}
-
 	// Otherwise run the generic copy.
 	return genericVFSCopyVolume(d, nil, vol, srcVol, srcSnapshots, false, op)
 }
@@ -389,12 +377,12 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 	logCtx := logger.Ctx{"dev": volDevPath, "size": fmt.Sprintf("%db", sizeBytes)}
 
 	// Activate volume if needed.
-	activated, err := d.activateVolume(volDevPath)
+	activated, err := d.activateVolume(vol)
 	if err != nil {
 		return err
 	}
 	if activated {
-		defer d.deactivateVolume(volDevPath)
+		defer d.deactivateVolume(vol)
 	}
 
 	inUse := vol.MountInUse()
@@ -588,12 +576,12 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 
 	// Activate LVM volume if needed.
 	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
-	activated, err := d.activateVolume(volDevPath)
+	activated, err := d.activateVolume(vol)
 	if err != nil {
 		return err
 	}
 	if activated {
-		revert.Add(func() { d.deactivateVolume(volDevPath) })
+		revert.Add(func() { d.deactivateVolume(vol) })
 	}
 
 	if vol.contentType == ContentTypeFS {
@@ -666,7 +654,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 			// We only deactivate filesystem volumes if an unmount was needed to better align with our
 			// unmount return value indicator.
 			if !keepBlockDev {
-				_, err = d.deactivateVolume(volDevPath)
+				_, err = d.deactivateVolume(vol)
 				if err != nil {
 					return false, err
 				}
@@ -690,7 +678,7 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 				return false, ErrInUse
 			}
 
-			_, err = d.deactivateVolume(volDevPath)
+			_, err = d.deactivateVolume(vol)
 			if err != nil {
 				return false, err
 			}
@@ -776,18 +764,6 @@ func (d *lvm) RenameVolume(vol Volume, newVolName string, op *operations.Operati
 
 // MigrateVolume sends a volume for migration.
 func (d *lvm) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *migration.VolumeSourceArgs, op *operations.Operation) error {
-	// Before doing a generic volume migration, we need to ensure volume (or snap volume parent) is activated
-	// to avoid failing with warnings about changing the origin of the snapshot when trying to activate it.
-	parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
-	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
-	activated, err := d.activateVolume(volDevPath)
-	if err != nil {
-		return err
-	}
-	if activated {
-		defer d.deactivateVolume(volDevPath)
-	}
-
 	return genericVFSMigrateVolume(d, d.state, vol, conn, volSrcArgs, op)
 }
 
@@ -946,7 +922,7 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], mountVol.volType, mountVol.contentType, mountVol.name)
 
 		// Activate volume if needed.
-		_, err = d.activateVolume(volDevPath)
+		_, err = d.activateVolume(mountVol)
 		if err != nil {
 			return false, err
 		}
@@ -983,10 +959,8 @@ func (d *lvm) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 
 	activated := false
 	if snapVol.contentType == ContentTypeBlock {
-		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
-
 		// Activate volume if needed.
-		activated, err = d.activateVolume(volDevPath)
+		activated, err = d.activateVolume(snapVol)
 		if err != nil {
 			return false, err
 		}
@@ -1008,7 +982,6 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	defer unlock()
 
 	var err error
-	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, snapVol.contentType, snapVol.name)
 	mountPath := snapVol.MountPath()
 
 	// Check if already mounted.
@@ -1036,7 +1009,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 		// We only deactivate filesystem volumes if an unmount was needed to better align with our
 		// unmount return value indicator.
-		_, err = d.deactivateVolume(volDevPath)
+		_, err = d.deactivateVolume(snapVol)
 		if err != nil {
 			return false, err
 		}
@@ -1046,7 +1019,7 @@ func (d *lvm) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 
 	deactivated := false
 	if snapVol.contentType == ContentTypeBlock {
-		deactivated, err = d.deactivateVolume(volDevPath)
+		deactivated, err = d.deactivateVolume(snapVol)
 		if err != nil {
 			return false, err
 		}
@@ -1157,7 +1130,7 @@ func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 
 		// If the volume's filesystem needs to have its UUID regenerated to allow mount then do so now.
 		if vol.contentType == ContentTypeFS && renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
-			_, err = d.activateVolume(volDevPath)
+			_, err = d.activateVolume(vol)
 			if err != nil {
 				return err
 			}

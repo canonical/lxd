@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lxc/lxd/lxd/locking"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -601,7 +603,7 @@ func (d *lvm) copyThinpoolVolume(vol, srcVol Volume, srcSnapshots []Volume, refr
 		// volumes with the same UUID to be mounted at the same time). This should be done before volume
 		// resize as some filesystems will need to mount the filesystem to resize.
 		if renegerateFilesystemUUIDNeeded(vol.ConfigBlockFilesystem()) {
-			_, err = d.activateVolume(volDevPath)
+			_, err = d.activateVolume(vol)
 			if err != nil {
 				return err
 			}
@@ -739,13 +741,23 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 }
 
 // activateVolume activates an LVM logical volume if not already present. Returns true if activated, false if not.
-func (d *lvm) activateVolume(volDevPath string) (bool, error) {
+func (d *lvm) activateVolume(vol Volume) (bool, error) {
+	var volDevPath string
+
+	if d.usesThinpool() {
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+	} else {
+		// Use parent for non-thinpool vols as activating the parent volume also activates its snapshots.
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
+	}
+
 	if !shared.PathExists(volDevPath) {
 		_, err := shared.RunCommand("lvchange", "--activate", "y", "--ignoreactivationskip", volDevPath)
 		if err != nil {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
-		d.logger.Debug("Activated logical volume", logger.Ctx{"dev": volDevPath})
+		d.logger.Debug("Activated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
 		return true, nil
 	}
 
@@ -753,13 +765,44 @@ func (d *lvm) activateVolume(volDevPath string) (bool, error) {
 }
 
 // deactivateVolume deactivates an LVM logical volume if present. Returns true if deactivated, false if not.
-func (d *lvm) deactivateVolume(volDevPath string) (bool, error) {
+func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
+	var volDevPath string
+
+	if d.usesThinpool() {
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+	} else {
+		// Use parent for non-thinpool vols as deactivating the parent volume also activates its snapshots.
+		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
+		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
+
+		// If parent is mounted then skip deactivating non-thinpool snapshot volume as it will fail due
+		// to parent being in use.
+		if vol.IsSnapshot() && vol.contentType == ContentTypeFS {
+			parentVol := NewVolume(d, d.name, vol.volType, vol.contentType, parent, nil, d.config)
+			if filesystem.IsMountPoint(parentVol.MountPath()) {
+				return false, nil
+			}
+		}
+	}
+
 	if shared.PathExists(volDevPath) {
-		_, err := shared.RunCommand("lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
+		// Keep trying to deactivate a few times in case the device is still being flushed.
+		var err error
+		for i := 0; i < 20; i++ {
+			_, err = shared.RunCommand("lvchange", "--activate", "n", "--ignoreactivationskip", volDevPath)
+			if err == nil {
+				break
+			}
+
+			logger.Debug("Failed to deactivate LVM logical volume", logger.Ctx{"path": volDevPath, "attempt": i, "err": err})
+			time.Sleep(500 * time.Millisecond)
+		}
+
 		if err != nil {
 			return false, fmt.Errorf("Failed to deactivate LVM logical volume %q: %w", volDevPath, err)
 		}
-		d.logger.Debug("Deactivated logical volume", logger.Ctx{"dev": volDevPath})
+
+		d.logger.Debug("Deactivated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
 		return true, nil
 	}
 

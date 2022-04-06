@@ -1695,8 +1695,8 @@ func (d *qemu) deviceLoad(deviceName string, rawConfig deviceConfig.Device) (dev
 // deviceStart loads a new device and calls its Start() function.
 func (d *qemu) deviceStart(dev device.Device, instanceRunning bool) (*deviceConfig.RunConfig, error) {
 	configCopy := dev.Config()
-	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
-	logger.Debug("Starting device")
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	l.Debug("Starting device")
 
 	revert := revert.New()
 	defer revert.Fail()
@@ -1893,8 +1893,8 @@ func (d *qemu) deviceAttachNIC(deviceName string, configCopy map[string]string, 
 // deviceStop loads a new device and calls its Stop() function.
 func (d *qemu) deviceStop(dev device.Device, instanceRunning bool) error {
 	configCopy := dev.Config()
-	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
-	logger.Debug("Stopping device")
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": configCopy["type"]})
+	l.Debug("Stopping device")
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be stopped when instance is running")
@@ -4939,8 +4939,8 @@ func (d *qemu) Delete(force bool) error {
 }
 
 func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
-	logger := logger.AddContext(d.logger, logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
-	logger.Debug("Adding device")
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
+	l.Debug("Adding device")
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be added when instance is running")
@@ -4950,7 +4950,7 @@ func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
 }
 
 func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	l := logger.AddContext(d.logger, logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
+	l := d.logger.AddContext(logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
 	l.Debug("Removing device")
 
 	dev, err := d.deviceLoad(deviceName, rawConfig)
