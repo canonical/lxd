@@ -12,6 +12,10 @@ import (
 
 // ProtoRecv gets a protobuf message from a websocket
 func ProtoRecv(ws *websocket.Conn, msg proto.Message) error {
+	if ws == nil {
+		return fmt.Errorf("Empty websocket connection")
+	}
+
 	mt, r, err := ws.NextReader()
 	if err != nil {
 		return err
@@ -36,6 +40,10 @@ func ProtoRecv(ws *websocket.Conn, msg proto.Message) error {
 
 // ProtoSend sends a protobuf message over a websocket
 func ProtoSend(ws *websocket.Conn, msg proto.Message) error {
+	if ws == nil {
+		return fmt.Errorf("Empty websocket connection")
+	}
+
 	w, err := ws.NextWriter(websocket.BinaryMessage)
 	if err != nil {
 		return err
