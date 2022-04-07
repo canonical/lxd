@@ -1709,9 +1709,9 @@ func (b *lxdBackend) CreateInstanceFromMigration(inst instance.Instance, conn io
 		if err != nil {
 			return err
 		}
-	}
 
-	revert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
+		revert.Add(func() { VolumeDBDelete(b, inst.Project(), inst.Name(), volType) })
+	}
 
 	for _, snapName := range args.Snapshots {
 		// The instance migration protocol doesn't currently support transferring the storage volume config
