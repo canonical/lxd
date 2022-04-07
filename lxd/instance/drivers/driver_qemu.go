@@ -3076,10 +3076,15 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", fd)
 		}
 
-		isBlockDev = shared.IsBlockdevPath(srcDevPath)
+		srcDevPathInfo, err := os.Stat(srcDevPath)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid source path %q: %w", srcDevPath, err)
+		}
+
+		isBlockDev = shared.IsBlockdev(srcDevPathInfo.Mode())
 
 		// Handle I/O mode configuration.
-		if shared.PathExists(srcDevPath) && !isBlockDev {
+		if !isBlockDev {
 			// Disk dev path is a file, check what the backing filesystem is.
 			fsType, err := filesystem.Detect(srcDevPath)
 			if err != nil {
