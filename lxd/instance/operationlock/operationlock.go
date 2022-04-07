@@ -27,6 +27,9 @@ const ActionRestart Action = "restart"
 // ActionRestore for restoring an instance.
 const ActionRestore Action = "restore"
 
+// ActionUpdate for updating an instance.
+const ActionUpdate Action = "update"
+
 // ErrNonReusuableSucceeded is returned when no operation is created due to having to wait for a matching
 // non-reusuable operation that has now completed successfully.
 var ErrNonReusuableSucceeded error = fmt.Errorf("A matching non-reusable operation has now succeeded")
