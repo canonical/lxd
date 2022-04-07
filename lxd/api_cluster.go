@@ -2771,7 +2771,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q to %q", inst.Name(), inst.Project(), targetNodeName)
 			op.UpdateMetadata(metadata)
 
-			// Set origin server (but skip if alrady set as that suggests more than one server being evacuated).
+			// Set origin server (but skip if already set as that suggests more than one server being evacuated).
 			if inst.LocalConfig()["volatile.evacuate.origin"] == "" {
 				inst.VolatileSet(map[string]string{"volatile.evacuate.origin": nodeName})
 			}
