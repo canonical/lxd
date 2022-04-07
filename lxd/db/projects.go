@@ -25,22 +25,19 @@ import (
 //go:generate mapper stmt -p db -e project update struct=Project
 //go:generate mapper stmt -p db -e project delete-by-Name
 //
-//go:generate mapper method -p db -e project URIs
-//go:generate mapper method -p db -e project GetMany
-//go:generate mapper method -p db -e project GetOne struct=Project
-//go:generate mapper method -p db -e project Exists struct=Project
-//go:generate mapper method -p db -e project Create struct=Project
-//go:generate mapper method -p db -e project ID struct=Project
-//go:generate mapper method -p db -e project Rename
-//go:generate mapper method -p db -e project DeleteOne-by-Name
+//go:generate mapper method -p db -e project GetMany references=Config version=2
+//go:generate mapper method -p db -e project GetOne struct=Project version=2
+//go:generate mapper method -p db -e project Exists struct=Project version=2
+//go:generate mapper method -p db -e project Create references=Config version=2
+//go:generate mapper method -p db -e project ID struct=Project version=2
+//go:generate mapper method -p db -e project Rename version=2
+//go:generate mapper method -p db -e project DeleteOne-by-Name version=2
 
 // Project represents a LXD project
 type Project struct {
 	ID          int
 	Description string
-	Name        string   `db:"omit=update"`
-	UsedBy      []string `db:"omit=create"`
-	Config      map[string]string
+	Name        string `db:"omit=update"`
 }
 
 // ProjectFilter specifies potential query parameter fields.
