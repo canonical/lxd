@@ -1005,7 +1005,7 @@ func (d *qemu) Start(stateful bool) error {
 			return nil
 		}
 
-		return fmt.Errorf("Create instance start operation: %w", err)
+		return fmt.Errorf("Failed to create instance start operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -3863,7 +3863,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return fmt.Errorf("Create restore operation: %w", err)
+		return fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -3912,7 +3912,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return fmt.Errorf("Create restore operation: %w", err)
+			return fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 		defer op.Done(nil)
 
@@ -4143,7 +4143,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Setup a new operation.
 	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestore}, false, false)
 	if err != nil {
-		return fmt.Errorf("Create instance update operation: %w", err)
+		return fmt.Errorf("Failed to create instance update operation: %w", err)
 	}
 	defer op.Done(nil)
 
