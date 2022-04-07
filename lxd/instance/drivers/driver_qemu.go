@@ -4140,6 +4140,14 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestore}, false, false)
+	if err != nil {
+		return fmt.Errorf("Create instance update operation: %w", err)
+	}
+	defer op.Done(nil)
+
+	// Setup the reverter.
 	revert := revert.New()
 	defer revert.Fail()
 
