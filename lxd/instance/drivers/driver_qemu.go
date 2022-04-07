@@ -235,7 +235,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 		return nil, fmt.Errorf("Invalid devices: %w", err)
 	}
 
-	// Retrieve the container's storage pool.
+	// Retrieve the instance's storage pool.
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
 		return nil, err
@@ -1005,7 +1005,7 @@ func (d *qemu) Start(stateful bool) error {
 			return nil
 		}
 
-		return fmt.Errorf("Create instance start operation: %w", err)
+		return fmt.Errorf("Failed to create instance start operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -2334,7 +2334,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 		}
 	}
 
-	// Generate the container metadata.
+	// Generate the instance metadata.
 	instanceMeta := make(map[string]string)
 	instanceMeta["name"] = d.name
 	instanceMeta["type"] = "virtual-machine"
@@ -2380,7 +2380,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 				return fmt.Errorf("Failed to read template file: %w", err)
 			}
 
-			// Restrict filesystem access to within the container's rootfs.
+			// Restrict filesystem access to within the instance's rootfs.
 			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", d.name, tpl.Template), pongoTemplate.ChrootLoader{Path: d.TemplatesPath()})
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
@@ -3863,7 +3863,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return fmt.Errorf("Create restore operation: %w", err)
+		return fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -3912,7 +3912,7 @@ func (d *qemu) Restore(source instance.Instance, stateful bool) error {
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return fmt.Errorf("Create restore operation: %w", err)
+			return fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 		defer op.Done(nil)
 
@@ -4140,6 +4140,14 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
+	// Setup a new operation.
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestore}, false, false)
+	if err != nil {
+		return fmt.Errorf("Failed to create instance update operation: %w", err)
+	}
+	defer op.Done(nil)
+
+	// Setup the reverter.
 	revert := revert.New()
 	defer revert.Fail()
 
