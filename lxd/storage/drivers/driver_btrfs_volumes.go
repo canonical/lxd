@@ -242,6 +242,13 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 		return "", fmt.Errorf("Could not find %q", srcFile)
 	}
 
+	type btrfsCopyOp struct {
+		src  string
+		dest string
+	}
+
+	var copyOps []btrfsCopyOp
+
 	// unpackVolume unpacks all subvolumes in a LXD volume from a backup tarball file.
 	unpackVolume := func(v Volume, srcFilePrefix string) error {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
@@ -262,6 +269,13 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 			// Define where we will move the subvolume after it is unpacked.
 			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
 
+			tmpUnpackDir := filepath.Join(tmpUnpackDir, snapName)
+
+			err := os.MkdirAll(tmpUnpackDir, 0100)
+			if err != nil {
+				return fmt.Errorf("Failed creating directory %q: %w", tmpUnpackDir, err)
+			}
+
 			d.Logger().Debug("Unpacking optimized volume", logger.Ctx{"name": v.name, "source": srcFilePath, "unpackPath": tmpUnpackDir, "path": subVolTargetPath})
 
 			// Unpack the volume into the temporary unpackDir.
@@ -270,14 +284,10 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 				return err
 			}
 
-			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
-
-			// Move unpacked subvolume into its final location.
-			err = os.Rename(unpackedSubVolPath, subVolTargetPath)
-			if err != nil {
-				return err
-			}
+			copyOps = append(copyOps, btrfsCopyOp{
+				src:  unpackedSubVolPath,
+				dest: subVolTargetPath,
+			})
 		}
 
 		return nil
@@ -327,6 +337,22 @@ func (d *btrfs) CreateVolumeFromBackup(vol Volume, srcBackup backup.Info, srcDat
 	err = unpackVolume(vol, srcFilePrefix)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	for _, copyOp := range copyOps {
+		err = d.setSubvolumeReadonlyProperty(copyOp.src, false)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Clear the target for the subvol to use.
+		os.Remove(copyOp.dest)
+
+		// Move unpacked subvolume into its final location.
+		err = os.Rename(copyOp.src, copyOp.dest)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Restore readonly property on subvolumes that need it.
@@ -553,6 +579,15 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 	revert := revert.New()
 	defer revert.Fail()
 
+	type btrfsCopyOp struct {
+		src  string
+		dest string
+	}
+
+	// copyOps represents copy operations which need to take place once *all* subvolumes have been
+	// received. We don't use a map as the order should be kept.
+	copyOps := []btrfsCopyOp{}
+
 	// receiveVolume receives all subvolumes in a LXD volume from the source.
 	receiveVolume := func(v Volume, receivePath string) error {
 		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(v.name)
@@ -562,21 +597,26 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 				continue // Skip any subvolumes that dont belong to our volume (empty for main).
 			}
 
+			receivePath := filepath.Join(receivePath, snapName)
+
+			err := os.MkdirAll(receivePath, 0100)
+			if err != nil {
+				return fmt.Errorf("Failed creating %q: %w", receivePath, err)
+			}
+
 			subVolTargetPath := filepath.Join(v.MountPath(), subVol.Path)
 			d.logger.Debug("Receiving volume", logger.Ctx{"name": v.name, "receivePath": receivePath, "path": subVolTargetPath})
+
 			subVolRecvPath, err := d.receiveSubVolume(conn, receivePath)
 			if err != nil {
 				return err
 			}
 
-			// Clear the target for the subvol to use.
-			os.Remove(subVolTargetPath)
-
-			// And move it to the target path.
-			err = os.Rename(subVolRecvPath, subVolTargetPath)
-			if err != nil {
-				return fmt.Errorf("Failed to rename '%s' to '%s': %w", subVolRecvPath, subVolTargetPath, err)
-			}
+			// Record the copy operations we need to do after having received all subvolumes.
+			copyOps = append(copyOps, btrfsCopyOp{
+				src:  subVolRecvPath,
+				dest: subVolTargetPath,
+			})
 		}
 
 		return nil
@@ -628,6 +668,22 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 	err = receiveVolume(vol, tmpVolumesMountPoint)
 	if err != nil {
 		return err
+	}
+
+	// Make all received subvolumes read-write and move them to their final destination
+	for _, op := range copyOps {
+		err = d.setSubvolumeReadonlyProperty(op.src, false)
+		if err != nil {
+			return err
+		}
+
+		// Clear the target for the subvol to use.
+		os.Remove(op.dest)
+
+		err = os.Rename(op.src, op.dest)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Restore readonly property on subvolumes that need it.
