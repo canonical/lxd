@@ -235,7 +235,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 		return nil, fmt.Errorf("Invalid devices: %w", err)
 	}
 
-	// Retrieve the container's storage pool.
+	// Retrieve the instance's storage pool.
 	_, rootDiskDevice, err := d.getRootDiskDevice()
 	if err != nil {
 		return nil, err
@@ -2334,7 +2334,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 		}
 	}
 
-	// Generate the container metadata.
+	// Generate the instance metadata.
 	instanceMeta := make(map[string]string)
 	instanceMeta["name"] = d.name
 	instanceMeta["type"] = "virtual-machine"
@@ -2380,7 +2380,7 @@ func (d *qemu) templateApplyNow(trigger instance.TemplateTrigger, path string) e
 				return fmt.Errorf("Failed to read template file: %w", err)
 			}
 
-			// Restrict filesystem access to within the container's rootfs.
+			// Restrict filesystem access to within the instance's rootfs.
 			tplSet := pongo2.NewSet(fmt.Sprintf("%s-%s", d.name, tpl.Template), pongoTemplate.ChrootLoader{Path: d.TemplatesPath()})
 			tplRender, err := tplSet.FromString("{% autoescape off %}" + string(tplString) + "{% endautoescape %}")
 			if err != nil {
