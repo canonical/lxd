@@ -2693,7 +2693,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 					monHook, err = d.addDriveConfig(fdFiles, bootIndexes, drive)
 				}
 				if err != nil {
-					return "", nil, err
+					return "", nil, fmt.Errorf("Failed setting up disk device %q: %w", drive.DevName, err)
 				}
 
 				if monHook != nil {
@@ -2938,7 +2938,7 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 	}
 
 	if mountInfo.DiskPath == "" {
-		return nil, fmt.Errorf("No disk path available from mount")
+		return nil, fmt.Errorf("No root disk path available from mount")
 	}
 
 	// Generate a new device config with the root device path expanded.
@@ -3062,16 +3062,16 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 			// Expect devPath in format "fd:<fdNum>:<devPath>".
 			devPathParts := strings.SplitN(driveConf.DevPath, ":", 3)
 			if len(devPathParts) != 3 || !strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
-				return nil, fmt.Errorf("Unexpected devPath file descriptor format %q for drive %q", driveConf.DevPath, driveConf.DevName)
+				return nil, fmt.Errorf("Unexpected devPath file descriptor format %q", driveConf.DevPath)
 			}
 
 			// Map the file descriptor to the file descriptor path it will be in the QEMU process.
 			fd, err := strconv.Atoi(devPathParts[1])
 			if err != nil {
-				return nil, fmt.Errorf("Invalid file descriptor %q for drive %q: %w", devPathParts[1], driveConf.DevName, err)
+				return nil, fmt.Errorf("Invalid file descriptor %q: %w", devPathParts[1], err)
 			}
 
-			// Extract original dev path for additional probing.
+			// Extract original dev path for additional probing below.
 			srcDevPath = devPathParts[2]
 
 			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), srcDevPath)))
@@ -3090,7 +3090,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 			if fsType == "zfs" || fsType == "btrfs" {
 				if driveConf.FSType != "iso9660" {
 					// Only warn about using writeback cache if the drive image is writable.
-					d.logger.Warn("Using writeback cache I/O", logger.Ctx{"DevPath": srcDevPath, "fsType": fsType})
+					d.logger.Warn("Using writeback cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath, "fsType": fsType})
 				}
 
 				aioMode = "threads"
@@ -3103,7 +3103,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 			}
 		} else if !shared.StringInSlice(device.DiskDirectIO, driveConf.Opts) {
 			// If drive config indicates we need to use unsafe I/O then use it.
-			d.logger.Warn("Using unsafe cache I/O", logger.Ctx{"DevPath": srcDevPath})
+			d.logger.Warn("Using unsafe cache I/O", logger.Ctx{"device": driveConf.DevName, "devPath": srcDevPath})
 			aioMode = "threads"
 			cacheMode = "unsafe" // Use host cache, but ignore all sync requests from guest.
 		}
@@ -3183,13 +3183,13 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 
 		f, err := os.OpenFile(srcDevPath, permissions, 0)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
 		}
 		defer f.Close()
 
 		info, err := m.SendFileWithFDSet(nodeName, f, readonly)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed sending file descriptor of %q for disk device %q: %w", f.Name(), driveConf.DevName, err)
 		}
 		revert.Add(func() {
 			m.RemoveFDFromFDSet(nodeName)
@@ -3199,7 +3199,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 
 		err = m.AddBlockDevice(blockDev, device)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed adding block device for disk device %q: %w", driveConf.DevName, err)
 		}
 
 		revert.Success()
