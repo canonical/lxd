@@ -3080,7 +3080,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 		// Handle I/O mode configuration.
 		if shared.PathExists(srcDevPath) && !shared.IsBlockdevPath(srcDevPath) {
 			// Disk dev path is a file, check what the backing filesystem is.
-			fsType, err := filesystem.Detect(driveConf.DevPath)
+			fsType, err := filesystem.Detect(srcDevPath)
 			if err != nil {
 				return nil, fmt.Errorf("Failed detecting filesystem type of %q: %w", srcDevPath, err)
 			}
