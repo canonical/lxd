@@ -654,6 +654,9 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 		Revert: revert.New(),
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	if shared.IsRootDiskDevice(d.config) {
 		// Handle previous requests for setting new quotas.
 		err := d.applyDeferredQuota()
@@ -677,19 +680,28 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 			return nil, err
 		}
 
+		// Open file handle to isoPath source.
+		f, err := os.OpenFile(isoPath, unix.O_PATH|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Failed opening source path %q: %w", isoPath, err)
+		}
+
+		revert.Add(func() { f.Close() })
+		runConf.PostHooks = append(runConf.PostHooks, f.Close)
+		runConf.Revert.Add(func() { f.Close() }) // Close file on VM start failure.
+
+		// Encode the file descriptor and original isoPath into the DevPath field.
 		runConf.Mounts = []deviceConfig.MountEntryItem{
 			{
-				DevPath: isoPath,
+				DevPath: fmt.Sprintf("%s:%d:%s", DiskFileDescriptorMountPrefix, f.Fd(), isoPath),
 				DevName: d.name,
 				FSType:  "iso9660",
 			},
 		}
 
+		revert.Success()
 		return &runConf, nil
 	} else if d.config["source"] != "" {
-		revert := revert.New()
-		defer revert.Fail()
-
 		if strings.HasPrefix(d.config["source"], "ceph:") {
 			// Get the pool and volume names.
 			fields := strings.SplitN(d.config["source"], ":", 2)
