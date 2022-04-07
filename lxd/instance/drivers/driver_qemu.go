@@ -3073,7 +3073,14 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 
 			// Extract original dev path for additional probing below.
 			srcDevPath = devPathParts[2]
+			if srcDevPath == "" {
+				return nil, fmt.Errorf("Device source path is empty")
+			}
+
 			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", fd)
+		} else if driveConf.TargetPath != "/" {
+			// Only the root disk device is allowed to pass local devices to us without using an FD.
+			return nil, fmt.Errorf("Invalid device path format %q", driveConf.DevPath)
 		}
 
 		srcDevPathInfo, err := os.Stat(srcDevPath)
