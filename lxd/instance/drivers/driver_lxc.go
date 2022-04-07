@@ -2369,7 +2369,7 @@ func (d *lxc) Start(stateful bool) error {
 			return nil
 		}
 
-		return fmt.Errorf("Create container start operation: %w", err)
+		return fmt.Errorf("Failed to create instance start operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -3451,7 +3451,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 
 	op, err := operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 	if err != nil {
-		return fmt.Errorf("Create restore operation: %w", err)
+		return fmt.Errorf("Failed to create instance restore operation: %w", err)
 	}
 	defer op.Done(nil)
 
@@ -3498,7 +3498,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		// Refresh the operation as that one is now complete.
 		op, err = operationlock.Create(d.Project(), d.Name(), operationlock.ActionRestore, false, false)
 		if err != nil {
-			return fmt.Errorf("Create restore operation: %w", err)
+			return fmt.Errorf("Failed to create instance restore operation: %w", err)
 		}
 		defer op.Done(nil)
 	}
@@ -3958,6 +3958,13 @@ func (d *lxc) CGroupSet(key string, value string) error {
 
 // Update applies updated config.
 func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
+	// Setup a new operation
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestore}, false, false)
+	if err != nil {
+		return fmt.Errorf("Failed to create instance update operation: %w", err)
+	}
+	defer op.Done(nil)
+
 	// Set sane defaults for unset keys
 	if args.Project == "" {
 		args.Project = project.Default
