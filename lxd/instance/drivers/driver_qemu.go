@@ -1767,9 +1767,7 @@ func (d *qemu) deviceAttachBlockDevice(deviceName string, configCopy map[string]
 		return fmt.Errorf("Failed to connect to QMP monitor: %w", err)
 	}
 
-	var fdFiles []*os.File
-
-	monHook, err := d.addDriveConfig(&fdFiles, nil, mount)
+	monHook, err := d.addDriveConfig(nil, mount)
 	if err != nil {
 		return fmt.Errorf("Failed to add drive config: %w", err)
 	}
@@ -2690,7 +2688,7 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 				} else if drive.FSType == "9p" {
 					err = d.addDriveDirConfig(sb, bus, fdFiles, &agentMounts, drive)
 				} else {
-					monHook, err = d.addDriveConfig(fdFiles, bootIndexes, drive)
+					monHook, err = d.addDriveConfig(bootIndexes, drive)
 				}
 				if err != nil {
 					return "", nil, fmt.Errorf("Failed setting up disk device %q: %w", drive.DevName, err)
@@ -2949,7 +2947,7 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 		TargetPath: rootDriveConf.TargetPath,
 	}
 
-	return d.addDriveConfig(nil, bootIndexes, driveConf)
+	return d.addDriveConfig(bootIndexes, driveConf)
 }
 
 // addDriveDirConfig adds the qemu config required for adding a supplementary drive directory share.
@@ -3037,7 +3035,7 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 }
 
 // addDriveConfig adds the qemu config required for adding a supplementary drive.
-func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
+func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig.MountEntryItem) (monitorHook, error) {
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
@@ -3053,10 +3051,12 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 		aioMode = "io_uring"
 	}
 
-	srcDevPath := driveConf.DevPath
+	var isBlockDev bool
 
 	// Handle local disk devices.
 	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+		srcDevPath := driveConf.DevPath // This should not be used for passing to QEMU, only for probing.
+
 		// Detect if existing file descriptor format is being supplied.
 		if strings.HasPrefix(driveConf.DevPath, fmt.Sprintf("%s:", device.DiskFileDescriptorMountPrefix)) {
 			// Expect devPath in format "fd:<fdNum>:<devPath>".
@@ -3073,12 +3073,13 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 
 			// Extract original dev path for additional probing below.
 			srcDevPath = devPathParts[2]
-
-			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", d.addFileDescriptor(fdFiles, os.NewFile(uintptr(fd), srcDevPath)))
+			driveConf.DevPath = fmt.Sprintf("/proc/self/fd/%d", fd)
 		}
 
+		isBlockDev = shared.IsBlockdevPath(srcDevPath)
+
 		// Handle I/O mode configuration.
-		if shared.PathExists(srcDevPath) && !shared.IsBlockdevPath(srcDevPath) {
+		if shared.PathExists(srcDevPath) && !isBlockDev {
 			// Disk dev path is a file, check what the backing filesystem is.
 			fsType, err := filesystem.Detect(srcDevPath)
 			if err != nil {
@@ -3136,7 +3137,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 
 	// If driver is "file", QEMU requires the file to be a regular file.
 	// However, if the file is a character or block device, driver needs to be set to "host_device".
-	if shared.IsBlockdevPath(srcDevPath) {
+	if isBlockDev {
 		blockDev["driver"] = "host_device"
 	}
 
@@ -3181,7 +3182,7 @@ func (d *qemu) addDriveConfig(fdFiles *[]*os.File, bootIndexes map[string]int, d
 			permissions = unix.O_RDONLY
 		}
 
-		f, err := os.OpenFile(srcDevPath, permissions, 0)
+		f, err := os.OpenFile(driveConf.DevPath, permissions, 0)
 		if err != nil {
 			return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
 		}
