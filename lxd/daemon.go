@@ -223,6 +223,7 @@ type APIEndpoint struct {
 	Path    string             // Path pattern for this endpoint.
 	Aliases []APIEndpointAlias // Any aliases for this endpoint.
 	Get     APIEndpointAction
+	Head    APIEndpointAction
 	Put     APIEndpointAction
 	Post    APIEndpointAction
 	Delete  APIEndpointAction
@@ -677,6 +678,8 @@ func (d *Daemon) createCmd(restAPI *mux.Router, version string, c APIEndpoint) {
 		switch r.Method {
 		case "GET":
 			resp = handleRequest(c.Get)
+		case "HEAD":
+			resp = handleRequest(c.Head)
 		case "PUT":
 			resp = handleRequest(c.Put)
 		case "POST":
