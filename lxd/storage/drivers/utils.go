@@ -672,7 +672,7 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 }
 
 // copyDevice copies one device path to another.
-func copyDevice(inputPath, outputPath string) error {
+func copyDevice(inputPath string, outputPath string) error {
 	from, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("Error opening file for reading %q: %w", inputPath, err)
@@ -688,6 +688,16 @@ func copyDevice(inputPath, outputPath string) error {
 	_, err = io.Copy(to, from)
 	if err != nil {
 		return fmt.Errorf("Error copying file %q to %q: %w", inputPath, outputPath, err)
+	}
+
+	err = from.Close()
+	if err != nil {
+		return fmt.Errorf("Failed to close file %q: %w", inputPath, err)
+	}
+
+	err = to.Close()
+	if err != nil {
+		return fmt.Errorf("Failed to close file %q: %w", outputPath, err)
 	}
 
 	return nil
