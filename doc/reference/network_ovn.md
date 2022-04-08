@@ -18,13 +18,6 @@ A LXD OVN network can be connected to an existing managed LXD bridge network in 
 access to the wider network. All connections from the OVN logical networks are NATed to a dynamic IP allocated by
 the parent network.
 
-```{toctree}
-:maxdepth: 1
-
-Set up OVN </howto/network_ovn_setup>
-Create routing relationships </howto/network_ovn_peers>
-```
-
 (network-ovn-options)=
 ## Configuration options
 
@@ -68,3 +61,21 @@ security.acls.default.egress.logged  | boolean   | security.acls         | false
 security.acls.default.ingress.action | string    | security.acls         | reject                    | Action to use for ingress traffic that doesn't match any ACL rule
 security.acls.default.ingress.logged | boolean   | security.acls         | false                     | Whether to log ingress traffic that doesn't match any ACL rule
 user.*                               | string    | -                     | -                         | User-provided free-form key/value pairs
+
+(network-ovn-features)=
+## Supported features
+
+The following features are supported for the `ovn` network type:
+
+- {ref}`network-acls`
+- {ref}`network-forwards`
+- {ref}`network-zones`
+- {ref}`network-ovn-peers`
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+
+Set up OVN </howto/network_ovn_setup>
+Create routing relationships </howto/network_ovn_peers>
+```
