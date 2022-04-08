@@ -8,24 +8,23 @@ discourse: 7322
 As one of the possible network configuration types under LXD, LXD supports creating and managing network bridges.
 <!-- Include start bridge intro -->
 A network bridge creates a virtual L2 ethernet switch that instance NICs can connect to, making it possible for them to communicate with each other and the host.
-<!-- Include end bridge intro -->
 LXD bridges can leverage underlying native Linux bridges and Open vSwitch.
+<!-- Include end bridge intro -->
 
-Creation and management of LXD bridges is performed via the `lxc network` command.
-A bridge created by LXD is by default "managed" which means that LXD also will additionally set up a local `dnsmasq`
-DHCP server and if desired also perform NAT for the bridge (this is the default.)
+The `bridge` network type allows to create an L2 bridge that connects the instances that use it together into a single network L2 segment.
+Bridges created by LXD are managed, which means that in addition to creating the bridge interface itself, LXD also sets up a local `dnsmasq` process to provide DHCP, IPv6 route announcements and DNS services to the network.
+By default, it also performs NAT for the bridge.
 
-When a bridge is managed by LXD, configuration values under the `bridge` namespace can be used to configure it.
+See {ref}`network-bridge-firewalld` for instructions on how to configure firewalld to work with LXD bridge networks.
 
 ## IPv6 prefix size
-For optimal operation, a prefix size of 64 is preferred.
-Larger subnets (prefix smaller than 64) should work properly too but
-aren't typically that useful for SLAAC.
 
-Smaller subnets while in theory possible when using stateful DHCPv6 for
-IPv6 allocation aren't properly supported by dnsmasq and may be the
-source of issue. If you must use one of those, static allocation or
-another standalone RA daemon be used.
+If you're using IPv6 for your bridge network, you should use a prefix size of 64.
+
+Larger subnets (i.e., using a prefix smaller than 64) should work properly too, but they aren't typically that useful for {abbr}`SLAAC (Stateless Address Auto-configuration)`.
+
+Smaller subnets are in theory possible (when using stateful DHCPv6 for IPv6 allocation), but they aren't properly supported by `dnsmasq` and might cause problems.
+If you must create a smaller subnet, use static allocation or another standalone router advertisement daemon.
 
 (network-bridge-options)=
 ## Configuration options
