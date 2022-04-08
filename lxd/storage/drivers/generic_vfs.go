@@ -894,6 +894,12 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 
 	bwlimit := d.Config()["rsync.bwlimit"]
 
+	var rsyncArgs []string
+
+	if srcVol.IsVMBlock() {
+		rsyncArgs = append(rsyncArgs, "--exclude", genericVolumeDiskFile)
+	}
+
 	revert := revert.New()
 	defer revert.Fail()
 
@@ -907,33 +913,59 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 		revert.Add(func() { d.DeleteVolume(vol, op) })
 	}
 
+	// Define function to send a filesystem volume.
+	sendFSVol := func(srcPath string, targetPath string) error {
+		d.Logger().Debug("Copying fileystem volume", logger.Ctx{"sourcePath": srcPath, "targetPath": targetPath, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
+		_, err := rsync.LocalCopy(srcPath, targetPath, bwlimit, true, rsyncArgs...)
+		if err != nil {
+			return err
+		}
+
+		return err
+	}
+
+	// Define function to send a block volume.
+	sendBlockVol := func(srcVol Volume, targetVol Volume) error {
+		srcDevPath, err := d.GetVolumeDiskPath(srcVol)
+		if err != nil {
+			return err
+		}
+
+		targetDevPath, err := d.GetVolumeDiskPath(targetVol)
+		if err != nil {
+			return err
+		}
+
+		d.Logger().Debug("Copying block volume", logger.Ctx{"srcDevPath": srcDevPath, "targetPath": targetDevPath})
+		err = copyDevice(srcDevPath, targetDevPath)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	// Ensure the volume is mounted.
-	err := vol.MountTask(func(mountPath string, op *operations.Operation) error {
+	err := vol.MountTask(func(targetMountPath string, op *operations.Operation) error {
 		// If copying snapshots is indicated, check the source isn't itself a snapshot.
 		if len(srcSnapshots) > 0 && !srcVol.IsSnapshot() {
-			for _, srcSnapshot := range srcSnapshots {
-				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcSnapshot.name)
+			for _, srcVol := range srcSnapshots {
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcVol.name)
 
-				// Mount the source snapshot.
-				err := srcSnapshot.MountTask(func(srcMountPath string, op *operations.Operation) error {
-					// Copy the snapshot.
-					_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
-					if err != nil {
-						return err
+				// Mount the source snapshot and copy it to the target main volume.
+				// A snapshot will then taken next so it is stored in the correct volume and
+				// subsequent filesystem rsync transfers benefit from only transferring the files
+				// that changed between snapshots.
+				err := srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
+					if srcVol.contentType != ContentTypeBlock || srcVol.volType != VolumeTypeCustom {
+						err := sendFSVol(srcMountPath, targetMountPath)
+						if err != nil {
+							return err
+						}
 					}
 
-					if srcSnapshot.IsVMBlock() {
-						srcDevPath, err := d.GetVolumeDiskPath(srcSnapshot)
-						if err != nil {
-							return err
-						}
-
-						targetDevPath, err := d.GetVolumeDiskPath(vol)
-						if err != nil {
-							return err
-						}
-
-						err = copyDevice(srcDevPath, targetDevPath)
+					if srcVol.IsVMBlock() || srcVol.contentType == ContentTypeBlock && srcVol.volType == VolumeTypeCustom {
+						err := sendBlockVol(srcVol, vol)
 						if err != nil {
 							return err
 						}
@@ -972,23 +1004,15 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 
 		// Copy source to destination (mounting each volume if needed).
 		err := srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
-			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
-			if err != nil {
-				return err
+			if srcVol.contentType != ContentTypeBlock || srcVol.volType != VolumeTypeCustom {
+				err := sendFSVol(srcMountPath, targetMountPath)
+				if err != nil {
+					return err
+				}
 			}
 
-			if srcVol.IsVMBlock() {
-				srcDevPath, err := d.GetVolumeDiskPath(srcVol)
-				if err != nil {
-					return err
-				}
-
-				targetDevPath, err := d.GetVolumeDiskPath(vol)
-				if err != nil {
-					return err
-				}
-
-				err = copyDevice(srcDevPath, targetDevPath)
+			if srcVol.IsVMBlock() || srcVol.contentType == ContentTypeBlock && srcVol.volType == VolumeTypeCustom {
+				err := sendBlockVol(srcVol, vol)
 				if err != nil {
 					return err
 				}
