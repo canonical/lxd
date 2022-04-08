@@ -6,6 +6,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -220,7 +221,7 @@ func (c *ClusterTx) GetNodeByAddress(address string) (NodeInfo, error) {
 	}
 	switch len(nodes) {
 	case 0:
-		return null, ErrNoSuchObject
+		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
 	case 1:
 		return nodes[0], nil
 	default:
@@ -263,11 +264,11 @@ func (c *ClusterTx) GetNodeWithID(nodeID int) (NodeInfo, error) {
 	}
 	switch len(nodes) {
 	case 0:
-		return null, ErrNoSuchObject
+		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, fmt.Errorf("More than one cluster member matches")
 	}
 }
 
@@ -280,11 +281,11 @@ func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 	}
 	switch len(nodes) {
 	case 0:
-		return null, ErrNoSuchObject
+		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, fmt.Errorf("More than one cluster member matches")
 	}
 }
 
@@ -297,11 +298,11 @@ func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
 	}
 	switch len(nodes) {
 	case 0:
-		return null, ErrNoSuchObject
+		return null, api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, fmt.Errorf("More than one cluster member matches")
 	}
 }
 
@@ -931,7 +932,7 @@ func (c *ClusterTx) SetNodeHeartbeat(address string, heartbeat time.Time) error 
 	}
 
 	if n < 1 {
-		return ErrNoSuchObject
+		return api.StatusErrorf(http.StatusNotFound, "Cluster member not found")
 	} else if n > 1 {
 		return fmt.Errorf("Expected to update one row and not %d", n)
 	}

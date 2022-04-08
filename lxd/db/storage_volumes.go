@@ -6,6 +6,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -103,7 +104,7 @@ WHERE storage_volumes.id = ?
 	err := dbQueryRowScan(c, stmt, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return StorageVolumeArgs{}, ErrNoSuchObject
+			return StorageVolumeArgs{}, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 		}
 
 		return StorageVolumeArgs{}, err
@@ -156,7 +157,8 @@ SELECT DISTINCT node_id
 	for _, nodeID := range nodeIDs {
 		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, int64(nodeID), volumeTypes)
 		if err != nil {
-			if err == ErrNoSuchObject {
+			_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+			if matched {
 				continue
 			}
 
@@ -173,8 +175,11 @@ SELECT DISTINCT node_id
 
 	if isRemoteStorage {
 		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
-		if err != nil && err != ErrNoSuchObject {
-			return nil, err
+		if err != nil {
+			_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+			if !matched {
+				return nil, err
+			}
 		}
 
 		volumes = append(volumes, nodeVolumes...)
@@ -185,14 +190,14 @@ SELECT DISTINCT node_id
 
 // GetLocalStoragePoolVolumes returns all storage volumes attached to a given
 // storage pool on the current node. If there are no volumes, it returns an
-// empty list as well as ErrNoSuchObject.
+// empty list as well as a api.StatusError with code set to http.StatusNotFound.
 func (c *Cluster) GetLocalStoragePoolVolumes(project string, poolID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	return c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
 }
 
 // Returns all storage volumes attached to a given storage pool on the given
-// node. If there are no volumes, it returns an empty list as well as
-// ErrNoSuchObject.
+// node. If there are no volumes, it returns an empty list as well as a
+// api.StatusError with code set to http.StatusNotFound.
 func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, volumeTypes []int) ([]*api.StorageVolume, error) {
 	// Get all storage volumes of all types attached to a given storage pool.
 	result := []*api.StorageVolume{}
@@ -212,7 +217,7 @@ func (c *Cluster) storagePoolVolumesGet(project string, poolID, nodeID int64, vo
 	}
 
 	if len(result) == 0 {
-		return result, ErrNoSuchObject
+		return result, api.StatusErrorf(http.StatusNotFound, "Storage pool volume(s) not found")
 	}
 
 	return result, nil
@@ -631,7 +636,7 @@ SELECT storage_volumes_all.id
 	}
 
 	if len(result) == 0 {
-		return -1, ErrNoSuchObject
+		return -1, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 	}
 
 	return int64(result[0]), nil
@@ -715,7 +720,7 @@ type StorageVolumeArgs struct {
 // GetStorageVolumeNodes returns the node info of all nodes on which the volume with the given name is defined.
 // The volume name can be either a regular name or a volume snapshot name.
 // If the volume is defined, but without a specific node, then the ErrNoClusterMember error is returned.
-// If the volume is not found then the ErrNoSuchObject error is returned.
+// If the volume is not found then an api.StatusError with code set to http.StatusNotFound is returned.
 func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volumeName string, volumeType int) ([]NodeInfo, error) {
 	nodes := []NodeInfo{}
 
@@ -745,7 +750,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 	}
 
 	if len(nodes) == 0 {
-		return nil, ErrNoSuchObject
+		return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 	}
 
 	for _, node := range nodes {
@@ -757,7 +762,7 @@ func (c *ClusterTx) GetStorageVolumeNodes(poolID int64, projectName string, volu
 
 	nodeCount := len(nodes)
 	if nodeCount == 0 {
-		return nil, ErrNoSuchObject
+		return nil, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 	} else if nodeCount > 1 {
 		driver, err := c.GetStoragePoolDriver(poolID)
 		if err != nil {
@@ -796,7 +801,7 @@ SELECT nodes.name FROM storage_volumes_all
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", ErrNoSuchObject
+			return "", api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 		}
 
 		return "", err
@@ -844,7 +849,7 @@ func (c *Cluster) GetStorageVolumeDescription(volumeID int64) (string, error) {
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", ErrNoSuchObject
+			return "", api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 		}
 		return "", err
 	}
@@ -862,7 +867,7 @@ func (c *Cluster) getStorageVolumeContentType(volumeID int64) (int, error) {
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, ErrNoSuchObject
+			return -1, api.StatusErrorf(http.StatusNotFound, "Storage pool volume not found")
 		}
 		return -1, err
 	}

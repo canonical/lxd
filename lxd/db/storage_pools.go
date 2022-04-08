@@ -175,7 +175,7 @@ func (c *ClusterTx) GetStoragePoolID(name string) (int64, error) {
 	}
 	switch len(ids) {
 	case 0:
-		return -1, ErrNoSuchObject
+		return -1, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
 	case 1:
 		return int64(ids[0]), nil
 	default:
@@ -192,7 +192,7 @@ func (c *ClusterTx) GetStoragePoolDriver(id int64) (string, error) {
 	}
 	switch len(drivers) {
 	case 0:
-		return "", ErrNoSuchObject
+		return "", api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
 	case 1:
 		return drivers[0], nil
 	default:
@@ -477,7 +477,7 @@ func (c *ClusterTx) storagePoolState(name string, state StoragePoolState) error 
 		return err
 	}
 	if n != 1 {
-		return ErrNoSuchObject
+		return api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
 	}
 	return nil
 }
@@ -530,7 +530,7 @@ func (c *ClusterTx) storagePoolNodeState(poolID int64, state StoragePoolState) e
 		return err
 	}
 	if n != 1 {
-		return ErrNoSuchObject
+		return api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
 	}
 
 	return nil
@@ -614,7 +614,7 @@ func (c *Cluster) storagePools(where string, args ...any) ([]string, error) {
 	}
 
 	if len(result) == 0 {
-		return []string{}, ErrNoSuchObject
+		return []string{}, api.StatusErrorf(http.StatusNotFound, "Storage pool(s) not found")
 	}
 
 	pools := []string{}
@@ -639,7 +639,7 @@ func (c *Cluster) GetStoragePoolDrivers() ([]string, error) {
 	}
 
 	if len(result) == 0 {
-		return []string{}, ErrNoSuchObject
+		return []string{}, api.StatusErrorf(http.StatusNotFound, "Storage pool(s) not found")
 	}
 
 	drivers := []string{}
@@ -660,7 +660,7 @@ func (c *Cluster) GetStoragePoolID(poolName string) (int64, error) {
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, ErrNoSuchObject
+			return -1, api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
 		}
 	}
 
@@ -872,7 +872,7 @@ func storagePoolDriverGet(tx *sql.Tx, id int64) (string, error) {
 	}
 	switch len(drivers) {
 	case 0:
-		return "", ErrNoSuchObject
+		return "", api.StatusErrorf(http.StatusNotFound, "Storage pool not found")
 	case 1:
 		return drivers[0], nil
 	default:

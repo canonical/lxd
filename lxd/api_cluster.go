@@ -3305,10 +3305,6 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
-		if response.IsNotFoundError(err) {
-			return response.NotFound(fmt.Errorf("Cluster group %q not found", name))
-		}
-
 		return response.SmartError(err)
 	}
 
@@ -3389,10 +3385,6 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 		return nil
 	})
 	if err != nil {
-		if response.IsNotFoundError(err) {
-			return response.NotFound(fmt.Errorf("Cluster group %q not found", name))
-		}
-
 		return response.SmartError(err)
 	}
 

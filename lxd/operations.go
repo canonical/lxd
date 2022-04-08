@@ -192,7 +192,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 		if len(ops) < 1 {
-			return db.ErrNoSuchObject
+			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
@@ -269,7 +269,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 		if len(ops) < 1 {
-			return db.ErrNoSuchObject
+			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
@@ -319,7 +319,7 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 			return fmt.Errorf("Failed loading operation %q: %w", op.ID, err)
 		}
 		if len(ops) < 1 {
-			return db.ErrNoSuchObject
+			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
@@ -888,7 +888,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 		if len(ops) < 1 {
-			return db.ErrNoSuchObject
+			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")
@@ -1012,7 +1012,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 			return err
 		}
 		if len(ops) < 1 {
-			return db.ErrNoSuchObject
+			return api.StatusErrorf(http.StatusNotFound, "Operation not found")
 		}
 		if len(ops) > 1 {
 			return fmt.Errorf("More than one operation matches")

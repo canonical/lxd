@@ -5,9 +5,11 @@ package db
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/canonical/go-dqlite/client"
 	"github.com/lxc/lxd/lxd/db/query"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // RaftNode holds information about a single node in the dqlite raft cluster.
@@ -67,7 +69,7 @@ func (n *NodeTx) GetRaftNodeAddress(id int64) (string, error) {
 	}
 	switch len(addresses) {
 	case 0:
-		return "", ErrNoSuchObject
+		return "", api.StatusErrorf(http.StatusNotFound, "Raft member not found")
 	case 1:
 		return addresses[0], nil
 	default:
@@ -111,7 +113,7 @@ func (n *NodeTx) RemoveRaftNode(id int64) error {
 		return err
 	}
 	if !deleted {
-		return ErrNoSuchObject
+		return api.StatusErrorf(http.StatusNotFound, "Raft member not found")
 	}
 	return nil
 }
