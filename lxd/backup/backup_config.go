@@ -60,12 +60,17 @@ func ParseConfigYamlFile(path string) (*Config, error) {
 		return nil, err
 	}
 
-	backup := Config{}
-	if err := yaml.Unmarshal(data, &backup); err != nil {
+	backupConf := Config{}
+	if err := yaml.Unmarshal(data, &backupConf); err != nil {
 		return nil, err
 	}
 
-	return &backup, nil
+	// Default to container if type not specified in backup config.
+	if backupConf.Container != nil && backupConf.Container.Type == "" {
+		backupConf.Container.Type = string(api.InstanceTypeContainer)
+	}
+
+	return &backupConf, nil
 }
 
 // updateRootDevicePool updates the root disk device in the supplied list of devices to the pool
