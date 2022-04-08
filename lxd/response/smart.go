@@ -11,7 +11,7 @@ import (
 )
 
 var httpResponseErrors = map[int][]error{
-	http.StatusNotFound:  {os.ErrNotExist, sql.ErrNoRows, db.ErrNoSuchObject},
+	http.StatusNotFound:  {os.ErrNotExist, sql.ErrNoRows},
 	http.StatusForbidden: {os.ErrPermission},
 	http.StatusConflict:  {db.ErrAlreadyDefined},
 }
