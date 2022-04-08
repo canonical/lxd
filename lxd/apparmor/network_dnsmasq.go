@@ -62,6 +62,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
 
   # Snap-specific libraries
   /snap/lxd/*/lib/**.so*                  mr,
+{{ else }}
+  # The binary itself (for nesting)
+  /{,usr/}sbin/dnsmasq                    mr,
 {{- end }}
 }
 `))
