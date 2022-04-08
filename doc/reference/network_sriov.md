@@ -12,6 +12,15 @@ knowing any of the underlying configuration details.
 (network-sriov-options)=
 ## Configuration options
 
+The following configuration key namespaces are currently supported for the `sriov` network type:
+
+ - `maas` (MAAS network identification)
+ - `user` (free-form key/value for user metadata)
+
+```{note}
+{{note_ip_addresses_CIDR}}
+```
+
 The following configuration options are available for the `sriov` network type:
 
 Key                             | Type      | Condition             | Default                   | Description
