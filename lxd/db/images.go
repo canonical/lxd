@@ -118,7 +118,7 @@ func (c *ClusterTx) GetImageSource(imageID int) (int, api.ImageSource, error) {
 	}
 
 	if len(sources) == 0 {
-		return -1, api.ImageSource{}, ErrNoSuchObject
+		return -1, api.ImageSource{}, api.StatusErrorf(http.StatusNotFound, "Image source not found")
 	}
 
 	source := sources[0]
@@ -383,7 +383,7 @@ func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string
 		return "", err
 	}
 	if len(fingerprints) == 0 {
-		return "", ErrNoSuchObject
+		return "", api.StatusErrorf(http.StatusNotFound, "Image source not found")
 	}
 
 	return fingerprints[0], nil
@@ -532,7 +532,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 		}
 
 		if len(images) == 0 {
-			return ErrNoSuchObject
+			return api.StatusErrorf(http.StatusNotFound, "Image not found")
 		}
 
 		object = images[0]
@@ -765,7 +765,7 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 		err = tx.tx.QueryRow(q, arg1...).Scan(arg2...)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return ErrNoSuchObject
+				return api.StatusErrorf(http.StatusNotFound, "Image alias not found")
 			}
 
 			return err

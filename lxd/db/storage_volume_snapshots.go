@@ -6,10 +6,12 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 )
 
 // CreateStorageVolumeSnapshot creates a new storage volume snapshot attached to a given
@@ -143,7 +145,7 @@ WHERE volumes.id=?
 	err := dbQueryRowScan(c, q, arg1, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return args, ErrNoSuchObject
+			return args, api.StatusErrorf(http.StatusNotFound, "Storage pool volume snapshot not found")
 		}
 
 		return args, err
@@ -169,7 +171,7 @@ func (c *Cluster) GetStorageVolumeSnapshotExpiry(volumeID int64) (time.Time, err
 	err := dbQueryRowScan(c, query, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return expiry, ErrNoSuchObject
+			return expiry, api.StatusErrorf(http.StatusNotFound, "Storage pool volume snapshot not found")
 		}
 		return expiry, err
 	}

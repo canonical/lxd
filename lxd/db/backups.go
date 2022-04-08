@@ -6,8 +6,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -43,7 +45,8 @@ func (c *Cluster) getInstanceBackupID(name string) (int, error) {
 	arg2 := []any{&id}
 	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err == sql.ErrNoRows {
-		return -1, ErrNoSuchObject
+		return -1, api.StatusErrorf(http.StatusNotFound, "Instance backup not found")
+
 	}
 
 	return id, err
@@ -71,7 +74,7 @@ SELECT instances_backups.id, instances_backups.instance_id,
 	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return args, ErrNoSuchObject
+			return args, api.StatusErrorf(http.StatusNotFound, "Instance backup not found")
 		}
 
 		return args, err
@@ -110,7 +113,7 @@ SELECT instances_backups.name, instances_backups.instance_id,
 	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return args, ErrNoSuchObject
+			return args, api.StatusErrorf(http.StatusNotFound, "Instance backup not found")
 		}
 
 		return args, err
@@ -393,7 +396,7 @@ func (c *Cluster) getStoragePoolVolumeBackupID(name string) (int, error) {
 	arg2 := []any{&id}
 	err := dbQueryRowScan(c, q, arg1, arg2)
 	if err == sql.ErrNoRows {
-		return -1, ErrNoSuchObject
+		return -1, api.StatusErrorf(http.StatusNotFound, "Storage volume backup not found")
 	}
 
 	return id, err
@@ -436,7 +439,7 @@ WHERE projects.name=? AND backups.name=?
 	err := dbQueryRowScan(c, q, arg1, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return args, ErrNoSuchObject
+			return args, api.StatusErrorf(http.StatusNotFound, "Storage volume backup not found")
 		}
 
 		return args, err
@@ -467,7 +470,7 @@ WHERE backups.id=?
 	err := dbQueryRowScan(c, q, arg1, outfmt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return args, ErrNoSuchObject
+			return args, api.StatusErrorf(http.StatusNotFound, "Storage volume backup not found")
 		}
 
 		return args, err
