@@ -13,11 +13,14 @@ knowing any of the underlying configuration details.
 (network-macvlan-options)=
 ## Configuration options
 
+The following configuration options are available for the `macvlan` network type:
+
 Key                             | Type      | Condition             | Default                   | Description
 :--                             | :--       | :--                   | :--                       | :--
 gvrp                            | boolean   | -                     | false                     | Register VLAN using GARP VLAN Registration Protocol
 mtu                             | integer   | -                     | -                         | The MTU of the new interface
-parent                          | string    | -                     | -                         | Parent interface to create macvlan NICs on
+parent                          | string    | -                     | -                         | Parent interface to create `macvlan` NICs on
 vlan                            | integer   | -                     | -                         | The VLAN ID to attach to
-maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on nic)
-maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on nic)
+maas.subnet.ipv4                | string    | ipv4 address          | -                         | MAAS IPv4 subnet to register instances in (when using `network` property on NIC)
+maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on NIC)
+user.*                          | string    | -                     | -                         | User-provided free-form key/value pairs
