@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -52,7 +53,17 @@ func Create(s *state.State, projectName string, zoneInfo *api.NetworkZonesPost) 
 	}
 
 	// Load the project.
-	p, err := s.Cluster.GetProject(projectName)
+	var p *api.Project
+	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		project, err := tx.GetProject(projectName)
+		if err != nil {
+			return err
+		}
+
+		p, err = project.ToAPI(tx)
+
+		return err
+	})
 	if err != nil {
 		return err
 	}

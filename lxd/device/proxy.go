@@ -25,6 +25,7 @@ import (
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/warnings"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/subprocess"
 	"github.com/lxc/lxd/shared/validate"
@@ -126,7 +127,17 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 				// Prevent use of NAT mode on non-default projects with networks feature.
 				// This is because OVN networks don't allow the host to communicate directly with
 				// instance NICs and so DNAT rules on the host won't work.
-				p, err := d.state.Cluster.GetProject(projectName)
+				var p *api.Project
+				err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+					project, err := tx.GetProject(projectName)
+					if err != nil {
+						return err
+					}
+
+					p, err = project.ToAPI(tx)
+
+					return err
+				})
 				if err != nil {
 					return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 				}

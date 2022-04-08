@@ -349,7 +349,17 @@ func (d *disk) validateEnvironmentSourcePath() error {
 	// Default project cannot be restricted, so don't bother loading the project config in that case.
 	projectName := d.inst.Project()
 	if projectName != project.Default {
-		p, err := d.state.Cluster.GetProject(projectName)
+		var p *api.Project
+		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			project, err := tx.GetProject(projectName)
+			if err != nil {
+				return err
+			}
+
+			p, err = project.ToAPI(tx)
+
+			return err
+		})
 		if err != nil {
 			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 		}

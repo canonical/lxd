@@ -391,6 +391,13 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 				return fmt.Errorf("Failed loading projects: %w", err)
 			}
 
+			for _, p := range projects {
+				err = project.AllowSnapshotCreation(tx, &p)
+				if err != nil {
+					continue
+				}
+			}
+
 			return err
 		})
 		if err != nil {
@@ -400,11 +407,6 @@ func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		// Load local instances by project
 		allInstances := []instance.Instance{}
 		for _, p := range projects {
-			err = project.AllowSnapshotCreation(&p)
-			if err != nil {
-				continue
-			}
-
 			projectInstances, err := instanceLoadNodeProjectAll(d.State(), p.Name, instancetype.Any)
 			if err != nil {
 				continue

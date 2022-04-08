@@ -116,13 +116,10 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 			return err
 		}
 
+		err = project.AllowSnapshotCreation(tx, proj)
+
 		return err
 	})
-	if err != nil {
-		return response.SmartError(err)
-	}
-
-	err = project.AllowSnapshotCreation(proj)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1080,31 +1077,38 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 		localNodeID := d.cluster.GetNodeID()
 
 		var volumes, remoteVolumes []db.StorageVolumeArgs
-		for _, v := range allVolumes {
-			schedule, ok := v.Config["snapshots.schedule"]
-			if !ok || schedule == "" {
-				continue
-			}
+		err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+			for _, v := range allVolumes {
+				schedule, ok := v.Config["snapshots.schedule"]
+				if !ok || schedule == "" {
+					continue
+				}
 
-			// Check if snapshot is scheduled.
-			if !snapshotIsScheduledNow(schedule, v.ID) {
-				continue
-			}
+				// Check if snapshot is scheduled.
+				if !snapshotIsScheduledNow(schedule, v.ID) {
+					continue
+				}
 
-			err = project.AllowSnapshotCreation(projects[v.ProjectName])
-			if err != nil {
-				continue
-			}
+				err = project.AllowSnapshotCreation(tx, projects[v.ProjectName])
+				if err != nil {
+					continue
+				}
 
-			if v.NodeID == localNodeID {
-				// Always include local volumes.
-				volumes = append(volumes, v)
-				logger.Debug("Scheduling local auto custom volume snapshot", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName})
-			} else if v.NodeID < 0 {
-				// Keep a separate list of remote volumes in order to select a member to perform
-				// the snapshot later.
-				remoteVolumes = append(remoteVolumes, v)
+				if v.NodeID == localNodeID {
+					// Always include local volumes.
+					volumes = append(volumes, v)
+					logger.Debug("Scheduling local auto custom volume snapshot", logger.Ctx{"volName": v.Name, "project": v.ProjectName, "pool": v.PoolName})
+				} else if v.NodeID < 0 {
+					// Keep a separate list of remote volumes in order to select a member to perform
+					// the snapshot later.
+					remoteVolumes = append(remoteVolumes, v)
+				}
 			}
+			return nil
+		})
+		if err != nil {
+			logger.Error("Failed to schedule local auto custom volume snapshot,", logger.Ctx{"error": err})
+			return
 		}
 
 		if len(remoteVolumes) > 0 {
