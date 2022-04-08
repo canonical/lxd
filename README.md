@@ -13,7 +13,7 @@ Then if you want to run it locally, take a look at our [getting started guide](h
 
 - Release announcements: https://linuxcontainers.org/lxd/news/
 - Release tarballs: https://linuxcontainers.org/lxd/downloads/
-- Documentation: https://linuxcontainers.org/lxd/docs/master/
+- Documentation: https://linuxcontainers.org/lxd/docs/latest/
 
 <!-- Include end LXD intro -->
 
@@ -41,7 +41,7 @@ MacOS               | [Homebrew](https://formulae.brew.sh/formula/lxc)  | brew i
 More instructions on installing LXD for a wide variety of Linux distributions and operating systems [can be found on our website](https://linuxcontainers.org/lxd/getting-started-cli/).
 <!-- Include end installing -->
 
-To install LXD from source, see [Installing LXD](doc/installing.md) in the documentation.
+To install LXD from source, see [Installing LXD](https://linuxcontainers.org/lxd/docs/latest/installing/) in the documentation.
 
 ## Security
 
@@ -56,7 +56,7 @@ Consider the following aspects to ensure that your LXD installation is secure:
 - Configure your network interfaces to be secure.
 <!-- Include end security -->
 
-See [Security](doc/security.md) for detailed information.
+See [Security](https://linuxcontainers.org/lxd/docs/latest/security/) for detailed information.
 
 **IMPORTANT:**
 <!-- Include start security note -->
@@ -89,7 +89,7 @@ If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/cl
 Commercial support for LXD can be obtained through [Canonical Ltd](https://www.canonical.com).
 
 ## Documentation
-The official documentation is available at: https://linuxcontainers.org/lxd/docs/master/
+The official documentation is available at: https://linuxcontainers.org/lxd/docs/latest/
 
 You can find additional resources on the [website](https://linuxcontainers.org/lxd/articles), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discuss.linuxcontainers.org/c/tutorials/) in the forum.
 
