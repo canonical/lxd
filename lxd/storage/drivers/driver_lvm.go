@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -344,8 +345,11 @@ func (d *lvm) Delete(op *operations.Operation) error {
 	if vgExists && shared.IsFalseOrEmpty(d.config["lvm.vg.force_reuse"]) {
 		// Count normal and thin volumes.
 		lvCount, err := d.countLogicalVolumes(d.config["lvm.vg_name"])
-		if err != nil && err != errLVMNotFound {
-			return err
+		if err != nil {
+			_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+			if !matched {
+				return err
+			}
 		}
 
 		// Check that volume group is not in use. If it is we need to assume that other users are using
@@ -358,8 +362,11 @@ func (d *lvm) Delete(op *operations.Operation) error {
 				// Lets see if the lv count is just our thin pool, or whether we can only remove
 				// the thin pool itself and not the volume group.
 				thinVolCount, err := d.countThinVolumes(d.config["lvm.vg_name"], d.thinpoolName())
-				if err != nil && err != errLVMNotFound {
-					return err
+				if err != nil {
+					_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+					if !matched {
+						return err
+					}
 				}
 
 				// Thin pool exists.

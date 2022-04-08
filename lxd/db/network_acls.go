@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -108,7 +109,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+			return -1, nil, api.StatusErrorf(http.StatusNotFound, "Network ACL not found")
 		}
 
 		return -1, nil, err
@@ -145,7 +146,7 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", "", ErrNoSuchObject
+			return "", "", api.StatusErrorf(http.StatusNotFound, "Network ACL not found")
 		}
 
 		return "", "", err

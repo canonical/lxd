@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
 	"github.com/lxc/lxd/shared/version"
@@ -30,8 +32,6 @@ const lvmEscapedHyphen = "--"
 
 // lvmThinpoolDefaultName is the default name for the thinpool volume.
 const lvmThinpoolDefaultName = "LXDThinPool"
-
-var errLVMNotFound = fmt.Errorf("Not found")
 
 // usesThinpool indicates whether the config specifies to use a thin pool or not.
 func (d *lvm) usesThinpool() bool {
@@ -129,7 +129,7 @@ func (d *lvm) volumeGroupExtentSize(vgName string) (int64, error) {
 	output, err := shared.RunCommand("vgs", "--noheadings", "--nosuffix", "--units", "b", "-o", "vg_extent_size", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
-			return -1, errLVMNotFound
+			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
 		}
 
 		return -1, err
@@ -144,7 +144,7 @@ func (d *lvm) countLogicalVolumes(vgName string) (int, error) {
 	output, err := shared.RunCommand("vgs", "--noheadings", "-o", "lv_count", vgName)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
-			return -1, errLVMNotFound
+			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
 		}
 
 		return -1, fmt.Errorf("Error counting logical volumes in LVM volume group %q: %w", vgName, err)
@@ -159,7 +159,7 @@ func (d *lvm) countThinVolumes(vgName, poolName string) (int, error) {
 	output, err := shared.RunCommand("lvs", "--noheadings", "-o", "thin_count", fmt.Sprintf("%s/%s", vgName, poolName))
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
-			return -1, errLVMNotFound
+			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume group not found")
 		}
 
 		return -1, fmt.Errorf("Error counting thin volumes in LVM volume group %q: %w", vgName, err)
@@ -648,7 +648,7 @@ func (d *lvm) logicalVolumeSize(volDevPath string) (int64, error) {
 	output, err := shared.RunCommand("lvs", "--noheadings", "--nosuffix", "--units", "b", "-o", "lv_size", volDevPath)
 	if err != nil {
 		if d.isLVMNotFoundExitError(err) {
-			return -1, errLVMNotFound
+			return -1, api.StatusErrorf(http.StatusNotFound, "LVM volume not found")
 		}
 
 		return -1, fmt.Errorf("Error getting size of LVM volume %q: %w", volDevPath, err)

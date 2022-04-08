@@ -234,7 +234,8 @@ func (s *dbTestSuite) Test_GetImageAlias_alias_does_not_exists() {
 	var err error
 
 	_, _, err = s.db.GetImageAlias("default", "whatever", true)
-	s.Equal(err, ErrNoSuchObject)
+	_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+	s.True(matched)
 }
 
 func (s *dbTestSuite) Test_CreateImageAlias() {
@@ -270,5 +271,6 @@ func (s *dbTestSuite) Test_GetCachedImageSourceFingerprint_no_match() {
 	s.Nil(err)
 
 	_, err = s.db.GetCachedImageSourceFingerprint("server.remote", "lxd", "test", "container", 0)
-	s.Equal(err, ErrNoSuchObject)
+	_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+	s.True(matched)
 }
