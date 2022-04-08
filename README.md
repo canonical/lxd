@@ -13,7 +13,7 @@ Then if you want to run it locally, take a look at our [getting started guide](h
 
 - Release announcements: https://linuxcontainers.org/lxd/news/
 - Release tarballs: https://linuxcontainers.org/lxd/downloads/
-- Documentation: https://linuxcontainers.org/lxd/docs/master/
+- Documentation: https://linuxcontainers.org/lxd/docs/latest/
 
 <!-- Include end LXD intro -->
 
@@ -89,7 +89,7 @@ If you prefer live discussions, you can find us in [#lxc](https://kiwiirc.com/cl
 Commercial support for LXD can be obtained through [Canonical Ltd](https://www.canonical.com).
 
 ## Documentation
-The official documentation is available at: https://linuxcontainers.org/lxd/docs/master/
+The official documentation is available at: https://linuxcontainers.org/lxd/docs/latest/
 
 You can find additional resources on the [website](https://linuxcontainers.org/lxd/articles), on [YouTube](https://www.youtube.com/channel/UCuP6xPt0WTeZu32CkQPpbvA) and in the [Tutorials section](https://discuss.linuxcontainers.org/c/tutorials/) in the forum.
 
