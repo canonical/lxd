@@ -2401,7 +2401,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -2629,7 +2629,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 					Node: &localNode,
 				}
 
-				err = n.state.Cluster.InstanceList(&filter, func(inst db.Instance, p db.Project, profiles []api.Profile) error {
+				err = n.state.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 					// Get the instance's effective network project name.
 					instNetworkProject := project.NetworkProjectFromRecord(&p)
 
