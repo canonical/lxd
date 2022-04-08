@@ -322,6 +322,7 @@ func (d *zfs) sendDataset(dataset string, parent string, volSrcArgs *migration.V
 		_, err := io.Copy(conn, stdoutPipe)
 		chStdoutPipe <- err
 		conn.Close()
+		stderr.Close()
 	}()
 
 	// Run the command.
