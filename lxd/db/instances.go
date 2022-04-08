@@ -228,7 +228,7 @@ SELECT nodes.id, nodes.address
 	}
 
 	if rows.Next() {
-		return "", fmt.Errorf("More than one node associated with instance")
+		return "", fmt.Errorf("More than one cluster member associated with instance")
 	}
 
 	err = rows.Err()

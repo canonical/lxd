@@ -268,7 +268,7 @@ func (c *ClusterTx) GetNodeWithID(nodeID int) (NodeInfo, error) {
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, fmt.Errorf("More than one cluster member matches")
 	}
 }
 
@@ -285,7 +285,7 @@ func (c *ClusterTx) GetPendingNodeByAddress(address string) (NodeInfo, error) {
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, fmt.Errorf("More than one cluster member matches")
 	}
 }
 
@@ -302,7 +302,7 @@ func (c *ClusterTx) GetNodeByName(name string) (NodeInfo, error) {
 	case 1:
 		return nodes[0], nil
 	default:
-		return null, fmt.Errorf("more than one node matches")
+		return null, fmt.Errorf("More than one cluster member matches")
 	}
 }
 
