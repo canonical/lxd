@@ -2,6 +2,7 @@
 discourse: 12165
 ---
 
+(network-ovn-peers)=
 # How to create peer routing relationships
 
 Network peers allow the creation of routing relationships between two OVN networks.

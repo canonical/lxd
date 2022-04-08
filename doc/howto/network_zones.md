@@ -2,6 +2,7 @@
 discourse: 12033,13128
 ---
 
+(network-zones)=
 # How to configure network zones
 
 ```{note}

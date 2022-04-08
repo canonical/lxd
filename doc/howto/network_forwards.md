@@ -2,6 +2,7 @@
 discourse: 11801
 ---
 
+(network-forwards)=
 # How to configure network forwards
 
 ```{note}
