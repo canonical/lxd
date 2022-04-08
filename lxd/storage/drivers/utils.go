@@ -2,7 +2,6 @@ package drivers
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -671,33 +670,32 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 	return nil
 }
 
-// copyDevice copies one device path to another.
+// copyDevice copies one device path to another using dd running at low priority.
+// It expects outputPath to exist already, so will not create it.
 func copyDevice(inputPath string, outputPath string) error {
-	from, err := os.Open(inputPath)
-	if err != nil {
-		return fmt.Errorf("Error opening file for reading %q: %w", inputPath, err)
-	}
-	defer from.Close()
-
-	to, err := os.OpenFile(outputPath, os.O_WRONLY, 0)
-	if err != nil {
-		return fmt.Errorf("Error opening file for writing %q: %w", outputPath, err)
-	}
-	defer to.Close()
-
-	_, err = io.Copy(to, from)
-	if err != nil {
-		return fmt.Errorf("Error copying file %q to %q: %w", inputPath, outputPath, err)
+	cmd := []string{
+		"nice", "-n19", // Run dd with low priority to reduce CPU impact on other processes.
+		"dd", fmt.Sprintf("if=%s", inputPath), fmt.Sprintf("of=%s", outputPath),
+		"bs=16M",       // Use large buffer to reduce syscalls and speed up copy.
+		"conv=nocreat", // Don't create output file if missing (expect caller to have created output file).
 	}
 
-	err = from.Close()
-	if err != nil {
-		return fmt.Errorf("Failed to close file %q: %w", inputPath, err)
+	// Check for Direct I/O support.
+	from, err := os.OpenFile(inputPath, unix.O_DIRECT, 0)
+	if err == nil {
+		cmd = append(cmd, "iflag=direct")
+		from.Close()
 	}
 
-	err = to.Close()
+	to, err := os.OpenFile(outputPath, unix.O_DIRECT, 0)
+	if err == nil {
+		cmd = append(cmd, "oflag=direct")
+		to.Close()
+	}
+
+	_, err = shared.RunCommand(cmd[0], cmd[1:]...)
 	if err != nil {
-		return fmt.Errorf("Failed to close file %q: %w", outputPath, err)
+		return err
 	}
 
 	return nil
