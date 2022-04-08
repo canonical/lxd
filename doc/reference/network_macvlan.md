@@ -6,9 +6,8 @@ Macvlan is a virtual {abbr}`LAN (Local Area Network)` that you can use if you wa
 You can then assign IP addresses based on the randomly generated MAC addresses.
 <!-- Include end macvlan intro -->
 
-The macvlan network type allows one to specify presets to use when connecting instances to a parent interface
-using macvlan NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
-knowing any of the underlying configuration details.
+The `macvlan` network type allows to specify presets to use when connecting instances to a parent interface.
+In this case, the instance NICs can simply set the `network` option to the network they connect to without knowing any of the underlying configuration details.
 
 (network-macvlan-options)=
 ## Configuration options
