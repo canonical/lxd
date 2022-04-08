@@ -49,3 +49,10 @@ maas.subnet.ipv4                | string    | ipv4 address          | -         
 maas.subnet.ipv6                | string    | ipv6 address          | -                         | MAAS IPv6 subnet to register instances in (when using `network` property on NIC)
 ovn.ingress\_mode               | string    | standard mode         | l2proxy                   | Sets the method how OVN NIC external IPs will be advertised on uplink network: `l2proxy` (proxy ARP/NDP) or `routed`
 user.*                          | string    | -                     | -                         | User-provided free-form key/value pairs
+
+(network-physical-features)=
+## Supported features
+
+The following features are supported for the `physical` network type:
+
+- {ref}`network-bgp`
