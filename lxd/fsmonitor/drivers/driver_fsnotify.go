@@ -139,6 +139,10 @@ func (d *fsnotify) watchFSTree(path string) error {
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		// Check for errors here as we only care about directories. Files and symlinks aren't of interest for this.
 		if err != nil {
+			if os.IsPermission(err) {
+				return nil
+			}
+
 			d.logger.Warn("Error visiting path", logger.Ctx{"path": path, "err": err})
 			return nil
 		}
