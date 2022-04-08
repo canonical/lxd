@@ -1,6 +1,10 @@
 (network-physical)=
 # Physical network
 
+<!-- Include start physical intro -->
+The `physical` network type connects to an existing physical network, which can be a network card or a bridge, and serves as an uplink network for OVN.
+<!-- Include end physical intro -->
+
 The physical network type allows one to specify presets to use when connecting OVN networks to a parent interface or to allow an instance to use a physical interface as a NIC.
 This allows the instance NIC itself to simply specify the `network` it is connecting to without knowing any of the underlying configuration details.
 
