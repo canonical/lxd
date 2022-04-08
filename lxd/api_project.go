@@ -191,6 +191,49 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	return response.SyncResponse(true, result)
 }
 
+// projectUsedBy returns a list of URLs for all instances, images, profiles,
+// storage volumes, networks, and acls that use this project.
+func projectUsedBy(tx *db.ClusterTx, project *db.Project) ([]string, error) {
+	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	images, err := tx.GetImageURIs(db.ImageFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	profiles, err := tx.GetProfileURIs(db.ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	volumes, err := tx.GetStorageVolumeURIs(project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	networks, err := tx.GetNetworkURIs(project.ID, project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	acls, err := tx.GetNetworkACLURIs(project.ID, project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBy := instances
+	usedBy = append(usedBy, images...)
+	usedBy = append(usedBy, profiles...)
+	usedBy = append(usedBy, volumes...)
+	usedBy = append(usedBy, networks...)
+	usedBy = append(usedBy, acls...)
+
+	return usedBy, nil
+}
+
 // swagger:operation POST /1.0/projects projects projects_post
 //
 // Add a project
