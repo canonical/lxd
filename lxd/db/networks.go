@@ -188,7 +188,7 @@ func (c *ClusterTx) GetNetworkID(projectName string, name string) (int64, error)
 	}
 	switch len(ids) {
 	case 0:
-		return -1, ErrNoSuchObject
+		return -1, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	case 1:
 		return int64(ids[0]), nil
 	default:
@@ -209,7 +209,7 @@ func (c *Cluster) GetNetworkNameAndProjectWithID(networkID int) (string, string,
 	err := dbQueryRowScan(c, q, inargs, outargs)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", "", ErrNoSuchObject
+			return "", "", api.StatusErrorf(http.StatusNotFound, "Network not found")
 		}
 
 		return "", "", err
@@ -394,7 +394,7 @@ func (c *ClusterTx) networkState(project string, name string, state NetworkState
 		return err
 	}
 	if n != 1 {
-		return ErrNoSuchObject
+		return api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 	return nil
 }
@@ -416,7 +416,7 @@ func (c *ClusterTx) networkNodeState(networkID int64, state NetworkState) error 
 		return err
 	}
 	if n != 1 {
-		return ErrNoSuchObject
+		return api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
 	return nil
