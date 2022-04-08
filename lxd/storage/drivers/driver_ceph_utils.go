@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
@@ -17,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/shared"
+	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/ioprogress"
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/units"
@@ -377,7 +379,7 @@ func (d *ceph) rbdListSnapshotClones(vol Volume, snapshotName string) ([]string,
 	msg = strings.TrimSpace(msg)
 	clones := strings.Fields(msg)
 	if len(clones) == 0 {
-		return nil, db.ErrNoSuchObject
+		return nil, api.StatusErrorf(http.StatusNotFound, "Ceph RBD volume snapshot not found")
 	}
 
 	return clones, nil
@@ -479,7 +481,7 @@ func (d *ceph) rbdGetVolumeParent(vol Volume) (string, error) {
 
 	idx := strings.Index(msg, "parent: ")
 	if idx == -1 {
-		return "", db.ErrNoSuchObject
+		return "", api.StatusErrorf(http.StatusNotFound, "Ceph RBD volume parent not found")
 	}
 
 	msg = msg[(idx + len("parent: ")):]
@@ -558,7 +560,7 @@ func (d *ceph) rbdListVolumeSnapshots(vol Volume) ([]string, error) {
 	}
 
 	if len(snapshots) == 0 {
-		return []string{}, db.ErrNoSuchObject
+		return []string{}, api.StatusErrorf(http.StatusNotFound, "Ceph RBD volume snapshot(s) not found")
 	}
 
 	return snapshots, nil
