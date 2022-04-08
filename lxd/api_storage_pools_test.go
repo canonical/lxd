@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/lxc/lxd/shared/api"
@@ -42,7 +43,8 @@ func TestStoragePoolsCreate_TargetNode(t *testing.T) {
 	require.NoError(t, err)
 
 	_, _, err = client.GetStoragePool("mypool")
-	require.EqualError(t, err, "not found")
+	_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
+	require.True(t, matched)
 }
 
 // An error is returned when trying to create a new storage pool in a cluster
