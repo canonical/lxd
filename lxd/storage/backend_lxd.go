@@ -1085,6 +1085,13 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 		return err
 	}
 
+	if len(srcSnapshotNames) > 0 {
+		err = b.ensureInstanceSnapshotSymlink(inst.Type(), inst.Project(), inst.Name())
+		if err != nil {
+			return err
+		}
+	}
+
 	revert.Success()
 	return nil
 }
