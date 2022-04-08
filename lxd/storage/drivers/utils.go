@@ -672,7 +672,7 @@ func regenerateFilesystemXFSUUID(devPath string) error {
 }
 
 // copyDevice copies one device path to another.
-func copyDevice(inputPath, outputPath string) error {
+func copyDevice(inputPath string, outputPath string) error {
 	from, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("Error opening file for reading %q: %w", inputPath, err)
