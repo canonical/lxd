@@ -17,13 +17,6 @@ DHCP server and if desired also perform NAT for the bridge (this is the default.
 
 When a bridge is managed by LXD, configuration values under the `bridge` namespace can be used to configure it.
 
-```{toctree}
-:maxdepth: 1
-
-Integrate with systemd-resolved </howto/network_bridge_resolved>
-Configure Firewalld </howto/network_bridge_firewalld>
-```
-
 ## IPv6 prefix size
 For optimal operation, a prefix size of 64 is preferred.
 Larger subnets (prefix smaller than 64) should work properly too but
@@ -119,3 +112,23 @@ tunnel.NAME.protocol                 | string    | standard mode         | -    
 tunnel.NAME.remote                   | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
 tunnel.NAME.ttl                      | integer   | vxlan                 | 1                         | Specific TTL to use for multicast routing topologies
 user.*                               | string    | -                     | -                         | User-provided free-form key/value pairs
+
+(network-bridge-features)=
+## Supported features
+
+The following features are supported for the `bridge` network type:
+
+- {ref}`network-acls`
+- {ref}`network-forwards`
+- {ref}`network-zones`
+- {ref}`network-bgp`
+- {ref}`network-bridge-resolved`
+
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+
+Integrate with systemd-resolved </howto/network_bridge_resolved>
+Configure Firewalld </howto/network_bridge_firewalld>
+```
