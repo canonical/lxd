@@ -49,7 +49,11 @@ Fully controlled networks create network interfaces and provide most functionali
 LXD supports the following network types:
 
 {ref}`network-bridge`
-: A network bridge creates a virtual L2 ethernet switch that instance NICs can connect to, making it possible for them to communicate with each other and the host.
+: % Include content from [../reference/network_bridge.md](../reference/network_bridge.md)
+  ```{include} ../reference/network_bridge.md
+      :start-after: <!-- Include start bridge intro -->
+      :end-before: <!-- Include end bridge intro -->
+  ```
 
   In LXD context, the `bridge` network type creates an L2 bridge that connects the instances that use it together into a single network L2 segment.
   This makes it possible to pass traffic between the instances.
@@ -58,9 +62,11 @@ LXD supports the following network types:
   This is the default network type.
 
 {ref}`network-ovn`
-: {abbr}`OVN (Open Virtual Network)` is a software-defined networking system that supports virtual network abstraction.
-  You can use it to build your own private cloud.
-  See https://www.ovn.org/ for more information.
+: % Include content from [../reference/network_ovn.md](../reference/network_ovn.md)
+  ```{include} ../reference/network_ovn.md
+      :start-after: <!-- Include start OVN intro -->
+      :end-before: <!-- Include end OVN intro -->
+  ```
 
   In LXD context, the `ovn` network type creates a logical network.
   To set it up, you must install and configure the OVN tools.
@@ -74,26 +80,36 @@ LXD supports the following network types:
 
 ### External networks
 
-External networks use network interfaces that already exist.
-Therefore, LXD has limited possibility to control them.
-
-The main purpose for using external networks is to provide an uplink network through a parent interface.
-
-LXD supports the following network types:
+% Include content from [../reference/network_external.md](../reference/network_external.md)
+```{include} ../reference/network_external.md
+    :start-after: <!-- Include start external intro -->
+    :end-before: <!-- Include end external intro -->
+```
 
 {ref}`network-macvlan`
-: Macvlan is a virtual {abbr}`LAN (Local Area Network)` that you can use if you want to assign several IP addresses to the same network interface, basically splitting up the network interface into several sub-interfaces with their own IP addresses.
-  You can then assign IP addresses based on the randomly generated MAC addresses.
+: % Include content from [../reference/network_macvlan.md](../reference/network_macvlan.md)
+  ```{include} ../reference/network_macvlan.md
+      :start-after: <!-- Include start macvlan intro -->
+      :end-before: <!-- Include end macvlan intro -->
+  ```
 
   In LXD context, the `macvlan` network type provides a preset configuration to use when connecting instances to a parent Macvlan interface.
 
 {ref}`network-sriov`
-: {abbr}`SR-IOV (Single root I/O virtualization)` is a hardware standard that allows a single network interface to appear as several virtual network interfaces in a virtualized environment.
+: % Include content from [../reference/network_sriov.md](../reference/network_sriov.md)
+  ```{include} ../reference/network_sriov.md
+      :start-after: <!-- Include start SR-IOV intro -->
+      :end-before: <!-- Include end SR-IOV intro -->
+  ```
 
   In LXD context, the `sriov` network type provides a preset configuration to use when connecting instances to a parent SR-IOV interface.
 
 {ref}`network-physical`
-: The `physical` network type connects to an existing physical network, which can be a network card or a bridge, and serves as an uplink network for OVN.
+: % Include content from [../reference/network_physical.md](../reference/network_physical.md)
+  ```{include} ../reference/network_physical.md
+      :start-after: <!-- Include start physical intro -->
+      :end-before: <!-- Include end physical intro -->
+  ```
 
   It provides a preset configuration to use when connecting OVN networks to a parent interface.
 

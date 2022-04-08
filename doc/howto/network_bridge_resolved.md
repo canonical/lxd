@@ -1,3 +1,4 @@
+(network-bridge-resolved)=
 # How to integrate with systemd-resolved
 
 If the system running LXD uses systemd-resolved to perform DNS
