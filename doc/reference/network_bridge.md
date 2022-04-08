@@ -37,21 +37,23 @@ another standalone RA daemon be used.
 (network-bridge-options)=
 ## Configuration options
 
-A complete list of configuration settings for LXD networks can be found below.
+The following configuration key namespaces are currently supported for the `bridge` network type:
 
-The following configuration key namespaces are currently supported for bridge networks:
-
+ - `bgp` (BGP peer configuration)
  - `bridge` (L2 interface configuration)
+ - `dns` (DNS server and resolution configuration)
  - `fan` (configuration specific to the Ubuntu FAN overlay)
- - `tunnel` (cross-host tunneling configuration)
  - `ipv4` (L3 IPv4 configuration)
  - `ipv6` (L3 IPv6 configuration)
- - `dns` (DNS server and resolution configuration)
+ - `maas` (MAAS network identification)
+ - `security` (network ACL configuration)
  - `raw` (raw configuration file content)
+ - `tunnel` (cross-host tunneling configuration)
+ - `user` (free-form key/value for user metadata)
 
-It is expected that IP addresses and subnets are given using CIDR notation (`1.1.1.1/24` or `fd80:1234::1/64`).
-
-The exception being tunnel local and remote addresses which are just plain addresses (`1.1.1.1` or `fd80:1234::1`).
+```{note}
+{{note_ip_addresses_CIDR}}
+```
 
 The following configuration options are available for the `bridge` network type:
 
