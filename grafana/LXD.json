@@ -75,7 +75,7 @@
       "targetBlank": true,
       "title": "Documentation",
       "type": "link",
-      "url": "https://linuxcontainers.org/lxd/docs/master/"
+      "url": "https://linuxcontainers.org/lxd/docs/latest/"
     }
   ],
   "liveNow": false,
