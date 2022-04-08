@@ -1,6 +1,11 @@
 (network-macvlan)=
 # Macvlan network
 
+<!-- Include start macvlan intro -->
+Macvlan is a virtual {abbr}`LAN (Local Area Network)` that you can use if you want to assign several IP addresses to the same network interface, basically splitting up the network interface into several sub-interfaces with their own IP addresses.
+You can then assign IP addresses based on the randomly generated MAC addresses.
+<!-- Include end macvlan intro -->
+
 The macvlan network type allows one to specify presets to use when connecting instances to a parent interface
 using macvlan NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
 knowing any of the underlying configuration details.
