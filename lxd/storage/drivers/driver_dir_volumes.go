@@ -393,12 +393,10 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		return err
 	}
 
-	revertPath := true
-	defer func() {
-		if revertPath {
-			os.RemoveAll(snapPath)
-		}
-	}()
+	revert := revert.New()
+	defer revert.Fail()
+
+	revert.Add(func() { os.RemoveAll(snapPath) })
 
 	bwlimit := d.config["rsync.bwlimit"]
 
@@ -408,7 +406,7 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		return err
 	}
 
-	revertPath = false
+	revert.Success()
 	return nil
 }
 
