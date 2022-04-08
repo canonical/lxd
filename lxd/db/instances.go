@@ -219,7 +219,7 @@ SELECT nodes.id, nodes.address
 	defer rows.Close()
 
 	if !rows.Next() {
-		return "", ErrNoSuchObject
+		return "", api.StatusErrorf(http.StatusNotFound, "Instance not found")
 	}
 
 	err = rows.Scan(&id, &address)
@@ -737,7 +737,7 @@ WHERE instances.id=?
 	})
 
 	if err == sql.ErrNoRows {
-		return "", "", ErrNoSuchObject
+		return "", "", api.StatusErrorf(http.StatusNotFound, "Instance not found")
 	}
 
 	return project, name, err
@@ -763,7 +763,7 @@ func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 		return tx.tx.QueryRow(q, id, key).Scan(&value)
 	})
 	if err == sql.ErrNoRows {
-		return "", ErrNoSuchObject
+		return "", api.StatusErrorf(http.StatusNotFound, "Instance config not found")
 	}
 
 	return value, err

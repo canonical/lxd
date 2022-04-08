@@ -5,6 +5,7 @@ package db
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
@@ -137,7 +138,7 @@ ORDER BY certificates.fingerprint
 	}
 
 	if len(fingerprints) == 0 {
-		return nil, ErrNoSuchObject
+		return nil, api.StatusErrorf(http.StatusNotFound, "Certificate not found")
 	}
 
 	cert, err = c.GetCertificate(fingerprints[0])

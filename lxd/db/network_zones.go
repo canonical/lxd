@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/lxc/lxd/shared/api"
@@ -147,7 +148,7 @@ func (c *Cluster) GetNetworkZone(name string) (int64, string, *api.NetworkZone, 
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, "", nil, ErrNoSuchObject
+			return -1, "", nil, api.StatusErrorf(http.StatusNotFound, "Network zone not found")
 		}
 
 		return -1, "", nil, err
@@ -186,7 +187,7 @@ func (c *Cluster) GetNetworkZoneByProject(projectName string, name string) (int6
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+			return -1, nil, api.StatusErrorf(http.StatusNotFound, "Network zone not found")
 		}
 
 		return -1, nil, err
@@ -374,7 +375,7 @@ func (c *Cluster) GetNetworkZoneRecord(zone int64, name string) (int64, *api.Net
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return -1, nil, ErrNoSuchObject
+			return -1, nil, api.StatusErrorf(http.StatusNotFound, "Network zone record not found")
 		}
 
 		return -1, nil, err
