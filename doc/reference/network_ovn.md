@@ -28,6 +28,19 @@ Create routing relationships </howto/network_ovn_peers>
 (network-ovn-options)=
 ## Configuration options
 
+The following configuration key namespaces are currently supported for the `ovn` network type:
+
+ - `bridge` (L2 interface configuration)
+ - `dns` (DNS server and resolution configuration)
+ - `ipv4` (L3 IPv4 configuration)
+ - `ipv6` (L3 IPv6 configuration)
+ - `security` (network ACL configuration)
+ - `user` (free-form key/value for user metadata)
+
+```{note}
+{{note_ip_addresses_CIDR}}
+```
+
 The following configuration options are available for the `ovn` network type:
 
 Key                                  | Type      | Condition             | Default                   | Description
