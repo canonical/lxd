@@ -5790,9 +5790,21 @@ func (d *qemu) DeviceEventHandler(runConf *deviceConfig.RunConfig) error {
 	return nil
 }
 
-// vsockID returns the vsock context ID, 3 being the first ID that can be used.
+// vsockID returns the vsock Context ID for the VM.
 func (d *qemu) vsockID() int {
-	return d.id + 3
+	// We use the system's own VsockID as the base.
+	//
+	// This is either "2" for a physical system or the VM's own id if
+	// running inside of a VM.
+	//
+	// To this we add 1 for backward compatibility with prior logic
+	// which would start at id 3 rather than id 2. Removing that offset
+	// would cause conflicts between existing VMs until they're all rebooted.
+	//
+	// We then add the VM's own instance id (1 or higher) to give us a
+	// unique, non-clashing context ID for our guest.
+
+	return int(d.state.OS.VsockID) + 1 + d.id
 }
 
 // InitPID returns the instance's current process ID.

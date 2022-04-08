@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/mdlayher/vsock"
+
 	"github.com/lxc/lxd/lxd/cgroup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/storage/filesystem"
@@ -88,6 +90,9 @@ type OS struct {
 
 	// LXC features
 	LXCFeatures map[string]bool
+
+	// VM features
+	VsockID uint32
 }
 
 // DefaultOS returns a fresh uninitialized OS instance with default values.
@@ -163,6 +168,15 @@ func (s *OS) Init() ([]db.Warning, error) {
 	dbWarnings = s.initAppArmor()
 	cgroup.Init()
 	s.CGInfo = cgroup.GetInfo()
+
+	// Fill in the VsockID.
+	vsockID, err := vsock.ContextID()
+	if err != nil {
+		// Fallback to the default ID for a host system.
+		vsockID = 2
+	}
+
+	s.VsockID = vsockID
 
 	return dbWarnings, nil
 }
