@@ -1654,3 +1654,6 @@ If this is not specified then the default is to let LVM pick an appropriate thin
 
 ## storage\_volume\_state\_total
 This adds 'total' field to the `GET /1.0/storage-pools/{name}/volumes/{type}/{volume}/state` API.
+
+## instance\_file\_head
+Implements HEAD on `/1.0/instances/NAME/file`.
