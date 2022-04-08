@@ -125,7 +125,7 @@ func (c *Cluster) GetNetworkZone(name string) (int64, string, *api.NetworkZone, 
 	}
 
 	q := `
-		SELECT networks_zones.id, projects.Name, networks_zones.description
+		SELECT networks_zones.id, projects.name, networks_zones.description
 		FROM networks_zones
 		JOIN projects ON projects.id=networks_zones.project_id
 		WHERE networks_zones.name=?
