@@ -1,6 +1,10 @@
 (network-sriov)=
 # SR-IOV network
 
+<!-- Include start SR-IOV intro -->
+{abbr}`SR-IOV (Single root I/O virtualization)` is a hardware standard that allows a single network interface to appear as several virtual network interfaces in a virtualized environment.
+<!-- Include end SR-IOV intro -->
+
 The sriov network type allows one to specify presets to use when connecting instances to a parent interface
 using sriov NICs. This allows the instance NIC itself to simply specify the `network` it is connecting to without
 knowing any of the underlying configuration details.

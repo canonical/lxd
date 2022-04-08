@@ -6,6 +6,9 @@ discourse: 7322
 # Bridge network
 
 As one of the possible network configuration types under LXD, LXD supports creating and managing network bridges.
+<!-- Include start bridge intro -->
+A network bridge creates a virtual L2 ethernet switch that instance NICs can connect to, making it possible for them to communicate with each other and the host.
+<!-- Include end bridge intro -->
 LXD bridges can leverage underlying native Linux bridges and Open vSwitch.
 
 Creation and management of LXD bridges is performed via the `lxc network` command.

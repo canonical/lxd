@@ -5,6 +5,12 @@ discourse: 11033
 (network-ovn)=
 # OVN network
 
+<!-- Include start OVN intro -->
+{abbr}`OVN (Open Virtual Network)` is a software-defined networking system that supports virtual network abstraction.
+You can use it to build your own private cloud.
+See https://www.ovn.org/ for more information.
+<!-- Include end OVN intro -->
+
 The ovn network type allows the creation of logical networks using the OVN SDN. This can be useful for labs and
 multi-tenant environments where the same logical subnets are used in multiple discrete networks.
 
