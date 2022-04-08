@@ -24,6 +24,16 @@ Integrate with systemd-resolved </howto/network_bridge_resolved>
 Configure Firewalld </howto/network_bridge_firewalld>
 ```
 
+## IPv6 prefix size
+For optimal operation, a prefix size of 64 is preferred.
+Larger subnets (prefix smaller than 64) should work properly too but
+aren't typically that useful for SLAAC.
+
+Smaller subnets while in theory possible when using stateful DHCPv6 for
+IPv6 allocation aren't properly supported by dnsmasq and may be the
+source of issue. If you must use one of those, static allocation or
+another standalone RA daemon be used.
+
 (network-bridge-options)=
 ## Configuration options
 
@@ -104,13 +114,3 @@ tunnel.NAME.port                     | integer   | vxlan                 | 0    
 tunnel.NAME.protocol                 | string    | standard mode         | -                         | Tunneling protocol ("vxlan" or "gre")
 tunnel.NAME.remote                   | string    | gre or vxlan          | -                         | Remote address for the tunnel (not necessary for multicast vxlan)
 tunnel.NAME.ttl                      | integer   | vxlan                 | 1                         | Specific TTL to use for multicast routing topologies
-
-## IPv6 prefix size
-For optimal operation, a prefix size of 64 is preferred.
-Larger subnets (prefix smaller than 64) should work properly too but
-aren't typically that useful for SLAAC.
-
-Smaller subnets while in theory possible when using stateful DHCPv6 for
-IPv6 allocation aren't properly supported by dnsmasq and may be the
-source of issue. If you must use one of those, static allocation or
-another standalone RA daemon be used.
