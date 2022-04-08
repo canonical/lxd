@@ -64,7 +64,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	reservedDevices := map[string]struct{}{}
 
 	// Check if any instances are using the VF device.
-	err = s.Cluster.InstanceList(&filter, func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
+	err = s.Cluster.InstanceList(&filter, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Expand configs so we take into account profile devices.
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
 		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
