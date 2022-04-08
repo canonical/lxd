@@ -690,6 +690,16 @@ func copyDevice(inputPath string, outputPath string) error {
 		return fmt.Errorf("Error copying file %q to %q: %w", inputPath, outputPath, err)
 	}
 
+	err = from.Close()
+	if err != nil {
+		return fmt.Errorf("Failed to close file %q: %w", inputPath, err)
+	}
+
+	err = to.Close()
+	if err != nil {
+		return fmt.Errorf("Failed to close file %q: %w", outputPath, err)
+	}
+
 	return nil
 }
 
