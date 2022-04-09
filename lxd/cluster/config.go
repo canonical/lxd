@@ -273,6 +273,7 @@ var ConfigSchema = config.Schema{
 	"images.compression_algorithm":   {Default: "gzip", Validator: validate.IsCompressionAlgorithm},
 	"images.default_architecture":    {Validator: validate.Optional(validate.IsArchitecture)},
 	"images.remote_cache_expiry":     {Type: config.Int64, Default: "10"},
+	"instances.nic.host_name":        {Validator: validate.Optional(validate.IsOneOf("random", "mac"))},
 	"maas.api.key":                   {},
 	"maas.api.url":                   {},
 	"rbac.agent.url":                 {},
