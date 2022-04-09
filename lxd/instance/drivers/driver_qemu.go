@@ -5203,7 +5203,9 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 	}
 
 	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
-	_, err = shared.RunCommand("qemu-img", "convert", "-c", "-O", "qcow2", mountInfo.DiskPath, fPath)
+
+	// Run qemu-img with low priority to reduce CPU impact on other processes.
+	_, err = shared.RunCommand("nice", "-n19", "qemu-img", "convert", "-c", "-O", "qcow2", mountInfo.DiskPath, fPath)
 	if err != nil {
 		return meta, fmt.Errorf("Failed converting image to qcow2: %w", err)
 	}
