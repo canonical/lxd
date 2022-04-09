@@ -1,9 +1,14 @@
 package device
 
 import (
+	"fmt"
+	"net"
+
+	"github.com/lxc/lxd/lxd/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
+	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -93,4 +98,29 @@ func (d *deviceCommon) Update(oldDevices deviceConfig.Devices, isRunning bool) e
 // Remove returns nil error as majority of devices don't need to do any host-side cleanup on delete.
 func (d *deviceCommon) Remove() error {
 	return nil
+}
+
+// generateHostName generates the name to use for the host side NIC interface based on the
+// instances.nic.host_name setting.
+// Accepts prefix argument to use with random interface generation.
+// Accepts optional hwaddr MAC address to use for generating the interface name in mac mode.
+// In mac mode the interface prefix is always "lxd".
+func (d *deviceCommon) generateHostName(prefix string, hwaddr string) (string, error) {
+	hostNameMode, err := cluster.ConfigGetString(d.state.Cluster, "instances.nic.host_name")
+	if err != nil {
+		return "", fmt.Errorf(`Failed getting "instances.nic.host_name" config: %w`, err)
+	}
+
+	// Handle instances.nic.host_name mac mode if a MAC address has been supplied.
+	if hostNameMode == "mac" && hwaddr != "" {
+		mac, err := net.ParseMAC(hwaddr)
+		if err != nil {
+			return "", fmt.Errorf("Failed parsing MAC address %q: %w", hwaddr, err)
+		}
+
+		return network.MACDevName(mac), nil
+	}
+
+	// Handle instances.nic.host_name random mode or where no MAC address supplied.
+	return network.RandomDevName(prefix), nil
 }
