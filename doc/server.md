@@ -10,6 +10,7 @@ currently supported:
  - `cluster` (cluster configuration)
  - `core` (core daemon configuration)
  - `images` (image configuration)
+ - `instances` (instance configuration)
  - `maas` (MAAS integration)
  - `rbac` (Role Based Access Control through external Candid + Canonical RBAC)
 
@@ -52,6 +53,7 @@ images.auto\_update\_interval       | integer   | global    | 6                 
 images.compression\_algorithm       | string    | global    | gzip                              | Compression algorithm to use for new images (bzip2, gzip, lzma, xz or none)
 images.default\_architecture        | string    | -         | -                                 | Default architecture which should be used in mixed architecture cluster
 images.remote\_cache\_expiry        | integer   | global    | 10                                | Number of days after which an unused cached remote image will be flushed
+instances.nic.host\_name            | string    | global    | random                            | If it is set to `random` then use the random host interface names but if it's set to mac, then generate a name in the form `lxd<mac_address>`(MAC without leading 2 digits).
 maas.api.key                        | string    | global    | -                                 | API key to manage MAAS
 maas.api.url                        | string    | global    | -                                 | URL of the MAAS server
 maas.machine                        | string    | local     | hostname                          | Name of this LXD host in MAAS
