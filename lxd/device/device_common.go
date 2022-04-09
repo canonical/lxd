@@ -4,6 +4,7 @@ import (
 	deviceConfig "github.com/canonical/lxd/lxd/device/config"
 	"github.com/canonical/lxd/lxd/instance"
 	"github.com/canonical/lxd/lxd/instance/instancetype"
+	"github.com/canonical/lxd/lxd/network"
 	"github.com/canonical/lxd/lxd/state"
 	"github.com/canonical/lxd/shared/logger"
 )
@@ -89,4 +90,14 @@ func (d *deviceCommon) Update(oldDevices deviceConfig.Devices, isRunning bool) e
 // Remove returns nil error as majority of devices don't need to do any host-side cleanup on delete.
 func (d *deviceCommon) Remove() error {
 	return nil
+}
+
+// generateHostName generates the name to use for the host side NIC interface based on the
+// instances.nic.host_name setting.
+// Accepts prefix argument to use with random interface generation.
+// Accepts optional hwaddr MAC address to use for generating the interface name in mac mode.
+// In mac mode the interface prefix is always "lxd".
+func (d *deviceCommon) generateHostName(prefix string, hwaddr string) (string, error) {
+	// Handle instances.nic.host_name random mode or where no MAC address supplied.
+	return network.RandomDevName(prefix), nil
 }
