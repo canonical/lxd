@@ -61,6 +61,8 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	switch r.Method {
 	case "GET":
 		return instanceFileGet(d.State(), inst, path, r)
+	case "HEAD":
+		return instanceFileHead(d.State(), inst, path, r)
 	case "POST":
 		return instanceFilePost(d.State(), inst, path, r)
 	case "DELETE":
@@ -247,6 +249,104 @@ func instanceFileGet(s *state.State, inst instance.Instance, path string, r *htt
 	} else {
 		return response.InternalError(fmt.Errorf("Bad file type: %s", fileType))
 	}
+}
+
+// swagger:operation HEAD /1.0/instances/{name}/files instances instance_files_head
+//
+// Get metadata for a file
+//
+// Gets the file or directory metadata.
+//
+// ---
+// parameters:
+//   - in: query
+//     name: path
+//     description: Path to the file
+//     type: string
+//     example: default
+//   - in: query
+//     name: project
+//     description: Project name
+//     type: string
+//     example: default
+// responses:
+//   "200":
+//      description: Raw file or directory listing
+//      headers:
+//        X-LXD-uid:
+//          description: File owner UID
+//          schema:
+//            type: integer
+//        X-LXD-gid:
+//          description: File owner GID
+//          schema:
+//            type: integer
+//        X-LXD-mode:
+//          description: Mode mask
+//          schema:
+//            type: integer
+//        X-LXD-modified:
+//          description: Last modified date
+//          schema:
+//            type: string
+//        X-LXD-type:
+//          description: Type of file (file, symlink or directory)
+//          schema:
+//            type: string
+//   "400":
+//     $ref: "#/responses/BadRequest"
+//   "403":
+//     $ref: "#/responses/Forbidden"
+//   "404":
+//     $ref: "#/responses/NotFound"
+//   "500":
+//     $ref: "#/responses/InternalServerError"
+func instanceFileHead(s *state.State, inst instance.Instance, path string, r *http.Request) response.Response {
+	reverter := revert.New()
+	defer reverter.Fail()
+
+	// Get a SFTP client.
+	client, err := inst.FileSFTP()
+	if err != nil {
+		return response.InternalError(err)
+	}
+	reverter.Add(func() { client.Close() })
+
+	// Get the file stats.
+	stat, err := client.Lstat(path)
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	fileType := "file"
+	if stat.Mode().IsDir() {
+		fileType = "directory"
+	} else if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+		fileType = "symlink"
+	}
+
+	fs := stat.Sys().(*sftp.FileStat)
+
+	// Prepare the response.
+	headers := map[string]string{
+		"X-LXD-uid":      fmt.Sprintf("%d", fs.UID),
+		"X-LXD-gid":      fmt.Sprintf("%d", fs.GID),
+		"X-LXD-mode":     fmt.Sprintf("%04o", stat.Mode().Perm()),
+		"X-LXD-modified": stat.ModTime().UTC().String(),
+		"X-LXD-type":     fileType,
+	}
+
+	// Return an empty body (per RFC for HEAD).
+	return response.ManualResponse(func(w http.ResponseWriter) error {
+		// Set the headers.
+		for k, v := range headers {
+			w.Header().Set(k, v)
+		}
+
+		// Flush the connection.
+		w.WriteHeader(http.StatusOK)
+		return nil
+	})
 }
 
 // swagger:operation POST /1.0/instances/{name}/files instances instance_files_post
