@@ -14,7 +14,6 @@ import (
 	"reflect"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -638,7 +637,7 @@ func GetPollRevents(fd int, timeout int, flags int) (int, int, error) {
 again:
 	n, err := unix.Poll(pollFds, timeout)
 	if err != nil {
-		if err == syscall.EAGAIN || err == syscall.EINTR {
+		if err == unix.EAGAIN || err == unix.EINTR {
 			goto again
 		}
 
@@ -660,7 +659,7 @@ func ExitStatus(err error) (int, error) {
 	exitErr, isExitError := err.(*exec.ExitError)
 	if isExitError {
 		// If the process was signaled, extract the signal.
-		status, isWaitStatus := exitErr.Sys().(syscall.WaitStatus)
+		status, isWaitStatus := exitErr.Sys().(unix.WaitStatus)
 		if isWaitStatus && status.Signaled() {
 			return 128 + int(status.Signal()), nil // 128 + n == Fatal error signal "n"
 		}
