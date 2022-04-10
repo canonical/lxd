@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 
@@ -131,7 +130,7 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 
 	// Clear the cloexec flag on the file descriptors we are passing through.
 	for _, fd := range fds {
-		_, _, syscallErr := syscall.Syscall(unix.SYS_FCNTL, fd, syscall.F_SETFD, uintptr(0))
+		_, _, syscallErr := unix.Syscall(unix.SYS_FCNTL, fd, unix.F_SETFD, uintptr(0))
 		if syscallErr != 0 {
 			err := os.NewSyscallError(fmt.Sprintf("fcntl failed on FD %d", fd), syscallErr)
 			if err != nil {
@@ -140,5 +139,5 @@ func (c *cmdForklimits) Run(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	return syscall.Exec(cmdParts[0], cmdParts, os.Environ())
+	return unix.Exec(cmdParts[0], cmdParts, os.Environ())
 }

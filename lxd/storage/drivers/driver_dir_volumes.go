@@ -378,17 +378,9 @@ func (d *dir) BackupVolume(vol Volume, tarWriter *instancewriter.InstanceTarWrit
 // CreateVolumeSnapshot creates a snapshot of a volume.
 func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
 	parentName, _, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
-	srcPath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
-	snapPath := snapVol.MountPath()
-
-	// Create the parent directory.
-	err := createParentSnapshotDirIfMissing(d.name, snapVol.volType, parentName)
-	if err != nil {
-		return err
-	}
 
 	// Create snapshot directory.
-	err = snapVol.EnsureMountPath()
+	err := snapVol.EnsureMountPath()
 	if err != nil {
 		return err
 	}
@@ -396,14 +388,51 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	revert := revert.New()
 	defer revert.Fail()
 
+	snapPath := snapVol.MountPath()
 	revert.Add(func() { os.RemoveAll(snapPath) })
 
 	bwlimit := d.config["rsync.bwlimit"]
 
-	// Copy volume into snapshot directory.
-	_, err = rsync.LocalCopy(srcPath, snapPath, bwlimit, true)
-	if err != nil {
-		return err
+	var rsyncArgs []string
+
+	if snapVol.IsVMBlock() {
+		rsyncArgs = append(rsyncArgs, "--exclude", genericVolumeDiskFile)
+	}
+
+	if snapVol.contentType != ContentTypeBlock || snapVol.volType != VolumeTypeCustom {
+		srcPath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
+		d.Logger().Debug("Copying fileystem volume", logger.Ctx{"sourcePath": srcPath, "targetPath": snapPath, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
+
+		// Copy filesystem volume into snapshot directory.
+		_, err = rsync.LocalCopy(srcPath, snapPath, bwlimit, true, rsyncArgs...)
+		if err != nil {
+			return err
+		}
+	}
+
+	if snapVol.IsVMBlock() || snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom {
+		parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, nil, d.config)
+		srcDevPath, err := d.GetVolumeDiskPath(parentVol)
+		if err != nil {
+			return err
+		}
+
+		targetDevPath, err := d.GetVolumeDiskPath(snapVol)
+		if err != nil {
+			return err
+		}
+
+		d.Logger().Debug("Copying block volume", logger.Ctx{"srcDevPath": srcDevPath, "targetPath": targetDevPath})
+
+		err = ensureSparseFile(targetDevPath, 0)
+		if err != nil {
+			return err
+		}
+
+		err = copyDevice(srcDevPath, targetDevPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	revert.Success()
