@@ -40,18 +40,6 @@ func (i *IdRange) Contains(id int64) bool {
 	return id >= i.Startid && id <= i.Endid
 }
 
-/*
- * One entry in id mapping set - a single range of either
- * uid or gid mappings.
- */
-type IdmapEntry struct {
-	Isuid    bool
-	Isgid    bool
-	Hostid   int64 // id as seen on the host - i.e. 100000
-	Nsid     int64 // id as seen in the ns - i.e. 0
-	Maprange int64
-}
-
 func (e *IdmapEntry) ToLxcString() []string {
 	if e.Isuid && e.Isgid {
 		return []string{
@@ -304,10 +292,6 @@ func Extend(slice []IdmapEntry, element IdmapEntry) []IdmapEntry {
 	slice = slice[0 : n+1]
 	slice[n] = element
 	return slice
-}
-
-type IdmapSet struct {
-	Idmap []IdmapEntry
 }
 
 func (m *IdmapSet) Equals(other *IdmapSet) bool {
