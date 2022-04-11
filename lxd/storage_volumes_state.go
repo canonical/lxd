@@ -112,7 +112,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 		// Instance volumes.
 		inst, err := instance.LoadByProjectAndName(d.State(), projectName, volumeName)
 		if err != nil {
-			return response.NotFound(err)
+			return response.SmartError(err)
 		}
 
 		used, err = pool.GetInstanceUsage(inst)
