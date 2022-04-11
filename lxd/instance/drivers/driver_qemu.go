@@ -2167,7 +2167,7 @@ mount_virtiofs() {
 
 mount_9p() {
     /sbin/modprobe 9pnet_virtio >/dev/null 2>&1 || true
-    /bin/mount -t 9p config "${PREFIX}/.mnt" -o access=0,trans=virtio >/dev/null 2>&1
+    /bin/mount -t 9p config "${PREFIX}/.mnt" -o access=0,trans=virtio,size=1048576 >/dev/null 2>&1
 }
 
 fail() {
@@ -2961,8 +2961,9 @@ func (d *qemu) addDriveDirConfig(sb *strings.Builder, bus *qemuBus, fdFiles *[]*
 	}
 
 	// If mount type is 9p, we need to specify to use the virtio transport to support more VM guest OSes.
+	// Also set the msize to 32MB to allow for reasonably fast 9p access.
 	if agentMount.FSType == "9p" {
-		agentMount.Options = append(agentMount.Options, "trans=virtio")
+		agentMount.Options = append(agentMount.Options, "trans=virtio,msize=33554432")
 	}
 
 	readonly := shared.StringInSlice("ro", driveConf.Opts)
