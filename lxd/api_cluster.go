@@ -1380,7 +1380,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponseETag(true, member, member.ClusterMemberPut)
 	}
 
-	return response.NotFound(fmt.Errorf("Member '%s' not found", name))
+	return response.NotFound(fmt.Errorf("Member %q not found", name))
 }
 
 // swagger:operation PATCH /1.0/cluster/members/{name} cluster cluster_member_patch
