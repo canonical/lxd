@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -773,7 +772,7 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string, networkName string) (api.Network, error) {
 	// Ignore veth pairs (for performance reasons).
 	if strings.HasPrefix(networkName, "veth") {
-		return api.Network{}, os.ErrNotExist
+		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
 	// Get some information.
@@ -781,14 +780,14 @@ func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string,
 
 	// Don't allow retrieving info about the local node interfaces when not using default project.
 	if projectName != project.Default && n == nil {
-		return api.Network{}, os.ErrNotExist
+		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
 	osInfo, _ := net.InterfaceByName(networkName)
 
 	// Quick check.
 	if osInfo == nil && n == nil {
-		return api.Network{}, os.ErrNotExist
+		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}
 
 	// Prepare the response.
