@@ -295,10 +295,12 @@ func (c *cmdAgent) mountHostShares() {
 			args := []string{"-t", "virtiofs", mount.Source, mount.Target}
 
 			for _, opt := range mount.Options {
-				// Ignore the 'trans-virtio' mount option as that's specific to 9p.
-				if opt != "trans=virtio" {
-					args = append(args, "-o", opt)
+				// Ignore the transport and msize mount option as they are specific to 9p.
+				if opt == "trans=" || strings.HasPrefix(opt, "msize=") {
+					continue
 				}
+
+				args = append(args, "-o", opt)
 			}
 
 			_, err = shared.RunCommand("mount", args...)
