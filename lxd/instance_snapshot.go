@@ -351,7 +351,7 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	case "PATCH":
 		return snapshotPatch(d, r, inst, snapshotName)
 	default:
-		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
+		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
 }
 

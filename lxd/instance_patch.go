@@ -73,7 +73,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 
 	c, err := instance.LoadByProjectAndName(d.State(), projectName, name)
 	if err != nil {
-		return response.NotFound(err)
+		return response.SmartError(err)
 	}
 
 	// Validate the ETag

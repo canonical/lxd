@@ -68,7 +68,7 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 	case "DELETE":
 		return instanceFileDelete(d.State(), inst, path, r)
 	default:
-		return response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
+		return response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 	}
 }
 

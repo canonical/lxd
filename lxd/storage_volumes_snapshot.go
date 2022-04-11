@@ -871,7 +871,7 @@ func doStoragePoolVolumeSnapshotUpdate(d *Daemon, r *http.Request, poolName stri
 	} else {
 		inst, err := instance.LoadByProjectAndName(d.State(), projectName, volName)
 		if err != nil {
-			return response.NotFound(err)
+			return response.SmartError(err)
 		}
 
 		err = pool.UpdateInstanceSnapshot(inst, req.Description, nil, op)
