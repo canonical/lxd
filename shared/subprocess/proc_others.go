@@ -1,5 +1,4 @@
 //go:build (!linux || !cgo) && !windows
-// +build (!linux || !cgo) && !windows
 
 package subprocess
 
