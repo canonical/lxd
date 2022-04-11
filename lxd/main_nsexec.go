@@ -349,8 +349,6 @@ __attribute__((constructor)) void init(void) {
 		forkproxy();
 	else if (strcmp(cmdline_cur, "forkuevent") == 0)
 		forkuevent();
-	else if (strcmp(cmdline_cur, "forkusernsexec") == 0)
-		forkusernsexec();
 	else if (strcmp(cmdline_cur, "forkcoresched") == 0)
 		forkcoresched();
 	else if (strcmp(cmdline_cur, "forkzfs") == 0) {
