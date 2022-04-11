@@ -9,7 +9,6 @@ import (
 
 // BuildComment includes the necessary comments for building. The extra new line at the end is required.
 const BuildComment = `//go:build linux && cgo && !agent
-// +build linux,cgo,!agent
 
 `
 

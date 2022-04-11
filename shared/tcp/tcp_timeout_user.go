@@ -1,5 +1,4 @@
 //go:build linux || zos
-// +build linux zos
 
 package tcp
 
