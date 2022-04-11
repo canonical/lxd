@@ -452,7 +452,7 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	if !shared.PathExists(templatePath) {
-		return response.NotFound(fmt.Errorf("Template '%s' not found", templateName))
+		return response.NotFound(fmt.Errorf("Template %q not found", templateName))
 	}
 
 	// Create a temporary file with the template content (since the container
@@ -673,7 +673,7 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	}
 
 	if !shared.PathExists(templatePath) {
-		return response.NotFound(fmt.Errorf("Template '%s' not found", templateName))
+		return response.NotFound(fmt.Errorf("Template %q not found", templateName))
 	}
 
 	// Delete the template
