@@ -114,8 +114,7 @@ func (c *cmdForkfile) Command() *cobra.Command {
   listen fd.
 
   The command can be called with PID and PIDFd set to 0 to just operate on the rootfs fd.
-  In such cases, it's the responsibility of the caller to handle any
-  kind of userns shifting (likely by calling forkfile through forkuserns).
+  In such cases, it's the responsibility of the caller to handle any kind of userns shifting.
 `
 	cmd.Hidden = true
 	cmd.Args = cobra.ExactArgs(4)
