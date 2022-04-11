@@ -2533,7 +2533,7 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if !info.Public && public && op == nil {
-		return response.NotFound(fmt.Errorf("Image '%s' not found", info.Fingerprint))
+		return response.NotFound(fmt.Errorf("Image %q not found", info.Fingerprint))
 	}
 
 	etag := []any{info.Public, info.AutoUpdate, info.Properties}
@@ -3358,7 +3358,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !imgInfo.Public && !imgInfo.Cached {
-			return response.NotFound(fmt.Errorf("Image '%s' not found", fingerprint))
+			return response.NotFound(fmt.Errorf("Image %q not found", fingerprint))
 		}
 	} else {
 		_, imgInfo, err = d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
@@ -3372,7 +3372,7 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 		}
 
 		if !imgInfo.Public && public && op == nil {
-			return response.NotFound(fmt.Errorf("Image '%s' not found", imgInfo.Fingerprint))
+			return response.NotFound(fmt.Errorf("Image %q not found", imgInfo.Fingerprint))
 		}
 	}
 

@@ -86,7 +86,7 @@ func createCmd(restAPI *mux.Router, version string, c APIEndpoint, cert *x509.Ce
 		case "PATCH":
 			resp = handleRequest(c.Patch)
 		default:
-			resp = response.NotFound(fmt.Errorf("Method '%s' not found", r.Method))
+			resp = response.NotFound(fmt.Errorf("Method %q not found", r.Method))
 		}
 
 		// Handle errors
