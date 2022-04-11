@@ -1444,7 +1444,7 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	} else if volumeType == db.StoragePoolVolumeTypeContainer || volumeType == db.StoragePoolVolumeTypeVM {
 		inst, err := instance.LoadByProjectAndName(d.State(), projectName, vol.Name)
 		if err != nil {
-			return response.NotFound(err)
+			return response.SmartError(err)
 		}
 
 		// Handle instance volume update requests.

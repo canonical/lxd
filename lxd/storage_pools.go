@@ -273,7 +273,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 
 		poolID, err := d.cluster.GetStoragePoolID(req.Name)
 		if err != nil {
-			return response.NotFound(err)
+			return response.SmartError(err)
 		}
 
 		_, err = storagePoolCreateLocal(d.State(), poolID, req, clientType)
