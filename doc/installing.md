@@ -31,7 +31,7 @@ sudo apt install btrfs-progs
 To run the testsuite, you'll also need:
 
 ```bash
-sudo apt install curl gettext jq sqlite3 uuid-runtime socat bind9-dnsutils
+sudo apt install curl gettext jq sqlite3 socat bind9-dnsutils
 ```
 
 ### From Source: Building the latest version
@@ -109,4 +109,4 @@ group to talk to LXD; you can create your own group if you want):
 sudo -E PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} $(go env GOPATH)/bin/lxd --group sudo
 ```
 
-*Note: If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M uid/gid.* 
+*Note: If `newuidmap/newgidmap` tools are present on your system and `/etc/subuid`, `etc/subgid` exist, they must be configured to allow the root user a contiguous range of at least 10M uid/gid.*
