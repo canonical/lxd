@@ -4337,6 +4337,13 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		if err != nil {
 			return fmt.Errorf("Invalid expanded devices: %w", err)
 		}
+
+		// Validate root device
+		_, oldRootDev, oldErr := shared.GetRootDiskDevice(oldExpandedDevices.CloneNative())
+		_, newRootDev, newErr := shared.GetRootDiskDevice(d.expandedDevices.CloneNative())
+		if oldErr == nil && newErr == nil && oldRootDev["pool"] != newRootDev["pool"] {
+			return fmt.Errorf("Cannot update root disk device pool name")
+		}
 	}
 
 	// If apparmor changed, re-validate the apparmor profile (even if not running).
