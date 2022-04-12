@@ -1,6 +1,6 @@
 // Package api contains Go structs for all LXD API objects
 //
-// Overview
+// # Overview
 //
 // This package has Go structs for every API object, all the various
 // structs are named after the object they represent and some variations of
