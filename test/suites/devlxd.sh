@@ -19,6 +19,9 @@ test_devlxd() {
   lxc config set devlxd user.foo bar
   lxc exec devlxd devlxd-client user.foo | grep bar
 
+  lxc config set devlxd user.foo "bar %s bar"
+  lxc exec devlxd devlxd-client user.foo | grep "bar %s bar"
+
   lxc config set devlxd security.nesting true
   ! lxc exec devlxd devlxd-client security.nesting | grep true || false
 
