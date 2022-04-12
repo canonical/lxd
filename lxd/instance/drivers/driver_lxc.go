@@ -4155,6 +4155,25 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	})
 
 	if userRequested {
+		// Look for deleted idmap keys.
+		protectedKeys := []string{
+			"volatile.idmap.base",
+			"volatile.idmap.current",
+			"volatile.idmap.next",
+			"volatile.last_state.idmap",
+		}
+
+		for _, k := range changedConfig {
+			if !shared.StringInSlice(k, protectedKeys) {
+				continue
+			}
+
+			_, ok := d.expandedConfig[k]
+			if !ok {
+				return fmt.Errorf("Volatile idmap keys can't be deleted by the user")
+			}
+		}
+
 		// Do some validation of the config diff (allows mixed instance types for profiles).
 		err = instance.ValidConfig(d.state.OS, d.expandedConfig, true, instancetype.Any)
 		if err != nil {
