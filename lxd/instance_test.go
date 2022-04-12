@@ -241,6 +241,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 	err = c.Update(db.InstanceArgs{
 		Type:     instancetype.Container,
 		Profiles: []string{"default"},
+		Config:   c.LocalConfig(),
 		Devices: deviceConfig.Devices{
 			"eth0": eth0,
 			"eth1": eth1,
@@ -254,6 +255,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 	err = c.Update(db.InstanceArgs{
 		Type:     instancetype.Container,
 		Profiles: []string{"default"},
+		Config:   c.LocalConfig(),
 		Devices: deviceConfig.Devices{
 			"eth0": eth0,
 			"eth1": eth1,
@@ -266,6 +268,7 @@ func (suite *containerTestSuite) TestContainer_AddRoutedNicValidation() {
 	err = c.Update(db.InstanceArgs{
 		Type:     instancetype.Container,
 		Profiles: []string{"default"},
+		Config:   c.LocalConfig(),
 		Devices: deviceConfig.Devices{
 			"eth0": eth0,
 			"eth2": eth2,
