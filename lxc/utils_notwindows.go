@@ -1,5 +1,4 @@
 //go:build (linux && !appengine) || darwin || freebsd || openbsd
-// +build linux,!appengine darwin freebsd openbsd
 
 package main
 

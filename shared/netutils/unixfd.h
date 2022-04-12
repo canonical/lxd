@@ -1,5 +1,3 @@
-// +build linux
-// +build cgo
 
 #ifndef LXD_UNIXFD_H
 #define LXD_UNIXFD_H
