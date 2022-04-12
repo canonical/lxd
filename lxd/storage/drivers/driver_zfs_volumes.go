@@ -548,7 +548,16 @@ func (d *zfs) CreateVolumeFromCopy(vol Volume, srcVol Volume, copySnapshots bool
 
 		// Handle transferring snapshots.
 		if len(snapshots) > 0 {
-			sender = exec.Command("zfs", "send", "-R", srcSnapshot)
+			args := []string{"send", "-R"}
+
+			// Use raw flag is supported, this is required to send/receive encrypted volumes (and enables compression).
+			if zfsRaw {
+				args = append(args, "-w")
+			}
+
+			args = append(args, srcSnapshot)
+
+			sender = exec.Command("zfs", args...)
 		} else {
 			if d.config["zfs.clone_copy"] == "rebase" {
 				var err error

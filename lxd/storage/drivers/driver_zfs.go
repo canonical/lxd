@@ -22,6 +22,7 @@ var zfsVersion string
 var zfsLoaded bool
 var zfsDirectIO bool
 var zfsTrim bool
+var zfsRaw bool
 
 var zfsDefaultSettings = map[string]string{
 	"mountpoint": "legacy",
@@ -87,6 +88,16 @@ func (d *zfs) load() error {
 	if ourVer.Compare(ver80) >= 0 {
 		zfsDirectIO = true
 		zfsTrim = true
+	}
+
+	ver200, err := version.Parse("2.0.0")
+	if err != nil {
+		return err
+	}
+
+	// If running 2.0.0 or newer, we can use the raw flag.
+	if ourVer.Compare(ver200) >= 0 {
+		zfsRaw = true
 	}
 
 	zfsLoaded = true
