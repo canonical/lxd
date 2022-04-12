@@ -535,6 +535,25 @@ test_container_devices_nic_bridged() {
     echo "bridge command doesn't support port isolation, skipping port isolation checks"
   fi
 
+  # Test interface naming scheme.
+  lxc init testimage test-naming
+  lxc start test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
+  lxc stop -f test-naming
+
+  lxc config set instances.nic.host_name random
+  lxc start test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^veth
+  lxc stop -f test-naming
+
+  lxc config set instances.nic.host_name mac
+  lxc start test-naming
+  lxc query "/1.0/instances/test-naming/state" | jq -r .network.eth0.host_name | grep ^lxd
+  lxc stop -f test-naming
+
+  lxc config unset instances.nic.host_name
+  lxc delete -f test-naming
+
   # Check we haven't left any NICS lying around.
   endNicCount=$(find /sys/class/net | wc -l)
   if [ "$startNicCount" != "$endNicCount" ]; then
