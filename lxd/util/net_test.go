@@ -40,9 +40,15 @@ func TestInMemoryNetwork(t *testing.T) {
 func TestCanonicalNetworkAddress(t *testing.T) {
 	cases := map[string]string{
 		"127.0.0.1":                             "127.0.0.1:8443",
+		"127.0.0.1:":                            "127.0.0.1:8443",
 		"foo.bar":                               "foo.bar:8443",
+		"foo.bar:":                              "foo.bar:8443",
+		"foo.bar:8444":                          "foo.bar:8444",
 		"192.168.1.1:443":                       "192.168.1.1:443",
 		"f921:7358:4510:3fce:ac2e:844:2a35:54e": "[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8443",
+		"[f921:7358:4510:3fce:ac2e:844:2a35:54e]":      "[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8443",
+		"[f921:7358:4510:3fce:ac2e:844:2a35:54e]:":     "[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8443",
+		"[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8444": "[f921:7358:4510:3fce:ac2e:844:2a35:54e]:8444",
 	}
 	for in, out := range cases {
 		t.Run(in, func(t *testing.T) {
