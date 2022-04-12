@@ -16,12 +16,12 @@ The easiest way to install LXD is to install one of the available packages, but 
 (installing_from_source)=
 ## Installing LXD from source
 We recommend having the latest versions of liblxc (>= 4.0.0 required)
-available for LXD development. Additionally, LXD requires Golang 1.16 or
+available for LXD development. Additionally, LXD requires Golang 1.18 or
 later to work. On ubuntu, you can get those with:
 
 ```bash
 sudo apt update
-sudo apt install acl attr autoconf dnsmasq-base git golang libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables
+sudo apt install acl attr autoconf automake dnsmasq-base git golang libacl1-dev libcap-dev liblxc1 liblxc-dev libsqlite3-dev libtool libudev-dev liblz4-dev libuv1-dev make pkg-config rsync squashfs-tools tar tcl xz-utils ebtables
 ```
 
 There are a few storage backends for LXD besides the default "directory" backend.
