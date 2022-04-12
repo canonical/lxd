@@ -544,4 +544,8 @@ test_basic_usage() {
   # Test renaming/deletion of the default profile
   ! lxc profile rename default foobar || false
   ! lxc profile delete default || false
+
+  lxc init testimage c1
+  ! lxc config device override c1 root pool bla || false
+  lxc rm -f c1
 }
