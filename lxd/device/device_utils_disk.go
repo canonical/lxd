@@ -274,38 +274,6 @@ func diskAddRootUserNSEntry(idmaps []idmap.IdmapEntry, hostRootID int64) []idmap
 	return idmaps
 }
 
-// forkusernsexecWriteIdmaps writes the idmap entries to the forkusernsexec pipes.
-func forkusernsexecWriteIdmaps(wUIDMapPipe *os.File, wGIDMapPipe *os.File, idmaps []idmap.IdmapEntry) error {
-	for _, idmap := range idmaps {
-		if idmap.Isuid {
-			_, err := wUIDMapPipe.WriteString(fmt.Sprintf("%d %d %d\n", idmap.Nsid, idmap.Hostid, idmap.Maprange))
-			if err != nil {
-				return err
-			}
-		}
-
-		if idmap.Isgid {
-			_, err := wGIDMapPipe.WriteString(fmt.Sprintf("%d %d %d\n", idmap.Nsid, idmap.Hostid, idmap.Maprange))
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// Make sure the strings are \x00 terminated so they are parseable as C strings.
-	_, err := wUIDMapPipe.WriteString("\x00")
-	if err != nil {
-		return err
-	}
-
-	_, err = wGIDMapPipe.WriteString("\x00")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // DiskVMVirtfsProxyStart starts a new virtfs-proxy-helper process.
 // If the idmaps slice is supplied then the proxy process is run inside a user namespace using the supplied maps.
 // Returns a revert function, and a file handle to the proxy process.
@@ -367,46 +335,19 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 	}
 	defer acceptFile.Close()
 
-	var args []string
-	var fdFiles []*os.File
-
-	if len(idmaps) > 0 {
-		rUIDMapPipe, wUIDMapPipe, err := os.Pipe()
-		if err != nil {
-			return nil, nil, err
-		}
-		defer rUIDMapPipe.Close()
-		defer wUIDMapPipe.Close()
-
-		rGIDMapPipe, wGIDMapPipe, err := os.Pipe()
-		if err != nil {
-			return nil, nil, err
-		}
-		defer rGIDMapPipe.Close()
-		defer wGIDMapPipe.Close()
-
-		err = forkusernsexecWriteIdmaps(wUIDMapPipe, wGIDMapPipe, idmaps)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Run proxy command via forkusernsexec, passing in the UID/GID map file handles.
-		// Instruct forkusernsexec to not close FD 5 as this will be used for passing the proxy socket FD.
-		fdFiles = append(fdFiles, rUIDMapPipe, rGIDMapPipe)
-		args = append(args, "forkusernsexec", fmt.Sprintf("--keep-fd-up-to=%d", 5), cmd)
-		cmd = execPath
-	}
-
 	// Start the virtfs-proxy-helper process in non-daemon mode and as root so that when the VM process is
 	// started as an unprivileged user, we can still share directories that process cannot access.
-	fdFiles = append(fdFiles, acceptFile)
-	args = append(args, "--nodaemon", "--fd", fmt.Sprintf("%d", 2+len(fdFiles)), "--path", sharePath)
+	args := []string{"--nodaemon", "--fd", "3", "--path", sharePath}
 	proc, err := subprocess.NewProcess(cmd, args, "", "")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = proc.StartWithFiles(fdFiles)
+	if len(idmaps) > 0 {
+		proc.SetUserns(&idmap.IdmapSet{Idmap: idmaps})
+	}
+
+	err = proc.StartWithFiles([]*os.File{acceptFile})
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to start virtfs-proxy-helper: %w", err)
 	}
@@ -501,45 +442,18 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 	}
 	defer unixFile.Close()
 
-	var args []string
-	var fdFiles []*os.File
-
-	if len(idmaps) > 0 {
-		rUIDMapPipe, wUIDMapPipe, err := os.Pipe()
-		if err != nil {
-			return nil, nil, err
-		}
-		defer rUIDMapPipe.Close()
-		defer wUIDMapPipe.Close()
-
-		rGIDMapPipe, wGIDMapPipe, err := os.Pipe()
-		if err != nil {
-			return nil, nil, err
-		}
-		defer rGIDMapPipe.Close()
-		defer wGIDMapPipe.Close()
-
-		err = forkusernsexecWriteIdmaps(wUIDMapPipe, wGIDMapPipe, idmaps)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Run proxy command via forkusernsexec, passing in the UID/GID map file handles.
-		// Instruct forkusernsexec to not close FD 5 as this will be used for passing the proxy socket FD.
-		fdFiles = append(fdFiles, rUIDMapPipe, rGIDMapPipe)
-		args = append(args, "forkusernsexec", fmt.Sprintf("--keep-fd-up-to=%d", 5), cmd)
-		cmd = execPath
-	}
-
 	// Start the virtiofsd process in non-daemon mode.
-	fdFiles = append(fdFiles, unixFile)
-	args = append(args, fmt.Sprintf("--fd=%d", 2+len(fdFiles)), "-o", fmt.Sprintf("source=%s", sharePath))
+	args := []string{"--fd=3", "-o", fmt.Sprintf("source=%s", sharePath)}
 	proc, err := subprocess.NewProcess(cmd, args, logPath, logPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = proc.StartWithFiles(fdFiles)
+	if len(idmaps) > 0 {
+		proc.SetUserns(&idmap.IdmapSet{Idmap: idmaps})
+	}
+
+	err = proc.StartWithFiles([]*os.File{unixFile})
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to start virtiofsd: %w", err)
 	}

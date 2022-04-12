@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package subprocess
 
@@ -38,6 +37,8 @@ type Process struct {
 	UID       uint32 `yaml:"uid"`
 	GID       uint32 `yaml:"gid"`
 	SetGroups bool   `yaml:"set_groups"`
+
+	SysProcAttr *syscall.SysProcAttr
 }
 
 func (p *Process) hasApparmor() bool {
@@ -125,7 +126,10 @@ func (p *Process) start(fds []*os.File) error {
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr
 	cmd.Stdin = p.Stdin
-	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	cmd.SysProcAttr = p.SysProcAttr
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
 	cmd.SysProcAttr.Setsid = true
 
 	if p.UID != 0 || p.GID != 0 {

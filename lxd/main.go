@@ -168,10 +168,6 @@ func main() {
 	forkueventCmd := cmdForkuevent{global: &globalCmd}
 	app.AddCommand(forkueventCmd.Command())
 
-	// forkusernsexec sub-command
-	forkusernsexecCmd := cmdForkusernsexec{global: &globalCmd}
-	app.AddCommand(forkusernsexecCmd.Command())
-
 	// forkzfs sub-command
 	forkzfsCmd := cmdForkZFS{global: &globalCmd}
 	app.AddCommand(forkzfsCmd.Command())
