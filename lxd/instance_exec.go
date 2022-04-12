@@ -182,7 +182,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 				ptys[0], ttys[0], err = shared.OpenPty(rootUID, rootGID)
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("Unable to open the PTY device: %w", err)
 			}
 
 			stdin = ttys[0]
