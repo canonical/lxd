@@ -652,8 +652,11 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
-	if !projectIsEmpty(project.UsedBy) && featuresChanged {
-		return response.BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
+	if featuresChanged && len(project.UsedBy) > 0 {
+		// Consider the project empty if it is only used by the default profile.
+		if len(project.UsedBy) > 1 || !strings.Contains(project.UsedBy[0], "/profiles/default") {
+			return response.BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
+		}
 	}
 
 	// Validate the configuration.
@@ -760,12 +763,12 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			usedBy, err := projectUsedBy(tx, project)
+			empty, err := projectIsEmpty(project, tx)
 			if err != nil {
-				return fmt.Errorf("Failed to get resources using the project %q: %w", project.Name, err)
+				return err
 			}
 
-			if !projectIsEmpty(usedBy) {
+			if !empty {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
@@ -839,12 +842,12 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
 
-		usedBy, err := projectUsedBy(tx, project)
+		empty, err := projectIsEmpty(project, tx)
 		if err != nil {
-			return fmt.Errorf("Failed to get resources using the project %q: %w", project.Name, err)
+			return err
 		}
 
-		if !projectIsEmpty(usedBy) {
+		if !empty {
 			return fmt.Errorf("Only empty projects can be removed")
 		}
 
@@ -936,15 +939,67 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty.
-func projectIsEmpty(usedBy []string) bool {
-	if len(usedBy) > 0 {
-		// Check if the only entity is the default profile.
-		if len(usedBy) == 1 && strings.Contains(usedBy[0], "/profiles/default") {
-			return true
-		}
-		return false
+func projectIsEmpty(project *db.Project, tx *db.ClusterTx) (bool, error) {
+	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
+	if err != nil {
+		return false, err
 	}
-	return true
+
+	if len(instances) > 0 {
+		return false, nil
+	}
+
+	images, err := tx.GetImageURIs(db.ImageFilter{Project: &project.Name})
+	if err != nil {
+		return false, err
+	}
+
+	if len(images) > 0 {
+		return false, nil
+	}
+
+	profiles, err := tx.GetProfileURIs(db.ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return false, err
+	}
+
+	if len(profiles) > 0 {
+		// Consider the project empty if it is only used by the default profile.
+		if len(profiles) == 1 && strings.Contains(profiles[0], "/profiles/default") {
+			return true, nil
+		}
+
+		return false, nil
+	}
+
+	volumes, err := tx.GetStorageVolumeURIs(project.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if len(volumes) > 0 {
+		return false, nil
+	}
+
+	networks, err := tx.GetNetworkURIs(project.ID, project.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if len(networks) > 0 {
+		return false, nil
+	}
+
+	acls, err := tx.GetNetworkACLURIs(project.ID, project.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if len(acls) > 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func isEitherAllowOrBlock(value string) error {
