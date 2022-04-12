@@ -257,7 +257,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 
 				for {
 					// Cluster URL
-					clusterAddress, err := cli.AskString("IP address or FQDN of an existing cluster member: ", "", nil)
+					clusterAddress, err := cli.AskString("IP address or FQDN of an existing cluster member (may include port): ", "", nil)
 					if err != nil {
 						return err
 					}
