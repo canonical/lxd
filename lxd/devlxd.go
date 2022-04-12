@@ -185,7 +185,7 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 			util.WriteJSON(w, resp.content, debugLogger)
 		} else if resp.ctype != "websocket" {
 			w.Header().Set("Content-Type", "application/octet-stream")
-			fmt.Fprintf(w, resp.content.(string))
+			fmt.Fprint(w, resp.content.(string))
 		}
 	}
 }
