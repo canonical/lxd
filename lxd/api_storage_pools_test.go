@@ -11,7 +11,6 @@ import (
 
 // Create a new pending storage pool using the targetNode query paramenter.
 func TestStoragePoolsCreate_TargetNode(t *testing.T) {
-	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -50,7 +49,6 @@ func TestStoragePoolsCreate_TargetNode(t *testing.T) {
 // An error is returned when trying to create a new storage pool in a cluster
 // where the pool was not defined on any node nodes.
 func TestStoragePoolsCreate_NotDefined(t *testing.T) {
-	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -71,7 +69,6 @@ func TestStoragePoolsCreate_NotDefined(t *testing.T) {
 // An error is returned when trying to create a new storage pool in a cluster
 // where the pool was not defined on all nodes.
 func TestStoragePoolsCreate_MissingNodes(t *testing.T) {
-	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
