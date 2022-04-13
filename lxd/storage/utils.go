@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -462,10 +464,30 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			}
 		}
 
-		// Convert the qcow2 format to a raw block device using qemu's dd mode runnig with low priority to
-		// reduce CPU impact. Use 16M buffer to speed up conversion by reducing syscalls.
+		// Convert the qcow2 format to a raw block device.
 		l.Debug("Converting qcow2 image to raw disk", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath})
-		_, err = shared.RunCommand("nice", "-n19", "qemu-img", "dd", "-f", "qcow2", "-O", "raw", "bs=16M", fmt.Sprintf("if=%s", imgPath), fmt.Sprintf("of=%s", dstPath))
+
+		cmd := []string{
+			"nice", "-n19", // Run with low priority to reduce CPU impact on other processes.
+			"qemu-img", "convert", "-f", "qcow2", "-O", "raw",
+		}
+
+		// Check for Direct I/O support.
+		from, err := os.OpenFile(imgPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-T", "none")
+			from.Close()
+		}
+
+		to, err := os.OpenFile(dstPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-t", "none")
+			to.Close()
+		}
+
+		cmd = append(cmd, imgPath, dstPath)
+
+		_, err = shared.RunCommand(cmd[0], cmd[1:]...)
 		if err != nil {
 			return -1, fmt.Errorf("Failed converting image to raw at %q: %w", dstPath, err)
 		}
