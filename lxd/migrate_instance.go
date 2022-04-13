@@ -741,7 +741,7 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
 		dest:    migrationFields{instanceOnly: args.InstanceOnly},
-		url:     args.Url,
+		url:     args.URL,
 		dialer:  args.Dialer,
 		push:    args.Push,
 		refresh: args.Refresh,
