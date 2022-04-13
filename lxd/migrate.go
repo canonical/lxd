@@ -122,17 +122,19 @@ func (c *migrationFields) sendControl(err error) {
 	}
 }
 
-func (c *migrationFields) controlChannel() <-chan *migration.MigrationControl {
-	ch := make(chan *migration.MigrationControl)
+func (c *migrationFields) controlChannel() <-chan *migrationControlResponse {
+	ch := make(chan *migrationControlResponse)
 	go func() {
-		msg := migration.MigrationControl{}
-		err := c.recv(&msg)
+		resp := migrationControlResponse{}
+		err := c.recv(&resp.MigrationControl)
 		if err != nil {
-			logger.Debugf("Got error reading migration control socket %s", err)
-			close(ch)
+			resp.err = err
+			ch <- &resp
+
 			return
 		}
-		ch <- &msg
+
+		ch <- &resp
 	}()
 
 	return ch
