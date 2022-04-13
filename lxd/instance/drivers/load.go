@@ -22,10 +22,16 @@ var instanceDrivers = map[string]func() instance.Instance{
 	"qemu": func() instance.Instance { return &qemu{} },
 }
 
-// Supported instance types cache variables.
-var supportedInstanceTypesMu sync.Mutex
-var supportedInstanceTypes map[instancetype.Type]instance.Info
-var instanceTypesWarnings []db.Warning
+// DriverStatus definition.
+type DriverStatus struct {
+	Info      instance.Info
+	Warning   *db.Warning
+	Supported bool
+}
+
+// Supported instance drivers cache variables.
+var driverStatusesMu sync.Mutex
+var driverStatuses map[instancetype.Type]*DriverStatus
 
 func init() {
 	// Expose load to the instance package, to avoid circular imports.
@@ -109,34 +115,38 @@ func create(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (inst
 	return nil, fmt.Errorf("Instance type invalid")
 }
 
-// SupportedInstanceTypes returns a map of Info structs for all operational instance type drivers.
+// DriverStatuses returns a map of DriverStatus structs for all instance type drivers.
 // The first time this function is called each of the instance drivers will be probed for support and the result
 // will be cached internally to make subsequent calls faster.
-func SupportedInstanceTypes() (map[instancetype.Type]instance.Info, []db.Warning) {
-	supportedInstanceTypesMu.Lock()
-	defer supportedInstanceTypesMu.Unlock()
+func DriverStatuses() map[instancetype.Type]*DriverStatus {
+	driverStatusesMu.Lock()
+	defer driverStatusesMu.Unlock()
 
-	if supportedInstanceTypes != nil {
-		return supportedInstanceTypes, instanceTypesWarnings
+	if driverStatuses != nil {
+		return driverStatuses
 	}
 
-	supportedInstanceTypes = make(map[instancetype.Type]instance.Info, len(instanceDrivers))
-	instanceTypesWarnings = []db.Warning{}
+	driverStatuses = make(map[instancetype.Type]*DriverStatus, len(instanceDrivers))
 
 	for _, instanceDriver := range instanceDrivers {
+		driverStatus := &DriverStatus{}
+
 		driverInfo := instanceDriver().Info()
+		driverStatus.Info = driverInfo
+		driverStatus.Supported = true
 
 		if driverInfo.Error != nil || driverInfo.Version == "" {
 			logger.Warn("Instance type not operational", logger.Ctx{"type": driverInfo.Type, "driver": driverInfo.Name, "err": driverInfo.Error})
-			instanceTypesWarnings = append(instanceTypesWarnings, db.Warning{
+
+			driverStatus.Supported = false
+			driverStatus.Warning = &db.Warning{
 				TypeCode:    db.WarningInstanceTypeNotOperational,
 				LastMessage: fmt.Sprintf("%v", driverInfo.Error),
-			})
-			continue
+			}
 		}
 
-		supportedInstanceTypes[driverInfo.Type] = driverInfo
+		driverStatuses[driverInfo.Type] = driverStatus
 	}
 
-	return supportedInstanceTypes, instanceTypesWarnings
+	return driverStatuses
 }
