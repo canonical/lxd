@@ -90,13 +90,13 @@ func (d *zfs) load() error {
 		zfsTrim = true
 	}
 
-	ver200, err := version.Parse("2.0.0")
+	ver080, err := version.Parse("0.8.0")
 	if err != nil {
 		return err
 	}
 
-	// If running 2.0.0 or newer, we can use the raw flag.
-	if ourVer.Compare(ver200) >= 0 {
+	// If running 0.8.0 or newer, we can use the raw flag.
+	if ourVer.Compare(ver080) >= 0 {
 		zfsRaw = true
 	}
 
