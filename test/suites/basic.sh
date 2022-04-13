@@ -538,6 +538,7 @@ test_basic_usage() {
   lxc publish foo --alias foo --force
   lxc image delete foo
 
+  lxc restart -f foo
   lxc stop foo --force
   ! lxc list | grep -q foo || false
 
