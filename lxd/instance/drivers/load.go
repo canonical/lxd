@@ -81,11 +81,15 @@ func validDevices(state *state.State, projectName string, instanceType instancet
 	// Check each device individually using the device package.
 	// Use instConf.localDevices so that the cloned config is passed into the driver, so it cannot modify it.
 	for name, config := range instConf.localDevices {
+		// Enforce a maximum name length of 64 characters (safe maximum allowing use for sockets and other filesystem use).
+		if len(name) > 64 {
+			return fmt.Errorf("The maximum device name length is 64 characters")
+		}
+
 		err := device.Validate(instConf, state, name, config)
 		if err != nil {
 			return fmt.Errorf("Device validation failed for %q: %w", name, err)
 		}
-
 	}
 
 	// Check we have a root disk if in expanded validation mode.
