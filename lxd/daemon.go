@@ -430,11 +430,11 @@ func (d *Daemon) State() *state.State {
 	// This information will be available throughout the code, and can be used to prevent new
 	// operations from starting during shutdown.
 
-	// Build a list of supported instance types.
-	supportedInstanceTypesInfo, _ := instanceDrivers.SupportedInstanceTypes()
-	supportedInstanceTypes := make(map[instancetype.Type]struct{}, len(supportedInstanceTypesInfo))
-	for instanceType := range supportedInstanceTypesInfo {
-		supportedInstanceTypes[instanceType] = struct{}{}
+	// Build a list of instance types.
+	drivers := instanceDrivers.DriverStatuses()
+	instanceTypes := make(map[instancetype.Type]error, len(drivers))
+	for driverType, driver := range drivers {
+		instanceTypes[driverType] = driver.Info.Error
 	}
 
 	return &state.State{
@@ -452,7 +452,7 @@ func (d *Daemon) State() *state.State {
 		Proxy:                  d.proxy,
 		ServerCert:             d.serverCert,
 		UpdateCertificateCache: func() { updateCertificateCache(d) },
-		InstanceTypes:          supportedInstanceTypes,
+		InstanceTypes:          instanceTypes,
 		DevMonitor:             d.devmonitor,
 		KernelVersion:          d.kernelVersion,
 	}
@@ -968,8 +968,12 @@ func (d *Daemon) init() error {
 	}
 
 	// Detect and cached available instance types from operational drivers.
-	_, instanceTypesWarnings := instanceDrivers.SupportedInstanceTypes()
-	dbWarnings = append(dbWarnings, instanceTypesWarnings...)
+	drivers := instanceDrivers.DriverStatuses()
+	for _, driver := range drivers {
+		if driver.Warning != nil {
+			dbWarnings = append(dbWarnings, *driver.Warning)
+		}
+	}
 
 	// Validate the devices storage.
 	testDev := shared.VarPath("devices", ".test")
