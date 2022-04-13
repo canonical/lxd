@@ -346,8 +346,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 		// Count normal and thin volumes.
 		lvCount, err := d.countLogicalVolumes(d.config["lvm.vg_name"])
 		if err != nil {
-			_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-			if !matched {
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return err
 			}
 		}
@@ -363,8 +362,7 @@ func (d *lvm) Delete(op *operations.Operation) error {
 				// the thin pool itself and not the volume group.
 				thinVolCount, err := d.countThinVolumes(d.config["lvm.vg_name"], d.thinpoolName())
 				if err != nil {
-					_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-					if !matched {
+					if !api.StatusErrorCheck(err, http.StatusNotFound) {
 						return err
 					}
 				}

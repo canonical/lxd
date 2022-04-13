@@ -261,7 +261,7 @@ func instancesStart(s *state.State, instances []instance.Instance) {
 			attempt++
 			err := inst.Start(false)
 			if err != nil {
-				if _, matched := api.StatusErrorMatch(err, http.StatusServiceUnavailable); matched {
+				if api.StatusErrorCheck(err, http.StatusServiceUnavailable) {
 					break // Don't log or retry instances that are not ready to start yet.
 				}
 

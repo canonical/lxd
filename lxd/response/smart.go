@@ -47,7 +47,7 @@ func SmartError(err error) Response {
 
 // IsNotFoundError returns true if the error is considered a Not Found error.
 func IsNotFoundError(err error) bool {
-	if _, found := api.StatusErrorMatch(err, http.StatusNotFound); found {
+	if api.StatusErrorCheck(err, http.StatusNotFound) {
 		return true
 	}
 

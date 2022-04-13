@@ -173,10 +173,10 @@ func (c *ClusterTx) GetClusterGroupID(name string) (int64, error) {
 func (c *ClusterTx) ClusterGroupExists(name string) (bool, error) {
 	_, err := c.GetClusterGroupID(name)
 	if err != nil {
-		_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-		if matched {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 
