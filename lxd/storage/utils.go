@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
@@ -412,8 +414,12 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
 	// to enlarge the destination volume to accommodate the unpacked qcow2 image file.
 	convertBlockImage := func(v drivers.Volume, imgPath string, dstPath string) (int64, error) {
-		// Get info about qcow2 file.
-		imgJSON, err := shared.RunCommand("qemu-img", "info", "--output=json", imgPath)
+		// Get info about qcow2 file. Force input format to qcow2 so we don't rely on qemu-img's detection
+		// logic as that has been known to have vulnerabilities and we only support qcow2 images anyway.
+		// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed a maliciously
+		// crafted disk image. Since cloud tenants are not to be trusted, ensure QEMU is limits to 1 GB
+		// address space and 2 seconds CPU time, which ought to be more than enough for real world images.
+		imgJSON, err := shared.RunCommand("prlimit", "--cpu=2", "--as=1000000000", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath)
 		if err != nil {
 			return -1, fmt.Errorf("Failed reading image info %q: %w", dstPath, err)
 		}
@@ -428,6 +434,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			return -1, err
 		}
 
+		// Belt and braces qcow2 check.
 		if imgInfo.Format != "qcow2" {
 			return -1, fmt.Errorf("Unexpected image format %q", imgInfo.Format)
 		}
@@ -462,10 +469,30 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			}
 		}
 
-		// Convert the qcow2 format to a raw block device using qemu's dd mode runnig with low priority to
-		// reduce CPU impact. Use 16M buffer to speed up conversion by reducing syscalls.
+		// Convert the qcow2 format to a raw block device.
 		l.Debug("Converting qcow2 image to raw disk", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath})
-		_, err = shared.RunCommand("nice", "-n19", "qemu-img", "dd", "-f", "qcow2", "-O", "raw", "bs=16M", fmt.Sprintf("if=%s", imgPath), fmt.Sprintf("of=%s", dstPath))
+
+		cmd := []string{
+			"nice", "-n19", // Run with low priority to reduce CPU impact on other processes.
+			"qemu-img", "convert", "-f", "qcow2", "-O", "raw",
+		}
+
+		// Check for Direct I/O support.
+		from, err := os.OpenFile(imgPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-T", "none")
+			from.Close()
+		}
+
+		to, err := os.OpenFile(dstPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+		if err == nil {
+			cmd = append(cmd, "-t", "none")
+			to.Close()
+		}
+
+		cmd = append(cmd, imgPath, dstPath)
+
+		_, err = shared.RunCommand(cmd[0], cmd[1:]...)
 		if err != nil {
 			return -1, fmt.Errorf("Failed converting image to raw at %q: %w", dstPath, err)
 		}

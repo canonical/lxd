@@ -5214,12 +5214,38 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 
 	fPath := fmt.Sprintf("%s/rootfs.img", tmpPath)
 
-	// Run qemu-img with low priority to reduce CPU impact on other processes.
-	_, err = shared.RunCommand("nice", "-n19", "qemu-img", "convert", "-c", "-O", "qcow2", mountInfo.DiskPath, fPath)
-	if err != nil {
-		return meta, fmt.Errorf("Failed converting image to qcow2: %w", err)
+	// Convert to qcow2 image.
+	cmd := []string{
+		"nice", "-n19", // Run with low priority to reduce CPU impact on other processes.
+		"qemu-img", "convert", "-f", "raw", "-O", "qcow2", "-c",
 	}
 
+	revert := revert.New()
+	defer revert.Fail()
+
+	// Check for Direct I/O support.
+	from, err := os.OpenFile(mountInfo.DiskPath, unix.O_DIRECT|unix.O_RDONLY, 0)
+	if err == nil {
+		cmd = append(cmd, "-T", "none")
+		from.Close()
+	}
+
+	to, err := os.OpenFile(fPath, unix.O_DIRECT|unix.O_CREAT, 0)
+	if err == nil {
+		cmd = append(cmd, "-t", "none")
+		to.Close()
+	}
+
+	revert.Add(func() { os.Remove(fPath) })
+
+	cmd = append(cmd, mountInfo.DiskPath, fPath)
+
+	_, err = shared.RunCommand(cmd[0], cmd[1:]...)
+	if err != nil {
+		return meta, fmt.Errorf("Failed converting instance to qcow2: %w", err)
+	}
+
+	// Read converted file info and write file to tarball.
 	fi, err := os.Lstat(fPath)
 	if err != nil {
 		return meta, err
@@ -5247,6 +5273,7 @@ func (d *qemu) Export(w io.Writer, properties map[string]string, expiration time
 		return meta, err
 	}
 
+	revert.Success()
 	d.logger.Info("Exported instance", ctxMap)
 	return meta, nil
 }
