@@ -156,8 +156,7 @@ SELECT DISTINCT node_id
 	for _, nodeID := range nodeIDs {
 		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, int64(nodeID), volumeTypes)
 		if err != nil {
-			_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-			if matched {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
 				continue
 			}
 
@@ -175,8 +174,7 @@ SELECT DISTINCT node_id
 	if isRemoteStorage {
 		nodeVolumes, err := c.storagePoolVolumesGet(project, poolID, c.nodeID, volumeTypes)
 		if err != nil {
-			_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-			if !matched {
+			if !api.StatusErrorCheck(err, http.StatusNotFound) {
 				return nil, err
 			}
 		}
