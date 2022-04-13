@@ -81,26 +81,31 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 	return lxd.ConnectLXD(url, args)
 }
 
-// ConnectIfInstanceIsRemote figures out the address of the node which is
-// running the container with the given name. If it's not the local node will
-// connect to it and return the connected client, otherwise it will just return
-// nil.
-func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, name string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) (lxd.InstanceServer, error) {
-	var address string // Node address
+// ConnectIfInstanceIsRemote figures out the address of the cluster member which is running the instance with the
+// given name in the specified project. If it's not the local member will connect to it and return the connected
+// client (configured with the specified project), otherwise it will just return nil.
+func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, instName string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) (lxd.InstanceServer, error) {
+	var address string // Cluster member address.
 	err := cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		address, err = tx.GetNodeAddressOfInstance(projectName, name, db.InstanceTypeFilter(instanceType))
+		address, err = tx.GetNodeAddressOfInstance(projectName, instName, db.InstanceTypeFilter(instanceType))
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	if address == "" {
-		// The instance is running right on this node, no need to connect.
-		return nil, nil
+		return nil, nil // The instance is running on this local member, no need to connect.
 	}
 
-	return Connect(address, networkCert, serverCert, r, false)
+	client, err := Connect(address, networkCert, serverCert, r, false)
+	if err != nil {
+		return nil, err
+	}
+
+	client = client.UseProject(projectName)
+
+	return client, nil
 }
 
 // ConnectIfVolumeIsRemote figures out the address of the cluster member on which the volume with the given name is
