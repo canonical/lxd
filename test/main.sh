@@ -7,10 +7,6 @@ export LC_ALL="C"
 # Force UTC for consistency
 export TZ="UTC"
 
-if [ -n "${LXD_VERBOSE:-}" ] || [ -n "${LXD_DEBUG:-}" ]; then
-  set -x
-fi
-
 export DEBUG=""
 if [ -n "${LXD_VERBOSE:-}" ]; then
   DEBUG="--verbose"
@@ -18,6 +14,10 @@ fi
 
 if [ -n "${LXD_DEBUG:-}" ]; then
   DEBUG="--debug"
+fi
+
+if [ -n "${DEBUG:-}" ]; then
+  set -x
 fi
 
 if [ -z "${LXD_BACKEND:-}" ]; then
