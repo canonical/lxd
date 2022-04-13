@@ -147,8 +147,7 @@ func (c *ClusterTx) GetProject(name string) (*Project, error) {
 func (c *ClusterTx) ProjectExists(name string) (bool, error) {
 	_, err := c.GetProjectID(name)
 	if err != nil {
-		_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-		if matched {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
 		return false, err
