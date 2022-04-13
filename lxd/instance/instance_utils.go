@@ -874,8 +874,9 @@ func ValidName(instanceName string, isSnapshot bool) error {
 // instance is fully completed.
 func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, revert *revert.Reverter) (Instance, *operationlock.InstanceOperation, error) {
 	// Check instance type requested is supported by this machine.
-	if _, supported := s.InstanceTypes[args.Type]; !supported {
-		return nil, nil, fmt.Errorf("Instance type %q is not supported on this server", args.Type)
+	err := s.InstanceTypes[args.Type]
+	if err != nil {
+		return nil, nil, fmt.Errorf("Instance type %q is not supported on this server: %w", args.Type, err)
 	}
 
 	// Set default values.
@@ -907,7 +908,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 		args.Architecture = s.OS.Architectures[0]
 	}
 
-	err := ValidName(args.Name, args.Snapshot)
+	err = ValidName(args.Name, args.Snapshot)
 	if err != nil {
 		return nil, nil, err
 	}
