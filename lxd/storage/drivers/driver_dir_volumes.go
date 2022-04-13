@@ -391,15 +391,14 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 	snapPath := snapVol.MountPath()
 	revert.Add(func() { os.RemoveAll(snapPath) })
 
-	bwlimit := d.config["rsync.bwlimit"]
-
-	var rsyncArgs []string
-
-	if snapVol.IsVMBlock() {
-		rsyncArgs = append(rsyncArgs, "--exclude", genericVolumeDiskFile)
-	}
-
 	if snapVol.contentType != ContentTypeBlock || snapVol.volType != VolumeTypeCustom {
+		var rsyncArgs []string
+
+		if snapVol.IsVMBlock() {
+			rsyncArgs = append(rsyncArgs, "--exclude", genericVolumeDiskFile)
+		}
+
+		bwlimit := d.config["rsync.bwlimit"]
 		srcPath := GetVolumeMountPath(d.name, snapVol.volType, parentName)
 		d.Logger().Debug("Copying fileystem volume", logger.Ctx{"sourcePath": srcPath, "targetPath": snapPath, "bwlimit": bwlimit, "rsyncArgs": rsyncArgs})
 
