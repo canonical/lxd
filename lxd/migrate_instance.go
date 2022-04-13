@@ -741,7 +741,7 @@ func newMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{instance: args.Instance, instanceOnly: args.InstanceOnly},
 		dest:    migrationFields{instanceOnly: args.InstanceOnly},
-		url:     args.Url,
+		url:     args.URL,
 		dialer:  args.Dialer,
 		push:    args.Push,
 		refresh: args.Refresh,
@@ -1209,7 +1209,7 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 		restore <- nil
 	}(c)
 
-	var source <-chan *migration.MigrationControl
+	var source <-chan *migrationControlResponse
 	if c.push {
 		source = c.dest.controlChannel()
 	} else {
@@ -1225,19 +1225,22 @@ func (c *migrationSink) Do(state *state.State, revert *revert.Reverter, migrateO
 			}
 			controller(err)
 			return err
-		case msg, ok := <-source:
-			if !ok {
+		case msg := <-source:
+			if msg.err != nil {
 				disconnector()
-				return fmt.Errorf("Got error reading source")
+
+				return fmt.Errorf("Got error reading migration source: %w", msg.err)
 			}
+
 			if !*msg.Success {
 				disconnector()
+
 				return fmt.Errorf(*msg.Message)
 			}
 
 			// The source can only tell us it failed (e.g. if checkpointing failed).
 			// We have to tell the source whether or not the restore was successful.
-			logger.Debugf("Unknown message %q from source", *msg.Message)
+			logger.Warn("Unknown message from migration source", logger.Ctx{"message": *msg.Message})
 		}
 	}
 }

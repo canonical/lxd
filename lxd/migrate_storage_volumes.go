@@ -169,7 +169,7 @@ func newStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{volumeOnly: args.VolumeOnly},
 		dest:    migrationFields{volumeOnly: args.VolumeOnly},
-		url:     args.Url,
+		url:     args.URL,
 		dialer:  args.Dialer,
 		push:    args.Push,
 		refresh: args.Refresh,
@@ -418,7 +418,7 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 		restore <- nil
 	}(c)
 
-	var source <-chan *migration.MigrationControl
+	var source <-chan *migrationControlResponse
 	if c.push {
 		source = c.dest.controlChannel()
 	} else {
@@ -434,23 +434,26 @@ func (c *migrationSink) DoStorage(state *state.State, projectName string, poolNa
 			}
 
 			controller(nil)
-			logger.Debugf("Migration sink finished receiving storage volume")
+			logger.Debug("Migration sink finished receiving storage volume")
+
 			return nil
-		case msg, ok := <-source:
-			if !ok {
+		case msg := <-source:
+			if msg.err != nil {
 				disconnector()
-				return fmt.Errorf("Got error reading source")
+
+				return fmt.Errorf("Got error reading migration source: %w", msg.err)
 			}
 
 			if !*msg.Success {
 				disconnector()
+
 				return fmt.Errorf(*msg.Message)
 			}
 
 			// The source can only tell us it failed (e.g. if
 			// checkpointing failed). We have to tell the source
 			// whether or not the restore was successful.
-			logger.Debugf("Unknown message %q from source", *msg.Message)
+			logger.Warn("Unknown message from migration source", logger.Ctx{"message": *msg.Message})
 		}
 	}
 }
