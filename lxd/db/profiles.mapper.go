@@ -251,8 +251,7 @@ func (c *ClusterTx) GetProfile(project string, name string) (*Profile, error) {
 func (c *ClusterTx) ProfileExists(project string, name string) (bool, error) {
 	_, err := c.GetProfileID(project, name)
 	if err != nil {
-		_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-		if matched {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
 		return false, err

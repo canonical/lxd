@@ -1418,7 +1418,7 @@ func networkStartup(s *state.State) error {
 	loadAndInitNetwork := func(projectName, networkName string, firstPass bool) error {
 		n, err := network.LoadByName(s, projectName, networkName)
 		if err != nil {
-			if _, matched := api.StatusErrorMatch(err, http.StatusNotFound); matched {
+			if api.StatusErrorCheck(err, http.StatusNotFound) {
 				// Network has been deleted since we started trying to start it so delete entry.
 				pn := network.ProjectNetwork{
 					ProjectName: n.Project(),
