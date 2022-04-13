@@ -485,8 +485,7 @@ func (m *MethodV2) exists(buf *file.Buffer) error {
 
 	buf.L("_, err := c.Get%sID(%s)", lex.Camel(m.entity), mapping.FieldParams(nk))
 	buf.L("if err != nil {")
-	buf.L("        	_, matched := api.StatusErrorMatch(err, http.StatusNotFound)")
-	buf.L("        if matched {")
+	buf.L("        if api.StatusErrorCheck(err, http.StatusNotFound) {")
 	buf.L("                return false, nil")
 	buf.L("        }")
 	buf.L("        return false, err")
