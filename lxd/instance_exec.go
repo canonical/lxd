@@ -513,8 +513,8 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if client != nil {
-		url := fmt.Sprintf("/1.0/instances/%s/exec?project=%s", name, projectName)
-		resp, _, err := client.RawQuery("POST", url, post, "")
+		url := api.NewURL().Path("1.0", "instances", name, "exec").Project(projectName)
+		resp, _, err := client.RawQuery("POST", url.String(), post, "")
 		if err != nil {
 			return response.SmartError(err)
 		}
