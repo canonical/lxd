@@ -296,7 +296,7 @@ func (c *cmdAgent) mountHostShares() {
 
 			for _, opt := range mount.Options {
 				// Ignore the transport and msize mount option as they are specific to 9p.
-				if opt == "trans=" || strings.HasPrefix(opt, "msize=") {
+				if strings.HasPrefix(opt, "trans=") || strings.HasPrefix(opt, "msize=") {
 					continue
 				}
 
