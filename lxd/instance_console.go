@@ -426,8 +426,8 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if client != nil {
-		url := fmt.Sprintf("/1.0/instances/%s/console?project=%s", name, projectName)
-		resp, _, err := client.RawQuery("POST", url, post, "")
+		url := api.NewURL().Path("1.0", "instances", name, "console").Project(projectName)
+		resp, _, err := client.RawQuery("POST", url.String(), post, "")
 		if err != nil {
 			return response.SmartError(err)
 		}
