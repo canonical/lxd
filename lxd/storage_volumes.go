@@ -826,7 +826,7 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 	// Initialise migrationArgs, don't set the Storage property yet, this is done in DoStorage,
 	// to avoid this function relying on the legacy storage layer.
 	migrationArgs := MigrationSinkArgs{
-		Url: req.Source.Operation,
+		URL: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig:  config,
 			NetDial:          shared.RFC3493Dialer,

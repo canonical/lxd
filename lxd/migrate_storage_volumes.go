@@ -169,7 +169,7 @@ func newStorageMigrationSink(args *MigrationSinkArgs) (*migrationSink, error) {
 	sink := migrationSink{
 		src:     migrationFields{volumeOnly: args.VolumeOnly},
 		dest:    migrationFields{volumeOnly: args.VolumeOnly},
-		url:     args.Url,
+		url:     args.URL,
 		dialer:  args.Dialer,
 		push:    args.Push,
 		refresh: args.Refresh,
