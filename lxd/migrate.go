@@ -29,6 +29,12 @@ import (
 	"github.com/lxc/lxd/shared/tcp"
 )
 
+// migrationControlResponse encapsulates migration.MigrationControl with a receive error.
+type migrationControlResponse struct {
+	migration.MigrationControl
+	err error
+}
+
 type migrationFields struct {
 	controlSecret string
 	controlConn   *websocket.Conn
