@@ -197,8 +197,7 @@ func (c *ClusterTx) GetInstanceSnapshotID(project string, instance string, name 
 func (c *ClusterTx) InstanceSnapshotExists(project string, instance string, name string) (bool, error) {
 	_, err := c.GetInstanceSnapshotID(project, instance, name)
 	if err != nil {
-		_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-		if matched {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
 		return false, err

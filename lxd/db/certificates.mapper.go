@@ -156,8 +156,7 @@ func (c *ClusterTx) GetCertificateID(fingerprint string) (int64, error) {
 func (c *ClusterTx) CertificateExists(fingerprint string) (bool, error) {
 	_, err := c.GetCertificateID(fingerprint)
 	if err != nil {
-		_, matched := api.StatusErrorMatch(err, http.StatusNotFound)
-		if matched {
+		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
 		}
 		return false, err
