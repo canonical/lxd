@@ -261,6 +261,8 @@ Every device entry is identified by a unique name. If the same name is used in
 a subsequent profile or in the instance's own configuration, the whole entry
 is overridden by the new definition.
 
+Device names are limited to a maximum of 64 characters.
+
 Device entries are added to an instance through:
 
 ```bash
