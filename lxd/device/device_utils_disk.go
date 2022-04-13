@@ -286,6 +286,8 @@ func DiskVMVirtfsProxyStart(execPath string, pidPath string, sharePath string, i
 	if err != nil {
 		if shared.PathExists("/usr/lib/qemu/virtfs-proxy-helper") {
 			cmd = "/usr/lib/qemu/virtfs-proxy-helper"
+		} else if shared.PathExists("/usr/libexec/virtfs-proxy-helper") {
+			cmd = "/usr/libexec/virtfs-proxy-helper"
 		}
 	}
 
@@ -405,6 +407,8 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 	if err != nil {
 		if shared.PathExists("/usr/lib/qemu/virtiofsd") {
 			cmd = "/usr/lib/qemu/virtiofsd"
+		} else if shared.PathExists("/usr/libexec/virtiofsd") {
+			cmd = "/usr/libexec/virtiofsd"
 		}
 	}
 
