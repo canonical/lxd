@@ -327,19 +327,24 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		"idmapped_mounts":           fmt.Sprintf("%v", d.os.IdmappedMounts),
 	}
 
-	instanceTypes, _ := instanceDrivers.SupportedInstanceTypes()
-	for _, driverInfo := range instanceTypes {
+	drivers := instanceDrivers.DriverStatuses()
+	for _, driver := range drivers {
+		// Only report the supported drivers.
+		if !driver.Supported {
+			continue
+		}
+
 		if env.Driver != "" {
-			env.Driver = env.Driver + " | " + driverInfo.Name
+			env.Driver = env.Driver + " | " + driver.Info.Name
 		} else {
-			env.Driver = driverInfo.Name
+			env.Driver = driver.Info.Name
 		}
 
 		// Get the version of the instance drivers in use.
 		if env.DriverVersion != "" {
-			env.DriverVersion = env.DriverVersion + " | " + driverInfo.Version
+			env.DriverVersion = env.DriverVersion + " | " + driver.Info.Version
 		} else {
-			env.DriverVersion = driverInfo.Version
+			env.DriverVersion = driver.Info.Version
 		}
 	}
 

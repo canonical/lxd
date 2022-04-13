@@ -2786,9 +2786,9 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 // addCPUMemoryConfig adds the qemu config required for setting the number of virtualised CPUs and memory.
 // If sb is nil then no config is written and instead just the CPU count is returned.
 func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
-	instanceTypes, _ := SupportedInstanceTypes()
-	driverInfo := instanceTypes[instancetype.VM]
-	if driverInfo.Name == "" {
+	drivers := DriverStatuses()
+	info := drivers[instancetype.VM].Info
+	if info.Name == "" {
 		return -1, fmt.Errorf("Unable to ascertain QEMU version")
 	}
 
@@ -2796,7 +2796,7 @@ func (d *qemu) addCPUMemoryConfig(sb *strings.Builder) (int, error) {
 	// Before v6.0 or if version unknown, we use the "repeated" format, otherwise we use "indexed" format.
 	qemuMemObjectFormat := "repeated"
 	qemuVer6, _ := version.NewDottedVersion("6.0")
-	qemuVer, _ := version.NewDottedVersion(driverInfo.Version)
+	qemuVer, _ := version.NewDottedVersion(info.Version)
 	if qemuVer != nil && qemuVer.Compare(qemuVer6) >= 0 {
 		qemuMemObjectFormat = "indexed"
 	}
@@ -3042,8 +3042,8 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	media := "disk"
 
 	// Check supported features.
-	drivers, _ := SupportedInstanceTypes()
-	info := drivers[d.Type()]
+	drivers := DriverStatuses()
+	info := drivers[d.Type()].Info
 
 	// Use io_uring over native for added performance (if supported by QEMU and kernel is recent enough).
 	// We've seen issues starting VMs when running with io_ring AIO mode on kernels before 5.13.
@@ -6148,30 +6148,32 @@ func (d *qemu) Info() instance.Info {
 	}
 
 	if !shared.PathExists("/dev/kvm") {
-		data.Error = fmt.Errorf("KVM support is missing")
+		data.Error = fmt.Errorf("KVM support is missing (no /dev/kvm)")
 		return data
 	}
 
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
-		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded: %w", err)
+		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded")
 		return data
 	}
 
 	hostArch, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
-		data.Error = fmt.Errorf("Failed getting architecture")
+		logger.Errorf("Failed getting CPU architecture during QEMU initialization: %v", err)
+		data.Error = fmt.Errorf("Failed getting CPU architecture")
 		return data
 	}
 
 	qemuPath, _, err := d.qemuArchConfig(hostArch)
 	if err != nil {
-		data.Error = fmt.Errorf("QEMU command not available for architecture")
+		data.Error = fmt.Errorf("QEMU command not available for CPU architecture")
 		return data
 	}
 
 	out, err := exec.Command(qemuPath, "--version").Output()
 	if err != nil {
+		logger.Errorf("Failed getting version during QEMU initialization: %v", err)
 		data.Error = fmt.Errorf("Failed getting QEMU version")
 		return data
 	}
@@ -6187,7 +6189,8 @@ func (d *qemu) Info() instance.Info {
 	// Check io_uring support.
 	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
 	if err != nil {
-		data.Error = fmt.Errorf("QEMU failed to run a feature check: %w", err)
+		logger.Errorf("Unable to run io_uring check during QEMU initialization: %v", err)
+		data.Error = fmt.Errorf("QEMU failed to run a feature check")
 		return data
 	}
 
