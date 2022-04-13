@@ -4144,7 +4144,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 // Update the instance config.
 func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	// Setup a new operation.
-	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestore}, false, false)
+	op, err := operationlock.CreateWaitGet(d.Project(), d.Name(), operationlock.ActionUpdate, []operationlock.Action{operationlock.ActionRestart, operationlock.ActionRestore}, false, false)
 	if err != nil {
 		return fmt.Errorf("Failed to create instance update operation: %w", err)
 	}
