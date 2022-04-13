@@ -414,8 +414,12 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 	// convertBlockImage converts the qcow2 block image file into a raw block device. If needed it will attempt
 	// to enlarge the destination volume to accommodate the unpacked qcow2 image file.
 	convertBlockImage := func(v drivers.Volume, imgPath string, dstPath string) (int64, error) {
-		// Get info about qcow2 file.
-		imgJSON, err := shared.RunCommand("qemu-img", "info", "--output=json", imgPath)
+		// Get info about qcow2 file. Force input format to qcow2 so we don't rely on qemu-img's detection
+		// logic as that has been known to have vulnerabilities and we only support qcow2 images anyway.
+		// Use prlimit because qemu-img can consume considerable RAM & CPU time if fed a maliciously
+		// crafted disk image. Since cloud tenants are not to be trusted, ensure QEMU is limits to 1 GB
+		// address space and 2 seconds CPU time, which ought to be more than enough for real world images.
+		imgJSON, err := shared.RunCommand("prlimit", "--cpu=2", "--as=1000000000", "qemu-img", "info", "-f", "qcow2", "--output=json", imgPath)
 		if err != nil {
 			return -1, fmt.Errorf("Failed reading image info %q: %w", dstPath, err)
 		}
@@ -430,6 +434,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			return -1, err
 		}
 
+		// Belt and braces qcow2 check.
 		if imgInfo.Format != "qcow2" {
 			return -1, fmt.Errorf("Unexpected image format %q", imgInfo.Format)
 		}
