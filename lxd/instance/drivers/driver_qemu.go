@@ -6148,30 +6148,32 @@ func (d *qemu) Info() instance.Info {
 	}
 
 	if !shared.PathExists("/dev/kvm") {
-		data.Error = fmt.Errorf("KVM support is missing")
+		data.Error = fmt.Errorf("KVM support is missing (no /dev/kvm)")
 		return data
 	}
 
 	err := util.LoadModule("vhost_vsock")
 	if err != nil {
-		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded: %w", err)
+		data.Error = fmt.Errorf("vhost_vsock kernel module not loaded")
 		return data
 	}
 
 	hostArch, err := osarch.ArchitectureGetLocalID()
 	if err != nil {
-		data.Error = fmt.Errorf("Failed getting architecture")
+		logger.Errorf("Failed getting CPU architecture during QEMU initialization: %v", err)
+		data.Error = fmt.Errorf("Failed getting CPU architecture")
 		return data
 	}
 
 	qemuPath, _, err := d.qemuArchConfig(hostArch)
 	if err != nil {
-		data.Error = fmt.Errorf("QEMU command not available for architecture")
+		data.Error = fmt.Errorf("QEMU command not available for CPU architecture")
 		return data
 	}
 
 	out, err := exec.Command(qemuPath, "--version").Output()
 	if err != nil {
+		logger.Errorf("Failed getting version during QEMU initialization: %v", err)
 		data.Error = fmt.Errorf("Failed getting QEMU version")
 		return data
 	}
@@ -6187,7 +6189,8 @@ func (d *qemu) Info() instance.Info {
 	// Check io_uring support.
 	supported, err := d.checkFeature(qemuPath, "-drive", "file=/dev/null,format=raw,aio=io_uring,file.locking=off")
 	if err != nil {
-		data.Error = fmt.Errorf("QEMU failed to run a feature check: %w", err)
+		logger.Errorf("Unable to run io_uring check during QEMU initialization: %v", err)
+		data.Error = fmt.Errorf("QEMU failed to run a feature check")
 		return data
 	}
 
