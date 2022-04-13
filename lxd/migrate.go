@@ -260,9 +260,9 @@ func (s *migrationSourceWs) ConnectTarget(certificate string, operation string, 
 		query := url.Values{"secret": []string{secret}}
 
 		// The URL is a https URL to the operation, mangle to be a wss URL to the secret
-		wsUrl := fmt.Sprintf("wss://%s/websocket?%s", strings.TrimPrefix(operation, "https://"), query.Encode())
+		wsURL := fmt.Sprintf("wss://%s/websocket?%s", strings.TrimPrefix(operation, "https://"), query.Encode())
 
-		wsConn, _, err := dialer.Dial(wsUrl, http.Header{})
+		wsConn, _, err := dialer.Dial(wsURL, http.Header{})
 		if err != nil {
 			return err
 		}
@@ -290,12 +290,13 @@ type migrationSink struct {
 	refresh      bool
 }
 
+// MigrationSinkArgs arguments to configure migration sink.
 type MigrationSinkArgs struct {
 	// General migration fields
 	Dialer  websocket.Dialer
 	Push    bool
 	Secrets map[string]string
-	Url     string
+	URL     string
 
 	// Instance specific fields
 	Instance     instance.Instance
@@ -313,13 +314,13 @@ type MigrationSinkArgs struct {
 	RsyncFeatures []string
 }
 
-func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
+func (s *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error) {
 	query := url.Values{"secret": []string{secret}}
 
 	// The URL is a https URL to the operation, mangle to be a wss URL to the secret
-	wsUrl := fmt.Sprintf("wss://%s/websocket?%s", strings.TrimPrefix(c.url, "https://"), query.Encode())
+	wsURL := fmt.Sprintf("wss://%s/websocket?%s", strings.TrimPrefix(s.url, "https://"), query.Encode())
 
-	conn, _, err := c.dialer.Dial(wsUrl, http.Header{})
+	conn, _, err := s.dialer.Dial(wsURL, http.Header{})
 	if err != nil {
 		return nil, err
 	}
@@ -327,6 +328,7 @@ func (c *migrationSink) connectWithSecret(secret string) (*websocket.Conn, error
 	return conn, err
 }
 
+// Metadata returns metadata for the migration sink.
 func (s *migrationSink) Metadata() any {
 	secrets := shared.Jmap{
 		"control": s.dest.controlSecret,
@@ -340,6 +342,7 @@ func (s *migrationSink) Metadata() any {
 	return secrets
 }
 
+// Connect connects to the migration source.
 func (s *migrationSink) Connect(op *operations.Operation, r *http.Request, w http.ResponseWriter) error {
 	secret := r.FormValue("secret")
 	if secret == "" {

@@ -348,7 +348,7 @@ func createFromMigration(d *Daemon, r *http.Request, projectName string, req *ap
 	}
 
 	migrationArgs := MigrationSinkArgs{
-		Url: req.Source.Operation,
+		URL: req.Source.Operation,
 		Dialer: websocket.Dialer{
 			TLSClientConfig:  config,
 			NetDial:          shared.RFC3493Dialer,
