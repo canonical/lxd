@@ -60,7 +60,7 @@ type State struct {
 	UpdateCertificateCache func()
 
 	// Available instance types based on operational drivers.
-	InstanceTypes map[instancetype.Type]struct{}
+	InstanceTypes map[instancetype.Type]error
 
 	// Filesystem monitor
 	DevMonitor fsmonitor.FSMonitor
