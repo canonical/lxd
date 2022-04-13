@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha1"
 	"crypto/tls"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1789,7 +1791,7 @@ func (d *qemu) deviceDetachBlockDevice(deviceName string, rawConfig deviceConfig
 
 	escapedDeviceName := filesystem.PathNameEncode(deviceName)
 	deviceID := fmt.Sprintf("%s%s", qemuDeviceIDPrefix, escapedDeviceName)
-	blockDevName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
+	blockDevName := d.blockNodeName(escapedDeviceName)
 
 	err = monitor.RemoveFDFromFDSet(blockDevName)
 	if err != nil {
@@ -3144,7 +3146,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		},
 		"discard":   "unmap", // Forward as an unmap request. This is the same as `discard=on` in the qemu config file.
 		"driver":    "file",
-		"node-name": fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName), // Node names may only be 31 characters long.
+		"node-name": d.blockNodeName(escapedDeviceName),
 		"read-only": false,
 	}
 
@@ -6374,4 +6376,22 @@ func (d *qemu) deviceDetachUSB(usbDev deviceConfig.USBDeviceItem) error {
 	}
 
 	return nil
+}
+
+// Block node names may only be up to 31 characters long, so use a hash if longer.
+func (d *qemu) blockNodeName(name string) string {
+	if len(name) > 27 {
+		// If the name is too long, hash it as SHA-1 (20 bytes).
+		// Then encode the SHA-1 binary hash as Base64 (maximum 28 bytes).
+		// Finally strip the trailing base64 padding character giving us 27 chars.
+
+		hash := sha1.New()
+		hash.Write([]byte(name))
+		binaryHash := hash.Sum(nil)
+		base64Hash := base64.StdEncoding.EncodeToString(binaryHash)
+		name = base64Hash[0 : len(base64Hash)-1]
+	}
+
+	// Apply the lxd_ prefix.
+	return fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, name)
 }
