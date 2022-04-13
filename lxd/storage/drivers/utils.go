@@ -681,13 +681,13 @@ func copyDevice(inputPath string, outputPath string) error {
 	}
 
 	// Check for Direct I/O support.
-	from, err := os.OpenFile(inputPath, unix.O_DIRECT, 0)
+	from, err := os.OpenFile(inputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "iflag=direct")
 		from.Close()
 	}
 
-	to, err := os.OpenFile(outputPath, unix.O_DIRECT, 0)
+	to, err := os.OpenFile(outputPath, unix.O_DIRECT|unix.O_RDONLY, 0)
 	if err == nil {
 		cmd = append(cmd, "oflag=direct")
 		to.Close()
