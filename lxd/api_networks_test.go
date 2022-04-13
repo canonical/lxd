@@ -11,7 +11,6 @@ import (
 
 // Create a new pending network using the targetNode query paramenter.
 func TestNetworksCreate_TargetNode(t *testing.T) {
-	t.Skip("issue #6122")
 	if testing.Short() {
 		t.Skip("skipping storage-networks targetNode test in short mode.")
 	}
@@ -50,7 +49,6 @@ func TestNetworksCreate_TargetNode(t *testing.T) {
 // An error is returned when trying to create a new network in a cluster
 // where the network was not defined on any node nodes.
 func TestNetworksCreate_NotDefined(t *testing.T) {
-	t.Skip("issue #6122")
 	daemons, cleanup := newDaemons(t, 2)
 	defer cleanup()
 
@@ -70,7 +68,6 @@ func TestNetworksCreate_NotDefined(t *testing.T) {
 // An error is returned when trying to create a new network in a cluster where
 // the network was not defined on all nodes.
 func TestNetworksCreate_MissingNodes(t *testing.T) {
-	t.Skip("issue #6122")
 	if testing.Short() {
 		t.Skip("skipping networks targetNode test in short mode.")
 	}
