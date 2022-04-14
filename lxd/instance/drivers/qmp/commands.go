@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/lxc/lxd/lxd/revert"
-	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
@@ -47,44 +46,6 @@ func (m *Monitor) Status() (string, error) {
 	}
 
 	return resp.Return.Status, nil
-}
-
-// Console fetches the File for a particular console.
-func (m *Monitor) Console(target string) (*os.File, error) {
-	// Prepare the response.
-	var resp struct {
-		Return []struct {
-			Label    string `json:"label"`
-			Filename string `json:"filename"`
-		} `json:"return"`
-	}
-
-	// Query the consoles.
-	err := m.run("query-chardev", nil, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	// Look for the requested console.
-	for _, v := range resp.Return {
-		if v.Label == target {
-			ptyPath := strings.TrimPrefix(v.Filename, "pty:")
-
-			if !shared.PathExists(ptyPath) {
-				continue
-			}
-
-			// Open the PTS device
-			console, err := os.OpenFile(ptyPath, os.O_RDWR, 0600)
-			if err != nil {
-				return nil, err
-			}
-
-			return console, nil
-		}
-	}
-
-	return nil, ErrMonitorBadConsole
 }
 
 // SendFile adds a new file descriptor to the QMP fd table associated to name.
