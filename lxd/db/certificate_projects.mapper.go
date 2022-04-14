@@ -31,13 +31,13 @@ DELETE FROM certificates_projects WHERE certificate_id = ?
 
 // GetCertificateProjects returns all available Projects for the Certificate.
 // generator: certificate_project GetMany
-func (c *ClusterTx) GetCertificateProjects(certificateID int) ([]Project, error) {
+func (tx *ClusterTx) GetCertificateProjects(certificateID int) ([]Project, error) {
 	var err error
 
 	// Result slice.
 	objects := make([]CertificateProject, 0)
 
-	stmt := c.stmt(certificateProjectObjectsByCertificateID)
+	stmt := tx.stmt(certificateProjectObjectsByCertificateID)
 	args := []any{certificateID}
 
 	// Dest function for scanning a row.
@@ -57,7 +57,7 @@ func (c *ClusterTx) GetCertificateProjects(certificateID int) ([]Project, error)
 
 	result := make([]Project, len(objects))
 	for i, object := range objects {
-		project, err := c.GetProjects(ProjectFilter{ID: &object.ProjectID})
+		project, err := tx.GetProjects(ProjectFilter{ID: &object.ProjectID})
 		if err != nil {
 			return nil, err
 		}
@@ -70,8 +70,8 @@ func (c *ClusterTx) GetCertificateProjects(certificateID int) ([]Project, error)
 
 // DeleteCertificateProjects deletes the certificate_project matching the given key parameters.
 // generator: certificate_project DeleteMany
-func (c *ClusterTx) DeleteCertificateProjects(certificateID int) error {
-	stmt := c.stmt(certificateProjectDeleteByCertificateID)
+func (tx *ClusterTx) DeleteCertificateProjects(certificateID int) error {
+	stmt := tx.stmt(certificateProjectDeleteByCertificateID)
 	result, err := stmt.Exec(int(certificateID))
 	if err != nil {
 		return fmt.Errorf("Delete \"certificates_projects\" entry failed: %w", err)
@@ -87,7 +87,7 @@ func (c *ClusterTx) DeleteCertificateProjects(certificateID int) error {
 
 // CreateCertificateProject adds a new certificate_project to the database.
 // generator: certificate_project Create
-func (c *ClusterTx) CreateCertificateProject(object CertificateProject) (int64, error) {
+func (tx *ClusterTx) CreateCertificateProject(object CertificateProject) (int64, error) {
 	args := make([]any, 2)
 
 	// Populate the statement arguments.
@@ -95,7 +95,7 @@ func (c *ClusterTx) CreateCertificateProject(object CertificateProject) (int64, 
 	args[1] = object.ProjectID
 
 	// Prepared statement to use.
-	stmt := c.stmt(certificateProjectCreate)
+	stmt := tx.stmt(certificateProjectCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -113,22 +113,22 @@ func (c *ClusterTx) CreateCertificateProject(object CertificateProject) (int64, 
 
 // UpdateCertificateProjects updates the certificate_project matching the given key parameters.
 // generator: certificate_project Update
-func (c *ClusterTx) UpdateCertificateProjects(certificateID int, projectNames []string) error {
+func (tx *ClusterTx) UpdateCertificateProjects(certificateID int, projectNames []string) error {
 	// Delete current entry.
-	err := c.DeleteCertificateProjects(certificateID)
+	err := tx.DeleteCertificateProjects(certificateID)
 	if err != nil {
 		return err
 	}
 
 	// Insert new entries.
 	for _, entry := range projectNames {
-		refID, err := c.GetProjectID(entry)
+		refID, err := tx.GetProjectID(entry)
 		if err != nil {
 			return err
 		}
 
 		certificateProject := CertificateProject{CertificateID: certificateID, ProjectID: int(refID)}
-		_, err = c.CreateCertificateProject(certificateProject)
+		_, err = tx.CreateCertificateProject(certificateProject)
 		if err != nil {
 			return err
 		}

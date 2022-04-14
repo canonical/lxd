@@ -60,7 +60,7 @@ DELETE FROM projects WHERE name = ?
 
 // GetProjects returns all available projects.
 // generator: project GetMany
-func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
+func (tx *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	var err error
 
 	// Result slice.
@@ -71,17 +71,17 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 	var args []any
 
 	if filter.Name != nil && filter.ID == nil {
-		stmt = c.stmt(projectObjectsByName)
+		stmt = tx.stmt(projectObjectsByName)
 		args = []any{
 			filter.Name,
 		}
 	} else if filter.ID != nil && filter.Name == nil {
-		stmt = c.stmt(projectObjectsByID)
+		stmt = tx.stmt(projectObjectsByID)
 		args = []any{
 			filter.ID,
 		}
 	} else if filter.ID == nil && filter.Name == nil {
-		stmt = c.stmt(projectObjects)
+		stmt = tx.stmt(projectObjects)
 		args = []any{}
 	} else {
 		return nil, fmt.Errorf("No statement exists for the given Filter")
@@ -108,8 +108,8 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 
 // GetProjectConfig returns all available Project Config
 // generator: project GetMany
-func (c *ClusterTx) GetProjectConfig(projectID int) (map[string]string, error) {
-	projectConfig, err := c.GetConfig("project")
+func (tx *ClusterTx) GetProjectConfig(projectID int) (map[string]string, error) {
+	projectConfig, err := tx.GetConfig("project")
 	if err != nil {
 		return nil, err
 	}
@@ -123,11 +123,11 @@ func (c *ClusterTx) GetProjectConfig(projectID int) (map[string]string, error) {
 
 // GetProject returns the project with the given key.
 // generator: project GetOne
-func (c *ClusterTx) GetProject(name string) (*Project, error) {
+func (tx *ClusterTx) GetProject(name string) (*Project, error) {
 	filter := ProjectFilter{}
 	filter.Name = &name
 
-	objects, err := c.GetProjects(filter)
+	objects, err := tx.GetProjects(filter)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
@@ -144,8 +144,8 @@ func (c *ClusterTx) GetProject(name string) (*Project, error) {
 
 // ProjectExists checks if a project with the given key exists.
 // generator: project Exists
-func (c *ClusterTx) ProjectExists(name string) (bool, error) {
-	_, err := c.GetProjectID(name)
+func (tx *ClusterTx) ProjectExists(name string) (bool, error) {
+	_, err := tx.GetProjectID(name)
 	if err != nil {
 		if api.StatusErrorCheck(err, http.StatusNotFound) {
 			return false, nil
@@ -158,9 +158,9 @@ func (c *ClusterTx) ProjectExists(name string) (bool, error) {
 
 // CreateProject adds a new project to the database.
 // generator: project Create
-func (c *ClusterTx) CreateProject(object Project) (int64, error) {
+func (tx *ClusterTx) CreateProject(object Project) (int64, error) {
 	// Check if a project with the same key exists.
-	exists, err := c.ProjectExists(object.Name)
+	exists, err := tx.ProjectExists(object.Name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to check for duplicates: %w", err)
 	}
@@ -176,7 +176,7 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 	args[1] = object.Name
 
 	// Prepared statement to use.
-	stmt := c.stmt(projectCreate)
+	stmt := tx.stmt(projectCreate)
 
 	// Execute the statement.
 	result, err := stmt.Exec(args...)
@@ -194,7 +194,7 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 
 // CreateProjectConfig adds a new project Config to the database.
 // generator: project Create
-func (c *ClusterTx) CreateProjectConfig(projectID int64, config map[string]string) error {
+func (tx *ClusterTx) CreateProjectConfig(projectID int64, config map[string]string) error {
 	referenceID := int(projectID)
 	for key, value := range config {
 		insert := Config{
@@ -203,7 +203,7 @@ func (c *ClusterTx) CreateProjectConfig(projectID int64, config map[string]strin
 			Value:       value,
 		}
 
-		err := c.CreateConfig("project", insert)
+		err := tx.CreateConfig("project", insert)
 		if err != nil {
 			return fmt.Errorf("Insert Config failed for Project: %w", err)
 		}
@@ -214,8 +214,8 @@ func (c *ClusterTx) CreateProjectConfig(projectID int64, config map[string]strin
 
 // GetProjectID return the ID of the project with the given key.
 // generator: project ID
-func (c *ClusterTx) GetProjectID(name string) (int64, error) {
-	stmt := c.stmt(projectID)
+func (tx *ClusterTx) GetProjectID(name string) (int64, error) {
+	stmt := tx.stmt(projectID)
 	rows, err := stmt.Query(name)
 	if err != nil {
 		return -1, fmt.Errorf("Failed to get \"projects\" ID: %w", err)
@@ -246,8 +246,8 @@ func (c *ClusterTx) GetProjectID(name string) (int64, error) {
 
 // RenameProject renames the project matching the given key parameters.
 // generator: project Rename
-func (c *ClusterTx) RenameProject(name string, to string) error {
-	stmt := c.stmt(projectRename)
+func (tx *ClusterTx) RenameProject(name string, to string) error {
+	stmt := tx.stmt(projectRename)
 	result, err := stmt.Exec(to, name)
 	if err != nil {
 		return fmt.Errorf("Rename Project failed: %w", err)
@@ -266,8 +266,8 @@ func (c *ClusterTx) RenameProject(name string, to string) error {
 
 // DeleteProject deletes the project matching the given key parameters.
 // generator: project DeleteOne-by-Name
-func (c *ClusterTx) DeleteProject(name string) error {
-	stmt := c.stmt(projectDeleteByName)
+func (tx *ClusterTx) DeleteProject(name string) error {
+	stmt := tx.stmt(projectDeleteByName)
 	result, err := stmt.Exec(name)
 	if err != nil {
 		return fmt.Errorf("Delete \"projects\": %w", err)
