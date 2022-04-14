@@ -12,7 +12,6 @@ import (
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/lxc/lxd/shared/version"
 )
 
 var _ = api.ServerEnvironment{}
@@ -59,61 +58,6 @@ var projectDeleteByName = cluster.RegisterStmt(`
 DELETE FROM projects WHERE name = ?
 `)
 
-// GetProjectURIs returns all available project URIs.
-// generator: project URIs
-func (c *ClusterTx) GetProjectURIs(filter ProjectFilter) ([]string, error) {
-	var err error
-
-	// Result slice.
-	objects := make([]Project, 0)
-
-	// Pick the prepared statement and arguments to use based on active criteria.
-	var stmt *sql.Stmt
-	var args []any
-
-	if filter.Name != nil && filter.ID == nil {
-		stmt = c.stmt(projectObjectsByName)
-		args = []any{
-			filter.Name,
-		}
-	} else if filter.ID != nil && filter.Name == nil {
-		stmt = c.stmt(projectObjectsByID)
-		args = []any{
-			filter.ID,
-		}
-	} else if filter.ID == nil && filter.Name == nil {
-		stmt = c.stmt(projectObjects)
-		args = []any{}
-	} else {
-		return nil, fmt.Errorf("No statement exists for the given Filter")
-	}
-
-	// Dest function for scanning a row.
-	dest := func(i int) []any {
-		objects = append(objects, Project{})
-		return []any{
-			&objects[i].ID,
-			&objects[i].Description,
-			&objects[i].Name,
-		}
-	}
-
-	// Select.
-	err = query.SelectObjects(stmt, dest, args...)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
-	}
-
-	uris := make([]string, len(objects))
-	for i := range objects {
-		uri := api.NewURL().Path(version.APIVersion, "projects", objects[i].Name)
-
-		uris[i] = uri.String()
-	}
-
-	return uris, nil
-}
-
 // GetProjects returns all available projects.
 // generator: project GetMany
 func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
@@ -159,30 +103,22 @@ func (c *ClusterTx) GetProjects(filter ProjectFilter) ([]Project, error) {
 		return nil, fmt.Errorf("Failed to fetch from \"projects\" table: %w", err)
 	}
 
-	// Use non-generated custom method for UsedBy fields.
-	for i := range objects {
-		usedBy, err := c.GetProjectUsedBy(objects[i])
-		if err != nil {
-			return nil, err
-		}
+	return objects, nil
+}
 
-		objects[i].UsedBy = usedBy
-	}
-
-	config, err := c.GetConfig("project")
+// GetProjectConfig returns all available Project Config
+// generator: project GetMany
+func (c *ClusterTx) GetProjectConfig(projectID int) (map[string]string, error) {
+	projectConfig, err := c.GetConfig("project")
 	if err != nil {
 		return nil, err
 	}
 
-	for i := range objects {
-		if _, ok := config[objects[i].ID]; !ok {
-			objects[i].Config = map[string]string{}
-		} else {
-			objects[i].Config = config[objects[i].ID]
-		}
+	config, ok := projectConfig[projectID]
+	if !ok {
+		config = map[string]string{}
 	}
-
-	return objects, nil
+	return config, nil
 }
 
 // GetProject returns the project with the given key.
@@ -253,21 +189,27 @@ func (c *ClusterTx) CreateProject(object Project) (int64, error) {
 		return -1, fmt.Errorf("Failed to fetch \"projects\" entry ID: %w", err)
 	}
 
-	referenceID := int(id)
-	for key, value := range object.Config {
+	return id, nil
+}
+
+// CreateProjectConfig adds a new project Config to the database.
+// generator: project Create
+func (c *ClusterTx) CreateProjectConfig(projectID int64, config map[string]string) error {
+	referenceID := int(projectID)
+	for key, value := range config {
 		insert := Config{
 			ReferenceID: referenceID,
 			Key:         key,
 			Value:       value,
 		}
 
-		err = c.CreateConfig("project", insert)
+		err := c.CreateConfig("project", insert)
 		if err != nil {
-			return -1, fmt.Errorf("Insert Config failed for Project: %w", err)
+			return fmt.Errorf("Insert Config failed for Project: %w", err)
 		}
 
 	}
-	return id, nil
+	return nil
 }
 
 // GetProjectID return the ID of the project with the given key.

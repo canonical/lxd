@@ -15,6 +15,7 @@ type MethodV2 struct {
 	pkg      string                  // Package where the entity struct is declared.
 	entity   string                  // Name of the database entity
 	kind     string                  // Kind of statement to generate
+	ref      string                  // ref is the current reference method for the method kind
 	config   map[string]string       // Configuration parameters
 	packages map[string]*ast.Package // Packages to perform for struct declaration lookups
 }
@@ -90,6 +91,24 @@ func (m *MethodV2) Generate(buf *file.Buffer) error {
 
 // GenerateSignature generates an interface signature for the method.
 func (m *MethodV2) GenerateSignature(buf *file.Buffer) error {
+	buf.N()
+	buf.L("// %sGenerated is an interface of generated methods for %s", lex.Camel(m.entity), lex.Camel(m.entity))
+	buf.L("type %sGenerated interface {", lex.Camel(m.entity))
+	defer m.end(buf)
+	if m.config["references"] != "" {
+		refFields := strings.Split(m.config["references"], ",")
+		for _, fieldName := range refFields {
+			m.ref = fieldName
+			err := m.signature(buf, true)
+			if err != nil {
+				return err
+			}
+
+			m.ref = ""
+			buf.N()
+		}
+	}
+
 	return m.signature(buf, true)
 }
 
@@ -182,6 +201,18 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return fmt.Errorf("Parse entity struct: %w", err)
+	}
+
+	if m.config["references"] != "" {
+		refFields := strings.Split(m.config["references"], ",")
+		for _, fieldName := range refFields {
+			refMapping, err := Parse(m.packages[m.pkg], fieldName, m.kind)
+			if err != nil {
+				return fmt.Errorf("Parse entity struct: %w", err)
+			}
+
+			defer m.getRefs(buf, refMapping)
+		}
 	}
 
 	// Go type name the objects to return (e.g. api.Foo).
@@ -388,6 +419,49 @@ func (m *MethodV2) getMany(buf *file.Buffer) error {
 	return nil
 }
 
+func (m *MethodV2) getRefs(buf *file.Buffer, refMapping *Mapping) error {
+	m.ref = refMapping.Name
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
+
+	defer m.end(buf)
+
+	// reset m.ref in case m.signature is called again.
+	m.ref = ""
+
+	refStruct := refMapping.Name
+	refVar := lex.Minuscule(refStruct)
+	refList := lex.Plural(refVar)
+	refParent := lex.Minuscule(lex.Camel(m.entity))
+	refParentList := refParent + lex.Camel(refList)
+
+	switch refMapping.Type {
+	case ReferenceTable:
+		buf.L("%s, err := c.Get%s(\"%s\")", refParentList, lex.Plural(refStruct), m.entity)
+		m.ifErrNotNil(buf, "nil", "err")
+		buf.L("%s := map[string]%s{}", refList, refStruct)
+		buf.L("for _, ref := range %s[%sID] {", refParentList, refParent)
+		buf.L("if _, ok := %s[ref.%s]; !ok {", refList, refMapping.Identifier().Name)
+		buf.L("%s[ref.%s] = ref", refList, refMapping.Identifier().Name)
+		buf.L("} else {")
+		buf.L("return nil, fmt.Errorf(\"Found duplicate %s with name %%q\", ref.%s)", refStruct, refMapping.Identifier().Name)
+		buf.L("}")
+		buf.L("}")
+	case MapTable:
+		buf.L("%s, err := c.Get%s(\"%s\")", refParentList, lex.Plural(refStruct), m.entity)
+		m.ifErrNotNil(buf, "nil", "err")
+		buf.L("%s, ok := %s[%sID]", refList, refParentList, refParent)
+		buf.L("if !ok {")
+		buf.L("%s = map[string]string{}", refList)
+		buf.L("}")
+	}
+
+	buf.L("return %s, nil", refList)
+
+	return nil
+}
+
 func (m *MethodV2) getOne(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -425,7 +499,7 @@ func (m *MethodV2) id(buf *file.Buffer) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityCreate, ok := m.config["struct"]
 	if !ok {
-		entityCreate = entityPost(m.entity)
+		entityCreate = lex.Camel(m.entity)
 	}
 
 	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
@@ -467,7 +541,7 @@ func (m *MethodV2) exists(buf *file.Buffer) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityCreate, ok := m.config["struct"]
 	if !ok {
-		entityCreate = entityPost(m.entity)
+		entityCreate = lex.Camel(m.entity)
 	}
 
 	mapping, err := Parse(m.packages[m.pkg], entityCreate, m.kind)
@@ -500,6 +574,18 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
 		return fmt.Errorf("Parse entity struct: %w", err)
+	}
+
+	if m.config["references"] != "" {
+		refFields := strings.Split(m.config["references"], ",")
+		for _, fieldName := range refFields {
+			refMapping, err := Parse(m.packages[m.pkg], fieldName, m.kind)
+			if err != nil {
+				return fmt.Errorf("Parse entity struct: %w", err)
+			}
+
+			defer m.createRefs(buf, refMapping)
+		}
 	}
 
 	if err := m.signature(buf, false); err != nil {
@@ -640,6 +726,45 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 	return nil
 }
 
+func (m *MethodV2) createRefs(buf *file.Buffer, refMapping *Mapping) error {
+	m.ref = refMapping.Name
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
+
+	defer m.end(buf)
+
+	// reset m.ref in case m.signature is called again.
+	m.ref = ""
+
+	refStruct := refMapping.Name
+	refVar := lex.Minuscule(refStruct)
+	refParent := lex.Minuscule(lex.Camel(m.entity))
+
+	switch refMapping.Type {
+	case ReferenceTable:
+		buf.L("%s.ReferenceID = int(%sID)", refVar, refParent)
+		buf.L("err := c.Create%s(\"%s\", %s)", refStruct, m.entity, refVar)
+		m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", refStruct, lex.Camel(m.entity)))
+	case MapTable:
+		buf.L("referenceID := int(%sID)", refParent)
+		buf.L("for key, value := range %s {", refVar)
+		buf.L("insert := %s{", refStruct)
+		for _, ref := range refMapping.ColumnFields("ID") {
+			buf.L("%s: %s,", ref.Name, lex.Minuscule(ref.Name))
+		}
+		buf.L("}")
+		buf.N()
+		buf.L("err := c.Create%s(\"%s\", insert)", refStruct, m.entity)
+		m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Insert %s failed for %s: %%w\", err)", refStruct, lex.Camel(m.entity)))
+		buf.L("}")
+	}
+
+	buf.L("return nil")
+
+	return nil
+}
+
 func (m *MethodV2) rename(buf *file.Buffer) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -677,7 +802,19 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 	// Support using a different structure or package to pass arguments to Create.
 	entityUpdate, ok := m.config["struct"]
 	if !ok {
-		entityUpdate = entityPut(m.entity)
+		entityUpdate = mapping.Name
+	}
+
+	if m.config["references"] != "" {
+		refFields := strings.Split(m.config["references"], ",")
+		for _, fieldName := range refFields {
+			refMapping, err := Parse(m.packages[m.pkg], fieldName, m.kind)
+			if err != nil {
+				return fmt.Errorf("Parse entity struct: %w", err)
+			}
+
+			defer m.updateRefs(buf, refMapping)
+		}
 	}
 
 	nk := mapping.NaturalKey()
@@ -794,6 +931,29 @@ func (m *MethodV2) update(buf *file.Buffer) error {
 	return nil
 }
 
+func (m *MethodV2) updateRefs(buf *file.Buffer, refMapping *Mapping) error {
+	m.ref = refMapping.Name
+	if err := m.signature(buf, false); err != nil {
+		return err
+	}
+
+	defer m.end(buf)
+
+	// reset m.ref in case m.signature is called again.
+	m.ref = ""
+
+	refStruct := refMapping.Name
+	refVar := lex.Minuscule(refStruct)
+	refList := lex.Plural(refVar)
+	refParent := lex.Minuscule(lex.Camel(m.entity))
+
+	buf.L("err := c.Update%s(\"%s\", int(%sID), %s)", lex.Plural(refStruct), m.entity, refParent, refList)
+	m.ifErrNotNil(buf, fmt.Sprintf("fmt.Errorf(\"Replace %s for %s failed: %%w\", err)", refStruct, lex.Camel(m.entity)))
+	buf.L("return nil")
+
+	return nil
+}
+
 func (m *MethodV2) delete(buf *file.Buffer, deleteOne bool) error {
 	mapping, err := Parse(m.packages[m.pkg], lex.Camel(m.entity), m.kind)
 	if err != nil {
@@ -854,13 +1014,6 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
 
-	if isInterface {
-		buf.N()
-		buf.L("// %sGenerated is an interface of generated methods for %s", lex.Camel(m.entity), lex.Camel(m.entity))
-		buf.L("type %sGenerated interface {", lex.Camel(m.entity))
-		defer m.end(buf)
-	}
-
 	comment := ""
 	args := ""
 	rets := ""
@@ -896,7 +1049,7 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 	case ReferenceTable:
 		switch operation(m.kind) {
 		case "GetMany":
-			comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
+			comment = fmt.Sprintf("returns all available %s for the parent entity.", lex.Plural(m.entity))
 			args = "parent string"
 			rets = fmt.Sprintf("(map[int][]%s, error)", mapping.Name)
 		case "Create":
@@ -942,9 +1095,28 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 			args = fmt.Sprintf("filter %s", entityFilter(m.entity))
 			rets = "([]string, error)"
 		case "GetMany":
-			comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
-			args = fmt.Sprintf("filter %s", entityFilter(m.entity))
-			rets = fmt.Sprintf("(%s, error)", lex.Slice(entityType(m.pkg, m.entity)))
+			if m.ref == "" {
+				comment = fmt.Sprintf("returns all available %s.", lex.Plural(m.entity))
+				args = fmt.Sprintf("filter %s", entityFilter(m.entity))
+				rets = fmt.Sprintf("(%s, error)", lex.Slice(entityType(m.pkg, m.entity)))
+			} else {
+				comment = fmt.Sprintf("returns all available %s %s", mapping.Name, lex.Plural(m.ref))
+				args = fmt.Sprintf("%sID int", lex.Minuscule(mapping.Name))
+				refMapping, err := Parse(m.packages[m.pkg], m.ref, "")
+				if err != nil {
+					return fmt.Errorf("Parse entity struct: %w", err)
+				}
+
+				var retType string
+				switch refMapping.Type {
+				case ReferenceTable:
+					retType = fmt.Sprintf("map[%s]%s", refMapping.Identifier().Type.Name, refMapping.Name)
+				case MapTable:
+					retType = "map[string]string"
+				}
+
+				rets = fmt.Sprintf("(%s, error)", retType)
+			}
 		case "GetOne":
 			comment = fmt.Sprintf("returns the %s with the given key.", m.entity)
 			args = mapping.FieldArgs(mapping.NaturalKey())
@@ -958,17 +1130,34 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 			args = mapping.FieldArgs(mapping.NaturalKey())
 			rets = "(bool, error)"
 		case "Create":
-			entityCreate, ok := m.config["struct"]
-			if !ok {
-				entityCreate = entityPost(m.entity)
+			if m.ref == "" {
+				entityCreate, ok := m.config["struct"]
+				if !ok {
+					entityCreate = mapping.Name
+				}
+				comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
+				args = fmt.Sprintf("object %s", entityType(m.pkg, entityCreate))
+				rets = "(int64, error)"
+			} else {
+				comment = fmt.Sprintf("adds a new %s %s to the database.", m.entity, m.ref)
+				rets = "error"
+
+				refMapping, err := Parse(m.packages[m.pkg], m.ref, "")
+				if err != nil {
+					return fmt.Errorf("Parse entity struct: %w", err)
+				}
+
+				switch refMapping.Type {
+				case ReferenceTable:
+					args = fmt.Sprintf("%sID int64, %s %s", lex.Minuscule(lex.Camel(m.entity)), lex.Minuscule(m.ref), m.ref)
+				case MapTable:
+					args = fmt.Sprintf("%sID int64, %s map[string]string", lex.Minuscule(lex.Camel(m.entity)), lex.Minuscule(m.ref))
+				}
 			}
-			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
-			args = fmt.Sprintf("object %s", entityType(m.pkg, entityCreate))
-			rets = "(int64, error)"
 		case "CreateOrReplace":
 			entityCreate, ok := m.config["struct"]
 			if !ok {
-				entityCreate = entityPost(m.entity)
+				entityCreate = mapping.Name
 			}
 			comment = fmt.Sprintf("adds a new %s to the database.", m.entity)
 			args = fmt.Sprintf("object %s", entityType(m.pkg, entityCreate))
@@ -978,13 +1167,30 @@ func (m *MethodV2) signature(buf *file.Buffer, isInterface bool) error {
 			args = mapping.FieldArgs(mapping.NaturalKey(), "to string")
 			rets = "error"
 		case "Update":
-			entityUpdate, ok := m.config["struct"]
-			if !ok {
-				entityUpdate = entityPut(m.entity)
+			if m.ref == "" {
+				entityUpdate, ok := m.config["struct"]
+				if !ok {
+					entityUpdate = mapping.Name
+				}
+				comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
+				args = mapping.FieldArgs(mapping.NaturalKey(), fmt.Sprintf("object %s", entityType(m.pkg, entityUpdate)))
+				rets = "error"
+			} else {
+				comment = fmt.Sprintf("updates the %s %s matching the given key parameters.", m.entity, m.ref)
+				rets = "error"
+
+				refMapping, err := Parse(m.packages[m.pkg], m.ref, "")
+				if err != nil {
+					return fmt.Errorf("Parse entity struct: %w", err)
+				}
+
+				switch refMapping.Type {
+				case ReferenceTable:
+					args = fmt.Sprintf("%sID int64, %s map[%s]%s", m.entity, lex.Minuscule(lex.Plural(m.ref)), refMapping.Identifier().Type.Name, m.ref)
+				case MapTable:
+					args = fmt.Sprintf("%sID int64, %s map[string]string", m.entity, lex.Minuscule(lex.Plural(m.ref)))
+				}
 			}
-			comment = fmt.Sprintf("updates the %s matching the given key parameters.", m.entity)
-			args = mapping.FieldArgs(mapping.NaturalKey(), fmt.Sprintf("object %s", entityType(m.pkg, entityUpdate)))
-			rets = "error"
 		case "DeleteOne":
 			comment = fmt.Sprintf("deletes the %s matching the given key parameters.", m.entity)
 			args = mapping.FieldArgs(mapping.ActiveFilters(m.kind))
@@ -1024,6 +1230,7 @@ func (m *MethodV2) begin(buf *file.Buffer, comment string, args string, rets str
 			name = fmt.Sprintf("Delete%s%s", parent, lex.Plural(ref))
 		}
 	} else {
+		entity = entity + m.ref
 		switch operation(m.kind) {
 		case "URIs":
 			name = fmt.Sprintf("Get%sURIs", entity)
@@ -1042,6 +1249,10 @@ func (m *MethodV2) begin(buf *file.Buffer, comment string, args string, rets str
 		case "Rename":
 			name = fmt.Sprintf("Rename%s", entity)
 		case "Update":
+			if mapping.Type == ReferenceTable || m.ref != "" {
+				entity = lex.Plural(entity)
+			}
+
 			name = fmt.Sprintf("Update%s", entity)
 		case "DeleteOne":
 			name = fmt.Sprintf("Delete%s", entity)
@@ -1051,6 +1262,7 @@ func (m *MethodV2) begin(buf *file.Buffer, comment string, args string, rets str
 			name = fmt.Sprintf("%s%s", entity, m.kind)
 		}
 	}
+
 	receiver := fmt.Sprintf("c %s", dbTxType(m.db))
 
 	buf.L("// %s %s", name, comment)

@@ -318,9 +318,9 @@ var ErrInstanceListStop = fmt.Errorf("search stopped")
 
 // InstanceList loads all instances across all projects and for each instance runs the instanceFunc passing in the
 // instance and it's project and profiles. Accepts optional filter argument to specify a subset of instances.
-func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project Project, profiles []api.Profile) error) error {
+func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst Instance, project api.Project, profiles []api.Profile) error) error {
 	var instances []Instance
-	projectMap := map[string]Project{}
+	projectMap := map[string]api.Project{}
 	projectHasProfiles := map[string]bool{}
 	profilesByProjectAndName := map[string]map[string]Profile{}
 
@@ -342,9 +342,14 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 		}
 
 		// Index of all projects by name and record which projects have the profiles feature.
-		for i, project := range projects {
-			projectMap[project.Name] = projects[i]
-			projectHasProfiles[project.Name] = shared.IsTrue(project.Config["features.profiles"])
+		for _, project := range projects {
+			apiProject, err := project.ToAPI(tx)
+			if err != nil {
+				return err
+			}
+
+			projectMap[project.Name] = *apiProject
+			projectHasProfiles[project.Name] = shared.IsTrue(apiProject.Config["features.profiles"])
 		}
 
 		profiles, err := tx.GetProfiles(ProfileFilter{})

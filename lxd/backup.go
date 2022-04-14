@@ -77,7 +77,17 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	if b.CompressionAlgorithm() != "" {
 		compress = b.CompressionAlgorithm()
 	} else {
-		p, err := s.Cluster.GetProject(sourceInst.Project())
+		var p *api.Project
+		err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			project, err := tx.GetProject(sourceInst.Project())
+			if err != nil {
+				return err
+			}
+
+			p, err = project.ToAPI(tx)
+
+			return err
+		})
 		if err != nil {
 			return err
 		}

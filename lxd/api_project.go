@@ -146,40 +146,39 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	var result any
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		filter := db.ProjectFilter{}
-		if recursion {
-			projects, err := tx.GetProjects(filter)
+		projects, err := tx.GetProjects(filter)
+		if err != nil {
+			return err
+		}
+
+		filtered := []api.Project{}
+		for _, project := range projects {
+			if !rbac.UserHasPermission(r, project.Name, "view") {
+				continue
+			}
+
+			apiProject, err := project.ToAPI(tx)
 			if err != nil {
 				return err
 			}
 
-			filtered := []api.Project{}
-			for _, project := range projects {
-				if !rbac.UserHasPermission(r, project.Name, "view") {
-					continue
-				}
-
-				filtered = append(filtered, project.ToAPI())
+			apiProject.UsedBy, err = projectUsedBy(tx, &project)
+			if err != nil {
+				return err
 			}
 
+			filtered = append(filtered, *apiProject)
+		}
+
+		if recursion {
 			result = filtered
 		} else {
-			uris, err := tx.GetProjectURIs(filter)
-			if err != nil {
-				return err
+			urls := make([]string, len(filtered))
+			for i, p := range filtered {
+				urls[i] = p.URL(version.APIVersion).String()
 			}
 
-			filtered := []string{}
-			for _, uri := range uris {
-				name := strings.Split(uri, "/1.0/projects/")[1]
-
-				if !rbac.UserHasPermission(r, name, "view") {
-					continue
-				}
-
-				filtered = append(filtered, uri)
-			}
-
-			result = filtered
+			result = urls
 		}
 
 		return nil
@@ -189,6 +188,49 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	return response.SyncResponse(true, result)
+}
+
+// projectUsedBy returns a list of URLs for all instances, images, profiles,
+// storage volumes, networks, and acls that use this project.
+func projectUsedBy(tx *db.ClusterTx, project *db.Project) ([]string, error) {
+	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	images, err := tx.GetImageURIs(db.ImageFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	profiles, err := tx.GetProfileURIs(db.ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	volumes, err := tx.GetStorageVolumeURIs(project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	networks, err := tx.GetNetworkURIs(project.ID, project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	acls, err := tx.GetNetworkACLURIs(project.ID, project.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	usedBy := instances
+	usedBy = append(usedBy, images...)
+	usedBy = append(usedBy, profiles...)
+	usedBy = append(usedBy, volumes...)
+	usedBy = append(usedBy, networks...)
+	usedBy = append(usedBy, acls...)
+
+	return usedBy, nil
 }
 
 // swagger:operation POST /1.0/projects projects projects_post
@@ -220,12 +262,13 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func projectsPost(d *Daemon, r *http.Request) response.Response {
 	// Parse the request.
-	project := db.Project{}
+	project := api.ProjectsPost{}
 
 	// Set default features.
 	if project.Config == nil {
 		project.Config = map[string]string{}
 	}
+
 	for _, feature := range projectFeaturesDefaults {
 		_, ok := project.Config[feature]
 		if !ok {
@@ -252,9 +295,14 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 
 	var id int64
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		id, err = tx.CreateProject(project)
+		id, err = tx.CreateProject(db.Project{Description: project.Description, Name: project.Name})
 		if err != nil {
 			return fmt.Errorf("Failed adding database record: %w", err)
+		}
+
+		err = tx.CreateProjectConfig(id, project.Config)
+		if err != nil {
+			return fmt.Errorf("Unable to create project config for project %q: %w", project.Name, err)
 		}
 
 		if shared.IsTrue(project.Config["features.profiles"]) {
@@ -348,7 +396,21 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the database entry
-	project, err := d.cluster.GetProject(name)
+	var project *api.Project
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		dbProject, err := tx.GetProject(name)
+		if err != nil {
+			return err
+		}
+
+		project, err = dbProject.ToAPI(tx)
+		if err != nil {
+			return err
+		}
+
+		project.UsedBy, err = projectUsedBy(tx, dbProject)
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -358,7 +420,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 		project.Config,
 	}
 
-	return response.SyncResponseETag(true, project.ToAPI(), etag)
+	return response.SyncResponseETag(true, project, etag)
 }
 
 // swagger:operation PUT /1.0/projects/{name} projects project_put
@@ -399,7 +461,25 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the current data
-	project, err := d.cluster.GetProject(name)
+	var project *api.Project
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		dbProject, err := tx.GetProject(name)
+		if err != nil {
+			return err
+		}
+
+		project, err = dbProject.ToAPI(tx)
+		if err != nil {
+			return err
+		}
+
+		project.UsedBy, err = projectUsedBy(tx, dbProject)
+		if err != nil {
+			return err
+		}
+
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -466,7 +546,25 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the current data
-	project, err := d.cluster.GetProject(name)
+	var project *api.Project
+	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		dbProject, err := tx.GetProject(name)
+		if err != nil {
+			return err
+		}
+
+		project, err = dbProject.ToAPI(tx)
+		if err != nil {
+			return err
+		}
+
+		project.UsedBy, err = projectUsedBy(tx, dbProject)
+		if err != nil {
+			return err
+		}
+
+		return err
+	})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -524,7 +622,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 }
 
 // Common logic between PUT and PATCH.
-func projectChange(d *Daemon, project *db.Project, req api.ProjectPut) response.Response {
+func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response.Response {
 	// Make a list of config keys that have changed.
 	configChanged := []string{}
 	for key := range project.Config {
@@ -554,8 +652,11 @@ func projectChange(d *Daemon, project *db.Project, req api.ProjectPut) response.
 		return response.BadRequest(fmt.Errorf("You can't change the features of the default project"))
 	}
 
-	if !projectIsEmpty(project) && featuresChanged {
-		return response.BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
+	if featuresChanged && len(project.UsedBy) > 0 {
+		// Consider the project empty if it is only used by the default profile.
+		if len(project.UsedBy) > 1 || !strings.Contains(project.UsedBy[0], "/profiles/default") {
+			return response.BadRequest(fmt.Errorf("Features can only be changed on empty projects"))
+		}
 	}
 
 	// Validate the configuration.
@@ -662,7 +763,12 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
 
-			if !projectIsEmpty(project) {
+			empty, err := projectIsEmpty(project, tx)
+			if err != nil {
+				return err
+			}
+
+			if !empty {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
@@ -735,7 +841,13 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
-		if !projectIsEmpty(project) {
+
+		empty, err := projectIsEmpty(project, tx)
+		if err != nil {
+			return err
+		}
+
+		if !empty {
 			return fmt.Errorf("Only empty projects can be removed")
 		}
 
@@ -827,15 +939,67 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty.
-func projectIsEmpty(project *db.Project) bool {
-	if len(project.UsedBy) > 0 {
-		// Check if the only entity is the default profile.
-		if len(project.UsedBy) == 1 && strings.Contains(project.UsedBy[0], "/profiles/default") {
-			return true
-		}
-		return false
+func projectIsEmpty(project *db.Project, tx *db.ClusterTx) (bool, error) {
+	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
+	if err != nil {
+		return false, err
 	}
-	return true
+
+	if len(instances) > 0 {
+		return false, nil
+	}
+
+	images, err := tx.GetImageURIs(db.ImageFilter{Project: &project.Name})
+	if err != nil {
+		return false, err
+	}
+
+	if len(images) > 0 {
+		return false, nil
+	}
+
+	profiles, err := tx.GetProfileURIs(db.ProfileFilter{Project: &project.Name})
+	if err != nil {
+		return false, err
+	}
+
+	if len(profiles) > 0 {
+		// Consider the project empty if it is only used by the default profile.
+		if len(profiles) == 1 && strings.Contains(profiles[0], "/profiles/default") {
+			return true, nil
+		}
+
+		return false, nil
+	}
+
+	volumes, err := tx.GetStorageVolumeURIs(project.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if len(volumes) > 0 {
+		return false, nil
+	}
+
+	networks, err := tx.GetNetworkURIs(project.ID, project.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if len(networks) > 0 {
+		return false, nil
+	}
+
+	acls, err := tx.GetNetworkACLURIs(project.ID, project.Name)
+	if err != nil {
+		return false, err
+	}
+
+	if len(acls) > 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func isEitherAllowOrBlock(value string) error {

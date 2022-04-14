@@ -265,7 +265,17 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	if req.CompressionAlgorithm != "" {
 		compress = req.CompressionAlgorithm
 	} else {
-		p, err := d.cluster.GetProject(projectName)
+		var p *api.Project
+		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			project, err := tx.GetProject(projectName)
+			if err != nil {
+				return err
+			}
+
+			p, err = project.ToAPI(tx)
+
+			return err
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1773,7 +1783,16 @@ func autoUpdateImage(ctx context.Context, d *Daemon, op *operations.Operation, i
 	if !manual {
 		var interval int64
 
-		project, err := d.cluster.GetProject(projectName)
+		var project *api.Project
+		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			p, err := tx.GetProject(projectName)
+			if err != nil {
+				return err
+			}
+
+			project, err = p.ToAPI(tx)
+			return err
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -2085,12 +2104,22 @@ func pruneLeftoverImages(d *Daemon) {
 }
 
 func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation) error {
-	var projects []db.Project
+	var projects []api.Project
 	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
-		projects, err = tx.GetProjects(db.ProjectFilter{})
+		dbProjects, err := tx.GetProjects(db.ProjectFilter{})
 		if err != nil {
 			return err
+		}
+
+		projects = make([]api.Project, 0, len(dbProjects))
+		for _, project := range dbProjects {
+			p, err := project.ToAPI(tx)
+			if err != nil {
+				return err
+			}
+
+			projects = append(projects, *p)
 		}
 
 		return nil
@@ -2109,7 +2138,7 @@ func pruneExpiredImages(ctx context.Context, d *Daemon, op *operations.Operation
 	return nil
 }
 
-func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project db.Project, op *operations.Operation) error {
+func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Project, op *operations.Operation) error {
 	var expiry int64
 	var err error
 	if project.Config["images.remote_cache_expiry"] != "" {

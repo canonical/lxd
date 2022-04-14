@@ -159,7 +159,7 @@ func getInstanceCountLimit(info *projectInfo, instanceType instancetype.Type) (i
 }
 
 // Check restrictions on setting volatile.* keys.
-func checkRestrictionsOnVolatileConfig(project *db.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string, strip bool) error {
+func checkRestrictionsOnVolatileConfig(project api.Project, instanceType instancetype.Type, instanceName string, config, currentConfig map[string]string, strip bool) error {
 	if project.Config["restrict"] == "false" {
 		return nil
 	}
@@ -435,7 +435,7 @@ func parseHostIDMapRange(isUID bool, isGID bool, listValue string) ([]idmap.Idma
 
 // Check that the project's restrictions are not violated across the given
 // instances and profiles.
-func checkRestrictions(project *db.Project, instances []db.Instance, profiles []db.Profile) error {
+func checkRestrictions(project api.Project, instances []db.Instance, profiles []db.Profile) error {
 	containerConfigChecks := map[string]func(value string) error{}
 	devicesChecks := map[string]func(value map[string]string) error{}
 
@@ -950,9 +950,11 @@ func AllowProjectUpdate(tx *db.ClusterTx, projectName string, config map[string]
 
 	for _, key := range changed {
 		if strings.HasPrefix(key, "restricted.") {
-			project := &db.Project{
-				Name:   projectName,
-				Config: config,
+			project := api.Project{
+				Name: projectName,
+				ProjectPut: api.ProjectPut{
+					Config: config,
+				},
 			}
 
 			err := checkRestrictions(project, info.Instances, info.Profiles)
@@ -1087,7 +1089,7 @@ func validateAggregateLimit(totals map[string]int64, key, value string) error {
 }
 
 // Return true if the project has some limits or restrictions set.
-func projectHasLimitsOrRestrictions(project *db.Project) bool {
+func projectHasLimitsOrRestrictions(project api.Project) bool {
 	for k, v := range project.Config {
 		if strings.HasPrefix(k, "limits.") {
 			return true
@@ -1104,7 +1106,7 @@ func projectHasLimitsOrRestrictions(project *db.Project) bool {
 // Hold information associated with the project, such as profiles and
 // instances.
 type projectInfo struct {
-	Project   *db.Project
+	Project   api.Project
 	Profiles  []db.Profile
 	Instances []db.Instance
 	Volumes   []db.StorageVolumeArgs
@@ -1117,12 +1119,17 @@ type projectInfo struct {
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
 func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
-	project, err := tx.GetProject(projectName)
+	dbProject, err := tx.GetProject(projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project database object: %w", err)
 	}
 
-	if skipIfNoLimits && !projectHasLimitsOrRestrictions(project) {
+	project, err := dbProject.ToAPI(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	if skipIfNoLimits && !projectHasLimitsOrRestrictions(*project) {
 		return nil, nil
 	}
 
@@ -1156,7 +1163,7 @@ func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*p
 	}
 
 	info := &projectInfo{
-		Project:   project,
+		Project:   *project,
 		Profiles:  profiles,
 		Instances: instances,
 		Volumes:   volumes,
@@ -1405,7 +1412,7 @@ func FilterUsedBy(r *http.Request, entries []string) []string {
 }
 
 // Return true if particular restriction in project is violated
-func projectHasRestriction(project *db.Project, restrictionKey string, blockValue string) bool {
+func projectHasRestriction(project *api.Project, restrictionKey string, blockValue string) bool {
 	if shared.IsFalseOrEmpty(project.Config["restricted"]) {
 		return false
 	}
@@ -1423,7 +1430,7 @@ func projectHasRestriction(project *db.Project, restrictionKey string, blockValu
 }
 
 // CheckClusterTargetRestriction check if user is allowed to use cluster member targeting
-func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, project *db.Project, targetFlag string) error {
+func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, project *api.Project, targetFlag string) error {
 	// Allow server administrators to move instances around even when restricted (node evacuation, ...)
 	if rbac.UserIsAdmin(r) {
 		return nil
@@ -1439,7 +1446,12 @@ func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, project *d
 // AllowBackupCreation returns an error if any project-specific restriction is violated
 // when creating a new backup in a project.
 func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
-	project, err := tx.GetProject(projectName)
+	dbProject, err := tx.GetProject(projectName)
+	if err != nil {
+		return err
+	}
+
+	project, err := dbProject.ToAPI(tx)
 	if err != nil {
 		return err
 	}
@@ -1452,7 +1464,12 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 
 // AllowSnapshotCreation returns an error if any project-specific restriction is violated
 // when creating a new snapshot in a project.
-func AllowSnapshotCreation(project *db.Project) error {
+func AllowSnapshotCreation(tx *db.ClusterTx, dbProject *db.Project) error {
+	project, err := dbProject.ToAPI(tx)
+	if err != nil {
+		return err
+	}
+
 	if projectHasRestriction(project, "restricted.snapshots", "block") {
 		return fmt.Errorf("Project %s doesn't allow for snapshot creation", project.Name)
 	}

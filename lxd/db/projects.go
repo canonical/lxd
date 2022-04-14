@@ -25,22 +25,19 @@ import (
 //go:generate mapper stmt -p db -e project update struct=Project
 //go:generate mapper stmt -p db -e project delete-by-Name
 //
-//go:generate mapper method -p db -e project URIs
-//go:generate mapper method -p db -e project GetMany
-//go:generate mapper method -p db -e project GetOne struct=Project
-//go:generate mapper method -p db -e project Exists struct=Project
-//go:generate mapper method -p db -e project Create struct=Project
-//go:generate mapper method -p db -e project ID struct=Project
-//go:generate mapper method -p db -e project Rename
-//go:generate mapper method -p db -e project DeleteOne-by-Name
+//go:generate mapper method -p db -e project GetMany references=Config version=2
+//go:generate mapper method -p db -e project GetOne struct=Project version=2
+//go:generate mapper method -p db -e project Exists struct=Project version=2
+//go:generate mapper method -p db -e project Create references=Config version=2
+//go:generate mapper method -p db -e project ID struct=Project version=2
+//go:generate mapper method -p db -e project Rename version=2
+//go:generate mapper method -p db -e project DeleteOne-by-Name version=2
 
 // Project represents a LXD project
 type Project struct {
 	ID          int
 	Description string
-	Name        string   `db:"omit=update"`
-	UsedBy      []string `db:"omit=create"`
-	Config      map[string]string
+	Name        string `db:"omit=update"`
 }
 
 // ProjectFilter specifies potential query parameter fields.
@@ -50,15 +47,21 @@ type ProjectFilter struct {
 }
 
 // ToAPI converts the database Project struct to an api.Project entry.
-func (p *Project) ToAPI() api.Project {
-	return api.Project{
+func (p *Project) ToAPI(tx *ClusterTx) (*api.Project, error) {
+	apiProject := &api.Project{
 		ProjectPut: api.ProjectPut{
-			Config:      p.Config,
 			Description: p.Description,
 		},
-		Name:   p.Name,
-		UsedBy: p.UsedBy,
+		Name: p.Name,
 	}
+
+	var err error
+	apiProject.Config, err = tx.GetProjectConfig(p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return apiProject, nil
 }
 
 // ProjectHasProfiles is a helper to check if a project has the profiles
@@ -138,7 +141,12 @@ func (c *ClusterTx) ProjectHasImages(name string) (bool, error) {
 		return false, fmt.Errorf("fetch project: %w", err)
 	}
 
-	enabled := shared.IsTrue(project.Config["features.images"])
+	config, err := c.GetProjectConfig(project.ID)
+	if err != nil {
+		return false, err
+	}
+
+	enabled := shared.IsTrue(config["features.images"])
 
 	return enabled, nil
 }
@@ -192,49 +200,6 @@ func (c *ClusterTx) InitProjectWithoutImages(project string) error {
 	SELECT images.id, ? FROM images WHERE project_id=1`
 	_, err = c.tx.Exec(stmt, defaultProfileID)
 	return err
-}
-
-// GetProjectUsedBy returns all the instances, images, profiles, storage
-// volumes, networks, and acls that use the given project.
-func (c *ClusterTx) GetProjectUsedBy(project Project) ([]string, error) {
-	instances, err := c.GetInstanceURIs(InstanceFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	images, err := c.GetImageURIs(ImageFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	profiles, err := c.GetProfileURIs(ProfileFilter{Project: &project.Name})
-	if err != nil {
-		return nil, err
-	}
-
-	volumes, err := c.GetStorageVolumeURIs(project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	networks, err := c.GetNetworkURIs(project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	networkACLs, err := c.GetNetworkACLURIs(project.ID, project.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	usedBy := instances
-	usedBy = append(usedBy, images...)
-	usedBy = append(usedBy, profiles...)
-	usedBy = append(usedBy, volumes...)
-	usedBy = append(usedBy, networks...)
-	usedBy = append(usedBy, networkACLs...)
-
-	return usedBy, nil
 }
 
 // GetProject returns the project with the given key.

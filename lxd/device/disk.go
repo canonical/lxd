@@ -344,7 +344,17 @@ func (d *disk) validateEnvironmentSourcePath() error {
 	// Default project cannot be restricted, so don't bother loading the project config in that case.
 	projectName := d.inst.Project()
 	if projectName != project.Default {
-		p, err := d.state.Cluster.GetProject(projectName)
+		var p *api.Project
+		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			project, err := tx.GetProject(projectName)
+			if err != nil {
+				return err
+			}
+
+			p, err = project.ToAPI(tx)
+
+			return err
+		})
 		if err != nil {
 			return fmt.Errorf("Failed loading project %q: %w", projectName, err)
 		}
@@ -1430,7 +1440,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 
 		if shared.IsFalseOrEmpty(poolVolumePut.Config["security.shifted"]) {
 			volumeUsedBy := []instance.Instance{}
-			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, volume, true, func(dbInst db.Instance, project db.Project, profiles []api.Profile, usedByDevices []string) error {
+			err = storagePools.VolumeUsedByInstanceDevices(d.state, poolName, projectName, volume, true, func(dbInst db.Instance, project api.Project, profiles []api.Profile, usedByDevices []string) error {
 				inst, err := instance.Load(d.state, db.InstanceToArgs(&dbInst), profiles)
 				if err != nil {
 					return err

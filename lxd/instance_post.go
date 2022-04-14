@@ -113,8 +113,13 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Failed loading project: %w", err)
 			}
 
+			apiProject, err := p.ToAPI(tx)
+			if err != nil {
+				return err
+			}
+
 			// Check if user is allowed to use cluster member targeting
-			err = project.CheckClusterTargetRestriction(tx, r, p, targetNode)
+			err = project.CheckClusterTargetRestriction(tx, r, apiProject, targetNode)
 			if err != nil {
 				return err
 			}

@@ -70,7 +70,17 @@ func createFromImage(d *Daemon, r *http.Request, projectName string, req *api.In
 		var info *api.Image
 		if req.Source.Server != "" {
 			var autoUpdate bool
-			p, err := d.cluster.GetProject(projectName)
+			var p *api.Project
+			err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+				project, err := tx.GetProject(projectName)
+				if err != nil {
+					return err
+				}
+
+				p, err = project.ToAPI(tx)
+
+				return err
+			})
 			if err != nil {
 				return err
 			}
@@ -837,13 +847,18 @@ func instancesPost(d *Daemon, r *http.Request) response.Response {
 		req.Type = api.InstanceType(urlType.String())
 	}
 
-	var targetProject *db.Project
+	var targetProject *api.Project
 
 	targetNode := queryParam(r, "target")
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		targetProject, err = tx.GetProject(targetProjectName)
+		dbProject, err := tx.GetProject(targetProjectName)
 		if err != nil {
 			return fmt.Errorf("Failed loading project: %w", err)
+		}
+
+		targetProject, err = dbProject.ToAPI(tx)
+		if err != nil {
+			return err
 		}
 
 		return project.CheckClusterTargetRestriction(tx, r, targetProject, targetNode)
