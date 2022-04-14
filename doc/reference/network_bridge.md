@@ -76,7 +76,7 @@ ipv4.dhcp.expiry                     | string    | ipv4 dhcp             | 1h   
 ipv4.dhcp.gateway                    | string    | ipv4 dhcp             | ipv4.address              | Address of the gateway for the subnet
 ipv4.dhcp.ranges                     | string    | ipv4 dhcp             | all addresses             | Comma-separated list of IP ranges to use for DHCP (FIRST-LAST format)
 ipv4.firewall                        | boolean   | ipv4 address          | true                      | Whether to generate filtering firewall rules for this network
-ipv4.nat                             | boolean   | ipv4 address          | false                     | Whether to NAT (defaults to `true` for regular bridges where `ipv4.address` is generated and always defaults to `true` for fan bridges)
+ipv4.nat                             | boolean   | ipv4 address          | false                     | Whether to NAT (if unset when creating the network, set to `true` for regular bridges when `ipv4.address` is generated and always for fan bridges)
 ipv4.nat.address                     | string    | ipv4 address          | -                         | The source address used for outbound traffic from the bridge
 ipv4.nat.order                       | string    | ipv4 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
 ipv4.ovn.ranges                      | string    | -                     | -                         | Comma-separated list of IPv4 ranges to use for child OVN network routers (FIRST-LAST format)
@@ -88,7 +88,7 @@ ipv6.dhcp.expiry                     | string    | ipv6 dhcp             | 1h   
 ipv6.dhcp.ranges                     | string    | ipv6 stateful dhcp    | all addresses             | Comma-separated list of IPv6 ranges to use for DHCP (FIRST-LAST format)
 ipv6.dhcp.stateful                   | boolean   | ipv6 dhcp             | false                     | Whether to allocate addresses using DHCP
 ipv6.firewall                        | boolean   | ipv6 address          | true                      | Whether to generate filtering firewall rules for this network
-ipv6.nat                             | boolean   | ipv6 address          | false                     | Whether to NAT (defaults to `true` if unset and a random `ipv6.address` is generated)
+ipv6.nat                             | boolean   | ipv6 address          | false                     | Whether to NAT (if unset when creating the network, set to `true` when `ipv6.address` is generated)
 ipv6.nat.address                     | string    | ipv6 address          | -                         | The source address used for outbound traffic from the bridge
 ipv6.nat.order                       | string    | ipv6 address          | before                    | Whether to add the required NAT rules before or after any pre-existing rules
 ipv6.ovn.ranges                      | string    | -                     | -                         | Comma-separated list of IPv6 ranges to use for child OVN network routers (FIRST-LAST format)
