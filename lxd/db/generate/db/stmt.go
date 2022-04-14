@@ -510,7 +510,11 @@ func naturalKeySelect(entity string, mapping *Mapping) string {
 // Output a line of code that registers the given statement and declares the
 // associated statement code global variable.
 func (s *Stmt) register(buf *file.Buffer, stmtName, sql string, filters ...string) {
-	buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtName, s.db, sql)
+	if s.db != "" {
+		buf.L("var %s = %s.RegisterStmt(`\n%s\n`)", stmtName, s.db, sql)
+	} else {
+		buf.L("var %s = RegisterStmt(`\n%s\n`)", stmtName, sql)
+	}
 }
 
 // Map of boilerplate statements.
