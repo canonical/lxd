@@ -3828,6 +3828,9 @@ func (d *qemu) IsPrivileged() bool {
 
 // Snapshot takes a new snapshot.
 func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	var err error
+	var monitor *qmp.Monitor
+
 	// Deal with state.
 	if stateful {
 		// Confirm the instance has stateful migration enabled.
@@ -3841,7 +3844,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 		}
 
 		// Connect to the monitor.
-		monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+		monitor, err = qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 		if err != nil {
 			return err
 		}
@@ -3851,15 +3854,29 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 		if err != nil {
 			return err
 		}
-
-		// Resume the VM once the disk state has been saved.
-		defer monitor.Start()
-
-		// Remove the state from the main volume.
-		defer os.Remove(d.StatePath())
 	}
 
-	return d.snapshotCommon(d, name, expiry, stateful)
+	// Create the snapshot.
+	err = d.snapshotCommon(d, name, expiry, stateful)
+	if err != nil {
+		return err
+	}
+
+	// Resume the VM once the disk state has been saved.
+	if stateful {
+		// Remove the state from the main volume.
+		err = os.Remove(d.StatePath())
+		if err != nil {
+			return err
+		}
+
+		err = monitor.Start()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Restore restores an instance snapshot.
