@@ -502,7 +502,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 			return fmt.Errorf("The network is already created")
 		}
 
-		// Check the requested network type matches the type created when adding the local node config.
+		// Check the requested network type matches the type created when adding the local member config.
 		if req.Type != netInfo.Type {
 			return fmt.Errorf("Requested network type %q doesn't match type in existing database record %q", req.Type, netInfo.Type)
 		}
@@ -562,7 +562,7 @@ func networksPostCluster(d *Daemon, projectName string, netInfo *api.Network, re
 		return err
 	}
 
-	// Load the network from the database for the local node.
+	// Load the network from the database for the local member.
 	n, err := network.LoadByName(d.State(), projectName, req.Name)
 	if err != nil {
 		return err
@@ -778,7 +778,7 @@ func doNetworkGet(d *Daemon, r *http.Request, allNodes bool, projectName string,
 	// Get some information.
 	n, _ := network.LoadByName(d.State(), projectName, networkName)
 
-	// Don't allow retrieving info about the local node interfaces when not using default project.
+	// Don't allow retrieving info about the local server interfaces when not using default project.
 	if projectName != project.Default && n == nil {
 		return api.Network{}, api.StatusErrorf(http.StatusNotFound, "Network not found")
 	}

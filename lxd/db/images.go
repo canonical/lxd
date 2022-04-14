@@ -677,7 +677,7 @@ WHERE images.fingerprint = ?
 }
 
 // AddImageToLocalNode creates a new entry in the images_nodes table for
-// tracking that the local node has the given image.
+// tracking that the local member has the given image.
 func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
 	imageID, _, err := c.GetImage(fingerprint, ImageFilter{Project: &project})
 	if err != nil {

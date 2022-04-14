@@ -196,7 +196,7 @@ func (hbState *APIHeartbeat) Send(ctx context.Context, networkCert *shared.CertI
 	}
 
 	for _, node := range nodes {
-		// Special case for the local node - just record the time now.
+		// Special case for the local member - just record the time now.
 		if node.Address == localAddress {
 			hbState.Lock()
 			hbNode := hbState.Members[node.ID]

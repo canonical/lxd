@@ -2627,7 +2627,7 @@ func (n *ovn) Start() error {
 
 	// Handle chassis groups.
 	if chassisEnabled {
-		// Add local node's OVS chassis ID to logical chassis group.
+		// Add local member's OVS chassis ID to logical chassis group.
 		err = n.addChassisGroupEntry()
 		if err != nil {
 			return err

@@ -15,7 +15,7 @@ func TestGetStorageVolumeNodes(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	nodeID1 := int64(1) // This is the default local node
+	nodeID1 := int64(1) // This is the default local member
 
 	nodeID2, err := tx.CreateNode("node2", "1.2.3.4:666")
 	require.NoError(t, err)
