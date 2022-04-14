@@ -70,6 +70,7 @@ type InstanceServer interface {
 	ImageServer
 
 	// Server functions
+	GetMetrics() (metrics string, err error)
 	GetServer() (server *api.Server, ETag string, err error)
 	GetServerResources() (resources *api.Resources, err error)
 	UpdateServer(server api.ServerPut, ETag string) (err error)
