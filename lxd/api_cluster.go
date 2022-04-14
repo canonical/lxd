@@ -851,8 +851,8 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	})
 }
 
-// clusterInitMember initialises storage pools and networks on this node. We pass two LXD client instances, one
-// connected to ourselves (the joining node) and one connected to the target cluster node to join.
+// clusterInitMember initialises storage pools and networks on this member. We pass two LXD client instances, one
+// connected to ourselves (the joining member) and one connected to the target cluster member to join.
 // Returns a revert function that can be used to undo the setup if a subsequent step fails.
 func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberConfig []api.ClusterMemberConfigKey) (func(), error) {
 	data := initDataNode{}
@@ -934,7 +934,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 					},
 				})
 				if err != nil {
-					return nil, fmt.Errorf("Failed to create local node project %q: %w", p.Name, err)
+					return nil, fmt.Errorf("Failed to create local member project %q: %w", p.Name, err)
 				}
 			} else if p.Name != project.Default {
 				// Update project features if not default project.
@@ -943,7 +943,7 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 					Config:      p.Config,
 				}, localProjectEtag)
 				if err != nil {
-					return nil, fmt.Errorf("Failed to update local node project %q: %w", p.Name, err)
+					return nil, fmt.Errorf("Failed to update local member project %q: %w", p.Name, err)
 				}
 			}
 		}

@@ -1793,7 +1793,7 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	revert := revert.New()
 	defer revert.Fail()
 
-	// Perform any pre-update cleanup needed if local node network was already created.
+	// Perform any pre-update cleanup needed if local member network was already created.
 	if len(changedKeys) > 0 {
 		// Define a function which reverts everything.
 		revert.Add(func() {

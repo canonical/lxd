@@ -798,7 +798,7 @@ func (c *Cluster) getStoragePoolConfig(tx *ClusterTx, poolID int64, pool *api.St
 	}, poolID, c.nodeID)
 }
 
-// CreateStoragePool creates new storage pool. Also creates a local node entry with state storagePoolPending.
+// CreateStoragePool creates new storage pool. Also creates a local member entry with state storagePoolPending.
 func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	var id int64
 	err := c.Transaction(func(tx *ClusterTx) error {
