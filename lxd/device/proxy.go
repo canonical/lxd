@@ -429,7 +429,7 @@ func (d *proxy) setupNAT() error {
 		}
 
 		// br_netfilter is enabled, so we need to enable hairpin mode on instance's bridge port otherwise
-		// the instances on the bridge will not be able to connect to the proxy device's listn IP and the
+		// the instances on the bridge will not be able to connect to the proxy device's listen IP and the
 		// NAT rule added by the firewall below to allow instance <-> instance traffic will also not work.
 		link := &ip.Link{Name: hostName}
 		err = link.BridgeLinkSetHairpin(true)

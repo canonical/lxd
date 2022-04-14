@@ -295,7 +295,7 @@ func (b *lxdBackend) Update(clientType request.ClientType, newDesc string, newCo
 		return fmt.Errorf("Pool source cannot be changed when not in pending state")
 	}
 
-	// Apply changes to local node if both global pool and node are not pending and non-user config changed.
+	// Apply changes to local member if both global pool and node are not pending and non-user config changed.
 	// Otherwise just apply changes to DB (below) ready for the actual global create request to be initiated.
 	if len(changedConfig) > 0 && b.Status() != api.StoragePoolStatusPending && b.LocalStatus() != api.StoragePoolStatusPending && !userOnly {
 		err = b.driver.Update(changedConfig)

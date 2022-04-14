@@ -206,7 +206,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 			go func(node db.NodeInfo) {
 				defer wgAction.Done()
 
-				// Special handling for the local node.
+				// Special handling for the local member.
 				if node.Address == localAddress {
 					err := localAction(false)
 					if err != nil {

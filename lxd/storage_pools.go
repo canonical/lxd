@@ -394,7 +394,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 			return fmt.Errorf("The storage pool is already created")
 		}
 
-		// Check the requested pool type matches the type created when adding the local node config.
+		// Check the requested pool type matches the type created when adding the local member config.
 		if req.Driver != pool.Driver {
 			return fmt.Errorf("Requested storage pool driver %q doesn't match driver in existing database record %q", req.Driver, pool.Driver)
 		}

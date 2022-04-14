@@ -257,7 +257,7 @@ SELECT storage_volumes_all.name
 }
 
 // GetLocalStoragePoolVolumeSnapshotsWithType get all snapshots of a storage volume
-// attached to a given storage pool of a given volume type, on the local node.
+// attached to a given storage pool of a given volume type, on the local member.
 // Returns snapshots slice ordered by when they were created, oldest first.
 func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string, volumeName string, volumeType int, poolID int64) ([]StorageVolumeArgs, error) {
 	remoteDrivers := StorageRemoteDriverNames()

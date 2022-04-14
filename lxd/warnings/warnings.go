@@ -56,8 +56,8 @@ func ResolveWarningsByLocalNodeOlderThan(cluster *db.Cluster, date time.Time) er
 	return nil
 }
 
-// ResolveWarningsByLocalNodeAndType resolves warnings with the local node and type code.
-// Returns error if no local node name.
+// ResolveWarningsByLocalNodeAndType resolves warnings with the local member and type code.
+// Returns error if no local member name.
 func ResolveWarningsByLocalNodeAndType(cluster *db.Cluster, typeCode db.WarningType) error {
 	var err error
 	var localName string

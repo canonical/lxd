@@ -176,7 +176,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 
 	node := nodes[0]
 	if node.ID == localNodeID {
-		// Use local cluster member if volume belongs to this local node.
+		// Use local cluster member if volume belongs to this local member.
 		return nil, nil
 	}
 

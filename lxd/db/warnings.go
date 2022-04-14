@@ -71,7 +71,7 @@ INSERT INTO warnings (node_id, project_id, entity_type_code, entity_id, uuid, ty
   VALUES ((SELECT nodes.id FROM nodes WHERE nodes.name = ?), (SELECT projects.id FROM projects WHERE projects.name = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
-// UpsertWarningLocalNode creates or updates a warning for the local node. Returns error if no local node name.
+// UpsertWarningLocalNode creates or updates a warning for the local member. Returns error if no local member name.
 func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int, entityID int, typeCode WarningType, message string) error {
 	var err error
 	var localName string
