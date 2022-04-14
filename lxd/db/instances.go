@@ -246,7 +246,7 @@ SELECT nodes.id, nodes.address
 // cluster node address. Each node address has a slice of instances, where each instance is represented
 // as an array of length 2 in which element 0 is the project and element 1 is the instance name.
 //
-// The node address of instances running on the local node is set to the empty
+// The node address of instances running on the local member is set to the empty
 // string, to distinguish it from remote nodes.
 //
 // Instances whose node is down are added to the special address "0.0.0.0".
@@ -520,7 +520,7 @@ func (c *ClusterTx) UpdateInstanceNode(project, oldName string, newName string, 
 	return nil
 }
 
-// GetLocalInstancesInProject retuurns all instances of the given type on the local node within the given project.
+// GetLocalInstancesInProject retuurns all instances of the given type on the local member in the given project.
 // If projectName is empty then all instances in all projects are returned.
 func (c *ClusterTx) GetLocalInstancesInProject(filter InstanceFilter) ([]Instance, error) {
 	node, err := c.GetLocalNodeName()

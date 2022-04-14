@@ -729,12 +729,12 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 		return nil, nil
 	}
 
-	// Get local node name so we can check if the volume is attached to a remote node.
+	// Get local member name so we can check if the volume is attached to a remote node.
 	var localNode string
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName()
 		if err != nil {
-			return fmt.Errorf("Failed to get local node name: %w", err)
+			return fmt.Errorf("Failed to get local member name: %w", err)
 		}
 
 		return nil

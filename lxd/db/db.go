@@ -262,10 +262,10 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 			return fmt.Errorf("No node registered with address %s", address)
 		}
 
-		// Set the local node ID
+		// Set the local member ID
 		cluster.NodeID(nodeID)
 
-		// Delete any operation tied to this node
+		// Delete any operation tied to this member
 		err = tx.DeleteOperations(nodeID)
 		if err != nil {
 			return err
