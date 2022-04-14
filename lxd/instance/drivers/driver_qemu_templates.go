@@ -40,10 +40,6 @@ value = "1"
 
 [boot-opts]
 strict = "on"
-
-# Console
-[chardev "console"]
-backend = "pty"
 `))
 
 var qemuMemory = template.Must(template.New("qemuMemory").Parse(`
@@ -311,6 +307,15 @@ wait = "off"
 [mon]
 chardev = "monitor"
 mode = "control"
+`))
+
+var qemuConsole = template.Must(template.New("qemuConsole").Parse(`
+# Console
+[chardev "console"]
+backend = "socket"
+path = "{{.path}}"
+server = "on"
+wait = "off"
 `))
 
 var qemuDriveFirmware = template.Must(template.New("qemuDriveFirmware").Parse(`
