@@ -8,18 +8,18 @@ import (
 
 //go:generate -command mapper lxd-generate db mapper -t operations.mapper.go
 //go:generate mapper reset
-//go:generate mapper stmt -p db -e operation objects
-//go:generate mapper stmt -p db -e operation objects-by-NodeID
-//go:generate mapper stmt -p db -e operation objects-by-ID
-//go:generate mapper stmt -p db -e operation objects-by-UUID
-//go:generate mapper stmt -p db -e operation create-or-replace struct=Operation
-//go:generate mapper stmt -p db -e operation delete-by-UUID
-//go:generate mapper stmt -p db -e operation delete-by-NodeID
+//go:generate mapper stmt -d cluster -p db -e operation objects
+//go:generate mapper stmt -d cluster -p db -e operation objects-by-NodeID
+//go:generate mapper stmt -d cluster -p db -e operation objects-by-ID
+//go:generate mapper stmt -d cluster -p db -e operation objects-by-UUID
+//go:generate mapper stmt -d cluster -p db -e operation create-or-replace struct=Operation
+//go:generate mapper stmt -d cluster -p db -e operation delete-by-UUID
+//go:generate mapper stmt -d cluster -p db -e operation delete-by-NodeID
 
-//go:generate mapper method -p db -e operation GetMany
-//go:generate mapper method -p db -e operation CreateOrReplace struct=Operation
-//go:generate mapper method -p db -e operation DeleteOne-by-UUID
-//go:generate mapper method -p db -e operation DeleteMany-by-NodeID
+//go:generate mapper method -d cluster -p db -e operation GetMany
+//go:generate mapper method -d cluster -p db -e operation CreateOrReplace struct=Operation
+//go:generate mapper method -d cluster -p db -e operation DeleteOne-by-UUID
+//go:generate mapper method -d cluster -p db -e operation DeleteMany-by-NodeID
 
 // Operation holds information about a single LXD operation running on a node
 // in the cluster.
