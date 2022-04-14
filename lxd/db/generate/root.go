@@ -16,6 +16,7 @@ used in LXD's source code.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("Not implemented")
 		},
+		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	}
 	cmd.AddCommand(newDb())
 
