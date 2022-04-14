@@ -916,36 +916,19 @@ func clusterInitMember(d lxd.InstanceServer, client lxd.InstanceServer, memberCo
 			continue
 		}
 
-		// Fetch all networks currently defined in the cluster for the project.
+		// Request that the project be created first before the project specific networks.
+		data.Projects = append(data.Projects, api.ProjectsPost{
+			Name: p.Name,
+			ProjectPut: api.ProjectPut{
+				Description: p.Description,
+				Config:      p.Config,
+			},
+		})
+
+		// Fetch all project specific networks currently defined in the cluster for the project.
 		networks, err := client.UseProject(p.Name).GetNetworks()
 		if err != nil {
 			return nil, fmt.Errorf("Failed to fetch network information about cluster networks in project %q: %w", p.Name, err)
-		}
-
-		if len(networks) > 0 {
-			// Ensure project exists locally and has same config as cluster project.
-			_, localProjectEtag, err := d.GetProject(p.Name)
-			if err != nil {
-				err = d.CreateProject(api.ProjectsPost{
-					Name: p.Name,
-					ProjectPut: api.ProjectPut{
-						Description: p.Description,
-						Config:      p.Config,
-					},
-				})
-				if err != nil {
-					return nil, fmt.Errorf("Failed to create local member project %q: %w", p.Name, err)
-				}
-			} else if p.Name != project.Default {
-				// Update project features if not default project.
-				err = d.UpdateProject(p.Name, api.ProjectPut{
-					Description: p.Description,
-					Config:      p.Config,
-				}, localProjectEtag)
-				if err != nil {
-					return nil, fmt.Errorf("Failed to update local member project %q: %w", p.Name, err)
-				}
-			}
 		}
 
 		// Merge the returned networks configs with the node-specific configs provided by the user.
