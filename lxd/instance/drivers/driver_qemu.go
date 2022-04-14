@@ -23,7 +23,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/flosch/pongo2"
@@ -95,9 +94,6 @@ const qemuBlockDevIDPrefix = "lxd_"
 const qemuSparseUSBPorts = 8
 
 var errQemuAgentOffline = fmt.Errorf("LXD VM agent isn't currently running")
-
-var vmConsole = map[int]bool{}
-var vmConsoleLock sync.Mutex
 
 type monitorHook func(m *qmp.Monitor) error
 
@@ -2025,6 +2021,10 @@ func (d *qemu) nvramPath() string {
 	return filepath.Join(d.Path(), "qemu.nvram")
 }
 
+func (d *qemu) consolePath() string {
+	return filepath.Join(d.LogPath(), "qemu.console")
+}
+
 func (d *qemu) spicePath() string {
 	return filepath.Join(d.LogPath(), "qemu.spice")
 }
@@ -2503,8 +2503,17 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 		}
 	}
 
+	// QMP socket.
 	err = qemuControlSocket.Execute(sb, map[string]any{
 		"path": d.monitorPath(),
+	})
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Console output.
+	err = qemuConsole.Execute(sb, map[string]any{
+		"path": d.consolePath(),
 	})
 	if err != nil {
 		return "", nil, err
@@ -5380,63 +5389,23 @@ func (d *qemu) FileSFTP() (*sftp.Client, error) {
 
 // Console gets access to the instance's console.
 func (d *qemu) Console(protocol string) (*os.File, chan error, error) {
+	var path string
 	switch protocol {
 	case instance.ConsoleTypeConsole:
-		return d.console()
+		path = d.consolePath()
 	case instance.ConsoleTypeVGA:
-		return d.vga()
+		path = d.spicePath()
 	default:
 		return nil, nil, fmt.Errorf("Unknown protocol %q", protocol)
 	}
-}
 
-func (d *qemu) console() (*os.File, chan error, error) {
+	// Disconnection notification.
 	chDisconnect := make(chan error, 1)
 
-	// Avoid duplicate connects.
-	vmConsoleLock.Lock()
-	if vmConsole[d.id] {
-		vmConsoleLock.Unlock()
-		return nil, nil, fmt.Errorf("There is already an active console for this instance")
-	}
-	vmConsoleLock.Unlock()
-
-	// Connect to the monitor.
-	monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+	// Open the console socket.
+	conn, err := net.Dial("unix", path)
 	if err != nil {
-		return nil, nil, err // The VM isn't running as no monitor socket available.
-	}
-
-	// Get the console.
-	console, err := monitor.Console("console")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Record the console is in use.
-	vmConsoleLock.Lock()
-	vmConsole[d.id] = true
-	vmConsoleLock.Unlock()
-
-	// Handle console disconnection.
-	go func() {
-		<-chDisconnect
-
-		vmConsoleLock.Lock()
-		delete(vmConsole, d.id)
-		vmConsoleLock.Unlock()
-	}()
-
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeConsole}))
-
-	return console, chDisconnect, nil
-}
-
-func (d *qemu) vga() (*os.File, chan error, error) {
-	// Open the spice socket
-	conn, err := net.Dial("unix", d.spicePath())
-	if err != nil {
-		return nil, nil, fmt.Errorf("Connect to SPICE socket %q: %w", d.spicePath(), err)
+		return nil, nil, fmt.Errorf("Connect to console socket %q: %w", path, err)
 	}
 
 	file, err := (conn.(*net.UnixConn)).File()
@@ -5445,9 +5414,9 @@ func (d *qemu) vga() (*os.File, chan error, error) {
 	}
 	conn.Close()
 
-	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": instance.ConsoleTypeVGA}))
+	d.state.Events.SendLifecycle(d.project, lifecycle.InstanceConsole.Event(d, logger.Ctx{"type": protocol}))
 
-	return file, nil, nil
+	return file, chDisconnect, nil
 }
 
 // Exec a command inside the instance.
