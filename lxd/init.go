@@ -151,6 +151,76 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 	}
 
+	// Apply network configuration function.
+	applyNetwork := func(network internalClusterPostNetwork) error {
+		_, _, err := d.UseProject(network.Project).GetNetwork(network.Name)
+		if err != nil {
+			// Create the network if doesn't exist.
+			err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
+			if err != nil {
+				return fmt.Errorf("Failed to create local member network %q in project %q: %w", network.Name, network.Project, err)
+			}
+
+			// Setup reverter.
+			revert.Add(func() { d.UseProject(network.Project).DeleteNetwork(network.Name) })
+		} else {
+			// Get the current network.
+			currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
+			if err != nil {
+				return fmt.Errorf("Failed to retrieve current network %q in project %q: %w", network.Name, network.Project, err)
+			}
+
+			// Prepare the update.
+			newNetwork := api.NetworkPut{}
+			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)
+			if err != nil {
+				return fmt.Errorf("Failed to copy configuration of network %q in project %q: %w", network.Name, network.Project, err)
+			}
+
+			// Description override.
+			if network.Description != "" {
+				newNetwork.Description = network.Description
+			}
+
+			// Config overrides.
+			for k, v := range network.Config {
+				newNetwork.Config[k] = fmt.Sprintf("%v", v)
+			}
+
+			// Apply it.
+			err = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
+			if err != nil {
+				return fmt.Errorf("Failed to update local member network %q in project %q: %w", network.Name, network.Project, err)
+			}
+
+			// Setup reverter.
+			revert.Add(func() {
+				d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
+			})
+		}
+
+		return nil
+	}
+
+	// Apply networks in the default project before other projects config applied (so that if the projects
+	// depend on a network in the default project they can have their config applied successfully).
+	for i := range config.Networks {
+		// Populate default project if not specified for backwards compatbility with earlier
+		// preseed dump files.
+		if config.Networks[i].Project == "" {
+			config.Networks[i].Project = project.Default
+		}
+
+		if config.Networks[i].Project != project.Default {
+			continue
+		}
+
+		err := applyNetwork(config.Networks[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Apply project configuration.
 	if config.Projects != nil && len(config.Projects) > 0 {
 		// Get the list of projects.
@@ -228,81 +298,15 @@ func initDataNodeApply(d lxd.InstanceServer, config initDataNode) (func(), error
 		}
 	}
 
-	// Apply network configuration.
-	if config.Networks != nil && len(config.Networks) > 0 {
-		// Network creator.
-		createNetwork := func(network internalClusterPostNetwork) error {
-			// Create the network if doesn't exist.
-			err := d.UseProject(network.Project).CreateNetwork(network.NetworksPost)
-			if err != nil {
-				return fmt.Errorf("Failed to create local member network %q in project %q: %w", network.Name, network.Project, err)
-			}
-
-			// Setup reverter.
-			revert.Add(func() { d.UseProject(network.Project).DeleteNetwork(network.Name) })
-			return nil
+	// Apply networks in non-default projects after project config applied (so that their projects exist).
+	for i := range config.Networks {
+		if config.Networks[i].Project == project.Default {
+			continue
 		}
 
-		// Network updater.
-		updateNetwork := func(network internalClusterPostNetwork) error {
-			// Get the current network.
-			currentNetwork, etag, err := d.UseProject(network.Project).GetNetwork(network.Name)
-			if err != nil {
-				return fmt.Errorf("Failed to retrieve current network %q in project %q: %w", network.Name, network.Project, err)
-			}
-
-			// Prepare the update.
-			newNetwork := api.NetworkPut{}
-			err = shared.DeepCopy(currentNetwork.Writable(), &newNetwork)
-			if err != nil {
-				return fmt.Errorf("Failed to copy configuration of network %q in project %q: %w", network.Name, network.Project, err)
-			}
-
-			// Description override.
-			if network.Description != "" {
-				newNetwork.Description = network.Description
-			}
-
-			// Config overrides.
-			for k, v := range network.Config {
-				newNetwork.Config[k] = fmt.Sprintf("%v", v)
-			}
-
-			// Apply it.
-			err = d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, newNetwork, etag)
-			if err != nil {
-				return fmt.Errorf("Failed to update local member network %q in project %q: %w", network.Name, network.Project, err)
-			}
-
-			// Setup reverter.
-			revert.Add(func() {
-				d.UseProject(network.Project).UpdateNetwork(currentNetwork.Name, currentNetwork.Writable(), "")
-			})
-
-			return nil
-		}
-
-		for _, network := range config.Networks {
-			// Populate default project if not specified for backwards compatbility with earlier
-			// preseed dump files.
-			if network.Project == "" {
-				network.Project = project.Default
-			}
-
-			_, _, err := d.UseProject(network.Project).GetNetwork(network.Name)
-			if err != nil {
-				// New network.
-				err = createNetwork(network)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				// Existing network.
-				err = updateNetwork(network)
-				if err != nil {
-					return nil, err
-				}
-			}
+		err := applyNetwork(config.Networks[i])
+		if err != nil {
+			return nil, err
 		}
 	}
 
