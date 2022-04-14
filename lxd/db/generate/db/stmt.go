@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"go/ast"
+	"os"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db/generate/file"
@@ -11,29 +12,32 @@ import (
 
 // Stmt generates a particular database query statement.
 type Stmt struct {
-	db       string                  // Target database (cluster or node)
-	pkg      string                  // Package where the entity struct is declared.
-	entity   string                  // Name of the database entity
-	kind     string                  // Kind of statement to generate
-	config   map[string]string       // Configuration parameters
-	packages map[string]*ast.Package // Packages to perform for struct declaration lookups
+	db     string            // Target database (cluster or node)
+	entity string            // Name of the database entity
+	kind   string            // Kind of statement to generate
+	config map[string]string // Configuration parameters
+	pkg    *ast.Package      // Package to perform for struct declaration lookups
 }
 
 // NewStmt return a new statement code snippet for running the given kind of
 // query against the given database entity.
 func NewStmt(database, pkg, entity, kind string, config map[string]string) (*Stmt, error) {
-	packages, err := Packages()
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	parsedPkg, err := ParsePackage(pwd)
 	if err != nil {
 		return nil, err
 	}
 
 	stmt := &Stmt{
-		db:       database,
-		pkg:      pkg,
-		entity:   entity,
-		kind:     kind,
-		config:   config,
-		packages: packages,
+		db:     database,
+		entity: entity,
+		kind:   kind,
+		config: config,
+		pkg:    parsedPkg,
 	}
 
 	return stmt, nil
@@ -69,7 +73,7 @@ func (s *Stmt) GenerateSignature(buf *file.Buffer) error {
 }
 
 func (s *Stmt) objects(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
+	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -218,12 +222,9 @@ func (s *Stmt) objects(buf *file.Buffer) error {
 
 func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 	// Support using a different structure or package to pass arguments to Create.
-	entityCreate, ok := s.config["struct"]
-	if !ok {
-		entityCreate = entityPost(s.entity)
-	}
+	entityCreate := lex.Camel(s.entity)
 
-	mapping, err := Parse(s.packages[s.pkg], entityCreate, s.kind)
+	mapping, err := Parse(s.pkg, entityCreate, s.kind)
 	if err != nil {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
@@ -297,7 +298,7 @@ func (s *Stmt) create(buf *file.Buffer, replace bool) error {
 }
 
 func (s *Stmt) id(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
+	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
@@ -309,7 +310,7 @@ func (s *Stmt) id(buf *file.Buffer) error {
 }
 
 func (s *Stmt) rename(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
+	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}
@@ -326,12 +327,9 @@ func (s *Stmt) rename(buf *file.Buffer) error {
 
 func (s *Stmt) update(buf *file.Buffer) error {
 	// Support using a different structure or package to pass arguments to Create.
-	entityUpdate, ok := s.config["struct"]
-	if !ok {
-		entityUpdate = entityPut(s.entity)
-	}
+	entityUpdate := lex.Camel(s.entity)
 
-	mapping, err := Parse(s.packages[s.pkg], entityUpdate, s.kind)
+	mapping, err := Parse(s.pkg, entityUpdate, s.kind)
 	if err != nil {
 		return fmt.Errorf("Parse entity struct: %w", err)
 	}
@@ -361,7 +359,7 @@ func (s *Stmt) update(buf *file.Buffer) error {
 }
 
 func (s *Stmt) delete(buf *file.Buffer) error {
-	mapping, err := Parse(s.packages[s.pkg], lex.Camel(s.entity), s.kind)
+	mapping, err := Parse(s.pkg, lex.Camel(s.entity), s.kind)
 	if err != nil {
 		return err
 	}

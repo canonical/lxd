@@ -34,6 +34,17 @@ func Packages() (map[string]*ast.Package, error) {
 	return packages, nil
 }
 
+// ParsePackage returns the the AST package in which to search for structs.
+func ParsePackage(pkgPath string) (*ast.Package, error) {
+	pkg, err := lex.Parse(pkgPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse package path %q: %w", pkgPath, err)
+	}
+
+	return pkg, nil
+
+}
+
 var defaultPackages = []string{
 	"shared/api",
 	"lxd/db",
