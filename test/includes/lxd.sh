@@ -256,9 +256,9 @@ shutdown_lxd() {
     # shellcheck disable=2034
     LXD_DIR=${daemon_dir}
     daemon_pid=$(cat "${daemon_dir}/lxd.pid")
-    echo "==> Killing LXD at ${daemon_dir} (${daemon_pid})"
+    echo "==> Shutting down LXD at ${daemon_dir} (${daemon_pid})"
 
-    # Kill the daemon
+    # Shutting down the daemon
     lxd shutdown || kill -9 "${daemon_pid}" 2>/dev/null || true
 
     # Wait for any cleanup activity that might be happening right
