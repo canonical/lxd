@@ -387,7 +387,7 @@ INSERT INTO instances (id, node_id, name, architecture, type, project_id, descri
 `)
 	require.NoError(t, err)
 
-	// The local node is returned despite it has more containers.
+	// The local member is returned despite it has more containers.
 	name, err := tx.GetNodeWithLeastInstances([]int{localArch}, -1, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "none", name)

@@ -17,7 +17,7 @@ func TestGetInstanceSnapshots(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	nodeID1 := int64(1) // This is the default local node
+	nodeID1 := int64(1) // This is the default local member
 
 	addContainer(t, tx, nodeID1, "c1")
 	addContainer(t, tx, nodeID1, "c2")
@@ -65,7 +65,7 @@ func TestGetInstanceSnapshots_FilterByInstance(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	nodeID1 := int64(1) // This is the default local node
+	nodeID1 := int64(1) // This is the default local member
 
 	addContainer(t, tx, nodeID1, "c1")
 	addContainer(t, tx, nodeID1, "c2")

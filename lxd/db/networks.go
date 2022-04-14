@@ -16,8 +16,8 @@ import (
 )
 
 // GetNetworksLocalConfig returns a map associating each network name to its
-// node-specific config values on the local node (i.e. the ones where node_id
-// equals the ID of the local node).
+// node-specific config values on the local member (i.e. the ones where node_id
+// equals the ID of the local member).
 func (c *ClusterTx) GetNetworksLocalConfig() (map[string]map[string]string, error) {
 	names, err := query.SelectStrings(c.tx, "SELECT name FROM networks")
 	if err != nil {

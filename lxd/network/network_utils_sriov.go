@@ -30,7 +30,7 @@ var SRIOVVirtualFunctionMutex sync.Mutex
 var sysClassNet = "/sys/class/net"
 
 // SRIOVGetHostDevicesInUse returns a map of host device names that have been used by devices in other instances
-// and networks on the local node. Used when selecting physical and SR-IOV VF devices to avoid conflicts.
+// and networks on the local member. Used when selecting physical and SR-IOV VF devices to avoid conflicts.
 func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	sriovReservedDevicesMutex.Lock()
 	defer sriovReservedDevicesMutex.Unlock()
@@ -42,7 +42,7 @@ func SRIOVGetHostDevicesInUse(s *state.State) (map[string]struct{}, error) {
 	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName()
 		if err != nil {
-			return fmt.Errorf("Failed to get local node name: %w", err)
+			return fmt.Errorf("Failed to get local member name: %w", err)
 		}
 
 		// Get all managed networks across all projects.

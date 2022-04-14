@@ -961,6 +961,14 @@ test_clustering_network() {
   # Add a newline at the end of each line. YAML as weird rules..
   cert=$(sed ':a;N;$!ba;s/\n/\n\n/g' "${LXD_ONE_DIR}/cluster.crt")
 
+  # Create a project with restricted.networks.subnets set to check the default networks are created before projects
+  # when a member joins the cluster.
+  LXD_DIR="${LXD_ONE_DIR}" lxc network set "${bridge}" ipv4.routes=192.0.2.0/24
+  LXD_DIR="${LXD_ONE_DIR}" lxc project create foo \
+    -c restricted=true \
+    -c features.networks=true \
+    -c restricted.networks.subnets="${bridge}":192.0.2.0/24
+
   # Spawn a second node
   setup_clustering_netns 2
   LXD_TWO_DIR=$(mktemp -d -p "${TEST_DIR}" XXX)
@@ -1021,7 +1029,7 @@ test_clustering_network() {
   ! LXD_DIR="${LXD_ONE_DIR}" lxc network create "${net}" || false
   LXD_DIR="${LXD_ONE_DIR}" lxc network show "${net}" | grep status: | grep -q Errored # Check has errored status.
 
-  # Check each node status (expect both node1 and node2 to be pending as local node running created failed first).
+  # Check each node status (expect both node1 and node2 to be pending as local member running created failed first).
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node1'" | grep "| node1 | 0     |"
   LXD_DIR="${LXD_ONE_DIR}" lxd sql global "SELECT nodes.name,networks_nodes.state FROM nodes JOIN networks_nodes ON networks_nodes.node_id = nodes.id JOIN networks ON networks.id = networks_nodes.network_id WHERE networks.name = '${net}' AND nodes.name = 'node2'" | grep "| node2 | 0     |"
 
@@ -1115,6 +1123,8 @@ test_clustering_network() {
   LXD_DIR="${LXD_ONE_DIR}" lxc network delete "${net}"
   ! nsenter -n -t "${LXD_PID1}" -- ip link show "${net}" || false # Check bridge is removed.
   ! nsenter -n -t "${LXD_PID2}" -- ip link show "${net}" || false # Check bridge is removed.
+
+  LXD_DIR="${LXD_ONE_DIR}" lxc project delete foo
 
   LXD_DIR="${LXD_TWO_DIR}" lxd shutdown
   LXD_DIR="${LXD_ONE_DIR}" lxd shutdown

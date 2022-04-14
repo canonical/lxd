@@ -6,7 +6,7 @@
 
 This will create a standalone OVN network that is connected to the parent network lxdbr0 for outbound connectivity.
 
-Install the OVN tools and configure the OVN integration bridge on the local node:
+Install the OVN tools and configure the OVN integration bridge on the local server:
 
 ```
 sudo apt install ovn-host ovn-central

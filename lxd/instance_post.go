@@ -534,12 +534,12 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 
 		sourceAddress, err = tx.GetLocalNodeAddress()
 		if err != nil {
-			return fmt.Errorf("Failed to get local node address: %w", err)
+			return fmt.Errorf("Failed to get local member address: %w", err)
 		}
 
 		node, err := tx.GetNodeByName(newNode)
 		if err != nil {
-			return fmt.Errorf("Failed to get new node address: %w", err)
+			return fmt.Errorf("Failed to get new member address: %w", err)
 		}
 		targetAddress = node.Address
 

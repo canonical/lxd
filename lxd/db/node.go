@@ -355,7 +355,7 @@ func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 		}
 	}
 	if version[0] == 0 || version[1] == 0 {
-		return false, fmt.Errorf("Inconsistency: local node not found")
+		return false, fmt.Errorf("Inconsistency: local member not found")
 	}
 
 	// Check if any of the other nodes is greater than us.
@@ -365,7 +365,7 @@ func (c *ClusterTx) NodeIsOutdated() (bool, error) {
 		}
 		n, err := util.CompareVersions(node.Version(), version)
 		if err != nil {
-			return false, fmt.Errorf("Failed to compare with version of node %s: %w", node.Name, err)
+			return false, fmt.Errorf("Failed to compare with version of member %s: %w", node.Name, err)
 		}
 
 		if n == 1 {
@@ -1205,7 +1205,7 @@ func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
 	return heartbeat.Before(offlineTime) || heartbeat.Equal(offlineTime)
 }
 
-// LocalNodeIsEvacuated returns whether the local node is in the evacuated state.
+// LocalNodeIsEvacuated returns whether the local member is in the evacuated state.
 func (c *Cluster) LocalNodeIsEvacuated() bool {
 	isEvacuated := false
 
