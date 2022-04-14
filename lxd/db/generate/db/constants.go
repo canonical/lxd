@@ -4,7 +4,6 @@ package db
 var Imports = []string{
 	"database/sql",
 	"fmt",
-	"github.com/lxc/lxd/lxd/db/cluster",
 	"github.com/lxc/lxd/lxd/db/query",
 	"github.com/lxc/lxd/shared/api",
 }

@@ -107,7 +107,7 @@ func newDbMapperStmt() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&target, "target", "t", "-", "target source file to generate")
-	flags.StringVarP(&database, "database", "d", "cluster", "target database")
+	flags.StringVarP(&database, "database", "d", "", "target database")
 	flags.StringVarP(&pkg, "package", "p", "api", "Go package where the entity struct is declared")
 	flags.StringVarP(&entity, "entity", "e", "", "database entity to generate the statement for")
 
@@ -157,7 +157,7 @@ func newDbMapperMethod() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&target, "target", "t", "-", "target source file to generate")
-	flags.StringVarP(&database, "database", "d", "cluster", "target database")
+	flags.StringVarP(&database, "database", "d", "", "target database")
 	flags.StringVarP(&pkg, "package", "p", "api", "Go package where the entity struct is declared")
 	flags.StringVarP(&entity, "entity", "e", "", "database entity to generate the method for")
 
