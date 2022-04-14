@@ -8,6 +8,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/instance"
+	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/response"
 	storagePools "github.com/lxc/lxd/lxd/storage"
@@ -109,6 +110,14 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 			return response.SmartError(err)
 		}
 	} else {
+		resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, volumeName, instancetype.Any)
+		if err != nil {
+			return response.SmartError(err)
+		}
+		if resp != nil {
+			return resp
+		}
+
 		// Instance volumes.
 		inst, err := instance.LoadByProjectAndName(d.State(), projectName, volumeName)
 		if err != nil {
