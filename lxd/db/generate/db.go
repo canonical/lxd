@@ -119,6 +119,7 @@ func newDbMapperMethod() *cobra.Command {
 	var database string
 	var pkg string
 	var entity string
+	var transaction string
 
 	cmd := &cobra.Command{
 		Use:   "method [kind] [param1=value1 ... paramN=valueN]",
@@ -139,7 +140,7 @@ func newDbMapperMethod() *cobra.Command {
 			// FIXME: Transition every entity to using V2, and then replace V1 with it.
 			var method file.Snippet
 			if config["version"] != "" {
-				method, err = db.NewMethodV2(database, pkg, entity, kind, config)
+				method, err = db.NewMethodV2(database, pkg, entity, kind, config, transaction)
 				if err != nil {
 					return err
 				}
@@ -160,6 +161,7 @@ func newDbMapperMethod() *cobra.Command {
 	flags.StringVarP(&database, "database", "d", "cluster", "target database")
 	flags.StringVarP(&pkg, "package", "p", "api", "Go package where the entity struct is declared")
 	flags.StringVarP(&entity, "entity", "e", "", "database entity to generate the method for")
+	flags.StringVarP(&transaction, "tx", "", "", "custom transaction argument in lieu of receiver")
 
 	return cmd
 }
