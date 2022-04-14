@@ -14,25 +14,25 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e profile objects
-//go:generate mapper stmt -p db -e profile objects-by-ID
-//go:generate mapper stmt -p db -e profile objects-by-Project
-//go:generate mapper stmt -p db -e profile objects-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile id
-//go:generate mapper stmt -p db -e profile create struct=Profile
-//go:generate mapper stmt -p db -e profile rename
-//go:generate mapper stmt -p db -e profile delete-by-Project-and-Name
-//go:generate mapper stmt -p db -e profile update struct=Profile
+//go:generate mapper stmt -d cluster -p db -e profile objects
+//go:generate mapper stmt -d cluster -p db -e profile objects-by-ID
+//go:generate mapper stmt -d cluster -p db -e profile objects-by-Project
+//go:generate mapper stmt -d cluster -p db -e profile objects-by-Project-and-Name
+//go:generate mapper stmt -d cluster -p db -e profile id
+//go:generate mapper stmt -d cluster -p db -e profile create struct=Profile
+//go:generate mapper stmt -d cluster -p db -e profile rename
+//go:generate mapper stmt -d cluster -p db -e profile delete-by-Project-and-Name
+//go:generate mapper stmt -d cluster -p db -e profile update struct=Profile
 //
-//go:generate mapper method -p db -e profile URIs
-//go:generate mapper method -p db -e profile GetMany
-//go:generate mapper method -p db -e profile GetOne
-//go:generate mapper method -p db -e profile Exists struct=Profile
-//go:generate mapper method -p db -e profile ID struct=Profile
-//go:generate mapper method -p db -e profile Create struct=Profile
-//go:generate mapper method -p db -e profile Rename
-//go:generate mapper method -p db -e profile DeleteOne-by-Project-and-Name
-//go:generate mapper method -p db -e profile Update struct=Profile
+//go:generate mapper method -d cluster -p db -e profile URIs
+//go:generate mapper method -d cluster -p db -e profile GetMany
+//go:generate mapper method -d cluster -p db -e profile GetOne
+//go:generate mapper method -d cluster -p db -e profile Exists struct=Profile
+//go:generate mapper method -d cluster -p db -e profile ID struct=Profile
+//go:generate mapper method -d cluster -p db -e profile Create struct=Profile
+//go:generate mapper method -d cluster -p db -e profile Rename
+//go:generate mapper method -d cluster -p db -e profile DeleteOne-by-Project-and-Name
+//go:generate mapper method -d cluster -p db -e profile Update struct=Profile
 
 // Profile is a value object holding db-related details about a profile.
 type Profile struct {

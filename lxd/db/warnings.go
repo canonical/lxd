@@ -19,23 +19,23 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t warnings.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e warning objects
-//go:generate mapper stmt -p db -e warning objects-by-UUID
-//go:generate mapper stmt -p db -e warning objects-by-Project
-//go:generate mapper stmt -p db -e warning objects-by-Status
-//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode
-//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode-and-Project
-//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityTypeCode-and-EntityID
-//go:generate mapper stmt -p db -e warning delete-by-UUID
-//go:generate mapper stmt -p db -e warning delete-by-EntityTypeCode-and-EntityID
-//go:generate mapper stmt -p db -e warning id
+//go:generate mapper stmt -d cluster -p db -e warning objects
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-UUID
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Project
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Status
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode-and-Project
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityTypeCode-and-EntityID
+//go:generate mapper stmt -d cluster -p db -e warning delete-by-UUID
+//go:generate mapper stmt -d cluster -p db -e warning delete-by-EntityTypeCode-and-EntityID
+//go:generate mapper stmt -d cluster -p db -e warning id
 //
-//go:generate mapper method -p db -e warning GetMany
-//go:generate mapper method -p db -e warning GetOne-by-UUID
-//go:generate mapper method -p db -e warning DeleteOne-by-UUID
-//go:generate mapper method -p db -e warning DeleteMany-by-EntityTypeCode-and-EntityID
-//go:generate mapper method -p db -e warning ID struct=Warning
-//go:generate mapper method -p db -e warning Exists struct=Warning
+//go:generate mapper method -d cluster -p db -e warning GetMany
+//go:generate mapper method -d cluster -p db -e warning GetOne-by-UUID
+//go:generate mapper method -d cluster -p db -e warning DeleteOne-by-UUID
+//go:generate mapper method -d cluster -p db -e warning DeleteMany-by-EntityTypeCode-and-EntityID
+//go:generate mapper method -d cluster -p db -e warning ID struct=Warning
+//go:generate mapper method -d cluster -p db -e warning Exists struct=Warning
 
 // Warning is a value object holding db-related details about a warning.
 type Warning struct {

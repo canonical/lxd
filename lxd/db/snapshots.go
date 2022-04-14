@@ -15,21 +15,21 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t snapshots.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e instance_snapshot objects
-//go:generate mapper stmt -p db -e instance_snapshot objects-by-Project-and-Instance
-//go:generate mapper stmt -p db -e instance_snapshot objects-by-Project-and-Instance-and-Name
-//go:generate mapper stmt -p db -e instance_snapshot id
-//go:generate mapper stmt -p db -e instance_snapshot create struct=InstanceSnapshot
-//go:generate mapper stmt -p db -e instance_snapshot rename
-//go:generate mapper stmt -p db -e instance_snapshot delete-by-Project-and-Instance-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot objects
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-Project-and-Instance
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-Project-and-Instance-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot id
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot create struct=InstanceSnapshot
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot rename
+//go:generate mapper stmt -d cluster -p db -e instance_snapshot delete-by-Project-and-Instance-and-Name
 //
-//go:generate mapper method -p db -e instance_snapshot GetMany
-//go:generate mapper method -p db -e instance_snapshot GetOne
-//go:generate mapper method -p db -e instance_snapshot ID struct=InstanceSnapshot
-//go:generate mapper method -p db -e instance_snapshot Exists struct=InstanceSnapshot
-//go:generate mapper method -p db -e instance_snapshot Create struct=InstanceSnapshot
-//go:generate mapper method -p db -e instance_snapshot Rename
-//go:generate mapper method -p db -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
+//go:generate mapper method -d cluster -p db -e instance_snapshot GetMany
+//go:generate mapper method -d cluster -p db -e instance_snapshot GetOne
+//go:generate mapper method -d cluster -p db -e instance_snapshot ID struct=InstanceSnapshot
+//go:generate mapper method -d cluster -p db -e instance_snapshot Exists struct=InstanceSnapshot
+//go:generate mapper method -d cluster -p db -e instance_snapshot Create struct=InstanceSnapshot
+//go:generate mapper method -d cluster -p db -e instance_snapshot Rename
+//go:generate mapper method -d cluster -p db -e instance_snapshot DeleteOne-by-Project-and-Instance-and-Name
 
 // InstanceSnapshot is a value object holding db-related details about a snapshot.
 type InstanceSnapshot struct {
