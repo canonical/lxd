@@ -110,8 +110,11 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	// Create a project with the profiles feature and a custom profile.
 	project2 := db.Project{}
 	project2.Name = "test"
-	project2.Config = map[string]string{"features.profiles": "true"}
-	_, err = tx.CreateProject(project2)
+	project2Config := map[string]string{"features.profiles": "true"}
+	id, err := tx.CreateProject(project2)
+	require.NoError(t, err)
+
+	err = tx.CreateProjectConfig(id, project2Config)
 	require.NoError(t, err)
 
 	profile := db.Profile{
@@ -215,7 +218,7 @@ func TestInstanceList(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances []db.Instance
-	err = cluster.InstanceList(nil, func(dbInst db.Instance, p db.Project, profiles []api.Profile) error {
+	err = cluster.InstanceList(nil, func(dbInst db.Instance, p api.Project, profiles []api.Profile) error {
 		dbInst.Config = db.ExpandInstanceConfig(dbInst.Config, profiles)
 		// TODO: change parameters and return type for db.ExpandInstanceDevices so that we can expand devices without
 		// converting back and forth between API and db Device types.

@@ -68,7 +68,7 @@ type internalRecoverImportPost struct {
 // internalRecoverScan provides the discovery and import functionality for both recovery validate and import steps.
 func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOnly bool) response.Response {
 	var err error
-	var projects map[string]*db.Project
+	var projects map[string]*api.Project
 	var projectProfiles map[string][]*api.Profile
 	var projectNetworks map[string]map[int64]api.Network
 
@@ -82,9 +82,14 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		}
 
 		// Convert to map for lookups by name later.
-		projects = make(map[string]*db.Project, len(ps))
+		projects = make(map[string]*api.Project, len(ps))
 		for i := range ps {
-			projects[ps[i].Name] = &ps[i]
+			project, err := ps[i].ToAPI(tx)
+			if err != nil {
+				return err
+			}
+
+			projects[ps[i].Name] = project
 		}
 
 		// Load list of project/profile names for validation.
