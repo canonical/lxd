@@ -369,7 +369,7 @@ func imgPostInstanceInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *ope
 	info.Properties = meta.Properties
 
 	// Create the database entry
-	err = d.cluster.CreateImage(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
+	err = d.cluster.CreateImage(c.Project(), info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -416,9 +416,26 @@ func imgPostRemoteInfo(d *Daemon, r *http.Request, req api.ImagesPost, op *opera
 		info.Properties[k] = v
 	}
 
+	// Get profile IDs
+	if req.Profiles == nil {
+		req.Profiles = []string{projectutils.Default}
+	}
+
+	profileIds := make([]int64, len(req.Profiles))
+	for i, profile := range req.Profiles {
+		profileID, _, err := d.cluster.GetProfile(project, profile)
+		if response.IsNotFoundError(err) {
+			return nil, fmt.Errorf("Profile '%s' doesn't exist", profile)
+		} else if err != nil {
+			return nil, err
+		}
+
+		profileIds[i] = profileID
+	}
+
 	// Update the DB record if needed
-	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 {
-		err = d.cluster.UpdateImage(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, "", nil)
+	if req.Public || req.AutoUpdate || req.Filename != "" || len(req.Properties) > 0 || len(req.Profiles) > 0 {
+		err = d.cluster.UpdateImage(id, req.Filename, info.Size, req.Public, req.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, project, profileIds)
 		if err != nil {
 			return nil, err
 		}
@@ -514,6 +531,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 
 	info.Public = shared.IsTrue(r.Header.Get("X-LXD-public"))
 	propHeaders := r.Header[http.CanonicalHeaderKey("X-LXD-properties")]
+	profilesHeaders := r.Header.Get("X-LXD-profiles")
 	ctype, ctypeParams, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
 		ctype = "application/octet-stream"
@@ -685,6 +703,23 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		}
 	}
 
+	var profileIds []int64
+	if len(profilesHeaders) > 0 {
+		p, _ := url.ParseQuery(profilesHeaders)
+		profileIds = make([]int64, len(p["profile"]))
+
+		for i, val := range p["profile"] {
+			profileID, _, err := d.cluster.GetProfile(project, val)
+			if response.IsNotFoundError(err) {
+				return nil, fmt.Errorf("Profile '%s' doesn't exist", val)
+			} else if err != nil {
+				return nil, err
+			}
+
+			profileIds[i] = profileID
+		}
+	}
+
 	// Check if the image already exists
 	exists, err := d.cluster.ImageExists(project, info.Fingerprint)
 	if err != nil {
@@ -709,7 +744,7 @@ func getImgPostInfo(d *Daemon, r *http.Request, builddir string, project string,
 		}
 
 		// Create the database entry
-		err = d.cluster.CreateImage(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
+		err = d.cluster.CreateImage(project, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, profileIds)
 		if err != nil {
 			return nil, err
 		}
@@ -814,6 +849,30 @@ func imageCreateInPool(d *Daemon, info *api.Image, storagePool string) error {
 //     description: Expected fingerprint when pushing a raw image
 //     schema:
 //       type: string
+//   - in: header
+//     name: X-LXD-properties
+//     description: Descriptive properties
+//     schema:
+//       type: object
+//       additionalProperties:
+//         type: string
+//   - in: header
+//     name: X-LXD-public
+//     description: Whether the image is available to unauthenticated users
+//     schema:
+//       type: boolean
+//   - in: header
+//     name: X-LXD-filename
+//     description: Original filename of the image
+//     schema:
+//       type: string
+//   - in: header
+//     name: X-LXD-profiles
+//     description: List of profiles to use
+//     schema:
+//       type: array
+//       items:
+//         type: string
 // responses:
 //   "202":
 //     $ref: "#/responses/Operation"
@@ -3600,6 +3659,9 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 				Fingerprint: fingerprint,
 				Secret:      req.Secret,
 				Mode:        "push",
+			},
+			ImagePut: api.ImagePut{
+				Profiles: req.Profiles,
 			},
 		}
 

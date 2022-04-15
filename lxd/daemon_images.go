@@ -176,7 +176,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			}
 
 			// We need to insert the database entry for this project, including the node ID entry.
-			err = d.cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type)
+			err = d.cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -465,7 +465,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Create the database entry
-	err = d.cluster.CreateImage(args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type)
+	err = d.cluster.CreateImage(args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
 	if err != nil {
 		return nil, err
 	}
