@@ -999,7 +999,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 }
 
 // CreateImage creates a new image.
-func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string) error {
+func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public bool, autoUpdate bool, architecture string, createdAt time.Time, expiresAt time.Time, properties map[string]string, typeName string, profileIds []int64) error {
 	arch, err := osarch.ArchitectureId(architecture)
 	if err != nil {
 		arch = 0
@@ -1078,9 +1078,25 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 
 		}
 
-		_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, defaultProfileID)
-		if err != nil {
-			return err
+		if profileIds != nil {
+			profileStmt, err := tx.tx.Prepare(`INSERT INTO images_profiles (image_id, profile_id) VALUES (?, ?)`)
+			if err != nil {
+				return err
+			}
+			defer profileStmt.Close()
+
+			for _, profileID := range profileIds {
+				_, err = profileStmt.Exec(id, profileID)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			_, err = tx.tx.Exec("INSERT INTO images_profiles(image_id, profile_id) VALUES(?, ?)", id, defaultProfileID)
+			if err != nil {
+				return err
+			}
+
 		}
 
 		_, err = tx.tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", id, c.nodeID)
