@@ -1319,6 +1319,22 @@ func (d *qemu) Start(stateful bool) error {
 	if !stateful && d.state.OS.UnprivUser != "" {
 		qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
 
+		// Ensure nvram file is writable by the QEMU process.
+		// This is needed because when doing stateful snapshots the QEMU process will reopen the file
+		// for writing.
+		nvRAMPath := d.nvramPath()
+		if shared.PathExists(nvRAMPath) {
+			err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
+			if err != nil {
+				return err
+			}
+
+			err = os.Chmod(nvRAMPath, 0600)
+			if err != nil {
+				return err
+			}
+		}
+
 		// Change ownership of config directory files so they are accessible to the
 		// unprivileged qemu process so that the 9p share can work.
 		//
@@ -2493,10 +2509,17 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	if shared.StringInSlice("-bios", rawOptions) || shared.StringInSlice("-kernel", rawOptions) {
 		d.logger.Warn("Starting VM without default firmware (-bios or -kernel in raw.qemu)")
 	} else {
+		// Open the NVRAM file and pass it via file descriptor to QEMU.
+		// This is so the QEMU process can still read/write the file after it has dropped its user privs.
+		nvRAMFile, err := os.Open(d.nvramPath())
+		if err != nil {
+			return "", nil, fmt.Errorf("Failed opening NVRAM file: %w", err)
+		}
+
 		err = qemuDriveFirmware.Execute(sb, map[string]any{
 			"architecture": d.architectureName,
 			"roPath":       filepath.Join(d.ovmfPath(), "OVMF_CODE.fd"),
-			"nvramPath":    d.nvramPath(),
+			"nvramPath":    fmt.Sprintf("/dev/fd/%d", d.addFileDescriptor(fdFiles, nvRAMFile)),
 		})
 		if err != nil {
 			return "", nil, err
@@ -3828,6 +3851,9 @@ func (d *qemu) IsPrivileged() bool {
 
 // Snapshot takes a new snapshot.
 func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
+	var err error
+	var monitor *qmp.Monitor
+
 	// Deal with state.
 	if stateful {
 		// Confirm the instance has stateful migration enabled.
@@ -3841,7 +3867,7 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 		}
 
 		// Connect to the monitor.
-		monitor, err := qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
+		monitor, err = qmp.Connect(d.monitorPath(), qemuSerialChardevName, d.getMonitorEventHandler())
 		if err != nil {
 			return err
 		}
@@ -3851,15 +3877,29 @@ func (d *qemu) Snapshot(name string, expiry time.Time, stateful bool) error {
 		if err != nil {
 			return err
 		}
-
-		// Resume the VM once the disk state has been saved.
-		defer monitor.Start()
-
-		// Remove the state from the main volume.
-		defer os.Remove(d.StatePath())
 	}
 
-	return d.snapshotCommon(d, name, expiry, stateful)
+	// Create the snapshot.
+	err = d.snapshotCommon(d, name, expiry, stateful)
+	if err != nil {
+		return err
+	}
+
+	// Resume the VM once the disk state has been saved.
+	if stateful {
+		// Remove the state from the main volume.
+		err = os.Remove(d.StatePath())
+		if err != nil {
+			return err
+		}
+
+		err = monitor.Start()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Restore restores an instance snapshot.
