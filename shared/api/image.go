@@ -30,6 +30,12 @@ type ImageExportPost struct {
 	//
 	// API extension: image_target_project
 	Project string `json:"project" yaml:"project"`
+
+	// List of profiles to use
+	// Example: ["default"]
+	//
+	// API extension: image_copy_profile
+	Profiles []string `json:"profiles" yaml:"profiles"`
 }
 
 // ImagesPost represents the fields available for a new LXD image
