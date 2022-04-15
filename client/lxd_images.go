@@ -483,6 +483,16 @@ func (r *ProtocolLXD) CreateImage(image api.ImagesPost, args *ImageCreateArgs) (
 		req.Header.Set("X-LXD-properties", imgProps.Encode())
 	}
 
+	if len(image.Profiles) > 0 {
+		imgProfiles := url.Values{}
+
+		for _, v := range image.Profiles {
+			imgProfiles.Add("profile", v)
+		}
+
+		req.Header.Set("X-LXD-profiles", imgProfiles.Encode())
+	}
+
 	// Set the user agent
 	if image.Source != nil && image.Source.Fingerprint != "" && image.Source.Secret != "" && image.Source.Mode == "push" {
 		// Set fingerprint
@@ -617,6 +627,12 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 		return nil, fmt.Errorf("The source and target servers must be different")
 	}
 
+	if image.Profiles != nil {
+		if !r.HasExtension("image_copy_profile") {
+			return nil, fmt.Errorf("The server is missing the required \"image_copy_profile\" API extension")
+		}
+	}
+
 	// Get source server connection information
 	info, err := source.GetConnectionInfo()
 	if err != nil {
@@ -666,6 +682,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 			Secret:      secret.(string),
 			Aliases:     image.Aliases,
 			Project:     info.Project,
+			Profiles:    image.Profiles,
 		}
 
 		exportOp, err := source.ExportImage(image.Fingerprint, req)
@@ -727,6 +744,7 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 
 		imagePost := api.ImagesPost{}
 		imagePost.Public = args.Public
+		imagePost.Profiles = image.Profiles
 
 		if args.CopyAliases {
 			imagePost.Aliases = image.Aliases
@@ -789,6 +807,9 @@ func (r *ProtocolLXD) CopyImage(source ImageServer, image api.Image, args *Image
 			Mode:        "pull",
 			Type:        "image",
 			Project:     info.Project,
+		},
+		ImagePut: api.ImagePut{
+			Profiles: image.Profiles,
 		},
 	}
 
