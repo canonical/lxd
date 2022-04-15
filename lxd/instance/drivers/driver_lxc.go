@@ -61,6 +61,7 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/osarch"
+	"github.com/lxc/lxd/shared/termios"
 	"github.com/lxc/lxd/shared/units"
 )
 
@@ -5718,7 +5719,14 @@ func (d *lxc) Console(protocol string) (*os.File, chan error, error) {
 		rootUID, rootGID = idmapset.ShiftIntoNs(0, 0)
 	}
 
+	// Create a PTS pair.
 	ptx, pty, err := shared.OpenPty(rootUID, rootGID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Switch the console file descriptor into raw mode.
+	_, err = termios.MakeRaw(int(ptx.Fd()))
 	if err != nil {
 		return nil, nil, err
 	}
