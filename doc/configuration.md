@@ -1,4 +1,7 @@
 # Configuration
+Refer to : https://linuxcontainers.org/lxd/docs/master/configuration/
+
+
 LXD stores the configuration for the following components:
 
 ```{toctree}
