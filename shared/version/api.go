@@ -330,6 +330,7 @@ var APIExtensions = []string{
 	"storage_volume_state_total",
 	"instance_file_head",
 	"instances_nic_host_name",
+	"image_copy_profile",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
