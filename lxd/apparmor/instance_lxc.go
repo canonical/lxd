@@ -78,6 +78,9 @@ profile "{{ .name }}" flags=(attach_disconnected,mediate_deleted) {
   # Handle /run remounts.
   mount options=(rw,nosuid,nodev,remount) -> /run/,
 
+  # Handle ramfs (same as tmpfs)
+  mount fstype=ramfs,
+
   # Handle tmpfs
   mount fstype=tmpfs,
 
