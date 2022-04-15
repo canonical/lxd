@@ -25,7 +25,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/termios"
 )
 
 type consoleWs struct {
@@ -198,13 +197,6 @@ func (s *consoleWs) doConsole(op *operations.Operation) error {
 		return err
 	}
 	defer console.Close()
-
-	// Switch the console file descriptor into raw mode.
-	oldttystate, err := termios.MakeRaw(int(console.Fd()))
-	if err != nil {
-		return err
-	}
-	defer termios.Restore(int(console.Fd()), oldttystate)
 
 	// Detect size of window and set it into console.
 	if s.width > 0 && s.height > 0 {
