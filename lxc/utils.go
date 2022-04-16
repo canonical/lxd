@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -205,4 +206,50 @@ func instancesExist(resources []remoteResource) error {
 	}
 
 	return nil
+}
+
+// structHasField checks if specified struct includes field with given name.
+func structHasField(typ reflect.Type, field string) bool {
+	var parent reflect.Type
+
+	for i := 0; i < typ.NumField(); i++ {
+		fieldType := typ.Field(i)
+		yaml := fieldType.Tag.Get("yaml")
+
+		if yaml == ",inline" {
+			parent = fieldType.Type
+		}
+
+		if yaml == field {
+			return true
+		}
+	}
+
+	if parent != nil {
+		return structHasField(parent, field)
+	}
+
+	return false
+}
+
+// getServerSupportedFilters returns two lists: one with filters supported by server and second one with not supported.
+func getServerSupportedFilters(filters []string, i interface{}) ([]string, []string) {
+	supportedFilters := []string{}
+	unsupportedFilters := []string{}
+
+	for _, filter := range filters {
+		membs := strings.SplitN(filter, "=", 2)
+		// Only key/value pairs are supported by server side API
+		// Only keys which are part of struct are supported by server side API
+		// Multiple values (separated by ',') are not supported by server side API
+		// Keys with '.' in name are not supported
+		if len(membs) < 2 || !structHasField(reflect.TypeOf(i), membs[0]) || strings.Contains(membs[1], ",") || strings.Contains(membs[0], ".") {
+			unsupportedFilters = append(unsupportedFilters, filter)
+			continue
+		}
+
+		supportedFilters = append(supportedFilters, filter)
+	}
+
+	return supportedFilters, unsupportedFilters
 }
