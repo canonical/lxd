@@ -210,6 +210,7 @@ func hoistReq(f func(*Daemon, instance.Instance, http.ResponseWriter, *http.Requ
 
 func devLxdAPI(d *Daemon) http.Handler {
 	m := mux.NewRouter()
+	m.UseEncodedPath() // Allow encoded values in path segments.
 
 	for _, handler := range handlers {
 		m.HandleFunc(handler.path, hoistReq(handler.f, d))
