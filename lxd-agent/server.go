@@ -18,7 +18,8 @@ import (
 
 func restServer(tlsConfig *tls.Config, cert *x509.Certificate, debug bool, d *Daemon) *http.Server {
 	mux := mux.NewRouter()
-	mux.StrictSlash(false)
+	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
+	mux.UseEncodedPath()   // Allow encoded values in path segments.
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
