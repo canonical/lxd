@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/db"
@@ -44,7 +45,10 @@ func instanceDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)

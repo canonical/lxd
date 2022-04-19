@@ -1327,10 +1327,13 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	state := d.State()
 
-	var err error
 	var nodes []db.NodeInfo
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the node.
@@ -1434,10 +1437,13 @@ func clusterNodePut(d *Daemon, r *http.Request) response.Response {
 
 // updateClusterNode is shared between clusterNodePut and clusterNodePatch.
 func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	state := d.State()
 
-	var err error
 	var node db.NodeInfo
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// Get the node.
@@ -1650,12 +1656,15 @@ func clusterValidateConfig(config map[string]string) error {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterNodePost(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	req := api.ClusterMemberPost{}
 
 	// Parse the request
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1697,7 +1706,10 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		force = 0
 	}
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Redirect all requests to the leader, which is the one with
 	// knowing what nodes are part of the raft cluster.
@@ -2530,8 +2542,12 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 
 // Used as low-level recovering helper.
 func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response {
-	address := mux.Vars(r)["address"]
-	err := cluster.RemoveRaftNode(d.gateway, address)
+	address, err := url.PathUnescape(mux.Vars(r)["address"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	err = cluster.RemoveRaftNode(d.gateway, address)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2572,7 +2588,10 @@ func internalClusterRaftNodeDelete(d *Daemon, r *http.Request) response.Response
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Forward request
 	resp := forwardedResponseToNode(d, r, name)
@@ -2582,7 +2601,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 
 	// Parse the request
 	req := api.ClusterMemberStatePost{}
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -2635,11 +2654,13 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 }
 
 func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
-	nodeName := mux.Vars(r)["name"]
+	nodeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
 	var dbInstances []db.Instance
-	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{Node: &nodeName})
@@ -2808,11 +2829,13 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 }
 
 func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
-	originName := mux.Vars(r)["name"]
+	originName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// List the instances.
 	var dbInstances []db.Instance
-	var err error
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{})
 		if err != nil {
@@ -3265,7 +3288,10 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
@@ -3327,7 +3353,11 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	if name == "default" {
 		return response.Forbidden(errors.New(`The "default" group cannot be renamed`))
 	}
@@ -3407,7 +3437,10 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
@@ -3527,7 +3560,10 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
@@ -3663,14 +3699,17 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Quick checks.
 	if name == "default" {
 		return response.Forbidden(fmt.Errorf("The 'default' cluster group cannot be deleted"))
 	}
 
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		members, err := tx.GetClusterGroupNodes(name)
 		if err != nil {
 			return err

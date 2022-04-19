@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"sync"
@@ -398,7 +399,10 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	post := api.InstanceConsolePost{}
 	buf, err := ioutil.ReadAll(r.Body)
@@ -531,7 +535,10 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Forward the request if the container is remote.
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -626,7 +633,11 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Clearing the console buffer requires liblxc >= 3.0"))
 	}
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	projectName := projectParam(r)
 
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, name)

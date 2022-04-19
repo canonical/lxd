@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -35,7 +36,10 @@ var operationWebsocket = APIEndpoint{
 }
 
 func operationDelete(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
@@ -52,7 +56,11 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 }
 
 func operationGet(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	var body *api.Operation
 
 	// First check if the query is for a local operation from this node
@@ -137,7 +145,10 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 }
 
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)

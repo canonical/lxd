@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 
@@ -60,7 +61,10 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
 	// Get the container
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)

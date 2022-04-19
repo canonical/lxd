@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 
@@ -70,13 +71,22 @@ var storagePoolVolumeTypeStateCmd = APIEndpoint{
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the pool the storage volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the name of the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the name of the volume type.
-	volumeName := mux.Vars(r)["name"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
