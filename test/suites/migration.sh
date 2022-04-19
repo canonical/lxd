@@ -417,6 +417,24 @@ migration() {
   lxc_remote rm l1:c1
   lxc_remote rm l2:c1
 
+  lxc_remote init testimage l1:c1
+  # This creates snap0
+  lxc_remote snapshot l1:c1
+  # This creates snap1
+  lxc_remote snapshot l1:c1
+  lxc_remote copy l1:c1 l2:c1
+  # This creates snap2
+  lxc_remote snapshot l1:c1
+
+  # Delete first snapshot from target
+  lxc_remote rm l2:c1/snap0
+
+  # Refresh
+  lxc_remote copy l1:c1 l2:c1 --refresh
+
+  lxc_remote rm -f l1:c1
+  lxc_remote rm -f l2:c1
+
   if ! command -v criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
