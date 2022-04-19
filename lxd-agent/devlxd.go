@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,7 +73,11 @@ var devlxdConfigGet = devLxdHandler{"/1.0/config", func(d *Daemon, w http.Respon
 }}
 
 var devlxdConfigKeyGet = devLxdHandler{"/1.0/config/{key}", func(d *Daemon, w http.ResponseWriter, r *http.Request) *devLxdResponse {
-	key := mux.Vars(r)["key"]
+	key, err := url.PathUnescape(mux.Vars(r)["key"])
+	if err != nil {
+		return &devLxdResponse{"bad request", http.StatusBadRequest, "raw"}
+	}
+
 	if !strings.HasPrefix(key, "user.") && !strings.HasPrefix(key, "cloud-init.") {
 		return &devLxdResponse{"not authorized", http.StatusForbidden, "raw"}
 	}
