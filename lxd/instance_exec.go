@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -494,7 +495,10 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	post := api.InstanceExecPost{}
 	buf, err := ioutil.ReadAll(r.Body)

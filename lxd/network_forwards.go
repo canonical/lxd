@@ -135,7 +135,12 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -225,7 +230,12 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 
 	req.Normalise() // So we handle the request in normalised/canonical form.
 
-	n, err := network.LoadByName(d.State(), projectName, mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -282,7 +292,12 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -291,7 +306,10 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	listenAddress := mux.Vars(r)["listenAddress"]
+	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
 
@@ -356,7 +374,12 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -365,7 +388,11 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	listenAddress := mux.Vars(r)["listenAddress"]
+	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	targetMember := queryParam(r, "target")
 	memberSpecific := targetMember != ""
 
@@ -457,7 +484,12 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	n, err := network.LoadByName(d.State(), projectName, mux.Vars(r)["networkName"])
+	networkName, err := url.PathUnescape(mux.Vars(r)["networkName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	n, err := network.LoadByName(d.State(), projectName, networkName)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network: %w", err))
 	}
@@ -466,7 +498,10 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Network driver %q does not support forwards", n.Type()))
 	}
 
-	listenAddress := mux.Vars(r)["listenAddress"]
+	listenAddress, err := url.PathUnescape(mux.Vars(r)["listenAddress"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Decode the request.
 	req := api.NetworkForwardPut{}

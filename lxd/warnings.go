@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -247,10 +248,12 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func warningGet(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	var dbWarning *db.Warning
-	var err error
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbWarning, err = tx.GetWarning(id)
@@ -331,11 +334,14 @@ func warningPatch(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func warningPut(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	req := api.WarningPut{}
 
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -387,9 +393,12 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func warningDelete(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		err := tx.DeleteWarning(id)
 		if err != nil {
 			return err

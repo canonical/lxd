@@ -126,7 +126,10 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	cname := mux.Vars(r)["name"]
+	cname, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, cname, instanceType)
@@ -224,7 +227,10 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	var proj *db.Project
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
@@ -316,8 +322,15 @@ func instanceSnapshotHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	containerName := mux.Vars(r)["name"]
-	snapshotName := mux.Vars(r)["snapshotName"]
+	containerName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	snapshotName, err := url.PathUnescape(mux.Vars(r)["snapshotName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, containerName, instanceType)
 	if err != nil {

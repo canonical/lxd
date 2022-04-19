@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -388,7 +389,10 @@ func projectCreateDefaultProfile(tx *db.ClusterTx, project string) error {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectGet(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Check user permissions
 	if !rbac.UserHasPermission(r, name, "view") {
@@ -397,7 +401,7 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get the database entry
 	var project *api.Project
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbProject, err := tx.GetProject(name)
 		if err != nil {
 			return err
@@ -453,7 +457,10 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectPut(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Check user permissions
 	if !rbac.UserHasPermission(r, name, "manage-projects") {
@@ -462,7 +469,7 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbProject, err := tx.GetProject(name)
 		if err != nil {
 			return err
@@ -538,7 +545,10 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectPatch(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Check user permissions
 	if !rbac.UserHasPermission(r, name, "manage-projects") {
@@ -547,7 +557,7 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbProject, err := tx.GetProject(name)
 		if err != nil {
 			return err
@@ -730,12 +740,15 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectPost(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Parse the request.
 	req := api.ProjectPost{}
 
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -828,7 +841,10 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectDelete(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Quick checks.
 	if name == projecthelpers.Default {
@@ -836,7 +852,7 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var id int64
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		project, err := tx.GetProject(name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
@@ -911,7 +927,10 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func projectStateGet(d *Daemon, r *http.Request) response.Response {
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Check user permissions.
 	if !rbac.UserHasPermission(r, name, "view") {
@@ -922,7 +941,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	state := api.ProjectState{}
 
 	// Get current limits and usage.
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		result, err := projecthelpers.GetCurrentAllocations(tx, name)
 		if err != nil {
 			return err
