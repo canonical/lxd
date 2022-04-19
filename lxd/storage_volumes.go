@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -176,7 +177,10 @@ var storagePoolVolumeTypeCmd = APIEndpoint{
 func storagePoolVolumesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
-	poolName := mux.Vars(r)["name"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	recursion := util.IsRecursionRequest(r)
 
@@ -408,10 +412,16 @@ func filterVolumes(volumes []*api.StorageVolume, clauses []filter.Clause) []*api
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the pool the storage volume is supposed to be attached to.
-	poolName := mux.Vars(r)["name"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the name of the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	recursion := util.IsRecursionRequest(r)
 
@@ -509,7 +519,10 @@ func storagePoolVolumesTypeGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
-	poolName := mux.Vars(r)["name"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
@@ -553,7 +566,10 @@ func storagePoolVolumesTypePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	req.Type = mux.Vars(r)["type"]
+	req.Type, err = url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// We currently only allow to create storage volumes of type storagePoolVolumeTypeCustom.
 	// So check, that nothing else was requested.
@@ -764,7 +780,11 @@ func storagePoolVolumesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	poolName := mux.Vars(r)["name"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	poolID, err := d.cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
@@ -917,20 +937,30 @@ func doVolumeMigration(d *Daemon, r *http.Request, requestProjectName string, pr
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePost(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	if shared.IsSnapshot(volumeName) {
 		return response.BadRequest(fmt.Errorf("Invalid volume name"))
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	srcPoolName := mux.Vars(r)["pool"]
+	srcPoolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	req := api.StorageVolumePost{}
 
 	// Parse the request.
-	err := json.NewDecoder(r.Body).Decode(&req)
+	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return response.BadRequest(err)
 	}
@@ -1186,7 +1216,12 @@ func storagePoolVolumeTypePostMove(d *Daemon, r *http.Request, poolName string, 
 
 // storageGetVolumeNameFromURL retrieves the volume name from the URL name segment.
 func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
-	fields := strings.Split(mux.Vars(r)["name"], "/")
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return "", err
+	}
+
+	fields := strings.Split(volumeName, "/")
 
 	if len(fields) == 3 && fields[1] == "snapshots" {
 		// Handle volume snapshots.
@@ -1198,7 +1233,7 @@ func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
 		return fields[0], nil
 	}
 
-	return "", fmt.Errorf("Invalid storage volume %s", mux.Vars(r)["name"])
+	return "", fmt.Errorf("Invalid storage volume %q", volumeName)
 }
 
 // swagger:operation GET /1.0/storage-pools/{name}/volumes/{type}/{volume} storage storage_pool_volume_type_get
@@ -1247,7 +1282,10 @@ func storageGetVolumeNameFromURL(r *http.Request) (string, error) {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the name of the storage volume.
 	volumeName, err := storageGetVolumeNameFromURL(r)
@@ -1256,7 +1294,10 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -1348,7 +1389,10 @@ func storagePoolVolumeGet(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the name of the storage volume.
 	volumeName, err := storageGetVolumeNameFromURL(r)
@@ -1357,7 +1401,10 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -1506,15 +1553,25 @@ func storagePoolVolumePut(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	if shared.IsSnapshot(volumeName) {
 		return response.BadRequest(fmt.Errorf("Invalid volume name"))
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -1621,15 +1678,25 @@ func storagePoolVolumePatch(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeDelete(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	if shared.IsSnapshot(volumeName) {
 		return response.BadRequest(fmt.Errorf("Invalid storage volume %q", volumeName))
 	}
 
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)

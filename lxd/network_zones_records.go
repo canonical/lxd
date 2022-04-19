@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 
@@ -135,7 +136,11 @@ func networkZoneRecordsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	recursion := util.IsRecursionRequest(r)
-	zoneName := mux.Vars(r)["zone"]
+
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
@@ -204,7 +209,10 @@ func networkZoneRecordsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	zoneName := mux.Vars(r)["zone"]
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
@@ -261,8 +269,15 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	zoneName := mux.Vars(r)["zone"]
-	name := mux.Vars(r)["name"]
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
@@ -271,12 +286,12 @@ func networkZoneRecordDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Delete the record.
-	err = netzone.DeleteRecord(name)
+	err = netzone.DeleteRecord(recordName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, name, request.CreateRequestor(r), nil))
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordDeleted.Event(netzone, recordName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }
@@ -327,8 +342,15 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	zoneName := mux.Vars(r)["zone"]
-	name := mux.Vars(r)["name"]
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
@@ -337,7 +359,7 @@ func networkZoneRecordGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the record.
-	record, err := netzone.GetRecord(name)
+	record, err := netzone.GetRecord(recordName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -420,8 +442,15 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	zoneName := mux.Vars(r)["zone"]
-	name := mux.Vars(r)["name"]
+	zoneName, err := url.PathUnescape(mux.Vars(r)["zone"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	recordName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the network zone.
 	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
@@ -430,7 +459,7 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get the record.
-	record, err := netzone.GetRecord(name)
+	record, err := netzone.GetRecord(recordName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -460,12 +489,12 @@ func networkZoneRecordPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	clientType := clusterRequest.UserAgentClientType(r.Header.Get("User-Agent"))
-	err = netzone.UpdateRecord(name, req, clientType)
+	err = netzone.UpdateRecord(recordName, req, clientType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, name, request.CreateRequestor(r), nil))
+	d.State().Events.SendLifecycle(projectName, lifecycle.NetworkZoneRecordUpdated.Event(netzone, recordName, request.CreateRequestor(r), nil))
 
 	return response.EmptySyncResponse
 }

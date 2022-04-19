@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -758,10 +759,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func certificateGet(d *Daemon, r *http.Request) response.Response {
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	var cert *api.Certificate
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		dbCertInfo, err := tx.GetCertificateByFingerprintPrefix(fingerprint)
 		if err != nil {
 			return err
@@ -806,11 +810,14 @@ func certificateGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func certificatePut(d *Daemon, r *http.Request) response.Response {
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get current database record.
 	var apiEntry *api.Certificate
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		oldEntry, err := tx.GetCertificateByFingerprintPrefix(fingerprint)
 		if err != nil {
@@ -873,11 +880,14 @@ func certificatePut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func certificatePatch(d *Daemon, r *http.Request) response.Response {
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get current database record.
 	var apiEntry *api.Certificate
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		var err error
 		oldEntry, err := tx.GetCertificateByFingerprintPrefix(fingerprint)
 		if err != nil {
@@ -1049,7 +1059,10 @@ func doCertificateUpdate(d *Daemon, dbInfo api.Certificate, req api.CertificateP
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func certificateDelete(d *Daemon, r *http.Request) response.Response {
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	if !isClusterNotification(r) {
 		var certInfo *db.Certificate

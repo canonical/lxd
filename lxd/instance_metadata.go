@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -71,7 +72,10 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -171,7 +175,10 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to an instance on a different node.
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -279,7 +286,10 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to an instance on a different node.
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -392,7 +402,10 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -528,7 +541,10 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -632,7 +648,10 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 
 	projectName := projectParam(r)
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
