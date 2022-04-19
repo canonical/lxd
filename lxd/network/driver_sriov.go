@@ -77,6 +77,11 @@ func (n *sriov) Start() error {
 		return fmt.Errorf("Parent interface %q not found", n.config["parent"])
 	}
 
+	revert.Success()
+
+	// Ensure network is marked as available now its started.
+	n.setAvailable()
+
 	return nil
 }
 
