@@ -2511,8 +2511,8 @@ func (d *qemu) generateQemuConfigFile(mountInfo *storagePools.MountInfo, busName
 	// Allow disabling the UEFI firmware.
 	if shared.StringInSlice("-bios", rawOptions) || shared.StringInSlice("-kernel", rawOptions) {
 		d.logger.Warn("Starting VM without default firmware (-bios or -kernel in raw.qemu)")
-	} else {
-		// Open the NVRAM file and pass it via file descriptor to QEMU.
+	} else if d.architectureSupportsUEFI() {
+		// Open the UEFI NVRAM file and pass it via file descriptor to QEMU.
 		// This is so the QEMU process can still read/write the file after it has dropped its user privs.
 		nvRAMFile, err := os.Open(d.nvramPath())
 		if err != nil {
