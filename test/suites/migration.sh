@@ -395,6 +395,28 @@ migration() {
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage delete l1:dir
 
+  # Test optimized refresh
+  lxc_remote init testimage l1:c1
+  echo test | lxc_remote file push - l1:c1/tmp/foo
+  lxc_remote copy l1:c1 l2:c1
+  lxc_remote file pull l2:c1/tmp/foo .
+  lxc_remote snapshot l1:c1
+  echo test | lxc_remote file push - l1:c1/tmp/bar
+  lxc_remote copy l1:c1 l2:c1 --refresh
+  lxc_remote start l2:c1
+  lxc_remote file pull l2:c1/tmp/foo .
+  lxc_remote file pull l2:c1/tmp/bar .
+  lxc_remote stop l2:c1
+
+  lxc_remote restore l2:c1 snap0
+  lxc_remote start l2:c1
+  lxc_remote file pull l2:c1/tmp/foo .
+  ! lxc_remote file pull l2:c1/tmp/bar . ||  false
+  lxc_remote stop l2:c1
+
+  lxc_remote rm l1:c1
+  lxc_remote rm l2:c1
+
   if ! command -v criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
@@ -423,46 +445,6 @@ migration() {
 
   # Test stateless copies
   lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
-
-  # Test optimized refresh
-  lxc_remote init testimage l1:c1
-  echo test | lxc_remote file push - l1:c1/tmp/foo
-  lxc_remote copy l1:c1 l2:c1
-  lxc_remote file pull l2:c1/tmp/foo .
-  lxc_remote snapshot l1:c1
-  echo test | lxc_remote file push - l1:c1/tmp/bar
-  lxc_remote copy l1:c1 l2:c1 --refresh
-  lxc_remote start l2:c1
-  lxc_remote file pull l2:c1/tmp/foo .
-  lxc_remote file pull l2:c1/tmp/bar .
-  lxc_remote stop l2:c1
-
-  lxc_remote restore l2:c1 snap0
-  lxc_remote start l2:c1
-  lxc_remote file pull l2:c1/tmp/foo .
-  ! lxc_remote file pull l2:c1/tmp/bar . ||  false
-  lxc_remote stop l2:c1
-
-  lxc_remote rm l1:c1
-  lxc_remote rm l2:c1
-
-  lxc_remote init testimage l1:c1
-  # This creates snap0
-  lxc_remote snapshot l1:c1
-  # This creates snap1
-  lxc_remote snapshot l1:c1
-  lxc_remote copy l1:c1 l2:c1
-  # This creates snap2
-  lxc_remote snapshot l1:c1
-
-  # Delete first snapshot from target
-  lxc_remote rm l2:c1/snap0
-
-  # Refresh
-  lxc_remote copy l1:c1 l2:c1 --refresh
-
-  lxc_remote rm -f l1:c1
-  lxc_remote rm -f l2:c1
 
   # Cleanup
   lxc_remote delete --force l1:migratee
