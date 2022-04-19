@@ -13,6 +13,9 @@ test_network_zone() {
         ipv6.address=fd42:4242:4242:1010::1/64
 
   # Create the zones
+  ! lxc network zone create /lxd.example.net || false
+  lxc network zone create lxd.example.net/withslash
+  lxc network zone delete lxd.example.net/withslash
   lxc network zone create lxd.example.net
   lxc network zone create 2.0.192.in-addr.arpa
   lxc network zone create 0.1.0.1.2.4.2.4.2.4.2.4.2.4.d.f.ip6.arpa
