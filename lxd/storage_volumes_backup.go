@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -153,11 +154,22 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 	}
 
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -254,11 +266,22 @@ func storagePoolVolumeTypeCustomBackupsGet(d *Daemon, r *http.Request) response.
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -448,13 +471,28 @@ func storagePoolVolumeTypeCustomBackupsPost(d *Daemon, r *http.Request) response
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get backup name.
-	backupName := mux.Vars(r)["backupName"]
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -531,13 +569,28 @@ func storagePoolVolumeTypeCustomBackupGet(d *Daemon, r *http.Request) response.R
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get backup name.
-	backupName := mux.Vars(r)["backupName"]
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -640,13 +693,28 @@ func storagePoolVolumeTypeCustomBackupPost(d *Daemon, r *http.Request) response.
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get backup name.
-	backupName := mux.Vars(r)["backupName"]
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)
@@ -732,13 +800,28 @@ func storagePoolVolumeTypeCustomBackupDelete(d *Daemon, r *http.Request) respons
 //     $ref: "#/responses/InternalServerError"
 func storagePoolVolumeTypeCustomBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	// Get the name of the storage volume.
-	volumeName := mux.Vars(r)["name"]
+	volumeName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the name of the storage pool the volume is supposed to be attached to.
-	poolName := mux.Vars(r)["pool"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["pool"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the volume type.
-	volumeTypeName := mux.Vars(r)["type"]
+	volumeTypeName, err := url.PathUnescape(mux.Vars(r)["type"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get backup name.
-	backupName := mux.Vars(r)["backupName"]
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := storagePools.VolumeTypeNameToDBType(volumeTypeName)

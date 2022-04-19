@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -40,7 +41,10 @@ import (
 //     $ref: "#/responses/InternalServerError"
 func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	instName := mux.Vars(r)["name"]
+	instName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	if r.Header.Get("Upgrade") != "sftp" {
 		return response.SmartError(api.StatusErrorf(http.StatusBadRequest, "Missing or invalid upgrade header"))

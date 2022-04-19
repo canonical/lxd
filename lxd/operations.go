@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -168,7 +169,10 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func operationGet(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	var body *api.Operation
 
@@ -234,7 +238,10 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func operationDelete(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
@@ -846,7 +853,11 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func operationWaitGet(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	secret := r.FormValue("secret")
 
 	trusted, _, _, _ := d.Authenticate(nil, r)
@@ -990,7 +1001,10 @@ func (r *operationWebSocket) String() string {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
-	id := mux.Vars(r)["id"]
+	id, err := url.PathUnescape(mux.Vars(r)["id"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// First check if the query is for a local operation from this node
 	op, err := operations.OperationGetInternal(id)
