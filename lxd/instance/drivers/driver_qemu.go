@@ -1096,7 +1096,7 @@ func (d *qemu) Start(stateful bool) error {
 
 	// Copy OVMF settings firmware to nvram file.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if !shared.PathExists(d.nvramPath()) {
+	if d.architectureSupportsUEFI() && !shared.PathExists(d.nvramPath()) {
 		err = d.setupNvram()
 		if err != nil {
 			op.Done(err)
@@ -1307,7 +1307,7 @@ func (d *qemu) Start(stateful bool) error {
 	}
 
 	// SMBIOS only on x86_64 and aarch64.
-	if shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
+	if d.architectureSupportsUEFI() {
 		qemuCmd = append(qemuCmd, "-smbios", "type=2,manufacturer=Canonical Ltd.,product=LXD")
 	}
 
@@ -1315,11 +1315,11 @@ func (d *qemu) Start(stateful bool) error {
 	if !stateful && d.state.OS.UnprivUser != "" {
 		qemuCmd = append(qemuCmd, "-runas", d.state.OS.UnprivUser)
 
-		// Ensure nvram file is writable by the QEMU process.
-		// This is needed because when doing stateful snapshots the QEMU process will reopen the file
-		// for writing.
 		nvRAMPath := d.nvramPath()
-		if shared.PathExists(nvRAMPath) {
+		if d.architectureSupportsUEFI() && shared.PathExists(nvRAMPath) {
+			// Ensure UEFI nvram file is writable by the QEMU process.
+			// This is needed when doing stateful snapshots because the QEMU process will reopen the
+			// file for writing.
 			err = os.Chown(nvRAMPath, int(d.state.OS.UnprivUID), -1)
 			if err != nil {
 				return err
@@ -1574,12 +1574,15 @@ func (d *qemu) Start(stateful bool) error {
 	return nil
 }
 
-func (d *qemu) setupNvram() error {
-	// UEFI only on x86_64 and aarch64.
-	if !shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
-		return nil
+func (d *qemu) architectureSupportsUEFI() bool {
+	if shared.IntInSlice(d.architecture, []int{osarch.ARCH_64BIT_INTEL_X86, osarch.ARCH_64BIT_ARMV8_LITTLE_ENDIAN}) {
+		return true
 	}
 
+	return false
+}
+
+func (d *qemu) setupNvram() error {
 	// Mount the instance's config volume.
 	_, err := d.mount()
 	if err != nil {
@@ -4495,7 +4498,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 		}
 	}
 
-	if shared.StringInSlice("security.secureboot", changedConfig) {
+	if d.architectureSupportsUEFI() && shared.StringInSlice("security.secureboot", changedConfig) {
 		// Re-generate the NVRAM.
 		err = d.setupNvram()
 		if err != nil {
