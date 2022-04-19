@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 
@@ -265,7 +266,12 @@ func networkZoneDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, mux.Vars(r)["name"])
+	zoneName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -326,7 +332,12 @@ func networkZoneGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, mux.Vars(r)["name"])
+	zoneName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -415,8 +426,13 @@ func networkZonePut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	zoneName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Get the existing Network zone.
-	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, mux.Vars(r)["name"])
+	netzone, err := zone.LoadByNameAndProject(d.State(), projectName, zoneName)
 	if err != nil {
 		return response.SmartError(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -754,7 +755,10 @@ func networkGet(d *Daemon, r *http.Request) response.Response {
 		allNodes = true
 	}
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	n, err := doNetworkGet(d, r, allNodes, projectName, name)
 	if err != nil {
@@ -886,7 +890,11 @@ func networkDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	state := d.State()
 
 	// Get the existing network.
@@ -1001,7 +1009,11 @@ func networkPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Renaming clustered network not supported"))
 	}
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	req := api.NetworkPost{}
 	state := d.State()
 
@@ -1119,7 +1131,10 @@ func networkPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the existing network.
 	n, err := network.LoadByName(d.State(), projectName, name)
@@ -1331,7 +1346,10 @@ func doNetworkUpdate(d *Daemon, projectName string, n network.Network, req api.N
 //     $ref: "#/responses/InternalServerError"
 func networkLeasesGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// The project we should use to load the network.
 	networkProjectName, _, err := project.NetworkProject(d.State().Cluster, projectName)
@@ -1669,12 +1687,14 @@ func networkStateGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	networkName := mux.Vars(r)["name"]
+	networkName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	projectName := projectParam(r)
 
 	var state *api.NetworkState
-	var err error
 	n, networkLoadError := network.LoadByName(d.State(), projectName, networkName)
 	if networkLoadError == nil {
 		state, err = n.State()

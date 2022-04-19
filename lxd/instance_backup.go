@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -122,7 +123,10 @@ func instanceBackupsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	cname := mux.Vars(r)["name"]
+	cname, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, cname, instanceType)
@@ -205,7 +209,10 @@ func instanceBackupsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
 		err := project.AllowBackupCreation(tx, projectName)
@@ -377,8 +384,15 @@ func instanceBackupGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
-	backupName := mux.Vars(r)["backupName"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -437,8 +451,15 @@ func instanceBackupPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
-	backupName := mux.Vars(r)["backupName"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -523,8 +544,15 @@ func instanceBackupDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
-	backupName := mux.Vars(r)["backupName"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
@@ -591,8 +619,15 @@ func instanceBackupExportGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
-	backupName := mux.Vars(r)["backupName"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	backupName, err := url.PathUnescape(mux.Vars(r)["backupName"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)

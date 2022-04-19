@@ -55,8 +55,9 @@ import (
 func restServer(d *Daemon) *http.Server {
 	/* Setup the web server */
 	mux := mux.NewRouter()
-	mux.StrictSlash(false)
+	mux.StrictSlash(false) // Don't redirect to URL with trailing slash.
 	mux.SkipClean(true)
+	mux.UseEncodedPath() // Allow encoded values in path segments.
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

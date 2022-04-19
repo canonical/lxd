@@ -2262,9 +2262,14 @@ func pruneExpiredImagesInProject(ctx context.Context, d *Daemon, project api.Pro
 func imageDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
 
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	// Use the fingerprint we received in a LIKE query and use the full
 	// fingerprint we receive from the database in all further queries.
-	imgID, imgInfo, err := d.cluster.GetImage(mux.Vars(r)["fingerprint"], db.ImageFilter{Project: &projectName})
+	imgID, imgInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2547,7 +2552,11 @@ func imageValidSecret(d *Daemon, r *http.Request, projectName string, fingerprin
 //     $ref: "#/responses/InternalServerError"
 func imageGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 	secret := r.FormValue("secret")
 
@@ -2606,7 +2615,11 @@ func imageGet(d *Daemon, r *http.Request) response.Response {
 func imagePut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	id, info, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
@@ -2692,7 +2705,11 @@ func imagePut(d *Daemon, r *http.Request) response.Response {
 func imagePatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	id, info, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
@@ -3035,7 +3052,11 @@ func imageAliasesGet(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 
 	_, alias, err := d.cluster.GetImageAlias(projectName, name, !public)
@@ -3072,8 +3093,12 @@ func imageAliasGet(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
-	_, _, err := d.cluster.GetImageAlias(projectName, name, true)
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
+	_, _, err = d.cluster.GetImageAlias(projectName, name, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3126,7 +3151,11 @@ func imageAliasDelete(d *Daemon, r *http.Request) response.Response {
 func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	id, alias, err := d.cluster.GetImageAlias(projectName, name, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -3200,7 +3229,11 @@ func imageAliasPut(d *Daemon, r *http.Request) response.Response {
 func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 	// Get current value
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	id, alias, err := d.cluster.GetImageAlias(projectName, name, true)
 	if err != nil {
 		return response.SmartError(err)
@@ -3287,7 +3320,10 @@ func imageAliasPatch(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	req := api.ImageAliasesEntryPost{}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -3300,7 +3336,7 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 		return response.Conflict(fmt.Errorf("Alias '%s' already in use", req.Name))
 	}
 
-	id, _, err := d.cluster.GetImageAlias(projectName, name, true)
+	id, _, err = d.cluster.GetImageAlias(projectName, name, true)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3372,13 +3408,15 @@ func imageAliasPost(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func imageExport(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	public := d.checkTrustedClient(r) != nil || allowProjectPermission("images", "view")(d, r) != response.EmptySyncResponse
 	secret := r.FormValue("secret")
 
 	var imgInfo *api.Image
-	var err error
 	if r.RemoteAddr == "@devlxd" {
 		// /dev/lxd API requires exact match
 		_, imgInfo, err = d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
@@ -3496,10 +3534,13 @@ func imageExport(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func imageExportPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Check if the image exists
-	_, _, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
+	_, _, err = d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3628,7 +3669,10 @@ func imageExportPost(d *Daemon, r *http.Request) response.Response {
 //     $ref: "#/responses/InternalServerError"
 func imageSecret(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	_, imgInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
@@ -3732,7 +3776,11 @@ func imageImportFromNode(imagesDir string, client lxd.InstanceServer, fingerprin
 //     $ref: "#/responses/InternalServerError"
 func imageRefresh(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	fingerprint := mux.Vars(r)["fingerprint"]
+	fingerprint, err := url.PathUnescape(mux.Vars(r)["fingerprint"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	imageID, imageInfo, err := d.cluster.GetImage(fingerprint, db.ImageFilter{Project: &projectName})
 	if err != nil {
 		return response.SmartError(err)

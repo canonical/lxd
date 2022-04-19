@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -276,7 +277,11 @@ func internalShutdown(d *Daemon, r *http.Request) response.Response {
 // It detects whether the instance reference is an instance ID or instance name and loads instance accordingly.
 func internalContainerHookLoadFromReference(s *state.State, r *http.Request) (instance.Instance, error) {
 	var inst instance.Instance
-	instanceRef := mux.Vars(r)["instanceRef"]
+	instanceRef, err := url.PathUnescape(mux.Vars(r)["instanceRef"])
+	if err != nil {
+		return nil, err
+	}
+
 	projectName := projectParam(r)
 
 	instanceID, err := strconv.Atoi(instanceRef)

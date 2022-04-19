@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 
@@ -75,7 +76,11 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 	projectName := projectParam(r)
 
-	name := mux.Vars(r)["name"]
+	name, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
+
 	targetNode := queryParam(r, "target")
 
 	// Flag indicating whether the node running the container is offline.
@@ -878,7 +883,10 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 // to create the appropriate mount points.
 func internalClusterInstanceMovedPost(d *Daemon, r *http.Request) response.Response {
 	projectName := projectParam(r)
-	instanceName := mux.Vars(r)["name"]
+	instanceName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	inst, err := instance.LoadByProjectAndName(d.State(), projectName, instanceName)
 	if err != nil {

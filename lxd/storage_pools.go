@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -574,7 +575,10 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	poolName := mux.Vars(r)["name"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	clustered, err := cluster.Enabled(d.db)
 	if err != nil {
@@ -666,7 +670,10 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	poolName := mux.Vars(r)["name"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	// Get the existing storage pool.
 	pool, err := storagePools.LoadByName(d.State(), poolName)
@@ -887,7 +894,10 @@ func doStoragePoolUpdate(d *Daemon, pool storagePools.Pool, req api.StoragePoolP
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
-	poolName := mux.Vars(r)["name"]
+	poolName, err := url.PathUnescape(mux.Vars(r)["name"])
+	if err != nil {
+		return response.SmartError(err)
+	}
 
 	pool, err := storagePools.LoadByName(d.State(), poolName)
 	if err != nil {
