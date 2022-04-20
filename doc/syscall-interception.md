@@ -111,3 +111,10 @@ may result in breakage for other attributes that would have been
 previously allowed by the kernel.
 
 This can be enabled by setting `security.syscalls.intercept.setxattr` to `true`.
+
+## sysinfo
+
+The `sysinfo` system call is used by some distributions instead of `/proc/` entries to report on resource usage.
+
+In order to provide resource usage information specific to the container, rather than the whole system, this
+syscall interception mode uses cgroup-based resource usage information to fill in the system call response.
