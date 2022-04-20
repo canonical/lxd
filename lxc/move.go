@@ -35,7 +35,15 @@ func (c *cmdMove) Command() *cobra.Command {
 	cmd.Aliases = []string{"mv"}
 	cmd.Short = i18n.G("Move instances within or in between LXD servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Move instances within or in between LXD servers`))
+		`Move instances within or in between LXD servers
+
+Transfer modes (--mode):
+ - pull: Target server pulls the data from the source server (source must listen on network)
+ - push: Source server pushes the data to the target server (target must listen on network)
+ - relay: The CLI connects to both source and server and proxies the data (both source and target must listen on network)
+
+The pull transfer mode is the default as it is compatible with all LXD versions.
+`))
 	cmd.Example = cli.FormatSection("", i18n.G(
 		`lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--instance-only]
     Move an instance between two hosts, renaming it if destination name differs.
@@ -52,7 +60,7 @@ lxc move <instance>/<old snapshot name> <instance>/<new snapshot name>
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the target instance")+"``")
 	cmd.Flags().BoolVar(&c.flagNoProfiles, "no-profiles", false, i18n.G("Unset all profiles on the target instance"))
 	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false, i18n.G("Move the instance without its snapshots"))
-	cmd.Flags().StringVar(&c.flagMode, "mode", moveDefaultMode, i18n.G("Transfer mode. One of pull (default), push or relay.")+"``")
+	cmd.Flags().StringVar(&c.flagMode, "mode", moveDefaultMode, i18n.G("Transfer mode. One of pull, push or relay.")+"``")
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful instance stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
 	cmd.Flags().StringVar(&c.flagTarget, "target", "", i18n.G("Cluster member name")+"``")
