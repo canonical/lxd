@@ -131,6 +131,10 @@ func (d *zone) validateName(name string) error {
 		return fmt.Errorf("Name is required")
 	}
 
+	if strings.HasPrefix(name, "/") {
+		return fmt.Errorf(`Name cannot start with "/"`)
+	}
+
 	return nil
 }
 
