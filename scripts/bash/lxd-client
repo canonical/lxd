@@ -114,6 +114,7 @@ _have lxc && {
       security.syscalls.intercept.mount.fuse \
       security.syscalls.intercept.sched_setscheduler \
       security.syscalls.intercept.setxattr \
+      security.syscalls.intercept.sysinfo \
       security.syscalls.intercept.mount.shift \
       snapshots.schedule snapshots.schedule.stopped snapshots.pattern \
       snapshots.expiry \
