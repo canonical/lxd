@@ -252,11 +252,9 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 		return err
 	}
 
-	err = task(v.MountPath(), op)
-	if err != nil {
-		return err
-	}
+	taskErr := task(v.MountPath(), op)
 
+	// Try and unmount, even on task error.
 	if v.IsSnapshot() {
 		if ourMount {
 			_, err = v.driver.UnmountVolumeSnapshot(v, op)
@@ -264,6 +262,13 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	} else {
 		_, err = v.driver.UnmountVolume(v, false, op)
 	}
+
+	// Return task error if failed.
+	if taskErr != nil {
+		return taskErr
+	}
+
+	// Return unmount error if failed.
 	if err != nil && !errors.Is(err, ErrInUse) {
 		return err
 	}
