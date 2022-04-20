@@ -395,35 +395,6 @@ migration() {
   lxc_remote storage volume delete l1:dir vol1
   lxc_remote storage delete l1:dir
 
-  if ! command -v criu >/dev/null 2>&1; then
-    echo "==> SKIP: live migration with CRIU (missing binary)"
-    return
-  fi
-
-  echo "==> CRIU: starting testing live-migration"
-  lxc_remote launch testimage l1:migratee
-
-  # Wait for the container to be done booting
-  sleep 1
-
-  # Test stateful stop
-  lxc_remote stop --stateful l1:migratee
-  lxc_remote start l1:migratee
-
-  # Test stateful snapshots
-  lxc_remote snapshot --stateful l1:migratee
-  lxc_remote restore l1:migratee snap0
-
-  # Test live migration of container
-  lxc_remote move l1:migratee l2:migratee
-
-  # Test copy of stateful snapshot
-  lxc_remote copy l2:migratee/snap0 l1:migratee
-  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name || false
-
-  # Test stateless copies
-  lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
-
   # Test optimized refresh
   lxc_remote init testimage l1:c1
   echo test | lxc_remote file push - l1:c1/tmp/foo
@@ -463,6 +434,35 @@ migration() {
 
   lxc_remote rm -f l1:c1
   lxc_remote rm -f l2:c1
+
+  if ! command -v criu >/dev/null 2>&1; then
+    echo "==> SKIP: live migration with CRIU (missing binary)"
+    return
+  fi
+
+  echo "==> CRIU: starting testing live-migration"
+  lxc_remote launch testimage l1:migratee
+
+  # Wait for the container to be done booting
+  sleep 1
+
+  # Test stateful stop
+  lxc_remote stop --stateful l1:migratee
+  lxc_remote start l1:migratee
+
+  # Test stateful snapshots
+  lxc_remote snapshot --stateful l1:migratee
+  lxc_remote restore l1:migratee snap0
+
+  # Test live migration of container
+  lxc_remote move l1:migratee l2:migratee
+
+  # Test copy of stateful snapshot
+  lxc_remote copy l2:migratee/snap0 l1:migratee
+  ! lxc_remote copy l2:migratee/snap0 l1:migratee-new-name || false
+
+  # Test stateless copies
+  lxc_remote copy --stateless l2:migratee/snap0 l1:migratee-new-name
 
   # Cleanup
   lxc_remote delete --force l1:migratee

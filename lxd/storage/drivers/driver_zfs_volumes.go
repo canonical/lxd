@@ -736,6 +736,11 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 		// refresh.
 		if len(snapshots) == 0 {
 			volTargetArgs.Refresh = false
+
+			err = d.DeleteVolume(vol, op)
+			if err != nil {
+				return fmt.Errorf("Failed deleting volume: %w", err)
+			}
 		}
 
 		var respSnapshots []ZFSDataset
@@ -769,23 +774,53 @@ func (d *zfs) CreateVolumeFromMigration(vol Volume, conn io.ReadWriteCloser, vol
 			}
 		}
 
-		// Delete local snapshots which exist on the target but not on the source.
-		for _, snapVol := range snapshots {
-			targetOnlySnapshot := true
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
-
-			for _, migrationSnap := range migrationHeader.SnapshotDatasets {
-				if snapName == migrationSnap.Name {
-					targetOnlySnapshot = false
-					break
-				}
-			}
-
-			if targetOnlySnapshot {
+		// The following scenario will result in a failure:
+		// - The source has more than one snapshot
+		// - The target has at least one of these snapshot, but not the very first
+		//
+		// It will fail because the source tries sending the first snapshot using `zfs send <first>`.
+		// Since the target does have snapshots, `zfs receive` will fail with:
+		//     cannot receive new filesystem stream: destination has snapshots
+		//
+		// We therefore need to check the snapshots, and delete all target snapshots if the above
+		// scenario is true.
+		if !volumeOnly && len(respSnapshots) > 0 && len(migrationHeader.SnapshotDatasets) > 0 && respSnapshots[0].GUID != migrationHeader.SnapshotDatasets[0].GUID {
+			for _, snapVol := range snapshots {
 				// Delete
 				err = d.DeleteVolume(snapVol, op)
 				if err != nil {
 					return err
+				}
+			}
+
+			// Let the source know that we don't have any snapshots.
+			respSnapshots = []ZFSDataset{}
+
+			// Let the source know that we need all snapshots.
+			syncSnapshotNames = []string{}
+
+			for _, dataset := range migrationHeader.SnapshotDatasets {
+				syncSnapshotNames = append(syncSnapshotNames, dataset.Name)
+			}
+		} else {
+			// Delete local snapshots which exist on the target but not on the source.
+			for _, snapVol := range snapshots {
+				targetOnlySnapshot := true
+				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
+
+				for _, migrationSnap := range migrationHeader.SnapshotDatasets {
+					if snapName == migrationSnap.Name {
+						targetOnlySnapshot = false
+						break
+					}
+				}
+
+				if targetOnlySnapshot {
+					// Delete
+					err = d.DeleteVolume(snapVol, op)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
