@@ -593,18 +593,18 @@ func (g *Gateway) LeaderAddress() (string, error) {
 		return "", ErrNodeIsNotClustered
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	// If this is a voter node, return the address of the current leader, or wait a bit until one is elected.
 	if g.server != nil && g.info.Role == db.RaftVoter {
+		ctx, cancel := context.WithTimeout(g.ctx, 5*time.Second)
+		defer cancel()
+
 		for {
 			client, err := g.getClient()
 			if err != nil {
 				return "", fmt.Errorf("Failed to get dqlite client: %w", err)
 			}
 
-			leader, err := client.Leader(context.Background())
+			leader, err := client.Leader(ctx)
 			if err != nil {
 				client.Close()
 				return "", fmt.Errorf("Failed to get leader address: %w", err)
@@ -660,14 +660,23 @@ func (g *Gateway) LeaderAddress() (string, error) {
 	defer cleanup()
 
 	for _, address := range addresses {
+		timeout := 2 * time.Second
+		client := &http.Client{
+			Transport: transport,
+			Timeout:   timeout,
+		}
 		url := fmt.Sprintf("https://%s%s", address, databaseEndpoint)
 		request, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return "", err
 		}
 		setDqliteVersionHeader(request)
+
+		// Use 1s later timeout to give HTTP client chance timeout with
+		// more useful info.
+		ctx, cancel := context.WithTimeout(g.ctx, timeout+time.Second)
+		defer cancel()
 		request = request.WithContext(ctx)
-		client := &http.Client{Transport: transport}
 		response, err := client.Do(request)
 		if err != nil {
 			logger.Debugf("Failed to fetch leader address from %s", address)
