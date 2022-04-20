@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-01 18:00+0100\n"
+"POT-Creation-Date: 2022-04-27 16:52-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -16,8 +16,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
 "X-Generator: Weblate 4.12-dev\n"
 
 #: lxc/storage.go:229
@@ -567,11 +567,11 @@ msgstr ""
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
-#: lxc/copy.go:158
+#: lxc/copy.go:166
 msgid "--instance-only can't be passed when the source is a snapshot"
 msgstr ""
 
-#: lxc/copy.go:87
+#: lxc/copy.go:95
 msgid "--no-profiles cannot be used with --refresh"
 msgstr ""
 
@@ -579,7 +579,7 @@ msgstr ""
 msgid "--project cannot be used with the query command"
 msgstr ""
 
-#: lxc/copy.go:169
+#: lxc/copy.go:177
 msgid "--refresh can only be used with instances"
 msgstr ""
 
@@ -735,7 +735,7 @@ msgstr ""
 msgid "Add profiles to instances"
 msgstr ""
 
-#: lxc/cluster_role.go:48 lxc/cluster_role.go:49
+#: lxc/cluster_role.go:47 lxc/cluster_role.go:48
 #, fuzzy
 msgid "Add roles to a cluster member"
 msgstr "Копирование образа: %s"
@@ -894,7 +894,7 @@ msgstr ""
 msgid "Bad key/value pair: %s"
 msgstr ""
 
-#: lxc/copy.go:128 lxc/init.go:207 lxc/project.go:129 lxc/publish.go:178
+#: lxc/copy.go:136 lxc/init.go:207 lxc/project.go:129 lxc/publish.go:178
 #: lxc/storage.go:127 lxc/storage_volume.go:564
 #, c-format
 msgid "Bad key=value pair: %s"
@@ -905,7 +905,7 @@ msgstr ""
 msgid "Bad property: %s"
 msgstr ""
 
-#: lxc/copy.go:139
+#: lxc/copy.go:147
 #, c-format
 msgid "Bad syntax, expecting <device>,<key>=<value>: %s"
 msgstr ""
@@ -997,7 +997,7 @@ msgstr ""
 msgid "Caches:"
 msgstr ""
 
-#: lxc/move.go:109
+#: lxc/move.go:117
 msgid "Can't override configuration or profiles in local rename"
 msgstr ""
 
@@ -1137,8 +1137,8 @@ msgid "Cluster member %s removed from group %s"
 msgstr ""
 
 #: lxc/cluster.go:710 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
-#: lxc/config.go:617 lxc/config.go:736 lxc/copy.go:53 lxc/info.go:47
-#: lxc/init.go:54 lxc/move.go:58 lxc/network.go:288 lxc/network.go:706
+#: lxc/config.go:617 lxc/config.go:736 lxc/copy.go:61 lxc/info.go:47
+#: lxc/init.go:54 lxc/move.go:66 lxc/network.go:288 lxc/network.go:706
 #: lxc/network.go:764 lxc/network.go:1101 lxc/network.go:1168
 #: lxc/network.go:1230 lxc/network_forward.go:170 lxc/network_forward.go:234
 #: lxc/network_forward.go:389 lxc/network_forward.go:490
@@ -1185,7 +1185,7 @@ msgstr ""
 msgid "Compression algorithm to use (none for uncompressed)"
 msgstr ""
 
-#: lxc/copy.go:45 lxc/init.go:48
+#: lxc/copy.go:53 lxc/init.go:48
 msgid "Config key/value to apply to the new instance"
 msgstr ""
 
@@ -1193,7 +1193,7 @@ msgstr ""
 msgid "Config key/value to apply to the new project"
 msgstr ""
 
-#: lxc/move.go:50
+#: lxc/move.go:58
 msgid "Config key/value to apply to the target instance"
 msgstr ""
 
@@ -1225,7 +1225,7 @@ msgstr "Авто-обновление: %s"
 msgid "Control: %s (%s)"
 msgstr ""
 
-#: lxc/copy.go:51 lxc/move.go:56
+#: lxc/copy.go:59 lxc/move.go:64
 msgid "Copy a stateful instance stateless"
 msgstr ""
 
@@ -1245,8 +1245,24 @@ msgid ""
 "It requires the source to be an alias and for it to be public."
 msgstr ""
 
-#: lxc/copy.go:40 lxc/copy.go:41
+#: lxc/copy.go:40
 msgid "Copy instances within or in between LXD servers"
+msgstr ""
+
+#: lxc/copy.go:41
+msgid ""
+"Copy instances within or in between LXD servers\n"
+"\n"
+"Transfer modes (--mode):\n"
+" - pull: Target server pulls the data from the source server (source must "
+"listen on network)\n"
+" - push: Source server pushes the data to the target server (target must "
+"listen on network)\n"
+" - relay: The CLI connects to both source and server and proxies the data "
+"(both source and target must listen on network)\n"
+"\n"
+"The pull transfer mode is the default as it is compatible with all LXD "
+"versions.\n"
 msgstr ""
 
 #: lxc/config_device.go:344 lxc/config_device.go:345
@@ -1262,7 +1278,7 @@ msgstr ""
 msgid "Copy storage volumes"
 msgstr "Копирование образа: %s"
 
-#: lxc/copy.go:50
+#: lxc/copy.go:58
 msgid "Copy the instance without its snapshots"
 msgstr ""
 
@@ -1270,7 +1286,7 @@ msgstr ""
 msgid "Copy the volume without its snapshots"
 msgstr ""
 
-#: lxc/copy.go:54 lxc/image.go:157 lxc/move.go:59 lxc/storage_volume.go:338
+#: lxc/copy.go:62 lxc/image.go:157 lxc/move.go:67 lxc/storage_volume.go:338
 msgid "Copy to a project different from the source"
 msgstr ""
 
@@ -1426,7 +1442,7 @@ msgstr ""
 msgid "Create storage pools"
 msgstr "Копирование образа: %s"
 
-#: lxc/copy.go:55 lxc/init.go:55
+#: lxc/copy.go:63 lxc/init.go:55
 #, fuzzy
 msgid "Create the instance with no profiles applied"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -1575,8 +1591,8 @@ msgstr ""
 #: lxc/cluster.go:1081 lxc/cluster_group.go:30 lxc/cluster_group.go:79
 #: lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261
 #: lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518
-#: lxc/cluster_group.go:564 lxc/cluster_role.go:23 lxc/cluster_role.go:49
-#: lxc/cluster_role.go:103 lxc/config.go:30 lxc/config.go:92 lxc/config.go:363
+#: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
+#: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:363
 #: lxc/config.go:455 lxc/config.go:613 lxc/config.go:733
 #: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:196
 #: lxc/config_device.go:274 lxc/config_device.go:345 lxc/config_device.go:438
@@ -1918,7 +1934,7 @@ msgstr ""
 msgid "Environment variable to set (e.g. HOME=/home/foo)"
 msgstr ""
 
-#: lxc/copy.go:48 lxc/init.go:50
+#: lxc/copy.go:56 lxc/init.go:50
 msgid "Ephemeral instance"
 msgstr ""
 
@@ -2090,7 +2106,7 @@ msgstr "Принять сертификат"
 msgid "Failed to add remote"
 msgstr ""
 
-#: lxc/move.go:277 lxc/move.go:351 lxc/move.go:403
+#: lxc/move.go:285 lxc/move.go:359 lxc/move.go:411
 #, fuzzy, c-format
 msgid "Failed to connect to cluster member: %w"
 msgstr "Копирование образа: %s"
@@ -2115,7 +2131,7 @@ msgstr "Принять сертификат"
 msgid "Failed to find project: %w"
 msgstr ""
 
-#: lxc/copy.go:412
+#: lxc/copy.go:420
 msgid "Failed to get the new instance name"
 msgstr ""
 
@@ -2124,7 +2140,7 @@ msgstr ""
 msgid "Failed to listen for connection: %w"
 msgstr "Принять сертификат"
 
-#: lxc/copy.go:366
+#: lxc/copy.go:374
 #, c-format
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
@@ -2430,7 +2446,7 @@ msgstr ""
 msgid "Ignore any configured auto-expiry for the storage volume"
 msgstr ""
 
-#: lxc/copy.go:57 lxc/move.go:60
+#: lxc/copy.go:65 lxc/move.go:68
 msgid "Ignore copy errors for volatile files"
 msgstr ""
 
@@ -2544,7 +2560,7 @@ msgstr ""
 msgid "Instance name is mandatory"
 msgstr "Имя контейнера является обязательным"
 
-#: lxc/copy.go:418 lxc/init.go:363
+#: lxc/copy.go:426 lxc/init.go:363
 #, fuzzy, c-format
 msgid "Instance name is: %s"
 msgstr "Имя контейнера: %s"
@@ -2627,12 +2643,12 @@ msgid ""
 "Invalid name in '%s', empty string is only allowed when defining maxWidth"
 msgstr ""
 
-#: lxc/move.go:127 lxc/storage_volume.go:1607
+#: lxc/move.go:135 lxc/storage_volume.go:1607
 #, fuzzy
 msgid "Invalid new snapshot name"
 msgstr "Нельзя использовать '/' в имени снимка"
 
-#: lxc/move.go:123
+#: lxc/move.go:131
 msgid "Invalid new snapshot name, parent must be the same as source"
 msgstr ""
 
@@ -3126,7 +3142,7 @@ msgstr "Копирование образа: %s"
 msgid "Manage cluster members"
 msgstr ""
 
-#: lxc/cluster_role.go:22 lxc/cluster_role.go:23
+#: lxc/cluster_role.go:21 lxc/cluster_role.go:22
 #, fuzzy
 msgid "Manage cluster roles"
 msgstr "Копирование образа: %s"
@@ -3246,8 +3262,8 @@ msgstr "Копирование образа: %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -3272,12 +3288,12 @@ msgstr ""
 msgid "Mdev profiles:"
 msgstr ""
 
-#: lxc/cluster_role.go:84
+#: lxc/cluster_role.go:83
 #, c-format
 msgid "Member %q already has role %q"
 msgstr ""
 
-#: lxc/cluster_role.go:138
+#: lxc/cluster_role.go:137
 #, c-format
 msgid "Member %q does not have role %q"
 msgstr ""
@@ -3315,12 +3331,12 @@ msgstr " Использование памяти:"
 msgid "Memory:"
 msgstr " Использование памяти:"
 
-#: lxc/move.go:295 lxc/move.go:365 lxc/move.go:417
+#: lxc/move.go:303 lxc/move.go:373 lxc/move.go:425
 #, c-format
 msgid "Migration API failure: %w"
 msgstr ""
 
-#: lxc/move.go:318 lxc/move.go:370 lxc/move.go:422
+#: lxc/move.go:326 lxc/move.go:378 lxc/move.go:430
 #, c-format
 msgid "Migration operation failure: %w"
 msgstr ""
@@ -3340,7 +3356,7 @@ msgid "Missing cluster group name"
 msgstr "Копирование образа: %s"
 
 #: lxc/cluster.go:629 lxc/cluster.go:1110 lxc/cluster_group.go:110
-#: lxc/cluster_group.go:469 lxc/cluster_role.go:71 lxc/cluster_role.go:125
+#: lxc/cluster_group.go:469 lxc/cluster_role.go:70 lxc/cluster_role.go:124
 #, fuzzy
 msgid "Missing cluster member name"
 msgstr "Копирование образа: %s"
@@ -3494,8 +3510,24 @@ msgstr ""
 msgid "Mount files from instances"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/move.go:36 lxc/move.go:37
+#: lxc/move.go:36
 msgid "Move instances within or in between LXD servers"
+msgstr ""
+
+#: lxc/move.go:37
+msgid ""
+"Move instances within or in between LXD servers\n"
+"\n"
+"Transfer modes (--mode):\n"
+" - pull: Target server pulls the data from the source server (source must "
+"listen on network)\n"
+" - push: Source server pushes the data to the target server (target must "
+"listen on network)\n"
+" - relay: The CLI connects to both source and server and proxies the data "
+"(both source and target must listen on network)\n"
+"\n"
+"The pull transfer mode is the default as it is compatible with all LXD "
+"versions.\n"
 msgstr ""
 
 #: lxc/storage_volume.go:1522 lxc/storage_volume.go:1523
@@ -3503,7 +3535,7 @@ msgstr ""
 msgid "Move storage volumes between pools"
 msgstr "Копирование образа: %s"
 
-#: lxc/move.go:54
+#: lxc/move.go:62
 msgid "Move the instance without its snapshots"
 msgstr ""
 
@@ -3704,7 +3736,7 @@ msgstr ""
 msgid "New aliases to add to the image"
 msgstr ""
 
-#: lxc/copy.go:46 lxc/move.go:51
+#: lxc/copy.go:54 lxc/move.go:59
 msgid "New key/value to apply to a specific device"
 msgstr ""
 
@@ -3870,7 +3902,7 @@ msgstr "Пароль администратора для %s: "
 msgid "Pause instances"
 msgstr ""
 
-#: lxc/copy.go:56
+#: lxc/copy.go:64
 msgid "Perform an incremental copy"
 msgstr ""
 
@@ -3971,11 +4003,11 @@ msgstr ""
 msgid "Profile %s renamed to %s"
 msgstr ""
 
-#: lxc/copy.go:47 lxc/init.go:49
+#: lxc/copy.go:55 lxc/init.go:49
 msgid "Profile to apply to the new instance"
 msgstr ""
 
-#: lxc/move.go:52
+#: lxc/move.go:60
 msgid "Profile to apply to the target instance"
 msgstr ""
 
@@ -4090,7 +4122,7 @@ msgstr "Копирование образа: %s"
 msgid "Refresh images"
 msgstr "Копирование образа: %s"
 
-#: lxc/copy.go:379
+#: lxc/copy.go:387
 #, fuzzy, c-format
 msgid "Refreshing instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -4199,7 +4231,7 @@ msgstr ""
 msgid "Remove remotes"
 msgstr ""
 
-#: lxc/cluster_role.go:102 lxc/cluster_role.go:103
+#: lxc/cluster_role.go:101 lxc/cluster_role.go:102
 #, fuzzy
 msgid "Remove roles from a cluster member"
 msgstr "Копирование образа: %s"
@@ -4879,7 +4911,7 @@ msgstr ""
 msgid "Storage pool %s pending on member %s"
 msgstr ""
 
-#: lxc/copy.go:52 lxc/import.go:36 lxc/init.go:52 lxc/move.go:57
+#: lxc/copy.go:60 lxc/import.go:36 lxc/init.go:52 lxc/move.go:65
 msgid "Storage pool name"
 msgstr ""
 
@@ -4963,19 +4995,19 @@ msgstr ""
 msgid "Target path must be a directory"
 msgstr ""
 
-#: lxc/move.go:160
+#: lxc/move.go:168
 msgid "The --instance-only flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:197
+#: lxc/move.go:205
 msgid "The --mode flag can't be used with --storage"
 msgstr ""
 
-#: lxc/move.go:172
+#: lxc/move.go:180
 msgid "The --mode flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:213
+#: lxc/move.go:221
 msgid "The --mode flag can't be used with --target-project"
 msgstr ""
 
@@ -4983,15 +5015,15 @@ msgstr ""
 msgid "The --show-log flag is only supported for by 'console' output type"
 msgstr ""
 
-#: lxc/move.go:164
+#: lxc/move.go:172
 msgid "The --storage flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:168
+#: lxc/move.go:176
 msgid "The --target-project flag can't be used with --target"
 msgstr ""
 
-#: lxc/move.go:184
+#: lxc/move.go:192
 msgid "The destination LXD server is not clustered"
 msgstr ""
 
@@ -5040,7 +5072,7 @@ msgstr ""
 msgid "The server doesn't implement the newer v2 resources API"
 msgstr ""
 
-#: lxc/move.go:282
+#: lxc/move.go:290
 msgid "The source LXD server is not clustered"
 msgstr ""
 
@@ -5108,7 +5140,7 @@ msgid ""
 msgstr ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
-#: lxc/copy.go:121 lxc/info.go:332 lxc/network.go:793 lxc/storage.go:429
+#: lxc/copy.go:129 lxc/info.go:332 lxc/network.go:793 lxc/storage.go:429
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
 
@@ -5126,12 +5158,20 @@ msgstr ""
 msgid "Transfer mode, one of pull (default), push or relay"
 msgstr ""
 
-#: lxc/copy.go:49 lxc/image.go:156
+#: lxc/image.go:156
 msgid "Transfer mode. One of pull (default), push or relay"
 msgstr ""
 
-#: lxc/move.go:55 lxc/storage_volume.go:334
+#: lxc/storage_volume.go:334
 msgid "Transfer mode. One of pull (default), push or relay."
+msgstr ""
+
+#: lxc/copy.go:57
+msgid "Transfer mode. One of pull, push or relay"
+msgstr ""
+
+#: lxc/move.go:63
+msgid "Transfer mode. One of pull, push or relay."
 msgstr ""
 
 #: lxc/image.go:757
@@ -5139,7 +5179,7 @@ msgstr ""
 msgid "Transferring image: %s"
 msgstr ""
 
-#: lxc/copy.go:345 lxc/move.go:300
+#: lxc/copy.go:353 lxc/move.go:308
 #, fuzzy, c-format
 msgid "Transferring instance: %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -5256,7 +5296,7 @@ msgstr ""
 msgid "Unset a cluster member's configuration keys"
 msgstr "Копирование образа: %s"
 
-#: lxc/move.go:53
+#: lxc/move.go:61
 msgid "Unset all profiles on the target instance"
 msgstr ""
 
@@ -5461,11 +5501,11 @@ msgstr ""
 msgid "You can't pass -t or -T at the same time as --mode"
 msgstr ""
 
-#: lxc/copy.go:82
+#: lxc/copy.go:90
 msgid "You must specify a destination instance name when using --target"
 msgstr ""
 
-#: lxc/copy.go:77 lxc/move.go:266 lxc/move.go:340 lxc/move.go:392
+#: lxc/copy.go:85 lxc/move.go:274 lxc/move.go:348 lxc/move.go:400
 msgid "You must specify a source instance name"
 msgstr ""
 
@@ -5984,7 +6024,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/cluster_role.go:47 lxc/cluster_role.go:101
+#: lxc/cluster_role.go:46 lxc/cluster_role.go:100
 #, fuzzy
 msgid "[<remote>:]<member> <role[,role...]>"
 msgstr ""
@@ -6709,7 +6749,7 @@ msgid ""
 "    Only show lifecycle events."
 msgstr ""
 
-#: lxc/move.go:39
+#: lxc/move.go:47
 msgid ""
 "lxc move [<remote>:]<source instance> [<remote>:][<destination instance>] [--"
 "instance-only]\n"
@@ -6806,8 +6846,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
