@@ -25,6 +25,11 @@ type ClusterTx struct {
 	stmts  map[int]*sql.Stmt // Prepared statements by code.
 }
 
+// Tx retrieves the underlying transaction on the cluster database.
+func (c *ClusterTx) Tx() *sql.Tx {
+	return c.tx
+}
+
 // NodeID sets the the node NodeID associated with this cluster transaction.
 func (c *ClusterTx) NodeID(id int64) {
 	c.nodeID = id
