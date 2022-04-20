@@ -39,14 +39,22 @@ func (c *cmdCopy) Command() *cobra.Command {
 	cmd.Aliases = []string{"cp"}
 	cmd.Short = i18n.G("Copy instances within or in between LXD servers")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Copy instances within or in between LXD servers`))
+		`Copy instances within or in between LXD servers
+
+Transfer modes (--mode):
+ - pull: Target server pulls the data from the source server (source must listen on network)
+ - push: Source server pushes the data to the target server (target must listen on network)
+ - relay: The CLI connects to both source and server and proxies the data (both source and target must listen on network)
+
+The pull transfer mode is the default as it is compatible with all LXD versions.
+`))
 
 	cmd.RunE = c.Run
 	cmd.Flags().StringArrayVarP(&c.flagConfig, "config", "c", nil, i18n.G("Config key/value to apply to the new instance")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagDevice, "device", "d", nil, i18n.G("New key/value to apply to a specific device")+"``")
 	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new instance")+"``")
 	cmd.Flags().BoolVarP(&c.flagEphemeral, "ephemeral", "e", false, i18n.G("Ephemeral instance"))
-	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
+	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull, push or relay")+"``")
 	cmd.Flags().BoolVar(&c.flagInstanceOnly, "instance-only", false, i18n.G("Copy the instance without its snapshots"))
 	cmd.Flags().BoolVar(&c.flagStateless, "stateless", false, i18n.G("Copy a stateful instance stateless"))
 	cmd.Flags().StringVarP(&c.flagStorage, "storage", "s", "", i18n.G("Storage pool name")+"``")
