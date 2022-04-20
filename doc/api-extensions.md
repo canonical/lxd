@@ -1665,3 +1665,6 @@ If it's set to mac, then generate a name in the form `lxd1122334455`.
 
 ## image\_copy\_profile
 Adds ability to modify the set of profiles when image is copied.
+
+## container\_syscall\_intercept\_sysinfo
+Adds the `security.syscalls.intercept.sysinfo` to allow the `sysinfo` syscall to be populated with cgroup-based resource usage information.
