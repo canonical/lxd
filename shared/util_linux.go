@@ -457,11 +457,11 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 	// [1]: This function has just one job: Dealing with the case where we
 	// are running an interactive shell session where we put a process in
 	// the background that does hold stdin/stdout open, but does not
-	// generate any output at all. This case cannot be dealt with in the
+	// generate any output at all. This case cannot be dealt within the
 	// following function call. Here's why: Assume the above case, now the
 	// attached child (the shell in this example) exits. This will not
 	// generate any poll() event: We won't get POLLHUP because the
-	// background process is holding stdin/stdout open and noone is writing
+	// background process is holding stdin/stdout open and no one is writing
 	// to it. So we effectively block on GetPollRevents() in the function
 	// below. Hence, we use another go routine here who's only job is to
 	// handle that case: When we detect that the child has exited we check
@@ -487,7 +487,7 @@ func ExecReaderToChannel(r io.Reader, bufferSize int, exited <-chan struct{}, fd
 				// avoid an endless loop.
 			} else if (revents & unix.POLLNVAL) > 0 {
 				logger.Debugf("Detected poll(POLLNVAL) event.")
-				// Well, someone closed the fd havent they? So
+				// Well, someone closed the fd haven't they? So
 				// let's go home.
 			}
 		} else if ret == 0 {
