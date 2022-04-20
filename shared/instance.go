@@ -264,6 +264,7 @@ var InstanceConfigKeysContainer = map[string]func(value string) error{
 	"security.syscalls.intercept.mount.shift":        validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.sched_setscheduler": validate.Optional(validate.IsBool),
 	"security.syscalls.intercept.setxattr":           validate.Optional(validate.IsBool),
+	"security.syscalls.intercept.sysinfo":            validate.Optional(validate.IsBool),
 	"security.syscalls.whitelist":                    validate.IsAny,
 }
 
