@@ -35,4 +35,26 @@ func PrepareStmts(db *sql.DB, skipErrors bool) (map[int]*sql.Stmt, error) {
 	return index, nil
 }
 
-var stmts = map[int]string{} // Statement code to statement SQL text
+var stmts = map[int]string{} // Statement code to statement SQL text.
+
+// PreparedStmts is a placeholder for transitioning to package-scoped transaction functions.
+var PreparedStmts = map[int]*sql.Stmt{}
+
+// stmt prepares the in-memory prepared statement for the transaction.
+func stmt(tx *sql.Tx, code int) *sql.Stmt {
+	stmt, ok := PreparedStmts[code]
+	if !ok {
+		panic(fmt.Sprintf("No prepared statement registered with code %d", code))
+	}
+	return tx.Stmt(stmt)
+}
+
+// prepare prepares a new statement from a SQL string.
+func prepare(tx *sql.Tx, sql string) (*sql.Stmt, error) {
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to prepare statement with error: %w", err)
+	}
+
+	return stmt, nil
+}
