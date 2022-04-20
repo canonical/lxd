@@ -292,25 +292,22 @@ func lxcCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (i
 
 	if !d.IsSnapshot() {
 		// Add devices to container.
-		for k, m := range d.expandedDevices {
-			devName := k
-			devConfig := m
-
-			dev, err := d.deviceLoad(devName, devConfig)
+		for _, entry := range d.expandedDevices.Sorted() {
+			dev, err := d.deviceLoad(entry.Name, entry.Config)
 			if err != nil {
 				if errors.Is(err, device.ErrUnsupportedDevType) {
 					continue
 				}
 
-				return nil, fmt.Errorf("Failed to load device to add %q: %w", devName, err)
+				return nil, fmt.Errorf("Failed to load device to add %q: %w", entry.Name, err)
 			}
 
 			err = d.deviceAdd(dev, false)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to add device %q: %w", devName, err)
+				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceRemove(devName, devConfig, false) })
+			revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), false) })
 		}
 
 		// Update MAAS (must run after the MAC addresses have been generated).
@@ -1336,8 +1333,7 @@ func (d *lxc) devlxdEventSend(eventType string, eventMessage map[string]any) err
 
 // RegisterDevices calls the Register() function on all of the instance's devices.
 func (d *lxc) RegisterDevices() {
-	devices := d.ExpandedDevices()
-	for _, entry := range devices.Sorted() {
+	for _, entry := range d.ExpandedDevices().Sorted() {
 		dev, err := d.deviceLoad(entry.Name, entry.Config)
 		if errors.Is(err, device.ErrUnsupportedDevType) {
 			continue
@@ -3733,10 +3729,10 @@ func (d *lxc) Delete(force bool) error {
 		}
 
 		// Remove devices from container.
-		for k, m := range d.expandedDevices {
-			err = d.deviceRemove(k, m, false)
+		for _, entry := range d.expandedDevices.Reversed() {
+			err = d.deviceRemove(entry.Name, entry.Config, false)
 			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to remove device %q: %w", k, err)
+				return fmt.Errorf("Failed to remove device %q: %w", entry.Name, err)
 			}
 		}
 
