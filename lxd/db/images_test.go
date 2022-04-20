@@ -16,7 +16,7 @@ func TestLocateImage(t *testing.T) {
 	defer cleanup()
 
 	err := cluster.CreateImage(
-		"default", "abc", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container")
+		"default", "abc", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
 	require.NoError(t, err)
 
 	address, err := cluster.LocateImage("abc")
@@ -50,7 +50,7 @@ func TestImageExists(t *testing.T) {
 	assert.False(t, exists)
 
 	err = cluster.CreateImage(
-		"default", "abc", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container")
+		"default", "abc", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
 	require.NoError(t, err)
 
 	exists, err = cluster.ImageExists("default", "abc")
@@ -65,7 +65,7 @@ func TestGetImage(t *testing.T) {
 	project := "default"
 
 	// public image with 'default' project
-	err := cluster.CreateImage(project, "abcd1", "x.gz", 16, true, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container")
+	err := cluster.CreateImage(project, "abcd1", "x.gz", 16, true, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
 	require.NoError(t, err)
 
 	// 'public' is ignored if 'false'
@@ -75,7 +75,7 @@ func TestGetImage(t *testing.T) {
 	assert.NotEqual(t, id, -1)
 
 	// non-public image with 'default' project
-	err = cluster.CreateImage(project, "abcd2", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container")
+	err = cluster.CreateImage(project, "abcd2", "x.gz", 16, false, false, "amd64", time.Now(), time.Now(), map[string]string{}, "container", nil)
 	require.NoError(t, err)
 
 	// empty project fails

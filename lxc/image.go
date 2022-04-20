@@ -135,6 +135,7 @@ type cmdImageCopy struct {
 	flagVM            bool
 	flagMode          string
 	flagTargetProject string
+	flagProfile       []string
 }
 
 func (c *cmdImageCopy) Command() *cobra.Command {
@@ -155,6 +156,7 @@ It requires the source to be an alias and for it to be public.`))
 	cmd.Flags().BoolVar(&c.flagVM, "vm", false, i18n.G("Copy virtual machine images"))
 	cmd.Flags().StringVar(&c.flagMode, "mode", "pull", i18n.G("Transfer mode. One of pull (default), push or relay")+"``")
 	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
+	cmd.Flags().StringArrayVarP(&c.flagProfile, "profile", "p", nil, i18n.G("Profile to apply to the new image")+"``")
 	cmd.RunE = c.Run
 
 	return cmd
@@ -242,6 +244,8 @@ func (c *cmdImageCopy) Run(cmd *cobra.Command, args []string) error {
 		// If dealing with an alias, set the imgInfo fingerprint to match the provided alias (needed for auto-update)
 		imgInfo.Fingerprint = name
 	}
+
+	imgInfo.Profiles = c.flagProfile
 
 	copyArgs := lxd.ImageCopyArgs{
 		AutoUpdate: c.flagAutoUpdate,
