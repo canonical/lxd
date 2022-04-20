@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -21,6 +22,7 @@ import (
 	// Used by cgo
 	_ "github.com/lxc/lxd/lxd/include"
 
+	"github.com/lxc/lxd/lxd/cgroup"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -129,6 +131,7 @@ struct lxd_seccomp_data_arch {
 	int nr_mount;
 	int nr_bpf;
 	int nr_sched_setscheduler;
+	int nr_sysinfo;
 };
 
 #define LXD_SECCOMP_NOTIFY_MKNOD    0
@@ -137,66 +140,67 @@ struct lxd_seccomp_data_arch {
 #define LXD_SECCOMP_NOTIFY_MOUNT 3
 #define LXD_SECCOMP_NOTIFY_BPF 4
 #define LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER 5
+#define LXD_SECCOMP_NOTIFY_SYSINFO 6
 
 // ordered by likelihood of usage...
 static const struct lxd_seccomp_data_arch seccomp_notify_syscall_table[] = {
-	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT, LXD_SECCOMP_NOTIFY_BPF, LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER },
+	{ -1, LXD_SECCOMP_NOTIFY_MKNOD, LXD_SECCOMP_NOTIFY_MKNODAT, LXD_SECCOMP_NOTIFY_SETXATTR, LXD_SECCOMP_NOTIFY_MOUNT, LXD_SECCOMP_NOTIFY_BPF, LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER, LXD_SECCOMP_NOTIFY_SYSINFO},
 #ifdef AUDIT_ARCH_X86_64
-	{ AUDIT_ARCH_X86_64,      133, 259, 188, 165, 321, 144 },
+	{ AUDIT_ARCH_X86_64,      133, 259, 188, 165, 321, 144, 99 },
 #endif
 #ifdef AUDIT_ARCH_I386
-	{ AUDIT_ARCH_I386,         14, 297, 226,  21, 357, 156 },
+	{ AUDIT_ARCH_I386,         14, 297, 226,  21, 357, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_AARCH64
-	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21, 386, 156 },
+	{ AUDIT_ARCH_AARCH64,      -1,  33,   5,  21, 386, 156, 179 },
 #endif
 #ifdef AUDIT_ARCH_ARM
-	{ AUDIT_ARCH_ARM,          14, 324, 226,  21, 386, 156 },
+	{ AUDIT_ARCH_ARM,          14, 324, 226,  21, 386, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_ARMEB
-	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21, 386, 156 },
+	{ AUDIT_ARCH_ARMEB,        14, 324, 226,  21, 386, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_S390
-	{ AUDIT_ARCH_S390,         14, 290, 224,  21, 386, 156 },
+	{ AUDIT_ARCH_S390,         14, 290, 224,  21, 386, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_S390X
-	{ AUDIT_ARCH_S390X,        14, 290, 224,  21, 351, 156 },
+	{ AUDIT_ARCH_S390X,        14, 290, 224,  21, 351, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_PPC
-	{ AUDIT_ARCH_PPC,          14, 288, 209,  21, 361, 156 },
+	{ AUDIT_ARCH_PPC,          14, 288, 209,  21, 361, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_PPC64
-	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21, 361, 156 },
+	{ AUDIT_ARCH_PPC64,        14, 288, 209,  21, 361, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_PPC64LE
-	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361, 156 },
+	{ AUDIT_ARCH_PPC64LE,      14, 288, 209,  21, 361, 156, 116 },
 #endif
 #ifdef AUDIT_ARCH_RISCV64
-	{ AUDIT_ARCH_RISCV64,      -1,  33,   5,  40, 280, -1 },
+	{ AUDIT_ARCH_RISCV64,      -1,  33,   5,  40, 280, -1, 179 },
 #endif
 #ifdef AUDIT_ARCH_SPARC
-	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349, 243 },
+	{ AUDIT_ARCH_SPARC,        14, 286, 169, 167, 349, 243, 214 },
 #endif
 #ifdef AUDIT_ARCH_SPARC64
-	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167, 349, 243 },
+	{ AUDIT_ARCH_SPARC64,      14, 286, 169, 167, 349, 243, 214 },
 #endif
 #ifdef AUDIT_ARCH_MIPS
-	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21,  -1, 141 },
+	{ AUDIT_ARCH_MIPS,         14, 290, 224,  21,  -1, 141, 4116 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL
-	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21,  -1, 141 },
+	{ AUDIT_ARCH_MIPSEL,       14, 290, 224,  21,  -1, 141, 4116 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64
-	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160,  -1, 141 },
+	{ AUDIT_ARCH_MIPS64,      131, 249, 180, 160,  -1, 141, 5097 },
 #endif
 #ifdef AUDIT_ARCH_MIPS64N32
-	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160,  -1, 141 },
+	{ AUDIT_ARCH_MIPS64N32,   131, 253, 180, 160,  -1, 141, 4116 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64
-	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160,  -1, 141 },
+	{ AUDIT_ARCH_MIPSEL64,    131, 249, 180, 160,  -1, 141, 5097 },
 #endif
 #ifdef AUDIT_ARCH_MIPSEL64N32
-	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160,  -1, 141 },
+	{ AUDIT_ARCH_MIPSEL64N32, 131, 253, 180, 160,  -1, 141, 4116 },
 #endif
 };
 
@@ -233,6 +237,9 @@ static int seccomp_notify_get_syscall(struct seccomp_notif *req,
 
 		if (entry->nr_sched_setscheduler == req->data.nr)
 			return LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER;
+
+		if (entry->nr_sysinfo == req->data.nr)
+			return LXD_SECCOMP_NOTIFY_SYSINFO;
 
 		break;
 	}
@@ -475,6 +482,7 @@ const lxdSeccompNotifySetxattr = C.LXD_SECCOMP_NOTIFY_SETXATTR
 const lxdSeccompNotifyMount = C.LXD_SECCOMP_NOTIFY_MOUNT
 const lxdSeccompNotifyBpf = C.LXD_SECCOMP_NOTIFY_BPF
 const lxdSeccompNotifySchedSetscheduler = C.LXD_SECCOMP_NOTIFY_SCHED_SETSCHEDULER
+const lxdSeccompNotifySysinfo = C.LXD_SECCOMP_NOTIFY_SYSINFO
 
 const seccompHeader = `2
 `
@@ -503,6 +511,9 @@ const seccompNotifySetxattr = `setxattr notify [3,1,SCMP_CMP_EQ]
 `
 
 const seccompNotifySchedSetscheduler = `sched_setscheduler notify
+`
+
+const seccompNotifySysinfo = `sysinfo notify
 `
 
 const seccompBlockNewMountAPI = `fsopen errno 38
@@ -601,6 +612,7 @@ type Instance interface {
 	IsPrivileged() bool
 	Architecture() int
 	RootfsPath() string
+	CGroup() (*cgroup.CGroup, error)
 	CurrentIdmap() (*idmap.IdmapSet, error)
 	DiskIdmap() (*idmap.IdmapSet, error)
 	IdmappedStorage(path string) idmap.IdmapStorageType
@@ -641,6 +653,7 @@ func InstanceNeedsPolicy(c Instance) bool {
 		"security.syscalls.intercept.mknod",
 		"security.syscalls.intercept.sched_setscheduler",
 		"security.syscalls.intercept.setxattr",
+		"security.syscalls.intercept.sysinfo",
 		"security.syscalls.intercept.mount",
 		"security.syscalls.intercept.bpf",
 	}
@@ -681,6 +694,7 @@ func InstanceNeedsIntercept(s *state.State, c Instance) (bool, error) {
 		"security.syscalls.intercept.mknod":              lxcSupportSeccompNotify,
 		"security.syscalls.intercept.sched_setscheduler": lxcSupportSeccompNotify,
 		"security.syscalls.intercept.setxattr":           lxcSupportSeccompNotify,
+		"security.syscalls.intercept.sysinfo":            lxcSupportSeccompNotify,
 		"security.syscalls.intercept.mount":              lxcSupportSeccompNotifyContinue,
 		"security.syscalls.intercept.bpf":                lxcSupportSeccompNotifyAddfd,
 	}
@@ -775,6 +789,10 @@ func seccompGetPolicyContent(s *state.State, c Instance) (string, error) {
 
 		if shared.IsTrue(config["security.syscalls.intercept.setxattr"]) {
 			policy += seccompNotifySetxattr
+		}
+
+		if shared.IsTrue(config["security.syscalls.intercept.sysinfo"]) {
+			policy += seccompNotifySysinfo
 		}
 
 		if shared.IsTrue(config["security.syscalls.intercept.mount"]) {
@@ -1675,6 +1693,138 @@ func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 	return 0
 }
 
+// HandleSysinfoSyscall handles sysinfo syscalls.
+func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
+	l := logger.AddContext(logger.Log, logger.Ctx{
+		"container":             c.Name(),
+		"project":               c.Project(),
+		"syscall_number":        siov.req.data.nr,
+		"audit_architecture":    siov.req.data.arch,
+		"seccomp_notify_id":     siov.req.id,
+		"seccomp_notify_flags":  siov.req.flags,
+		"seccomp_notify_pid":    siov.req.pid,
+		"seccomp_notify_fd":     siov.notifyFd,
+		"seccomp_notify_mem_fd": siov.memFd,
+	})
+
+	defer l.Debug("Handling sysinfo syscall")
+
+	info := unix.Sysinfo_t{}
+	err := unix.Sysinfo(&info)
+	if err != nil {
+		l.Warn("Failed getting sysinfo", logger.Ctx{"err": err})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	cg, err := cgroup.NewFileReadWriter(int(siov.msg.init_pid), liblxc.HasApiExtension("cgroup2"))
+	if err != nil {
+		l.Warn("Failed loading cgroup", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	// Get instance uptime.
+	f, err := os.Stat(fmt.Sprintf("/proc/%d", siov.msg.init_pid))
+	if err != nil {
+		l.Warn("Failed getting init process info", logger.Ctx{"err": err, "pid": siov.msg.init_pid})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	info.Uptime = int64(time.Now().Sub(f.ModTime()).Seconds())
+
+	// Get instance process count.
+	pids, err := cg.GetTotalProcesses()
+	if err != nil {
+		l.Warn("Failed getting process count", logger.Ctx{"err": err})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	info.Procs = uint16(pids)
+
+	// Get instance memory stats.
+	memStats, err := cg.GetMemoryStats()
+	if err != nil {
+		l.Warn("Failed getting memory stats", logger.Ctx{"err": err})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	for k, v := range memStats {
+		switch k {
+		case "shmem":
+			info.Sharedram = v
+		case "cache":
+			info.Bufferram = v
+		}
+	}
+
+	// Get instance memory limit.
+	memoryLimit, err := cg.GetEffectiveMemoryLimit()
+	if err != nil {
+		l.Warn("Failed getting effective memory limit", logger.Ctx{"err": err})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	// Get instance memory usage.
+	memoryUsage, err := cg.GetMemoryUsage()
+	if err != nil {
+		l.Warn("Failed to get memory usage", logger.Ctx{"err": err})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	info.Totalram = uint64(memoryLimit)
+	info.Freeram = info.Totalram - uint64(memoryUsage) - info.Bufferram
+
+	// Get instance swap info.
+	if s.s.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
+		swapLimit, err := cg.GetMemorySwapLimit()
+		if err != nil {
+			l.Warn("Failed getting swap limit", logger.Ctx{"err": err})
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+			return 0
+		}
+
+		swapUsage, err := cg.GetMemorySwapUsage()
+		if err != nil {
+			l.Warn("Failed getting swap usage", logger.Ctx{"err": err})
+			C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+			return 0
+		}
+
+		info.Totalswap = uint64(swapLimit)
+		info.Freeswap = info.Totalswap - uint64(swapUsage)
+	}
+
+	// Get writable pointer to buffer of sysinfo syscall result.
+	const sz = int(unsafe.Sizeof(info))
+	var b []byte = (*(*[sz]byte)(unsafe.Pointer(&info)))[:]
+
+	// Write sysinfo response into buffer.
+	_, err = unix.Pwrite(siov.memFd, b, int64(siov.req.data.args[0]))
+	if err != nil {
+		l.Warn("Failed writing sysinfo", logger.Ctx{"err": err})
+		C.seccomp_notify_update_response(siov.resp, 0, C.uint32_t(seccompUserNotifFlagContinue))
+
+		return 0
+	}
+
+	return 0
+}
+
 // MountArgs arguments for mount.
 type MountArgs struct {
 	source    string
@@ -2095,6 +2245,8 @@ func (s *Server) handleSyscall(c Instance, siov *Iovec) int {
 		return s.HandleBpfSyscall(c, siov)
 	case lxdSeccompNotifySchedSetscheduler:
 		return s.HandleSchedSetschedulerSyscall(c, siov)
+	case lxdSeccompNotifySysinfo:
+		return s.HandleSysinfoSyscall(c, siov)
 	}
 
 	return int(-C.EINVAL)
