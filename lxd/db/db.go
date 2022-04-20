@@ -25,6 +25,12 @@ import (
 	"github.com/lxc/lxd/shared/logger"
 )
 
+// DB represents access to LXD's global and local databases.
+type DB struct {
+	Node    *Node
+	Cluster *Cluster
+}
+
 // Node mediates access to LXD's data stored in the node-local SQLite database.
 type Node struct {
 	db  *sql.DB // Handle to the node-local SQLite database file.
