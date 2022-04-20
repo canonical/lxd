@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -31,7 +32,7 @@ const (
 // NewNotifier builds a Notifier that can be used to notify other peers using
 // the given policy.
 func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *shared.CertInfo, policy NotifierPolicy) (Notifier, error) {
-	address, err := node.ClusterAddress(state.Node)
+	address, err := node.ClusterAddress(state.DB.Node)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch node address: %w", err)
 	}
@@ -44,7 +45,7 @@ func NewNotifier(state *state.State, networkCert *shared.CertInfo, serverCert *s
 
 	var nodes []db.NodeInfo
 	var offlineThreshold time.Duration
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err

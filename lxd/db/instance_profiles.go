@@ -2,7 +2,12 @@
 
 package db
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+
+	"github.com/lxc/lxd/lxd/db/cluster"
+)
 
 // Code generation directives.
 //
@@ -40,7 +45,7 @@ func (c *ClusterTx) UpdateInstanceProfiles(instance Instance) error {
 	}
 
 	project := instance.Project
-	enabled, err := projectHasProfiles(c.tx, project)
+	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
 	if err != nil {
 		return fmt.Errorf("Check if project has profiles: %w", err)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -192,7 +193,7 @@ var api10 = []APIEndpoint{
 //     $ref: "#/responses/InternalServerError"
 func api10Get(d *Daemon, r *http.Request) response.Response {
 	authMethods := []string{"tls"}
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
 			return err
@@ -236,7 +237,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	address, err := node.HTTPSAddress(d.db)
+	address, err := node.HTTPSAddress(d.db.Node)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -245,7 +246,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 		return response.InternalError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -253,7 +254,7 @@ func api10Get(d *Daemon, r *http.Request) response.Response {
 	// When clustered, use the node name, otherwise use the hostname.
 	var serverName string
 	if clustered {
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			serverName, err = tx.GetLocalNodeName()
 			return err
 		})
@@ -442,7 +443,7 @@ func api10Put(d *Daemon, r *http.Request) response.Response {
 			changed[key] = value.(string)
 		}
 		var config *cluster.Config
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			config, err = cluster.ConfigLoad(tx)
 			return err
@@ -546,14 +547,14 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 		}
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed to check for cluster state: %w", err))
 	}
 
 	nodeChanged := map[string]string{}
 	var newNodeConfig *node.Config
-	err = d.db.Transaction(func(tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
 		var err error
 		newNodeConfig, err = node.ConfigLoad(tx)
 		if err != nil {
@@ -632,7 +633,7 @@ func doApi10Update(d *Daemon, r *http.Request, req api.ServerPut, patch bool) re
 	// Then deal with cluster wide configuration
 	var clusterChanged map[string]string
 	var newClusterConfig *cluster.Config
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		newClusterConfig, err = cluster.ConfigLoad(tx)
 		if err != nil {

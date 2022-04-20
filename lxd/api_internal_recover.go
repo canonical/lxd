@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -74,9 +76,9 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 	// Retrieve all project, profile and network info in a single transaction so we can use it for all
 	// imported instances and volumes, and avoid repeatedly querying the same information.
-	err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Load list of projects for validation.
-		ps, err := tx.GetProjects(db.ProjectFilter{})
+		ps, err := dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
 		if err != nil {
 			return err
 		}
@@ -84,7 +86,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		// Convert to map for lookups by name later.
 		projects = make(map[string]*api.Project, len(ps))
 		for i := range ps {
-			project, err := ps[i].ToAPI(tx)
+			project, err := ps[i].ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -120,7 +122,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 		return response.SmartError(fmt.Errorf("Failed getting validate dependency check info: %w", err))
 	}
 
-	isClustered, err := cluster.Enabled(d.db)
+	isClustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -364,7 +366,7 @@ func internalRecoverScan(d *Daemon, userPools []api.StoragePoolsPost, validateOn
 
 				// Set storage pool node to storagePoolCreated.
 				// Must come before storage pool is loaded from the database.
-				err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+				err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 					return tx.StoragePoolNodeCreated(poolID)
 				})
 				if err != nil {

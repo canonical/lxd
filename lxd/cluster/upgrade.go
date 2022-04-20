@@ -63,7 +63,7 @@ func NotifyUpgradeCompleted(state *state.State, networkCert *shared.CertInfo, se
 func MaybeUpdate(state *state.State) error {
 	shouldUpdate := false
 
-	enabled, err := Enabled(state.Node)
+	enabled, err := Enabled(state.DB.Node)
 	if err != nil {
 		return fmt.Errorf("Failed to check clustering is enabled: %w", err)
 	}
@@ -71,11 +71,11 @@ func MaybeUpdate(state *state.State) error {
 		return nil
 	}
 
-	if state.Cluster == nil {
+	if state.DB.Cluster == nil {
 		return fmt.Errorf("Failed checking cluster update, state not initialised yet")
 	}
 
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		outdated, err := tx.NodeIsOutdated()
 		if err != nil {
 			return err

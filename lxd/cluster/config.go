@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -236,7 +237,7 @@ func ConfigGetInt64(cluster *db.Cluster, key string) (int64, error) {
 
 func configGet(cluster *db.Cluster) (*Config, error) {
 	var config *Config
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		config, err = ConfigLoad(tx)
 		return err

@@ -710,7 +710,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.checkClusterWideMACSafe(n.config) != nil {
 			// If not safe to use a cluster wide MAC or in in fan mode, then use cluster node's ID to
 			// generate a stable per-node & network derived random MAC.
-			seedNodeID = n.state.Cluster.GetNodeID()
+			seedNodeID = n.state.DB.Cluster.GetNodeID()
 		} else {
 			// If safe to use a cluster wide MAC, then use a static cluster node of 0 to generate a
 			// stable per-network derived random MAC.
@@ -1047,12 +1047,12 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if subnetSize > 64 {
 			n.logger.Warn("IPv6 networks with a prefix larger than 64 aren't properly supported by dnsmasq")
 
-			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningLargerIPv6PrefixThanSupported, "")
+			err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningLargerIPv6PrefixThanSupported, "")
 			if err != nil {
 				n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 			}
 		} else {
-			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningLargerIPv6PrefixThanSupported, dbCluster.TypeNetwork, int(n.id))
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, db.WarningLargerIPv6PrefixThanSupported, dbCluster.TypeNetwork, int(n.id))
 			if err != nil {
 				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
@@ -1350,7 +1350,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 
 		// Setup clustered DNS.
-		clusterAddress, err := node.ClusterAddress(n.state.Node)
+		clusterAddress, err := node.ClusterAddress(n.state.DB.Node)
 		if err != nil {
 			return err
 		}
@@ -1557,14 +1557,14 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		if n.config["raw.dnsmasq"] == "" {
 			p.SetApparmor(apparmor.DnsmasqProfileName(n))
 
-			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningAppArmorDisabledDueToRawDnsmasq, dbCluster.TypeNetwork, int(n.id))
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, db.WarningAppArmorDisabledDueToRawDnsmasq, dbCluster.TypeNetwork, int(n.id))
 			if err != nil {
 				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
 		} else {
 			n.logger.Warn("Skipping AppArmor for dnsmasq due to raw.dnsmasq being set", logger.Ctx{"name": n.name})
 
-			err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningAppArmorDisabledDueToRawDnsmasq, "")
+			err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningAppArmorDisabledDueToRawDnsmasq, "")
 			if err != nil {
 				n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 			}
@@ -1909,7 +1909,7 @@ func (n *bridge) HandleHeartbeat(heartbeatData *cluster.APIHeartbeat) error {
 	}
 
 	addresses := []string{}
-	localAddress, err := node.HTTPSAddress(n.state.Node)
+	localAddress, err := node.HTTPSAddress(n.state.DB.Node)
 	if err != nil {
 		return err
 	}
@@ -2401,7 +2401,7 @@ func (n *bridge) bridgeNetworkExternalSubnets(bridgeProjectNetworks map[string][
 func (n *bridge) bridgedNICExternalRoutes(bridgeProjectNetworks map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	err := n.state.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -2461,7 +2461,7 @@ func (n *bridge) getExternalSubnetInUse() ([]externalSubnetUsage, error) {
 	var projectNetworks map[string]map[int64]api.Network
 	var projectNetworksForwardsOnUplink map[string]map[int64][]string
 
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks()
 		if err != nil {
@@ -2529,7 +2529,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	memberSpecific := true // bridge supports per-member forwards.
 
 	// Check if there is an existing forward using the same listen address.
-	_, _, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
+	_, _, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
 	if err == nil {
 		return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
 	}
@@ -2573,13 +2573,13 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 	defer revert.Fail()
 
 	// Create forward DB record.
-	forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
+	forwardID, err := n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+		n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
 		n.forwardSetupFirewall()
 		n.forwardBGPSetupPrefixes()
 	})
@@ -2604,7 +2604,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		// forward's listener. Without hairpin mode on the target of the forward will not be able to
 		// connect to the listener.
 		if brNetfilterEnabled {
-			listenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID(), true)
+			listenAddresses, err := n.state.DB.Cluster.GetNetworkForwardListenAddresses(n.ID(), true)
 			if err != nil {
 				return fmt.Errorf("Failed loading network forwards: %w", err)
 			}
@@ -2613,7 +2613,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 			if len(listenAddresses) <= 1 {
 				var localNode string
 
-				err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+				err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 					localNode, err = tx.GetLocalNodeName()
 					if err != nil {
 						return fmt.Errorf("Failed to get local member name: %w", err)
@@ -2629,7 +2629,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 					Node: &localNode,
 				}
 
-				err = n.state.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+				err = n.state.DB.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 					// Get the instance's effective network project name.
 					instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -2683,7 +2683,7 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 // ForwardUpdate updates a network forward.
 func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
-	curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+	curForwardID, curForward, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {
 		return err
 	}
@@ -2715,13 +2715,13 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 	revert := revert.New()
 	defer revert.Fail()
 
-	err = n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
+	err = n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
+		n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
 		n.forwardSetupFirewall()
 		n.forwardBGPSetupPrefixes()
 	})
@@ -2738,7 +2738,7 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 // ForwardDelete deletes a network forward.
 func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	memberSpecific := true // bridge supports per-member forwards.
-	forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+	forwardID, forward, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {
 		return err
 	}
@@ -2746,7 +2746,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 	revert := revert.New()
 	defer revert.Fail()
 
-	err = n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+	err = n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
 	if err != nil {
 		return err
 	}
@@ -2756,7 +2756,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 			NetworkForwardPut: forward.NetworkForwardPut,
 			ListenAddress:     forward.ListenAddress,
 		}
-		n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
+		n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
 		n.forwardSetupFirewall()
 		n.forwardBGPSetupPrefixes()
 	})
@@ -2779,7 +2779,7 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 // forwardSetupFirewall applies all network address forwards defined for this network and this member.
 func (n *bridge) forwardSetupFirewall() error {
 	memberSpecific := true // Get all forwards for this cluster member.
-	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
+	forwards, err := n.state.DB.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
 	if err != nil {
 		return fmt.Errorf("Failed loading network forwards: %w", err)
 	}
@@ -2818,7 +2818,7 @@ func (n *bridge) forwardSetupFirewall() error {
 				brNetfilterWarning = true
 				msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the forward listen IPs", ipVersion)
 				n.logger.Warn(msg, logger.Ctx{"err": err})
-				err = n.state.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
+				err = n.state.DB.Cluster.UpsertWarningLocalNode(n.project, dbCluster.TypeNetwork, int(n.id), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 				if err != nil {
 					n.logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 				}
@@ -2826,7 +2826,7 @@ func (n *bridge) forwardSetupFirewall() error {
 		}
 
 		if !brNetfilterWarning {
-			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.Cluster, n.project, db.WarningProxyBridgeNetfilterNotEnabled, dbCluster.TypeNetwork, int(n.id))
+			err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(n.state.DB.Cluster, n.project, db.WarningProxyBridgeNetfilterNotEnabled, dbCluster.TypeNetwork, int(n.id))
 			if err != nil {
 				n.logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 			}
@@ -2855,7 +2855,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 
 			// Load all the networks.
 			var projectNetworks map[string]map[int64]api.Network
-			err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				projectNetworks, err = tx.GetCreatedNetworks()
 				return err
 			})
@@ -2969,7 +2969,7 @@ func (n *bridge) Leases(projectName string, clientType request.ClientType) ([]ap
 	// Local server name.
 	var err error
 	var serverName string
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		serverName, err = tx.GetLocalNodeName()
 		return err
 	})

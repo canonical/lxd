@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/cluster/request"
@@ -15,7 +16,7 @@ import (
 // storagePoolDBCreate creates a storage pool DB entry and returns the created Pool ID.
 func storagePoolDBCreate(s *state.State, poolName string, poolDescription string, driver string, config map[string]string) (int64, error) {
 	// Check that the storage pool does not already exist.
-	_, err := s.Cluster.GetStoragePoolID(poolName)
+	_, err := s.DB.Cluster.GetStoragePoolID(poolName)
 	if err == nil {
 		return -1, fmt.Errorf("The storage pool already exists: %w", db.ErrAlreadyDefined)
 	}
@@ -125,14 +126,14 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 	configDiff, _ := storagePools.ConfigDiff(req.Config, pool.Driver().Config())
 	if len(configDiff) > 0 {
 		// Update the database entry for the storage pool.
-		err = state.Cluster.UpdateStoragePool(req.Name, req.Description, pool.Driver().Config())
+		err = state.DB.Cluster.UpdateStoragePool(req.Name, req.Description, pool.Driver().Config())
 		if err != nil {
 			return nil, fmt.Errorf("Error updating storage pool config after local create for %q: %w", req.Name, err)
 		}
 	}
 
 	// Set storage pool node to storagePoolCreated.
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.StoragePoolNodeCreated(poolID)
 	})
 	if err != nil {
@@ -146,7 +147,7 @@ func storagePoolCreateLocal(state *state.State, poolID int64, req api.StoragePoo
 
 // Helper around the low-level DB API, which also updates the driver names cache.
 func dbStoragePoolCreateAndUpdateCache(s *state.State, poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
-	id, err := s.Cluster.CreateStoragePool(poolName, poolDescription, poolDriver, poolConfig)
+	id, err := s.DB.Cluster.CreateStoragePool(poolName, poolDescription, poolDriver, poolConfig)
 	if err != nil {
 		return id, err
 	}
@@ -160,7 +161,7 @@ func dbStoragePoolCreateAndUpdateCache(s *state.State, poolName string, poolDesc
 // Helper around the low-level DB API, which also updates the driver names
 // cache.
 func dbStoragePoolDeleteAndUpdateCache(s *state.State, poolName string) error {
-	_, err := s.Cluster.RemoveStoragePool(poolName)
+	_, err := s.DB.Cluster.RemoveStoragePool(poolName)
 	if err != nil {
 		return err
 	}

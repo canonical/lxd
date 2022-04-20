@@ -61,7 +61,7 @@ func (d *nicOVN) UpdatableFields(oldDevice Type) []string {
 
 // getIntegrationBridgeName returns the OVS integration bridge to use.
 func (d *nicOVN) getIntegrationBridgeName() (string, error) {
-	integrationBridge, err := cluster.ConfigGetString(d.state.Cluster, "network.ovn.integration_bridge")
+	integrationBridge, err := cluster.ConfigGetString(d.state.DB.Cluster, "network.ovn.integration_bridge")
 	if err != nil {
 		return "", fmt.Errorf("Failed to get OVN integration bridge name: %w", err)
 	}
@@ -100,7 +100,7 @@ func (d *nicOVN) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	// The NIC's network may be a non-default project, so lookup project and get network's project name.
-	networkProjectName, _, err := project.NetworkProject(d.state.Cluster, instConf.Project())
+	networkProjectName, _, err := project.NetworkProject(d.state.DB.Cluster, instConf.Project())
 	if err != nil {
 		return fmt.Errorf("Failed loading network project name: %w", err)
 	}
@@ -270,7 +270,7 @@ func (d *nicOVN) Start() (*deviceConfig.RunConfig, error) {
 
 	// Load uplink network config.
 	uplinkNetworkName := d.network.Config()["network"]
-	_, uplink, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	_, uplink, _, err := d.state.DB.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
 	}
@@ -445,7 +445,7 @@ func (d *nicOVN) Update(oldDevices deviceConfig.Devices, isRunning bool) error {
 		if isRunning {
 			// Load uplink network config.
 			uplinkNetworkName := d.network.Config()["network"]
-			_, uplink, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+			_, uplink, _, err := d.state.DB.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
 			if err != nil {
 				return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
 			}

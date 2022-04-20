@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/metrics"
@@ -31,7 +33,7 @@ var metricsCmd = APIEndpoint{
 
 func allowMetrics(d *Daemon, r *http.Request) response.Response {
 	// Check if API is wide open.
-	isAuthenticated, err := cluster.ConfigGetBool(d.cluster, "core.metrics_authentication")
+	isAuthenticated, err := cluster.ConfigGetBool(d.db.Cluster, "core.metrics_authentication")
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -90,8 +92,8 @@ func metricsGet(d *Daemon, r *http.Request) response.Response {
 		projectNames = []string{projectName}
 	} else {
 		// Get all projects.
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			projects, err := tx.GetProjects(db.ProjectFilter{})
+		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			projects, err := dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
 				return err
 			}

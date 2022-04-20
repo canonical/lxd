@@ -125,7 +125,7 @@ func (hbState *APIHeartbeat) Update(fullStateList bool, raftNodes []db.RaftNode,
 	}
 
 	if len(raftNodeMap) > 0 && hbState.cluster != nil {
-		hbState.cluster.Transaction(func(tx *db.ClusterTx) error {
+		hbState.cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for addr, raftNode := range raftNodeMap {
 				_, err := tx.GetPendingNodeByAddress(addr)
 				if err != nil {
@@ -326,7 +326,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	}
 
 	var allNodes []db.NodeInfo
-	err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		allNodes, err = tx.GetNodes()
 		if err != nil {
@@ -409,7 +409,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 	// Look for any new node which appeared since sending last heartbeat.
 	if ctxErr == nil {
 		var currentNodes []db.NodeInfo
-		err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 			currentNodes, err = tx.GetNodes()
 			if err != nil {
@@ -456,7 +456,7 @@ func (g *Gateway) heartbeat(ctx context.Context, mode heartbeatMode) {
 			return fmt.Errorf("Cluster unavailable")
 		}
 
-		return g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for _, node := range hbState.Members {
 				if !node.updated {
 					// If member has not been updated during this heartbeat round it means

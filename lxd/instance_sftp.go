@@ -64,7 +64,7 @@ func instanceSFTPHandler(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Forward the request if the instance is remote.
-	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, projectName, instName, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.db.Cluster, projectName, instName, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
 	if err != nil {
 		return response.SmartError(err)
 	}

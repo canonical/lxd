@@ -130,7 +130,7 @@ var networkForwardCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -152,7 +152,7 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := false // Get forwards for all cluster members.
 
 	if util.IsRecursionRequest(r) {
-		records, err := d.State().Cluster.GetNetworkForwards(n.ID(), memberSpecific)
+		records, err := d.State().DB.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
 		if err != nil {
 			return response.SmartError(fmt.Errorf("Failed loading network forwards: %w", err))
 		}
@@ -165,7 +165,7 @@ func networkForwardsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SyncResponse(true, forwards)
 	}
 
-	listenAddresses, err := d.State().Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
+	listenAddresses, err := d.State().DB.Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed loading network forwards: %w", err))
 	}
@@ -216,7 +216,7 @@ func networkForwardsPost(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -287,7 +287,7 @@ func networkForwardDelete(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -369,7 +369,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -396,7 +396,7 @@ func networkForwardGet(d *Daemon, r *http.Request) response.Response {
 	targetMember := queryParam(r, "target")
 	memberSpecific := targetMember != ""
 
-	_, forward, err := d.State().Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+	_, forward, err := d.State().DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -479,7 +479,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 		return resp
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -514,7 +514,7 @@ func networkForwardPut(d *Daemon, r *http.Request) response.Response {
 	memberSpecific := targetMember != ""
 
 	if r.Method == http.MethodPatch {
-		_, forward, err := d.State().Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+		_, forward, err := d.State().DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 		if err != nil {
 			return response.SmartError(err)
 		}

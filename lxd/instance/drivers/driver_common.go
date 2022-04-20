@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -187,7 +188,7 @@ func (d *common) Operation() *operations.Operation {
 // Backups returns a list of backups.
 func (d *common) Backups() ([]backup.InstanceBackup, error) {
 	// Get all the backups
-	backupNames, err := d.state.Cluster.GetInstanceBackups(d.project, d.name)
+	backupNames, err := d.state.DB.Cluster.GetInstanceBackups(d.project, d.name)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +236,7 @@ func (d *common) Snapshots() ([]instance.Instance, error) {
 	}
 
 	// Get all the snapshots
-	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		snaps, err = tx.GetInstanceSnapshotsWithName(d.project, d.name)
 		if err != nil {
@@ -274,11 +275,11 @@ func (d *common) VolatileSet(changes map[string]string) error {
 	// Update the database.
 	var err error
 	if d.snapshot {
-		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateInstanceSnapshotConfig(d.id, changes)
 		})
 	} else {
-		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateInstanceConfig(d.id, changes)
 		})
 	}
@@ -432,7 +433,7 @@ func (d *common) deviceVolatileSetFunc(devName string) func(save map[string]stri
 func (d *common) expandConfig(profiles []api.Profile) error {
 	if profiles == nil && len(d.profiles) > 0 {
 		var err error
-		profiles, err = d.state.Cluster.GetProfiles(d.project, d.profiles)
+		profiles, err = d.state.DB.Cluster.GetProfiles(d.project, d.profiles)
 		if err != nil {
 			return err
 		}
@@ -607,12 +608,12 @@ func (d *common) updateProgress(progress string) {
 // If the insert succeeds or the key is found to have been populated then the value of the key is returned.
 func (d *common) insertConfigkey(key string, value string) (string, error) {
 	err := query.Retry(func() error {
-		err := query.Transaction(d.state.Cluster.DB(), func(tx *sql.Tx) error {
+		err := query.Transaction(d.state.DB.Cluster.DB(), func(tx *sql.Tx) error {
 			return db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
 		})
 		if err != nil {
 			// Check if something else filled it in behind our back.
-			existingValue, errCheckExists := d.state.Cluster.GetInstanceConfig(d.id, key)
+			existingValue, errCheckExists := d.state.DB.Cluster.GetInstanceConfig(d.id, key)
 			if errCheckExists != nil {
 				return err
 			}
@@ -677,7 +678,7 @@ func (d *common) startupSnapshot(inst instance.Instance) error {
 // Internal MAAS handling.
 func (d *common) maasUpdate(inst instance.Instance, oldDevices map[string]map[string]string) error {
 	// Check if MAAS is configured
-	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
+	maasURL, err := cluster.ConfigGetString(d.state.DB.Cluster, "maas.api.url")
 	if err != nil {
 		return err
 	}
@@ -776,7 +777,7 @@ func (d *common) maasInterfaces(inst instance.Instance, devices map[string]map[s
 }
 
 func (d *common) maasRename(inst instance.Instance, newName string) error {
-	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
+	maasURL, err := cluster.ConfigGetString(d.state.DB.Cluster, "maas.api.url")
 	if err != nil {
 		return err
 	}
@@ -811,7 +812,7 @@ func (d *common) maasRename(inst instance.Instance, newName string) error {
 }
 
 func (d *common) maasDelete(inst instance.Instance) error {
-	maasURL, err := cluster.ConfigGetString(d.state.Cluster, "maas.api.url")
+	maasURL, err := cluster.ConfigGetString(d.state.DB.Cluster, "maas.api.url")
 	if err != nil {
 		return err
 	}
@@ -884,7 +885,7 @@ func (d *common) onStopOperationSetup(target string) (*operationlock.InstanceOpe
 
 // warningsDelete deletes any persistent warnings for the instance.
 func (d *common) warningsDelete() error {
-	err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteWarnings(dbCluster.TypeInstance, d.ID())
 	})
 	if err != nil {
@@ -948,7 +949,7 @@ func (d *common) recordLastState() error {
 	d.expandedConfig["volatile.last_state.power"] = "RUNNING"
 
 	// Database updates
-	return d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	return d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Record power state.
 		err = tx.UpdateInstancePowerState(d.id, "RUNNING")
 		if err != nil {
@@ -1085,7 +1086,7 @@ func (d *common) getStoragePool() (storagePools.Pool, error) {
 		return d.storagePool, nil
 	}
 
-	poolName, err := d.state.Cluster.GetInstancePool(d.Project(), d.Name())
+	poolName, err := d.state.DB.Cluster.GetInstancePool(d.Project(), d.Name())
 	if err != nil {
 		return nil, err
 	}

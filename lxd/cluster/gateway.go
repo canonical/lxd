@@ -22,6 +22,7 @@ import (
 	client "github.com/canonical/go-dqlite/client"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/response"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/util"
@@ -152,7 +153,7 @@ func setDqliteVersionHeader(request *http.Request) {
 // These handlers might return 404, either because this LXD node is a
 // non-clustered node not available over the network or because it is not a
 // database node part of the dqlite cluster.
-func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts func() map[db.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
+func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts func() map[cluster.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
 		defer g.lock.RUnlock()
@@ -896,7 +897,7 @@ func (g *Gateway) currentRaftNodes() ([]db.RaftNode, error) {
 
 	// Get the names of the raft nodes from the global database.
 	if g.Cluster != nil {
-		err = g.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = g.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			nodes, err := tx.GetNodes()
 			if err != nil {
 				return fmt.Errorf("Failed loading cluster members: %w", err)
