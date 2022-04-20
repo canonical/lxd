@@ -1,0 +1,25 @@
+//go:build linux && cgo && !agent
+
+package cluster
+
+// Code generation directives.
+//
+//go:generate -command mapper lxd-generate db mapper -t config.mapper.go
+//go:generate mapper reset
+//
+//go:generate mapper stmt -e config objects
+//go:generate mapper stmt -e config create struct=Config
+//go:generate mapper stmt -e config delete
+//
+//go:generate mapper method -e config GetMany version=2
+//go:generate mapper method -e config Create struct=Config version=2
+//go:generate mapper method -e config Update struct=Config version=2
+//go:generate mapper method -e config DeleteMany version=2
+
+// Config is a reference struct representing one configuration entry of another entity.
+type Config struct {
+	ID          int `db:"primary=yes"`
+	ReferenceID int
+	Key         string
+	Value       string
+}
