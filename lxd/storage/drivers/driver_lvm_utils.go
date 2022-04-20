@@ -714,7 +714,7 @@ func (d *lvm) parseLogicalVolumeSnapshot(parent Volume, lvmVolName string) strin
 	fullVolName := d.lvmFullVolumeName(parent.volType, parent.contentType, parent.name)
 
 	// If block volume, remove the block suffix ready for comparison with LV list.
-	if parent.IsVMBlock() || parent.volType == VolumeTypeCustom && parent.contentType == ContentTypeBlock {
+	if parent.IsVMBlock() || (parent.volType == VolumeTypeCustom && parent.contentType == ContentTypeBlock) {
 		if !strings.HasSuffix(lvmVolName, lvmBlockVolSuffix) {
 			return ""
 		}
