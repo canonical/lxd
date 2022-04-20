@@ -1541,7 +1541,7 @@ type SchedSetschedulerArgs struct {
 	nsgid         int64
 }
 
-// HandleSchedSetschedulerSyscall handles setxattr syscalls.
+// HandleSchedSetschedulerSyscall handles sched_setscheduler syscalls.
 func (s *Server) HandleSchedSetschedulerSyscall(c Instance, siov *Iovec) int {
 	ctx := logger.Ctx{"container": c.Name(),
 		"project":               c.Project(),
