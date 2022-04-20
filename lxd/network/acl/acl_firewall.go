@@ -60,7 +60,7 @@ func FirewallApplyACLRules(s *state.State, logger logger.Logger, aclProjectName 
 
 	// Load ACLs specified by network.
 	for _, aclName := range shared.SplitNTrimSpace(aclNet.Config["security.acls"], ",", -1, true) {
-		_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
+		_, aclInfo, err := s.DB.Cluster.GetNetworkACL(aclProjectName, aclName)
 		if err != nil {
 			return fmt.Errorf("Failed loading ACL %q for network %q: %w", aclName, aclNet.Name, err)
 		}

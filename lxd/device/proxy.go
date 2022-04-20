@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -128,13 +129,13 @@ func (d *proxy) validateConfig(instConf instance.ConfigReader) error {
 				// This is because OVN networks don't allow the host to communicate directly with
 				// instance NICs and so DNAT rules on the host won't work.
 				var p *api.Project
-				err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-					project, err := tx.GetProject(projectName)
+				err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					project, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 					if err != nil {
 						return err
 					}
 
-					p, err = project.ToAPI(tx)
+					p, err = project.ToAPI(ctx, tx.Tx())
 
 					return err
 				})
@@ -425,12 +426,12 @@ func (d *proxy) setupNAT() error {
 	if err != nil {
 		msg := fmt.Sprintf("IPv%d bridge netfilter not enabled. Instances using the bridge will not be able to connect to the proxy listen IP", ipVersion)
 		d.logger.Warn(msg, logger.Ctx{"err": err})
-		err := d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
+		err := d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningProxyBridgeNetfilterNotEnabled, fmt.Sprintf("%s: %v", msg, err))
 		if err != nil {
 			logger.Warn("Failed to create warning", logger.Ctx{"err": err})
 		}
 	} else {
-		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+		err = warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 		if err != nil {
 			logger.Warn("Failed to resolve warning", logger.Ctx{"err": err})
 		}
@@ -575,7 +576,7 @@ func (d *proxy) killProxyProc(pidPath string) error {
 }
 
 func (d *proxy) Remove() error {
-	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
+	err := warnings.DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(d.state.DB.Cluster, d.inst.Project(), db.WarningProxyBridgeNetfilterNotEnabled, cluster.TypeInstance, d.inst.ID())
 	if err != nil {
 		logger.Warn("Failed to delete warning", logger.Ctx{"err": err})
 	}

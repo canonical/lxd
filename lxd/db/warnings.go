@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -76,7 +77,7 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int,
 	var err error
 	var localName string
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		localName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -111,7 +112,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 	now := time.Now()
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		filter := WarningFilter{
 			TypeCode:       &typeCode,
 			Node:           &nodeName,
@@ -231,7 +232,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 
 	if object.Project != "" {
 		// Ensure project exists
-		projects, err := c.GetProjectNames()
+		projects, err := cluster.GetProjectNames(context.Background(), c.tx)
 		if err != nil {
 			return -1, fmt.Errorf("Failed to get project names: %w", err)
 		}

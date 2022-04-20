@@ -128,13 +128,13 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	// server/protocol/alias, regardless of whether it's stale or
 	// not (we can assume that it will be not *too* stale since
 	// auto-update is on).
-	interval, err := cluster.ConfigGetInt64(d.cluster, "images.auto_update_interval")
+	interval, err := cluster.ConfigGetInt64(d.db.Cluster, "images.auto_update_interval")
 	if err != nil {
 		return nil, err
 	}
 	if args.PreferCached && interval > 0 && alias != fp {
 		for _, architecture := range d.os.Architectures {
-			cachedFingerprint, err := d.cluster.GetCachedImageSourceFingerprint(args.Server, args.Protocol, alias, args.Type, architecture)
+			cachedFingerprint, err := d.db.Cluster.GetCachedImageSourceFingerprint(args.Server, args.Protocol, alias, args.Type, architecture)
 			if err == nil && cachedFingerprint != fp {
 				fp = cachedFingerprint
 				break
@@ -143,10 +143,10 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Check if the image already exists in this project (partial hash match).
-	_, imgInfo, err := d.cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
+	_, imgInfo, err := d.db.Cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
 	if err == nil {
 		// Check if the image is available locally or it's on another node.
-		nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
+		nodeAddress, err := d.State().DB.Cluster.LocateImage(imgInfo.Fingerprint)
 		if err != nil {
 			return nil, fmt.Errorf("Failed locating image %q in the cluster: %w", imgInfo.Fingerprint, err)
 		}
@@ -159,35 +159,35 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 			}
 
 			// As the image record already exists in the project, just add the node ID to the image.
-			err = d.cluster.AddImageToLocalNode(args.ProjectName, imgInfo.Fingerprint)
+			err = d.db.Cluster.AddImageToLocalNode(args.ProjectName, imgInfo.Fingerprint)
 			if err != nil {
 				return nil, fmt.Errorf("Failed adding transferred image %q to local cluster member: %w", imgInfo.Fingerprint, err)
 			}
 		}
 	} else if response.IsNotFoundError(err) {
 		// Check if the image already exists in some other project.
-		_, imgInfo, err = d.cluster.GetImageFromAnyProject(fp)
+		_, imgInfo, err = d.db.Cluster.GetImageFromAnyProject(fp)
 		if err == nil {
 			// Check if the image is available locally or it's on another node. Do this before creating
 			// the missing DB record so we don't include ourself in the search results.
-			nodeAddress, err := d.State().Cluster.LocateImage(imgInfo.Fingerprint)
+			nodeAddress, err := d.State().DB.Cluster.LocateImage(imgInfo.Fingerprint)
 			if err != nil {
 				return nil, fmt.Errorf("Locate image %q in the cluster: %w", imgInfo.Fingerprint, err)
 			}
 
 			// We need to insert the database entry for this project, including the node ID entry.
-			err = d.cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type, nil)
+			err = d.db.Cluster.CreateImage(args.ProjectName, imgInfo.Fingerprint, imgInfo.Filename, imgInfo.Size, args.Public, imgInfo.AutoUpdate, imgInfo.Architecture, imgInfo.CreatedAt, imgInfo.ExpiresAt, imgInfo.Properties, imgInfo.Type, nil)
 			if err != nil {
 				return nil, err
 			}
 
 			var id int
-			id, imgInfo, err = d.cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
+			id, imgInfo, err = d.db.Cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
 			if err != nil {
 				return nil, err
 			}
 
-			err = d.cluster.CreateImageSource(id, args.Server, args.Protocol, args.Certificate, alias)
+			err = d.db.Cluster.CreateImageSource(id, args.Server, args.Protocol, args.Certificate, alias)
 			if err != nil {
 				return nil, err
 			}
@@ -216,13 +216,13 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		ctxMap["pool"] = args.StoragePool
 
 		// Get the ID of the target storage pool.
-		poolID, err := d.cluster.GetStoragePoolID(args.StoragePool)
+		poolID, err := d.db.Cluster.GetStoragePoolID(args.StoragePool)
 		if err != nil {
 			return nil, err
 		}
 
 		// Check if the image is already in the pool.
-		poolIDs, err := d.cluster.GetPoolsWithImage(info.Fingerprint)
+		poolIDs, err := d.db.Cluster.GetPoolsWithImage(info.Fingerprint)
 		if err != nil {
 			return nil, err
 		}
@@ -465,7 +465,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 	}
 
 	// Create the database entry
-	err = d.cluster.CreateImage(args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
+	err = d.db.Cluster.CreateImage(args.ProjectName, info.Fingerprint, info.Filename, info.Size, info.Public, info.AutoUpdate, info.Architecture, info.CreatedAt, info.ExpiresAt, info.Properties, info.Type, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -491,12 +491,12 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Record the image source
 	if alias != fp {
-		id, _, err := d.cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
+		id, _, err := d.db.Cluster.GetImage(fp, db.ImageFilter{Project: &args.ProjectName})
 		if err != nil {
 			return nil, err
 		}
 
-		err = d.cluster.CreateImageSource(id, args.Server, protocol, args.Certificate, alias)
+		err = d.db.Cluster.CreateImageSource(id, args.Server, protocol, args.Certificate, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -512,7 +512,7 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 
 	// Mark the image as "cached" if downloading for an instance
 	if args.SetCached {
-		err := d.cluster.InitImageLastUseDate(fp)
+		err := d.db.Cluster.InitImageLastUseDate(fp)
 		if err != nil {
 			return nil, err
 		}

@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -85,7 +86,7 @@ func (n NodeInfo) ToAPI(cluster *Cluster, node *Node, leader string) (*api.Clust
 	var failureDomain string
 
 	// From cluster database.
-	err = cluster.Transaction(func(tx *ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Get offline threshold.
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
@@ -1209,7 +1210,7 @@ func nodeIsOffline(threshold time.Duration, heartbeat time.Time) bool {
 func (c *Cluster) LocalNodeIsEvacuated() bool {
 	isEvacuated := false
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		name, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err

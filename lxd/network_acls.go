@@ -140,7 +140,7 @@ var networkACLLogCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkACLsGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -148,7 +148,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	// Get list of Network ACLs.
-	aclNames, err := d.cluster.GetNetworkACLs(projectName)
+	aclNames, err := d.db.Cluster.GetNetworkACLs(projectName)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -211,7 +211,7 @@ func networkACLsGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkACLsPost(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -270,7 +270,7 @@ func networkACLsPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkACLDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -336,7 +336,7 @@ func networkACLDelete(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkACLGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -430,7 +430,7 @@ func networkACLGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkACLPut(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -521,7 +521,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -579,7 +579,7 @@ func networkACLPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func networkACLLogGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.NetworkProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.NetworkProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}

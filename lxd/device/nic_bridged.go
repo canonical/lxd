@@ -303,7 +303,7 @@ func (d *nicBridged) validateConfig(instConf instance.ConfigReader) error {
 			ourNICMAC, _ = net.ParseMAC(v["hwaddr"])
 		}
 
-		err := d.state.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+		err := d.state.DB.Cluster.InstanceList(&filter, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 			// Get the instance's effective network project name.
 			instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -615,7 +615,7 @@ func (d *nicBridged) Start() (*deviceConfig.RunConfig, error) {
 		}
 
 		if brNetfilterEnabled {
-			listenAddresses, err := d.state.Cluster.GetNetworkForwardListenAddresses(d.network.ID(), true)
+			listenAddresses, err := d.state.DB.Cluster.GetNetworkForwardListenAddresses(d.network.ID(), true)
 			if err != nil {
 				return nil, fmt.Errorf("Failed loading network forwards: %w", err)
 			}
@@ -875,7 +875,7 @@ func (d *nicBridged) rebuildDnsmasqEntry() error {
 	defer dnsmasq.ConfigMutex.Unlock()
 
 	// Use project.Default here as bridge networks don't support projects.
-	_, dbInfo, _, err := d.state.Cluster.GetNetworkInAnyState(project.Default, d.config["parent"])
+	_, dbInfo, _, err := d.state.DB.Cluster.GetNetworkInAnyState(project.Default, d.config["parent"])
 	if err != nil {
 		return err
 	}

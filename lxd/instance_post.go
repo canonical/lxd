@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/migration"
@@ -106,19 +108,19 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		//       that the user really wants to move the container even
 		//       if we can't know for sure that it's indeed not
 		//       running?
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			// Load cluster configuration.
 			config, err := cluster.ConfigLoad(tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load LXD config: %w", err)
 			}
 
-			p, err := tx.GetProject(projectName)
+			p, err := dbCluster.GetProject(ctx, tx.Tx(), projectName)
 			if err != nil {
 				return fmt.Errorf("Failed loading project: %w", err)
 			}
 
-			apiProject, err := p.ToAPI(tx)
+			apiProject, err := p.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -268,7 +270,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 
 		if targetNode != "" {
 			// Check if instance has backups.
-			backups, err := d.cluster.GetInstanceBackups(projectName, name)
+			backups, err := d.db.Cluster.GetInstanceBackups(projectName, name)
 			if err != nil {
 				err = fmt.Errorf("Failed to fetch instance's backups: %w", err)
 				return response.SmartError(err)
@@ -343,7 +345,7 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check that the name isn't already in use.
-	id, _ := d.cluster.GetInstanceID(projectName, req.Name)
+	id, _ := d.db.Cluster.GetInstanceID(projectName, req.Name)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name %q already in use", req.Name))
 	}
@@ -539,7 +541,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 	// since we'll want to preserve it in the copied container.
 	origVolatileApplyTemplate := inst.LocalConfig()["volatile.apply_template"]
 
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		sourceAddress, err = tx.GetLocalNodeAddress()
@@ -672,7 +674,7 @@ func instancePostClusteringMigrate(d *Daemon, r *http.Request, inst instance.Ins
 
 		// Restore the original value of "volatile.apply_template"
 		project := inst.Project()
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			id, err := tx.GetInstanceID(project, destName)
 			if err != nil {
 				return fmt.Errorf("Failed to get ID of moved instance: %w", err)
@@ -733,7 +735,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 	if !sourceNodeOffline {
 		// If the source member is online then get its address so we can connect to it and see if the
 		// instance is running later.
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			sourceMember, err = tx.GetNodeByName(inst.Location())
 			if err != nil {
 				return fmt.Errorf("Failed getting cluster member of instance %q", inst.Name())
@@ -804,7 +806,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		// Re-link the database entries against the new node name.
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			err := tx.UpdateInstanceNode(inst.Project(), inst.Name(), newName, newNode, volDBType)
 			if err != nil {
 				return fmt.Errorf("Failed updating cluster member to %q for instance %q: %w", newName, inst.Name(), err)
@@ -823,7 +825,7 @@ func instancePostClusteringMigrateWithCeph(d *Daemon, r *http.Request, inst inst
 		}
 
 		// Create the instance mount point on the target node.
-		target, err := cluster.ConnectIfInstanceIsRemote(d.cluster, inst.Project(), newName, d.endpoints.NetworkCert(), d.serverCert(), r, inst.Type())
+		target, err := cluster.ConnectIfInstanceIsRemote(d.db.Cluster, inst.Project(), newName, d.endpoints.NetworkCert(), d.serverCert(), r, inst.Type())
 		if err != nil {
 			return fmt.Errorf("Failed to connect to target node: %w", err)
 		}

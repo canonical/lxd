@@ -11,18 +11,18 @@ import (
 
 // UpdateCertificate updates a certificate in the db.
 func (db *DB) UpdateCertificate(ctx context.Context, fingerprint string, cert cluster.Certificate, projectNames []string) error {
-	err := db.Transaction(ctx, "global", func(ctx context.Context, tx *Tx) error {
-		id, err := cluster.GetCertificateID(ctx, tx, fingerprint)
+	err := db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		id, err := cluster.GetCertificateID(ctx, tx.Tx(), fingerprint)
 		if err != nil {
 			return err
 		}
 
-		err = cluster.UpdateCertificate(ctx, tx, fingerprint, cert)
+		err = cluster.UpdateCertificate(ctx, tx.Tx(), fingerprint, cert)
 		if err != nil {
 			return err
 		}
 
-		return cluster.UpdateCertificateProjects(ctx, tx, int(id), projectNames)
+		return cluster.UpdateCertificateProjects(ctx, tx.Tx(), int(id), projectNames)
 	})
 
 	return err

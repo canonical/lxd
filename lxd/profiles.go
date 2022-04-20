@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -139,7 +140,7 @@ var profileCmd = APIEndpoint{
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilesGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -147,7 +148,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	var result any
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.ProfileFilter{
 			Project: &projectName,
 		}
@@ -208,7 +209,7 @@ func profilesGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilesPost(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -243,7 +244,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Update DB entry.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		devices, err := db.APIToDevices(req.Devices)
 		if err != nil {
 			return err
@@ -315,7 +316,7 @@ func profilesPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profileGet(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -327,7 +328,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 
 	var resp *api.Profile
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		profile, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return fmt.Errorf("Fetch profile: %w", err)
@@ -381,7 +382,7 @@ func profileGet(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilePut(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -407,7 +408,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 	var id int64
 	var profile *api.Profile
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		current, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve profile %q: %w", name, err)
@@ -492,7 +493,7 @@ func profilePut(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilePatch(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -505,7 +506,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 	var id int64
 	var profile *api.Profile
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		current, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve profile=%q: %w", name, err)
@@ -614,7 +615,7 @@ func profilePatch(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profilePost(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -646,7 +647,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(fmt.Errorf("Invalid profile name %q", req.Name))
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
 		_, err = tx.GetProfile(projectName, req.Name)
 		if err == nil {
@@ -690,7 +691,7 @@ func profilePost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func profileDelete(d *Daemon, r *http.Request) response.Response {
-	projectName, _, err := project.ProfileProject(d.State().Cluster, projectParam(r))
+	projectName, _, err := project.ProfileProject(d.State().DB.Cluster, projectParam(r))
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -704,7 +705,7 @@ func profileDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New(`The "default" profile cannot be deleted`))
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		profile, err := tx.GetProfile(projectName, name)
 		if err != nil {
 			return err

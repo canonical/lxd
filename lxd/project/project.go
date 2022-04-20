@@ -1,10 +1,12 @@
 package project
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -73,13 +75,13 @@ func StorageVolumeProject(c *db.Cluster, projectName string, volumeType int) (st
 	}
 
 	var project *api.Project
-	err := c.Transaction(func(tx *db.ClusterTx) error {
-		dbProject, err := tx.GetProject(projectName)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(tx)
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
 
 		return err
 	})
@@ -115,13 +117,13 @@ func StorageVolumeProjectFromRecord(p *api.Project, volumeType int) string {
 // project is being returned, nil if not.
 func NetworkProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
 	var project *api.Project
-	err := c.Transaction(func(tx *db.ClusterTx) error {
-		dbProject, err := tx.GetProject(projectName)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(tx)
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
 
 		return err
 	})
@@ -157,13 +159,13 @@ func NetworkProjectFromRecord(p *api.Project) string {
 // project is being returned, nil if not.
 func ProfileProject(c *db.Cluster, projectName string) (string, map[string]string, error) {
 	var project *api.Project
-	err := c.Transaction(func(tx *db.ClusterTx) error {
-		dbProject, err := tx.GetProject(projectName)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(tx)
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
 
 		return err
 	})

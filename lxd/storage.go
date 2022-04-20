@@ -80,7 +80,7 @@ func storageStartup(s *state.State, forceCheck bool) error {
 	// Update the storage drivers supported and used cache in api_1.0.go.
 	storagePoolDriversCacheUpdate(s)
 
-	poolNames, err := s.Cluster.GetCreatedStoragePoolNames()
+	poolNames, err := s.DB.Cluster.GetCreatedStoragePoolNames()
 	if err != nil {
 		if response.IsNotFoundError(err) {
 			logger.Debug("No existing storage pools detected")
@@ -112,13 +112,13 @@ func storageStartup(s *state.State, forceCheck bool) error {
 		_, err = pool.Mount()
 		if err != nil {
 			logger.Error("Failed mounting storage pool", logger.Ctx{"pool": poolName, "err": err})
-			s.Cluster.UpsertWarningLocalNode("", cluster.TypeStoragePool, int(pool.ID()), db.WarningStoragePoolUnvailable, err.Error())
+			s.DB.Cluster.UpsertWarningLocalNode("", cluster.TypeStoragePool, int(pool.ID()), db.WarningStoragePoolUnvailable, err.Error())
 
 			return false
 		}
 
 		logger.Info("Initialized storage pool", logger.Ctx{"pool": poolName})
-		warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.Cluster, "", db.WarningStoragePoolUnvailable, cluster.TypeStoragePool, int(pool.ID()))
+		warnings.ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(s.DB.Cluster, "", db.WarningStoragePoolUnvailable, cluster.TypeStoragePool, int(pool.ID()))
 
 		return true
 	}
@@ -194,7 +194,7 @@ func storagePoolDriversCacheUpdate(s *state.State) {
 	// copy-on-write semantics without locking in the read case seems
 	// appropriate. (Should be cheaper then querying the db all the time,
 	// especially if we keep adding more storage drivers.)
-	drivers, err := s.Cluster.GetStoragePoolDrivers()
+	drivers, err := s.DB.Cluster.GetStoragePoolDrivers()
 	if err != nil && !response.IsNotFoundError(err) {
 		return
 	}

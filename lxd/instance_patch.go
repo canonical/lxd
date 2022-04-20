@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -157,7 +158,7 @@ func instancePatch(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check project limits.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return projecthelpers.AllowInstanceUpdate(tx, projectName, name, req, c.LocalConfig())
 	})
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
@@ -86,7 +87,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	s := d.State()
 
 	// Get the image properties.
-	_, img, err := s.Cluster.GetImage(hash, db.ImageFilter{Project: &args.Project})
+	_, img, err := s.DB.Cluster.GetImage(hash, db.ImageFilter{Project: &args.Project})
 	if err != nil {
 		return nil, fmt.Errorf("Fetch image %s from database: %w", hash, err)
 	}
@@ -113,7 +114,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	// duplicate record errors.
 	unlock := d.imageOperationLock(img.Fingerprint)
 
-	nodeAddress, err := s.Cluster.LocateImage(hash)
+	nodeAddress, err := s.DB.Cluster.LocateImage(hash)
 	if err != nil {
 		unlock()
 		return nil, fmt.Errorf("Locate image %q in the cluster: %w", hash, err)
@@ -128,7 +129,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 		}
 
 		// As the image record already exists in the project, just add the node ID to the image.
-		err = d.cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
+		err = d.db.Cluster.AddImageToLocalNode(args.Project, img.Fingerprint)
 		if err != nil {
 			unlock()
 			return nil, fmt.Errorf("Failed adding transferred image %q record to local cluster member: %w", img.Fingerprint, err)
@@ -154,7 +155,7 @@ func instanceCreateFromImage(d *Daemon, r *http.Request, args db.InstanceArgs, h
 	}
 	defer instOp.Done(nil)
 
-	err = s.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
+	err = s.DB.Cluster.UpdateImageLastUseDate(hash, time.Now().UTC())
 	if err != nil {
 		return nil, fmt.Errorf("Error updating image last use date: %s", err)
 	}
@@ -362,7 +363,7 @@ func instanceCreateAsCopy(s *state.State, opts instanceCreateAsCopyOpts, op *ope
 func instanceLoadNodeProjectAll(s *state.State, project string, instanceType instancetype.Type) ([]instance.Instance, error) {
 	// Get all the container arguments
 	var cts []db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		filter := db.InstanceTypeFilter(instanceType)
 		filter.Project = &project
@@ -383,10 +384,10 @@ func instanceLoadNodeProjectAll(s *state.State, project string, instanceType ins
 func autoCreateContainerSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Get projects.
-		var projects []db.Project
-		err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var projects []dbCluster.Project
+		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			projects, err = tx.GetProjects(db.ProjectFilter{})
+			projects, err = dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
 				return fmt.Errorf("Failed loading projects: %w", err)
 			}

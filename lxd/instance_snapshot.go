@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/operations"
@@ -145,7 +147,7 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 	resultMap := []*api.InstanceSnapshot{}
 
 	if !recursion {
-		snaps, err := d.cluster.GetInstanceSnapshotsNames(projectName, cname)
+		snaps, err := d.db.Cluster.GetInstanceSnapshotsNames(projectName, cname)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -232,9 +234,9 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	var proj *db.Project
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		proj, err = tx.GetProject(projectName)
+	var proj *cluster.Project
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		proj, err = cluster.GetProject(context.Background(), tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
@@ -698,7 +700,7 @@ func snapshotPost(d *Daemon, r *http.Request, snapInst instance.Instance, contai
 	fullName := containerName + shared.SnapshotDelimiter + newName
 
 	// Check that the name isn't already in use
-	id, _ := d.cluster.GetInstanceSnapshotID(snapInst.Project(), containerName, newName)
+	id, _ := d.db.Cluster.GetInstanceSnapshotID(snapInst.Project(), containerName, newName)
 	if id > 0 {
 		return response.Conflict(fmt.Errorf("Name '%s' already in use", fullName))
 	}

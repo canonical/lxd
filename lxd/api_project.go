@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/lifecycle"
 	"github.com/lxc/lxd/lxd/network"
 	"github.com/lxc/lxd/lxd/operations"
@@ -145,9 +147,9 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
 	var result any
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		filter := db.ProjectFilter{}
-		projects, err := tx.GetProjects(filter)
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		filter := dbCluster.ProjectFilter{}
+		projects, err := dbCluster.GetProjects(ctx, tx.Tx(), filter)
 		if err != nil {
 			return err
 		}
@@ -158,7 +160,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 				continue
 			}
 
-			apiProject, err := project.ToAPI(tx)
+			apiProject, err := project.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -193,7 +195,7 @@ func projectsGet(d *Daemon, r *http.Request) response.Response {
 
 // projectUsedBy returns a list of URLs for all instances, images, profiles,
 // storage volumes, networks, and acls that use this project.
-func projectUsedBy(tx *db.ClusterTx, project *db.Project) ([]string, error) {
+func projectUsedBy(tx *db.ClusterTx, project *dbCluster.Project) ([]string, error) {
 	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
 	if err != nil {
 		return nil, err
@@ -295,13 +297,13 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var id int64
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		id, err = tx.CreateProject(db.Project{Description: project.Description, Name: project.Name})
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		id, err = dbCluster.CreateProject(ctx, tx.Tx(), dbCluster.Project{Description: project.Description, Name: project.Name})
 		if err != nil {
 			return fmt.Errorf("Failed adding database record: %w", err)
 		}
 
-		err = tx.CreateProjectConfig(id, project.Config)
+		err = dbCluster.CreateProjectConfig(ctx, tx.Tx(), id, project.Config)
 		if err != nil {
 			return fmt.Errorf("Unable to create project config for project %q: %w", project.Name, err)
 		}
@@ -313,7 +315,7 @@ func projectsPost(d *Daemon, r *http.Request) response.Response {
 			}
 
 			if project.Config["features.images"] == "false" {
-				err = tx.InitProjectWithoutImages(project.Name)
+				err = dbCluster.InitProjectWithoutImages(ctx, tx.Tx(), project.Name)
 				if err != nil {
 					return err
 				}
@@ -401,13 +403,13 @@ func projectGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get the database entry
 	var project *api.Project
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		dbProject, err := tx.GetProject(name)
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(tx)
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -469,13 +471,13 @@ func projectPut(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		dbProject, err := tx.GetProject(name)
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(tx)
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -557,13 +559,13 @@ func projectPatch(d *Daemon, r *http.Request) response.Response {
 
 	// Get the current data
 	var project *api.Project
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		dbProject, err := tx.GetProject(name)
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		dbProject, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return err
 		}
 
-		project, err = dbProject.ToAPI(tx)
+		project, err = dbProject.ToAPI(ctx, tx.Tx())
 		if err != nil {
 			return err
 		}
@@ -676,13 +678,13 @@ func projectChange(d *Daemon, project *api.Project, req api.ProjectPut) response
 	}
 
 	// Update the database entry.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := projecthelpers.AllowProjectUpdate(tx, project.Name, req.Config, configChanged)
 		if err != nil {
 			return err
 		}
 
-		err = tx.UpdateProject(project.Name, req)
+		err = dbCluster.UpdateProject(context.Background(), tx.Tx(), project.Name, req)
 		if err != nil {
 			return fmt.Errorf("Persist profile changes: %w", err)
 		}
@@ -761,8 +763,8 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 	// Perform the rename.
 	run := func(op *operations.Operation) error {
 		var id int64
-		err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			project, err := tx.GetProject(req.Name)
+		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), req.Name)
 			if err != nil && !response.IsNotFoundError(err) {
 				return fmt.Errorf("Failed checking if project %q exists: %w", req.Name, err)
 			}
@@ -771,7 +773,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("A project named %q already exists", req.Name)
 			}
 
-			project, err = tx.GetProject(name)
+			project, err = dbCluster.GetProject(ctx, tx.Tx(), name)
 			if err != nil {
 				return fmt.Errorf("Failed loading project %q: %w", name, err)
 			}
@@ -785,7 +787,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return fmt.Errorf("Only empty projects can be renamed")
 			}
 
-			id, err = tx.GetProjectID(name)
+			id, err = dbCluster.GetProjectID(ctx, tx.Tx(), name)
 			if err != nil {
 				return fmt.Errorf("Failed getting project ID for project %q: %w", name, err)
 			}
@@ -795,7 +797,7 @@ func projectPost(d *Daemon, r *http.Request) response.Response {
 				return err
 			}
 
-			return tx.RenameProject(name, req.Name)
+			return dbCluster.RenameProject(ctx, tx.Tx(), name, req.Name)
 		})
 		if err != nil {
 			return err
@@ -852,8 +854,8 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var id int64
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err := tx.GetProject(name)
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project %q: %w", name, err)
 		}
@@ -867,12 +869,12 @@ func projectDelete(d *Daemon, r *http.Request) response.Response {
 			return fmt.Errorf("Only empty projects can be removed")
 		}
 
-		id, err = tx.GetProjectID(name)
+		id, err = dbCluster.GetProjectID(ctx, tx.Tx(), name)
 		if err != nil {
 			return fmt.Errorf("Fetch project id %q: %w", name, err)
 		}
 
-		return tx.DeleteProject(name)
+		return dbCluster.DeleteProject(ctx, tx.Tx(), name)
 	})
 
 	if err != nil {
@@ -941,7 +943,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 	state := api.ProjectState{}
 
 	// Get current limits and usage.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		result, err := projecthelpers.GetCurrentAllocations(tx, name)
 		if err != nil {
 			return err
@@ -958,7 +960,7 @@ func projectStateGet(d *Daemon, r *http.Request) response.Response {
 }
 
 // Check if a project is empty.
-func projectIsEmpty(project *db.Project, tx *db.ClusterTx) (bool, error) {
+func projectIsEmpty(project *dbCluster.Project, tx *db.ClusterTx) (bool, error) {
 	instances, err := tx.GetInstanceURIs(db.InstanceFilter{Project: &project.Name})
 	if err != nil {
 		return false, err
@@ -1164,7 +1166,7 @@ func projectValidateRestrictedSubnets(s *state.State, value string) error {
 		}
 
 		// Check uplink exists and load config to compare subnets.
-		_, uplink, _, err := s.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
+		_, uplink, _, err := s.DB.Cluster.GetNetworkInAnyState(project.Default, uplinkName)
 		if err != nil {
 			return fmt.Errorf("Invalid uplink network %q: %w", uplinkName, err)
 		}

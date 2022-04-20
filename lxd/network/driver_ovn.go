@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math/big"
@@ -17,6 +18,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/ip"
@@ -255,7 +257,7 @@ func (n *ovn) getExternalSubnetInUse(uplinkNetworkName string) ([]externalSubnet
 	var projectNetworks map[string]map[int64]api.Network
 	var projectNetworksForwardsOnUplink map[string]map[int64][]string
 
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get all managed networks across all projects.
 		projectNetworks, err = tx.GetCreatedNetworks()
 		if err != nil {
@@ -378,13 +380,13 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err := tx.GetProject(n.project)
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
 		}
 
-		p, err = project.ToAPI(tx)
+		p, err = project.ToAPI(ctx, tx.Tx())
 
 		return err
 	})
@@ -399,7 +401,7 @@ func (n *ovn) Validate(config map[string]string) error {
 	}
 
 	// Get uplink routes.
-	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
+	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, uplinkNetworkName)
 	if err != nil {
 		return fmt.Errorf("Failed to load uplink network %q: %w", uplinkNetworkName, err)
 	}
@@ -544,7 +546,7 @@ func (n *ovn) Validate(config map[string]string) error {
 
 	// Check any existing network forward target addresses are suitable for this network's subnet.
 	memberSpecific := false // OVN doesn't support per-member forwards.
-	forwards, err := n.state.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
+	forwards, err := n.state.DB.Cluster.GetNetworkForwards(n.ID(), memberSpecific)
 	if err != nil {
 		return fmt.Errorf("Failed loading network forwards: %w", err)
 	}
@@ -922,7 +924,7 @@ func (n *ovn) allocateUplinkPortIPs(uplinkNet Network, routerMAC net.HardwareAdd
 
 	// Decide whether we need to allocate new IP(s) and go to the expense of retrieving all allocated IPs.
 	if (uplinkIPv4Net != nil && routerExtPortIPv4 == nil) || (uplinkIPv6Net != nil && routerExtPortIPv6 == nil) {
-		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			allAllocatedIPv4, allAllocatedIPv6, err := n.uplinkAllAllocatedIPs(tx, uplinkNet.Name())
 			if err != nil {
 				return fmt.Errorf("Failed to get all allocated IPs for uplink: %w", err)
@@ -1370,7 +1372,7 @@ func (n *ovn) checkUplinkUse() (bool, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
 
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err = tx.GetCreatedNetworks()
 		return err
 	})
@@ -1642,7 +1644,7 @@ func (n *ovn) Create(clientType request.ClientType) error {
 func (n *ovn) allowedUplinkNetworks(p *api.Project) ([]string, error) {
 	var uplinkNetworkNames []string
 
-	err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Uplink networks are always from the default project.
 		networks, err := tx.GetCreatedNetworksByProject(project.Default)
 		if err != nil {
@@ -1739,15 +1741,15 @@ func (n *ovn) setup(update bool) error {
 	// Load the project to get uplink network restrictions.
 	var p *api.Project
 	var projectID int64
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err := tx.GetProject(n.project)
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
 		}
 
 		projectID = int64(project.ID)
 
-		p, err = project.ToAPI(tx)
+		p, err = project.ToAPI(ctx, tx.Tx())
 
 		return err
 	})
@@ -1785,7 +1787,7 @@ func (n *ovn) setup(update bool) error {
 			n.config[k] = v
 		}
 
-		err := n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			err = tx.UpdateNetwork(n.id, n.description, n.config)
 			if err != nil {
 				return fmt.Errorf("Failed saving updated network config: %w", err)
@@ -2231,7 +2233,7 @@ func (n *ovn) setup(update bool) error {
 	securityACLS := shared.SplitNTrimSpace(n.config["security.acls"], ",", -1, true)
 	if len(securityACLS) > 0 {
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
-		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+		aclNameIDs, err := n.state.DB.Cluster.GetNetworkACLIDsByNames(n.Project())
 		if err != nil {
 			return fmt.Errorf("Failed getting network ACL IDs for security ACL setup: %w", err)
 		}
@@ -2370,9 +2372,9 @@ func (n *ovn) addChassisGroupEntry() error {
 	}
 
 	// Get all nodes in cluster.
-	ourNodeID := int(n.state.Cluster.GetNodeID())
+	ourNodeID := int(n.state.DB.Cluster.GetNodeID())
 	var nodeIDs []int
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		nodes, err := tx.GetNodes()
 		if err != nil {
 			return fmt.Errorf("Failed getting node list for adding chassis group entry: %w", err)
@@ -2509,7 +2511,7 @@ func (n *ovn) Delete(clientType request.ClientType) error {
 
 		// Delete any network forwards.
 		memberSpecific := false // OVN doesn't support per-member forwards.
-		listenAddresses, err := n.state.Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
+		listenAddresses, err := n.state.DB.Cluster.GetNetworkForwardListenAddresses(n.ID(), memberSpecific)
 		if err != nil {
 			return fmt.Errorf("Failed loading network forwards: %w", err)
 		}
@@ -2600,9 +2602,9 @@ func (n *ovn) Start() error {
 
 	var projectID int64
 	var chassisEnabled bool
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the project ID.
-		projectID, err = tx.GetProjectID(n.project)
+		projectID, err = dbCluster.GetProjectID(context.Background(), tx.Tx(), n.project)
 		if err != nil {
 			return err
 		}
@@ -2799,7 +2801,7 @@ func (n *ovn) Update(newNetwork api.NetworkPut, targetNode string, clientType re
 		}
 
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
-		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+		aclNameIDs, err := n.state.DB.Cluster.GetNetworkACLIDsByNames(n.Project())
 		if err != nil {
 			return fmt.Errorf("Failed getting network ACL IDs for security ACL update: %w", err)
 		}
@@ -3040,7 +3042,7 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	var p *api.Project
 
 	// Get uplink routes.
-	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
 	if err != nil {
 		return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 	}
@@ -3063,13 +3065,13 @@ func (n *ovn) InstanceDevicePortValidateExternalRoutes(deviceInstance instance.I
 	}
 
 	// Load the project to get uplink network restrictions.
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		project, err := tx.GetProject(n.project)
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 		if err != nil {
 			return err
 		}
 
-		p, err = project.ToAPI(tx)
+		p, err = project.ToAPI(ctx, tx.Tx())
 
 		return err
 	})
@@ -3475,7 +3477,7 @@ func (n *ovn) InstanceDevicePortSetup(opts *OVNInstanceNICSetupOpts, securityACL
 
 	if len(nicACLNames) > 0 || len(securityACLsRemove) > 0 {
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
-		aclNameIDs, err := n.state.Cluster.GetNetworkACLIDsByNames(n.Project())
+		aclNameIDs, err := n.state.DB.Cluster.GetNetworkACLIDsByNames(n.Project())
 		if err != nil {
 			return "", fmt.Errorf("Failed getting network ACL IDs for security ACL setup: %w", err)
 		}
@@ -3624,7 +3626,7 @@ func (n *ovn) InstanceDevicePortDelete(ovsExternalOVNPort openvswitch.OVNSwitchP
 	}
 
 	// Load uplink network config.
-	_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+	_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
 	if err != nil {
 		return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 	}
@@ -3803,7 +3805,7 @@ func (n *ovn) ovnNetworkExternalSubnets(ovnProjectNetworksWithOurUplink map[stri
 func (n *ovn) ovnNICExternalRoutes(ovnProjectNetworksWithOurUplink map[string][]*api.Network) ([]externalSubnetUsage, error) {
 	externalRoutes := make([]externalSubnetUsage, 0)
 
-	err := n.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	err := n.state.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 		devices := db.ExpandInstanceDevices(deviceConfig.NewDevices(db.DevicesToAPI(inst.Devices)), profiles)
@@ -3920,7 +3922,7 @@ func (n *ovn) handleDependencyChange(uplinkName string, uplinkConfig map[string]
 
 			// Find all instance NICs that use this network, and re-add the logical OVN instance port.
 			// This will restore the l2proxy DNAT_AND_SNAT rules.
-			err = n.state.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+			err = n.state.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 				// Get the instance's effective network project name.
 				instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -4033,7 +4035,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		memberSpecific := false // OVN doesn't support per-member forwards.
 
 		// Check if there is an existing forward using the same listen address.
-		_, _, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
+		_, _, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, forward.ListenAddress)
 		if err == nil {
 			return api.StatusErrorf(http.StatusConflict, "A forward for that listen address already exists")
 		}
@@ -4051,13 +4053,13 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 
 		// Load the project to get uplink network restrictions.
 		var p *api.Project
-		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			project, err := tx.GetProject(n.project)
+		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), n.project)
 			if err != nil {
 				return err
 			}
 
-			p, err = project.ToAPI(tx)
+			p, err = project.ToAPI(ctx, tx.Tx())
 
 			return err
 		})
@@ -4066,7 +4068,7 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		}
 
 		// Get uplink routes.
-		_, uplink, _, err := n.state.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
+		_, uplink, _, err := n.state.DB.Cluster.GetNetworkInAnyState(project.Default, n.config["network"])
 		if err != nil {
 			return fmt.Errorf("Failed to load uplink network %q: %w", n.config["network"], err)
 		}
@@ -4119,13 +4121,13 @@ func (n *ovn) ForwardCreate(forward api.NetworkForwardsPost, clientType request.
 		}
 
 		// Create forward DB record.
-		forwardID, err := n.state.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
+		forwardID, err := n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &forward)
 		if err != nil {
 			return err
 		}
 
 		revert.Add(func() {
-			n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+			n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
 			client.LoadBalancerDelete(n.getLoadBalancerName(forward.ListenAddress))
 			n.forwardBGPSetupPrefixes()
 		})
@@ -4168,7 +4170,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
-		curForwardID, curForward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+		curForwardID, curForward, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 		if err != nil {
 			return err
 		}
@@ -4214,7 +4216,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 			n.forwardBGPSetupPrefixes()
 		})
 
-		err = n.state.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
+		err = n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &newForward.NetworkForwardPut)
 		if err != nil {
 			return err
 		}
@@ -4247,7 +4249,7 @@ func (n *ovn) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, cli
 func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType) error {
 	if clientType == request.ClientTypeNormal {
 		memberSpecific := false // OVN doesn't support per-member forwards.
-		forwardID, forward, err := n.state.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
+		forwardID, forward, err := n.state.DB.Cluster.GetNetworkForward(n.ID(), memberSpecific, listenAddress)
 		if err != nil {
 			return err
 		}
@@ -4262,7 +4264,7 @@ func (n *ovn) ForwardDelete(listenAddress string, clientType request.ClientType)
 			return fmt.Errorf("Failed deleting OVN load balancer: %w", err)
 		}
 
-		err = n.state.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+		err = n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
 		if err != nil {
 			return err
 		}
@@ -4363,7 +4365,7 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 
 	// Check if there is an existing peer using the same name, or whether there is already a peering (in any
 	// state) to the target network.
-	peers, err := n.state.Cluster.GetNetworkPeers(n.ID())
+	peers, err := n.state.DB.Cluster.GetNetworkPeers(n.ID())
 	if err == nil {
 	}
 
@@ -4384,18 +4386,18 @@ func (n *ovn) PeerCreate(peer api.NetworkPeersPost) error {
 	}
 
 	// Create peer DB record.
-	peerID, mutualExists, err := n.state.Cluster.CreateNetworkPeer(n.ID(), &peer)
+	peerID, mutualExists, err := n.state.DB.Cluster.CreateNetworkPeer(n.ID(), &peer)
 	if err != nil {
 		return err
 	}
 
 	revert.Add(func() {
-		n.state.Cluster.DeleteNetworkPeer(n.ID(), peerID)
+		n.state.DB.Cluster.DeleteNetworkPeer(n.ID(), peerID)
 	})
 
 	if mutualExists {
 		// Load peering to get mutual peering info.
-		_, peerInfo, err := n.state.Cluster.GetNetworkPeer(n.ID(), peer.Name)
+		_, peerInfo, err := n.state.DB.Cluster.GetNetworkPeer(n.ID(), peer.Name)
 		if err != nil {
 			return err
 		}
@@ -4605,7 +4607,7 @@ func (n *ovn) PeerUpdate(peerName string, req api.NetworkPeerPut) error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	curPeerID, curPeer, err := n.state.Cluster.GetNetworkPeer(n.ID(), peerName)
+	curPeerID, curPeer, err := n.state.DB.Cluster.GetNetworkPeer(n.ID(), peerName)
 	if err != nil {
 		return err
 	}
@@ -4634,7 +4636,7 @@ func (n *ovn) PeerUpdate(peerName string, req api.NetworkPeerPut) error {
 		return nil // Nothing has changed.
 	}
 
-	err = n.state.Cluster.UpdateNetworkPeer(n.ID(), curPeerID, &newPeer.NetworkPeerPut)
+	err = n.state.DB.Cluster.UpdateNetworkPeer(n.ID(), curPeerID, &newPeer.NetworkPeerPut)
 	if err != nil {
 		return err
 	}
@@ -4645,7 +4647,7 @@ func (n *ovn) PeerUpdate(peerName string, req api.NetworkPeerPut) error {
 
 // PeerDelete deletes a network peering.
 func (n *ovn) PeerDelete(peerName string) error {
-	peerID, peer, err := n.state.Cluster.GetNetworkPeer(n.ID(), peerName)
+	peerID, peer, err := n.state.DB.Cluster.GetNetworkPeer(n.ID(), peerName)
 	if err != nil {
 		return err
 	}
@@ -4698,7 +4700,7 @@ func (n *ovn) PeerDelete(peerName string) error {
 		}
 	}
 
-	err = n.state.Cluster.DeleteNetworkPeer(n.ID(), peerID)
+	err = n.state.DB.Cluster.DeleteNetworkPeer(n.ID(), peerID)
 	if err != nil {
 		return err
 	}
@@ -4708,7 +4710,7 @@ func (n *ovn) PeerDelete(peerName string) error {
 
 // forPeers runs f for each target peer network that this network is connected to.
 func (n *ovn) forPeers(f func(targetOVNNet *ovn) error) error {
-	peers, err := n.state.Cluster.GetNetworkPeers(n.ID())
+	peers, err := n.state.DB.Cluster.GetNetworkPeers(n.ID())
 	if err != nil {
 		return err
 	}

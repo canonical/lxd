@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -14,7 +15,7 @@ import (
 
 func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profile *api.Profile, req api.ProfilePut) error {
 	// Check project limits.
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return project.AllowProfileUpdate(tx, projectName, name, req)
 	})
 	if err != nil {
@@ -34,7 +35,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 		return err
 	}
 
-	insts, err := getProfileInstancesInfo(d.cluster, projectName, name)
+	insts, err := getProfileInstancesInfo(d.db.Cluster, projectName, name)
 	if err != nil {
 		return fmt.Errorf("Failed to query instances associated with profile %q: %w", name, err)
 	}
@@ -54,7 +55,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 			// Check what profile the device comes from by working backwards along the profiles list.
 			for i := len(inst.Profiles) - 1; i >= 0; i-- {
-				_, profile, err := d.cluster.GetProfile(projectName, inst.Profiles[i])
+				_, profile, err := d.db.Cluster.GetProfile(projectName, inst.Profiles[i])
 				if err != nil {
 					return err
 				}
@@ -76,7 +77,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 	}
 
 	// Update the database.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		devices, err := db.APIToDevices(req.Devices)
 		if err != nil {
 			return err
@@ -96,7 +97,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 
 	// Update all the instances on this node using the profile. Must be done after db.TxCommit due to DB lock.
 	nodeName := ""
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		nodeName, err = tx.GetLocalNodeName()
 		return err
@@ -130,7 +131,7 @@ func doProfileUpdate(d *Daemon, projectName string, name string, id int64, profi
 // updated by doProfileUpdate itself, called on the notifying node.
 func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.ProfilePut) error {
 	nodeName := ""
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		nodeName, err = tx.GetLocalNodeName()
 		return err
@@ -139,7 +140,7 @@ func doProfileUpdateCluster(d *Daemon, projectName string, name string, old api.
 		return fmt.Errorf("Failed to query local cluster member name: %w", err)
 	}
 
-	insts, err := getProfileInstancesInfo(d.cluster, projectName, name)
+	insts, err := getProfileInstancesInfo(d.db.Cluster, projectName, name)
 	if err != nil {
 		return fmt.Errorf("Failed to query instances associated with profile %q: %w", name, err)
 	}
@@ -172,7 +173,7 @@ func doProfileUpdateInstance(d *Daemon, name string, old api.ProfilePut, nodeNam
 		return nil
 	}
 
-	profiles, err := d.cluster.GetProfiles(args.Project, args.Profiles)
+	profiles, err := d.db.Cluster.GetProfiles(args.Project, args.Profiles)
 	if err != nil {
 		return err
 	}
@@ -215,7 +216,7 @@ func getProfileInstancesInfo(cluster *db.Cluster, projectName string, profileNam
 	}
 
 	instances := []db.InstanceArgs{}
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		for instProject, instNames := range projectInstNames {
 			for _, instName := range instNames {
 				inst, err := tx.GetInstance(instProject, instName)

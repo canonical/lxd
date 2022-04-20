@@ -29,8 +29,7 @@ func NewTestState(t *testing.T) (*State, func()) {
 
 	state := &State{
 		ShutdownCtx:            context.TODO(),
-		Node:                   node,
-		Cluster:                cluster,
+		DB:                     &db.DB{Node: node, Cluster: cluster},
 		OS:                     os,
 		Firewall:               firewall.New(),
 		UpdateCertificateCache: func() {},
