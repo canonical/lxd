@@ -299,6 +299,21 @@ test_remote_usage() {
   lxc_remote image delete "lxd2:${sum}" --project foo
   lxc_remote project delete lxd2:foo
 
+  # Test image copy with --profile option
+  lxc_remote profile create lxd2:foo
+  lxc_remote image copy "localhost:${sum}" lxd2: --profile foo
+  lxc_remote image show lxd2:"${sum}" | grep -q '\- foo'
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --profile foo --mode=push
+  lxc_remote image show lxd2:"${sum}" | grep -q '\- foo'
+  lxc_remote image delete "lxd2:${sum}"
+
+  lxc_remote image copy "localhost:${sum}" lxd2: --profile foo --mode=relay
+  lxc_remote image show lxd2:"${sum}" | grep -q '\- foo'
+  lxc_remote image delete "lxd2:${sum}"
+  lxc_remote profile delete lxd2:foo
+
   lxc_remote image alias delete localhost:foo
 
   lxc_remote remote remove lxd2
