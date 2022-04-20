@@ -42,7 +42,7 @@ func volIDFuncMake(state *state.State, poolID int64) func(volType drivers.Volume
 			projectName, volName = project.StorageVolumeParts(volName)
 		}
 
-		volID, _, err := state.Cluster.GetLocalStoragePoolVolume(projectName, volName, volTypeID, poolID)
+		volID, _, err := state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volName, volTypeID, poolID)
 		if err != nil {
 			if response.IsNotFoundError(err) {
 				return -1, fmt.Errorf("Failed to get volume ID for project %q, volume %q, type %q: Volume doesn't exist", projectName, volName, volType)
@@ -148,7 +148,7 @@ func LoadByName(state *state.State, name string) (Pool, error) {
 	}
 
 	// Load the database record.
-	poolID, dbPool, poolNodes, err := state.Cluster.GetStoragePoolInAnyState(name)
+	poolID, dbPool, poolNodes, err := state.DB.Cluster.GetStoragePoolInAnyState(name)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func Patch(s *state.State, patchName string) error {
 	unavailablePoolsMu.Unlock()
 
 	// Load all the pools.
-	pools, err := s.Cluster.GetStoragePoolNames()
+	pools, err := s.DB.Cluster.GetStoragePoolNames()
 	if err != nil {
 		if response.IsNotFoundError(err) {
 			return nil

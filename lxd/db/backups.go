@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -159,7 +160,7 @@ func (c *Cluster) CreateInstanceBackup(args InstanceBackup) error {
 		return ErrAlreadyDefined
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		instanceOnlyInt := 0
 		if args.InstanceOnly {
 			instanceOnlyInt = 1
@@ -212,7 +213,7 @@ func (c *Cluster) DeleteInstanceBackup(name string) error {
 // RenameInstanceBackup renames an instance backup from the given current name
 // to the new one.
 func (c *Cluster) RenameInstanceBackup(oldName, newName string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		str := fmt.Sprintf("UPDATE instances_backups SET name = ? WHERE name = ?")
 		stmt, err := tx.tx.Prepare(str)
 		if err != nil {
@@ -298,7 +299,7 @@ func (c *Cluster) GetStoragePoolVolumeBackups(projectName string, volumeName str
 
 	var backups []StoragePoolVolumeBackup
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var b StoragePoolVolumeBackup
 			var expiryTime sql.NullTime
@@ -352,7 +353,7 @@ func (c *Cluster) CreateStoragePoolVolumeBackup(args StoragePoolVolumeBackup) er
 		return ErrAlreadyDefined
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		volumeOnlyInt := 0
 		if args.VolumeOnly {
 			volumeOnlyInt = 1
@@ -481,7 +482,7 @@ WHERE backups.id=?
 // RenameVolumeBackup renames a volume backup from the given current name
 // to the new one.
 func (c *Cluster) RenameVolumeBackup(oldName, newName string) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		str := fmt.Sprintf("UPDATE storage_volumes_backups SET name = ? WHERE name = ?")
 		stmt, err := tx.tx.Prepare(str)
 		if err != nil {

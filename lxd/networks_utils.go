@@ -29,7 +29,7 @@ func networkUpdateForkdnsServersTask(s *state.State, heartbeatData *cluster.APIH
 	projectName := project.Default
 
 	// Get a list of managed networks
-	networks, err := s.Cluster.GetCreatedNetworks(projectName)
+	networks, err := s.DB.Cluster.GetCreatedNetworks(projectName)
 	if err != nil {
 		return err
 	}

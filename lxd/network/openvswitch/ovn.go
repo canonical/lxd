@@ -170,7 +170,7 @@ type OVNRouterPeering struct {
 
 // NewOVN initialises new OVN client wrapper with the connection set in network.ovn.northbound_connection config.
 func NewOVN(s *state.State) (*OVN, error) {
-	nbConnection, err := cluster.ConfigGetString(s.Cluster, "network.ovn.northbound_connection")
+	nbConnection, err := cluster.ConfigGetString(s.DB.Cluster, "network.ovn.northbound_connection")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get OVN northbound connection string: %w", err)
 	}

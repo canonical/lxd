@@ -2,6 +2,7 @@ package device
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -268,13 +269,13 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 			// Custom volume validation.
 			if d.config["source"] != "" && d.config["path"] != "/" {
 				// Derive the effective storage project name from the instance config's project.
-				storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, instConf.Project(), db.StoragePoolVolumeTypeCustom)
+				storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, instConf.Project(), db.StoragePoolVolumeTypeCustom)
 				if err != nil {
 					return err
 				}
 
 				// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
-				_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, d.pool.ID())
+				_, vol, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, d.pool.ID())
 				if err != nil {
 					return fmt.Errorf("Failed loading custom volume: %w", err)
 				}
@@ -345,13 +346,13 @@ func (d *disk) validateEnvironmentSourcePath() error {
 	projectName := d.inst.Project()
 	if projectName != project.Default {
 		var p *api.Project
-		err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			project, err := tx.GetProject(projectName)
+		err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			project, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 			if err != nil {
 				return err
 			}
 
-			p, err = project.ToAPI(tx)
+			p, err = project.ToAPI(ctx, tx.Tx())
 
 			return err
 		})
@@ -420,7 +421,7 @@ func (d *disk) Register() error {
 			return err
 		}
 	} else if d.config["path"] != "/" && d.config["source"] != "" && d.config["pool"] != "" {
-		storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -546,12 +547,12 @@ func (d *disk) startContainer() (*deviceConfig.RunConfig, error) {
 		// has owner shifting enabled, and if so enable shifting on this device too.
 		if ownerShift == deviceConfig.MountOwnerShiftNone && d.config["pool"] != "" {
 			// Only custom volumes can be attached currently.
-			storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+			storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
 			if err != nil {
 				return nil, err
 			}
 
-			_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, d.pool.ID())
+			_, volume, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(storageProjectName, d.config["source"], db.StoragePoolVolumeTypeCustom, d.pool.ID())
 			if err != nil {
 				return nil, err
 			}
@@ -803,10 +804,10 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 							d.logger.Warn("Unable to use virtio-fs for device, using 9p as a fallback", logger.Ctx{"err": errUnsupported})
 
 							if errUnsupported == ErrMissingVirtiofsd {
-								d.state.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
+								d.state.DB.Cluster.UpsertWarningLocalNode(d.inst.Project(), cluster.TypeInstance, d.inst.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
 							} else {
 								// Resolve previous warning.
-								warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
+								warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
 							}
 
 							return nil
@@ -820,7 +821,7 @@ func (d *disk) startVM() (*deviceConfig.RunConfig, error) {
 					runConf.PostHooks = append(runConf.PostHooks, unixListener.Close)
 
 					// Resolve previous warning
-					warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
+					warnings.ResolveWarningsByLocalNodeAndProjectAndType(d.state.DB.Cluster, d.inst.Project(), db.WarningMissingVirtiofsd)
 
 					// Add the socket path to the mount options to indicate to the qemu driver
 					// that this share is available.
@@ -1158,7 +1159,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	}
 
 	// Only custom volumes can be attached currently.
-	storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+	storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1172,7 +1173,7 @@ func (d *disk) mountPoolVolume() (func(), string, error) {
 	}
 	revert.Add(func() { d.pool.UnmountCustomVolume(storageProjectName, volumeName, nil) })
 
-	_, vol, err := d.state.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, d.pool.ID())
+	_, vol, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(storageProjectName, volumeName, db.StoragePoolVolumeTypeCustom, d.pool.ID())
 	if err != nil {
 		return nil, "", fmt.Errorf("Failed to fetch local storage volume record: %w", err)
 	}
@@ -1384,12 +1385,12 @@ func (d *disk) localSourceOpen(srcPath string) (*os.File, error) {
 
 func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName string, volumeType int, remapPath string) error {
 	// Load the DB records.
-	poolID, pool, _, err := d.state.Cluster.GetStoragePool(poolName)
+	poolID, pool, _, err := d.state.DB.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return err
 	}
 
-	_, volume, err := d.state.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
+	_, volume, err := d.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return err
 	}
@@ -1537,7 +1538,7 @@ func (d *disk) storagePoolVolumeAttachShift(projectName, poolName, volumeName st
 	// Update last idmap.
 	poolVolumePut.Config["volatile.idmap.last"] = jsonIdmap
 
-	err = d.state.Cluster.UpdateStoragePoolVolume(projectName, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
+	err = d.state.DB.Cluster.UpdateStoragePoolVolume(projectName, volumeName, volumeType, poolID, poolVolumePut.Description, poolVolumePut.Config)
 	if err != nil {
 		return err
 	}
@@ -1603,7 +1604,7 @@ func (d *disk) postStop() error {
 	// Check if pool-specific action should be taken to unmount custom volume disks.
 	if d.config["pool"] != "" && d.config["path"] != "/" {
 		// Only custom volumes can be attached currently.
-		storageProjectName, err := project.StorageVolumeProject(d.state.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
+		storageProjectName, err := project.StorageVolumeProject(d.state.DB.Cluster, d.inst.Project(), db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			return err
 		}

@@ -67,10 +67,10 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	d.db = db.DirectAccess(sqldb)
+	d.db.Node = db.DirectAccess(sqldb)
 
 	// Load the configured address from the database
-	address, err := node.HTTPSAddress(d.db)
+	address, err := node.HTTPSAddress(d.db.Node)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 	defer sqldb.Close()
 
-	d.cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)
+	d.db.Cluster, err = db.ForLocalInspectionWithPreparedStmts(sqldb)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func (c *cmdActivateifneeded) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check for scheduled volume snapshots
-	volumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+	volumes, err := d.db.Cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
 	if err != nil {
 		return err
 	}

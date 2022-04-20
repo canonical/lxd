@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -134,7 +135,7 @@ func (s *lxdHttpServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// Set CORS headers, unless this is an internal request.
 	if !strings.HasPrefix(req.URL.Path, "/internal") {
 		<-s.d.setupChan
-		err := s.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := s.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			config, err := cluster.ConfigLoad(tx)
 			if err != nil {
 				return err

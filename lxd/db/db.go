@@ -246,7 +246,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		closingCtx: closingCtx,
 	}
 
-	err = cluster.Transaction(func(tx *ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Figure out the ID of this node.
 		nodes, err := tx.GetNodes()
 		if err != nil {

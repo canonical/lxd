@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/network"
@@ -82,7 +84,7 @@ func (p *patch) apply(d *Daemon) error {
 		return fmt.Errorf("Failed applying patch %q: %w", p.name, err)
 	}
 
-	err = d.db.MarkPatchAsApplied(p.name)
+	err = d.db.Node.MarkPatchAsApplied(p.name)
 	if err != nil {
 		return fmt.Errorf("Failed marking patch applied %q: %w", p.name, err)
 	}
@@ -105,7 +107,7 @@ func patchesGetNames() []string {
 
 // patchesApplyPostDaemonStorage applies the patches that need to run after the daemon storage is initialised.
 func patchesApply(d *Daemon, stage patchStage) error {
-	appliedPatches, err := d.db.GetAppliedPatches()
+	appliedPatches, err := d.db.Node.GetAppliedPatches()
 	if err != nil {
 		return err
 	}
@@ -140,7 +142,7 @@ func patchDnsmasqEntriesIncludeDeviceName(name string, d *Daemon) error {
 }
 
 func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		warnings, err := tx.GetWarnings(db.WarningFilter{})
 		if err != nil {
 			return err
@@ -165,7 +167,7 @@ func patchRemoveWarningsWithEmptyNode(name string, d *Daemon) error {
 }
 
 func patchClusteringServerCertTrust(name string, d *Daemon) error {
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return err
 	}
@@ -175,7 +177,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	}
 
 	var serverName string
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		serverName, err = tx.GetLocalNodeName()
 		return err
 	})
@@ -190,7 +192,7 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	}
 	// Update our own entry in the nodes table.
 	logger.Infof("Adding local server certificate to global trust store for %q patch", name)
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return cluster.EnsureServerCertificateTrusted(serverName, serverCert, tx)
 	})
 	if err != nil {
@@ -201,25 +203,25 @@ func patchClusteringServerCertTrust(name string, d *Daemon) error {
 	// Check all other members have done the same.
 	for {
 		var err error
-		var dbCerts []db.Certificate
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			dbCerts, err = tx.GetCertificates(db.CertificateFilter{})
+		var dbCerts []dbCluster.Certificate
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			dbCerts, err = dbCluster.GetCertificates(ctx, tx.Tx(), dbCluster.CertificateFilter{})
 			return err
 		})
 		if err != nil {
 			return err
 		}
 
-		trustedServerCerts := make(map[string]*db.Certificate)
+		trustedServerCerts := make(map[string]*dbCluster.Certificate)
 
 		for _, c := range dbCerts {
-			if c.Type == db.CertificateTypeServer {
+			if c.Type == dbCluster.CertificateTypeServer {
 				trustedServerCerts[c.Name] = &c
 			}
 		}
 
 		var nodes []db.NodeInfo
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			nodes, err = tx.GetNodes()
 			if err != nil {
 				return err
@@ -268,8 +270,8 @@ func patchNetworkACLRemoveDefaults(name string, d *Daemon) error {
 	var projectNames []string
 
 	// Get projects.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		projectNames, err = tx.GetProjectNames()
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
 		return err
 	})
 	if err != nil {
@@ -278,13 +280,13 @@ func patchNetworkACLRemoveDefaults(name string, d *Daemon) error {
 
 	// Get ACLs in projects.
 	for _, projectName := range projectNames {
-		aclNames, err := d.cluster.GetNetworkACLs(projectName)
+		aclNames, err := d.db.Cluster.GetNetworkACLs(projectName)
 		if err != nil {
 			return err
 		}
 
 		for _, aclName := range aclNames {
-			aclID, acl, err := d.cluster.GetNetworkACL(projectName, aclName)
+			aclID, acl, err := d.db.Cluster.GetNetworkACL(projectName, aclName)
 			if err != nil {
 				return err
 			}
@@ -304,7 +306,7 @@ func patchNetworkACLRemoveDefaults(name string, d *Daemon) error {
 
 			// Write back modified config if needed.
 			if modified {
-				err = d.cluster.UpdateNetworkACL(aclID, &acl.NetworkACLPut)
+				err = d.db.Cluster.UpdateNetworkACL(aclID, &acl.NetworkACLPut)
 				if err != nil {
 					return fmt.Errorf("Failed updating network ACL %d: %w", aclID, err)
 				}
@@ -321,7 +323,7 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 	for {
 		// Only apply patch if schema needs it.
 		var schemaSQL string
-		row := d.State().Cluster.DB().QueryRow("SELECT sql FROM sqlite_master WHERE name = 'nodes'")
+		row := d.State().DB.Cluster.DB().QueryRow("SELECT sql FROM sqlite_master WHERE name = 'nodes'")
 		err := row.Scan(&schemaSQL)
 		if err != nil {
 			return err
@@ -333,7 +335,7 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 		}
 
 		// Only apply patch on leader, otherwise wait for it to be applied.
-		clusterAddress, err := node.ClusterAddress(d.db)
+		clusterAddress, err := node.ClusterAddress(d.db.Node)
 		if err != nil {
 			return err
 		}
@@ -356,7 +358,7 @@ func patchDBNodesAutoInc(name string, d *Daemon) error {
 	}
 
 	// Apply patch.
-	_, err := d.State().Cluster.DB().Exec(`
+	_, err := d.State().DB.Cluster.DB().Exec(`
 PRAGMA foreign_keys=OFF; -- So that integrity doesn't get in the way for now.
 PRAGMA legacy_alter_table = ON; -- So that views referencing this table don't block change.
 
@@ -393,12 +395,12 @@ func patchVMRenameUUIDKey(name string, d *Daemon) error {
 	oldUUIDKey := "volatile.vm.uuid"
 	newUUIDKey := "volatile.uuid"
 
-	return d.State().Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	return d.State().DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		if inst.Type != instancetype.VM {
 			return nil
 		}
 
-		return d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		return d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			uuid := inst.Config[oldUUIDKey]
 			if uuid != "" {
 				changes := map[string]string{
@@ -445,7 +447,7 @@ func patchThinpoolTypoFix(name string, d *Daemon) error {
 	defer revert.Fail()
 
 	// Setup a transaction.
-	tx, err := d.cluster.Begin()
+	tx, err := d.db.Cluster.Begin()
 	if err != nil {
 		return fmt.Errorf("Failed to begin transaction: %w", err)
 	}
@@ -510,7 +512,7 @@ INSERT INTO storage_pools_config(storage_pool_id, node_id, key, value)
 // This prevents outbound connectivity breaking on existing fan networks now that the default behaviour of not
 // having "ipv4.nat" set is to disable NAT (bringing in line with the non-fan bridge behavior and docs).
 func patchNetworkFANEnableNAT(name string, d *Daemon) error {
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err := tx.GetCreatedNetworks()
 		if err != nil {
 			return err
@@ -557,7 +559,7 @@ func patchNetworkFANEnableNAT(name string, d *Daemon) error {
 // patchNetworkOVNRemoveRoutes removes the "ipv4.routes.external" and "ipv6.routes.external" settings from OVN
 // networks. It was decided that the OVN NIC level equivalent settings were sufficient.
 func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err := tx.GetCreatedNetworks()
 		if err != nil {
 			return err
@@ -607,7 +609,7 @@ func patchNetworkOVNRemoveRoutes(name string, d *Daemon) error {
 // the new NAT settings which default to disabled if not specified.
 // patchNetworkCearBridgeVolatileHwaddr removes the unsupported `volatile.bridge.hwaddr` config key from networks.
 func patchNetworkOVNEnableNAT(name string, d *Daemon) error {
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err := tx.GetCreatedNetworks()
 		if err != nil {
 			return err
@@ -703,7 +705,7 @@ func patchGenericNetwork(f func(name string, d *Daemon) error) func(name string,
 }
 
 func patchClusteringDropDatabaseRole(name string, d *Daemon) error {
-	return d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+	return d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		nodes, err := tx.GetNodes()
 		if err != nil {
 			return err
@@ -724,20 +726,20 @@ func patchNetworkClearBridgeVolatileHwaddr(name string, d *Daemon) error {
 	projectName := project.Default
 
 	// Get the list of networks.
-	networks, err := d.cluster.GetNetworks(projectName)
+	networks, err := d.db.Cluster.GetNetworks(projectName)
 	if err != nil {
 		return fmt.Errorf("Failed loading networks for network_clear_bridge_volatile_hwaddr patch: %w", err)
 	}
 
 	for _, networkName := range networks {
-		_, net, _, err := d.cluster.GetNetworkInAnyState(projectName, networkName)
+		_, net, _, err := d.db.Cluster.GetNetworkInAnyState(projectName, networkName)
 		if err != nil {
 			return fmt.Errorf("Failed loading network %q for network_clear_bridge_volatile_hwaddr patch: %w", networkName, err)
 		}
 
 		if net.Config["volatile.bridge.hwaddr"] != "" {
 			delete(net.Config, "volatile.bridge.hwaddr")
-			err = d.cluster.UpdateNetwork(projectName, net.Name, net.Description, net.Config)
+			err = d.db.Cluster.UpdateNetwork(projectName, net.Name, net.Description, net.Config)
 			if err != nil {
 				return fmt.Errorf("Failed updating network %q for network_clear_bridge_volatile_hwaddr patch: %w", networkName, err)
 			}

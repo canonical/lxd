@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -108,7 +109,7 @@ func (c *ClusterTx) UpdateInstanceSnapshot(id int, description string, expiryDat
 // GetInstanceSnapshotID returns the ID of the snapshot with the given name.
 func (c *Cluster) GetInstanceSnapshotID(project, instance, name string) (int, error) {
 	var id int64
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		id, err = tx.GetInstanceSnapshotID(project, instance, name)
 		return err

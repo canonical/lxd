@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/shared/api"
@@ -208,7 +210,7 @@ func (c *ClusterTx) imageFill(id int, image *api.Image, create, expire, used, up
 
 func (c *ClusterTx) imageFillProfiles(id int, image *api.Image, project string) error {
 	// Check which project name to use
-	enabled, err := c.ProjectHasProfiles(project)
+	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
 	if err != nil {
 		return fmt.Errorf("Check if project has profiles: %w", err)
 	}
@@ -247,8 +249,8 @@ SELECT fingerprint
 
 	var fingerprints []string
 
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -268,7 +270,7 @@ SELECT fingerprint
 // GetExpiredImagesInProject returns the names of all images that have expired since the given time.
 func (c *Cluster) GetExpiredImagesInProject(expiry int64, project string) ([]string, error) {
 	var images []Image
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		cached := true
 		images, err = tx.GetImages(ImageFilter{Cached: &cached, Project: &project})
@@ -313,7 +315,7 @@ func (c *Cluster) CreateImageSource(id int, server string, protocol string, cert
 		return fmt.Errorf("Invalid protocol: %s", protocol)
 	}
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := query.UpsertObject(tx.tx, "images_source", []string{
 			"image_id",
 			"server",
@@ -373,7 +375,7 @@ func (c *Cluster) GetCachedImageSourceFingerprint(server string, protocol string
 	q += "ORDER BY creation_date DESC"
 
 	var fingerprints []string
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		fingerprints, err = query.SelectStrings(tx.tx, q, args...)
 		return err
@@ -394,8 +396,8 @@ func (c *Cluster) ImageExists(project string, fingerprint string) (bool, error) 
 	where := "projects.name = ? AND fingerprint=?"
 
 	var exists bool
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -423,8 +425,8 @@ func (c *Cluster) ImageIsReferencedByOtherProjects(project string, fingerprint s
 	where := "projects.name != ? AND fingerprint=?"
 
 	var referenced bool
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -463,9 +465,9 @@ func (c *Cluster) GetImage(fingerprintPrefix string, filter ImageFilter) (int, *
 		return -1, nil, errors.New("No project specified for the image")
 	}
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		profileProject := *filter.Project
-		enabled, err := tx.ProjectHasImages(*filter.Project)
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, *filter.Project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -524,7 +526,7 @@ func (c *Cluster) GetImageFromAnyProject(fingerprint string) (int, *api.Image, e
 	var image api.Image
 	var object Image
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		images, err := tx.getImagesByFingerprintPrefix(fingerprint, ImageFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed to fetch images: %w", err)
@@ -634,7 +636,7 @@ WHERE images.fingerprint = ?
 	var localAddress string // Address of this node
 	var addresses []string  // Addresses of online nodes with the image
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err
@@ -684,7 +686,7 @@ func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
 		return err
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec("INSERT INTO images_nodes(image_id, node_id) VALUES(?, ?)", imageID, c.nodeID)
 		return err
 	})
@@ -693,7 +695,7 @@ func (c *Cluster) AddImageToLocalNode(project, fingerprint string) error {
 
 // DeleteImage deletes the image with the given ID.
 func (c *Cluster) DeleteImage(id int) error {
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		deleted, err := query.DeleteObject(tx.tx, "images", int64(id))
 		if err != nil {
 			return err
@@ -715,8 +717,8 @@ SELECT images_aliases.name
  WHERE projects.name=?
 `
 
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -748,8 +750,8 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 		q = q + ` AND images.public=1`
 	}
 
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -787,7 +789,7 @@ func (c *Cluster) GetImageAlias(project, name string, isTrustedClient bool) (int
 // RenameImageAlias renames the alias with the given ID.
 func (c *Cluster) RenameImageAlias(id int, name string) error {
 	q := "UPDATE images_aliases SET name=? WHERE id=?"
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(q, name, id)
 		return err
 	})
@@ -801,8 +803,8 @@ DELETE
   FROM images_aliases
  WHERE project_id = (SELECT id FROM projects WHERE name = ?) AND name = ?
 `
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -822,7 +824,7 @@ DELETE
 // MoveImageAlias changes the image ID associated with an alias.
 func (c *Cluster) MoveImageAlias(source int, destination int) error {
 	q := "UPDATE images_aliases SET image_id=? WHERE image_id=?"
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(q, destination, source)
 		return err
 	})
@@ -835,8 +837,8 @@ func (c *Cluster) CreateImageAlias(project, name string, imageID int, desc strin
 INSERT INTO images_aliases (name, image_id, description, project_id)
      VALUES (?, ?, ?, (SELECT id FROM projects WHERE name = ?))
 `
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasImages(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -857,7 +859,7 @@ INSERT INTO images_aliases (name, image_id, description, project_id)
 // UpdateImageAlias updates the alias with the given ID.
 func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
 	stmt := `UPDATE images_aliases SET image_id=?, description=? WHERE id=?`
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(stmt, imageID, desc, id)
 		return err
 	})
@@ -866,7 +868,7 @@ func (c *Cluster) UpdateImageAlias(id int, imageID int, desc string) error {
 
 // CopyDefaultImageProfiles copies default profiles from id to new_id.
 func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Delete all current associations.
 		_, err := tx.tx.Exec("DELETE FROM images_profiles WHERE image_id=?", newID)
 		if err != nil {
@@ -892,7 +894,7 @@ func (c *Cluster) CopyDefaultImageProfiles(id int, newID int) error {
 // given fingerprint.
 func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) error {
 	stmt := `UPDATE images SET last_use_date=? WHERE fingerprint=?`
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(stmt, date, fingerprint)
 		return err
 	})
@@ -902,7 +904,7 @@ func (c *Cluster) UpdateImageLastUseDate(fingerprint string, date time.Time) err
 // InitImageLastUseDate inits the last_use_date field of the image with the given fingerprint.
 func (c *Cluster) InitImageLastUseDate(fingerprint string) error {
 	stmt := `UPDATE images SET cached=1, last_use_date=strftime("%s") WHERE fingerprint=?`
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(stmt, fingerprint)
 		return err
 	})
@@ -916,7 +918,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 		arch = 0
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		publicInt := 0
 		if public {
 			publicInt = 1
@@ -961,7 +963,7 @@ func (c *Cluster) UpdateImage(id int, fname string, sz int64, public bool, autoU
 		}
 
 		if project != "" && profileIds != nil {
-			enabled, err := tx.ProjectHasProfiles(project)
+			enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, project)
 			if err != nil {
 				return err
 			}
@@ -1018,9 +1020,9 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 		return fmt.Errorf("Invalid image type: %v", typeName)
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		profileProject := project
-		enabled, err := tx.ProjectHasImages(project)
+		enabled, err := cluster.ProjectHasImages(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has images: %w", err)
 		}
@@ -1113,7 +1115,7 @@ func (c *Cluster) CreateImage(project, fp string, fname string, sz int64, public
 func (c *Cluster) GetPoolsWithImage(imageFingerprint string) ([]int64, error) {
 	q := "SELECT storage_pool_id FROM storage_volumes WHERE (node_id=? OR node_id IS NULL) AND name=? AND type=?"
 	var ids []int
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		ids, err = query.SelectIntegers(tx.tx, q, c.nodeID, imageFingerprint, StoragePoolVolumeTypeImage)
 		return err
@@ -1142,7 +1144,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 
 	var poolNames []string
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		poolNames, err = query.SelectStrings(tx.tx, q, args...)
 		return err
@@ -1161,7 +1163,7 @@ func (c *Cluster) GetPoolNamesFromIDs(poolIDs []int64) ([]string, error) {
 // GetImages returns all images.
 func (c *Cluster) GetImages() (map[string][]string, error) {
 	images := make(map[string][]string) // key is fingerprint, value is list of projects
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		stmt := `
     SELECT images.fingerprint, projects.name FROM images
       LEFT JOIN projects ON images.project_id = projects.id
@@ -1195,7 +1197,7 @@ func (c *Cluster) GetImagesOnLocalNode() (map[string][]string, error) {
 // GetImagesOnNode returns all images that the node with the given id has.
 func (c *Cluster) GetImagesOnNode(id int64) (map[string][]string, error) {
 	images := make(map[string][]string) // key is fingerprint, value is list of projects
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		stmt := `
     SELECT images.fingerprint, projects.name FROM images
       LEFT JOIN images_nodes ON images.id = images_nodes.image_id
@@ -1260,7 +1262,7 @@ SELECT DISTINCT nodes.address FROM nodes WHERE nodes.address NOT IN (
 
 func (c *Cluster) getNodesByImageFingerprint(stmt, fingerprint string, autoUpdate *bool) ([]string, error) {
 	var addresses []string // Addresses of online nodes with the image
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return err

@@ -2,6 +2,7 @@ package instance
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
@@ -16,9 +17,10 @@ import (
 	"github.com/pborman/uuid"
 	liblxc "gopkg.in/lxc/go-lxc.v2"
 
-	lxd "github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/instance/operationlock"
@@ -352,7 +354,7 @@ func AllowedUnprivilegedOnlyMap(rawIdmap string) error {
 // LoadByID loads an instance by ID.
 func LoadByID(s *state.State, id int) (Instance, error) {
 	// Get the DB record
-	project, name, err := s.Cluster.GetInstanceProjectAndName(id)
+	project, name, err := s.DB.Cluster.GetInstanceProjectAndName(id)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +365,7 @@ func LoadByID(s *state.State, id int) (Instance, error) {
 // Convenience to load a db.Instance object, accounting for snapshots.
 func fetchInstanceDatabaseObject(s *state.State, project, name string) (*db.Instance, error) {
 	var container *db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		container, err = LoadInstanceDatabaseObject(tx, project, name)
 		return err
@@ -445,7 +447,7 @@ func LoadAllInternal(s *state.State, dbInstances []db.Instance) ([]Instance, err
 	// Get the profile data
 	for project, projectProfiles := range profiles {
 		for name := range projectProfiles {
-			_, profile, err := s.Cluster.GetProfile(project, name)
+			_, profile, err := s.DB.Cluster.GetProfile(project, name)
 			if err != nil {
 				return nil, err
 			}
@@ -479,7 +481,7 @@ func LoadAllInternal(s *state.State, dbInstances []db.Instance) ([]Instance, err
 func LoadByProject(s *state.State, project string) ([]Instance, error) {
 	// Get all the instances.
 	var cts []db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.InstanceFilter{
 			Project: &project,
 		}
@@ -502,9 +504,9 @@ func LoadByProject(s *state.State, project string) ([]Instance, error) {
 func LoadFromAllProjects(s *state.State) ([]Instance, error) {
 	var projects []string
 
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
-		projects, err = tx.GetProjectNames()
+		projects, err = cluster.GetProjectNames(context.Background(), tx.Tx())
 		return err
 	})
 	if err != nil {
@@ -527,7 +529,7 @@ func LoadFromAllProjects(s *state.State) ([]Instance, error) {
 func LoadNodeAll(s *state.State, instanceType instancetype.Type) ([]Instance, error) {
 	// Get all the container arguments
 	var insts []db.Instance
-	err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		filter := db.InstanceTypeFilter(instanceType)
 		insts, err = tx.GetLocalInstancesInProject(filter)
@@ -577,7 +579,7 @@ func LoadFromBackup(s *state.State, projectName string, instancePath string, app
 
 // DeleteSnapshots calls the Delete() function on each of the supplied instance's snapshots.
 func DeleteSnapshots(s *state.State, projectName, instanceName string) error {
-	results, err := s.Cluster.GetInstanceSnapshotsNames(projectName, instanceName)
+	results, err := s.DB.Cluster.GetInstanceSnapshotsNames(projectName, instanceName)
 	if err != nil {
 		return err
 	}
@@ -620,7 +622,7 @@ func DeviceNextInterfaceHWAddr() (string, error) {
 // BackupLoadByName load an instance backup from the database.
 func BackupLoadByName(s *state.State, project, name string) (*backup.InstanceBackup, error) {
 	// Get the backup database record
-	args, err := s.Cluster.GetInstanceBackup(project, name)
+	args, err := s.DB.Cluster.GetInstanceBackup(project, name)
 	if err != nil {
 		return nil, fmt.Errorf("Load backup from database: %w", err)
 	}
@@ -645,7 +647,7 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return source.Alias, nil
 		}
 
-		_, alias, err := s.Cluster.GetImageAlias(project, source.Alias, true)
+		_, alias, err := s.DB.Cluster.GetImageAlias(project, source.Alias, true)
 		if err != nil {
 			return "", err
 		}
@@ -658,14 +660,14 @@ func ResolveImage(s *state.State, project string, source api.InstanceSource) (st
 			return "", fmt.Errorf("Property match is only supported for local images")
 		}
 
-		hashes, err := s.Cluster.GetImagesFingerprints(project, false)
+		hashes, err := s.DB.Cluster.GetImagesFingerprints(project, false)
 		if err != nil {
 			return "", err
 		}
 
 		var image *api.Image
 		for _, imageHash := range hashes {
-			_, img, err := s.Cluster.GetImage(imageHash, db.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(imageHash, db.ImageFilter{Project: &project})
 			if err != nil {
 				continue
 			}
@@ -749,7 +751,7 @@ func SuitableArchitectures(s *state.State, project string, req api.InstancesPost
 
 		// Handle local images.
 		if req.Source.Server == "" {
-			_, img, err := s.Cluster.GetImage(hash, db.ImageFilter{Project: &project})
+			_, img, err := s.DB.Cluster.GetImage(hash, db.ImageFilter{Project: &project})
 			if err != nil {
 				return nil, err
 			}
@@ -947,7 +949,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 	}
 
 	// Validate profiles.
-	profiles, err := s.Cluster.GetProfileNames(args.Project)
+	profiles, err := s.DB.Cluster.GetProfileNames(args.Project)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -976,7 +978,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 	var dbInst db.Instance
 	var op *operationlock.InstanceOperation
 
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		node, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -1080,7 +1082,7 @@ func CreateInternal(s *state.State, args db.InstanceArgs, clearLogDir bool, reve
 		return nil, nil, err
 	}
 
-	revert.Add(func() { s.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
+	revert.Add(func() { s.DB.Cluster.DeleteInstance(dbInst.Project, dbInst.Name) })
 
 	args = db.InstanceToArgs(&dbInst)
 	inst, err := Create(s, args, revert)
@@ -1117,7 +1119,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := s.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
+		i := s.DB.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -1139,7 +1141,7 @@ func NextSnapshotName(s *state.State, inst Instance, defaultPattern string) (str
 	// Append '-0', '-1', etc. if the actual pattern/snapshot name already exists
 	if snapshotExists {
 		pattern = fmt.Sprintf("%s-%%d", pattern)
-		i := s.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
+		i := s.DB.Cluster.GetNextInstanceSnapshotIndex(inst.Project(), inst.Name(), pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 

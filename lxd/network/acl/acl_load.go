@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -14,7 +15,7 @@ import (
 
 // LoadByName loads and initialises a Network ACL from the database by project and name.
 func LoadByName(s *state.State, projectName string, name string) (NetworkACL, error) {
-	id, aclInfo, err := s.Cluster.GetNetworkACL(projectName, name)
+	id, aclInfo, err := s.DB.Cluster.GetNetworkACL(projectName, name)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func Create(s *state.State, projectName string, aclInfo *api.NetworkACLsPost) er
 	}
 
 	// Insert DB record.
-	_, err = s.Cluster.CreateNetworkACL(projectName, aclInfo)
+	_, err = s.DB.Cluster.CreateNetworkACL(projectName, aclInfo)
 	if err != nil {
 		return err
 	}
@@ -52,7 +53,7 @@ func Create(s *state.State, projectName string, aclInfo *api.NetworkACLsPost) er
 // Exists checks the ACL name(s) provided exists in the project.
 // If multiple names are provided, also checks that duplicate names aren't specified in the list.
 func Exists(s *state.State, projectName string, name ...string) error {
-	existingACLNames, err := s.Cluster.GetNetworkACLs(projectName)
+	existingACLNames, err := s.DB.Cluster.GetNetworkACLs(projectName)
 	if err != nil {
 		return err
 	}
@@ -83,13 +84,13 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	}
 
 	// Find networks using the ACLs. Cheapest to do.
-	networkNames, err := s.Cluster.GetCreatedNetworks(aclProjectName)
+	networkNames, err := s.DB.Cluster.GetCreatedNetworks(aclProjectName)
 	if err != nil && !response.IsNotFoundError(err) {
 		return fmt.Errorf("Failed loading networks for project %q: %w", aclProjectName, err)
 	}
 
 	for _, networkName := range networkNames {
-		_, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, networkName)
+		_, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, networkName)
 		if err != nil {
 			return fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
 		}
@@ -113,7 +114,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 
 	// Look for profiles. Next cheapest to do.
 	var profiles []db.Profile
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		profiles, err = tx.GetProfiles(db.ProfileFilter{})
 		if err != nil {
 			return err
@@ -127,7 +128,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 
 	for _, profile := range profiles {
 		// Get the profiles's effective network project name.
-		profileNetworkProjectName, _, err := project.NetworkProject(s.Cluster, profile.Project)
+		profileNetworkProjectName, _, err := project.NetworkProject(s.DB.Cluster, profile.Project)
 		if err != nil {
 			return err
 		}
@@ -151,13 +152,13 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	}
 
 	// Find ACLs that have rules that reference the ACLs.
-	aclNames, err := s.Cluster.GetNetworkACLs(aclProjectName)
+	aclNames, err := s.DB.Cluster.GetNetworkACLs(aclProjectName)
 	if err != nil {
 		return err
 	}
 
 	for _, aclName := range aclNames {
-		_, aclInfo, err := s.Cluster.GetNetworkACL(aclProjectName, aclName)
+		_, aclInfo, err := s.DB.Cluster.GetNetworkACL(aclProjectName, aclName)
 		if err != nil {
 			return err
 		}
@@ -196,7 +197,7 @@ func UsedBy(s *state.State, aclProjectName string, usageFunc func(matchedACLName
 	}
 
 	// Find instances using the ACLs. Most expensive to do.
-	err = s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	err = s.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -262,7 +263,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 	err := UsedBy(s, aclProjectName, func(matchedACLNames []string, usageType any, _ string, nicConfig map[string]string) error {
 		switch u := usageType.(type) {
 		case db.Instance, db.Profile:
-			networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
+			networkID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, nicConfig["network"])
 			if err != nil {
 				return fmt.Errorf("Failed to load network %q: %w", nicConfig["network"], err)
 			}
@@ -280,7 +281,7 @@ func NetworkUsage(s *state.State, aclProjectName string, aclNames []string, aclN
 		case *api.Network:
 			if shared.StringInSlice(u.Type, supportedNetTypes) {
 				if _, found := aclNets[u.Name]; !found {
-					networkID, network, _, err := s.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
+					networkID, network, _, err := s.DB.Cluster.GetNetworkInAnyState(aclProjectName, u.Name)
 					if err != nil {
 						return fmt.Errorf("Failed to load network %q: %w", u.Name, err)
 					}

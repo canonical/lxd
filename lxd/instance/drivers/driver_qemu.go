@@ -1194,14 +1194,14 @@ func (d *qemu) Start(stateful bool) error {
 
 			if errUnsupported == device.ErrMissingVirtiofsd {
 				// Create a warning if virtiofsd is missing.
-				d.state.Cluster.UpsertWarning(d.node, d.project, dbCluster.TypeInstance, d.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
+				d.state.DB.Cluster.UpsertWarning(d.node, d.project, dbCluster.TypeInstance, d.ID(), db.WarningMissingVirtiofsd, "Using 9p as a fallback")
 			} else {
 				// Resolve previous warning.
-				warnings.ResolveWarningsByNodeAndProjectAndType(d.state.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
+				warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			}
 		} else {
 			// Resolve previous warning.
-			warnings.ResolveWarningsByNodeAndProjectAndType(d.state.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
+			warnings.ResolveWarningsByNodeAndProjectAndType(d.state.DB.Cluster, d.node, d.project, db.WarningMissingVirtiofsd)
 			op.Done(err)
 			return fmt.Errorf("Failed to setup virtiofsd for config drive: %w", err)
 		}
@@ -1296,7 +1296,7 @@ func (d *qemu) Start(stateful bool) error {
 		}
 
 		d.stateful = false
-		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Error updating instance stateful flag: %w", err)
@@ -1538,7 +1538,7 @@ func (d *qemu) Start(stateful bool) error {
 		os.Remove(d.StatePath())
 		d.stateful = false
 
-		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Error updating instance stateful flag: %w", err)
@@ -2292,7 +2292,7 @@ echo "To start it now, unmount this filesystem and run: systemctl start lxd-agen
 		}
 
 		// Remove the volatile key from the DB.
-		err := d.state.Cluster.DeleteInstanceConfigKey(d.id, key)
+		err := d.state.DB.Cluster.DeleteInstanceConfigKey(d.id, key)
 		if err != nil {
 			return err
 		}
@@ -3786,7 +3786,7 @@ func (d *qemu) Stop(stateful bool) error {
 
 		// Mark the instance as having state.
 		d.stateful = true
-		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
 		if err != nil {
 			op.Done(err)
 			return err
@@ -4079,7 +4079,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 
 	if !d.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
+		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get instance snapshots", ctxMap)
 			return fmt.Errorf("Failed to get instance snapshots: %w", err)
@@ -4089,7 +4089,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 			// Rename the snapshot.
 			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
-			err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.RenameInstanceSnapshot(d.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
@@ -4100,7 +4100,7 @@ func (d *qemu) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Rename the instance database entry.
-	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if d.IsSnapshot() {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
@@ -4238,7 +4238,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles.
-	profiles, err := d.state.Cluster.GetProfileNames(args.Project)
+	profiles, err := d.state.DB.Cluster.GetProfileNames(args.Project)
 	if err != nil {
 		return fmt.Errorf("Failed to get profiles: %w", err)
 	}
@@ -4511,7 +4511,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database.
-	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Snapshots should update only their descriptions and expiry date.
 		if d.IsSnapshot() {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)
@@ -4984,7 +4984,7 @@ func (d *qemu) Delete(force bool) error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := d.state.Cluster.DeleteInstance(d.Project(), d.Name()); err != nil {
+	if err := d.state.DB.Cluster.DeleteInstance(d.Project(), d.Name()); err != nil {
 		d.logger.Error("Failed deleting instance entry", logger.Ctx{"project": d.Project()})
 		return err
 	}
@@ -6146,7 +6146,7 @@ func (d *qemu) writeInstanceData() error {
 	}
 
 	location := "none"
-	clustered, err := cluster.Enabled(d.state.Node)
+	clustered, err := cluster.Enabled(d.state.DB.Node)
 	if err != nil {
 		return err
 	}

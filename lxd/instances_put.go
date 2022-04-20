@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -163,7 +164,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Check if clustered.
-		clustered, err := cluster.Enabled(d.db)
+		clustered, err := cluster.Enabled(d.db.Node)
 		if err != nil {
 			return err
 		}
@@ -175,7 +176,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 
 		// Get all online nodes.
 		var nodes []db.NodeInfo
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			nodes, err = tx.GetNodes()
@@ -190,7 +191,7 @@ func instancesPut(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Get local address.
-		localAddress, err := node.HTTPSAddress(d.db)
+		localAddress, err := node.HTTPSAddress(d.db.Node)
 		if err != nil {
 			return err
 		}

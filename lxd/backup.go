@@ -14,6 +14,7 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -54,7 +55,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 	}
 
 	// Create the database entry.
-	err = s.Cluster.CreateInstanceBackup(args)
+	err = s.DB.Cluster.CreateInstanceBackup(args)
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
 			return fmt.Errorf("Backup %q already exists", args.Name)
@@ -63,7 +64,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		return fmt.Errorf("Insert backup info into database: %w", err)
 	}
 
-	revert.Add(func() { s.Cluster.DeleteInstanceBackup(args.Name) })
+	revert.Add(func() { s.DB.Cluster.DeleteInstanceBackup(args.Name) })
 
 	// Get the backup struct.
 	b, err := instance.BackupLoadByName(s, sourceInst.Project(), args.Name)
@@ -78,13 +79,13 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		compress = b.CompressionAlgorithm()
 	} else {
 		var p *api.Project
-		err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-			project, err := tx.GetProject(sourceInst.Project())
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			project, err := dbCluster.GetProject(ctx, tx.Tx(), sourceInst.Project())
 			if err != nil {
 				return err
 			}
 
-			p, err = project.ToAPI(tx)
+			p, err = project.ToAPI(ctx, tx.Tx())
 
 			return err
 		})
@@ -95,7 +96,7 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 		if p.Config["backups.compression_algorithm"] != "" {
 			compress = p.Config["backups.compression_algorithm"]
 		} else {
-			compress, err = cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
+			compress, err = cluster.ConfigGetString(s.DB.Cluster, "backups.compression_algorithm")
 			if err != nil {
 				return err
 			}
@@ -316,7 +317,7 @@ func pruneExpiredContainerBackupsTask(d *Daemon) (task.Func, task.Schedule) {
 
 func pruneExpiredContainerBackups(ctx context.Context, d *Daemon) error {
 	// Get the list of expired backups.
-	backups, err := d.cluster.GetExpiredInstanceBackups()
+	backups, err := d.db.Cluster.GetExpiredInstanceBackups()
 	if err != nil {
 		return fmt.Errorf("Unable to retrieve the list of expired instance backups: %w", err)
 	}
@@ -351,7 +352,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Failed loading storage pool %q: %w", poolName, err)
 	}
 
-	_, vol, err := s.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	_, vol, err := s.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
 		return fmt.Errorf("Failed loading custom volume %q: %w", volumeName, err)
 	}
@@ -362,7 +363,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	}
 
 	// Create the database entry.
-	err = s.Cluster.CreateStoragePoolVolumeBackup(args)
+	err = s.DB.Cluster.CreateStoragePoolVolumeBackup(args)
 	if err != nil {
 		if err == db.ErrAlreadyDefined {
 			return fmt.Errorf("Backup %q already exists", args.Name)
@@ -371,9 +372,9 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 		return fmt.Errorf("Failed creating backup record: %w", err)
 	}
 
-	revert.Add(func() { s.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
+	revert.Add(func() { s.DB.Cluster.DeleteStoragePoolVolumeBackup(args.Name) })
 
-	backupRow, err := s.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, args.Name)
+	backupRow, err := s.DB.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, args.Name)
 	if err != nil {
 		return fmt.Errorf("Failed getting backup record: %w", err)
 	}
@@ -386,7 +387,7 @@ func volumeBackupCreate(s *state.State, args db.StoragePoolVolumeBackup, project
 	if backupRow.CompressionAlgorithm != "" {
 		compress = backupRow.CompressionAlgorithm
 	} else {
-		compress, err = cluster.ConfigGetString(s.Cluster, "backups.compression_algorithm")
+		compress, err = cluster.ConfigGetString(s.DB.Cluster, "backups.compression_algorithm")
 		if err != nil {
 			return err
 		}
@@ -505,26 +506,26 @@ func volumeBackupWriteIndex(s *state.State, projectName string, vol *api.Storage
 	}
 
 	if snapshots {
-		volID, err := s.Cluster.GetStoragePoolNodeVolumeID(projectName, vol.Name, db.StoragePoolVolumeTypeCustom, pool.ID())
+		volID, err := s.DB.Cluster.GetStoragePoolNodeVolumeID(projectName, vol.Name, db.StoragePoolVolumeTypeCustom, pool.ID())
 		if err != nil {
 			return err
 		}
 
-		snaps, err := s.Cluster.GetStorageVolumeSnapshotsNames(volID)
+		snaps, err := s.DB.Cluster.GetStorageVolumeSnapshotsNames(volID)
 		if err != nil {
 			return err
 		}
 
 		for _, snapName := range snaps {
 			snapVolName := storageDrivers.GetSnapshotVolumeName(vol.Name, snapName)
-			snapVolID, snapVol, err := s.Cluster.GetLocalStoragePoolVolume(projectName, snapVolName, db.StoragePoolVolumeTypeCustom, pool.ID())
+			snapVolID, snapVol, err := s.DB.Cluster.GetLocalStoragePoolVolume(projectName, snapVolName, db.StoragePoolVolumeTypeCustom, pool.ID())
 			if err != nil {
 				return fmt.Errorf("Failed loading custom volume snapshot %q: %w", snapVolName, err)
 			}
 
 			indexInfo.Snapshots = append(indexInfo.Snapshots, snapName)
 
-			snapExpiry, err := s.Cluster.GetStorageVolumeSnapshotExpiry(snapVolID)
+			snapExpiry, err := s.DB.Cluster.GetStorageVolumeSnapshotExpiry(snapVolID)
 			if err != nil {
 				return fmt.Errorf("Failed loading custom volume snapshot expiry for %q: %w", snapVolName, err)
 			}

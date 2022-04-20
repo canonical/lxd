@@ -21,7 +21,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
 
-	err := s.Node.Transaction(func(tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(func(tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err
@@ -77,7 +77,7 @@ func daemonStorageVolumesUnmount(s *state.State) error {
 func daemonStorageMount(s *state.State) error {
 	var storageBackups string
 	var storageImages string
-	err := s.Node.Transaction(func(tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(func(tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err
@@ -154,18 +154,18 @@ func daemonStorageValidate(s *state.State, target string) error {
 	}
 
 	// Validate pool exists.
-	poolID, _, _, err := s.Cluster.GetStoragePool(poolName)
+	poolID, _, _, err := s.DB.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return fmt.Errorf("Unable to load storage pool %q: %w", poolName, err)
 	}
 
 	// Confirm volume exists.
-	_, _, err = s.Cluster.GetLocalStoragePoolVolume(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	_, _, err = s.DB.Cluster.GetLocalStoragePoolVolume(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return fmt.Errorf("Unable to load storage volume %q: %w", target, err)
 	}
 
-	snapshots, err := s.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
+	snapshots, err := s.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project.Default, volumeName, db.StoragePoolVolumeTypeCustom, poolID)
 	if err != nil {
 		return fmt.Errorf("Unable to load storage volume snapshots %q: %w", target, err)
 	}

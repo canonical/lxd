@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,7 @@ func (c *Cluster) GetNetworkACLs(project string) ([]string, error) {
 
 	var aclNames []string
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var aclName string
 
@@ -52,7 +53,7 @@ func (c *Cluster) GetNetworkACLIDsByNames(project string) (map[string]int64, err
 
 	acls := make(map[string]int64)
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var aclID int64
 			var aclName string
@@ -93,7 +94,7 @@ func (c *Cluster) GetNetworkACL(projectName string, name string) (int64, *api.Ne
 		LIMIT 1
 	`
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err := tx.tx.QueryRow(q, projectName, name).Scan(&id, &acl.Description, &ingressJSON, &egressJSON)
 		if err != nil {
 			return err
@@ -140,7 +141,7 @@ func (c *Cluster) GetNetworkACLNameAndProjectWithID(networkACLID int) (string, s
 
 	q := `SELECT networks_acls.name, projects.name FROM networks_acls JOIN projects ON projects.id=networks.project_id WHERE networks_acls.id=?`
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.tx.QueryRow(q, networkACLID).Scan(&networkACLName, &projectName)
 	})
 	if err != nil {
@@ -202,7 +203,7 @@ func (c *Cluster) CreateNetworkACL(projectName string, info *api.NetworkACLsPost
 		}
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Insert a new Network ACL record.
 		result, err := tx.tx.Exec(`
 			INSERT INTO networks_acls (project_id, name, description, ingress, egress)
@@ -273,7 +274,7 @@ func (c *Cluster) UpdateNetworkACL(id int64, config *api.NetworkACLPut) error {
 		}
 	}
 
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(`
 			UPDATE networks_acls
 			SET description=?, ingress = ?, egress = ?
@@ -299,7 +300,7 @@ func (c *Cluster) UpdateNetworkACL(id int64, config *api.NetworkACLPut) error {
 
 // RenameNetworkACL renames a Network ACL.
 func (c *Cluster) RenameNetworkACL(id int64, newName string) error {
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec("UPDATE networks_acls SET name=? WHERE id=?", newName, id)
 		return err
 	})
@@ -307,7 +308,7 @@ func (c *Cluster) RenameNetworkACL(id int64, newName string) error {
 
 // DeleteNetworkACL deletes the Network ACL.
 func (c *Cluster) DeleteNetworkACL(id int64) error {
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec("DELETE FROM networks_acls WHERE id=?", id)
 		return err
 	})

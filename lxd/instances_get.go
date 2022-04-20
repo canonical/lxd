@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/filter"
 	"github.com/lxc/lxd/lxd/instance"
@@ -271,11 +273,11 @@ func doInstancesGet(d *Daemon, r *http.Request) (any, error) {
 	var nodesProjectsInstances map[string][][2]string  // Projects & Instances by node address
 	var projectInstanceToNodeName map[[2]string]string // Node names by Project & Instance
 	filteredProjects := []string{}
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		if allProjects == "true" {
-			projects, err := tx.GetProjects(db.ProjectFilter{})
+			projects, err := dbCluster.GetProjects(context.Background(), tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
 				return err
 			}

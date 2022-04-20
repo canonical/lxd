@@ -1282,7 +1282,7 @@ func (d *Daemon) init() error {
 		return err
 	}
 
-	err = d.db.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
 			return err
@@ -1619,7 +1619,7 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			d.db.Cluster.Close()
 		}
 
-		err := d.db.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			config, err := cluster.ConfigLoad(tx)
 			if err != nil {
 				return err
@@ -1855,9 +1855,9 @@ func (d *Daemon) setupRBACServer(rbacURL string, rbacKey string, rbacExpiry int6
 	// Set projects helper
 	server.ProjectsFunc = func() (map[int64]string, error) {
 		var result map[int64]string
-		err := d.db.Transaction(context.Background(), "global", func(ctx context.Context, tx *db.Tx) error {
+		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			result, err = clusterDB.GetProjectIDsToNames(ctx, tx)
+			result, err = clusterDB.GetProjectIDsToNames(ctx, tx.Tx())
 			return err
 		})
 
@@ -2160,7 +2160,7 @@ func (d *Daemon) nodeRefreshTask(heartbeatData *cluster.APIHeartbeat, isLeader b
 
 		var maxVoters int64
 		var maxStandBy int64
-		err := d.db.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			config, err := cluster.ConfigLoad(tx)
 			if err != nil {
 				return err

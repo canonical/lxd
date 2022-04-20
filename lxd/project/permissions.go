@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceconfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -1119,12 +1121,13 @@ type projectInfo struct {
 // won't be loaded if the profile has no limits set on it, and nil will be
 // returned.
 func fetchProject(tx *db.ClusterTx, projectName string, skipIfNoLimits bool) (*projectInfo, error) {
-	dbProject, err := tx.GetProject(projectName)
+	ctx := context.Background()
+	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 	if err != nil {
 		return nil, fmt.Errorf("Fetch project database object: %w", err)
 	}
 
-	project, err := dbProject.ToAPI(tx)
+	project, err := dbProject.ToAPI(ctx, tx.Tx())
 	if err != nil {
 		return nil, err
 	}
@@ -1446,12 +1449,13 @@ func CheckClusterTargetRestriction(tx *db.ClusterTx, r *http.Request, project *a
 // AllowBackupCreation returns an error if any project-specific restriction is violated
 // when creating a new backup in a project.
 func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
-	dbProject, err := tx.GetProject(projectName)
+	ctx := context.Background()
+	dbProject, err := cluster.GetProject(ctx, tx.Tx(), projectName)
 	if err != nil {
 		return err
 	}
 
-	project, err := dbProject.ToAPI(tx)
+	project, err := dbProject.ToAPI(ctx, tx.Tx())
 	if err != nil {
 		return err
 	}
@@ -1464,8 +1468,8 @@ func AllowBackupCreation(tx *db.ClusterTx, projectName string) error {
 
 // AllowSnapshotCreation returns an error if any project-specific restriction is violated
 // when creating a new snapshot in a project.
-func AllowSnapshotCreation(tx *db.ClusterTx, dbProject *db.Project) error {
-	project, err := dbProject.ToAPI(tx)
+func AllowSnapshotCreation(tx *db.ClusterTx, dbProject *cluster.Project) error {
+	project, err := dbProject.ToAPI(context.Background(), tx.Tx())
 	if err != nil {
 		return err
 	}

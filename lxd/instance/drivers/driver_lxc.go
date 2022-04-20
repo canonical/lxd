@@ -3,6 +3,7 @@ package drivers
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -2427,7 +2428,7 @@ func (d *lxc) Start(stateful bool) error {
 		os.RemoveAll(d.StatePath())
 		d.stateful = false
 
-		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Start container: %w", err)
@@ -2458,7 +2459,7 @@ func (d *lxc) Start(stateful bool) error {
 		}
 
 		d.stateful = false
-		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, false)
+		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, false)
 		if err != nil {
 			op.Done(err)
 			return fmt.Errorf("Persist stateful flag: %w", err)
@@ -2573,7 +2574,7 @@ func (d *lxc) onStart(_ map[string]string) error {
 		}
 
 		// Remove the volatile key from the DB
-		err := d.state.Cluster.DeleteInstanceConfigKey(d.id, key)
+		err := d.state.DB.Cluster.DeleteInstanceConfigKey(d.id, key)
 		if err != nil {
 			apparmor.InstanceUnload(d.state.OS, d)
 			return err
@@ -2676,7 +2677,7 @@ func (d *lxc) Stop(stateful bool) error {
 		}
 
 		d.stateful = true
-		err = d.state.Cluster.UpdateInstanceStatefulFlag(d.id, true)
+		err = d.state.DB.Cluster.UpdateInstanceStatefulFlag(d.id, true)
 		if err != nil {
 			d.logger.Error("Failed stopping container", ctxMap)
 			return err
@@ -3741,7 +3742,7 @@ func (d *lxc) Delete(force bool) error {
 	}
 
 	// Remove the database record of the instance or snapshot instance.
-	if err := d.state.Cluster.DeleteInstance(d.project, d.Name()); err != nil {
+	if err := d.state.DB.Cluster.DeleteInstance(d.project, d.Name()); err != nil {
 		d.logger.Error("Failed deleting container entry", logger.Ctx{"err": err})
 		return err
 	}
@@ -3824,7 +3825,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 
 	if !d.IsSnapshot() {
 		// Rename all the instance snapshot database entries.
-		results, err := d.state.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
+		results, err := d.state.DB.Cluster.GetInstanceSnapshotsNames(d.project, oldName)
 		if err != nil {
 			d.logger.Error("Failed to get container snapshots", ctxMap)
 			return fmt.Errorf("Failed to get container snapshots: %w", err)
@@ -3834,7 +3835,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 			// Rename the snapshot.
 			oldSnapName := strings.SplitN(sname, shared.SnapshotDelimiter, 2)[1]
 			baseSnapName := filepath.Base(sname)
-			err := d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			err := d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				return tx.RenameInstanceSnapshot(d.project, oldName, oldSnapName, baseSnapName)
 			})
 			if err != nil {
@@ -3845,7 +3846,7 @@ func (d *lxc) Rename(newName string, applyTemplateTrigger bool) error {
 	}
 
 	// Rename the instance database entry.
-	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if d.IsSnapshot() {
 			oldParts := strings.SplitN(oldName, shared.SnapshotDelimiter, 2)
 			newParts := strings.SplitN(newName, shared.SnapshotDelimiter, 2)
@@ -4004,7 +4005,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Validate the new profiles
-	profiles, err := d.state.Cluster.GetProfileNames(args.Project)
+	profiles, err := d.state.DB.Cluster.GetProfileNames(args.Project)
 	if err != nil {
 		return fmt.Errorf("Failed to get profiles: %w", err)
 	}
@@ -4607,7 +4608,7 @@ func (d *lxc) Update(args db.InstanceArgs, userRequested bool) error {
 	}
 
 	// Finally, apply the changes to the database
-	err = d.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Snapshots should update only their descriptions and expiry date.
 		if d.IsSnapshot() {
 			return tx.UpdateInstanceSnapshot(d.id, d.description, d.expiryDate)

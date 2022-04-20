@@ -21,6 +21,7 @@ import (
 	"github.com/lxc/lxd/lxd/cluster"
 	clusterRequest "github.com/lxc/lxd/lxd/cluster/request"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/drivers"
 	"github.com/lxc/lxd/lxd/lifecycle"
@@ -160,7 +161,7 @@ var internalClusterRaftNodeCmd = APIEndpoint{
 //     $ref: "#/responses/InternalServerError"
 func clusterGet(d *Daemon, r *http.Request) response.Response {
 	name := ""
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		name, err = tx.GetLocalNodeName()
 		return err
@@ -175,7 +176,7 @@ func clusterGet(d *Daemon, r *http.Request) response.Response {
 		name = ""
 	}
 
-	memberConfig, err := clusterGetMemberConfig(d.cluster)
+	memberConfig, err := clusterGetMemberConfig(d.db.Cluster)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -197,7 +198,7 @@ func clusterGetMemberConfig(cluster *db.Cluster) ([]api.ClusterMemberConfigKey, 
 
 	keys := []api.ClusterMemberConfigKey{}
 
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		pools, err = tx.GetStoragePoolsLocalConfig()
@@ -353,7 +354,7 @@ func clusterPutBootstrap(d *Daemon, r *http.Request, req api.ClusterPut) respons
 
 	// If there's no cluster.https_address set, but core.https_address is,
 	// let's default to it.
-	err := d.db.Transaction(func(tx *db.NodeTx) error {
+	err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		if err != nil {
 			return fmt.Errorf("Failed to fetch member configuration: %w", err)
@@ -402,7 +403,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.BadRequest(fmt.Errorf("No target cluster member certificate provided"))
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -416,7 +417,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		return response.BadRequest(fmt.Errorf("No server address provided for this member"))
 	}
 
-	address, err := node.HTTPSAddress(d.db)
+	address, err := node.HTTPSAddress(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -434,7 +435,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 			return response.SmartError(err)
 		}
 
-		err := d.db.Transaction(func(tx *db.NodeTx) error {
+		err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
@@ -464,7 +465,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Update the cluster.https_address config key.
-		err := d.db.Transaction(func(tx *db.NodeTx) error {
+		err := d.db.Node.Transaction(func(tx *db.NodeTx) error {
 			config, err := node.ConfigLoad(tx)
 			if err != nil {
 				return fmt.Errorf("Failed to load cluster config: %w", err)
@@ -533,13 +534,13 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		// Get all defined storage pools and networks, so they can be compared to the ones in the cluster.
 		pools := []api.StoragePool{}
-		poolNames, err := d.cluster.GetStoragePoolNames()
+		poolNames, err := d.db.Cluster.GetStoragePoolNames()
 		if err != nil && !response.IsNotFoundError(err) {
 			return err
 		}
 
 		for _, name := range poolNames {
-			_, pool, _, err := d.cluster.GetStoragePoolInAnyState(name)
+			_, pool, _, err := d.db.Cluster.GetStoragePoolInAnyState(name)
 			if err != nil {
 				return err
 			}
@@ -547,10 +548,10 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		// Get a list of projects for networks.
-		var projects []db.Project
+		var projects []dbCluster.Project
 
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			projects, err = tx.GetProjects(db.ProjectFilter{})
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			projects, err = dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
 			return err
 		})
 		if err != nil {
@@ -559,13 +560,13 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		networks := []internalClusterPostNetwork{}
 		for _, p := range projects {
-			networkNames, err := d.cluster.GetNetworks(p.Name)
+			networkNames, err := d.db.Cluster.GetNetworks(p.Name)
 			if err != nil && !response.IsNotFoundError(err) {
 				return err
 			}
 
 			for _, name := range networkNames {
-				_, network, _, err := d.cluster.GetNetworkInAnyState(p.Name, name)
+				_, network, _, err := d.db.Cluster.GetNetworkInAnyState(p.Name, name)
 				if err != nil {
 					return err
 				}
@@ -610,13 +611,13 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 		for _, trustedCert := range trustedCerts {
 			if trustedCert.Type == api.CertificateTypeServer {
-				dbType, err := db.CertificateAPITypeToDBType(trustedCert.Type)
+				dbType, err := dbCluster.CertificateAPITypeToDBType(trustedCert.Type)
 				if err != nil {
 					return err
 				}
 
 				// Store the certificate in the local database.
-				dbCert := db.Certificate{
+				dbCert := dbCluster.Certificate{
 					Fingerprint: trustedCert.Fingerprint,
 					Type:        dbType,
 					Name:        trustedCert.Name,
@@ -626,13 +627,13 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 
 				logger.Debugf("Adding certificate %q (%s) to local trust store", trustedCert.Name, trustedCert.Fingerprint)
 
-				err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-					id, err := tx.CreateCertificate(dbCert)
+				err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+					id, err := dbCluster.CreateCertificate(ctx, tx.Tx(), dbCert)
 					if err != nil {
 						return err
 					}
 
-					err = tx.UpdateCertificateProjects(int(id), trustedCert.Projects)
+					err = dbCluster.UpdateCertificateProjects(ctx, tx.Tx(), int(id), trustedCert.Projects)
 					if err != nil {
 						return err
 					}
@@ -668,7 +669,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		// Handle optional service integration on cluster join
 		var clusterConfig *cluster.Config
 
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			clusterConfig, err = cluster.ConfigLoad(tx)
@@ -689,7 +690,7 @@ func clusterPutJoin(d *Daemon, r *http.Request, req api.ClusterPut) response.Res
 		}
 
 		var nodeConfig *node.Config
-		err = d.db.Transaction(func(tx *db.NodeTx) error {
+		err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
 			var err error
 			nodeConfig, err = node.ConfigLoad(tx)
 			return err
@@ -779,7 +780,7 @@ func clusterPutDisable(d *Daemon, r *http.Request, req api.ClusterPut) response.
 	logger.Info("Disabling clustering", logger.Ctx{"serverName": req.ServerName})
 
 	// Close the cluster database
-	err := d.cluster.Close()
+	err := d.db.Cluster.Close()
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1098,7 +1099,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 
 	var err error
 	var nodes []db.NodeInfo
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the nodes.
 		nodes, err = tx.GetNodes()
 		if err != nil {
@@ -1119,7 +1120,7 @@ func clusterNodesGet(d *Daemon, r *http.Request) response.Response {
 	if recursion {
 		result := []api.ClusterMember{}
 		for _, node := range nodes {
-			member, err := node.ToAPI(state.Cluster, state.Node, leader)
+			member, err := node.ToAPI(state.DB.Cluster, state.DB.Node, leader)
 			if err != nil {
 				return response.InternalError(err)
 			}
@@ -1177,7 +1178,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1192,7 +1193,7 @@ func clusterNodesPost(d *Daemon, r *http.Request) response.Response {
 	// retrieving remote operations.
 	onlineNodeAddresses := make([]any, 0)
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the offline threshold.
 		config, err := cluster.ConfigLoad(tx)
 		if err != nil {
@@ -1335,7 +1336,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 	state := d.State()
 
 	var nodes []db.NodeInfo
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
 		nodes, err = tx.GetNodes()
 		if err != nil {
@@ -1358,7 +1359,7 @@ func clusterNodeGet(d *Daemon, r *http.Request) response.Response {
 			continue
 		}
 
-		member, err := node.ToAPI(state.Cluster, state.Node, leader)
+		member, err := node.ToAPI(state.DB.Cluster, state.DB.Node, leader)
 		if err != nil {
 			return response.InternalError(err)
 		}
@@ -1445,7 +1446,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	state := d.State()
 
 	var node db.NodeInfo
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
 		node, err = tx.GetNodeByName(name)
 		if err != nil {
@@ -1463,7 +1464,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 		return response.InternalError(err)
 	}
 
-	member, err := node.ToAPI(state.Cluster, state.Node, leader)
+	member, err := node.ToAPI(state.DB.Cluster, state.DB.Node, leader)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -1502,7 +1503,7 @@ func updateClusterNode(d *Daemon, r *http.Request, isPatch bool) response.Respon
 	}
 
 	// Update the database
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		nodeInfo, err := tx.GetNodeByName(name)
 		if err != nil {
 			return fmt.Errorf("Loading node information: %w", err)
@@ -1669,7 +1670,7 @@ func clusterNodePost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.RenameNode(name, req.ServerName)
 	})
 	if err != nil {
@@ -1713,7 +1714,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowing what nodes are part of the raft cluster.
-	localAddress, err := node.ClusterAddress(d.db)
+	localAddress, err := node.ClusterAddress(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1724,7 +1725,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var localInfo, leaderInfo db.NodeInfo
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localInfo, err = tx.GetNodeByAddress(localAddress)
 		if err != nil {
 			return fmt.Errorf("Failed loading local member info %q: %w", localAddress, err)
@@ -1743,7 +1744,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Get information about the cluster.
 	var nodes []db.RaftNode
-	err = d.db.Transaction(func(tx *db.NodeTx) error {
+	err = d.db.Node.Transaction(func(tx *db.NodeTx) error {
 		var err error
 		nodes, err = tx.GetRaftNodes()
 		return err
@@ -1858,8 +1859,8 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		// Get a list of projects for networks.
 		var networkProjectNames []string
 
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-			networkProjectNames, err = tx.GetProjectNames()
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+			networkProjectNames, err = dbCluster.GetProjectNames(ctx, tx.Tx())
 			return err
 		})
 		if err != nil {
@@ -1867,7 +1868,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		for _, networkProjectName := range networkProjectNames {
-			networks, err := d.cluster.GetNetworks(networkProjectName)
+			networks, err := d.db.Cluster.GetNetworks(networkProjectName)
 			if err != nil {
 				return response.SmartError(err)
 			}
@@ -1881,7 +1882,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 		}
 
 		// Delete all the pools on this node
-		pools, err := d.cluster.GetStoragePoolNames()
+		pools, err := d.db.Cluster.GetStoragePoolNames()
 		if err != nil && !response.IsNotFoundError(err) {
 			return response.SmartError(err)
 		}
@@ -1895,7 +1896,7 @@ func clusterNodeDelete(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Remove node from the database
-	err = cluster.Purge(d.cluster, name)
+	err = cluster.Purge(d.db.Cluster, name)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to remove member from database: %w", err))
 	}
@@ -1997,7 +1998,7 @@ func clusterCertificatePut(d *Daemon, r *http.Request) response.Response {
 			return response.SmartError(err)
 		}
 
-		localAddress, err := node.ClusterAddress(d.db)
+		localAddress, err := node.ClusterAddress(d.db.Node)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -2056,7 +2057,7 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// knowning what nodes are part of the raft cluster.
-	address, err := node.ClusterAddress(d.db)
+	address, err := node.ClusterAddress(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2085,11 +2086,11 @@ func internalClusterPostAccept(d *Daemon, r *http.Request) response.Response {
 
 	// Check that the pools and networks provided by the joining node have
 	// configs that match the cluster ones.
-	err = clusterCheckStoragePoolsMatch(d.cluster, req.StoragePools)
+	err = clusterCheckStoragePoolsMatch(d.db.Cluster, req.StoragePools)
 	if err != nil {
 		return response.SmartError(err)
 	}
-	err = clusterCheckNetworksMatch(d.cluster, req.Networks)
+	err = clusterCheckNetworksMatch(d.db.Cluster, req.Networks)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2146,7 +2147,7 @@ type internalRaftNode struct {
 func internalClusterPostRebalance(d *Daemon, r *http.Request) response.Response {
 	// Redirect all requests to the leader, which is the one with with
 	// up-to-date knowledge of what nodes are part of the raft cluster.
-	localAddress, err := node.ClusterAddress(d.db)
+	localAddress, err := node.ClusterAddress(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2231,7 +2232,7 @@ func upgradeNodesWithoutRaftRole(d *Daemon) error {
 	}
 
 	var allNodes []db.NodeInfo
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		allNodes, err = tx.GetNodes()
 		if err != nil {
@@ -2276,7 +2277,7 @@ func changeMemberRole(d *Daemon, r *http.Request, address string, nodes []db.Raf
 // Try to handover the role of this member to another one.
 func handoverMemberRole(d *Daemon) error {
 	// If we aren't clustered, there's nothing to do.
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return err
 	}
@@ -2285,7 +2286,7 @@ func handoverMemberRole(d *Daemon) error {
 	}
 
 	// Figure out our own cluster address.
-	address, err := node.ClusterAddress(d.db)
+	address, err := node.ClusterAddress(d.db.Node)
 	if err != nil {
 		return err
 	}
@@ -2381,7 +2382,7 @@ func internalClusterPostHandover(d *Daemon, r *http.Request) response.Response {
 
 	// Redirect all requests to the leader, which is the one with
 	// authoritative knowledge of the current raft configuration.
-	address, err := node.ClusterAddress(d.db)
+	address, err := node.ClusterAddress(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -2488,8 +2489,8 @@ func clusterCheckNetworksMatch(cluster *db.Cluster, reqNetworks []internalCluste
 	// Get a list of projects for networks.
 	var networkProjectNames []string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		networkProjectNames, err = tx.GetProjectNames()
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		networkProjectNames, err = dbCluster.GetProjectNames(context.Background(), tx.Tx())
 		return err
 	})
 	if err != nil {
@@ -2616,7 +2617,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 }
 
 func evacuateClusterSetState(d *Daemon, name string, state int) error {
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the node.
 		node, err := tx.GetNodeByName(name)
 		if err != nil {
@@ -2661,7 +2662,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 
 	// The instances are retrieved in a separate transaction, after the node is in EVACUATED state.
 	var dbInstances []db.Instance
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// If evacuating, consider only the instances on the node which needs to be evacuated.
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{Node: &nodeName})
 		if err != nil {
@@ -2743,7 +2744,7 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 			}
 
 			// Find the least loaded cluster member which supports the architecture.
-			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				targetNodeName, err = tx.GetNodeWithLeastInstances([]int{inst.Architecture()}, -1, "", nil)
 				if err != nil {
 					return err
@@ -2836,7 +2837,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 
 	// List the instances.
 	var dbInstances []db.Instance
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbInstances, err = tx.GetInstances(db.InstanceFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed to get instances: %w", err)
@@ -2927,7 +2928,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 			metadata["evacuation_progress"] = fmt.Sprintf("Migrating %q in project %q from %q", inst.Name(), inst.Project(), inst.Location())
 			op.UpdateMetadata(metadata)
 
-			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				sourceNode, err = tx.GetNodeByName(inst.Location())
 				if err != nil {
 					return fmt.Errorf("Failed to get node %q: %w", inst.Location(), err)
@@ -3082,7 +3083,7 @@ func restoreClusterMember(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3105,7 +3106,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		obj := db.ClusterGroup{
 			Name:        req.Name,
 			Description: req.Description,
@@ -3210,7 +3211,7 @@ func clusterGroupsPost(d *Daemon, r *http.Request) response.Response {
 //   "500":
 //     $ref: "#/responses/InternalServerError"
 func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3223,7 +3224,7 @@ func clusterGroupsGet(d *Daemon, r *http.Request) response.Response {
 
 	var result any
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		if recursion {
 			clusterGroups, err := tx.GetClusterGroups(db.ClusterGroupFilter{})
 			if err != nil {
@@ -3293,7 +3294,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3304,7 +3305,7 @@ func clusterGroupGet(d *Daemon, r *http.Request) response.Response {
 
 	var group *db.ClusterGroup
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get the cluster group.
 		group, err = tx.GetClusterGroup(name)
 		if err != nil {
@@ -3362,7 +3363,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(errors.New(`The "default" group cannot be renamed`))
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3382,7 +3383,7 @@ func clusterGroupPost(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Check that the name isn't already in use.
 		_, err = tx.GetClusterGroup(req.Name)
 		if err == nil {
@@ -3442,7 +3443,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3459,7 +3460,7 @@ func clusterGroupPut(d *Daemon, r *http.Request) response.Response {
 		return response.BadRequest(err)
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		group, err := tx.GetClusterGroup(name)
 		if err != nil {
 			return err
@@ -3565,7 +3566,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -3577,7 +3578,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 	var clusterGroup *api.ClusterGroup
 	var dbClusterGroup *db.ClusterGroup
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbClusterGroup, err = tx.GetClusterGroup(name)
 		if err != nil {
 			return err
@@ -3613,7 +3614,7 @@ func clusterGroupPatch(d *Daemon, r *http.Request) response.Response {
 		req.Members = clusterGroup.Members
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		obj := db.ClusterGroup{
 			Name:        dbClusterGroup.Name,
 			Description: req.Description,
@@ -3709,7 +3710,7 @@ func clusterGroupDelete(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf("The 'default' cluster group cannot be deleted"))
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		members, err := tx.GetClusterGroupNodes(name)
 		if err != nil {
 			return err

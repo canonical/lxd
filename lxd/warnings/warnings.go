@@ -1,6 +1,7 @@
 package warnings
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -12,7 +13,7 @@ func ResolveWarningsByLocalNodeOlderThan(cluster *db.Cluster, date time.Time) er
 	var err error
 	var localName string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -28,7 +29,7 @@ func ResolveWarningsByLocalNodeOlderThan(cluster *db.Cluster, date time.Time) er
 		return fmt.Errorf("Local member name not available")
 	}
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		warnings, err := tx.GetWarnings(db.WarningFilter{})
 		if err != nil {
 			return err
@@ -62,7 +63,7 @@ func ResolveWarningsByLocalNodeAndType(cluster *db.Cluster, typeCode db.WarningT
 	var err error
 	var localName string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -83,7 +84,7 @@ func ResolveWarningsByLocalNodeAndType(cluster *db.Cluster, typeCode db.WarningT
 
 // ResolveWarningsByNodeAndType resolves warnings with the given node and type code.
 func ResolveWarningsByNodeAndType(cluster *db.Cluster, nodeName string, typeCode db.WarningType) error {
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.WarningFilter{
 			TypeCode: &typeCode,
 			Node:     &nodeName,
@@ -112,7 +113,7 @@ func ResolveWarningsByNodeAndType(cluster *db.Cluster, nodeName string, typeCode
 
 // ResolveWarningsByNodeAndProjectAndType resolves warnings with the given node, project and type code.
 func ResolveWarningsByNodeAndProjectAndType(cluster *db.Cluster, nodeName string, projectName string, typeCode db.WarningType) error {
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.WarningFilter{
 			TypeCode: &typeCode,
 			Node:     &nodeName,
@@ -145,7 +146,7 @@ func ResolveWarningsByLocalNodeAndProjectAndType(cluster *db.Cluster, projectNam
 	var err error
 	var localName string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -166,7 +167,7 @@ func ResolveWarningsByLocalNodeAndProjectAndType(cluster *db.Cluster, projectNam
 
 // ResolveWarningsByNodeAndProjectAndTypeAndEntity resolves warnings with the given node, project, type code, and entity.
 func ResolveWarningsByNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, nodeName string, projectName string, typeCode db.WarningType, entityTypeCode int, entityID int) error {
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.WarningFilter{
 			TypeCode:       &typeCode,
 			Node:           &nodeName,
@@ -201,7 +202,7 @@ func ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, p
 	var err error
 	var localName string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -222,7 +223,7 @@ func ResolveWarningsByLocalNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, p
 
 // DeleteWarningsByNodeAndProjectAndTypeAndEntity deletes warnings with the given node, project, type code, and entity.
 func DeleteWarningsByNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, nodeName string, projectName string, typeCode db.WarningType, entityTypeCode int, entityID int) error {
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.WarningFilter{
 			TypeCode:       &typeCode,
 			Node:           &nodeName,
@@ -257,7 +258,7 @@ func DeleteWarningsByLocalNodeAndProjectAndTypeAndEntity(cluster *db.Cluster, pr
 	var err error
 	var localName string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err

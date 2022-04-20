@@ -299,7 +299,7 @@ func (d *common) validateRule(direction ruleDirection, rule api.NetworkACLRule) 
 	}
 
 	// Get map of ACL names to DB IDs (used for generating OVN port group names).
-	acls, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
+	acls, err := d.state.DB.Cluster.GetNetworkACLIDsByNames(d.Project())
 	if err != nil {
 		return fmt.Errorf("Failed getting network ACLs for security ACL subject validation: %w", err)
 	}
@@ -585,7 +585,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 
 		// Update database. Its important this occurs before we attempt to apply to networks using the ACL
 		// as usage functions will inspect the database.
-		err = d.state.Cluster.UpdateNetworkACL(d.id, config)
+		err = d.state.DB.Cluster.UpdateNetworkACL(d.id, config)
 		if err != nil {
 			return err
 		}
@@ -595,7 +595,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		d.init(d.state, d.id, d.projectName, d.info)
 
 		revert.Add(func() {
-			d.state.Cluster.UpdateNetworkACL(d.id, &oldConfig)
+			d.state.DB.Cluster.UpdateNetworkACL(d.id, &oldConfig)
 			d.info.NetworkACLPut = oldConfig
 			d.init(d.state, d.id, d.projectName, d.info)
 		})
@@ -637,7 +637,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		}
 
 		// Get map of ACL names to DB IDs (used for generating OVN port group names).
-		aclNameIDs, err := d.state.Cluster.GetNetworkACLIDsByNames(d.Project())
+		aclNameIDs, err := d.state.DB.Cluster.GetNetworkACLIDsByNames(d.Project())
 		if err != nil {
 			return fmt.Errorf("Failed getting network ACL IDs for security ACL update: %w", err)
 		}
@@ -703,7 +703,7 @@ func (d *common) Rename(newName string) error {
 		return err
 	}
 
-	err = d.state.Cluster.RenameNetworkACL(d.id, newName)
+	err = d.state.DB.Cluster.RenameNetworkACL(d.id, newName)
 	if err != nil {
 		return err
 	}
@@ -725,7 +725,7 @@ func (d *common) Delete() error {
 		return fmt.Errorf("Cannot delete an ACL that is in use")
 	}
 
-	return d.state.Cluster.DeleteNetworkACL(d.id)
+	return d.state.DB.Cluster.DeleteNetworkACL(d.id)
 }
 
 // GetLog gets the ACL log.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/state"
@@ -60,7 +61,7 @@ func storagePoolVolumeUpdateUsers(d *Daemon, projectName string, oldPoolName str
 	}
 
 	// Update all profiles that are using the volume with a device.
-	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profile db.Profile, p db.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(s, oldPoolName, projectName, oldVol, func(profile db.Profile, p cluster.Project, usedByDevices []string) error {
 		for _, dev := range profile.Devices {
 			if shared.StringInSlice(dev.Name, usedByDevices) {
 				dev.Config["pool"] = newPoolName
@@ -144,7 +145,7 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 		return []string{}, err
 	}
 
-	err = storagePools.VolumeUsedByProfileDevices(s, poolName, projectName, vol, func(profile db.Profile, p db.Project, usedByDevices []string) error {
+	err = storagePools.VolumeUsedByProfileDevices(s, poolName, projectName, vol, func(profile db.Profile, p cluster.Project, usedByDevices []string) error {
 		if profile.Project == project.Default {
 			volumeUsedBy = append(volumeUsedBy, fmt.Sprintf("/%s/profiles/%s", version.APIVersion, profile.Name))
 		} else {
@@ -161,7 +162,7 @@ func storagePoolVolumeUsedByGet(s *state.State, projectName string, poolName str
 }
 
 func storagePoolVolumeBackupLoadByName(s *state.State, projectName, poolName, backupName string) (*backup.VolumeBackup, error) {
-	b, err := s.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, backupName)
+	b, err := s.DB.Cluster.GetStoragePoolVolumeBackup(projectName, poolName, backupName)
 	if err != nil {
 		return nil, err
 	}

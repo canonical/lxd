@@ -3,8 +3,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/shared/api"
 )
@@ -129,8 +131,8 @@ func (c *ClusterTx) GetProjectProfileNames() (map[string][]string, error) {
 
 // GetProfileNames returns the names of all profiles in the given project.
 func (c *Cluster) GetProfileNames(project string) ([]string, error) {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has profiles: %w", err)
 		}
@@ -170,7 +172,7 @@ func (c *Cluster) GetProfile(project, name string) (int64, *api.Profile, error) 
 	var result *api.Profile
 	var id int64
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		id, result, err = tx.getProfile(project, name)
 		return err
@@ -187,7 +189,7 @@ func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error
 	var result *api.Profile
 	var id int64
 
-	enabled, err := c.ProjectHasProfiles(project)
+	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
 	if err != nil {
 		return -1, nil, fmt.Errorf("Check if project has profiles: %w", err)
 	}
@@ -210,8 +212,8 @@ func (c *ClusterTx) getProfile(project, name string) (int64, *api.Profile, error
 func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.Profile, error) {
 	profiles := make([]api.Profile, len(profileNames))
 
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(projectName)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, projectName)
 		if err != nil {
 			return fmt.Errorf("Failed checking if project %q has profiles: %w", projectName, err)
 		}
@@ -241,8 +243,8 @@ func (c *Cluster) GetProfiles(projectName string, profileNames []string) ([]api.
 // GetInstancesWithProfile gets the names of the instance associated with the
 // profile with the given name in the given project.
 func (c *Cluster) GetInstancesWithProfile(project, profile string) (map[string][]string, error) {
-	err := c.Transaction(func(tx *ClusterTx) error {
-		enabled, err := tx.ProjectHasProfiles(project)
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		enabled, err := cluster.ProjectHasProfiles(context.Background(), tx.tx, project)
 		if err != nil {
 			return fmt.Errorf("Check if project has profiles: %w", err)
 		}

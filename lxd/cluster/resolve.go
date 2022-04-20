@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
@@ -12,7 +13,7 @@ import (
 // the given node is the local one.
 func ResolveTarget(cluster *db.Cluster, target string) (string, error) {
 	address := ""
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		name, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
