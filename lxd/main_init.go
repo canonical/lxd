@@ -4,6 +4,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -34,6 +35,8 @@ type cmdInit struct {
 	flagStorageLoopSize int
 	flagStoragePool     string
 	flagTrustPassword   string
+
+	hostname string
 }
 
 func (c *cmdInit) Command() *cobra.Command {
@@ -240,4 +243,19 @@ func (c *cmdInit) Run(cmd *cobra.Command, args []string) error {
 
 	revert.Success()
 	return nil
+}
+
+func (c *cmdInit) defaultHostname() string {
+	if c.hostname != "" {
+		return c.hostname
+	}
+
+	// Cluster server name
+	hostName, err := os.Hostname()
+	if err != nil {
+		hostName = "lxd"
+	}
+
+	c.hostname = hostName
+	return hostName
 }

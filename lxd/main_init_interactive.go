@@ -117,14 +117,8 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 		config.Cluster = &initDataCluster{}
 		config.Cluster.Enabled = true
 
-		// Cluster server name
-		serverName, err := os.Hostname()
-		if err != nil {
-			serverName = "lxd"
-		}
-
 		askForServerName := func() error {
-			config.Cluster.ServerName, err = cli.AskString(fmt.Sprintf("What name should be used to identify this node in the cluster? [default=%s]: ", serverName), serverName, nil)
+			config.Cluster.ServerName, err = cli.AskString(fmt.Sprintf("What name should be used to identify this node in the cluster? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
 			if err != nil {
 				return err
 			}
@@ -320,7 +314,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 				return err
 			}
 
-			err = cluster.SetupTrust(serverCert, serverName, config.Cluster.ClusterAddress, config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
+			err = cluster.SetupTrust(serverCert, config.Cluster.ServerName, config.Cluster.ClusterAddress, config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
 			if err != nil {
 				return fmt.Errorf("Failed to setup trust relationship with cluster: %w", err)
 			}
@@ -393,17 +387,12 @@ func (c *cmdInit) askMAAS(config *cmdInitData, d lxd.InstanceServer) error {
 		return nil
 	}
 
-	serverName, err := os.Hostname()
-	if err != nil {
-		serverName = "lxd"
-	}
-
-	maasHostname, err := cli.AskString(fmt.Sprintf("What's the name of this host in MAAS? [default=%s]: ", serverName), serverName, nil)
+	maasHostname, err := cli.AskString(fmt.Sprintf("What's the name of this host in MAAS? [default=%s]: ", c.defaultHostname()), c.defaultHostname(), nil)
 	if err != nil {
 		return err
 	}
 
-	if maasHostname != serverName {
+	if maasHostname != c.defaultHostname() {
 		config.Node.Config["maas.machine"] = maasHostname
 	}
 
