@@ -320,7 +320,7 @@ func (c *cmdInit) askClustering(config *cmdInitData, d lxd.InstanceServer, serve
 				return err
 			}
 
-			err = cluster.SetupTrust(serverCert, serverName, config.Cluster.ClusterAddress, config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
+			err = cluster.SetupTrust(serverCert, config.Cluster.ServerName, config.Cluster.ClusterAddress, config.Cluster.ClusterCertificate, config.Cluster.ClusterPassword)
 			if err != nil {
 				return fmt.Errorf("Failed to setup trust relationship with cluster: %w", err)
 			}
