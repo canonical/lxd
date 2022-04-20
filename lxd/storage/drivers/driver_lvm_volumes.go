@@ -464,7 +464,7 @@ func (d *lvm) SetVolumeQuota(vol Volume, size string, allowUnsafeResize bool, op
 
 // GetVolumeDiskPath returns the location of a disk volume.
 func (d *lvm) GetVolumeDiskPath(vol Volume) (string, error) {
-	if vol.IsVMBlock() || vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock {
+	if vol.IsVMBlock() || (vol.volType == VolumeTypeCustom && vol.contentType == ContentTypeBlock) {
 		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		return volDevPath, nil
 	}
