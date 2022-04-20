@@ -22,7 +22,7 @@ BEGIN TRANSACTION;
 	// Schema table
 	tableDump, err := dumpTable(ctx, tx, "schema", dumpSchemaTable)
 	if err != nil {
-		return "", fmt.Errorf("failed to dump table schema: %w", err)
+		return "", fmt.Errorf("Failed to dump table schema: %w", err)
 	}
 	dump += tableDump
 
@@ -38,10 +38,12 @@ BEGIN TRANSACTION;
 			dump += schemas[table] + "\n"
 			continue
 		}
+
 		tableDump, err := dumpTable(ctx, tx, table, schemas[table])
 		if err != nil {
-			return "", fmt.Errorf("failed to dump table %s: %w", table, err)
+			return "", fmt.Errorf("Failed to dump table %s: %w", table, err)
 		}
+
 		dump += tableDump
 	}
 
@@ -49,8 +51,9 @@ BEGIN TRANSACTION;
 	if !schemaOnly {
 		tableDump, err = dumpTable(ctx, tx, "sqlite_sequence", "DELETE FROM sqlite_sequence;")
 		if err != nil {
-			return "", fmt.Errorf("failed to dump table sqlite_sequence: %w", err)
+			return "", fmt.Errorf("Failed to dump table sqlite_sequence: %w", err)
 		}
+
 		dump += tableDump
 	}
 
