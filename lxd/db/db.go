@@ -238,6 +238,8 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 		return nil, fmt.Errorf("Failed to prepare statements: %w", err)
 	}
 
+	cluster.PreparedStmts = stmts
+
 	cluster := &Cluster{
 		db:         db,
 		stmts:      stmts,
