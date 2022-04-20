@@ -239,7 +239,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 				}
 			}
 
-			if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
+			if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
 				err = sendBlockVol(snapshot, conn)
 				if err != nil {
 					return err
@@ -262,7 +262,7 @@ func genericVFSMigrateVolume(d Driver, s *state.State, vol Volume, conn io.ReadW
 			}
 		}
 
-		if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
+		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
 			err := sendBlockVol(vol, conn)
 			if err != nil {
 				return err
@@ -347,7 +347,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		path := shared.AddSlash(mountPath)
 		pathBlock := ""
 
-		if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
+		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
 			pathBlock, err = d.GetVolumeDiskPath(vol)
 			if err != nil {
 				return fmt.Errorf("Error getting VM block volume disk path: %w", err)
@@ -367,7 +367,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 			}
 
 			// Receive the block snapshot next (if needed).
-			if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
+			if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
 				err = recvBlockVol(snapVol.name, conn, pathBlock)
 				if err != nil {
 					return err
@@ -420,7 +420,7 @@ func genericVFSCreateVolumeFromMigration(d Driver, initVolume func(vol Volume) (
 		}
 
 		// Receive the block volume next (if needed).
-		if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
+		if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
 			err = recvBlockVol(vol.name, conn, pathBlock)
 			if err != nil {
 				return err

@@ -409,7 +409,7 @@ func (d *dir) CreateVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 		}
 	}
 
-	if snapVol.IsVMBlock() || snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom {
+	if snapVol.IsVMBlock() || (snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom) {
 		parentVol := NewVolume(d, d.name, snapVol.volType, snapVol.contentType, parentName, nil, d.config)
 		srcDevPath, err := d.GetVolumeDiskPath(parentVol)
 		if err != nil {
@@ -523,7 +523,7 @@ func (d *dir) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 	}
 
 	// Restore block volume.
-	if vol.IsVMBlock() || vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom {
+	if vol.IsVMBlock() || (vol.contentType == ContentTypeBlock && vol.volType == VolumeTypeCustom) {
 		srcDevPath, err := d.GetVolumeDiskPath(snapVol)
 		if err != nil {
 			return err
