@@ -3774,15 +3774,15 @@ func (d *qemu) Stop(stateful bool) error {
 
 	// Handle stateful stop.
 	if stateful {
+		// Keep resetting the timer for the next 10 minutes.
+		go d.pidWait(10*time.Minute, op)
+
 		// Dump the state.
 		err := d.saveState(monitor)
 		if err != nil {
 			op.Done(err)
 			return err
 		}
-
-		// Reset the timer.
-		op.Reset()
 
 		// Mark the instance as having state.
 		d.stateful = true
