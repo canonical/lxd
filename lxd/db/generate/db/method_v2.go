@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"go/ast"
+	"go/build"
 	"os"
 	"strings"
 
@@ -22,12 +23,23 @@ type MethodV2 struct {
 
 // NewMethodV2 return a new method code snippet for executing a certain mapping.
 func NewMethodV2(database, pkg, entity, kind string, config map[string]string) (*MethodV2, error) {
-	pwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
+	var pkgPath string
+	if pkg != "" && config["version"] == "2" {
+		importPkg, err := build.Import(pkg, "", build.FindOnly)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid import path %q: %w", pkg, err)
+		}
+
+		pkgPath = importPkg.Dir
+	} else {
+		var err error
+		pkgPath, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	parsedPkg, err := ParsePackage(pwd)
+	parsedPkg, err := ParsePackage(pkgPath)
 	if err != nil {
 		return nil, err
 	}
