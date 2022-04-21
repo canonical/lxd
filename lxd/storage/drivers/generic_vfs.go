@@ -879,7 +879,10 @@ func genericVFSBackupUnpack(d Driver, sysOS *sys.OS, vol Volume, snapshots []str
 		}
 	} else {
 		// For custom volumes unmount now, there is no post hook as there is no backup.yaml to generate.
-		d.UnmountVolume(vol, false, op)
+		_, err = d.UnmountVolume(vol, false, op)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return postHook, revertExternal.Fail, nil
