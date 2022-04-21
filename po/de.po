@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-20 15:40-0400\n"
+"POT-Creation-Date: 2022-04-20 17:03-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -2689,7 +2689,7 @@ msgstr "Ungültige Quelle %s"
 
 #: lxc/utils.go:159
 #, fuzzy, c-format
-msgid "Invalid key=value configuration: %w"
+msgid "Invalid key=value configuration: %s"
 msgstr "Alternatives config Verzeichnis."
 
 #: lxc/list.go:667
@@ -7126,6 +7126,10 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
+#, fuzzy, c-format
+#~ msgid "Invalid key=value configuration: %w"
+#~ msgstr "Alternatives config Verzeichnis."
+
 #, fuzzy
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -8077,10 +8081,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Failed to connect to cluster member"
 #~ msgstr "kann nicht zum selben Container Namen kopieren"
-
-#, fuzzy
-#~ msgid "Invalid key=value configuration: %s"
-#~ msgstr "Alternatives config Verzeichnis."
 
 #, fuzzy
 #~ msgid "Removes a cluster member from a cluster group"
