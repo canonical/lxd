@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/lxd/project"
 )
@@ -55,19 +56,19 @@ func TestImportPreClusteringData(t *testing.T) {
 		return net.Dial("unix", address)
 	}
 
-	cluster, err := db.OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, dump, driver.WithDialFunc(dial))
+	c, err := db.OpenCluster(context.Background(), "test.db", store, "1", dir, 5*time.Second, dump, driver.WithDialFunc(dial))
 	require.NoError(t, err)
-	defer cluster.Close()
+	defer c.Close()
 
 	// certificates
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
-		certs, err := tx.GetCertificates(db.CertificateFilter{})
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		certs, err := cluster.GetCertificates(context.Background(), tx.Tx(), cluster.CertificateFilter{})
 		require.NoError(t, err)
 		assert.Len(t, certs, 1)
 		cert := certs[0]
 		assert.Equal(t, 1, cert.ID)
 		assert.Equal(t, "abcd:efgh", cert.Fingerprint)
-		assert.Equal(t, db.CertificateTypeClient, cert.Type)
+		assert.Equal(t, cluster.CertificateTypeClient, cert.Type)
 		assert.Equal(t, "foo", cert.Name)
 		assert.Equal(t, "FOO", cert.Certificate)
 		return nil
@@ -75,7 +76,7 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// config
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		config, err := tx.Config()
 		require.NoError(t, err)
 		values := map[string]string{"core.trust_password": "sekret"}
@@ -85,10 +86,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// networks
-	networks, err := cluster.GetNetworks(project.Default)
+	networks, err := c.GetNetworks(project.Default)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"lxcbr0"}, networks)
-	id, network, _, err := cluster.GetNetworkInAnyState(project.Default, "lxcbr0")
+	id, network, _, err := c.GetNetworkInAnyState(project.Default, "lxcbr0")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "true", network.Config["ipv4.nat"])
@@ -96,10 +97,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, []string{"none"}, network.Locations)
 
 	// storage
-	pools, err := cluster.GetStoragePoolNames()
+	pools, err := c.GetStoragePoolNames()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default"}, pools)
-	id, pool, _, err := cluster.GetStoragePool("default")
+	id, pool, _, err := c.GetStoragePool("default")
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), id)
 	assert.Equal(t, "/foo/bar", pool.Config["source"])
@@ -109,12 +110,12 @@ func TestImportPreClusteringData(t *testing.T) {
 	assert.Equal(t, "true", pool.Config["zfs.clone_copy"])
 	assert.Equal(t, "Created", pool.Status)
 	assert.Equal(t, []string{"none"}, pool.Locations)
-	volumes, err := cluster.GetLocalStoragePoolVolumes("default", id, []int{1})
+	volumes, err := c.GetLocalStoragePoolVolumes("default", id, []int{1})
 	require.NoError(t, err)
 	assert.Len(t, volumes, 1)
 	assert.Equal(t, "/foo/bar", volumes[0].Config["source"])
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// The zfs.clone_copy config got a NULL node_id, since it's cluster global.
 		config, err := query.SelectConfig(tx.Tx(), "storage_pools_config", "node_id IS NULL")
 		require.NoError(t, err)
@@ -136,10 +137,10 @@ func TestImportPreClusteringData(t *testing.T) {
 	require.NoError(t, err)
 
 	// profiles
-	profiles, err := cluster.GetProfileNames("default")
+	profiles, err := c.GetProfileNames("default")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default", "users"}, profiles)
-	_, profile, err := cluster.GetProfile("default", "default")
+	_, profile, err := c.GetProfile("default", "default")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{}, profile.Config)
 	assert.Equal(t,
@@ -153,7 +154,7 @@ func TestImportPreClusteringData(t *testing.T) {
 				"nictype": "bridged",
 				"parent":  "lxdbr0"}},
 		profile.Devices)
-	_, profile, err = cluster.GetProfile("default", "users")
+	_, profile, err = c.GetProfile("default", "users")
 	require.NoError(t, err)
 	assert.Equal(t,
 		map[string]string{

@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -45,7 +46,7 @@ func TestGetStoragePoolsLocalConfigs(t *testing.T) {
 	// contains the value of the "BTRFS" storage pool.
 	var config map[string]map[string]string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		config, err = tx.GetStoragePoolsLocalConfig()
 		return err
@@ -166,7 +167,7 @@ func TestStoragePoolVolume_Ceph(t *testing.T) {
 	defer cleanup()
 
 	// Create a second node (beyond the default one).
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		_, err := tx.CreateNode("n1", "1.2.3.4:666")
 		return err
 	})

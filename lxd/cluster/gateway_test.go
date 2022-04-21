@@ -14,6 +14,7 @@ import (
 	"github.com/canonical/go-dqlite/driver"
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,7 @@ func TestGateway_Single(t *testing.T) {
 	gateway := newGateway(t, node, cert, cert)
 	defer gateway.Shutdown()
 
-	trustedCerts := func() map[db.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -88,7 +89,7 @@ func TestGateway_SingleWithNetworkAddress(t *testing.T) {
 	gateway := newGateway(t, node, cert, cert)
 	defer gateway.Shutdown()
 
-	trustedCerts := func() map[db.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -129,7 +130,7 @@ func TestGateway_NetworkAuth(t *testing.T) {
 	gateway := newGateway(t, node, cert, cert)
 	defer gateway.Shutdown()
 
-	trustedCerts := func() map[db.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 

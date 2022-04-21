@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ func TestGetNetworksLocalConfigs(t *testing.T) {
 
 	var config map[string]map[string]string
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		config, err = tx.GetNetworksLocalConfig()
 		return err
