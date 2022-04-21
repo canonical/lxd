@@ -101,6 +101,7 @@ cleanup() {
 
 # Must be set before cleanup()
 TEST_CURRENT=setup
+TEST_CURRENT_DESCRIPTION=setup
 # shellcheck disable=SC2034
 TEST_RESULT=failure
 
