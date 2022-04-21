@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
 )
 
@@ -94,9 +96,9 @@ func TestGetInstanceSnapshots_SameNameInDifferentProjects(t *testing.T) {
 	defer cleanup()
 
 	// Create an additional project
-	project1 := db.Project{}
+	project1 := cluster.Project{}
 	project1.Name = "p1"
-	_, err := tx.CreateProject(project1)
+	_, err := cluster.CreateProject(context.Background(), tx.Tx(), project1)
 	require.NoError(t, err)
 
 	// Create an instance in the default project.

@@ -3,6 +3,7 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func TestLocateImage(t *testing.T) {
 	assert.Equal(t, "0.0.0.0", address)
 
 	// Pretend that the target node is down
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.SetNodeHeartbeat("0.0.0.0", time.Now().Add(-time.Minute))
 	})
 	require.NoError(t, err)
