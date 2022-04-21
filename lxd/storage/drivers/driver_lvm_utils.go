@@ -752,6 +752,7 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
 		d.logger.Debug("Activated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
+
 		return true, nil
 	}
 
