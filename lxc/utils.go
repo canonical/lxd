@@ -156,7 +156,7 @@ func getConfig(args ...string) (map[string]string, error) {
 	for _, arg := range args {
 		fields := strings.SplitN(arg, "=", 2)
 		if len(fields) != 2 {
-			return nil, fmt.Errorf(i18n.G("Invalid key=value configuration: %w"), arg)
+			return nil, fmt.Errorf(i18n.G("Invalid key=value configuration: %s"), arg)
 		}
 
 		if fields[1] == "-" && !termios.IsTerminal(getStdinFd()) {

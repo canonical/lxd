@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-20 15:40-0400\n"
+"POT-Creation-Date: 2022-04-20 17:03-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2617,8 +2617,8 @@ msgstr "不正なインスタンスのパス: %q"
 
 #: lxc/utils.go:159
 #, c-format
-msgid "Invalid key=value configuration: %w"
-msgstr "不適切な キー=値 のペア: %w"
+msgid "Invalid key=value configuration: %s"
+msgstr "不適切な キー=値 の設定: %s"
 
 #: lxc/list.go:667
 #, c-format
@@ -6705,6 +6705,10 @@ msgstr "y"
 msgid "yes"
 msgstr "yes"
 
+#, c-format
+#~ msgid "Invalid key=value configuration: %w"
+#~ msgstr "不適切な キー=値 のペア: %w"
+
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "クライアント %s の証明書追加トークン: %s"
 
@@ -8841,9 +8845,6 @@ msgstr "yes"
 
 #~ msgid "Failed to connect to cluster member"
 #~ msgstr "クラスタメンバへの接続に失敗しました"
-
-#~ msgid "Invalid key=value configuration: %s"
-#~ msgstr "不適切な キー=値 の設定: %s"
 
 #~ msgid "Migration API failure"
 #~ msgstr "マイグレーション API が失敗しました"
