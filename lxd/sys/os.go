@@ -169,9 +169,11 @@ func (s *OS) Init() ([]db.Warning, error) {
 	s.CGInfo = cgroup.GetInfo()
 
 	// Fill in the VsockID.
+	util.LoadModule("vhost_vsock")
 	vsockID, err := vsock.ContextID()
-	if err != nil {
-		// Fallback to the default ID for a host system.
+	if err != nil || vsockID > 2147483647 {
+		// Fallback to the default ID for a host system if we're getting
+		// an error or are getting a clearly invalid value.
 		vsockID = 2
 	}
 
