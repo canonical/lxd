@@ -407,16 +407,10 @@ func (d *lvm) createLogicalVolumeSnapshot(vgName string, srcVol Volume, snapVol 
 	}
 
 	// If the source is not a thin volume the size needs to be specified.
-	// According to LVM tools 15-20% of the original volume should be sufficient.
-	// However, let's not be stingy at first otherwise we might force users to fiddle around with lvextend.
+	// Create snapshot at 100% the size of the origin to allow restoring it to the origin volume without
+	// filling up the CoW snapshot volume and causing it to become invalid.
 	if !makeThinLv {
-		lvSizeBytes, err := d.roundedSizeBytesString(snapVol.ConfigSize())
-		if err != nil {
-			return "", err
-		}
-
-		args = append(args, "--size", fmt.Sprintf("%db", lvSizeBytes))
-		logCtx["size"] = fmt.Sprintf("%db", lvSizeBytes)
+		args = append(args, "-l", "100%ORIGIN")
 	}
 
 	if readonly {
@@ -758,6 +752,7 @@ func (d *lvm) activateVolume(vol Volume) (bool, error) {
 			return false, fmt.Errorf("Failed to activate LVM logical volume %q: %w", volDevPath, err)
 		}
 		d.logger.Debug("Activated logical volume", logger.Ctx{"volName": vol.Name(), "dev": volDevPath})
+
 		return true, nil
 	}
 

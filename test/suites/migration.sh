@@ -414,6 +414,8 @@ migration() {
   ! lxc_remote file pull l2:c1/tmp/bar . ||  false
   lxc_remote stop l2:c1
 
+  rm foo bar
+
   lxc_remote rm l1:c1
   lxc_remote rm l2:c1
 

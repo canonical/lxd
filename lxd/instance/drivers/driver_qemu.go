@@ -438,18 +438,18 @@ func (d *qemu) mount() (*storagePools.MountInfo, error) {
 }
 
 // unmount the instance's config volume if needed.
-func (d *qemu) unmount() (bool, error) {
+func (d *qemu) unmount() error {
 	pool, err := d.getStoragePool()
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	unmounted, err := pool.UnmountInstance(d, nil)
+	_, err = pool.UnmountInstance(d, nil)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return unmounted, nil
+	return nil
 }
 
 // generateAgentCert creates the necessary server key and certificate if needed.
@@ -605,7 +605,7 @@ func (d *qemu) onStop(target string) error {
 
 	// Stop the storage for the instance.
 	op.Reset()
-	_, err = d.unmount()
+	err = d.unmount()
 	if err != nil {
 		err = fmt.Errorf("Failed unmounting instance: %w", err)
 		op.Done(err)

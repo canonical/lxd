@@ -575,7 +575,6 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 	defer revert.Fail()
 
 	// Activate LVM volume if needed.
-	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	activated, err := d.activateVolume(vol)
 	if err != nil {
 		return err
@@ -589,6 +588,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 		mountPath := vol.MountPath()
 		if !filesystem.IsMountPoint(mountPath) {
 			fsType := vol.ConfigBlockFilesystem()
+			volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 
 			if vol.mountFilesystemProbe {
 				fsType, err = fsProbe(volDevPath)
@@ -1153,15 +1153,75 @@ func (d *lvm) RestoreVolume(vol Volume, snapshotName string, op *operations.Oper
 	}
 
 	// If the pool uses classic logical volumes, then the process for restoring a snapshot is as follows:
-	// 1. Mount source and target.
-	// 2. Rsync source to target.
-	// 3. Unmount source and target.
+	// 1. Ensure snapshot volumes have sufficient CoW capacity to allow restoration.
+	// 2. Mount source and target.
+	// 3. Copy (rsync or dd) source to target.
+	// 4. Unmount source and target.
+
+	// Ensure that the snapshot volumes have sufficient CoW capacity to allow restoration.
+	// In the past we set snapshot sizes by specifying the same size as the origin volume. Unfortunately due to
+	// the way that LVM extents work, this means that the snapshot CoW capacity can be just a little bit too
+	// small to allow the entire snapshot to be restored to the origin. If this happens then we can end up
+	// invalidating the snapshot meaning it cannot be used anymore!
+	// Nowadays we use the "100%ORIGIN" size when creating snapshots, which lets LVM figure out what the number
+	// of extents is required to restore the whole snapshot, but we need to support resizing older snapshots
+	// taken before this change. So we use lvresize here to grow the snapshot volume to the size of the origin.
+	// The use of "+100%ORIGIN" here rather than just "100%ORIGIN" like we use when taking new snapshots, is
+	// rather counter intuitive. However there seems to be a bug in lvresize/lvextend so that when specifying
+	// "100%ORIGIN", it fails to extend sufficiently, saying that the number of extents in the snapshot matches
+	// that of the origin (which they do). However if we take take that at face value then the restore will
+	// end up invalidating the snapshot. Instead if we specify a much larger value (such as adding 100% of
+	// the origin to the snapshot size) then LVM is able to extend the snapshot a little bit more, and LVM
+	// limits the new size to the maximum CoW size that the snapshot can be (which happens to be the same size
+	// as newer snapshots are taken at using the "100%ORIGIN" size). Confusing isn't it.
+	if snapVol.IsVMBlock() || snapVol.contentType == ContentTypeFS {
+		snapLVPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, ContentTypeFS, snapVol.name)
+		_, err = shared.TryRunCommand("lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	if snapVol.IsVMBlock() || (snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom) {
+		snapLVPath := d.lvmDevPath(d.config["lvm.vg_name"], snapVol.volType, ContentTypeBlock, snapVol.name)
+		_, err = shared.TryRunCommand("lvresize", "-l", "+100%ORIGIN", "-f", snapLVPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Mount source and target, copy, then unmount.
 	err = vol.MountTask(func(mountPath string, op *operations.Operation) error {
 		// Copy source to destination (mounting each volume if needed).
 		err = snapVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
-			bwlimit := d.config["rsync.bwlimit"]
-			_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
-			return err
+			if snapVol.IsVMBlock() || snapVol.contentType == ContentTypeFS {
+				bwlimit := d.config["rsync.bwlimit"]
+				d.Logger().Debug("Copying fileystem volume", logger.Ctx{"sourcePath": srcMountPath, "targetPath": mountPath, "bwlimit": bwlimit})
+				_, err := rsync.LocalCopy(srcMountPath, mountPath, bwlimit, true)
+				if err != nil {
+					return err
+				}
+			}
+
+			if snapVol.IsVMBlock() || (snapVol.contentType == ContentTypeBlock && snapVol.volType == VolumeTypeCustom) {
+				srcDevPath, err := d.GetVolumeDiskPath(snapVol)
+				if err != nil {
+					return err
+				}
+
+				targetDevPath, err := d.GetVolumeDiskPath(vol)
+				if err != nil {
+					return err
+				}
+
+				d.Logger().Debug("Copying block volume", logger.Ctx{"srcDevPath": srcDevPath, "targetPath": targetDevPath})
+				err = copyDevice(srcDevPath, targetDevPath)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
 		}, op)
 		if err != nil {
 			return err
