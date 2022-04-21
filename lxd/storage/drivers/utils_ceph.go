@@ -33,7 +33,7 @@ func CephMonitors(cluster string) ([]string, error) {
 			}
 
 			// Parsing mon_host is quite tricky.
-			// It supports a comma separated list of:
+			// It supports a space separate list of comma separated lists of:
 			//  - DNS names
 			//  - IPv4 addresses
 			//  - IPv6 addresses (square brackets)
@@ -46,29 +46,44 @@ func CephMonitors(cluster string) ([]string, error) {
 			// doesn't take the version indication, trailing bits or supports those
 			// tuples, all of those effectively get stripped away to get a clean
 			// address list (with ports).
-			servers := strings.Split(fields[1], ",")
-			for _, server := range servers {
-				// Trim leading/trailing spaces.
-				server = strings.TrimSpace(server)
+			entries := strings.Split(fields[1], " ")
+			for _, entry := range entries {
+				servers := strings.Split(entry, ",")
+				for _, server := range servers {
+					// Trim leading/trailing spaces.
+					server = strings.TrimSpace(server)
 
-				// Trim leading protocol version.
-				server = strings.TrimPrefix(server, "v1:")
-				server = strings.TrimPrefix(server, "v2:")
-				server = strings.TrimPrefix(server, "[v1:")
-				server = strings.TrimPrefix(server, "[v2:")
+					// Trim leading protocol version.
+					server = strings.TrimPrefix(server, "v1:")
+					server = strings.TrimPrefix(server, "v2:")
+					server = strings.TrimPrefix(server, "[v1:")
+					server = strings.TrimPrefix(server, "[v2:")
 
-				// Trim trailing divider.
-				server = strings.Split(server, "/")[0]
+					// Trim trailing divider.
+					server = strings.Split(server, "/")[0]
 
-				// Handle end of nested blocks.
-				server = strings.Replace(server, "]]", "]", 0)
-				if !strings.HasPrefix(server, "[") {
-					server = strings.TrimSuffix(server, "]")
+					// Handle end of nested blocks.
+					server = strings.Replace(server, "]]", "]", 0)
+					if !strings.HasPrefix(server, "[") {
+						server = strings.TrimSuffix(server, "]")
+					}
+
+					// Trim any spaces.
+					server = strings.TrimSpace(server)
+
+					// If nothing left, skip.
+					if server == "" {
+						continue
+					}
+
+					// Append the default v1 port if none are present.
+					if !strings.HasSuffix(server, ":6789") && !strings.HasSuffix(server, ":3300") {
+						server += ":6789"
+					}
+
+					cephMon = append(cephMon, strings.TrimSpace(server))
 				}
-
-				cephMon = append(cephMon, strings.TrimSpace(server))
 			}
-			break
 		}
 	}
 
