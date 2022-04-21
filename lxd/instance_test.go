@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -49,7 +50,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesDefault() {
 
 func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 	// Create an unprivileged profile
-	err := suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		profile := db.Profile{
 			Name:        "unprivileged",
 			Description: "unprivileged",
@@ -62,7 +63,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesMulti() {
 
 	suite.Req.Nil(err, "Failed to create the unprivileged profile.")
 	defer func() {
-		suite.d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		suite.d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.DeleteProfile("default", "unprivileged")
 		})
 	}()
@@ -103,7 +104,7 @@ func (suite *containerTestSuite) TestContainer_ProfilesOverwriteDefaultNic() {
 		Name: "testFoo",
 	}
 
-	_, err := suite.d.State().Cluster.CreateNetwork(project.Default, "unknownbr0", "", db.NetworkTypeBridge, nil)
+	_, err := suite.d.State().DB.Cluster.CreateNetwork(project.Default, "unknownbr0", "", db.NetworkTypeBridge, nil)
 	suite.Req.Nil(err)
 
 	c, op, err := instance.CreateInternal(suite.d.State(), args, true, revert.New())
@@ -137,7 +138,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	}
 	state := suite.d.State()
 
-	_, err := state.Cluster.CreateNetwork(project.Default, "unknownbr0", "", db.NetworkTypeBridge, nil)
+	_, err := state.DB.Cluster.CreateNetwork(project.Default, "unknownbr0", "", db.NetworkTypeBridge, nil)
 	suite.Req.Nil(err)
 
 	// Create the container
@@ -152,7 +153,7 @@ func (suite *containerTestSuite) TestContainer_LoadFromDB() {
 	pool, err := storagePools.LoadByName(state, poolName)
 	suite.Req.Nil(err)
 
-	_, err = state.Cluster.CreateStoragePoolVolume(c.Project(), c.Name(), "", db.StoragePoolVolumeContentTypeFS, pool.ID(), nil, db.StoragePoolVolumeContentTypeFS)
+	_, err = state.DB.Cluster.CreateStoragePoolVolume(c.Project(), c.Name(), "", db.StoragePoolVolumeContentTypeFS, pool.ID(), nil, db.StoragePoolVolumeContentTypeFS)
 	suite.Req.Nil(err)
 
 	// Load the container and trigger initLXC()

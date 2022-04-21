@@ -3,9 +3,11 @@
 package db_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +17,7 @@ func TestOperation(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
-	projectID, err := tx.GetProjectID("default")
+	projectID, err := cluster.GetProjectID(context.Background(), tx.Tx(), "default")
 	require.NoError(t, err)
 	nodeID := tx.GetNodeID()
 	uuid := "abcd"

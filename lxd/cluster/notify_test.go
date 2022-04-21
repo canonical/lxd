@@ -1,6 +1,7 @@
 package cluster_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -115,7 +116,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 	}
 
 	// Insert new entries in the nodes table of the cluster database.
-	err := h.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := h.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		for i := 0; i < n; i++ {
 			name := strconv.Itoa(i)
 			address := servers[i].Listener.Addr().String()
@@ -132,7 +133,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 	require.NoError(h.t, err)
 
 	// Set the address in the config table of the node database.
-	err = h.state.Node.Transaction(func(tx *db.NodeTx) error {
+	err = h.state.DB.Node.Transaction(func(tx *db.NodeTx) error {
 		config, err := node.ConfigLoad(tx)
 		require.NoError(h.t, err)
 		address := servers[0].Listener.Addr().String()
@@ -157,7 +158,7 @@ func (h *notifyFixtures) Nodes(cert *shared.CertInfo, n int) func() {
 // Return the network address of the i-th node.
 func (h *notifyFixtures) Address(i int) string {
 	var address string
-	err := h.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := h.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		nodes, err := tx.GetNodes()
 		require.NoError(h.t, err)
 		address = nodes[i].Address
@@ -169,7 +170,7 @@ func (h *notifyFixtures) Address(i int) string {
 
 // Mark the i'th node as down.
 func (h *notifyFixtures) Down(i int) {
-	err := h.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := h.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		nodes, err := tx.GetNodes()
 		require.NoError(h.t, err)
 		err = tx.SetNodeHeartbeat(nodes[i].Address, time.Now().Add(-time.Minute))
