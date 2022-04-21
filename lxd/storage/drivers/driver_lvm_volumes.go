@@ -575,7 +575,6 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 	defer revert.Fail()
 
 	// Activate LVM volume if needed.
-	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 	activated, err := d.activateVolume(vol)
 	if err != nil {
 		return err
@@ -589,6 +588,7 @@ func (d *lvm) MountVolume(vol Volume, op *operations.Operation) error {
 		mountPath := vol.MountPath()
 		if !filesystem.IsMountPoint(mountPath) {
 			fsType := vol.ConfigBlockFilesystem()
+			volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 
 			if vol.mountFilesystemProbe {
 				fsType, err = fsProbe(volDevPath)
