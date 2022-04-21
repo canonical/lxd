@@ -256,7 +256,9 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 				return
 			}
 			defer client.Close()
-			leader, err := client.Leader(context.Background())
+			ctx, cancel := context.WithTimeout(g.ctx, 3*time.Second)
+			defer cancel()
+			leader, err := client.Leader(ctx)
 			if err != nil {
 				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
 				return
@@ -844,7 +846,9 @@ func (g *Gateway) isLeader() (bool, error) {
 		return false, fmt.Errorf("Failed to get dqlite client: %w", err)
 	}
 	defer client.Close()
-	leader, err := client.Leader(context.Background())
+	ctx, cancel := context.WithTimeout(g.ctx, 3*time.Second)
+	defer cancel()
+	leader, err := client.Leader(ctx)
 	if err != nil {
 		return false, fmt.Errorf("Failed to get leader address: %w", err)
 	}
