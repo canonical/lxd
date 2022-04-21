@@ -490,6 +490,11 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			to.Close()
 		}
 
+		// Check if we should do parallel unpacking.
+		if shared.IsBlockdevPath(dstPath) {
+			cmd = append(cmd, "-W")
+		}
+
 		cmd = append(cmd, imgPath, dstPath)
 
 		_, err = shared.RunCommand(cmd[0], cmd[1:]...)
