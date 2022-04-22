@@ -16,6 +16,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	dbCluster "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/project"
@@ -114,14 +115,14 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	var proj *db.Project
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		proj, err = tx.GetProject(projectName)
+	var proj *dbCluster.Project
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		proj, err = dbCluster.GetProject(context.Background(), tx.Tx(), projectName)
 		if err != nil {
 			return err
 		}
@@ -154,7 +155,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 
 	// Get a snapshot name.
 	if req.Name == "" {
-		i := d.cluster.GetNextStorageVolumeSnapshotIndex(poolName, volumeName, volumeType, "snap%d")
+		i := d.db.Cluster.GetNextStorageVolumeSnapshotIndex(poolName, volumeName, volumeType, "snap%d")
 		req.Name = fmt.Sprintf("snap%d", i)
 	}
 
@@ -181,7 +182,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Ensure that the snapshot doesn't already exist.
-	_, _, err = d.cluster.GetLocalStoragePoolVolume(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, pool.ID())
+	_, _, err = d.db.Cluster.GetLocalStoragePoolVolume(projectName, fmt.Sprintf("%s/%s", volumeName, req.Name), volumeType, pool.ID())
 	if !response.IsNotFoundError(err) {
 		if err != nil {
 			return response.SmartError(err)
@@ -191,7 +192,7 @@ func storagePoolVolumeSnapshotsTypePost(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the parent volume so we can get the config.
-	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -357,19 +358,19 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		return response.BadRequest(fmt.Errorf("Invalid storage volume type %q", volumeTypeName))
 	}
 
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Retrieve ID of the storage pool (and check if the storage pool exists).
-	poolID, err := d.cluster.GetStoragePoolID(poolName)
+	poolID, err := d.db.Cluster.GetStoragePoolID(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
 	// Get the names of all storage volume snapshots of a given volume.
-	volumes, err := d.cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volumeName, volumeType, poolID)
+	volumes, err := d.db.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volumeName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -383,7 +384,7 @@ func storagePoolVolumeSnapshotsTypeGet(d *Daemon, r *http.Request) response.Resp
 		if !recursion {
 			resultString = append(resultString, fmt.Sprintf("/%s/storage-pools/%s/volumes/%s/%s/snapshots/%s", version.APIVersion, poolName, volumeTypeName, volumeName, snapshotName))
 		} else {
-			_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volume.Name, volumeType, poolID)
+			_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volume.Name, volumeType, poolID)
 			if err != nil {
 				continue
 			}
@@ -489,7 +490,7 @@ func storagePoolVolumeSnapshotTypePost(d *Daemon, r *http.Request) response.Resp
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -621,7 +622,7 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -639,17 +640,17 @@ func storagePoolVolumeSnapshotTypeGet(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the snapshot.
-	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
+	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	volID, volume, err := d.cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
+	volID, volume, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
+	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -737,7 +738,7 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -755,17 +756,17 @@ func storagePoolVolumeSnapshotTypePut(d *Daemon, r *http.Request) response.Respo
 	}
 
 	// Get the snapshot.
-	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
+	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	volID, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
+	volID, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
+	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -859,7 +860,7 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -877,17 +878,17 @@ func storagePoolVolumeSnapshotTypePatch(d *Daemon, r *http.Request) response.Res
 	}
 
 	// Get the snapshot.
-	poolID, _, _, err := d.cluster.GetStoragePool(poolName)
+	poolID, _, _, err := d.db.Cluster.GetStoragePool(poolName)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	volID, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
+	volID, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, fullSnapshotName, volumeType, poolID)
 	if err != nil {
 		return response.SmartError(err)
 	}
 
-	expiry, err := d.cluster.GetStorageVolumeSnapshotExpiry(volID)
+	expiry, err := d.db.Cluster.GetStorageVolumeSnapshotExpiry(volID)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1015,7 +1016,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 	}
 
 	// Get the project name.
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -1055,7 +1056,7 @@ func storagePoolVolumeSnapshotTypeDelete(d *Daemon, r *http.Request) response.Re
 func pruneExpireCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Get the list of expired custom volume snapshots.
-		expiredSnapshots, err := d.cluster.GetExpiredStorageVolumeSnapshots()
+		expiredSnapshots, err := d.db.Cluster.GetExpiredStorageVolumeSnapshots()
 		if err != nil {
 			logger.Error("Unable to retrieve the list of expired custom volume snapshots", logger.Ctx{"err": err})
 			return
@@ -1127,16 +1128,16 @@ func pruneExpiredCustomVolumeSnapshots(ctx context.Context, d *Daemon, expiredSn
 func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
 		// Get projects.
-		var projects map[string]*db.Project
-		err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		var projects map[string]*dbCluster.Project
+		err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
-			projs, err := tx.GetProjects(db.ProjectFilter{})
+			projs, err := dbCluster.GetProjects(ctx, tx.Tx(), dbCluster.ProjectFilter{})
 			if err != nil {
 				return fmt.Errorf("Failed loading projects: %w", err)
 			}
 
 			// Key by project name for lookup later.
-			projects = make(map[string]*db.Project, len(projs))
+			projects = make(map[string]*dbCluster.Project, len(projs))
 			for _, p := range projs {
 				projects[p.Name] = &p
 			}
@@ -1147,16 +1148,16 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			return
 		}
 
-		allVolumes, err := d.cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
+		allVolumes, err := d.db.Cluster.GetStoragePoolVolumesWithType(db.StoragePoolVolumeTypeCustom)
 		if err != nil {
 			logger.Error("Failed getting volumes for auto custom volume snapshot task", logger.Ctx{"err": err})
 			return
 		}
 
-		localNodeID := d.cluster.GetNodeID()
+		localNodeID := d.db.Cluster.GetNodeID()
 
 		var volumes, remoteVolumes []db.StorageVolumeArgs
-		err = d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			for _, v := range allVolumes {
 				schedule, ok := v.Config["snapshots.schedule"]
 				if !ok || schedule == "" {
@@ -1194,7 +1195,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 			// Get list of cluster members.
 			var nodeCount int
 			var onlineNodeIDs []int64
-			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				// Get the offline threshold.
 				config, err := cluster.ConfigLoad(tx)
 				if err != nil {
@@ -1244,7 +1245,7 @@ func autoCreateCustomVolumeSnapshotsTask(d *Daemon) (task.Func, task.Schedule) {
 						}
 
 						// Don't snapshot, if we're not the chosen one.
-						if d.cluster.GetNodeID() != selectedNodeID {
+						if d.db.Cluster.GetNodeID() != selectedNodeID {
 							continue
 						}
 					}
@@ -1356,7 +1357,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	if count > 1 {
 		return "", fmt.Errorf("Snapshot pattern may contain '%%d' only once")
 	} else if count == 1 {
-		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := d.db.Cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 
@@ -1365,27 +1366,27 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	var snapshots []db.StorageVolumeArgs
 	var projects []string
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
-		projects, err = tx.GetProjectNames()
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err = dbCluster.GetProjectNames(ctx, tx.Tx())
 		return err
 	})
 	if err != nil {
 		return "", err
 	}
 
-	pools, err := d.cluster.GetStoragePoolNames()
+	pools, err := d.db.Cluster.GetStoragePoolNames()
 	if err != nil {
 		return "", err
 	}
 
 	for _, pool := range pools {
-		poolID, err := d.cluster.GetStoragePoolID(pool)
+		poolID, err := d.db.Cluster.GetStoragePoolID(pool)
 		if err != nil {
 			return "", err
 		}
 
 		for _, project := range projects {
-			snaps, err := d.cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project, volume.Name, db.StoragePoolVolumeTypeCustom, poolID)
+			snaps, err := d.db.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(project, volume.Name, db.StoragePoolVolumeTypeCustom, poolID)
 			if err != nil {
 				return "", err
 			}
@@ -1404,7 +1405,7 @@ func volumeDetermineNextSnapshotName(d *Daemon, volume db.StorageVolumeArgs, def
 	}
 
 	if snapshotExists {
-		i := d.cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
+		i := d.db.Cluster.GetNextStorageVolumeSnapshotIndex(volume.PoolName, volume.Name, db.StoragePoolVolumeTypeCustom, pattern)
 		return strings.Replace(pattern, "%d", strconv.Itoa(i), 1), nil
 	}
 

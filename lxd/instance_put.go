@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -102,7 +103,7 @@ func instancePut(d *Daemon, r *http.Request) response.Response {
 	var opType db.OperationType
 	if configRaw.Restore == "" {
 		// Check project limits.
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return projecthelpers.AllowInstanceUpdate(tx, projectName, name, configRaw, inst.LocalConfig())
 		})
 		if err != nil {

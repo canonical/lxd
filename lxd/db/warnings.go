@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -19,23 +20,23 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t warnings.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e warning objects
-//go:generate mapper stmt -p db -e warning objects-by-UUID
-//go:generate mapper stmt -p db -e warning objects-by-Project
-//go:generate mapper stmt -p db -e warning objects-by-Status
-//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode
-//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode-and-Project
-//go:generate mapper stmt -p db -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityTypeCode-and-EntityID
-//go:generate mapper stmt -p db -e warning delete-by-UUID
-//go:generate mapper stmt -p db -e warning delete-by-EntityTypeCode-and-EntityID
-//go:generate mapper stmt -p db -e warning id
+//go:generate mapper stmt -d cluster -p db -e warning objects
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-UUID
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Project
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Status
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode-and-Project
+//go:generate mapper stmt -d cluster -p db -e warning objects-by-Node-and-TypeCode-and-Project-and-EntityTypeCode-and-EntityID
+//go:generate mapper stmt -d cluster -p db -e warning delete-by-UUID
+//go:generate mapper stmt -d cluster -p db -e warning delete-by-EntityTypeCode-and-EntityID
+//go:generate mapper stmt -d cluster -p db -e warning id
 //
-//go:generate mapper method -p db -e warning GetMany
-//go:generate mapper method -p db -e warning GetOne-by-UUID
-//go:generate mapper method -p db -e warning DeleteOne-by-UUID
-//go:generate mapper method -p db -e warning DeleteMany-by-EntityTypeCode-and-EntityID
-//go:generate mapper method -p db -e warning ID struct=Warning
-//go:generate mapper method -p db -e warning Exists struct=Warning
+//go:generate mapper method -d cluster -p db -e warning GetMany
+//go:generate mapper method -d cluster -p db -e warning GetOne-by-UUID
+//go:generate mapper method -d cluster -p db -e warning DeleteOne-by-UUID
+//go:generate mapper method -d cluster -p db -e warning DeleteMany-by-EntityTypeCode-and-EntityID
+//go:generate mapper method -d cluster -p db -e warning ID struct=Warning
+//go:generate mapper method -d cluster -p db -e warning Exists struct=Warning
 
 // Warning is a value object holding db-related details about a warning.
 type Warning struct {
@@ -76,7 +77,7 @@ func (c *Cluster) UpsertWarningLocalNode(projectName string, entityTypeCode int,
 	var err error
 	var localName string
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		localName, err = tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -111,7 +112,7 @@ func (c *Cluster) UpsertWarning(nodeName string, projectName string, entityTypeC
 
 	now := time.Now()
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		filter := WarningFilter{
 			TypeCode:       &typeCode,
 			Node:           &nodeName,
@@ -231,7 +232,7 @@ func (c *ClusterTx) createWarning(object Warning) (int64, error) {
 
 	if object.Project != "" {
 		// Ensure project exists
-		projects, err := c.GetProjectNames()
+		projects, err := cluster.GetProjectNames(context.Background(), c.tx)
 		if err != nil {
 			return -1, fmt.Errorf("Failed to get project names: %w", err)
 		}

@@ -100,7 +100,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 	}
 
 	// Get the storage project name.
-	projectName, err := project.StorageVolumeProject(d.State().Cluster, projectParam(r), volumeType)
+	projectName, err := project.StorageVolumeProject(d.State().DB.Cluster, projectParam(r), volumeType)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -149,7 +149,7 @@ func storagePoolVolumeTypeStateGet(d *Daemon, r *http.Request) response.Response
 		state.Usage.Used = uint64(used)
 	}
 
-	_, vol, err := d.cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
+	_, vol, err := d.db.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, pool.ID())
 	if err != nil {
 		return response.SmartError(err)
 	}

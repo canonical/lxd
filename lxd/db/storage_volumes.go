@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -127,7 +128,7 @@ func (c *Cluster) GetStoragePoolVolumes(project string, poolID int64, volumeType
 
 	remoteDrivers := StorageRemoteDriverNames()
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		// Exclude storage volumes residing on ceph and cephfs as their node ID is null, and SelectIntegers() cannot deal with that.
 
@@ -285,7 +286,7 @@ SELECT storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_vol
 
 	var snapshots []StorageVolumeArgs
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err := tx.QueryScan(query, func(scan func(dest ...any) error) error {
 			var s StorageVolumeArgs
 			var snapName string
@@ -429,7 +430,7 @@ func (c *Cluster) UpdateStoragePoolVolume(project, volumeName string, volumeType
 
 	isSnapshot := strings.Contains(volumeName, shared.SnapshotDelimiter)
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
 			err = storageVolumeConfigClear(tx.tx, volumeID, isSnapshot)
 			if err != nil {
@@ -468,7 +469,7 @@ func (c *Cluster) RemoveStoragePoolVolume(project, volumeName string, volumeType
 		stmt = "DELETE FROM storage_volumes WHERE id=?"
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
 			_, err := tx.tx.Exec(stmt, volumeID)
 			return err
@@ -496,7 +497,7 @@ func (c *Cluster) RenameStoragePoolVolume(project, oldVolumeName string, newVolu
 		stmt = "UPDATE storage_volumes SET name=? WHERE id=?"
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err := storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, oldVolumeName, volumeType, poolID, func(volumeID int64) error {
 			_, err := tx.tx.Exec(stmt, newVolumeName, volumeID)
 			return err
@@ -548,7 +549,7 @@ func (c *Cluster) CreateStoragePoolVolume(project, volumeName, volumeDescription
 
 	remoteDrivers := StorageRemoteDriverNames()
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		driver, err := tx.GetStoragePoolDriver(poolID)
 		if err != nil {
 			return err
@@ -596,7 +597,7 @@ INSERT INTO storage_volumes (storage_pool_id, node_id, type, name, description, 
 // volume type, on the given node.
 func (c *Cluster) storagePoolVolumeGetTypeID(project string, volumeName string, volumeType int, poolID, nodeID int64) (int64, error) {
 	var id int64
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		id, err = tx.storagePoolVolumeGetTypeID(project, volumeName, volumeType, poolID, nodeID)
 		return err

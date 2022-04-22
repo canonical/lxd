@@ -92,7 +92,7 @@ func (b *InstanceBackup) Rename(newName string) error {
 	}
 
 	// Rename the database record.
-	err = b.state.Cluster.RenameInstanceBackup(b.name, newName)
+	err = b.state.DB.Cluster.RenameInstanceBackup(b.name, newName)
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (b *InstanceBackup) Delete() error {
 	}
 
 	// Remove the database record.
-	err := b.state.Cluster.DeleteInstanceBackup(b.name)
+	err := b.state.DB.Cluster.DeleteInstanceBackup(b.name)
 	if err != nil {
 		return err
 	}

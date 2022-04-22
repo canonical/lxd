@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/events"
 	"github.com/lxc/lxd/lxd/project"
 	"github.com/lxc/lxd/lxd/rbac"
@@ -52,7 +54,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 		} else {
 			projectName = projectQueryParam
 
-			_, err := d.cluster.GetProject(projectName)
+			_, err := d.db.GetProject(context.Background(), projectName)
 			if err != nil {
 				if response.IsNotFoundError(err) {
 					response.BadRequest(fmt.Errorf("Project %q not found", projectName)).Render(w)
@@ -99,7 +101,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 	// Get the current local serverName and store it for the events.
 	// We do that now to avoid issues with changes to the name and to limit
 	// the number of DB access to just one per connection.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		serverName, err := tx.GetLocalNodeName()
 		if err != nil {
 			return err
@@ -113,7 +115,7 @@ func eventsSocket(d *Daemon, r *http.Request, w http.ResponseWriter) error {
 			// Try and match cluster member certificate fingerprint to member name.
 			fingerprint, found := ctx.Value(request.CtxUsername).(string)
 			if found {
-				cert, err := tx.GetCertificateByFingerprintPrefix(fingerprint)
+				cert, err := cluster.GetCertificateByFingerprintPrefix(context.Background(), tx.Tx(), fingerprint)
 				if err != nil {
 					return fmt.Errorf("Failed matching client certificate to cluster member: %w", err)
 				}

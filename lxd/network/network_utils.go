@@ -3,6 +3,7 @@ package network
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -72,7 +73,7 @@ func MACDevName(mac net.HardwareAddr) string {
 
 // usedByInstanceDevices looks for instance NIC devices using the network and runs the supplied usageFunc for each.
 func usedByInstanceDevices(s *state.State, networkProjectName string, networkName string, usageFunc func(inst db.Instance, nicName string, nicConfig map[string]string) error) error {
-	return s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	return s.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// Get the instance's effective network project name.
 		instNetworkProject := project.NetworkProjectFromRecord(&p)
 
@@ -104,7 +105,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 	// If managed network being passed in, check if it has any peerings in a created state.
 	if networkID > 0 {
-		peers, err := s.Cluster.GetNetworkPeers(networkID)
+		peers, err := s.DB.Cluster.GetNetworkPeers(networkID)
 		if err != nil {
 			return nil, fmt.Errorf("Failed getting network peers: %w", err)
 		}
@@ -126,7 +127,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 		// Get all managed networks across all projects.
 		var projectNetworks map[string]map[int64]api.Network
 
-		err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			projectNetworks, err = tx.GetCreatedNetworks()
 			return err
 		})
@@ -155,7 +156,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 
 	// Look for profiles. Next cheapest to do.
 	var profiles []db.Profile
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		profiles, err = tx.GetProfiles(db.ProfileFilter{})
 		if err != nil {
 			return err
@@ -208,7 +209,7 @@ func UsedBy(s *state.State, networkProjectName string, networkID int64, networkN
 // Checks if the device's parent or network properties match the network name.
 func usedByProfileDevices(s *state.State, profile db.Profile, networkProjectName string, networkName string) (bool, error) {
 	// Get the translated network project name from the profiles's project.
-	profileNetworkProjectName, _, err := project.NetworkProject(s.Cluster, profile.Project)
+	profileNetworkProjectName, _, err := project.NetworkProject(s.DB.Cluster, profile.Project)
 	if err != nil {
 		return false, err
 	}
@@ -338,7 +339,7 @@ func UpdateDNSMasqStatic(s *state.State, networkName string) error {
 		var err error
 
 		// Pass project.Default here, as currently dnsmasq (bridged) networks do not support projects.
-		networks, err = s.Cluster.GetNetworks(project.Default)
+		networks, err = s.DB.Cluster.GetNetworks(project.Default)
 		if err != nil {
 			return err
 		}

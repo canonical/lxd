@@ -225,7 +225,7 @@ func EventsUpdateListeners(endpoints *endpoints.Endpoints, cluster *db.Cluster, 
 		var dbMembers []db.NodeInfo
 		var offlineThreshold time.Duration
 
-		err := cluster.Transaction(func(tx *db.ClusterTx) error {
+		err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			var err error
 
 			dbMembers, err = tx.GetNodes()

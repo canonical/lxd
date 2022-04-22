@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -22,38 +24,38 @@ import (
 //go:generate -command mapper lxd-generate db mapper -t instances.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e instance objects
-//go:generate mapper stmt -p db -e instance objects-by-ID
-//go:generate mapper stmt -p db -e instance objects-by-Project
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Node-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Type-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Name-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Project-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Type
-//go:generate mapper stmt -p db -e instance objects-by-Type-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Type-and-Name-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Type-and-Node
-//go:generate mapper stmt -p db -e instance objects-by-Node
-//go:generate mapper stmt -p db -e instance objects-by-Node-and-Name
-//go:generate mapper stmt -p db -e instance objects-by-Name
-//go:generate mapper stmt -p db -e instance id
-//go:generate mapper stmt -p db -e instance create struct=Instance
-//go:generate mapper stmt -p db -e instance rename
-//go:generate mapper stmt -p db -e instance delete-by-Project-and-Name
-//go:generate mapper stmt -p db -e instance update struct=Instance
+//go:generate mapper stmt -d cluster -p db -e instance objects
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-ID
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type-and-Node
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type-and-Node-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Type-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Name-and-Node
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Project-and-Node
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type-and-Name-and-Node
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Type-and-Node
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Node
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Node-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance objects-by-Name
+//go:generate mapper stmt -d cluster -p db -e instance id
+//go:generate mapper stmt -d cluster -p db -e instance create struct=Instance
+//go:generate mapper stmt -d cluster -p db -e instance rename
+//go:generate mapper stmt -d cluster -p db -e instance delete-by-Project-and-Name
+//go:generate mapper stmt -d cluster -p db -e instance update struct=Instance
 //
-//go:generate mapper method -p db -e instance GetMany
-//go:generate mapper method -p db -e instance GetOne
-//go:generate mapper method -p db -e instance URIs
-//go:generate mapper method -p db -e instance ID struct=Instance
-//go:generate mapper method -p db -e instance Exists struct=Instance
-//go:generate mapper method -p db -e instance Create struct=Instance
-//go:generate mapper method -p db -e instance Rename
-//go:generate mapper method -p db -e instance DeleteOne-by-Project-and-Name
-//go:generate mapper method -p db -e instance Update struct=Instance
+//go:generate mapper method -d cluster -p db -e instance GetMany
+//go:generate mapper method -d cluster -p db -e instance GetOne
+//go:generate mapper method -d cluster -p db -e instance URIs
+//go:generate mapper method -d cluster -p db -e instance ID struct=Instance
+//go:generate mapper method -d cluster -p db -e instance Exists struct=Instance
+//go:generate mapper method -d cluster -p db -e instance Create struct=Instance
+//go:generate mapper method -d cluster -p db -e instance Rename
+//go:generate mapper method -d cluster -p db -e instance DeleteOne-by-Project-and-Name
+//go:generate mapper method -d cluster -p db -e instance Update struct=Instance
 
 // Instance is a value object holding db-related details about an instance.
 type Instance struct {
@@ -329,21 +331,21 @@ func (c *Cluster) InstanceList(filter *InstanceFilter, instanceFunc func(inst In
 	}
 
 	// Retrieve required info from the database in single transaction for performance.
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		instances, err = tx.GetInstances(*filter)
 		if err != nil {
 			return fmt.Errorf("Failed loading instances: %w", err)
 		}
 
-		projects, err := tx.GetProjects(ProjectFilter{})
+		projects, err := cluster.GetProjects(ctx, tx.tx, cluster.ProjectFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed loading projects: %w", err)
 		}
 
 		// Index of all projects by name and record which projects have the profiles feature.
 		for _, project := range projects {
-			apiProject, err := project.ToAPI(tx)
+			apiProject, err := project.ToAPI(ctx, tx.tx)
 			if err != nil {
 				return err
 			}
@@ -715,11 +717,11 @@ SELECT storage_pools.name FROM storage_pools
 func (c *Cluster) DeleteInstance(project, name string) error {
 	if strings.Contains(name, shared.SnapshotDelimiter) {
 		parts := strings.SplitN(name, shared.SnapshotDelimiter, 2)
-		return c.Transaction(func(tx *ClusterTx) error {
+		return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			return tx.DeleteInstanceSnapshot(project, parts[0], parts[1])
 		})
 	}
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.DeleteInstance(project, name)
 	})
 }
@@ -735,7 +737,7 @@ SELECT projects.name, instances.name
   JOIN projects ON projects.id = instances.project_id
 WHERE instances.id=?
 `
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.tx.QueryRow(q, id).Scan(&project, &name)
 
 	})
@@ -750,7 +752,7 @@ WHERE instances.id=?
 // GetInstanceID returns the ID of the instance with the given name.
 func (c *Cluster) GetInstanceID(project, name string) (int, error) {
 	var id int64
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		id, err = tx.GetInstanceID(project, name)
 		return err
@@ -763,7 +765,7 @@ func (c *Cluster) GetInstanceID(project, name string) (int, error) {
 func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 	q := "SELECT value FROM instances_config WHERE instance_id=? AND key=?"
 	value := ""
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.tx.QueryRow(q, id, key).Scan(&value)
 	})
 	if err == sql.ErrNoRows {
@@ -776,7 +778,7 @@ func (c *Cluster) GetInstanceConfig(id int, key string) (string, error) {
 // DeleteInstanceConfigKey removes the given key from the config of the instance
 // with the given ID.
 func (c *Cluster) DeleteInstanceConfigKey(id int, key string) error {
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.DeleteInstanceConfigKey(int64(id), key)
 	})
 }
@@ -788,7 +790,7 @@ func (c *Cluster) UpdateInstanceStatefulFlag(id int, stateful bool) error {
 	if stateful {
 		statefulInt = 1
 	}
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec("UPDATE instances SET stateful=? WHERE id=?", statefulInt, id)
 		return err
 	})
@@ -868,7 +870,7 @@ WHERE projects.name=? AND instances.name=?`
 // This is a non-transactional variant of ClusterTx.GetInstancePool().
 func (c *Cluster) GetInstancePool(project, instanceName string) (string, error) {
 	var poolName string
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var err error
 		poolName, err = tx.GetInstancePool(project, instanceName)
 		return err

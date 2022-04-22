@@ -86,7 +86,7 @@ func Connect(address string, networkCert *shared.CertInfo, serverCert *shared.Ce
 // client (configured with the specified project), otherwise it will just return nil.
 func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, instName string, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request, instanceType instancetype.Type) (lxd.InstanceServer, error) {
 	var address string // Cluster member address.
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 		address, err = tx.GetNodeAddressOfInstance(projectName, instName, db.InstanceTypeFilter(instanceType))
 		return err
@@ -112,11 +112,11 @@ func ConnectIfInstanceIsRemote(cluster *db.Cluster, projectName string, instName
 // defined. If it's not the local cluster member it will connect to it and return the connected client, otherwise
 // it just returns nil. If there is more than one cluster member with a matching volume name, an error is returned.
 func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string, volumeName string, volumeType int, networkCert *shared.CertInfo, serverCert *shared.CertInfo, r *http.Request) (lxd.InstanceServer, error) {
-	localNodeID := s.Cluster.GetNodeID()
+	localNodeID := s.DB.Cluster.GetNodeID()
 	var err error
 	var nodes []db.NodeInfo
 	var poolID int64
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		poolID, err = tx.GetStoragePoolID(poolName)
 		if err != nil {
 			return err
@@ -138,7 +138,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 	// the node whereit is currently used. This avoids conflicting with another member when using it locally.
 	if err == db.ErrNoClusterMember {
 		// GetLocalStoragePoolVolume returns a volume with an empty Location field for remote drivers.
-		_, vol, err := s.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
+		_, vol, err := s.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volumeType, poolID)
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +150,7 @@ func ConnectIfVolumeIsRemote(s *state.State, poolName string, projectName string
 
 		if remoteInstance != nil {
 			var instNode db.NodeInfo
-			err := s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+			err := s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				instNode, err = tx.GetNodeByName(remoteInstance.Node)
 				return err
 			})

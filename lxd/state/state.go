@@ -29,8 +29,7 @@ type State struct {
 	ShutdownCtx context.Context
 
 	// Databases
-	Node    *db.Node
-	Cluster *db.Cluster
+	DB *db.DB
 
 	// MAAS server
 	MAAS *maas.Controller

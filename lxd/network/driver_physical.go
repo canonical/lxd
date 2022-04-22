@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -77,7 +78,7 @@ func (n *physical) checkParentUse(ourConfig map[string]string) (bool, error) {
 	var err error
 	var projectNetworks map[string]map[int64]api.Network
 
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		projectNetworks, err = tx.GetCreatedNetworks()
 		return err
 	})
@@ -206,7 +207,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 	// so it can be removed on stop. This way we won't overwrite the setting on LXD restart.
 	if shared.IsFalseOrEmpty(n.config["volatile.last_state.created"]) {
 		n.config["volatile.last_state.created"] = fmt.Sprintf("%t", created)
-		err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.UpdateNetwork(n.id, n.description, n.config)
 		})
 		if err != nil {
@@ -256,7 +257,7 @@ func (n *physical) Stop() error {
 
 	// Remove last state config.
 	delete(n.config, "volatile.last_state.created")
-	err = n.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = n.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.UpdateNetwork(n.id, n.description, n.config)
 	})
 	if err != nil {

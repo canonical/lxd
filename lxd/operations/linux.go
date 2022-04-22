@@ -3,9 +3,11 @@
 package operations
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 )
 
 func registerDBOperation(op *Operation, opType db.OperationType) error {
@@ -13,7 +15,7 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 		return nil
 	}
 
-	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		opInfo := db.Operation{
 			UUID:   op.id,
 			Type:   opType,
@@ -21,7 +23,7 @@ func registerDBOperation(op *Operation, opType db.OperationType) error {
 		}
 
 		if op.projectName != "" {
-			projectID, err := tx.GetProjectID(op.projectName)
+			projectID, err := cluster.GetProjectID(context.Background(), tx.Tx(), op.projectName)
 			if err != nil {
 				return fmt.Errorf("Fetch project ID: %w", err)
 			}
@@ -43,7 +45,7 @@ func removeDBOperation(op *Operation) error {
 		return nil
 	}
 
-	err := op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.DeleteOperation(op.id)
 	})
 
@@ -57,7 +59,7 @@ func getServerName(op *Operation) (string, error) {
 
 	var serverName string
 	var err error
-	err = op.state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = op.state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		serverName, err = tx.GetLocalNodeName()
 		return err
 	})

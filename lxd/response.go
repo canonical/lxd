@@ -11,7 +11,7 @@ import (
 func forwardedResponseToNode(d *Daemon, r *http.Request, node string) response.Response {
 	// Figure out the address of the target node (which is possibly
 	// this very same node).
-	address, err := cluster.ResolveTarget(d.cluster, node)
+	address, err := cluster.ResolveTarget(d.db.Cluster, node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -43,7 +43,7 @@ func forwardedResponseIfTargetIsRemote(d *Daemon, r *http.Request) response.Resp
 // the container with the given name. If the container is local, nothing gets
 // done and nil is returned.
 func forwardedResponseIfInstanceIsRemote(d *Daemon, r *http.Request, project, name string, instanceType instancetype.Type) (response.Response, error) {
-	client, err := cluster.ConnectIfInstanceIsRemote(d.cluster, project, name, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
+	client, err := cluster.ConnectIfInstanceIsRemote(d.db.Cluster, project, name, d.endpoints.NetworkCert(), d.serverCert(), r, instanceType)
 	if err != nil {
 		return nil, err
 	}

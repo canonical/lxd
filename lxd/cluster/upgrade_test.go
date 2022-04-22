@@ -19,6 +19,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
+	clusterDB "github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/state"
 	"github.com/lxc/lxd/shared"
 )
@@ -66,7 +67,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 	state, cleanup := state.NewTestState(t)
 	defer cleanup()
 
-	state.Node.Transaction(func(tx *db.NodeTx) error {
+	state.DB.Node.Transaction(func(tx *db.NodeTx) error {
 		nodes := []db.RaftNode{
 			{NodeInfo: client.NodeInfo{ID: 1, Address: "0.0.0.0:666"}},
 			{NodeInfo: client.NodeInfo{ID: 2, Address: "1.2.3.4:666"}},
@@ -76,7 +77,7 @@ func TestMaybeUpdate_Upgrade(t *testing.T) {
 		return nil
 	})
 
-	state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		id, err := tx.CreateNode("buzz", "1.2.3.4:666")
 		require.NoError(t, err)
 
@@ -137,12 +138,12 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	defer server.Close()
 
 	address := server.Listener.Addr().String()
-	setRaftRole(t, state.Node, address)
+	setRaftRole(t, state.DB.Node, address)
 
-	gateway := newGateway(t, state.Node, serverCert, serverCert)
+	gateway := newGateway(t, state.DB.Node, serverCert, serverCert)
 	defer gateway.Shutdown()
 
-	trustedCerts := func() map[db.CertificateType]map[string]x509.Certificate {
+	trustedCerts := func() map[clusterDB.CertificateType]map[string]x509.Certificate {
 		return nil
 	}
 
@@ -151,16 +152,16 @@ func TestUpgradeMembersWithoutRole(t *testing.T) {
 	}
 
 	var err error
-	require.NoError(t, state.Cluster.Close())
+	require.NoError(t, state.DB.Cluster.Close())
 	store := gateway.NodeStore()
 	dial := gateway.DialFunc()
-	state.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dial))
+	state.DB.Cluster, err = db.OpenCluster(context.Background(), "db.bin", store, address, "/unused/db/dir", 5*time.Second, nil, driver.WithDialFunc(dial))
 	require.NoError(t, err)
-	gateway.Cluster = state.Cluster
+	gateway.Cluster = state.DB.Cluster
 
 	// Add a couple of members to the database.
 	var members []db.NodeInfo
-	err = state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		_, err := tx.CreateNode("foo", "1.2.3.4")
 		require.NoError(t, err)
 		_, err = tx.CreateNode("bar", "5.6.7.8")

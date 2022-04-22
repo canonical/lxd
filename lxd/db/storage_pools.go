@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -701,7 +702,7 @@ func (c *Cluster) getStoragePool(onlyCreated bool, where string, args ...any) (i
 	var pool api.StoragePool
 	var nodes map[int64]StoragePoolNode
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		var state StoragePoolState
 
 		err = tx.tx.QueryRow(q.String(), args...).Scan(&poolID, &pool.Name, &pool.Driver, &pool.Description, &state)
@@ -758,7 +759,7 @@ func (c *Cluster) StoragePoolNodes(poolID int64) (map[int64]StoragePoolNode, err
 	var nodes map[int64]StoragePoolNode
 	var err error
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		nodes, err = tx.storagePoolNodes(poolID)
 		if err != nil {
 			return err
@@ -801,7 +802,7 @@ func (c *Cluster) getStoragePoolConfig(tx *ClusterTx, poolID int64, pool *api.St
 // CreateStoragePool creates new storage pool. Also creates a local member entry with state storagePoolPending.
 func (c *Cluster) CreateStoragePool(poolName string, poolDescription string, poolDriver string, poolConfig map[string]string) (int64, error) {
 	var id int64
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		result, err := tx.tx.Exec("INSERT INTO storage_pools (name, description, driver, state) VALUES (?, ?, ?, ?)", poolName, poolDescription, poolDriver, storagePoolCreated)
 		if err != nil {
 			return err
@@ -886,7 +887,7 @@ func (c *Cluster) UpdateStoragePool(poolName, description string, poolConfig map
 		return err
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err = updateStoragePoolDescription(tx.tx, poolID, description)
 		if err != nil {
 			return err
@@ -952,7 +953,7 @@ var NodeSpecificStorageConfig = []string{
 func (c *Cluster) IsRemoteStorage(poolID int64) (bool, error) {
 	isRemoteStorage := false
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		driver, err := tx.GetStoragePoolDriver(poolID)
 		if err != nil {
 			return err

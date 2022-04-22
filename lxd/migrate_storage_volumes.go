@@ -60,7 +60,7 @@ func (s *migrationSourceWs) DoStorage(state *state.State, projectName string, po
 		return err
 	}
 
-	_, vol, err := state.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, pool.ID())
+	_, vol, err := state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volName, db.StoragePoolVolumeTypeCustom, pool.ID())
 	if err != nil {
 		return err
 	}

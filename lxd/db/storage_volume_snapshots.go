@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -23,7 +24,7 @@ func (c *Cluster) CreateStorageVolumeSnapshot(project, volumeName, volumeDescrip
 	volumeName = parts[0]
 	snapshotName = parts[1]
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// If we are creating a snapshot, figure out the volume
 		// ID of the parent.
 		parentID, err := tx.storagePoolVolumeGetTypeID(
@@ -75,7 +76,7 @@ func (c *Cluster) UpdateStorageVolumeSnapshot(project, volumeName string, volume
 		return fmt.Errorf("Volume is not a snapshot")
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err = storagePoolVolumeReplicateIfCeph(tx.tx, volumeID, project, volumeName, volumeType, poolID, func(volumeID int64) error {
 			err = storageVolumeConfigClear(tx.tx, volumeID, true)
 			if err != nil {
@@ -190,7 +191,7 @@ func (c *Cluster) GetExpiredStorageVolumeSnapshots() ([]StorageVolumeArgs, error
 
 	var snapshots []StorageVolumeArgs
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var snap StorageVolumeArgs
 			var snapName string
