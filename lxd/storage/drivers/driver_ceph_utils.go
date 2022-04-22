@@ -1068,43 +1068,7 @@ func (d *ceph) generateUUID(fsType string, devPath string) error {
 }
 
 func (d *ceph) getRBDVolumeName(vol Volume, snapName string, zombie bool, withPoolName bool) string {
-	var out string
-	parentName, snapshotName, isSnapshot := shared.InstanceGetParentAndSnapshotName(vol.name)
-
-	// Only use filesystem suffix on filesystem type image volumes (for all content types).
-	if vol.volType == VolumeTypeImage || vol.volType == cephVolumeTypeZombieImage {
-		parentName = fmt.Sprintf("%s_%s", parentName, vol.ConfigBlockFilesystem())
-	}
-
-	if vol.contentType == ContentTypeBlock {
-		parentName = fmt.Sprintf("%s%s", parentName, cephBlockVolSuffix)
-	}
-
-	// Use volume's type as storage volume prefix, unless there is an override in cephVolTypePrefixes.
-	volumeTypePrefix := string(vol.volType)
-	if volumeTypePrefixOverride, foundOveride := cephVolTypePrefixes[vol.volType]; foundOveride {
-		volumeTypePrefix = volumeTypePrefixOverride
-	}
-
-	if snapName != "" {
-		// Always use the provided snapshot name if specified.
-		out = fmt.Sprintf("%s_%s@%s", volumeTypePrefix, parentName, snapName)
-	} else {
-		if isSnapshot {
-			// If volumeName is a snapshot (<vol>/<snap>) and snapName is not set,
-			// assume that it's a normal snapshot (not a zombie) and prefix it with
-			// "snapshot_".
-			out = fmt.Sprintf("%s_%s@snapshot_%s", volumeTypePrefix, parentName, snapshotName)
-		} else {
-			out = fmt.Sprintf("%s_%s", volumeTypePrefix, parentName)
-		}
-	}
-
-	// If the volume is to be in zombie state (i.e. not tracked by the LXD database),
-	// prefix the output with "zombie_".
-	if zombie {
-		out = fmt.Sprintf("zombie_%s", out)
-	}
+	out := CephGetRBDImageName(vol, snapName, zombie)
 
 	// If needed, the output will be prefixed with the pool name, e.g.
 	// <pool>/<type>_<volname>@<snapname>.
