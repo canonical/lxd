@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/lxc/lxd/lxd/cluster"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/node"
@@ -12,7 +14,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 	config := map[string]any{}
 
 	// Turn the config into a JSON-compatible map
-	err := state.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := state.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		clusterConfig, err := cluster.ConfigLoad(tx)
 		if err != nil {
 			return err
@@ -26,7 +28,7 @@ func daemonConfigRender(state *state.State) (map[string]any, error) {
 		return nil, err
 	}
 
-	err = state.Node.Transaction(func(tx *db.NodeTx) error {
+	err = state.DB.Node.Transaction(func(tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/lxc/lxd/lxd/archive"
 	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/instance/instancetype"
@@ -185,7 +187,7 @@ func VolumeDBGet(pool *lxdBackend, projectName string, volumeName string, volume
 	}
 
 	// Get volume config.
-	_, vol, err := pool.state.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
+	_, vol, err := pool.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
 	if err != nil {
 		if response.IsNotFoundError(err) {
 			return vol, fmt.Errorf("Storage volume %q of type %q does not exist on pool %q: %w", fmt.Sprintf("%s_%s", projectName, volumeName), volumeType, pool.Name(), err)
@@ -248,9 +250,9 @@ func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, vol
 
 	// Create the database entry for the storage volume.
 	if snapshot {
-		_, err = pool.state.Cluster.CreateStorageVolumeSnapshot(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), expiryDate)
+		_, err = pool.state.DB.Cluster.CreateStorageVolumeSnapshot(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), expiryDate)
 	} else {
-		_, err = pool.state.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
+		_, err = pool.state.DB.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
 	}
 	if err != nil {
 		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volumeType, err)
@@ -267,7 +269,7 @@ func VolumeDBDelete(pool *lxdBackend, projectName string, volumeName string, vol
 		return err
 	}
 
-	err = pool.state.Cluster.RemoveStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
+	err = pool.state.DB.Cluster.RemoveStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
 	if err != nil && !response.IsNotFoundError(err) {
 		return fmt.Errorf("Error deleting storage volume from database: %w", err)
 	}
@@ -282,7 +284,7 @@ func VolumeDBSnapshotsGet(state *state.State, poolID int64, projectName string, 
 		return nil, err
 	}
 
-	snapshots, err := state.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volDBType, poolID)
+	snapshots, err := state.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volDBType, poolID)
 	if err != nil {
 		return nil, err
 	}
@@ -571,22 +573,20 @@ func InstanceContentType(inst instance.Instance) drivers.ContentType {
 // VolumeUsedByProfileDevices finds profiles using a volume and passes them to profileFunc for evaluation.
 // The profileFunc is provided with a profile config, project config and a list of device names that are using
 // the volume.
-func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profile db.Profile, project db.Project, usedByDevices []string) error) error {
+func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName string, vol *api.StorageVolume, profileFunc func(profile db.Profile, project cluster.Project, usedByDevices []string) error) error {
 	// Convert the volume type name to our internal integer representation.
 	volumeType, err := VolumeTypeNameToDBType(vol.Type)
 	if err != nil {
 		return err
 	}
 
-	projectMap := map[string]db.Project{}
+	projectMap := map[string]cluster.Project{}
 	var dbProfiles []db.Profile
 	var profileProjects []*api.Project
 
 	// Retrieve required info from the database in single transaction for performance.
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
-		var err error
-
-		projects, err := tx.GetProjects(db.ProjectFilter{})
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
+		projects, err := cluster.GetProjects(ctx, tx.Tx(), cluster.ProjectFilter{})
 		if err != nil {
 			return fmt.Errorf("Failed loading projects: %w", err)
 		}
@@ -604,7 +604,7 @@ func VolumeUsedByProfileDevices(s *state.State, poolName string, projectName str
 		profileProjects = make([]*api.Project, len(dbProfiles))
 		for i, p := range dbProfiles {
 			project := projectMap[p.Project]
-			profileProjects[i], err = project.ToAPI(tx)
+			profileProjects[i], err = project.ToAPI(ctx, tx.Tx())
 			if err != nil {
 				return err
 			}
@@ -672,7 +672,7 @@ func VolumeUsedByInstanceDevices(s *state.State, poolName string, projectName st
 		return err
 	}
 
-	return s.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
+	return s.DB.Cluster.InstanceList(nil, func(inst db.Instance, p api.Project, profiles []api.Profile) error {
 		// If the volume has a specific cluster member which is different than the instance then skip as
 		// instance cannot be using this volume.
 		if vol.Location != "" && inst.Node != vol.Location {
@@ -745,7 +745,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 
 	// Get local member name so we can check if the volume is attached to a remote node.
 	var localNode string
-	err = s.Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = s.DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		localNode, err = tx.GetLocalNodeName()
 		if err != nil {
 			return fmt.Errorf("Failed to get local member name: %w", err)
@@ -778,7 +778,7 @@ func VolumeUsedByExclusiveRemoteInstancesWithProfiles(s *state.State, poolName s
 func VolumeUsedByDaemon(s *state.State, poolName string, volumeName string) (bool, error) {
 	var storageBackups string
 	var storageImages string
-	err := s.Node.Transaction(func(tx *db.NodeTx) error {
+	err := s.DB.Node.Transaction(func(tx *db.NodeTx) error {
 		nodeConfig, err := node.ConfigLoad(tx)
 		if err != nil {
 			return err

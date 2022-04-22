@@ -166,7 +166,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 
 	var dbWarnings []db.Warning
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.WarningFilter{}
 
 		if projectName != "" {
@@ -190,7 +190,7 @@ func warningsGet(d *Daemon, r *http.Request) response.Response {
 	warnings := make([]api.Warning, len(dbWarnings))
 
 	for i, w := range dbWarnings {
-		warning, err := w.ToAPI(d.cluster)
+		warning, err := w.ToAPI(d.db.Cluster)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -255,7 +255,7 @@ func warningGet(d *Daemon, r *http.Request) response.Response {
 
 	var dbWarning *db.Warning
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		dbWarning, err = tx.GetWarning(id)
 		if err != nil {
 			return err
@@ -267,7 +267,7 @@ func warningGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	resp, err := dbWarning.ToAPI(d.cluster)
+	resp, err := dbWarning.ToAPI(d.db.Cluster)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -357,7 +357,7 @@ func warningPut(d *Daemon, r *http.Request) response.Response {
 		return response.Forbidden(fmt.Errorf(`Status may only be set to "acknowledge" or "new"`))
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := tx.UpdateWarningStatus(id, status)
 		if err != nil {
 			return err
@@ -398,7 +398,7 @@ func warningDelete(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := tx.DeleteWarning(id)
 		if err != nil {
 			return err
@@ -439,7 +439,7 @@ func pruneResolvedWarningsTask(d *Daemon) (task.Func, task.Schedule) {
 }
 
 func pruneResolvedWarnings(ctx context.Context, d *Daemon) error {
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Retrieve warnings by resolved status.
 		statusResolved := db.WarningStatusResolved
 		filter := db.WarningFilter{

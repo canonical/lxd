@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -21,7 +22,7 @@ func (c *Cluster) GetNetworkZones(project string) ([]string, error) {
 
 	var zoneNames []string
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var zoneName string
 
@@ -51,7 +52,7 @@ func (c *Cluster) GetNetworkZoneKeys() (map[string]string, error) {
 	`
 
 	secrets := map[string]string{}
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var name string
 			var peer string
@@ -94,7 +95,7 @@ func (c *Cluster) GetNetworksForZone(projectName string, zoneName string) ([]str
 
 	var networkNames []string
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var networkName string
 
@@ -132,7 +133,7 @@ func (c *Cluster) GetNetworkZone(name string) (int64, string, *api.NetworkZone, 
 	`
 
 	var projectName string
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err := tx.tx.QueryRow(q, name).Scan(&id, &projectName, &zone.Description)
 		if err != nil {
 			return err
@@ -171,7 +172,7 @@ func (c *Cluster) GetNetworkZoneByProject(projectName string, name string) (int6
 		LIMIT 1
 	`
 
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err := tx.tx.QueryRow(q, projectName, name).Scan(&id, &zone.Description)
 		if err != nil {
 			return err
@@ -228,7 +229,7 @@ func (c *Cluster) CreateNetworkZone(projectName string, info *api.NetworkZonesPo
 	var id int64
 	var err error
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Insert a new Network zone record.
 		result, err := tx.tx.Exec(`
 			INSERT INTO networks_zones (project_id, name, description)
@@ -282,7 +283,7 @@ func networkzoneConfigAdd(tx *sql.Tx, id int64, config map[string]string) error 
 
 // UpdateNetworkZone updates the Network zone with the given ID.
 func (c *Cluster) UpdateNetworkZone(id int64, config *api.NetworkZonePut) error {
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(`
 			UPDATE networks_zones
 			SET description=?
@@ -308,7 +309,7 @@ func (c *Cluster) UpdateNetworkZone(id int64, config *api.NetworkZonePut) error 
 
 // DeleteNetworkZone deletes the Network zone.
 func (c *Cluster) DeleteNetworkZone(id int64) error {
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec("DELETE FROM networks_zones WHERE id=?", id)
 		return err
 	})
@@ -322,7 +323,7 @@ func (c *Cluster) GetNetworkZoneRecordNames(zone int64) ([]string, error) {
 	`
 
 	var recordNames []string
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return tx.QueryScan(q, func(scan func(dest ...any) error) error {
 			var recordName string
 
@@ -359,7 +360,7 @@ func (c *Cluster) GetNetworkZoneRecord(zone int64, name string) (int64, *api.Net
 	`
 
 	var entries string
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err := tx.tx.QueryRow(q, zone, name).Scan(&id, &record.Description, &entries)
 		if err != nil {
 			return err
@@ -428,7 +429,7 @@ func (c *Cluster) CreateNetworkZoneRecord(zone int64, info api.NetworkZoneRecord
 		return -1, err
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Insert a new network zone record.
 		result, err := tx.tx.Exec(`
 			INSERT INTO networks_zones_records (network_zone_id, name, description, entries)
@@ -488,7 +489,7 @@ func (c *Cluster) UpdateNetworkZoneRecord(id int64, config api.NetworkZoneRecord
 		return err
 	}
 
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec(`
 			UPDATE networks_zones_records
 			SET description=?, entries=?
@@ -514,7 +515,7 @@ func (c *Cluster) UpdateNetworkZoneRecord(id int64, config api.NetworkZoneRecord
 
 // DeleteNetworkZoneRecord deletes the network zone record.
 func (c *Cluster) DeleteNetworkZoneRecord(id int64) error {
-	return c.Transaction(func(tx *ClusterTx) error {
+	return c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err := tx.tx.Exec("DELETE FROM networks_zones_records WHERE id=?", id)
 		return err
 	})

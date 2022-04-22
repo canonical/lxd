@@ -2,21 +2,26 @@
 
 package db
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+
+	"github.com/lxc/lxd/lxd/db/cluster"
+)
 
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t instance_profiles.mapper.go
 //go:generate mapper reset
 //
-//go:generate mapper stmt -p db -e instance_profile objects
-//go:generate mapper stmt -p db -e instance_profile create struct=InstanceProfile
-//go:generate mapper stmt -p db -e instance_profile delete-by-InstanceID
+//go:generate mapper stmt -d cluster -p db -e instance_profile objects
+//go:generate mapper stmt -d cluster -p db -e instance_profile create struct=InstanceProfile
+//go:generate mapper stmt -d cluster -p db -e instance_profile delete-by-InstanceID
 //
-//go:generate mapper method -p db -e instance_profile GetMany struct=Profile
-//go:generate mapper method -p db -e instance_profile GetMany struct=Instance
-//go:generate mapper method -p db -e instance_profile Create struct=Instance
-//go:generate mapper method -p db -e instance_profile DeleteMany struct=Instance
+//go:generate mapper method -d cluster -p db -e instance_profile GetMany struct=Profile
+//go:generate mapper method -d cluster -p db -e instance_profile GetMany struct=Instance
+//go:generate mapper method -d cluster -p db -e instance_profile Create struct=Instance
+//go:generate mapper method -d cluster -p db -e instance_profile DeleteMany struct=Instance
 
 // InstanceProfile is an association table struct that associates Instances
 // to Profiles.
@@ -40,7 +45,7 @@ func (c *ClusterTx) UpdateInstanceProfiles(instance Instance) error {
 	}
 
 	project := instance.Project
-	enabled, err := projectHasProfiles(c.tx, project)
+	enabled, err := cluster.ProjectHasProfiles(context.Background(), c.tx, project)
 	if err != nil {
 		return fmt.Errorf("Check if project has profiles: %w", err)
 	}

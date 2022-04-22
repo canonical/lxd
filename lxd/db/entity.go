@@ -3,6 +3,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -30,7 +31,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeImage:
 		var images []Image
 
-		err = c.transaction(func(tx *ClusterTx) error {
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			images, err = tx.GetImages(ImageFilter{})
 			if err != nil {
 				return err
@@ -57,7 +58,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeProfile:
 		var profiles []Profile
 
-		err = c.transaction(func(tx *ClusterTx) error {
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			profiles, err = tx.GetProfiles(ProfileFilter{})
 			if err != nil {
 				return err
@@ -84,8 +85,8 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeProject:
 		projects := make(map[int64]string)
 
-		err = c.transaction(func(tx *ClusterTx) error {
-			projects, err = tx.GetProjectIDsToNames()
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+			projects, err = cluster.GetProjectIDsToNames(context.Background(), tx.tx)
 			if err != nil {
 				return err
 			}
@@ -103,10 +104,10 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 
 		uri = fmt.Sprintf(cluster.EntityURIs[entityType], name)
 	case cluster.TypeCertificate:
-		var certificates []Certificate
+		var certificates []cluster.Certificate
 
-		err = c.transaction(func(tx *ClusterTx) error {
-			certificates, err = tx.GetCertificates(CertificateFilter{})
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+			certificates, err = cluster.GetCertificates(context.Background(), tx.tx, cluster.CertificateFilter{})
 			if err != nil {
 				return err
 			}
@@ -134,7 +135,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeInstance:
 		var instances []Instance
 
-		err = c.transaction(func(tx *ClusterTx) error {
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			instances, err = tx.GetInstances(InstanceFilter{})
 			if err != nil {
 				return err
@@ -166,7 +167,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 
 		var instances []Instance
 
-		err = c.transaction(func(tx *ClusterTx) error {
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			instances, err = tx.GetInstances(InstanceFilter{})
 			if err != nil {
 				return err
@@ -193,7 +194,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeInstanceSnapshot:
 		var snapshots []InstanceSnapshot
 
-		err = c.transaction(func(tx *ClusterTx) error {
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			snapshots, err = tx.GetInstanceSnapshots(InstanceSnapshotFilter{})
 			if err != nil {
 				return err
@@ -234,7 +235,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeNode:
 		var nodeInfo NodeInfo
 
-		err := c.transaction(func(tx *ClusterTx) error {
+		err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			nodeInfo, err = tx.GetNodeWithID(entityID)
 			if err != nil {
 				return err
@@ -250,7 +251,7 @@ func (c *Cluster) GetURIFromEntity(entityType int, entityID int) (string, error)
 	case cluster.TypeOperation:
 		var op Operation
 
-		err = c.transaction(func(tx *ClusterTx) error {
+		err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 			id := int64(entityID)
 			filter := OperationFilter{ID: &id}
 			ops, err := tx.GetOperations(filter)

@@ -76,13 +76,13 @@ func (d *zone) usedBy(firstOnly bool) ([]string, error) {
 	usedBy := []string{}
 
 	// Find networks using the zone.
-	networkNames, err := d.state.Cluster.GetCreatedNetworks(d.projectName)
+	networkNames, err := d.state.DB.Cluster.GetCreatedNetworks(d.projectName)
 	if err != nil && !response.IsNotFoundError(err) {
 		return nil, fmt.Errorf("Failed loading networks for project %q: %w", d.projectName, err)
 	}
 
 	for _, networkName := range networkNames {
-		_, network, _, err := d.state.Cluster.GetNetworkInAnyState(d.projectName, networkName)
+		_, network, _, err := d.state.DB.Cluster.GetNetworkInAnyState(d.projectName, networkName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get network config for %q: %w", networkName, err)
 		}
@@ -223,7 +223,7 @@ func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType)
 		oldConfig := d.info.NetworkZonePut
 
 		// Update database.
-		err = d.state.Cluster.UpdateNetworkZone(d.id, config)
+		err = d.state.DB.Cluster.UpdateNetworkZone(d.id, config)
 		if err != nil {
 			return err
 		}
@@ -233,7 +233,7 @@ func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType)
 		d.init(d.state, d.id, d.projectName, d.info)
 
 		revert.Add(func() {
-			d.state.Cluster.UpdateNetworkZone(d.id, &oldConfig)
+			d.state.DB.Cluster.UpdateNetworkZone(d.id, &oldConfig)
 			d.info.NetworkZonePut = oldConfig
 			d.init(d.state, d.id, d.projectName, d.info)
 		})
@@ -274,7 +274,7 @@ func (d *zone) Delete() error {
 	}
 
 	// Delete the database record.
-	err = d.state.Cluster.DeleteNetworkZone(d.id)
+	err = d.state.DB.Cluster.DeleteNetworkZone(d.id)
 	if err != nil {
 		return err
 	}
@@ -296,7 +296,7 @@ func (d *zone) Content() (*strings.Builder, error) {
 	includeNAT := shared.IsTrueOrEmpty(d.info.Config["network.nat"])
 
 	// Load all networks for the zone.
-	networks, err := d.state.Cluster.GetNetworksForZone(d.projectName, d.info.Name)
+	networks, err := d.state.DB.Cluster.GetNetworksForZone(d.projectName, d.info.Name)
 	if err != nil {
 		return nil, err
 	}

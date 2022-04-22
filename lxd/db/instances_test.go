@@ -3,10 +3,12 @@
 package db_test
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 	"time"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/project"
 
 	"github.com/stretchr/testify/assert"
@@ -101,20 +103,22 @@ func TestInstanceList_ContainerWithSameNameInDifferentProjects(t *testing.T) {
 	tx, cleanup := db.NewTestClusterTx(t)
 	defer cleanup()
 
+	ctx := context.Background()
+
 	// Create a project with no features
-	project1 := db.Project{}
+	project1 := cluster.Project{}
 	project1.Name = "blah"
-	_, err := tx.CreateProject(project1)
+	_, err := cluster.CreateProject(ctx, tx.Tx(), project1)
 	require.NoError(t, err)
 
 	// Create a project with the profiles feature and a custom profile.
-	project2 := db.Project{}
+	project2 := cluster.Project{}
 	project2.Name = "test"
 	project2Config := map[string]string{"features.profiles": "true"}
-	id, err := tx.CreateProject(project2)
+	id, err := cluster.CreateProject(ctx, tx.Tx(), project2)
 	require.NoError(t, err)
 
-	err = tx.CreateProjectConfig(id, project2Config)
+	err = cluster.CreateProjectConfig(ctx, tx.Tx(), id, project2Config)
 	require.NoError(t, err)
 
 	profile := db.Profile{
@@ -170,7 +174,7 @@ func TestInstanceList(t *testing.T) {
 	cluster, clusterCleanup := db.NewTestCluster(t)
 	defer clusterCleanup()
 
-	err := cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		profile := db.Profile{
 			Project: "default",
 			Name:    "profile1",
@@ -408,7 +412,7 @@ func TestGetInstancePool(t *testing.T) {
 	_, err = cluster.CreateStoragePoolVolume("default", "c1", "", db.StoragePoolVolumeTypeContainer, poolID, nil, db.StoragePoolVolumeContentTypeFS)
 	require.NoError(t, err)
 
-	err = cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		container := db.Instance{
 			Project: "default",
 			Name:    "c1",

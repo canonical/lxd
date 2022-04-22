@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -140,12 +141,12 @@ var storagePoolCmd = APIEndpoint{
 func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 	recursion := util.IsRecursionRequest(r)
 
-	poolNames, err := d.cluster.GetStoragePoolNames()
+	poolNames, err := d.db.Cluster.GetStoragePoolNames()
 	if err != nil && !response.IsNotFoundError(err) {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -163,7 +164,7 @@ func storagePoolsGet(d *Daemon, r *http.Request) response.Response {
 
 			// Get all users of the storage pool.
 			poolUsedBy := []string{}
-			err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+			err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 				poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName, true)
 				return err
 			})
@@ -272,7 +273,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		poolID, err := d.cluster.GetStoragePoolID(req.Name)
+		poolID, err := d.db.Cluster.GetStoragePoolID(req.Name)
 		if err != nil {
 			return response.SmartError(err)
 		}
@@ -300,7 +301,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(err)
 		}
 
-		err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+		err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 			return tx.CreatePendingStoragePool(targetNode, req.Name, req.Driver, req.Config)
 		})
 		if err != nil {
@@ -315,7 +316,7 @@ func storagePoolsPost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Load existing pool if exists, if not don't fail.
-	_, pool, _, err := d.cluster.GetStoragePoolInAnyState(req.Name)
+	_, pool, _, err := d.db.Cluster.GetStoragePoolInAnyState(req.Name)
 	if err != nil && !response.IsNotFoundError(err) {
 		return response.InternalError(err)
 	}
@@ -405,7 +406,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	var configs map[string]map[string]string
 	var nodeName string
 	var poolID int64
-	err := d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		// Check that the pool was defined at all. Must come before partially created checks.
@@ -512,7 +513,7 @@ func storagePoolsPostCluster(d *Daemon, pool *api.StoragePool, req api.StoragePo
 	}
 
 	// Finally update the storage pool state.
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		return tx.StoragePoolCreated(req.Name)
 	})
 	if err != nil {
@@ -580,7 +581,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -598,7 +599,7 @@ func storagePoolGet(d *Daemon, r *http.Request) response.Response {
 
 	// Get all users of the storage pool.
 	poolUsedBy := []string{}
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		poolUsedBy, err = tx.GetStoragePoolUsedBy(poolName, allNodes)
 		return err
 	})
@@ -682,7 +683,7 @@ func storagePoolPut(d *Daemon, r *http.Request) response.Response {
 	}
 
 	targetNode := queryParam(r, "target")
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.SmartError(err)
 	}
@@ -929,13 +930,13 @@ func storagePoolDelete(d *Daemon, r *http.Request) response.Response {
 	// Only perform the deletion of remote volumes on the server handling the request.
 	if !clusterNotification || !pool.Driver().Info().Remote {
 		// Only image volumes should remain now.
-		volumeNames, err := d.cluster.GetStoragePoolVolumesNames(pool.ID())
+		volumeNames, err := d.db.Cluster.GetStoragePoolVolumesNames(pool.ID())
 		if err != nil {
 			return response.InternalError(err)
 		}
 
 		for _, volume := range volumeNames {
-			_, imgInfo, err := d.cluster.GetImage(volume, db.ImageFilter{Project: &projectName})
+			_, imgInfo, err := d.db.Cluster.GetImage(volume, db.ImageFilter{Project: &projectName})
 			if err != nil {
 				return response.InternalError(fmt.Errorf("Failed getting image info for %q: %w", volume, err))
 			}

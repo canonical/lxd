@@ -180,7 +180,7 @@ func internalCreateWarning(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(fmt.Errorf("Invalid entity type"))
 	}
 
-	err = d.cluster.UpsertWarning(req.Location, req.Project, req.EntityTypeCode, req.EntityID, db.WarningType(req.TypeCode), req.Message)
+	err = d.db.Cluster.UpsertWarning(req.Location, req.Project, req.EntityTypeCode, req.EntityID, db.WarningType(req.TypeCode), req.Message)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed to create warning: %w", err))
 	}
@@ -416,10 +416,10 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	var schema string
 	var db *sql.DB
 	if database == "global" {
-		db = d.cluster.DB()
+		db = d.db.Cluster.DB()
 		schema = cluster.FreshSchema()
 	} else {
-		db = d.db.DB()
+		db = d.db.Node.DB()
 		schema = node.FreshSchema()
 	}
 
@@ -456,9 +456,9 @@ func internalSQLPost(d *Daemon, r *http.Request) response.Response {
 
 	var db *sql.DB
 	if req.Database == "global" {
-		db = d.cluster.DB()
+		db = d.db.Cluster.DB()
 	} else {
-		db = d.db.DB()
+		db = d.db.Node.DB()
 	}
 
 	batch := internalSQLBatch{}
@@ -688,7 +688,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	}
 
 	// Check if a storage volume entry for the instance already exists.
-	_, volume, ctVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
+	_, volume, ctVolErr := d.db.Cluster.GetLocalStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
 	if ctVolErr != nil && !response.IsNotFoundError(ctVolErr) {
 		return ctVolErr
 	}
@@ -699,7 +699,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 	}
 
 	// Check if an entry for the instance already exists in the db.
-	_, instanceErr := d.cluster.GetInstanceID(projectName, backupConf.Container.Name)
+	_, instanceErr := d.db.Cluster.GetInstanceID(projectName, backupConf.Container.Name)
 	if instanceErr != nil && !response.IsNotFoundError(instanceErr) {
 		return instanceErr
 	}
@@ -723,7 +723,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 
 		// Remove the storage volume db entry for the instance since force was specified.
-		err := d.cluster.RemoveStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
+		err := d.db.Cluster.RemoveStoragePoolVolume(projectName, backupConf.Container.Name, instanceDBVolType, pool.ID())
 		if err != nil {
 			return err
 		}
@@ -731,13 +731,13 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 
 	if instanceErr == nil {
 		// Remove the storage volume db entry for the instance since force was specified.
-		err := d.cluster.DeleteInstance(projectName, backupConf.Container.Name)
+		err := d.db.Cluster.DeleteInstance(projectName, backupConf.Container.Name)
 		if err != nil {
 			return err
 		}
 	}
 
-	profiles, err := d.State().Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
+	profiles, err := d.State().DB.Cluster.GetProfiles(projectName, backupConf.Container.Profiles)
 	if err != nil {
 		return fmt.Errorf("Failed loading profiles for instance: %w", err)
 	}
@@ -782,7 +782,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		snapInstName := fmt.Sprintf("%s%s%s", backupConf.Container.Name, shared.SnapshotDelimiter, snap.Name)
 
 		// Check if an entry for the snapshot already exists in the db.
-		_, snapErr := d.cluster.GetInstanceSnapshotID(projectName, backupConf.Container.Name, snap.Name)
+		_, snapErr := d.db.Cluster.GetInstanceSnapshotID(projectName, backupConf.Container.Name, snap.Name)
 		if snapErr != nil && !response.IsNotFoundError(snapErr) {
 			return snapErr
 		}
@@ -793,7 +793,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 
 		// Check if a storage volume entry for the snapshot already exists.
-		_, _, csVolErr := d.cluster.GetLocalStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
+		_, _, csVolErr := d.db.Cluster.GetLocalStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
 		if csVolErr != nil && !response.IsNotFoundError(csVolErr) {
 			return csVolErr
 		}
@@ -804,14 +804,14 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 		}
 
 		if snapErr == nil {
-			err := d.cluster.DeleteInstance(projectName, snapInstName)
+			err := d.db.Cluster.DeleteInstance(projectName, snapInstName)
 			if err != nil {
 				return err
 			}
 		}
 
 		if csVolErr == nil {
-			err := d.cluster.RemoveStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
+			err := d.db.Cluster.RemoveStoragePoolVolume(projectName, snapInstName, instanceDBVolType, pool.ID())
 			if err != nil {
 				return err
 			}
@@ -824,7 +824,7 @@ func internalImportFromBackup(d *Daemon, projectName string, instName string, fo
 			return err
 		}
 
-		profiles, err := d.State().Cluster.GetProfiles(projectName, snap.Profiles)
+		profiles, err := d.State().DB.Cluster.GetProfiles(projectName, snap.Profiles)
 		if err != nil {
 			return fmt.Errorf("Failed loading profiles for instance snapshot %q: %w", snapInstName, err)
 		}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/lxc/lxd/lxd/db"
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/util"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/logger"
@@ -52,7 +52,7 @@ func tlsClientConfig(networkCert *shared.CertInfo, serverCert *shared.CertInfo) 
 }
 
 // tlsCheckCert checks certificate access, returns true if certificate is trusted.
-func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *shared.CertInfo, trustedCerts map[db.CertificateType]map[string]x509.Certificate) bool {
+func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *shared.CertInfo, trustedCerts map[cluster.CertificateType]map[string]x509.Certificate) bool {
 	_, err := x509.ParseCertificate(networkCert.KeyPair().Certificate[0])
 	if err != nil {
 		// Since we have already loaded this certificate, typically
@@ -76,7 +76,7 @@ func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *sha
 		}
 
 		// Check the trusted server certficates list provided.
-		trusted, _ = util.CheckTrustState(*i, trustedCerts[db.CertificateTypeServer], networkCert, false)
+		trusted, _ = util.CheckTrustState(*i, trustedCerts[cluster.CertificateTypeServer], networkCert, false)
 		if trusted {
 			return true
 		}

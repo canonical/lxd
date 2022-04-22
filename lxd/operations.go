@@ -60,7 +60,7 @@ func waitForOperations(ctx context.Context, cluster *db.Cluster, consoleShutdown
 	tick := time.Tick(time.Second)
 	logTick := time.Tick(time.Minute)
 
-	defer cluster.Transaction(func(tx *db.ClusterTx) error {
+	defer cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		err := tx.DeleteOperations(cluster.GetNodeID())
 		if err != nil {
 			logger.Error("Failed cleaning up operations")
@@ -189,7 +189,7 @@ func operationGet(d *Daemon, r *http.Request) response.Response {
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.OperationFilter{UUID: &id}
 		ops, err := tx.GetOperations(filter)
 		if err != nil {
@@ -269,7 +269,7 @@ func operationDelete(d *Daemon, r *http.Request) response.Response {
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.OperationFilter{UUID: &id}
 		ops, err := tx.GetOperations(filter)
 		if err != nil {
@@ -319,7 +319,7 @@ func operationCancel(d *Daemon, r *http.Request, projectName string, op *api.Ope
 	// If not found locally, try connecting to remote member to delete it.
 	var memberAddress string
 	var err error
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.OperationFilter{UUID: &op.ID}
 		ops, err := tx.GetOperations(filter)
 		if err != nil {
@@ -533,7 +533,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Check if clustered.
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return response.InternalError(err)
 	}
@@ -547,7 +547,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	var membersWithOps []string
 	var offlineThreshold time.Duration
 	var nodes []db.NodeInfo
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		var err error
 
 		membersWithOps, err = tx.GetNodesWithOperations(projectName)
@@ -572,7 +572,7 @@ func operationsGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	// Get local address.
-	localClusterAddress, err := node.ClusterAddress(d.db)
+	localClusterAddress, err := node.ClusterAddress(d.db.Node)
 	if err != nil {
 		return response.InternalError(fmt.Errorf("Failed getting member local cluster address: %w", err))
 	}
@@ -659,7 +659,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	}
 
 	// Check if clustered.
-	clustered, err := cluster.Enabled(d.db)
+	clustered, err := cluster.Enabled(d.db.Node)
 	if err != nil {
 		return nil, err
 	}
@@ -673,7 +673,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	var offlineThreshold time.Duration
 	var nodes []db.NodeInfo
 	memberOps := make(map[string]map[string]db.Operation)
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		offlineThreshold, err = tx.GetNodeOfflineThreshold()
 		if err != nil {
 			return fmt.Errorf("Failed getting member offline threshold value: %w", err)
@@ -705,7 +705,7 @@ func operationsGetByType(d *Daemon, r *http.Request, projectName string, opType 
 	}
 
 	// Get local address.
-	localClusterAddress, err := node.ClusterAddress(d.db)
+	localClusterAddress, err := node.ClusterAddress(d.db.Node)
 	if err != nil {
 		return nil, fmt.Errorf("Failed getting member local cluster address: %w", err)
 	}
@@ -892,7 +892,7 @@ func operationWaitGet(d *Daemon, r *http.Request) response.Response {
 
 	// Then check if the query is from an operation on another node, and, if so, forward it
 	var address string
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.OperationFilter{UUID: &id}
 		ops, err := tx.GetOperations(filter)
 		if err != nil {
@@ -1019,7 +1019,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 	}
 
 	var address string
-	err = d.cluster.Transaction(func(tx *db.ClusterTx) error {
+	err = d.db.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		filter := db.OperationFilter{UUID: &id}
 		ops, err := tx.GetOperations(filter)
 		if err != nil {
@@ -1056,7 +1056,7 @@ func operationWebsocketGet(d *Daemon, r *http.Request) response.Response {
 
 func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 	f := func(ctx context.Context) {
-		localAddress, err := node.ClusterAddress(d.db)
+		localAddress, err := node.ClusterAddress(d.db.Node)
 		if err != nil {
 			logger.Error("Failed to get current cluster member address", logger.Ctx{"err": err})
 			return
@@ -1104,7 +1104,7 @@ func autoRemoveOrphanedOperationsTask(d *Daemon) (task.Func, task.Schedule) {
 func autoRemoveOrphanedOperations(ctx context.Context, d *Daemon) error {
 	logger.Debug("Removing orphaned operations across the cluster")
 
-	err := d.State().Cluster.Transaction(func(tx *db.ClusterTx) error {
+	err := d.State().DB.Cluster.Transaction(context.TODO(), func(ctx context.Context, tx *db.ClusterTx) error {
 		// Get offline threshold.
 		offlineThreshold, err := tx.GetNodeOfflineThreshold()
 		if err != nil {

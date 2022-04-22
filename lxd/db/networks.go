@@ -3,12 +3,14 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/db/query"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
@@ -317,7 +319,7 @@ func (c *ClusterTx) CreatePendingNetwork(node string, projectName string, name s
 
 	var networkID = network.id
 	if networkID == 0 {
-		projectID, err := c.GetProjectID(projectName)
+		projectID, err := cluster.GetProjectID(context.Background(), c.tx, projectName)
 		if err != nil {
 			return fmt.Errorf("Fetch project ID: %w", err)
 		}
@@ -571,7 +573,7 @@ func (c *Cluster) getNetworkByProjectAndName(projectName string, networkName str
 	var network *api.Network
 	var nodes map[int64]NetworkNode
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		networkID, networkState, networkType, network, err = c.getPartialNetworkByProjectAndName(tx, projectName, networkName, stateFilter)
 		if err != nil {
 			return err
@@ -696,7 +698,7 @@ func (c *Cluster) NetworkNodes(networkID int64) (map[int64]NetworkNode, error) {
 	var nodes map[int64]NetworkNode
 	var err error
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		nodes, err = tx.NetworkNodes(networkID)
 		if err != nil {
 			return err
@@ -746,7 +748,7 @@ func (c *Cluster) GetNetworkWithInterface(devName string) (int64, *api.Network, 
 		Type:    "bridge",
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		return c.getNetworkConfig(tx, id, &network)
 	})
 	if err != nil {
@@ -789,7 +791,7 @@ func (c *Cluster) getNetworkConfig(tx *ClusterTx, networkID int64, network *api.
 // CreateNetwork creates a new network.
 func (c *Cluster) CreateNetwork(projectName string, name string, description string, netType NetworkType, config map[string]string) (int64, error) {
 	var id int64
-	err := c.Transaction(func(tx *ClusterTx) error {
+	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		// Insert a new network record with state networkCreated.
 		result, err := tx.tx.Exec("INSERT INTO networks (project_id, name, description, state, type) VALUES ((SELECT id FROM projects WHERE name = ?), ?, ?, ?, ?)",
 			projectName, name, description, networkCreated, netType)
@@ -830,7 +832,7 @@ func (c *Cluster) UpdateNetwork(project string, name, description string, config
 		return err
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		err = tx.UpdateNetwork(id, description, config)
 		if err != nil {
 			return err
@@ -911,7 +913,7 @@ func (c *Cluster) RenameNetwork(project string, oldName string, newName string) 
 		return err
 	}
 
-	err = c.Transaction(func(tx *ClusterTx) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
 		_, err = tx.tx.Exec("UPDATE networks SET name=? WHERE id=?", newName, id)
 		return err
 	})
