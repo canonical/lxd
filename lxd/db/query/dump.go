@@ -12,7 +12,7 @@ import (
 // Dump returns a SQL text dump of all rows across all tables, similar to
 // sqlite3's dump feature.
 func Dump(ctx context.Context, tx *sql.Tx, schemaOnly bool) (string, error) {
-	tablesSchemas, tableNames, err := getTablesSchemas(ctx, tx)
+	entitiesSchemas, entityNames, err := getEntitiesSchemas(ctx, tx)
 	if err != nil {
 		return "", err
 	}
@@ -23,10 +23,10 @@ func Dump(ctx context.Context, tx *sql.Tx, schemaOnly bool) (string, error) {
 	builder.WriteString("BEGIN TRANSACTION;\n")
 
 	// For each table, write the schema and optionally write the data.
-	for _, tableName := range tableNames {
-		builder.WriteString(tablesSchemas[tableName] + "\n")
+	for _, tableName := range entityNames {
+		builder.WriteString(entitiesSchemas[tableName][1] + "\n")
 
-		if !schemaOnly {
+		if !schemaOnly && entitiesSchemas[tableName][0] == "table" {
 			tableData, err := getTableData(ctx, tx, tableName)
 			if err != nil {
 				return "", err
@@ -58,40 +58,30 @@ func Dump(ctx context.Context, tx *sql.Tx, schemaOnly bool) (string, error) {
 	return builder.String(), nil
 }
 
-// getTablesSchemas gets all the tables and their schema, as well as a list of table names in their default order from
-// the sqlite_master table.
-func getTablesSchemas(ctx context.Context, tx *sql.Tx) (map[string]string, []string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY rowid`)
+// getEntitiesSchemas gets all the tables, their kind, and their schema, as well as a list of entity names in their default order from
+// the sqlite_master table. The returned map values are arrays of length 2 whose first element contains the entity type and the second
+// contains it's schema.
+func getEntitiesSchemas(ctx context.Context, tx *sql.Tx) (map[string][2]string, []string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT name, type, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY rowid`)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Could not get table names and their schema: %w", err)
 	}
 
 	defer rows.Close()
 
-	tablesSchemas := make(map[string]string)
+	tablesSchemas := make(map[string][2]string)
 	var names []string
 	for rows.Next() {
 		var name string
+		var kind string
 		var schema string
-		err := rows.Scan(&name, &schema)
+		err := rows.Scan(&name, &kind, &schema)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Could not scan table name and schema: %w", err)
 		}
 
 		names = append(names, name)
-
-		// Whether a table name is quoted or not can depend on if it was quoted when originally created, or if it
-		// collides with a keyword (and maybe more). Regardless, sqlite3 quotes table names in create statements when
-		// executing a dump. If the table name is already quoted, add the "IF NOT EXISTS" clause, else quote it and add
-		// the same clause.
-		isQuoted := strings.Contains(schema, fmt.Sprintf("TABLE %q", name))
-		if isQuoted {
-			schema = strings.Replace(schema, "TABLE", "TABLE IF NOT EXISTS", 1)
-		} else {
-			schema = strings.Replace(schema, name, fmt.Sprintf("IF NOT EXISTS %q", name), 1)
-		}
-
-		tablesSchemas[name] = schema + ";"
+		tablesSchemas[name] = [2]string{kind, schema + ";"}
 	}
 
 	return tablesSchemas, names, nil
