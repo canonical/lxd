@@ -1,4 +1,4 @@
 package query
 
 var GetTableData = getTableData
-var GetTablesSchemas = getTablesSchemas
+var GetEntitiesSchemas = getEntitiesSchemas

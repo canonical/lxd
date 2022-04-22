@@ -16,20 +16,20 @@ func TestDump(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
-CREATE TABLE IF NOT EXISTS "schema" (
+CREATE TABLE schema (
     id         INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     version    INTEGER NOT NULL,
     updated_at DATETIME NOT NULL,
     UNIQUE (version)
 );
 INSERT INTO schema VALUES(1,37,1523946366);
-CREATE TABLE IF NOT EXISTS "config" (
+CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
     UNIQUE (key)
 );
-CREATE TABLE IF NOT EXISTS "patches" (
+CREATE TABLE patches (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     applied_at DATETIME NOT NULL,
@@ -37,11 +37,12 @@ CREATE TABLE IF NOT EXISTS "patches" (
 );
 INSERT INTO patches VALUES(1,'invalid_profile_names',1523946366);
 INSERT INTO patches VALUES(2,'leftover_profile_config',1523946366);
-CREATE TABLE IF NOT EXISTS "raft_nodes" (
+CREATE TABLE raft_nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     address TEXT NOT NULL,
     UNIQUE (address)
 );
+CREATE INDEX config_key_idx ON config (key);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('schema',1);
 INSERT INTO sqlite_sequence VALUES('patches',2);
@@ -52,14 +53,14 @@ COMMIT;
 func TestDumpTablePatches(t *testing.T) {
 	tx := newTxForDump(t, "local")
 
-	dump, _, err := query.GetTablesSchemas(context.Background(), tx)
+	dump, _, err := query.GetEntitiesSchemas(context.Background(), tx)
 	require.NoError(t, err)
-	assert.Equal(t, `CREATE TABLE IF NOT EXISTS "patches" (
+	assert.Equal(t, `CREATE TABLE patches (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     name VARCHAR(255) NOT NULL,
     applied_at DATETIME NOT NULL,
     UNIQUE (name)
-);`, dump["patches"])
+);`, dump["patches"][1])
 	data, err := query.GetTableData(context.Background(), tx, "patches")
 	require.NoError(t, err)
 	assert.ElementsMatch(t, data, []string{
@@ -71,21 +72,21 @@ func TestDumpTablePatches(t *testing.T) {
 func TestDumpTableConfig(t *testing.T) {
 	tx := newTxForDump(t, "local")
 
-	dump, _, err := query.GetTablesSchemas(context.Background(), tx)
+	dump, _, err := query.GetEntitiesSchemas(context.Background(), tx)
 	require.NoError(t, err)
-	assert.Equal(t, `CREATE TABLE IF NOT EXISTS "config" (
+	assert.Equal(t, `CREATE TABLE config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     key VARCHAR(255) NOT NULL,
     value TEXT,
     UNIQUE (key)
-);`, dump["config"])
+);`, dump["config"][1])
 }
 
 func TestDumpTableStoragePoolsConfig(t *testing.T) {
 	tx := newTxForDump(t, "global")
-	dump, _, err := query.GetTablesSchemas(context.Background(), tx)
+	dump, _, err := query.GetEntitiesSchemas(context.Background(), tx)
 	require.NoError(t, err)
-	assert.Equal(t, `CREATE TABLE IF NOT EXISTS "storage_pools_config" (
+	assert.Equal(t, `CREATE TABLE storage_pools_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     storage_pool_id INTEGER NOT NULL,
     node_id INTEGER,
@@ -94,7 +95,7 @@ func TestDumpTableStoragePoolsConfig(t *testing.T) {
     UNIQUE (storage_pool_id, node_id, key),
     FOREIGN KEY (storage_pool_id) REFERENCES storage_pools (id) ON DELETE CASCADE,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
-);`, dump["storage_pools_config"])
+);`, dump["storage_pools_config"][1])
 	data, err := query.GetTableData(context.Background(), tx, "storage_pools_config")
 	require.NoError(t, err)
 	assert.Equal(t, data, []string{"INSERT INTO storage_pools_config VALUES(1,1,NULL,'k','v');"})
@@ -147,6 +148,7 @@ CREATE TABLE raft_nodes (
     address TEXT NOT NULL,
     UNIQUE (address)
 );
+CREATE INDEX config_key_idx ON config (key);
 `,
 	"global": `
 CREATE TABLE certificates (

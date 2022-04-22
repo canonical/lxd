@@ -35,7 +35,11 @@ test_sql() {
 
   # Global database dump
   SQLITE_DUMP="${TEST_DIR}/dump.db"
-  lxd sql global .dump | sqlite3 "${SQLITE_DUMP}"
+  GLOBAL_DUMP=$(lxd sql global .dump)
+  echo "$GLOBAL_DUMP" | grep "CREATE TRIGGER" # ensure triggers are captured.
+  echo "$GLOBAL_DUMP" | grep "CREATE INDEX"   # ensure indices are captured.
+  echo "$GLOBAL_DUMP" | grep "CREATE VIEW"    # ensure views are captured.
+  echo "$GLOBAL_DUMP" | sqlite3 "${SQLITE_DUMP}"
   sqlite3 "${SQLITE_DUMP}" "SELECT * FROM profiles" | grep -q "Default LXD profile"
   rm -f "${SQLITE_DUMP}"
 
