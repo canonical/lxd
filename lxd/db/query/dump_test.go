@@ -42,6 +42,7 @@ CREATE TABLE raft_nodes (
     address TEXT NOT NULL,
     UNIQUE (address)
 );
+CREATE INDEX config_key_idx ON config (key);
 DELETE FROM sqlite_sequence;
 INSERT INTO sqlite_sequence VALUES('schema',1);
 INSERT INTO sqlite_sequence VALUES('patches',2);
@@ -147,6 +148,7 @@ CREATE TABLE raft_nodes (
     address TEXT NOT NULL,
     UNIQUE (address)
 );
+CREATE INDEX config_key_idx ON config (key);
 `,
 	"global": `
 CREATE TABLE certificates (
