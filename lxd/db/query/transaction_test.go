@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"testing"
@@ -14,7 +15,7 @@ func TestTransaction_BeginError(t *testing.T) {
 	db := newDB(t)
 	db.Close()
 
-	err := query.Transaction(db, func(*sql.Tx) error { return nil })
+	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error { return nil })
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "failed to begin transaction")
 }
@@ -23,7 +24,7 @@ func TestTransaction_BeginError(t *testing.T) {
 func TestTransaction_FunctionError(t *testing.T) {
 	db := newDB(t)
 
-	err := query.Transaction(db, func(tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.Exec("CREATE TABLE test (id INTEGER)")
 		assert.NoError(t, err)
 		return fmt.Errorf("boom")

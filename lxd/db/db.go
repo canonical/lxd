@@ -100,7 +100,7 @@ func (n *Node) Dir() string {
 // node-level database, otherwise they are rolled back.
 func (n *Node) Transaction(f func(*NodeTx) error) error {
 	nodeTx := &NodeTx{}
-	return query.Transaction(n.db, func(tx *sql.Tx) error {
+	return query.Transaction(context.TODO(), n.db, func(ctx context.Context, tx *sql.Tx) error {
 		nodeTx.tx = tx
 		return f(nodeTx)
 	})
@@ -196,7 +196,7 @@ func OpenCluster(closingCtx context.Context, name string, store driver.NodeStore
 
 	if dump != nil {
 		logger.Infof("Migrating data from local to global database")
-		err := query.Transaction(db, func(tx *sql.Tx) error {
+		err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 			return importPreClusteringData(tx, dump)
 		})
 		if err != nil {
@@ -375,13 +375,13 @@ func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *Clus
 			return f(ctx, clusterTx)
 		}
 
-		err := query.TransactionCtx(ctx, c.db, txFunc)
+		err := query.Transaction(ctx, c.db, txFunc)
 		if errors.Is(err, context.DeadlineExceeded) {
 			// If the query timed out it likely means that the leader has abruptly become unreachable.
 			// Now that this query has been cancelled, a leader election should have taken place by now.
 			// So let's retry the transaction once more in case the global database is now available again.
 			logger.Warn("Transaction timed out. Retrying once", logger.Ctx{"member": c.nodeID, "err": err})
-			return query.TransactionCtx(ctx, c.db, txFunc)
+			return query.Transaction(ctx, c.db, txFunc)
 		}
 
 		return err
@@ -498,7 +498,7 @@ func DqliteLatestSegment() (string, error) {
 
 func dbQueryRowScan(c *Cluster, q string, args []any, outargs []any) error {
 	return c.retry(func() error {
-		return query.Transaction(c.db, func(tx *sql.Tx) error {
+		return query.Transaction(context.TODO(), c.db, func(ctx context.Context, tx *sql.Tx) error {
 			return tx.QueryRow(q, args...).Scan(outargs...)
 		})
 	})
@@ -508,7 +508,7 @@ func doDbQueryScan(c *Cluster, q string, args []any, outargs []any) ([][]any, er
 	result := [][]any{}
 
 	err := c.retry(func() error {
-		return query.Transaction(c.db, func(tx *sql.Tx) error {
+		return query.Transaction(context.TODO(), c.db, func(ctx context.Context, tx *sql.Tx) error {
 			rows, err := tx.Query(q, args...)
 			if err != nil {
 				return err
@@ -590,7 +590,7 @@ func queryScan(c *Cluster, q string, inargs []any, outfmt []any) ([][]any, error
 
 func exec(c *Cluster, q string, args ...any) error {
 	err := c.retry(func() error {
-		return query.Transaction(c.db, func(tx *sql.Tx) error {
+		return query.Transaction(context.TODO(), c.db, func(ctx context.Context, tx *sql.Tx) error {
 			_, err := tx.Exec(q, args...)
 			return err
 		})

@@ -608,7 +608,7 @@ func (d *common) updateProgress(progress string) {
 // If the insert succeeds or the key is found to have been populated then the value of the key is returned.
 func (d *common) insertConfigkey(key string, value string) (string, error) {
 	err := query.Retry(func() error {
-		err := query.Transaction(d.state.DB.Cluster.DB(), func(tx *sql.Tx) error {
+		err := query.Transaction(context.TODO(), d.state.DB.Cluster.DB(), func(ctx context.Context, tx *sql.Tx) error {
 			return db.CreateInstanceConfig(tx, d.id, map[string]string{key: value})
 		})
 		if err != nil {
