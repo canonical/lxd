@@ -23,7 +23,6 @@ import (
 	"github.com/lxc/lxd/lxd/backup"
 	"github.com/lxc/lxd/lxd/db"
 	"github.com/lxc/lxd/lxd/db/cluster"
-	"github.com/lxc/lxd/lxd/db/node"
 	"github.com/lxc/lxd/lxd/db/query"
 	deviceConfig "github.com/lxc/lxd/lxd/device/config"
 	"github.com/lxc/lxd/lxd/instance"
@@ -413,14 +412,11 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 		schemaOnly = 0
 	}
 
-	var schema string
 	var db *sql.DB
 	if database == "global" {
 		db = d.db.Cluster.DB()
-		schema = cluster.FreshSchema()
 	} else {
 		db = d.db.Node.DB()
-		schema = node.FreshSchema()
 	}
 
 	tx, err := db.BeginTx(r.Context(), nil)
@@ -429,7 +425,7 @@ func internalSQLGet(d *Daemon, r *http.Request) response.Response {
 	}
 	defer tx.Rollback()
 
-	dump, err := query.Dump(r.Context(), tx, schema, schemaOnly == 1)
+	dump, err := query.Dump(r.Context(), tx, schemaOnly == 1)
 	if err != nil {
 		return response.SmartError(fmt.Errorf("Failed dump database %s: %w", database, err))
 	}
