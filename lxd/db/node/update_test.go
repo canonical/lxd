@@ -1,6 +1,7 @@
 package node_test
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -19,7 +20,7 @@ func TestUpdateFromV38_RaftNodes(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = query.Transaction(db, func(tx *sql.Tx) error {
+	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		roles, err := query.SelectIntegers(tx, "SELECT role FROM raft_nodes")
 		require.NoError(t, err)
 		assert.Equal(t, roles, []int{0})
@@ -45,7 +46,7 @@ func TestUpdateFromV36_DropTables(t *testing.T) {
 	require.NoError(t, err)
 
 	var current []string
-	err = query.Transaction(db, func(tx *sql.Tx) error {
+	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		var err error
 		stmt := "SELECT name FROM sqlite_master WHERE type='table'"
 		current, err = query.SelectStrings(tx, stmt)
@@ -75,7 +76,7 @@ func TestUpdateFromV37_CopyCoreHTTPSAddress(t *testing.T) {
 	require.NoError(t, err)
 
 	var clusterAddress string
-	err = query.Transaction(db, func(tx *sql.Tx) error {
+	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		stmt := "SELECT value FROM config WHERE key='cluster.https_address'"
 		row := tx.QueryRow(stmt)
 		err := row.Scan(&clusterAddress)
@@ -96,7 +97,7 @@ func TestUpdateFromV37_NotClustered(t *testing.T) {
 	require.NoError(t, err)
 
 	var clusterAddress string
-	err = query.Transaction(db, func(tx *sql.Tx) error {
+	err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		stmt := "SELECT value FROM config WHERE key='cluster.https_address'"
 		row := tx.QueryRow(stmt)
 		err := row.Scan(&clusterAddress)

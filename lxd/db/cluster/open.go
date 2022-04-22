@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -167,7 +168,7 @@ func EnsureSchema(db *sql.DB, address string, dir string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		err = query.Transaction(db, func(tx *sql.Tx) error {
+		err = query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 			stmt := `
 INSERT INTO nodes(id, name, address, schema, api_extensions, arch, description) VALUES(1, 'none', '0.0.0.0', ?, ?, ?, '')
 `
