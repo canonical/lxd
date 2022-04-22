@@ -192,49 +192,29 @@ again:
 	goto again
 }
 
-func cephFsConfig(clusterName string, userName string) ([]string, string, error) {
+// diskCephfsOptions returns the mntSrcPath and fsOptions to use for mounting a cephfs share.
+func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, []string, error) {
 	// Get the monitor list.
-	monitors, err := storageDrivers.CephMonitors(clusterName)
+	monAddresses, err := storageDrivers.CephMonitors(clusterName)
 	if err != nil {
-		return nil, "", err
+		return "", nil, err
 	}
 
 	// Get the keyring entry.
 	secret, err := storageDrivers.CephKeyring(clusterName, userName)
 	if err != nil {
-		return nil, "", err
-	}
-
-	return monitors, secret, nil
-}
-
-// diskCephfsOptions returns the mntSrcPath and fsOptions to use for mounting a cephfs share.
-func diskCephfsOptions(clusterName string, userName string, fsName string, fsPath string) (string, []string, error) {
-	// Get the credentials and host
-	monAddresses, secret, err := cephFsConfig(clusterName, userName)
-	if err != nil {
 		return "", nil, err
 	}
 
+	// Prepare mount entry.
 	fsOptions := []string{
 		fmt.Sprintf("name=%v", userName),
 		fmt.Sprintf("secret=%v", secret),
 		fmt.Sprintf("mds_namespace=%v", fsName),
 	}
 
-	srcpath := ""
-	for _, monAddress := range monAddresses {
-		// Add the default port to the mon hosts if not already provided
-		if strings.Contains(monAddress, ":6789") {
-			srcpath += fmt.Sprintf("%s,", monAddress)
-		} else {
-			srcpath += fmt.Sprintf("%s:6789,", monAddress)
-		}
-	}
-	srcpath = srcpath[:len(srcpath)-1]
-	srcpath += fmt.Sprintf(":/%s", fsPath)
-
-	return srcpath, fsOptions, nil
+	srcPath := strings.Join(monAddresses, ",") + ":/" + fsPath
+	return srcPath, fsOptions, nil
 }
 
 // diskAddRootUserNSEntry takes a set of idmap entries, and adds host -> userns root uid/gid mappings if needed.
