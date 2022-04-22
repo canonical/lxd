@@ -156,12 +156,12 @@ func setDqliteVersionHeader(request *http.Request) {
 func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts func() map[cluster.CertificateType]map[string]x509.Certificate) map[string]http.HandlerFunc {
 	database := func(w http.ResponseWriter, r *http.Request) {
 		g.lock.RLock()
-		defer g.lock.RUnlock()
-
 		if !tlsCheckCert(r, g.networkCert, g.serverCert(), trustedCerts()) {
+			g.lock.RUnlock()
 			http.Error(w, "403 invalid client certificate", http.StatusForbidden)
 			return
 		}
+		g.lock.RUnlock()
 
 		// Compare the dqlite version of the connecting client
 		// with our own one.
@@ -177,12 +177,14 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 		}
 		if version != dqliteVersion {
 			if version > dqliteVersion {
+				g.lock.Lock()
 				if !g.upgradeTriggered {
 					err = triggerUpdate()
 					if err == nil {
 						g.upgradeTriggered = true
 					}
 				}
+				g.lock.Unlock()
 				http.Error(w, "503 unsupported dqlite version", http.StatusServiceUnavailable)
 			} else {
 				http.Error(w, "426 dqlite version too old ", http.StatusUpgradeRequired)
@@ -206,7 +208,9 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 				return
 			}
 
+			g.lock.RLock()
 			isLeader, err := g.isLeader()
+			g.lock.RUnlock()
 			if err != nil {
 				logger.Error("Failed checking if leader", logger.Ctx{"err": err})
 				http.Error(w, "500 Failed checking if leader", http.StatusInternalServerError)
@@ -234,10 +238,13 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 
 		// From here on we require that this node is part of the raft
 		// cluster.
+		g.lock.RLock()
 		if g.server == nil || g.memoryDial != nil {
+			g.lock.RUnlock()
 			http.NotFound(w, r)
 			return
 		}
+		g.lock.RUnlock()
 
 		// NOTE: this is kept for backward compatibility when upgrading
 		// a cluster with version <= 4.2.
@@ -245,6 +252,8 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 		// Once all nodes are on >= 4.3 this code is effectively
 		// unused.
 		if r.Method == "HEAD" {
+			g.lock.RLock()
+			defer g.lock.RUnlock()
 			// We can safely know about current leader only if we are a voter.
 			if g.info.Role != db.RaftVoter {
 				http.NotFound(w, r)
@@ -256,7 +265,9 @@ func (g *Gateway) HandlerFuncs(heartbeatHandler HeartbeatHandler, trustedCerts f
 				return
 			}
 			defer client.Close()
-			leader, err := client.Leader(context.Background())
+			ctx, cancel := context.WithTimeout(g.ctx, 3*time.Second)
+			defer cancel()
+			leader, err := client.Leader(ctx)
 			if err != nil {
 				http.Error(w, "500 failed to get leader address", http.StatusInternalServerError)
 				return
@@ -844,7 +855,9 @@ func (g *Gateway) isLeader() (bool, error) {
 		return false, fmt.Errorf("Failed to get dqlite client: %w", err)
 	}
 	defer client.Close()
-	leader, err := client.Leader(context.Background())
+	ctx, cancel := context.WithTimeout(g.ctx, 3*time.Second)
+	defer cancel()
+	leader, err := client.Leader(ctx)
 	if err != nil {
 		return false, fmt.Errorf("Failed to get leader address: %w", err)
 	}
