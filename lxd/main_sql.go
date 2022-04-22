@@ -108,7 +108,7 @@ func (c *cmdSql) Run(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse dump response: %w", err)
 		}
-		fmt.Printf(dump.Text)
+		fmt.Print(dump.Text)
 		return nil
 	}
 
