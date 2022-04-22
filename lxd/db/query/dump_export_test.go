@@ -1,5 +1,4 @@
 package query
 
-var DumpTable = dumpTable
-var DumpParseSchema = dumpParseSchema
-var DumpSchemaTable = dumpSchemaTable
+var GetTableData = getTableData
+var GetTablesSchemas = getTablesSchemas
