@@ -79,18 +79,6 @@ func getTablesSchemas(ctx context.Context, tx *sql.Tx) (map[string]string, []str
 		}
 
 		names = append(names, name)
-
-		// Whether a table name is quoted or not can depend on if it was quoted when originally created, or if it
-		// collides with a keyword (and maybe more). Regardless, sqlite3 quotes table names in create statements when
-		// executing a dump. If the table name is already quoted, add the "IF NOT EXISTS" clause, else quote it and add
-		// the same clause.
-		isQuoted := strings.Contains(schema, fmt.Sprintf("TABLE %q", name))
-		if isQuoted {
-			schema = strings.Replace(schema, "TABLE", "TABLE IF NOT EXISTS", 1)
-		} else {
-			schema = strings.Replace(schema, name, fmt.Sprintf("IF NOT EXISTS %q", name), 1)
-		}
-
 		tablesSchemas[name] = schema + ";"
 	}
 
