@@ -329,10 +329,10 @@ func (c *Cluster) GetNodeID() int64 {
 //
 // If EnterExclusive has been called before, calling Transaction will block
 // until ExitExclusive has been called as well to release the lock.
-func (c *Cluster) Transaction(f func(*ClusterTx) error) error {
+func (c *Cluster) Transaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.transaction(f)
+	return c.transaction(ctx, f)
 }
 
 // EnterExclusive acquires a lock on the cluster db, so any successive call to
@@ -357,31 +357,31 @@ func (c *Cluster) EnterExclusive() error {
 
 // ExitExclusive runs the given transaction and then releases the lock acquired
 // with EnterExclusive.
-func (c *Cluster) ExitExclusive(f func(*ClusterTx) error) error {
+func (c *Cluster) ExitExclusive(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
 	logger.Debug("Releasing exclusive lock on cluster db")
 	defer c.mu.Unlock()
-	return c.transaction(f)
+	return c.transaction(ctx, f)
 }
 
-func (c *Cluster) transaction(f func(*ClusterTx) error) error {
+func (c *Cluster) transaction(ctx context.Context, f func(context.Context, *ClusterTx) error) error {
 	clusterTx := &ClusterTx{
 		nodeID: c.nodeID,
 		stmts:  c.stmts,
 	}
 
 	return c.retry(func() error {
-		txFunc := func(tx *sql.Tx) error {
+		txFunc := func(ctx context.Context, tx *sql.Tx) error {
 			clusterTx.tx = tx
-			return f(clusterTx)
+			return f(ctx, clusterTx)
 		}
 
-		err := query.Transaction(c.db, txFunc)
+		err := query.TransactionCtx(ctx, c.db, txFunc)
 		if errors.Is(err, context.DeadlineExceeded) {
 			// If the query timed out it likely means that the leader has abruptly become unreachable.
 			// Now that this query has been cancelled, a leader election should have taken place by now.
 			// So let's retry the transaction once more in case the global database is now available again.
 			logger.Warn("Transaction timed out. Retrying once", logger.Ctx{"member": c.nodeID, "err": err})
-			return query.Transaction(c.db, txFunc)
+			return query.TransactionCtx(ctx, c.db, txFunc)
 		}
 
 		return err
