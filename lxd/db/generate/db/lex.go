@@ -12,7 +12,11 @@ func entityTable(entity string) string {
 	entityParts := strings.Split(lex.Snake(entity), "_")
 	tableParts := make([]string, len(entityParts))
 	for i, part := range entityParts {
-		tableParts[i] = lex.Plural(part)
+		if strings.HasSuffix(part, "ty") || strings.HasSuffix(part, "ly") {
+			tableParts[i] = part
+		} else {
+			tableParts[i] = lex.Plural(part)
+		}
 	}
 
 	return strings.Join(tableParts, "_")
