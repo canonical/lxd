@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -137,7 +138,7 @@ func (s *Schema) File(path string) {
 func (s *Schema) Ensure(db *sql.DB) (int, error) {
 	var current int
 	aborted := false
-	err := query.Transaction(db, func(tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		err := execFromFile(tx, s.path, s.hook)
 		if err != nil {
 			return fmt.Errorf("failed to execute queries from %s: %w", s.path, err)
@@ -199,7 +200,7 @@ func (s *Schema) Ensure(db *sql.DB) (int, error) {
 // error will be returned.
 func (s *Schema) Dump(db *sql.DB) (string, error) {
 	var statements []string
-	err := query.Transaction(db, func(tx *sql.Tx) error {
+	err := query.Transaction(context.TODO(), db, func(ctx context.Context, tx *sql.Tx) error {
 		err := checkAllUpdatesAreApplied(tx, s.updates)
 		if err != nil {
 			return err
