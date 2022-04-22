@@ -3080,6 +3080,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	aioMode := "native" // Use native kernel async IO and O_DIRECT by default.
 	cacheMode := "none" // Bypass host cache, use O_DIRECT semantics by default.
 	media := "disk"
+	isRBDImage := strings.HasPrefix(driveConf.DevPath, device.RBDFormatPrefix)
 
 	// Check supported features.
 	drivers := DriverStatuses()
@@ -3095,7 +3096,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 	var isBlockDev bool
 
 	// Handle local disk devices.
-	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+	if !isRBDImage {
 		srcDevPath := driveConf.DevPath // This should not be used for passing to QEMU, only for probing.
 
 		// Detect if existing file descriptor format is being supplied.
@@ -3188,10 +3189,77 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		"read-only": false,
 	}
 
+	var rbdSecret string
+
 	// If driver is "file", QEMU requires the file to be a regular file.
 	// However, if the file is a character or block device, driver needs to be set to "host_device".
 	if isBlockDev {
 		blockDev["driver"] = "host_device"
+	} else if isRBDImage {
+		blockDev["driver"] = "rbd"
+
+		_, volName, opts, err := device.DiskParseRBDFormat(driveConf.DevPath)
+		if err != nil {
+			return nil, fmt.Errorf("Failed parsing rbd string: %w", err)
+		}
+
+		// Driver and pool name arguments can be ignored as CephGetRBDImageName doesn't need them.
+		vol := storageDrivers.NewVolume(nil, "", storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(d.project, volName), nil, nil)
+		rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
+
+		// Parse the options (ceph credentials).
+		userName := storageDrivers.CephDefaultUser
+		clusterName := storageDrivers.CephDefaultCluster
+		poolName := ""
+
+		for _, option := range opts {
+			fields := strings.Split(option, "=")
+			if len(fields) != 2 {
+				return nil, fmt.Errorf("Unexpected volume rbd option %q", option)
+			}
+
+			if fields[0] == "id" {
+				userName = fields[1]
+			} else if fields[0] == "pool" {
+				poolName = fields[1]
+			} else if fields[0] == "conf" {
+				baseName := filepath.Base(fields[1])
+				clusterName = strings.TrimSuffix(baseName, ".conf")
+			}
+		}
+
+		if poolName == "" {
+			return nil, fmt.Errorf("Missing pool name")
+		}
+
+		// The aio option isn't available when using the rbd driver.
+		delete(blockDev, "aio")
+		blockDev["pool"] = poolName
+		blockDev["image"] = rbdImageName
+		blockDev["user"] = userName
+		blockDev["server"] = []map[string]string{}
+
+		// Setup the Ceph cluster config (monitors and keyring).
+		monitors, err := storageDrivers.CephMonitors(clusterName)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, monitor := range monitors {
+			idx := strings.LastIndex(monitor, ":")
+			host := monitor[:idx]
+			port := monitor[idx+1:]
+
+			blockDev["server"] = append(blockDev["server"].([]map[string]string), map[string]string{
+				"host": strings.Trim(host, "[]"),
+				"port": port,
+			})
+		}
+
+		rbdSecret, err = storageDrivers.CephKeyring(clusterName, userName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	readonly := shared.StringInSlice("ro", driveConf.Opts)
@@ -3200,7 +3268,7 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		blockDev["read-only"] = true
 	}
 
-	if !strings.HasPrefix(driveConf.DevPath, "rbd:") {
+	if !isRBDImage {
 		blockDev["locking"] = "off"
 	}
 
@@ -3229,29 +3297,40 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 
 		nodeName := fmt.Sprintf("%s%s", qemuBlockDevIDPrefix, escapedDeviceName)
 
-		permissions := unix.O_RDWR
+		if isRBDImage {
+			secretID := fmt.Sprintf("pool_%s_%s", blockDev["pool"], blockDev["user"])
 
-		if readonly {
-			permissions = unix.O_RDONLY
+			err := m.AddSecret(secretID, rbdSecret)
+			if err != nil {
+				return err
+			}
+
+			blockDev["key-secret"] = secretID
+		} else {
+			permissions := unix.O_RDWR
+
+			if readonly {
+				permissions = unix.O_RDONLY
+			}
+
+			f, err := os.OpenFile(driveConf.DevPath, permissions, 0)
+			if err != nil {
+				return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
+			}
+			defer f.Close()
+
+			info, err := m.SendFileWithFDSet(nodeName, f, readonly)
+			if err != nil {
+				return fmt.Errorf("Failed sending file descriptor of %q for disk device %q: %w", f.Name(), driveConf.DevName, err)
+			}
+			revert.Add(func() {
+				m.RemoveFDFromFDSet(nodeName)
+			})
+
+			blockDev["filename"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
 		}
 
-		f, err := os.OpenFile(driveConf.DevPath, permissions, 0)
-		if err != nil {
-			return fmt.Errorf("Failed opening file descriptor for disk device %q: %w", driveConf.DevName, err)
-		}
-		defer f.Close()
-
-		info, err := m.SendFileWithFDSet(nodeName, f, readonly)
-		if err != nil {
-			return fmt.Errorf("Failed sending file descriptor of %q for disk device %q: %w", f.Name(), driveConf.DevName, err)
-		}
-		revert.Add(func() {
-			m.RemoveFDFromFDSet(nodeName)
-		})
-
-		blockDev["filename"] = fmt.Sprintf("/dev/fdset/%d", info.ID)
-
-		err = m.AddBlockDevice(blockDev, device)
+		err := m.AddBlockDevice(blockDev, device)
 		if err != nil {
 			return fmt.Errorf("Failed adding block device for disk device %q: %w", driveConf.DevName, err)
 		}
