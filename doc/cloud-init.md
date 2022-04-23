@@ -19,7 +19,7 @@ Before trying to use it, however, first determine which image source you are
 about to use as not all images have the `cloud-init` package installed.
 
 The images from the `ubuntu` and `ubuntu-daily` remotes are all `cloud-init` enabled.
-Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/20.04/cloud`.
+Images from the `images` remote have `cloud-init` enabled variants using the `/cloud` suffix, e.g. `images:ubuntu/22.04/cloud`.
 
 Both `vendor-data` and `user-data` follow the same rules, with the following caveats:
 * Users have ultimate control over vendordata. They can disable its execution or disable handling of specific parts of multipart input.
