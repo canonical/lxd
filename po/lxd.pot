@@ -7,7 +7,7 @@
 msgid   ""
 msgstr  "Project-Id-Version: lxd\n"
         "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-        "POT-Creation-Date: 2022-04-27 16:54-0400\n"
+        "POT-Creation-Date: 2022-04-27 17:02-0400\n"
         "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
         "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
         "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4451,8 +4451,8 @@ msgid   "To detach from the console, press: <ctrl>+a q"
 msgstr  ""
 
 #: lxc/main.go:384
-msgid   "To start your first container, try: lxc launch ubuntu:20.04\n"
-        "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
+msgid   "To start your first container, try: lxc launch ubuntu:22.04\n"
+        "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
 msgstr  ""
 
 #: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655 lxc/copy.go:129 lxc/info.go:332 lxc/network.go:793 lxc/storage.go:429
@@ -5440,19 +5440,19 @@ msgid   "lxc info [<remote>:]<instance> [--show-log]\n"
 msgstr  ""
 
 #: lxc/init.go:41
-msgid   "lxc init ubuntu:20.04 u1\n"
+msgid   "lxc init ubuntu:22.04 u1\n"
         "\n"
-        "lxc init ubuntu:20.04 u1 < config.yaml\n"
+        "lxc init ubuntu:22.04 u1 < config.yaml\n"
         "    Create the instance with configuration from config.yaml"
 msgstr  ""
 
 #: lxc/launch.go:27
-msgid   "lxc launch ubuntu:20.04 u1\n"
+msgid   "lxc launch ubuntu:22.04 u1\n"
         "\n"
-        "lxc launch ubuntu:20.04 u1 < config.yaml\n"
+        "lxc launch ubuntu:22.04 u1 < config.yaml\n"
         "    Create and start a container with configuration from config.yaml\n"
         "\n"
-        "lxc launch ubuntu:20.04 v1 --vm\n"
+        "lxc launch ubuntu:22.04 v1 --vm\n"
         "    Create and start a virtual machine"
 msgstr  ""
 
