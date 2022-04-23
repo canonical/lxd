@@ -28,7 +28,7 @@ one of its aliases.
 
 From a CLI point of view, this is what's done behind those common actions:
 
- - lxc launch ubuntu:20.04 u1
+ - lxc launch ubuntu:22.04 u1
  - lxc launch images:centos/8 c1
  - lxc launch my-server:SHA256 a1
  - lxc image copy images:gentoo local: --copy-aliases --auto-update
@@ -46,12 +46,12 @@ directly retrieved from an external server.
 
 In such a scenario, image files can be downloaded on another system using:
 
- - lxc image export ubuntu:20.04
+ - lxc image export ubuntu:22.04
 
 Then transferred to the target system and manually imported into the
 local image store with:
 
- - lxc image import META ROOTFS --alias ubuntu-20.04
+ - lxc image import META ROOTFS --alias ubuntu-22.04
 
 `lxc image import` supports both unified images (single file) and split
 images (two files) with the example above using the latter.
@@ -214,9 +214,9 @@ LXD, at the moment, this contains:
 architecture: x86_64
 creation_date: 1424284563
 properties:
-  description: Ubuntu 20.04 LTS Intel 64bit
+  description: Ubuntu 22.04 LTS Intel 64bit
   os: Ubuntu
-  release: focal 20.04
+  release: jammy 22.04
 templates:
   /etc/hosts:
     when:
