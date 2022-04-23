@@ -7,10 +7,6 @@ export LC_ALL="C"
 # Force UTC for consistency
 export TZ="UTC"
 
-if [ -n "${LXD_VERBOSE:-}" ] || [ -n "${LXD_DEBUG:-}" ]; then
-  set -x
-fi
-
 export DEBUG=""
 if [ -n "${LXD_VERBOSE:-}" ]; then
   DEBUG="--verbose"
@@ -18,6 +14,10 @@ fi
 
 if [ -n "${LXD_DEBUG:-}" ]; then
   DEBUG="--debug"
+fi
+
+if [ -n "${DEBUG:-}" ]; then
+  set -x
 fi
 
 if [ -z "${LXD_BACKEND:-}" ]; then
@@ -80,9 +80,7 @@ cleanup() {
     # shellcheck disable=SC2086
     printf "To poke around, use:\\n LXD_DIR=%s LXD_CONF=%s sudo -E %s/bin/lxc COMMAND\\n" "${LXD_DIR}" "${LXD_CONF}" ${GOPATH:-}
     echo "Tests Completed (${TEST_RESULT}): hit enter to continue"
-
-    # shellcheck disable=SC2034
-    read -r nothing
+    read -r _
   fi
 
   echo "==> Cleaning up"
