@@ -63,7 +63,7 @@ type ServerEnvironment struct {
 	OSName string `json:"os_name" yaml:"os_name"`
 
 	// Version of the operating system (Linux distribution)
-	// Example: 20.04
+	// Example: 22.04
 	//
 	// API extension: api_os
 	OSVersion string `json:"os_version" yaml:"os_version"`
