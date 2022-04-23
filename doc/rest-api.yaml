@@ -618,7 +618,7 @@ definitions:
         description: Descriptive properties
         example:
           os: Ubuntu
-          release: focal
+          release: jammy
           variant: cloud
         type: object
         x-go-name: Properties
@@ -658,7 +658,7 @@ definitions:
         x-go-name: Description
       name:
         description: Name of the alias
-        example: ubuntu-20.04
+        example: ubuntu-22.04
         type: string
         x-go-name: Name
     type: object
@@ -673,7 +673,7 @@ definitions:
         x-go-name: Description
       name:
         description: Alias name
-        example: ubuntu-20.04
+        example: ubuntu-22.04
         type: string
         x-go-name: Name
       target:
@@ -694,7 +694,7 @@ definitions:
     properties:
       name:
         description: Alias name
-        example: ubuntu-20.04
+        example: ubuntu-22.04
         type: string
         x-go-name: Name
     type: object
@@ -725,7 +725,7 @@ definitions:
         x-go-name: Description
       name:
         description: Alias name
-        example: ubuntu-20.04
+        example: ubuntu-22.04
         type: string
         x-go-name: Name
       target:
@@ -805,7 +805,7 @@ definitions:
         description: Descriptive properties
         example:
           os: Ubuntu
-          release: focal
+          release: jammy
           variant: cloud
         type: object
         x-go-name: Properties
@@ -877,7 +877,7 @@ definitions:
         description: Descriptive properties
         example:
           os: Ubuntu
-          release: focal
+          release: jammy
           variant: cloud
         type: object
         x-go-name: Properties
@@ -893,7 +893,7 @@ definitions:
     properties:
       alias:
         description: Source alias to download from
-        example: focal
+        example: jammy
         type: string
         x-go-name: Alias
       certificate:
@@ -967,7 +967,7 @@ definitions:
         description: Descriptive properties
         example:
           os: Ubuntu
-          release: focal
+          release: jammy
           variant: cloud
         type: object
         x-go-name: Properties
@@ -985,7 +985,7 @@ definitions:
     properties:
       alias:
         description: Source alias to download from
-        example: focal
+        example: jammy
         type: string
         x-go-name: Alias
       certificate:
@@ -1764,7 +1764,7 @@ definitions:
     properties:
       alias:
         description: Image alias name (for image source)
-        example: ubuntu/20.04
+        example: ubuntu/22.04
         type: string
         x-go-name: Alias
       allow_inconsistent:
@@ -1824,7 +1824,7 @@ definitions:
         description: Image filters (for image source)
         example:
           os: Ubuntu
-          release: focal
+          release: jammy
           variant: cloud
         type: object
         x-go-name: Properties
@@ -4848,7 +4848,7 @@ definitions:
         x-go-name: OSName
       os_version:
         description: Version of the operating system (Linux distribution)
-        example: "20.04"
+        example: "22.04"
         type: string
         x-go-name: OSVersion
       project:
