@@ -261,7 +261,7 @@ type InstanceSource struct {
 	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// Image alias name (for image source)
-	// Example: ubuntu/20.04
+	// Example: ubuntu/22.04
 	Alias string `json:"alias,omitempty" yaml:"alias,omitempty"`
 
 	// Image fingerprint (for image source)
@@ -269,7 +269,7 @@ type InstanceSource struct {
 	Fingerprint string `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
 
 	// Image filters (for image source)
-	// Example: {"os": "Ubuntu", "release": "focal", "variant": "cloud"}
+	// Example: {"os": "Ubuntu", "release": "jammy", "variant": "cloud"}
 	Properties map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
 
 	// Remote server URL (for remote images)

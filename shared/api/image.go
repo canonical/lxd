@@ -110,7 +110,7 @@ type ImagePut struct {
 	AutoUpdate bool `json:"auto_update" yaml:"auto_update"`
 
 	// Descriptive properties
-	// Example: {"os": "Ubuntu", "release": "focal", "variant": "cloud"}
+	// Example: {"os": "Ubuntu", "release": "jammy", "variant": "cloud"}
 	Properties map[string]string `json:"properties" yaml:"properties"`
 
 	// Whether the image is available to unauthenticated users
@@ -191,7 +191,7 @@ func (img *Image) Writable() ImagePut {
 // swagger:model
 type ImageAlias struct {
 	// Name of the alias
-	// Example: ubuntu-20.04
+	// Example: ubuntu-22.04
 	Name string `json:"name" yaml:"name"`
 
 	// Description of the alias
@@ -204,7 +204,7 @@ type ImageAlias struct {
 // swagger:model
 type ImageSource struct {
 	// Source alias to download from
-	// Example: focal
+	// Example: jammy
 	Alias string `json:"alias" yaml:"alias"`
 
 	// Source server certificate (if not trusted by system CA)
@@ -238,7 +238,7 @@ type ImageAliasesPost struct {
 // swagger:model
 type ImageAliasesEntryPost struct {
 	// Alias name
-	// Example: ubuntu-20.04
+	// Example: ubuntu-22.04
 	Name string `json:"name" yaml:"name"`
 }
 
@@ -262,7 +262,7 @@ type ImageAliasesEntry struct {
 	ImageAliasesEntryPut `yaml:",inline"`
 
 	// Alias name
-	// Example: ubuntu-20.04
+	// Example: ubuntu-22.04
 	Name string `json:"name" yaml:"name"`
 
 	// Alias type (container or virtual-machine)
@@ -289,7 +289,7 @@ type ImageMetadata struct {
 	ExpiryDate int64 `json:"expiry_date" yaml:"expiry_date"`
 
 	// Descriptive properties
-	// Example: {"os": "Ubuntu", "release": "focal", "variant": "cloud"}
+	// Example: {"os": "Ubuntu", "release": "jammy", "variant": "cloud"}
 	Properties map[string]string `json:"properties" yaml:"properties"`
 
 	// Template for files in the image
