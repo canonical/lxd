@@ -429,10 +429,10 @@ You can launch an instance on any node in the cluster from any node in
 the cluster. For example, from node1:
 
 ```bash
-lxc launch --target node2 ubuntu:20.04 c1
+lxc launch --target node2 ubuntu:22.04 c1
 ```
 
-will launch an Ubuntu 20.04 container on node2.
+will launch an Ubuntu 22.04 container on node2.
 
 When you launch an instance without defining a target, the instance will be 
 launched on the server which has the lowest number of instances.
@@ -634,7 +634,7 @@ This is done by using the `@` prefix when using `--target`.
 
 An example:
 ```bash
-lxc launch images:ubuntu/20.04 cluster:ubuntu --target=@gpu
+lxc launch ubuntu:22.04 cluster:ubuntu --target=@gpu
 ```
 
 This will cause the instance to be created on a cluster member belonging to `gpu` group if `scheduler.instance` is set to either `all` (default) or `group`.

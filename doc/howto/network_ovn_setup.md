@@ -21,7 +21,7 @@ Create an OVN network and an instance using it:
 ```
 lxc network set lxdbr0 ipv4.dhcp.ranges=... ipv4.ovn.ranges=... # Allocate IP range for OVN gateways.
 lxc network create ovntest --type=ovn network=lxdbr0
-lxc init images:ubuntu/20.04 c1
+lxc init ubuntu:22.04 c1
 lxc config device override c1 eth0 network=ovntest
 lxc start c1
 lxc ls
