@@ -125,6 +125,23 @@ func (cg *CGroup) GetMemoryLimit() (int64, error) {
 	return -1, ErrUnknownVersion
 }
 
+// GetEffectiveMemoryLimit return the effective hard limit for memory.
+// Returns the cgroup memory limit, or if the cgroup memory limit couldn't be determined or is larger than the
+// total system memory, then the total system memory is returned.
+func (cg *CGroup) GetEffectiveMemoryLimit() (int64, error) {
+	memoryTotal, err := shared.DeviceTotalMemory()
+	if err != nil {
+		return -1, fmt.Errorf("Failed getting total memory: %q", err)
+	}
+
+	memoryLimit, err := cg.GetMemoryLimit()
+	if err != nil || memoryLimit > memoryTotal {
+		return memoryTotal, nil
+	}
+
+	return memoryLimit, nil
+}
+
 // SetMemoryLimit sets the hard limit for memory
 func (cg *CGroup) SetMemoryLimit(limit int64) error {
 	version := cgControllers["memory"]
