@@ -15,7 +15,7 @@ import (
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t projects.mapper.go
-//go:generate mapper reset -b "//go:build linux && cgo && !agent"
+//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -e project objects
 //go:generate mapper stmt -e project objects-by-Name
@@ -26,13 +26,13 @@ import (
 //go:generate mapper stmt -e project update struct=Project
 //go:generate mapper stmt -e project delete-by-Name
 //
-//go:generate mapper method -e project GetMany references=Config version=2
-//go:generate mapper method -e project GetOne struct=Project version=2
-//go:generate mapper method -e project Exists struct=Project version=2
-//go:generate mapper method -e project Create references=Config version=2
-//go:generate mapper method -e project ID struct=Project version=2
-//go:generate mapper method -e project Rename version=2
-//go:generate mapper method -e project DeleteOne-by-Name version=2
+//go:generate mapper method -i -e project GetMany references=Config version=2
+//go:generate mapper method -i -e project GetOne struct=Project version=2
+//go:generate mapper method -i -e project Exists struct=Project version=2
+//go:generate mapper method -i -e project Create references=Config version=2
+//go:generate mapper method -i -e project ID struct=Project version=2
+//go:generate mapper method -i -e project Rename version=2
+//go:generate mapper method -i -e project DeleteOne-by-Name version=2
 
 // Project represents a LXD project
 type Project struct {
