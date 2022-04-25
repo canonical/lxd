@@ -5,7 +5,7 @@ package cluster
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t config.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -e config objects
 //go:generate mapper stmt -e config create struct=Config
