@@ -61,17 +61,19 @@ func newDbMapper() *cobra.Command {
 
 func newDbMapperReset() *cobra.Command {
 	var target string
+	var build string
 
 	cmd := &cobra.Command{
 		Use:   "reset",
 		Short: "Reset target source file and its interface file.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return file.Reset(target, db.Imports)
+			return file.Reset(target, db.Imports, build)
 		},
 	}
 
 	flags := cmd.Flags()
 	flags.StringVarP(&target, "target", "t", "-", "target source file to generate")
+	flags.StringVarP(&build, "build", "b", "", "build comment to include")
 
 	return cmd
 }
@@ -103,7 +105,7 @@ func newDbMapperStmt() *cobra.Command {
 				return err
 			}
 
-			return file.Append(target, stmt)
+			return file.Append(entity, target, stmt)
 		},
 	}
 
@@ -153,7 +155,7 @@ func newDbMapperMethod() *cobra.Command {
 				}
 			}
 
-			return file.Append(target, method)
+			return file.Append(entity, target, method)
 		},
 	}
 
