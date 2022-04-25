@@ -1,6 +1,7 @@
 package file
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,7 +11,7 @@ import (
 )
 
 // Reset an auto-generated source file, writing a new empty file header.
-func Reset(path string, imports []string, buildComment string) error {
+func Reset(path string, imports []string, buildComment string, iface bool) error {
 	// A new line needs to be appended after the build comment.
 	if buildComment != "" {
 		buildComment = fmt.Sprintf(`%s
@@ -18,8 +19,11 @@ func Reset(path string, imports []string, buildComment string) error {
 `, buildComment)
 	}
 
-	if err := resetInterface(path, imports, buildComment); err != nil {
-		return err
+	if iface {
+		err := resetInterface(path, imports, buildComment)
+		if err != nil {
+			return err
+		}
 	}
 
 	content := fmt.Sprintf(`%spackage %s
@@ -67,9 +71,12 @@ func resetInterface(path string, imports []string, buildComment string) error {
 }
 
 // Append a code snippet to a file.
-func Append(entity string, path string, snippet Snippet) error {
-	if err := appendInterface(entity, path, snippet); err != nil {
-		return err
+func Append(entity string, path string, snippet Snippet, iface bool) error {
+	if iface {
+		err := appendInterface(entity, path, snippet)
+		if err != nil {
+			return err
+		}
 	}
 
 	buffer := newBuffer()
@@ -112,6 +119,15 @@ func appendInterface(entity string, path string, snippet Snippet) error {
 	parts := strings.Split(path, ".")
 	interfacePath := strings.Join(parts[:len(parts)-2], ".") + ".interface.mapper.go"
 
+	stat, err := os.Stat(interfacePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		return fmt.Errorf("could not get file info for path %q: %w", interfacePath, err)
+	}
+
 	buffer := newBuffer()
 
 	file, err := os.OpenFile(interfacePath, os.O_RDWR, 0644)
@@ -128,10 +144,6 @@ func appendInterface(entity string, path string, snippet Snippet) error {
 	bytes, err := buffer.code()
 	if err != nil {
 		return err
-	}
-	stat, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("could not get file info for path %q: %w", interfacePath, err)
 	}
 
 	declaration := fmt.Sprintf("type %sGenerated interface {", lex.Camel(entity))

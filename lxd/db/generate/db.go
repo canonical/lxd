@@ -62,16 +62,18 @@ func newDbMapper() *cobra.Command {
 func newDbMapperReset() *cobra.Command {
 	var target string
 	var build string
+	var iface bool
 
 	cmd := &cobra.Command{
 		Use:   "reset",
 		Short: "Reset target source file and its interface file.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return file.Reset(target, db.Imports, build)
+			return file.Reset(target, db.Imports, build, iface)
 		},
 	}
 
 	flags := cmd.Flags()
+	flags.BoolVarP(&iface, "interface", "i", false, "create interface files")
 	flags.StringVarP(&target, "target", "t", "-", "target source file to generate")
 	flags.StringVarP(&build, "build", "b", "", "build comment to include")
 
@@ -105,7 +107,7 @@ func newDbMapperStmt() *cobra.Command {
 				return err
 			}
 
-			return file.Append(entity, target, stmt)
+			return file.Append(entity, target, stmt, false)
 		},
 	}
 
@@ -123,6 +125,7 @@ func newDbMapperMethod() *cobra.Command {
 	var database string
 	var pkg string
 	var entity string
+	var iface bool
 
 	cmd := &cobra.Command{
 		Use:   "method [kind] [param1=value1 ... paramN=valueN]",
@@ -155,11 +158,12 @@ func newDbMapperMethod() *cobra.Command {
 				}
 			}
 
-			return file.Append(entity, target, method)
+			return file.Append(entity, target, method, iface)
 		},
 	}
 
 	flags := cmd.Flags()
+	flags.BoolVarP(&iface, "interface", "i", false, "create interface files")
 	flags.StringVarP(&target, "target", "t", "-", "target source file to generate")
 	flags.StringVarP(&database, "database", "d", "", "target database")
 	flags.StringVarP(&pkg, "package", "p", "", "Go package where the entity struct is declared")
