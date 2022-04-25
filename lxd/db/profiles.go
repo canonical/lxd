@@ -14,7 +14,7 @@ import (
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -d cluster -p db -e profile objects
 //go:generate mapper stmt -d cluster -p db -e profile objects-by-ID

@@ -7,7 +7,7 @@ import (
 )
 
 //go:generate -command mapper lxd-generate db mapper -t operations.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -b "//go:build linux && cgo && !agent"
 //go:generate mapper stmt -d cluster -p db -e operation objects
 //go:generate mapper stmt -d cluster -p db -e operation objects-by-NodeID
 //go:generate mapper stmt -d cluster -p db -e operation objects-by-ID

@@ -14,7 +14,7 @@ import (
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t snapshots.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects
 //go:generate mapper stmt -d cluster -p db -e instance_snapshot objects-by-Project-and-Instance

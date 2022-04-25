@@ -5,7 +5,7 @@ package cluster
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t profiles.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -p "github.com/lxc/lxd/lxd/db" -e profile id version=2
 //

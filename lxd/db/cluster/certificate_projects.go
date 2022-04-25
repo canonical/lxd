@@ -5,7 +5,7 @@ package cluster
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t certificate_projects.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -e certificate_project objects-by-CertificateID
 //go:generate mapper stmt -e certificate_project create struct=CertificateProject
