@@ -21,7 +21,7 @@ import (
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t images.mapper.go
-//go:generate mapper reset -b "//go:build linux && cgo && !agent"
+//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -d cluster -p db -e image objects
 //go:generate mapper stmt -d cluster -p db -e image objects-by-Project
@@ -31,9 +31,9 @@ import (
 //go:generate mapper stmt -d cluster -p db -e image objects-by-Cached
 //go:generate mapper stmt -d cluster -p db -e image objects-by-AutoUpdate
 //
-//go:generate mapper method -d cluster -p db -e image GetMany
-//go:generate mapper method -d cluster -p db -e image GetOne
-//go:generate mapper method -d cluster -p db -e image URIs
+//go:generate mapper method -i -d cluster -p db -e image GetMany
+//go:generate mapper method -i -d cluster -p db -e image GetOne
+//go:generate mapper method -i -d cluster -p db -e image URIs
 
 // Image is a value object holding db-related details about an image.
 type Image struct {
