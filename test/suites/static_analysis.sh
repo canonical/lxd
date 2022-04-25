@@ -151,7 +151,7 @@ test_static_analysis() {
         done
       }
 
-      OUT=$(run_deadcode | grep -v lxd/swagger.go || true)
+      OUT=$(run_deadcode | grep -v lxd/response/swagger.go || true)
       if [ -n "${OUT}" ]; then
         echo "${OUT}" >&2
         false
