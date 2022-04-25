@@ -6915,21 +6915,9 @@ func (d *lxc) Metrics() (*metrics.MetricSet, error) {
 	}
 
 	// Get Memory limit.
-	memoryLimit := int64(0)
-	memoryTotal, err := shared.DeviceTotalMemory()
+	memoryLimit, err := cg.GetEffectiveMemoryLimit()
 	if err != nil {
-		d.logger.Warn("Failed to get total memory", logger.Ctx{"err": err})
-	} else {
-		// Get memory limit
-		limit, err := cg.GetMemoryLimit()
-		if err != nil || limit > memoryTotal {
-			// If the memory limit couldn't be determined, use the total memory.
-			// If the value of limit is larger than the total memory, there is no limit set.
-			// In this case, also use the total memory as the limit.
-			memoryLimit = memoryTotal
-		} else {
-			memoryLimit = limit
-		}
+		d.logger.Warn("Failed getting effective memory limit", logger.Ctx{"err": err})
 	}
 
 	memoryCached := int64(0)
