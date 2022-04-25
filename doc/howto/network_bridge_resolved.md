@@ -6,6 +6,14 @@ lookups, it's possible to notify resolved of the domain(s) that
 LXD is able to resolve.  This requires telling resolved the
 specific bridge(s), nameserver address(es), and dns domain(s).
 
+Also note this only works if the bridge `dns.mode` is not `none`.
+
+Note that depending on the `dns.domain` used, you may need to disable
+DNSSEC in resolved to allow for DNS resolution. This can be done through
+the `DNSSEC` option in `resolved.conf`.
+
+## Configure resolved
+
 For example, if LXD is using the `lxdbr0` interface, get the
 ipv4 address with `lxc network get lxdbr0 ipv4.address` command
 (the ipv6 can be used instead or in addition), and the domain
@@ -40,11 +48,7 @@ This resolved configuration will persist as long as the bridge
 exists, so you must repeat this command each reboot and after
 LXD is restarted (see below on how to automate this).
 
-Also note this only works if the bridge `dns.mode` is not `none`.
-
-Note that depending on the `dns.domain` used, you may need to disable
-DNSSEC in resolved to allow for DNS resolution. This can be done through
-the `DNSSEC` option in `resolved.conf`.
+## Make the resolved configuration persistent
 
 To automate the `systemd-resolved` DNS configuration when LXD creates the `lxdbr0` interface so that it is applied
 on system start you need to create a systemd unit file `/etc/systemd/system/lxd-dns-lxdbr0.service` containing:
