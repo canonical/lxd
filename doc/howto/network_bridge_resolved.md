@@ -1,82 +1,101 @@
 (network-bridge-resolved)=
 # How to integrate with systemd-resolved
 
-If the system running LXD uses systemd-resolved to perform DNS
-lookups, it's possible to notify resolved of the domain(s) that
-LXD is able to resolve.  This requires telling resolved the
-specific bridge(s), nameserver address(es), and dns domain(s).
+If the system that runs LXD uses `systemd-resolved` to perform DNS lookups, you should notify resolved of the domains that LXD can resolve.
+To do so, add the DNS servers and domains provided by a LXD network bridge to the resolved configuration.
 
-For example, if LXD is using the `lxdbr0` interface, get the
-ipv4 address with `lxc network get lxdbr0 ipv4.address` command
-(the ipv6 can be used instead or in addition), and the domain
-with `lxc network get lxdbr0 dns.domain` (if unset, the domain
-is `lxd` as shown in the table above).  Then notify resolved:
+```{note}
+The `dns.mode` option (see {ref}`network-bridge-options`) must be set to `managed` or `dynamic` if you want to use this feature.
 
-```
-systemd-resolve --interface lxdbr0 --set-domain '~lxd' --set-dns n.n.n.n
+Depending on the configured `dns.domain`, you might need to disable DNSSEC in resolved to allow for DNS resolution.
+This can be done through the `DNSSEC` option in `resolved.conf`.
 ```
 
-Replace `lxdbr0` with the actual bridge name, and `n.n.n.n` with
-the actual address of the nameserver (without the subnet netmask).
+(network-bridge-resolved-configure)=
+## Configure resolved
 
-Also replace `lxd` with the domain name.  Note the `~` before the
-domain name is important; it tells resolved to use this
-nameserver to look up only this domain; no matter what your
-actual domain name is, you should prefix it with `~`.  Also,
-since the shell may expand the `~` character, you may need to
-include it in quotes.
+To add a network bridge to the resolved configuration, specify the DNS addresses and domains for the respective bridge.
 
-In newer releases of systemd, the `systemd-resolve` command has been
-deprecated, however it is still provided for backwards compatibility
-(as of this writing).  The newer method to notify resolved is using
-the `resolvectl` command, which would be done in two steps:
+DNS address
+: You can use the IPv4 address, the IPv6 address or both.
+  The address must be specified without the subnet netmask.
 
+  To retrieve the IPv4 address for the bridge, use the following command:
+
+        lxc network get <network_bridge> ipv4.address
+
+  To retrieve the IPv6 address for the bridge, use the following command:
+
+        lxc network get <network_bridge> ipv6.address
+
+DNS domain
+: To retrieve the DNS domain name for the bridge, use the following command:
+
+        lxc network get <network_bridge> dns.domain
+
+  If this option is not set, the default domain name is `lxd`.
+
+  When specifying the DNS domain, prefix the domain name with `~`.
+  The `~` tells resolved to use the respective name server to look up only this domain.
+
+  Depending on which shell you use, you might need to include the DNS domain in quotes to prevent the `~` from being expanded.
+
+Use the following commands to configure resolved:
+
+    resolvectl dns <network_bridge> <dns_address>
+    resolvectl domain <network_bridge> <dns_domain>
+
+For example:
+
+    resolvectl dns lxdbr0 192.0.2.10
+    resolvectl domain lxdbr0 '~lxd'
+
+```{note}
+Alternatively, you can use the `systemd-resolve` command.
+This command has been deprecated in newer releases of systemd, but it is still provided for backwards compatibility.
+
+    systemd-resolve --interface <network_bridge> --set-domain <dns_domain> --set-dns <dns_address>
 ```
-resolvectl dns lxdbr0 n.n.n.n
-resolvectl domain lxdbr0 '~lxd'
-```
 
-This resolved configuration will persist as long as the bridge
-exists, so you must repeat this command each reboot and after
-LXD is restarted (see below on how to automate this).
+The resolved configuration persists as long as the bridge exists.
+You must repeat the commands after each reboot and after LXD is restarted, or make it persistent as described below.
 
-Also note this only works if the bridge `dns.mode` is not `none`.
+## Make the resolved configuration persistent
 
-Note that depending on the `dns.domain` used, you may need to disable
-DNSSEC in resolved to allow for DNS resolution. This can be done through
-the `DNSSEC` option in `resolved.conf`.
+You can automate the `systemd-resolved` DNS configuration, so that it is applied on system start and takes effect when LXD creates the network interface.
 
-To automate the `systemd-resolved` DNS configuration when LXD creates the `lxdbr0` interface so that it is applied
-on system start you need to create a systemd unit file `/etc/systemd/system/lxd-dns-lxdbr0.service` containing:
+To do so, create a systemd unit file named `/etc/systemd/system/lxd-dns-<network_bridge>.service` with the following content:
 
 ```
 [Unit]
-Description=LXD per-link DNS configuration for lxdbr0
-BindsTo=sys-subsystem-net-devices-lxdbr0.device
-After=sys-subsystem-net-devices-lxdbr0.device
+Description=LXD per-link DNS configuration for <network_bridge>
+BindsTo=sys-subsystem-net-devices-<network_bridge>.device
+After=sys-subsystem-net-devices-<network_bridge>.device
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/resolvectl dns lxdbr0 n.n.n.n
-ExecStart=/usr/bin/resolvectl domain lxdbr0 '~lxd'
+ExecStart=/usr/bin/resolvectl dns <network_bridge> <dns_address>
+ExecStart=/usr/bin/resolvectl domain <network_bridge> <dns_domain>
 
 [Install]
-WantedBy=sys-subsystem-net-devices-lxdbr0.device
+WantedBy=sys-subsystem-net-devices-<network_bridge>.device
 ```
 
-Be sure to replace `n.n.n.n` in that file with the IP of the `lxdbr0` bridge.
+Replace `<network_bridge>` in the file name and content with the name of your bridge (for example, `lxdbr0`).
+Also replace `<dns_address>` and `<dns_domain>` as described in {ref}`network-bridge-resolved-configure`.
 
-Then enable and start it using:
+Then enable and start the service with the following commands:
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now lxd-dns-<network_bridge>
+
+If the respective bridge already exists (because LXD is already running), you can use the following command to check that the new service has started:
+
+    sudo systemctl status lxd-dns-<network_bridge>.service
+
+You should see output similar to the following:
 
 ```
-sudo systemctl daemon-reload
-sudo systemctl enable --now lxd-dns-lxdbr0
-```
-
-If the `lxdbr0` interface already exists (i.e LXD is running), then you can check that the new service has started:
-
-```
-sudo systemctl status lxd-dns-lxdbr0.service
 ● lxd-dns-lxdbr0.service - LXD per-link DNS configuration for lxdbr0
      Loaded: loaded (/etc/systemd/system/lxd-dns-lxdbr0.service; enabled; vendor preset: enabled)
      Active: inactive (dead) since Mon 2021-06-14 17:03:12 BST; 1min 2s ago
@@ -85,10 +104,9 @@ sudo systemctl status lxd-dns-lxdbr0.service
    Main PID: 9434 (code=exited, status=0/SUCCESS)
 ```
 
-You can then check it has applied the settings using:
+To check that resolved has applied the settings, use `sudo resolvectl status <network_bridge>`:
 
 ```
-sudo resolvectl status lxdbr0
 Link 6 (lxdbr0)
       Current Scopes: DNS
 DefaultRoute setting: no
