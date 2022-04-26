@@ -655,7 +655,7 @@ func (m *MethodV2) create(buf *file.Buffer, replace bool) error {
 				buf.L("exists, err := %s%sExists(ctx, tx, %s)", m.db, lex.Camel(m.entity), strings.Join(nkParams, ", "))
 				m.ifErrNotNil(buf, "-1", "fmt.Errorf(\"Failed to check for duplicates: %w\", err)")
 				buf.L("if exists {")
-				buf.L(`        return -1, fmt.Errorf("This \"%s\" entry already exists")`, entityTable(m.entity))
+				buf.L(`        return -1, api.StatusErrorf(http.StatusConflict, "This \"%s\" entry already exists")`, entityTable(m.entity))
 				buf.L("}")
 				buf.N()
 			}

@@ -175,7 +175,7 @@ func CreateCertificate(ctx context.Context, tx *sql.Tx, object Certificate) (int
 	}
 
 	if exists {
-		return -1, fmt.Errorf("This \"certificates\" entry already exists")
+		return -1, api.StatusErrorf(http.StatusConflict, "This \"certificates\" entry already exists")
 	}
 
 	args := make([]any, 5)
