@@ -1004,8 +1004,10 @@ func (m *MethodV2) delete(buf *file.Buffer, deleteOne bool) error {
 
 	m.ifErrNotNil(buf, "fmt.Errorf(\"Fetch affected rows: %w\", err)")
 	if deleteOne {
-		buf.L("if n != 1 {")
-		buf.L("        return fmt.Errorf(\"Query deleted %%d rows instead of 1\", n)")
+		buf.L("if n == 0 {")
+		buf.L(`        return api.StatusErrorf(http.StatusNotFound, "%s not found")`, lex.Camel(m.entity))
+		buf.L("} else if n > 1 {")
+		buf.L("        return fmt.Errorf(\"Query deleted %%d %s rows instead of 1\", n)", lex.Camel(m.entity))
 		buf.L("}")
 	}
 
