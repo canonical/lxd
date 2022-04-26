@@ -4,7 +4,8 @@ start_external_auth_daemon() {
 
     (
         cd macaroon-identity || return
-        go build ./...
+        # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
+        go build -v -buildvcs=false ./...
     )
     # shellcheck disable=SC2039
     local credentials_file tcp_port
