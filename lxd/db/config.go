@@ -7,16 +7,16 @@ import "github.com/lxc/lxd/lxd/db/query"
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t config.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -d cluster -p db -e config objects
 //go:generate mapper stmt -d cluster -p db -e config create struct=Config
 //go:generate mapper stmt -d cluster -p db -e config delete
 //
-//go:generate mapper method -d cluster -p db -e config GetMany
-//go:generate mapper method -d cluster -p db -e config Create struct=Config
-//go:generate mapper method -d cluster -p db -e config Update struct=Config
-//go:generate mapper method -d cluster -p db -e config DeleteMany
+//go:generate mapper method -i -d cluster -p db -e config GetMany
+//go:generate mapper method -i -d cluster -p db -e config Create struct=Config
+//go:generate mapper method -i -d cluster -p db -e config Update struct=Config
+//go:generate mapper method -i -d cluster -p db -e config DeleteMany
 
 // Config is a reference struct representing one configuration entry of another entity.
 type Config struct {
