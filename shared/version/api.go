@@ -331,6 +331,7 @@ var APIExtensions = []string{
 	"instance_file_head",
 	"instances_nic_host_name",
 	"image_copy_profile",
+	"container_syscall_intercept_sysinfo",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
