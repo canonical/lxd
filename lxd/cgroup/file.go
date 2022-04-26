@@ -42,7 +42,7 @@ func NewFileReadWriter(pid int, unifiedCapable bool) (*CGroup, error) {
 				path = filepath.Join("/sys/fs/cgroup", fields[2])
 			}
 
-			if fields[2] == "/init.scope" {
+			if strings.HasSuffix(fields[2], "/init.scope") {
 				path = filepath.Dir(path)
 			}
 		}
