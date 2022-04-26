@@ -231,6 +231,7 @@ if [ "${1:-"all"}" != "cluster" ]; then
     run_test test_container_devices_unix_char "container devices - unix-char"
     run_test test_container_devices_unix_block "container devices - unix-block"
     run_test test_container_devices_tpm "container devices - tpm"
+    run_test test_container_syscall_interception "container syscall interception"
     run_test test_security "security features"
     run_test test_security_protection "container protection"
     run_test test_image_expiry "image expiry"
