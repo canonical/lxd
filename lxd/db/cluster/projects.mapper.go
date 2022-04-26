@@ -278,8 +278,10 @@ func DeleteProject(ctx context.Context, tx *sql.Tx, name string) error {
 		return fmt.Errorf("Fetch affected rows: %w", err)
 	}
 
-	if n != 1 {
-		return fmt.Errorf("Query deleted %d rows instead of 1", n)
+	if n == 0 {
+		return api.StatusErrorf(http.StatusNotFound, "Project not found")
+	} else if n > 1 {
+		return fmt.Errorf("Query deleted %d Project rows instead of 1", n)
 	}
 
 	return nil
