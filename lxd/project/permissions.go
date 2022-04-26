@@ -784,6 +784,7 @@ var allowableIntercept = []string{
 	"security.syscalls.intercept.mount",
 	"security.syscalls.intercept.mount.fuse",
 	"security.syscalls.intercept.setxattr",
+	"security.syscalls.intercept.sysinfo",
 }
 
 // Return true if a low-level container option is forbidden.
