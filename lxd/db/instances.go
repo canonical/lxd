@@ -22,7 +22,7 @@ import (
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t instances.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -d cluster -p db -e instance objects
 //go:generate mapper stmt -d cluster -p db -e instance objects-by-ID
@@ -47,15 +47,15 @@ import (
 //go:generate mapper stmt -d cluster -p db -e instance delete-by-Project-and-Name
 //go:generate mapper stmt -d cluster -p db -e instance update struct=Instance
 //
-//go:generate mapper method -d cluster -p db -e instance GetMany
-//go:generate mapper method -d cluster -p db -e instance GetOne
-//go:generate mapper method -d cluster -p db -e instance URIs
-//go:generate mapper method -d cluster -p db -e instance ID struct=Instance
-//go:generate mapper method -d cluster -p db -e instance Exists struct=Instance
-//go:generate mapper method -d cluster -p db -e instance Create struct=Instance
-//go:generate mapper method -d cluster -p db -e instance Rename
-//go:generate mapper method -d cluster -p db -e instance DeleteOne-by-Project-and-Name
-//go:generate mapper method -d cluster -p db -e instance Update struct=Instance
+//go:generate mapper method -i -d cluster -p db -e instance GetMany
+//go:generate mapper method -i -d cluster -p db -e instance GetOne
+//go:generate mapper method -i -d cluster -p db -e instance URIs
+//go:generate mapper method -i -d cluster -p db -e instance ID struct=Instance
+//go:generate mapper method -i -d cluster -p db -e instance Exists struct=Instance
+//go:generate mapper method -i -d cluster -p db -e instance Create struct=Instance
+//go:generate mapper method -i -d cluster -p db -e instance Rename
+//go:generate mapper method -i -d cluster -p db -e instance DeleteOne-by-Project-and-Name
+//go:generate mapper method -i -d cluster -p db -e instance Update struct=Instance
 
 // Instance is a value object holding db-related details about an instance.
 type Instance struct {

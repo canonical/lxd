@@ -15,7 +15,7 @@ import (
 // Code generation directives.
 //
 //go:generate -command mapper lxd-generate db mapper -t certificates.mapper.go
-//go:generate mapper reset
+//go:generate mapper reset -i -b "//go:build linux && cgo && !agent"
 //
 //go:generate mapper stmt -e certificate objects
 //go:generate mapper stmt -e certificate objects-by-Fingerprint
@@ -25,14 +25,14 @@ import (
 //go:generate mapper stmt -e certificate delete-by-Name-and-Type
 //go:generate mapper stmt -e certificate update struct=Certificate
 //
-//go:generate mapper method -e certificate GetMany version=2
-//go:generate mapper method -e certificate GetOne version=2
-//go:generate mapper method -e certificate ID struct=Certificate version=2
-//go:generate mapper method -e certificate Exists struct=Certificate version=2
-//go:generate mapper method -e certificate Create struct=Certificate version=2
-//go:generate mapper method -e certificate DeleteOne-by-Fingerprint version=2
-//go:generate mapper method -e certificate DeleteMany-by-Name-and-Type version=2
-//go:generate mapper method -e certificate Update struct=Certificate version=2
+//go:generate mapper method -i -e certificate GetMany version=2
+//go:generate mapper method -i -e certificate GetOne version=2
+//go:generate mapper method -i -e certificate ID struct=Certificate version=2
+//go:generate mapper method -i -e certificate Exists struct=Certificate version=2
+//go:generate mapper method -i -e certificate Create struct=Certificate version=2
+//go:generate mapper method -i -e certificate DeleteOne-by-Fingerprint version=2
+//go:generate mapper method -i -e certificate DeleteMany-by-Name-and-Type version=2
+//go:generate mapper method -i -e certificate Update struct=Certificate version=2
 
 // Certificate is here to pass the certificates content from the database around.
 type Certificate struct {
