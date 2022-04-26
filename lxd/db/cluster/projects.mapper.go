@@ -166,7 +166,7 @@ func CreateProject(ctx context.Context, tx *sql.Tx, object Project) (int64, erro
 	}
 
 	if exists {
-		return -1, fmt.Errorf("This \"projects\" entry already exists")
+		return -1, api.StatusErrorf(http.StatusConflict, "This \"projects\" entry already exists")
 	}
 
 	args := make([]any, 2)
