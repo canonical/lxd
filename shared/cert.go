@@ -122,6 +122,11 @@ func (c *CertInfo) PublicKey() []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: data})
 }
 
+// PublicKeyX509 is a convenience to return the underlying public key as an *x509.Certificate.
+func (c *CertInfo) PublicKeyX509() (*x509.Certificate, error) {
+	return x509.ParseCertificate(c.KeyPair().Certificate[0])
+}
+
 // PrivateKey is a convenience to encode the underlying private key.
 func (c *CertInfo) PrivateKey() []byte {
 	ecKey, ok := c.KeyPair().PrivateKey.(*ecdsa.PrivateKey)
