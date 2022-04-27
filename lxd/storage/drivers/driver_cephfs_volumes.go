@@ -530,17 +530,24 @@ func (d *cephfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) 
 }
 
 // MountVolumeSnapshot makes the snapshot available for use.
-func (d *cephfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *cephfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
 	unlock := snapVol.MountLock()
 	defer unlock()
 
-	return false, nil
+	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	return nil
 }
 
 // UnmountVolumeSnapshot clears any runtime state for the snapshot.
 func (d *cephfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
 	unlock := snapVol.MountLock()
 	defer unlock()
+
+	refCount := snapVol.MountRefCountDecrement()
+	if refCount > 0 {
+		d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
+		return false, ErrInUse
+	}
 
 	return false, nil
 }
