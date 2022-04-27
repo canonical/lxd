@@ -852,18 +852,17 @@ func InstanceMount(pool Pool, inst instance.Instance, op *operations.Operation) 
 	return mountInfo, nil
 }
 
-// InstanceUnmount unmounts an instance's storage volume (if not in use). Returns if we unmounted the volume.
-func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation) (bool, error) {
+// InstanceUnmount unmounts an instance's storage volume (if not in use).
+func InstanceUnmount(pool Pool, inst instance.Instance, op *operations.Operation) error {
 	var err error
-	var ourUnmount bool
 
 	if inst.IsSnapshot() {
-		ourUnmount, err = pool.UnmountInstanceSnapshot(inst, op)
+		err = pool.UnmountInstanceSnapshot(inst, op)
 	} else {
-		ourUnmount, err = pool.UnmountInstance(inst, op)
+		err = pool.UnmountInstance(inst, op)
 	}
 
-	return ourUnmount, err
+	return err
 }
 
 // InstanceDiskBlockSize returns the block device size for the instance's disk.
