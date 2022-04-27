@@ -3522,7 +3522,7 @@ func (d *lxc) Restore(sourceContainer instance.Instance, stateful bool) error {
 		}
 	}
 
-	_, err = pool.UnmountInstance(d, nil)
+	err = pool.UnmountInstance(d, nil)
 	if err != nil {
 		op.Done(err)
 		return err
@@ -6141,7 +6141,7 @@ func (d *lxc) unmount() error {
 	}
 
 	if d.IsSnapshot() {
-		_, err := pool.UnmountInstanceSnapshot(d, nil)
+		err = pool.UnmountInstanceSnapshot(d, nil)
 		if err != nil {
 			return err
 		}
@@ -6159,7 +6159,7 @@ func (d *lxc) unmount() error {
 		unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
 	}
 
-	_, err = pool.UnmountInstance(d, nil)
+	err = pool.UnmountInstance(d, nil)
 	if err != nil {
 		return err
 	}
