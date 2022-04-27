@@ -6912,15 +6912,15 @@ msgstr ""
 msgid "yes"
 msgstr "да"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Имя контейнера: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Копирование образа: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Принять сертификат"
 
@@ -7146,6 +7146,7 @@ msgstr "да"
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Сертификат клиента хранится на сервере: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Невозможно прочитать из стандартного ввода: %s"
 
@@ -7153,6 +7154,6 @@ msgstr "да"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Копирование образа: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Копирование образа: %s"

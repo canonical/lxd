@@ -7395,17 +7395,24 @@ msgid "yes"
 msgstr "oui"
 
 #, fuzzy
+#~ msgid ""
+#~ "To start your first container, try: lxc launch ubuntu:20.04\n"
+#~ "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
+#~ msgstr ""
+#~ "Pour démarrer votre premier conteneur, essayer : lxc launch ubuntu:16.04"
+
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Clé de configuration invalide"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
 #~ msgid "Ips:"
 #~ msgstr "IPs :"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Échec lors de la génération de 'lxc.1': %v"
 
@@ -7432,11 +7439,11 @@ msgstr "oui"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Nom du réseau"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed to create alias %s"
 #~ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Profil %s ajouté à %s"
 
@@ -8912,7 +8919,7 @@ msgstr "oui"
 #~ "\n"
 #~ "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "Échec lors de la génération de 'lxc.1': %v"
 
@@ -8920,6 +8927,7 @@ msgstr "oui"
 #~ msgid "Remote disconnected"
 #~ msgstr "Mot de passe de l'administrateur distant"
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "Impossible de lire depuis stdin : %s"
 
@@ -8935,6 +8943,6 @@ msgstr "oui"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Vous devez fournir le nom d'un conteneur pour : "
