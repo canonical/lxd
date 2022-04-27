@@ -1152,39 +1152,39 @@ func (d *ceph) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Opera
 	unlock := vol.MountLock()
 	defer unlock()
 
+	var err error
 	ourUnmount := false
+	mountPath := vol.MountPath()
+
 	refCount := vol.MountRefCountDecrement()
 
 	// Attempt to unmount the volume.
-	if vol.contentType == ContentTypeFS {
-		mountPath := vol.MountPath()
-		if filesystem.IsMountPoint(mountPath) {
-			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-				return false, ErrInUse
-			}
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
+		if refCount > 0 {
+			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+			return false, ErrInUse
+		}
 
-			err := TryUnmount(mountPath, unix.MNT_DETACH)
+		err = TryUnmount(mountPath, unix.MNT_DETACH)
+		if err != nil {
+			return false, err
+		}
+		d.logger.Debug("Unmounted RBD volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
+
+		// Attempt to unmap.
+		if !keepBlockDev {
+			err = d.rbdUnmapVolume(vol, true)
 			if err != nil {
 				return false, err
 			}
-			d.logger.Debug("Unmounted RBD volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
-
-			// Attempt to unmap.
-			if !keepBlockDev {
-				err = d.rbdUnmapVolume(vol, true)
-				if err != nil {
-					return false, err
-				}
-			}
-
-			ourUnmount = true
 		}
+
+		ourUnmount = true
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, unmount the filesystem volume.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			_, err := d.UnmountVolume(fsVol, false, op)
+			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
 			if err != nil {
 				return false, err
 			}
