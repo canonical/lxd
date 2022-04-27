@@ -63,9 +63,8 @@ type Driver interface {
 	// MountVolume mounts a storage volume (if not mounted) and increments reference counter.
 	MountVolume(vol Volume, op *operations.Operation) error
 
-	// MountVolumeSnapshot mounts a storage volume snapshot as readonly, returns true if we
-	// caused a new mount, false if already mounted.
-	MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error)
+	// MountVolumeSnapshot mounts a storage volume snapshot as readonly.
+	MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error
 
 	// UnmountVolume unmounts a storage volume, returns true if unmounted, false if was not
 	// mounted.
