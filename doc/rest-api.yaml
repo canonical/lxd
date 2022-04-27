@@ -34,7 +34,7 @@ definitions:
         type: boolean
         x-go-name: Restricted
       type:
-        description: Usage type for the certificate (only client currently)
+        description: Usage type for the certificate
         example: client
         type: string
         x-go-name: Type
@@ -98,7 +98,7 @@ definitions:
         type: boolean
         x-go-name: Restricted
       type:
-        description: Usage type for the certificate (only client currently)
+        description: Usage type for the certificate
         example: client
         type: string
         x-go-name: Type
@@ -143,7 +143,7 @@ definitions:
         type: boolean
         x-go-name: Token
       type:
-        description: Usage type for the certificate (only client currently)
+        description: Usage type for the certificate
         example: client
         type: string
         x-go-name: Type
