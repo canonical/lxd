@@ -7126,15 +7126,15 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Alternatives config Verzeichnis."
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Akzeptiere Zertifikat"
 
@@ -7158,7 +7158,7 @@ msgstr ""
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "Kein Zertifikat für diese Verbindung"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "Profil %s wurde auf %s angewandt\n"
 
@@ -8086,6 +8086,6 @@ msgstr ""
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "der Name des Ursprung Containers muss angegeben werden"

@@ -710,9 +710,8 @@ msgid "Add profiles to instances"
 msgstr "インスタンスにプロファイルを追加します"
 
 #: lxc/cluster_role.go:47 lxc/cluster_role.go:48
-#, fuzzy
 msgid "Add roles to a cluster member"
-msgstr "クラスターメンバーをリストアします"
+msgstr "クラスターメンバーにロールを追加します"
 
 #: lxc/network_acl.go:727 lxc/network_acl.go:728
 msgid "Add rules to an ACL"
@@ -3268,9 +3267,8 @@ msgid "Manage cluster members"
 msgstr "クラスタのメンバを管理します"
 
 #: lxc/cluster_role.go:21 lxc/cluster_role.go:22
-#, fuzzy
 msgid "Manage cluster roles"
-msgstr "クラスタグループを管理します"
+msgstr "クラスタロールを管理します"
 
 #: lxc/alias.go:21 lxc/alias.go:22
 msgid "Manage command aliases"
@@ -3418,14 +3416,14 @@ msgid "Mdev profiles:"
 msgstr "Mdevプロファイル:"
 
 #: lxc/cluster_role.go:83
-#, fuzzy, c-format
+#, c-format
 msgid "Member %q already has role %q"
-msgstr "メンバ名 %s を %s に変更しました"
+msgstr "メンバー %q はすでにロール %q を持っています"
 
 #: lxc/cluster_role.go:137
-#, fuzzy, c-format
+#, c-format
 msgid "Member %q does not have role %q"
-msgstr "メンバ名 %s を %s に変更しました"
+msgstr "メンバー %q はロール %q を持っていません"
 
 #: lxc/cluster.go:760
 #, c-format
@@ -4352,9 +4350,8 @@ msgid "Remove remotes"
 msgstr "リモートサーバを削除します"
 
 #: lxc/cluster_role.go:101 lxc/cluster_role.go:102
-#, fuzzy
 msgid "Remove roles from a cluster member"
-msgstr "クラスタメンバの名前を変更します"
+msgstr "クラスタメンバからロールを削除します"
 
 #: lxc/network_acl.go:848 lxc/network_acl.go:849
 msgid "Remove rules from an ACL"
@@ -5949,9 +5946,8 @@ msgid "[<remote>:]<member> <new-name>"
 msgstr "[<remote>:]<member> <new-name>"
 
 #: lxc/cluster_role.go:46 lxc/cluster_role.go:100
-#, fuzzy
 msgid "[<remote>:]<member> <role[,role...]>"
-msgstr "[<remote>:]<member> <group>"
+msgstr "[<remote>:]<member> <role[,role...]>"
 
 #: lxc/network.go:357 lxc/network.go:578 lxc/network.go:759 lxc/network.go:974
 #: lxc/network.go:1163 lxc/network_forward.go:84 lxc/network_peer.go:80
@@ -6708,16 +6704,54 @@ msgstr "y"
 msgid "yes"
 msgstr "yes"
 
+#~ msgid ""
+#~ "To start your first container, try: lxc launch ubuntu:20.04\n"
+#~ "Or for a virtual machine: lxc launch ubuntu:20.04 --vm"
+#~ msgstr ""
+#~ "初めてコンテナを起動するには、\"lxc launch ubuntu:20.04\" と実行してみてく"
+#~ "ださい\n"
+#~ "仮想マシンの場合は \"lxc launch ubuntu:20.04 --vm\" と実行してみてください"
+
+#~ msgid ""
+#~ "lxc init ubuntu:20.04 u1\n"
+#~ "\n"
+#~ "lxc init ubuntu:20.04 u1 < config.yaml\n"
+#~ "    Create the instance with configuration from config.yaml"
+#~ msgstr ""
+#~ "lxc init ubuntu:20.04 u1\n"
+#~ "\n"
+#~ "lxc init ubuntu:20.04 u1 < config.yaml\n"
+#~ "    config.yaml の設定を使ってインスタンスを作成します"
+
+#~ msgid ""
+#~ "lxc launch ubuntu:20.04 u1\n"
+#~ "\n"
+#~ "lxc launch ubuntu:20.04 u1 < config.yaml\n"
+#~ "    Create and start a container with configuration from config.yaml\n"
+#~ "\n"
+#~ "lxc launch ubuntu:20.04 v1 --vm\n"
+#~ "    Create and start a virtual machine"
+#~ msgstr ""
+#~ "lxc launch ubuntu:20.04 u1\n"
+#~ "\n"
+#~ "lxc launch ubuntu:20.04 u1 < config.yaml\n"
+#~ "    config.yaml の設定を使ってインスタンスを作成し、起動します\n"
+#~ "\n"
+#~ "lxc launch ubuntu:20.04 v1 --vm\n"
+#~ "    仮想マシンを作成し、起動します"
+
+#, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "不適切な キー=値 のペア: %w"
 
+#, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "クライアント %s の証明書追加トークン: %s"
 
 #~ msgid "Ips:"
 #~ msgstr "IPアドレス:"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -6734,7 +6768,7 @@ msgstr "yes"
 #~ msgid "Manage network zone record entriess"
 #~ msgstr "ネットワークゾーンレコードエントリを管理します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s join token: %s"
 #~ msgstr "メンバ %s の join トークン:"
 
@@ -8834,7 +8868,7 @@ msgstr "yes"
 #~ "lxc init ubuntu:18.04 u1 < config.yaml\n"
 #~ "    config.yaml の設定を使ってインスタンスを作成します"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %w"
 #~ msgstr "ピアのステータスの取得に失敗しました: %w"
 
@@ -8842,6 +8876,7 @@ msgstr "yes"
 #~ msgid "Remote disconnected"
 #~ msgstr "リモートの管理者パスワード"
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "標準入力から読み込めません: %s"
 
@@ -8899,6 +8934,7 @@ msgstr "yes"
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "クラスタグループからクラスタメンバを削除します"
 
+#, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "設定 %q はクラスタメンバー %q に存在しません"
 

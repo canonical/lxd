@@ -6457,15 +6457,15 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
 #~ msgstr "Nombre del contenedor es: %s"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Client %s certificate add token: %s"
 #~ msgstr "Nombre del Miembro del Cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "Failed finding sshfs: %v\n"
 #~ msgstr "Acepta certificado"
 
@@ -6557,6 +6557,7 @@ msgstr ""
 #~ msgid "Client certificate stored at server:"
 #~ msgstr "Certificado del cliente almacenado en el servidor: "
 
+#, c-format
 #~ msgid "Can't read from stdin: %s"
 #~ msgstr "No se peude leer desde stdin: %s"
 
@@ -6564,6 +6565,6 @@ msgstr ""
 #~ msgid "Removes a cluster member from a cluster group"
 #~ msgstr "Nombre del Miembro del Cluster"
 
-#, fuzzy
+#, fuzzy, c-format
 #~ msgid "The key %q doest not exist on cluster member %q"
 #~ msgstr "Nombre del Miembro del Cluster"
