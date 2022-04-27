@@ -458,6 +458,11 @@ definitions:
         example: evacuate
         type: string
         x-go-name: Action
+      mode:
+        description: Override the configured evacuation mode.
+        example: stop
+        type: string
+        x-go-name: Mode
     title: ClusterMemberStatePost represents the fields required to evacuate a cluster
       member.
     type: object
