@@ -244,6 +244,12 @@ type ClusterMemberStatePost struct {
 	// The action to be performed. Valid actions are "evacuate" and "restore".
 	// Example: evacuate
 	Action string `json:"action" yaml:"action"`
+
+	// Override the configured evacuation mode.
+	// Example: stop
+	//
+	// API extension: clustering_evacuate_mode
+	Mode string `json:"mode" yaml:"mode"`
 }
 
 // ClusterGroupsPost represents the fields available for a new cluster group.
