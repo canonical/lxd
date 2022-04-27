@@ -648,45 +648,44 @@ func (d *lvm) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 
 	var err error
 	ourUnmount := false
-	volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
+	mountPath := vol.MountPath()
+
 	refCount := vol.MountRefCountDecrement()
 
 	// Check if already mounted.
-	if vol.contentType == ContentTypeFS {
-		mountPath := vol.MountPath()
-		if filesystem.IsMountPoint(mountPath) {
-			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-				return false, ErrInUse
-			}
-
-			err = TryUnmount(mountPath, 0)
-			if err != nil {
-				return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
-			}
-			d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
-
-			// We only deactivate filesystem volumes if an unmount was needed to better align with our
-			// unmount return value indicator.
-			if !keepBlockDev {
-				_, err = d.deactivateVolume(vol)
-				if err != nil {
-					return false, err
-				}
-			}
-
-			ourUnmount = true
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
+		if refCount > 0 {
+			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+			return false, ErrInUse
 		}
-	} else if vol.contentType == ContentTypeBlock {
-		// For VMs, unmount the filesystem volume.
-		if vol.IsVMBlock() {
-			fsVol := vol.NewVMBlockFilesystemVolume()
-			_, err = d.UnmountVolume(fsVol, false, op)
+
+		err = TryUnmount(mountPath, 0)
+		if err != nil {
+			return false, fmt.Errorf("Failed to unmount LVM logical volume: %w", err)
+		}
+		d.logger.Debug("Unmounted logical volume", logger.Ctx{"volName": vol.name, "path": mountPath, "keepBlockDev": keepBlockDev})
+
+		// We only deactivate filesystem volumes if an unmount was needed to better align with our
+		// unmount return value indicator.
+		if !keepBlockDev {
+			_, err = d.deactivateVolume(vol)
 			if err != nil {
 				return false, err
 			}
 		}
 
+		ourUnmount = true
+	} else if vol.contentType == ContentTypeBlock {
+		// For VMs, unmount the filesystem volume.
+		if vol.IsVMBlock() {
+			fsVol := vol.NewVMBlockFilesystemVolume()
+			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		volDevPath := d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, vol.name)
 		if !keepBlockDev && shared.PathExists(volDevPath) {
 			if refCount > 0 {
 				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
