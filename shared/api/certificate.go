@@ -44,7 +44,7 @@ type CertificatePut struct {
 	// Example: castiana
 	Name string `json:"name" yaml:"name"`
 
-	// Usage type for the certificate (only client currently)
+	// Usage type for the certificate
 	// Example: client
 	Type string `json:"type" yaml:"type"`
 
