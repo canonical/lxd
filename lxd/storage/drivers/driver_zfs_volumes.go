@@ -1686,33 +1686,32 @@ func (d *zfs) UnmountVolume(vol Volume, keepBlockDev bool, op *operations.Operat
 	unlock := vol.MountLock()
 	defer unlock()
 
+	var err error
 	ourUnmount := false
 	dataset := d.dataset(vol, false)
+	mountPath := vol.MountPath()
+
 	refCount := vol.MountRefCountDecrement()
 
-	if vol.contentType == ContentTypeFS {
-		// Check if mounted.
-		mountPath := vol.MountPath()
-		if filesystem.IsMountPoint(mountPath) {
-			if refCount > 0 {
-				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
-				return false, ErrInUse
-			}
-
-			// Unmount the dataset.
-			err := TryUnmount(mountPath, 0)
-			if err != nil {
-				return false, err
-			}
-
-			d.logger.Debug("Unmounted ZFS dataset", logger.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
-			ourUnmount = true
+	if vol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
+		if refCount > 0 {
+			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": vol.name, "refCount": refCount})
+			return false, ErrInUse
 		}
+
+		// Unmount the dataset.
+		err = TryUnmount(mountPath, 0)
+		if err != nil {
+			return false, err
+		}
+
+		d.logger.Debug("Unmounted ZFS dataset", logger.Ctx{"volName": vol.name, "dev": dataset, "path": mountPath})
+		ourUnmount = true
 	} else if vol.contentType == ContentTypeBlock {
 		// For VMs, also mount the filesystem dataset.
 		if vol.IsVMBlock() {
 			fsVol := vol.NewVMBlockFilesystemVolume()
-			_, err := d.UnmountVolume(fsVol, false, op)
+			ourUnmount, err = d.UnmountVolume(fsVol, false, op)
 			if err != nil {
 				return false, err
 			}
