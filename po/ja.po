@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-22 20:37-0400\n"
+"POT-Creation-Date: 2022-04-27 19:56-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -490,7 +490,7 @@ msgstr "%s (%d個使用可能)"
 msgid "%s (%d more)"
 msgstr "%s (他%d個)"
 
-#: lxc/file.go:864
+#: lxc/file.go:879
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s はディレクトリではありません"
@@ -501,7 +501,7 @@ msgid "%v (interrupt two more times to force)"
 msgstr ""
 "%v (強制的に中断したい場合はあと2回Ctrl-Cを入力/SIGINTを送出してください)"
 
-#: lxc/file.go:758
+#: lxc/file.go:773
 #, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' はサポートされないタイプのファイルです"
@@ -598,7 +598,7 @@ msgstr "<remote> <URL>"
 msgid "<remote> <new-name>"
 msgstr "<remote> <new-name>"
 
-#: lxc/file.go:425
+#: lxc/file.go:436
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr "<source path>... [<remote>:]<instance>/<path>"
 
@@ -759,7 +759,7 @@ msgstr "アーキテクチャ: %s"
 msgid "Architecture: %v"
 msgstr "アーキテクチャ: %v"
 
-#: lxc/cluster.go:1114
+#: lxc/cluster.go:1117
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
@@ -978,7 +978,7 @@ msgstr "ローカル上のリネームでは、設定やプロファイルの上
 msgid "Can't provide a name for the target image"
 msgstr "ターゲットイメージの名前を取得できません"
 
-#: lxc/file.go:321
+#: lxc/file.go:331
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 "ディレクトリを pull する場合は --recursive オプションを使用してください"
@@ -1008,7 +1008,7 @@ msgstr "リネームの場合は異なるリモートを指定できません"
 msgid "Can't specify column L when not clustered"
 msgstr "クラスタでない場合はカラムとして L は指定できません"
 
-#: lxc/file.go:501
+#: lxc/file.go:516
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "再帰 (recursive) モードでは uid/gid/mode を指定できません"
 
@@ -1347,7 +1347,7 @@ msgstr "空のインスタンスを作成"
 msgid "Create and start instances from images"
 msgstr "イメージからインスタンスを作成し、起動します"
 
-#: lxc/file.go:238 lxc/file.go:434
+#: lxc/file.go:244 lxc/file.go:445
 msgid "Create any directories necessary"
 msgstr "必要なディレクトリをすべて作成します"
 
@@ -1552,8 +1552,8 @@ msgstr "警告を削除します"
 #: lxc/alias.go:198 lxc/cluster.go:30 lxc/cluster.go:119 lxc/cluster.go:201
 #: lxc/cluster.go:250 lxc/cluster.go:297 lxc/cluster.go:349 lxc/cluster.go:378
 #: lxc/cluster.go:428 lxc/cluster.go:511 lxc/cluster.go:596 lxc/cluster.go:709
-#: lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1062
-#: lxc/cluster.go:1081 lxc/cluster_group.go:30 lxc/cluster_group.go:79
+#: lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1063
+#: lxc/cluster.go:1084 lxc/cluster_group.go:30 lxc/cluster_group.go:79
 #: lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261
 #: lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518
 #: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
@@ -1571,7 +1571,7 @@ msgstr "警告を削除します"
 #: lxc/config_trust.go:508 lxc/config_trust.go:551 lxc/config_trust.go:622
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169
-#: lxc/file.go:232 lxc/file.go:427 lxc/file.go:914 lxc/image.go:38
+#: lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38
 #: lxc/image.go:146 lxc/image.go:314 lxc/image.go:365 lxc/image.go:490
 #: lxc/image.go:649 lxc/image.go:870 lxc/image.go:1005 lxc/image.go:1303
 #: lxc/image.go:1382 lxc/image.go:1441 lxc/image.go:1493 lxc/image.go:1549
@@ -1721,7 +1721,7 @@ msgstr "このプラットフォーム上ではディレクトリのインポー
 msgid "Directory to run the command in (default /root)"
 msgstr "コマンドを実行するディレクトリ (デフォルト /root)"
 
-#: lxc/file.go:922
+#: lxc/file.go:937
 msgid "Disable authentication when using SSH SFTP listener"
 msgstr "SSH SFTP リスナーを使う際に認証を無効化します"
 
@@ -1916,11 +1916,11 @@ msgstr "Ephemeral インスタンス"
 msgid "Error updating template file: %s"
 msgstr "テンプレートファイル更新のエラー: %s"
 
-#: lxc/cluster.go:1061 lxc/cluster.go:1062
+#: lxc/cluster.go:1062 lxc/cluster.go:1063
 msgid "Evacuate cluster member"
 msgstr "クラスターのメンバーを待避させます"
 
-#: lxc/cluster.go:1138
+#: lxc/cluster.go:1142
 #, c-format
 msgid "Evacuating cluster member: %s"
 msgstr "クラスターメンバーを待避させています: %s"
@@ -2031,22 +2031,22 @@ msgstr "FINGERPRINT"
 msgid "FIRST SEEN"
 msgstr "FIRST SEEN"
 
-#: lxc/file.go:1161
+#: lxc/file.go:1176
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr "クライアント %q との SSH ハンドシェイクに失敗しました: %v"
 
-#: lxc/file.go:1184
+#: lxc/file.go:1199
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr "クライアント %q のチャンネルの受け入れに失敗しました: %v"
 
-#: lxc/file.go:1211
+#: lxc/file.go:1226
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr "クライアント %q に対する SFTP インスタンスの接続に失敗しました: %v"
 
-#: lxc/file.go:999
+#: lxc/file.go:1014
 #, c-format
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "インスタンスの SFTP への接続に失敗しました: %w"
@@ -2056,7 +2056,7 @@ msgstr "インスタンスの SFTP への接続に失敗しました: %w"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr "証明書追加トークンのトークン変換操作に失敗しました: %w"
 
-#: lxc/file.go:1118
+#: lxc/file.go:1133
 #, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "SSH ホスト鍵の生成に失敗しました: %w"
@@ -2066,17 +2066,17 @@ msgstr "SSH ホスト鍵の生成に失敗しました: %w"
 msgid "Failed getting peer's status: %w"
 msgstr "ピアのステータスの取得に失敗しました: %w"
 
-#: lxc/file.go:1123
+#: lxc/file.go:1138
 #, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "SSH ホスト鍵の読み取りに失敗しました: %w"
 
-#: lxc/file.go:1024
+#: lxc/file.go:1039
 #, c-format
 msgid "Failed starting sshfs: %w"
 msgstr "sshfs の起動に失敗しました: %w"
 
-#: lxc/file.go:1149
+#: lxc/file.go:1164
 #, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "受信接続の受け入れに失敗しました: %w"
@@ -2114,7 +2114,7 @@ msgstr "プロジェクトが見つけられませんでした: %w"
 msgid "Failed to get the new instance name"
 msgstr "新しいインスタンス名が取得できません"
 
-#: lxc/file.go:1135
+#: lxc/file.go:1150
 #, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "コネクションのリッスンに失敗しました: %w"
@@ -2129,7 +2129,7 @@ msgstr "コピー先のインスタンス '%s' のリフレッシュに失敗し
 msgid "Failed to remove alias %s: %w"
 msgstr "エイリアス %s の削除に失敗しました: %w"
 
-#: lxc/file.go:753
+#: lxc/file.go:768
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr "パス %s にアクセスできませんでした: %s"
@@ -2148,7 +2148,11 @@ msgstr "情報表示のフィルタリングはまだサポートされていま
 msgid "Fingerprint: %s"
 msgstr "証明書のフィンガープリント: %s"
 
-#: lxc/cluster.go:1089
+#: lxc/cluster.go:1065
+msgid "Force a particular evacuation action"
+msgstr ""
+
+#: lxc/cluster.go:1092
 msgid "Force evacuation without user confirmation"
 msgstr "ユーザーの確認なしで強制的に待避させます"
 
@@ -2354,22 +2358,22 @@ msgstr "ホストインターフェース"
 msgid "Hugepages:\n"
 msgstr "Hugepages:\n"
 
-#: lxc/file.go:1233
+#: lxc/file.go:1248
 #, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "SSH 経由のインスタンスへの I/O コピーが失敗しました: %v"
 
-#: lxc/file.go:1222
+#: lxc/file.go:1237
 #, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "インスタンスから SSH 経由の I/O コピーに失敗しました: %v"
 
-#: lxc/file.go:1048
+#: lxc/file.go:1063
 #, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr "インスタンスから sshfs への I/O コピーに失敗しました: %v"
 
-#: lxc/file.go:1058
+#: lxc/file.go:1073
 #, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr "sshfs からインスタンスへの I/O コピーに失敗しました: %v"
@@ -2538,11 +2542,11 @@ msgstr "入力するデータ"
 msgid "Instance Only"
 msgstr "インスタンスのみ"
 
-#: lxc/file.go:1050
+#: lxc/file.go:1065
 msgid "Instance disconnected"
 msgstr "インスタンスが切断されました"
 
-#: lxc/file.go:1224
+#: lxc/file.go:1239
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr "クライアント %q に対するインスタンスが切断されました"
@@ -2556,7 +2560,7 @@ msgstr "インスタンス名を指定する必要があります"
 msgid "Instance name is: %s"
 msgstr "インスタンス名: %s"
 
-#: lxc/file.go:971
+#: lxc/file.go:986
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr "SSH SFTP リスナーモードではインスタンスのパスを使用できません"
 
@@ -2609,7 +2613,7 @@ msgstr "不正なフォーマット %s"
 msgid "Invalid instance name: %s"
 msgstr "不正なインスタンス名: %s"
 
-#: lxc/file.go:966
+#: lxc/file.go:981
 #, c-format
 msgid "Invalid instance path: %q"
 msgstr "不正なインスタンスのパス: %q"
@@ -2674,12 +2678,12 @@ msgstr "不正なプロトコル: %s"
 msgid "Invalid snapshot name"
 msgstr "不正なスナップショット名"
 
-#: lxc/file.go:295
+#: lxc/file.go:305
 #, c-format
 msgid "Invalid source %s"
 msgstr "不正なソース %s"
 
-#: lxc/file.go:455
+#: lxc/file.go:466
 #, c-format
 msgid "Invalid target %s"
 msgstr "不正な送り先 %s"
@@ -3386,8 +3390,8 @@ msgstr "ストレージボリュームを管理します"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 "ストレージボリュームを管理します\n"
 "\n"
@@ -3479,7 +3483,7 @@ msgstr "証明書のフィンガープリントがありません"
 msgid "Missing cluster group name"
 msgstr "クラスターグループ名がありません"
 
-#: lxc/cluster.go:629 lxc/cluster.go:1110 lxc/cluster_group.go:110
+#: lxc/cluster.go:629 lxc/cluster.go:1113 lxc/cluster_group.go:110
 #: lxc/cluster_group.go:469 lxc/cluster_role.go:70 lxc/cluster_role.go:124
 msgid "Missing cluster member name"
 msgstr "クラスターメンバー名がありません"
@@ -3576,7 +3580,7 @@ msgstr "コピー元のボリューム名を指定する必要があります"
 msgid "Missing storage pool name"
 msgstr "ストレージプール名を指定する必要があります"
 
-#: lxc/file.go:548
+#: lxc/file.go:563
 msgid "Missing target directory"
 msgstr "コピー先のディレクトリを指定する必要があります"
 
@@ -3617,13 +3621,13 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr "複数のデバイスとマッチします。デバイス名を指定してください"
 
-#: lxc/file.go:271
+#: lxc/file.go:281
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "ダウンロード対象のファイルが複数ありますが、コピー先がディレクトリではありま"
 "せん"
 
-#: lxc/file.go:913 lxc/file.go:914
+#: lxc/file.go:928 lxc/file.go:929
 msgid "Mount files from instances"
 msgstr "インスタンスからファイルをマウントします"
 
@@ -4044,7 +4048,7 @@ msgstr "ポートタイプ: %s"
 msgid "Ports:"
 msgstr "ポート:"
 
-#: lxc/file.go:1028
+#: lxc/file.go:1043
 msgid "Press ctrl+c to finish"
 msgstr "終了するには ctrl+c を押してください"
 
@@ -4192,20 +4196,20 @@ msgstr "インスタンスをイメージとして出力します"
 msgid "Publishing instance: %s"
 msgstr "インスタンスの出力中: %s"
 
-#: lxc/file.go:231 lxc/file.go:232
+#: lxc/file.go:237 lxc/file.go:238
 msgid "Pull files from instances"
 msgstr "インスタンスからファイルを取得します"
 
-#: lxc/file.go:384 lxc/file.go:707
+#: lxc/file.go:394 lxc/file.go:722
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr "ファイル %s を %s から取得します: %%s"
 
-#: lxc/file.go:426 lxc/file.go:427
+#: lxc/file.go:437 lxc/file.go:438
 msgid "Push files into instances"
 msgstr "インスタンス内にファイルをコピーします"
 
-#: lxc/file.go:643 lxc/file.go:799
+#: lxc/file.go:658 lxc/file.go:814
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr "ファイル %s をコンテナ %s 内にコピーします: %%s"
@@ -4231,7 +4235,7 @@ msgstr "ROLES"
 msgid "Read-Only: %v"
 msgstr "読み取り専用: %v"
 
-#: lxc/file.go:239 lxc/file.go:433
+#: lxc/file.go:245 lxc/file.go:444
 msgid "Recursively transfer files"
 msgstr "再帰的にファイルを転送します"
 
@@ -4443,7 +4447,7 @@ msgstr ""
 "\n"
 "\"lxc pause\" の反対のコマンドは \"lxc start\" です。"
 
-#: lxc/cluster.go:1080 lxc/cluster.go:1081
+#: lxc/cluster.go:1083 lxc/cluster.go:1084
 msgid "Restore cluster member"
 msgstr "クラスターメンバーをリストアします"
 
@@ -4465,7 +4469,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr "スナップショットからストレージボリュームをリストアします"
 
-#: lxc/cluster.go:1136
+#: lxc/cluster.go:1140
 #, c-format
 msgid "Restoring cluster member: %s"
 msgstr "クラスターメンバーをリストアしています: %s"
@@ -4515,12 +4519,12 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr "SR-IOV 情報:"
 
-#: lxc/file.go:1154
+#: lxc/file.go:1169
 #, c-format
 msgid "SSH client connected %q"
 msgstr "SSH クライアントが %q に接続されました"
 
-#: lxc/file.go:1155
+#: lxc/file.go:1170
 #, c-format
 msgid "SSH client disconnected %q"
 msgstr "SSH クライアントが切断されました %q"
@@ -4579,7 +4583,7 @@ msgstr "サーバのバージョン: %s\n"
 msgid "Set a cluster member's configuration keys"
 msgstr "クラスターメンバーの設定を行います"
 
-#: lxc/file.go:923
+#: lxc/file.go:938
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr "SSH SFTP リスナーを使う際の認証ユーザーを設定する"
 
@@ -4795,19 +4799,19 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr "リモートの URL を設定します"
 
-#: lxc/file.go:436
+#: lxc/file.go:447
 msgid "Set the file's gid on push"
 msgstr "プッシュ時にファイルのgidを設定します"
 
-#: lxc/file.go:437
+#: lxc/file.go:448
 msgid "Set the file's perms on push"
 msgstr "プッシュ時にファイルのパーミションを設定します"
 
-#: lxc/file.go:435
+#: lxc/file.go:446
 msgid "Set the file's uid on push"
 msgstr "プッシュ時にファイルのuidを設定します"
 
-#: lxc/file.go:921
+#: lxc/file.go:936
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 "マウントの代わりに address:port で SSH SFTP リスナーをセットアップします"
@@ -5130,11 +5134,11 @@ msgstr "TYPE"
 msgid "Taken at"
 msgstr "取得日時"
 
-#: lxc/file.go:959
+#: lxc/file.go:974
 msgid "Target path and --listen flag cannot be used together"
 msgstr "ターゲットのパスと --listen オプションは同時に指定できません"
 
-#: lxc/file.go:953
+#: lxc/file.go:968
 msgid "Target path must be a directory"
 msgstr "ターゲットのパスはディレクトリでなければなりません"
 
@@ -5431,7 +5435,7 @@ msgstr "テンポラリファイルを作成できません: %v"
 msgid "Unknown certificate type %q"
 msgstr "未知の証明書タイプ %q"
 
-#: lxc/file.go:1177
+#: lxc/file.go:1192
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr "クライアント %q の未知のチャンネルタイプ: %s"
@@ -5447,7 +5451,7 @@ msgstr "未知のカラム名の短縮形です '%c' ('%s' 中)"
 msgid "Unknown console type %q"
 msgstr "未知のコンソールタイプ %q"
 
-#: lxc/file.go:740
+#: lxc/file.go:755
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr "未知のファイルタイプ '%s'"
@@ -5895,13 +5899,13 @@ msgstr "[<remote>:]<instance>/<path>"
 msgid "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 msgstr "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...]"
 
-#: lxc/file.go:230
+#: lxc/file.go:236
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 msgstr ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
 
-#: lxc/file.go:912
+#: lxc/file.go:927
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr "[<remote>:]<instance>[/<path>] [<target path>]"
 
@@ -5924,8 +5928,8 @@ msgid ""
 msgstr ""
 "[<remote>:]<instance>[/<snapshot>] [[<remote>:]<instance>[/<snapshot>]...]"
 
-#: lxc/cluster.go:199 lxc/cluster.go:425 lxc/cluster.go:875 lxc/cluster.go:1060
-#: lxc/cluster.go:1079
+#: lxc/cluster.go:199 lxc/cluster.go:425 lxc/cluster.go:875 lxc/cluster.go:1061
+#: lxc/cluster.go:1082
 msgid "[<remote>:]<member>"
 msgstr "[<remote>:]<member>"
 
@@ -6352,7 +6356,7 @@ msgstr ""
 "lxc export u1 backup0.tar.gz\n"
 "    u1 インスタンスのバックアップ tarball をダウンロードします。"
 
-#: lxc/file.go:916
+#: lxc/file.go:931
 msgid ""
 "lxc file mount foo/root fooroot\n"
 "   To mount /root from the instance foo onto the local fooroot directory."
@@ -6361,7 +6365,7 @@ msgstr ""
 "   インスタンス foo の /root をローカルの fooroot ディレクトリにマウントしま"
 "す。"
 
-#: lxc/file.go:234
+#: lxc/file.go:240
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
@@ -6371,7 +6375,7 @@ msgstr ""
 "   インスタンスの /etc/hosts ファイルを取得し、カレントディレクトリにコピーし"
 "ます。"
 
-#: lxc/file.go:429
+#: lxc/file.go:440
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
@@ -6633,8 +6637,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 "lxc storage volume show default data\n"
 "    \"default\" プール内のカスタムボリューム \"data\" のプロパティを表示しま"
@@ -6668,16 +6672,16 @@ msgstr "`lxc profile` コマンドを使ってください"
 msgid "space used"
 msgstr "使用量"
 
-#: lxc/file.go:1067
+#: lxc/file.go:1082
 msgid "sshfs has stopped"
 msgstr "sshfs が停止しました"
 
-#: lxc/file.go:1027
+#: lxc/file.go:1042
 #, c-format
 msgid "sshfs mounting %q on %q"
 msgstr "sshfs で %q を %q にマウントします"
 
-#: lxc/file.go:981
+#: lxc/file.go:996
 msgid "sshfs not found. Try SSH SFTP mode using the --listen flag"
 msgstr ""
 "sshfs が見つかりません。--listen オプションを使って SSH SFTP モードを試してみ"
@@ -8315,8 +8319,8 @@ msgstr "yes"
 #~ "lxc storage volume move [<pool>/]<volume> [<pool>/]<volume>\n"
 #~ "    Move an existing volume to the specified pool.\n"
 #~ "\n"
-#~ "Unless specified through a prefix, all volume operations affect \"custom"
-#~ "\" (user created) volumes.\n"
+#~ "Unless specified through a prefix, all volume operations affect "
+#~ "\"custom\" (user created) volumes.\n"
 #~ "\n"
 #~ "*Examples*\n"
 #~ "cat pool.yaml | lxc storage edit [<remote>:]<pool>\n"

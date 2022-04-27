@@ -2608,7 +2608,7 @@ func clusterNodeStatePost(d *Daemon, r *http.Request) response.Response {
 	}
 
 	if req.Action == "evacuate" {
-		return evacuateClusterMember(d, r)
+		return evacuateClusterMember(d, r, req.Mode)
 	} else if req.Action == "restore" {
 		return restoreClusterMember(d, r)
 	}
@@ -2654,7 +2654,7 @@ func evacuateClusterSetState(d *Daemon, name string, state int) error {
 	return nil
 }
 
-func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
+func evacuateClusterMember(d *Daemon, r *http.Request, mode string) response.Response {
 	nodeName, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
@@ -2710,6 +2710,20 @@ func evacuateClusterMember(d *Daemon, r *http.Request) response.Response {
 		for _, inst := range instances {
 			// Check if migratable.
 			migrate, live := inst.CanMigrate()
+
+			// Apply overrides.
+			if mode != "" {
+				if mode == "stop" {
+					migrate = false
+					live = false
+				} else if mode == "migrate" {
+					migrate = true
+					live = false
+				} else if mode == "live-migrate" {
+					migrate = true
+					live = true
+				}
+			}
 
 			// Stop the instance if needed.
 			isRunning := inst.IsRunning()

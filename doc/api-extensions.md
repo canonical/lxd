@@ -1668,3 +1668,8 @@ Adds ability to modify the set of profiles when image is copied.
 
 ## container\_syscall\_intercept\_sysinfo
 Adds the `security.syscalls.intercept.sysinfo` to allow the `sysinfo` syscall to be populated with cgroup-based resource usage information.
+
+## clustering\_evacuation\_mode
+This introduces a `mode` field to the evacuation request which allows
+for overriding the evacuation mode traditionally set through
+`cluster.evacuate`.
