@@ -147,6 +147,11 @@ func loadNvidiaContainer() (map[string]*api.ResourcesGPUCardNvidia, error) {
 }
 
 func gpuAddDeviceInfo(devicePath string, nvidiaCards map[string]*api.ResourcesGPUCardNvidia, pciDB *pcidb.PCIDB, uname unix.Utsname, card *api.ResourcesGPUCard) error {
+	// Handle nested devices.
+	if isDir(filepath.Join(devicePath, "device")) {
+		return gpuAddDeviceInfo(filepath.Join(devicePath, "device"), nvidiaCards, pciDB, uname, card)
+	}
+
 	// SRIOV
 	if sysfsExists(filepath.Join(devicePath, "sriov_numvfs")) {
 		sriov := api.ResourcesGPUCardSRIOV{}
