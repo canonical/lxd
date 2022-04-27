@@ -283,7 +283,7 @@ func qemuCreate(s *state.State, args db.InstanceArgs, revert *revert.Reverter) (
 				return nil, fmt.Errorf("Failed to add device %q: %w", dev.Name(), err)
 			}
 
-			revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), false) })
+			revert.Add(func() { d.deviceRemove(dev, false) })
 		}
 
 		// Update MAAS (must run after the MAC addresses have been generated).
@@ -4665,33 +4665,34 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 
 	// Remove devices in reverse order to how they were added.
 	for _, dd := range removeDevices.Reversed() {
-		if instanceRunning {
-			dev, err := d.deviceLoad(dd.Name, dd.Config)
-			if err != nil {
-				// If deviceLoad fails with unsupported device type then skip stopping.
-				if errors.Is(err, device.ErrUnsupportedDevType) {
-					continue
-				}
 
-				// If deviceLoad fails for any other reason then just log the error and proceed
-				// with stop, as in the scenario that a new version of LXD has additional
-				// validation restrictions than older versions we still need to allow previously
-				// valid devices to be stopped.
-				d.logger.Error("Device stop validation failed", logger.Ctx{"devName": dd.Name, "err": err})
+		dev, err := d.deviceLoad(dd.Name, dd.Config)
+		if err != nil {
+			// If deviceLoad fails with unsupported device type then skip stopping.
+			if errors.Is(err, device.ErrUnsupportedDevType) {
+				continue
 			}
 
-			// If a device was returned from deviceLoad even if validation fails, then try and stop.
-			if dev != nil {
+			// If deviceLoad fails for any other reason then just log the error and proceed
+			// with stop, as in the scenario that a new version of LXD has additional
+			// validation restrictions than older versions we still need to allow previously
+			// valid devices to be stopped.
+			d.logger.Error("Device stop validation failed", logger.Ctx{"devName": dd.Name, "err": err})
+		}
+
+		// If a device was returned from deviceLoad even if validation fails, then try and stop and remove.
+		if dev != nil {
+			if instanceRunning {
 				err = d.deviceStop(dev, instanceRunning)
 				if err != nil {
 					return fmt.Errorf("Failed to stop device %q: %w", dev.Name(), err)
 				}
 			}
-		}
 
-		err := d.deviceRemove(dd.Name, dd.Config, instanceRunning)
-		if err != nil && err != device.ErrUnsupportedDevType {
-			return fmt.Errorf("Failed to remove device %q: %w", dd.Name, err)
+			err := d.deviceRemove(dev, instanceRunning)
+			if err != nil && err != device.ErrUnsupportedDevType {
+				return fmt.Errorf("Failed to remove device %q: %w", dev.Name(), err)
+			}
 		}
 
 		// Check whether we are about to add the same device back with updated config and
@@ -4733,7 +4734,7 @@ func (d *qemu) updateDevices(removeDevices deviceConfig.Devices, addDevices devi
 			d.logger.Error("Failed to add device, skipping as non-user requested", logger.Ctx{"device": dev.Name(), "err": err})
 		}
 
-		revert.Add(func() { d.deviceRemove(dev.Name(), dev.Config(), instanceRunning) })
+		revert.Add(func() { d.deviceRemove(dev, instanceRunning) })
 
 		if instanceRunning {
 			err = dev.PreStartCheck()
@@ -4973,9 +4974,26 @@ func (d *qemu) Delete(force bool) error {
 
 		// Run device removal function for each device.
 		for _, entry := range d.expandedDevices.Reversed() {
-			err = d.deviceRemove(entry.Name, entry.Config, false)
-			if err != nil && err != device.ErrUnsupportedDevType {
-				return fmt.Errorf("Failed to remove device %q: %w", entry.Name, err)
+			dev, err := d.deviceLoad(entry.Name, entry.Config)
+			if err != nil {
+				// If deviceLoad fails with unsupported device type then skip removal.
+				if errors.Is(err, device.ErrUnsupportedDevType) {
+					continue
+				}
+
+				// If deviceLoad fails for any other reason then just log the error and proceed
+				// with removal, as in the scenario that a new version of LXD has additional
+				// validation restrictions than older versions we still need to allow previously
+				// valid devices to be remove.
+				d.logger.Error("Device remove validation failed", logger.Ctx{"device": entry.Name, "err": err})
+			}
+
+			// If a device was returned from deviceLoad even if validation fails, then try and remove.
+			if dev != nil {
+				err = d.deviceRemove(dev, false)
+				if err != nil {
+					d.logger.Error("Failed to remove device", logger.Ctx{"device": dev.Name(), "err": err})
+				}
 			}
 		}
 
@@ -5028,28 +5046,9 @@ func (d *qemu) deviceAdd(dev device.Device, instanceRunning bool) error {
 	return dev.Add()
 }
 
-func (d *qemu) deviceRemove(deviceName string, rawConfig deviceConfig.Device, instanceRunning bool) error {
-	l := d.logger.AddContext(logger.Ctx{"device": deviceName, "type": rawConfig["type"]})
+func (d *qemu) deviceRemove(dev device.Device, instanceRunning bool) error {
+	l := d.logger.AddContext(logger.Ctx{"device": dev.Name(), "type": dev.Config()["type"]})
 	l.Debug("Removing device")
-
-	dev, err := d.deviceLoad(deviceName, rawConfig)
-
-	// If deviceLoad fails with unsupported device type then return.
-	if err == device.ErrUnsupportedDevType {
-		return err
-	}
-
-	// If deviceLoad fails for any other reason then just log the error and proceed, as in the
-	// scenario that a new version of LXD has additional validation restrictions than older
-	// versions we still need to allow previously valid devices to be stopped.
-	if err != nil {
-		// If there is no device returned, then we cannot proceed, so return as error.
-		if dev == nil {
-			return fmt.Errorf("Device remove validation failed for %q: %w", deviceName, err)
-		}
-
-		l.Error("Device remove validation failed", logger.Ctx{"err": err})
-	}
 
 	if instanceRunning && !dev.CanHotPlug() {
 		return fmt.Errorf("Device cannot be removed when instance is running")
