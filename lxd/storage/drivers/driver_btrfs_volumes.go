@@ -1720,7 +1720,7 @@ func (d *btrfs) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) e
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
 	unlock := snapVol.MountLock()
 	defer unlock()
 
@@ -1731,17 +1731,29 @@ func (d *btrfs) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	if !shared.PathExists(snapPath) || snapVol.volType != VolumeTypeCustom {
 		err := snapVol.EnsureMountPath()
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
 
-	return mountReadOnly(snapPath, snapPath)
+	_, err := mountReadOnly(snapPath, snapPath)
+	if err != nil {
+		return err
+	}
+
+	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	return nil
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
 func (d *btrfs) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
 	unlock := snapVol.MountLock()
 	defer unlock()
+
+	refCount := snapVol.MountRefCountDecrement()
+	if refCount > 0 {
+		d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
+		return false, ErrInUse
+	}
 
 	snapPath := snapVol.MountPath()
 	return forceUnmount(snapPath)
