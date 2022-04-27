@@ -2983,7 +2983,7 @@ func (d *lxc) onStop(args map[string]string) error {
 
 		// Stop the storage for this container
 		op.Reset()
-		_, err = d.unmount()
+		err = d.unmount()
 		if err != nil {
 			err = fmt.Errorf("Failed unmounting instance: %w", err)
 			op.Done(err)
@@ -6134,37 +6134,37 @@ func (d *lxc) mount() (*storagePools.MountInfo, error) {
 }
 
 // unmount the instance's rootfs volume if needed.
-func (d *lxc) unmount() (bool, error) {
+func (d *lxc) unmount() error {
 	pool, err := d.getStoragePool()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if d.IsSnapshot() {
-		unmounted, err := pool.UnmountInstanceSnapshot(d, nil)
+		_, err := pool.UnmountInstanceSnapshot(d, nil)
 		if err != nil {
-			return false, err
+			return err
 		}
 
-		return unmounted, nil
+		return nil
 	}
 
 	// Workaround for liblxc failures on startup when shiftfs is used.
 	diskIdmap, err := d.DiskIdmap()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	if d.IdmappedStorage(d.RootfsPath()) == idmap.IdmapStorageShiftfs && !d.IsPrivileged() && diskIdmap == nil {
 		unix.Unmount(d.RootfsPath(), unix.MNT_DETACH)
 	}
 
-	unmounted, err := pool.UnmountInstance(d, nil)
+	_, err = pool.UnmountInstance(d, nil)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return unmounted, nil
+	return nil
 }
 
 // insertMountLXD inserts a mount into a LXD container.
