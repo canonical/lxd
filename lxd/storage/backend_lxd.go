@@ -2359,7 +2359,7 @@ func (b *lxdBackend) MountInstance(inst instance.Instance, op *operations.Operat
 }
 
 // UnmountInstance unmounts the instance's root volume.
-func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	l.Debug("UnmountInstance started")
 	defer l.Debug("UnmountInstance finished")
@@ -2367,7 +2367,7 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Get the volume.
@@ -2377,13 +2377,13 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 		// Load storage volume from database.
 		dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		// Generate the effective root device volume for instance.
 		vol, err = b.instanceEffectiveRootVolume(inst, dbVol.Config)
 		if err != nil {
-			return false, err
+			return err
 		}
 	} else {
 		contentType := InstanceContentType(inst)
@@ -2392,7 +2392,9 @@ func (b *lxdBackend) UnmountInstance(inst instance.Instance, op *operations.Oper
 		vol = &tmpVol
 	}
 
-	return b.driver.UnmountVolume(*vol, false, op)
+	_, err = b.driver.UnmountVolume(*vol, false, op)
+
+	return err
 }
 
 // getInstanceDisk returns the location of the disk.
@@ -2762,34 +2764,36 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 }
 
 // UnmountInstanceSnapshot unmounts an instance snapshot.
-func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
+func (b *lxdBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
 	l := logger.AddContext(b.logger, logger.Ctx{"project": inst.Project(), "instance": inst.Name()})
 	l.Debug("UnmountInstanceSnapshot started")
 	defer l.Debug("UnmountInstanceSnapshot finished")
 
 	if !inst.IsSnapshot() {
-		return false, fmt.Errorf("Instance must be a snapshot")
+		return fmt.Errorf("Instance must be a snapshot")
 	}
 
 	// Check we can convert the instance to the volume type needed.
 	volType, err := InstanceTypeToVolumeType(inst.Type())
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Load storage volume from database.
 	dbVol, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	// Generate the effective root device volume for instance.
 	vol, err := b.instanceEffectiveRootVolume(inst, dbVol.Config)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return b.driver.UnmountVolumeSnapshot(*vol, op)
+	_, err = b.driver.UnmountVolumeSnapshot(*vol, op)
+
+	return err
 }
 
 // poolBlockFilesystem returns the filesystem used for new block device filesystems.
@@ -4889,7 +4893,7 @@ func (b *lxdBackend) ImportInstance(inst instance.Instance, poolVol *backup.Conf
 		} else {
 			// If the instance isn't running then try and unmount it to ensure consistent state after
 			// import.
-			_, err = b.UnmountInstance(inst, op)
+			err = b.UnmountInstance(inst, op)
 			if err != nil {
 				return fmt.Errorf("Failed unmounting instance: %w", err)
 			}
