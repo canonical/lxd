@@ -12,6 +12,15 @@ import (
 
 var sysBusPci = "/sys/bus/pci/devices"
 
+func isDir(name string) bool {
+	stat, err := os.Stat(name)
+	if err != nil {
+		return false
+	}
+
+	return stat.IsDir()
+}
+
 func readUint(path string) (uint64, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
