@@ -406,7 +406,16 @@ func DiskVMVirtiofsdStart(execPath string, inst instance.Instance, socketPath st
 		return nil, nil, UnsupportedError{"Stateful migration unsupported"}
 	}
 
-	listener, err := net.Listen("unix", socketPath)
+	// Trickery to handle paths > 107 chars.
+	socketFileDir, err := os.Open(filepath.Dir(socketPath))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer socketFileDir.Close()
+
+	socketFile := fmt.Sprintf("/proc/self/fd/%d/%s", socketFileDir.Fd(), filepath.Base(socketPath))
+
+	listener, err := net.Listen("unix", socketFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to create unix listener for virtiofsd: %w", err)
 	}
