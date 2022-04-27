@@ -198,6 +198,10 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 	os.Remove(fname)
 	defer os.Remove(fname)
 
+	// Tell pull/push that they're called from edit.
+	c.filePull.edit = true
+	c.filePush.edit = true
+
 	// Extract current value
 	err = c.filePull.Run(cmd, append([]string{args[0]}, fname))
 	if err != nil {
@@ -223,6 +227,8 @@ func (c *cmdFileEdit) Run(cmd *cobra.Command, args []string) error {
 type cmdFilePull struct {
 	global *cmdGlobal
 	file   *cmdFile
+
+	edit bool
 }
 
 func (c *cmdFilePull) Command() *cobra.Command {
@@ -250,7 +256,11 @@ func (c *cmdFilePull) Run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Determine the target
-	target := shared.HostPathFollow(filepath.Clean(args[len(args)-1]))
+	target := filepath.Clean(args[len(args)-1])
+	if !c.edit {
+		target = shared.HostPathFollow(target)
+	}
+
 	targetIsDir := false
 	sb, err := os.Stat(target)
 	if err != nil && !os.IsNotExist(err) {
@@ -417,6 +427,7 @@ type cmdFilePush struct {
 	global *cmdGlobal
 	file   *cmdFile
 
+	edit         bool
 	noModeChange bool
 }
 
@@ -477,7 +488,11 @@ func (c *cmdFilePush) Run(cmd *cobra.Command, args []string) error {
 	// Make a list of paths to transfer
 	sourcefilenames := []string{}
 	for _, fname := range args[:len(args)-1] {
-		sourcefilenames = append(sourcefilenames, shared.HostPathFollow(filepath.Clean(fname)))
+		if !c.edit {
+			sourcefilenames = append(sourcefilenames, shared.HostPathFollow(filepath.Clean(fname)))
+		} else {
+			sourcefilenames = append(sourcefilenames, filepath.Clean(fname))
+		}
 	}
 
 	// Determine the target mode
