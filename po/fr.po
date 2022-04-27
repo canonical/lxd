@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-22 20:37-0400\n"
+"POT-Creation-Date: 2022-04-27 19:56-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -504,7 +504,7 @@ msgstr "%s (%d de plus)"
 msgid "%s (%d more)"
 msgstr "%s (%d de plus)"
 
-#: lxc/file.go:864
+#: lxc/file.go:879
 #, c-format
 msgid "%s is not a directory"
 msgstr "%s n'est pas un répertoire"
@@ -514,7 +514,7 @@ msgstr "%s n'est pas un répertoire"
 msgid "%v (interrupt two more times to force)"
 msgstr "%v (interrompre encore deux fois pour forcer)"
 
-#: lxc/file.go:758
+#: lxc/file.go:773
 #, fuzzy, c-format
 msgid "'%s' isn't a supported file type"
 msgstr "'%s' n'est pas un format de fichier pris en charge."
@@ -625,7 +625,7 @@ msgstr "Serveur distant : %s"
 msgid "<remote> <new-name>"
 msgstr ""
 
-#: lxc/file.go:425
+#: lxc/file.go:436
 #, fuzzy
 msgid "<source path>... [<remote>:]<instance>/<path>"
 msgstr ""
@@ -800,7 +800,7 @@ msgstr "Architecture : %s"
 msgid "Architecture: %v"
 msgstr "Architecture : %s"
 
-#: lxc/cluster.go:1114
+#: lxc/cluster.go:1117
 #, c-format
 msgid "Are you sure you want to %s cluster member %q? (yes/no) [default=no]: "
 msgstr ""
@@ -1022,7 +1022,7 @@ msgstr ""
 msgid "Can't provide a name for the target image"
 msgstr ""
 
-#: lxc/file.go:321
+#: lxc/file.go:331
 #, fuzzy
 msgid "Can't pull a directory without --recursive"
 msgstr "impossible de récupérer un répertoire sans --recursive"
@@ -1053,7 +1053,7 @@ msgstr ""
 msgid "Can't specify column L when not clustered"
 msgstr ""
 
-#: lxc/file.go:501
+#: lxc/file.go:516
 #, fuzzy
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr "impossible de spécifier uid/gid/mode en mode récursif"
@@ -1406,7 +1406,7 @@ msgstr "Création du conteneur"
 msgid "Create and start instances from images"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:238 lxc/file.go:434
+#: lxc/file.go:244 lxc/file.go:445
 msgid "Create any directories necessary"
 msgstr "Créer tous répertoires nécessaires"
 
@@ -1648,8 +1648,8 @@ msgstr "Récupération de l'image : %s"
 #: lxc/alias.go:198 lxc/cluster.go:30 lxc/cluster.go:119 lxc/cluster.go:201
 #: lxc/cluster.go:250 lxc/cluster.go:297 lxc/cluster.go:349 lxc/cluster.go:378
 #: lxc/cluster.go:428 lxc/cluster.go:511 lxc/cluster.go:596 lxc/cluster.go:709
-#: lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1062
-#: lxc/cluster.go:1081 lxc/cluster_group.go:30 lxc/cluster_group.go:79
+#: lxc/cluster.go:779 lxc/cluster.go:877 lxc/cluster.go:956 lxc/cluster.go:1063
+#: lxc/cluster.go:1084 lxc/cluster_group.go:30 lxc/cluster_group.go:79
 #: lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261
 #: lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518
 #: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
@@ -1667,7 +1667,7 @@ msgstr "Récupération de l'image : %s"
 #: lxc/config_trust.go:508 lxc/config_trust.go:551 lxc/config_trust.go:622
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169
-#: lxc/file.go:232 lxc/file.go:427 lxc/file.go:914 lxc/image.go:38
+#: lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38
 #: lxc/image.go:146 lxc/image.go:314 lxc/image.go:365 lxc/image.go:490
 #: lxc/image.go:649 lxc/image.go:870 lxc/image.go:1005 lxc/image.go:1303
 #: lxc/image.go:1382 lxc/image.go:1441 lxc/image.go:1493 lxc/image.go:1549
@@ -1815,7 +1815,7 @@ msgstr "L'importation de répertoire n'est pas disponible sur cette plateforme"
 msgid "Directory to run the command in (default /root)"
 msgstr ""
 
-#: lxc/file.go:922
+#: lxc/file.go:937
 msgid "Disable authentication when using SSH SFTP listener"
 msgstr ""
 
@@ -2015,7 +2015,7 @@ msgstr "Conteneur éphémère"
 msgid "Error updating template file: %s"
 msgstr "Erreur de mise à jour du modèle de fichier : %s"
 
-#: lxc/cluster.go:1061 lxc/cluster.go:1062
+#: lxc/cluster.go:1062 lxc/cluster.go:1063
 #, fuzzy
 msgid "Evacuate cluster member"
 msgstr ""
@@ -2027,7 +2027,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/cluster.go:1138
+#: lxc/cluster.go:1142
 #, fuzzy, c-format
 msgid "Evacuating cluster member: %s"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -2139,22 +2139,22 @@ msgstr "EMPREINTE"
 msgid "FIRST SEEN"
 msgstr ""
 
-#: lxc/file.go:1161
+#: lxc/file.go:1176
 #, c-format
 msgid "Failed SSH handshake with client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1184
+#: lxc/file.go:1199
 #, c-format
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
-#: lxc/file.go:1211
+#: lxc/file.go:1226
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
 msgstr ""
 
-#: lxc/file.go:999
+#: lxc/file.go:1014
 #, fuzzy, c-format
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "Profil à appliquer au nouveau conteneur"
@@ -2164,7 +2164,7 @@ msgstr "Profil à appliquer au nouveau conteneur"
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
 
-#: lxc/file.go:1118
+#: lxc/file.go:1133
 #, fuzzy, c-format
 msgid "Failed generating SSH host key: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
@@ -2174,17 +2174,17 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed getting peer's status: %w"
 msgstr ""
 
-#: lxc/file.go:1123
+#: lxc/file.go:1138
 #, fuzzy, c-format
 msgid "Failed parsing SSH host key: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:1024
+#: lxc/file.go:1039
 #, fuzzy, c-format
 msgid "Failed starting sshfs: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:1149
+#: lxc/file.go:1164
 #, fuzzy, c-format
 msgid "Failed to accept incoming connection: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
@@ -2224,7 +2224,7 @@ msgstr "Échec lors de la génération de 'lxc.1': %v"
 msgid "Failed to get the new instance name"
 msgstr "Profil à appliquer au nouveau conteneur"
 
-#: lxc/file.go:1135
+#: lxc/file.go:1150
 #, fuzzy, c-format
 msgid "Failed to listen for connection: %w"
 msgstr "Échec lors de la génération de 'lxc.1': %v"
@@ -2239,7 +2239,7 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 msgid "Failed to remove alias %s: %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
-#: lxc/file.go:753
+#: lxc/file.go:768
 #, c-format
 msgid "Failed to walk path for %s: %s"
 msgstr ""
@@ -2259,7 +2259,11 @@ msgstr ""
 msgid "Fingerprint: %s"
 msgstr "Empreinte : %s"
 
-#: lxc/cluster.go:1089
+#: lxc/cluster.go:1065
+msgid "Force a particular evacuation action"
+msgstr ""
+
+#: lxc/cluster.go:1092
 #, fuzzy
 msgid "Force evacuation without user confirmation"
 msgstr "Requérir une confirmation de l'utilisateur"
@@ -2466,22 +2470,22 @@ msgstr "L'arrêt du conteneur a échoué !"
 msgid "Hugepages:\n"
 msgstr ""
 
-#: lxc/file.go:1233
+#: lxc/file.go:1248
 #, fuzzy, c-format
 msgid "I/O copy from SSH to instance failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1222
+#: lxc/file.go:1237
 #, fuzzy, c-format
 msgid "I/O copy from instance to SSH failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1048
+#: lxc/file.go:1063
 #, fuzzy, c-format
 msgid "I/O copy from instance to sshfs failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
 
-#: lxc/file.go:1058
+#: lxc/file.go:1073
 #, fuzzy, c-format
 msgid "I/O copy from sshfs to instance failed: %v"
 msgstr "L'arrêt du conteneur a échoué !"
@@ -2655,12 +2659,12 @@ msgstr ""
 msgid "Instance Only"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:1050
+#: lxc/file.go:1065
 #, fuzzy
 msgid "Instance disconnected"
 msgstr "Mot de passe de l'administrateur distant"
 
-#: lxc/file.go:1224
+#: lxc/file.go:1239
 #, c-format
 msgid "Instance disconnected for client %q"
 msgstr ""
@@ -2675,7 +2679,7 @@ msgstr "Le nom du conteneur est obligatoire"
 msgid "Instance name is: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:971
+#: lxc/file.go:986
 msgid "Instance path cannot be used in SSH SFTP listener mode"
 msgstr ""
 
@@ -2727,7 +2731,7 @@ msgstr "Cible invalide %s"
 msgid "Invalid instance name: %s"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:966
+#: lxc/file.go:981
 #, fuzzy, c-format
 msgid "Invalid instance path: %q"
 msgstr "Le nom du conteneur est : %s"
@@ -2788,12 +2792,12 @@ msgstr "Cible invalide %s"
 msgid "Invalid snapshot name"
 msgstr "Le nom du conteneur est : %s"
 
-#: lxc/file.go:295
+#: lxc/file.go:305
 #, c-format
 msgid "Invalid source %s"
 msgstr "Source invalide %s"
 
-#: lxc/file.go:455
+#: lxc/file.go:466
 #, c-format
 msgid "Invalid target %s"
 msgstr "Cible invalide %s"
@@ -3440,8 +3444,8 @@ msgstr "Copie de l'image : %s"
 msgid ""
 "Manage storage volumes\n"
 "\n"
-"Unless specified through a prefix, all volume operations affect \"custom"
-"\" (user created) volumes."
+"Unless specified through a prefix, all volume operations affect "
+"\"custom\" (user created) volumes."
 msgstr ""
 
 #: lxc/remote.go:32 lxc/remote.go:33
@@ -3535,7 +3539,7 @@ msgstr "Empreinte du certificat : %s"
 msgid "Missing cluster group name"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
 
-#: lxc/cluster.go:629 lxc/cluster.go:1110 lxc/cluster_group.go:110
+#: lxc/cluster.go:629 lxc/cluster.go:1113 lxc/cluster_group.go:110
 #: lxc/cluster_group.go:469 lxc/cluster_role.go:70 lxc/cluster_role.go:124
 #, fuzzy
 msgid "Missing cluster member name"
@@ -3645,7 +3649,7 @@ msgstr "Copie de l'image : %s"
 msgid "Missing storage pool name"
 msgstr "Nom de l'ensemble de stockage"
 
-#: lxc/file.go:548
+#: lxc/file.go:563
 #, fuzzy
 msgid "Missing target directory"
 msgstr "%s n'est pas un répertoire"
@@ -3687,12 +3691,12 @@ msgstr ""
 msgid "More than one device matches, specify the device name"
 msgstr "Plus d'un périphérique correspond, spécifier le nom du périphérique."
 
-#: lxc/file.go:271
+#: lxc/file.go:281
 msgid "More than one file to download, but target is not a directory"
 msgstr ""
 "Plusieurs fichiers à télécharger, mais la destination n'est pas un dossier"
 
-#: lxc/file.go:913 lxc/file.go:914
+#: lxc/file.go:928 lxc/file.go:929
 #, fuzzy
 msgid "Mount files from instances"
 msgstr "Création du conteneur"
@@ -4134,7 +4138,7 @@ msgstr "État : %s"
 msgid "Ports:"
 msgstr ""
 
-#: lxc/file.go:1028
+#: lxc/file.go:1043
 msgid "Press ctrl+c to finish"
 msgstr ""
 
@@ -4286,22 +4290,22 @@ msgstr "Création du conteneur"
 msgid "Publishing instance: %s"
 msgstr "Ignorer l'état du conteneur (seulement pour start)"
 
-#: lxc/file.go:231 lxc/file.go:232
+#: lxc/file.go:237 lxc/file.go:238
 #, fuzzy
 msgid "Pull files from instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:384 lxc/file.go:707
+#: lxc/file.go:394 lxc/file.go:722
 #, c-format
 msgid "Pulling %s from %s: %%s"
 msgstr ""
 
-#: lxc/file.go:426 lxc/file.go:427
+#: lxc/file.go:437 lxc/file.go:438
 #, fuzzy
 msgid "Push files into instances"
 msgstr "Création du conteneur"
 
-#: lxc/file.go:643 lxc/file.go:799
+#: lxc/file.go:658 lxc/file.go:814
 #, c-format
 msgid "Pushing %s to %s: %%s"
 msgstr ""
@@ -4328,7 +4332,7 @@ msgstr ""
 msgid "Read-Only: %v"
 msgstr ""
 
-#: lxc/file.go:239 lxc/file.go:433
+#: lxc/file.go:245 lxc/file.go:444
 #, fuzzy
 msgid "Recursively transfer files"
 msgstr "Pousser ou récupérer des fichiers récursivement"
@@ -4555,7 +4559,7 @@ msgid ""
 "The opposite of \"lxc pause\" is \"lxc start\"."
 msgstr "Le pendant de `lxc pause` est `lxc start`."
 
-#: lxc/cluster.go:1080 lxc/cluster.go:1081
+#: lxc/cluster.go:1083 lxc/cluster.go:1084
 #, fuzzy
 msgid "Restore cluster member"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4593,7 +4597,7 @@ msgstr ""
 msgid "Restore storage volume snapshots"
 msgstr "Forcer le conteneur à s'arrêter"
 
-#: lxc/cluster.go:1136
+#: lxc/cluster.go:1140
 #, fuzzy, c-format
 msgid "Restoring cluster member: %s"
 msgstr "Vous devez fournir le nom d'un conteneur pour : "
@@ -4646,12 +4650,12 @@ msgstr "SOURCE"
 msgid "SR-IOV information:"
 msgstr ""
 
-#: lxc/file.go:1154
+#: lxc/file.go:1169
 #, c-format
 msgid "SSH client connected %q"
 msgstr ""
 
-#: lxc/file.go:1155
+#: lxc/file.go:1170
 #, fuzzy, c-format
 msgid "SSH client disconnected %q"
 msgstr "Mot de passe de l'administrateur distant"
@@ -4715,7 +4719,7 @@ msgstr ""
 msgid "Set a cluster member's configuration keys"
 msgstr "Clé de configuration invalide"
 
-#: lxc/file.go:923
+#: lxc/file.go:938
 msgid "Set authentication user when using SSH SFTP listener"
 msgstr ""
 
@@ -4895,19 +4899,19 @@ msgstr ""
 msgid "Set the URL for the remote"
 msgstr ""
 
-#: lxc/file.go:436
+#: lxc/file.go:447
 msgid "Set the file's gid on push"
 msgstr "Définir le gid du fichier lors de l'envoi"
 
-#: lxc/file.go:437
+#: lxc/file.go:448
 msgid "Set the file's perms on push"
 msgstr "Définir les permissions du fichier lors de l'envoi"
 
-#: lxc/file.go:435
+#: lxc/file.go:446
 msgid "Set the file's uid on push"
 msgstr "Définir l'uid du fichier lors de l'envoi"
 
-#: lxc/file.go:921
+#: lxc/file.go:936
 msgid "Setup SSH SFTP listener on address:port instead of mounting"
 msgstr ""
 
@@ -5265,11 +5269,11 @@ msgstr "TYPE"
 msgid "Taken at"
 msgstr "pris à %s"
 
-#: lxc/file.go:959
+#: lxc/file.go:974
 msgid "Target path and --listen flag cannot be used together"
 msgstr ""
 
-#: lxc/file.go:953
+#: lxc/file.go:968
 msgid "Target path must be a directory"
 msgstr ""
 
@@ -5553,7 +5557,7 @@ msgstr ""
 msgid "Unknown certificate type %q"
 msgstr ""
 
-#: lxc/file.go:1177
+#: lxc/file.go:1192
 #, c-format
 msgid "Unknown channel type for client %q: %s"
 msgstr ""
@@ -5569,7 +5573,7 @@ msgstr ""
 msgid "Unknown console type %q"
 msgstr ""
 
-#: lxc/file.go:740
+#: lxc/file.go:755
 #, c-format
 msgid "Unknown file type '%s'"
 msgstr ""
@@ -6314,7 +6318,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/file.go:230
+#: lxc/file.go:236
 #, fuzzy
 msgid ""
 "[<remote>:]<instance>/<path> [[<remote>:]<instance>/<path>...] <target path>"
@@ -6327,7 +6331,7 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/file.go:912
+#: lxc/file.go:927
 #, fuzzy
 msgid "[<remote>:]<instance>[/<path>] [<target path>]"
 msgstr ""
@@ -6385,8 +6389,8 @@ msgstr ""
 "Détruit les conteneurs ou les instantanés ainsi que toute donnée associée "
 "(configuration, instantanés, …)."
 
-#: lxc/cluster.go:199 lxc/cluster.go:425 lxc/cluster.go:875 lxc/cluster.go:1060
-#: lxc/cluster.go:1079
+#: lxc/cluster.go:199 lxc/cluster.go:425 lxc/cluster.go:875 lxc/cluster.go:1061
+#: lxc/cluster.go:1082
 #, fuzzy
 msgid "[<remote>:]<member>"
 msgstr ""
@@ -7124,20 +7128,20 @@ msgid ""
 "    Download a backup tarball of the u1 instance."
 msgstr ""
 
-#: lxc/file.go:916
+#: lxc/file.go:931
 msgid ""
 "lxc file mount foo/root fooroot\n"
 "   To mount /root from the instance foo onto the local fooroot directory."
 msgstr ""
 
-#: lxc/file.go:234
+#: lxc/file.go:240
 msgid ""
 "lxc file pull foo/etc/hosts .\n"
 "   To pull /etc/hosts from the instance and write it to the current "
 "directory."
 msgstr ""
 
-#: lxc/file.go:429
+#: lxc/file.go:440
 msgid ""
 "lxc file push /etc/hosts foo/etc/hosts\n"
 "   To push /etc/hosts into the instance \"foo\"."
@@ -7331,8 +7335,8 @@ msgid ""
 "\"default\" pool.\n"
 "\n"
 "lxc storage volume show default container/data\n"
-"    Will show the properties of the filesystem for a container called \"data"
-"\" in the \"default\" pool."
+"    Will show the properties of the filesystem for a container called "
+"\"data\" in the \"default\" pool."
 msgstr ""
 
 #: lxc/remote.go:412
@@ -7360,16 +7364,16 @@ msgstr "s'il vous plaît utilisez  `lxc profile`"
 msgid "space used"
 msgstr "espace utilisé"
 
-#: lxc/file.go:1067
+#: lxc/file.go:1082
 msgid "sshfs has stopped"
 msgstr ""
 
-#: lxc/file.go:1027
+#: lxc/file.go:1042
 #, c-format
 msgid "sshfs mounting %q on %q"
 msgstr ""
 
-#: lxc/file.go:981
+#: lxc/file.go:996
 msgid "sshfs not found. Try SSH SFTP mode using the --listen flag"
 msgstr ""
 
