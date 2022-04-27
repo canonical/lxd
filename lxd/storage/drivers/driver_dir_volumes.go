@@ -12,6 +12,7 @@ import (
 	"github.com/lxc/lxd/lxd/operations"
 	"github.com/lxc/lxd/lxd/revert"
 	"github.com/lxc/lxd/lxd/rsync"
+	"github.com/lxc/lxd/lxd/storage/filesystem"
 	"github.com/lxc/lxd/lxd/storage/quota"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/instancewriter"
@@ -461,7 +462,7 @@ func (d *dir) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) err
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
 	unlock := snapVol.MountLock()
 	defer unlock()
 
@@ -472,11 +473,17 @@ func (d *dir) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (boo
 	if !shared.PathExists(snapPath) || snapVol.volType != VolumeTypeCustom {
 		err := snapVol.EnsureMountPath()
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
 
-	return mountReadOnly(snapPath, snapPath)
+	_, err := mountReadOnly(snapPath, snapPath)
+	if err != nil {
+		return err
+	}
+
+	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	return nil
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
@@ -484,8 +491,21 @@ func (d *dir) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (b
 	unlock := snapVol.MountLock()
 	defer unlock()
 
-	snapPath := snapVol.MountPath()
-	return forceUnmount(snapPath)
+	mountPath := snapVol.MountPath()
+
+	refCount := snapVol.MountRefCountDecrement()
+
+	if filesystem.IsMountPoint(mountPath) {
+		if refCount > 0 {
+			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
+			return false, ErrInUse
+		}
+
+		snapPath := snapVol.MountPath()
+		return forceUnmount(snapPath)
+	}
+
+	return false, nil
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
