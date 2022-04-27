@@ -2746,7 +2746,7 @@ func (b *lxdBackend) MountInstanceSnapshot(inst instance.Instance, op *operation
 		return nil, err
 	}
 
-	_, err = b.driver.MountVolumeSnapshot(*vol, op)
+	err = b.driver.MountVolumeSnapshot(*vol, op)
 	if err != nil {
 		return nil, err
 	}
