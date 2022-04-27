@@ -956,7 +956,7 @@ func genericVFSCopyVolume(d Driver, initVolume func(vol Volume) (func(), error),
 				_, snapName, _ := shared.InstanceGetParentAndSnapshotName(srcVol.name)
 
 				// Mount the source snapshot and copy it to the target main volume.
-				// A snapshot will then taken next so it is stored in the correct volume and
+				// A snapshot will then be taken next so it is stored in the correct volume and
 				// subsequent filesystem rsync transfers benefit from only transferring the files
 				// that changed between snapshots.
 				err := srcVol.MountTask(func(srcMountPath string, op *operations.Operation) error {
