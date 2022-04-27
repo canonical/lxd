@@ -1041,7 +1041,8 @@ func (c *cmdClusterUpdateCertificate) Run(cmd *cobra.Command, args []string) err
 type cmdClusterEvacuateAction struct {
 	global *cmdGlobal
 
-	flagForce bool
+	flagAction string
+	flagForce  bool
 }
 
 // Cluster member evacuation
@@ -1060,6 +1061,8 @@ func (c *cmdClusterEvacuate) Command() *cobra.Command {
 	cmd.Use = usage("evacuate", i18n.G("[<remote>:]<member>"))
 	cmd.Short = i18n.G("Evacuate cluster member")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(`Evacuate cluster member`))
+
+	cmd.Flags().StringVar(&c.action.flagAction, "action", "", i18n.G(`Force a particular evacuation action`)+"``")
 
 	return cmd
 }
@@ -1123,6 +1126,7 @@ func (c *cmdClusterEvacuateAction) Run(cmd *cobra.Command, args []string) error 
 
 	state := api.ClusterMemberStatePost{
 		Action: cmd.Name(),
+		Mode:   c.flagAction,
 	}
 
 	op, err := resource.server.UpdateClusterMemberState(resource.name, state)
