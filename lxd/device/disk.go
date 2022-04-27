@@ -999,8 +999,8 @@ func (d *disk) applyDeferredQuota() error {
 }
 
 // applyQuota attempts to resize the instance root disk to the specified size.
-// If unmount is true, attempts to unmount first before resizing.
-func (d *disk) applyQuota(unmount bool) error {
+// If remount is true, attempts to unmount first before resizing and then mounts again afterwards.
+func (d *disk) applyQuota(remount bool) error {
 	rootDisk, _, err := shared.GetRootDiskDevice(d.inst.ExpandedDevices().CloneNative())
 	if err != nil {
 		return fmt.Errorf("Detect root disk device: %w", err)
@@ -1014,18 +1014,25 @@ func (d *disk) applyQuota(unmount bool) error {
 		return err
 	}
 
-	if unmount {
-		ourUnmount, err := pool.UnmountInstance(d.inst, nil)
+	if remount {
+		err := pool.UnmountInstance(d.inst, nil)
 		if err != nil {
 			return err
 		}
-
-		if ourUnmount {
-			defer pool.MountInstance(d.inst, nil)
-		}
 	}
 
-	err = pool.SetInstanceQuota(d.inst, newSize, newMigrationSize, nil)
+	quotaErr := pool.SetInstanceQuota(d.inst, newSize, newMigrationSize, nil)
+
+	if remount {
+		_, err = pool.MountInstance(d.inst, nil)
+	}
+
+	// Return quota set error if failed.
+	if quotaErr != nil {
+		return quotaErr
+	}
+
+	// Return remount error if mount failed.
 	if err != nil {
 		return err
 	}
