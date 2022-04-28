@@ -24,6 +24,8 @@ Here's how to create a new certificate (this is not specific to metrics):
 openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -keyout metrics.key -nodes -out metrics.crt -days 3650 -subj "/CN=metrics.local"
 ```
 
+*Note*: OpenSSl version 1.1.0+ is required for the above command to generate a proper certificate.
+
 Now, this certificate needs to be added to the list of trusted clients:
 
 ```bash
