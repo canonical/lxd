@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-27 19:58-0400\n"
+"POT-Creation-Date: 2022-04-28 12:00-0400\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -1002,7 +1002,7 @@ msgstr "Não pode fornecer um nome para a imagem de destino"
 msgid "Can't pull a directory without --recursive"
 msgstr "Não pode pegar um diretório sem --recursive"
 
-#: lxc/utils.go:145 lxc/utils.go:165
+#: lxc/utils.go:146 lxc/utils.go:166
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "Não é possível ler stdin: %s"
@@ -1717,7 +1717,7 @@ msgstr "Dispositivo %s sobreposto em %s"
 msgid "Device %s removed from %s"
 msgstr "Dispositivo %s removido de %s"
 
-#: lxc/utils.go:50 lxc/utils.go:74
+#: lxc/utils.go:51 lxc/utils.go:75
 #, c-format
 msgid "Device already exists: %s"
 msgstr "O dispositivo já existe: %s"
@@ -2122,7 +2122,7 @@ msgstr "Nome de membro do cluster"
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:120
+#: lxc/utils.go:121
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Aceitar certificado"
@@ -2151,9 +2151,14 @@ msgstr "Aceitar certificado"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
 
-#: lxc/utils.go:109
+#: lxc/utils.go:110
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
+msgstr "Aceitar certificado"
+
+#: lxc/utils.go:195 lxc/utils.go:201
+#, fuzzy, c-format
+msgid "Failed to validate \"%s:%s\": %w"
 msgstr "Aceitar certificado"
 
 #: lxc/file.go:768
@@ -2632,7 +2637,7 @@ msgstr "Editar arquivos no container"
 msgid "Invalid instance path: %q"
 msgstr "Editar arquivos no container"
 
-#: lxc/utils.go:159
+#: lxc/utils.go:160
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "par de chave=valor inválido %s"
@@ -4903,7 +4908,7 @@ msgstr ""
 msgid "Stopping instance failed!"
 msgstr ""
 
-#: lxc/delete.go:121
+#: lxc/delete.go:128
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "Copiar a imagem: %s"
@@ -5052,7 +5057,7 @@ msgstr ""
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:105
+#: lxc/delete.go:112
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
