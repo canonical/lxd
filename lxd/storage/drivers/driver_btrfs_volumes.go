@@ -656,18 +656,18 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 		}
 	}
 
-	if volTargetArgs.Refresh {
-		// Delete main volume before receiving it.
-		err = d.deleteSubvolume(vol.MountPath(), true)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Receive main volume.
 	err = receiveVolume(vol, tmpVolumesMountPoint)
 	if err != nil {
 		return err
+	}
+
+	if volTargetArgs.Refresh {
+		// Delete main volume after receiving it.
+		err = d.deleteSubvolume(vol.MountPath(), true)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Make all received subvolumes read-write and move them to their final destination
@@ -1341,7 +1341,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.name)
 
-			if snapName == volSrcArgs.Snapshots[0] {
+			if len(volSrcArgs.Snapshots) > 0 && snapName == volSrcArgs.Snapshots[0] {
 				lastVolPath = snapshots[i-1].MountPath()
 				break
 			}
