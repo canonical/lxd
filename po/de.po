@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-27 19:58-0400\n"
+"POT-Creation-Date: 2022-04-28 12:00-0400\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -1029,7 +1029,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/utils.go:145 lxc/utils.go:165
+#: lxc/utils.go:146 lxc/utils.go:166
 #, c-format
 msgid "Can't read from stdin: %w"
 msgstr ""
@@ -1744,7 +1744,7 @@ msgstr "Gerät %s wurde von %s entfernt\n"
 msgid "Device %s removed from %s"
 msgstr "Gerät %s wurde von %s entfernt\n"
 
-#: lxc/utils.go:50 lxc/utils.go:74
+#: lxc/utils.go:51 lxc/utils.go:75
 #, fuzzy, c-format
 msgid "Device already exists: %s"
 msgstr "entfernte Instanz %s existiert bereits"
@@ -2169,7 +2169,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:120
+#: lxc/utils.go:121
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Akzeptiere Zertifikat"
@@ -2199,9 +2199,14 @@ msgstr "Akzeptiere Zertifikat"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/utils.go:109
+#: lxc/utils.go:110
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
+msgstr "Akzeptiere Zertifikat"
+
+#: lxc/utils.go:195 lxc/utils.go:201
+#, fuzzy, c-format
+msgid "Failed to validate \"%s:%s\": %w"
 msgstr "Akzeptiere Zertifikat"
 
 #: lxc/file.go:768
@@ -2691,7 +2696,7 @@ msgstr "Ungültige Quelle %s"
 msgid "Invalid instance path: %q"
 msgstr "Ungültige Quelle %s"
 
-#: lxc/utils.go:159
+#: lxc/utils.go:160
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "Alternatives config Verzeichnis."
@@ -5037,7 +5042,7 @@ msgstr ""
 msgid "Stopping instance failed!"
 msgstr "Anhalten des Containers fehlgeschlagen!"
 
-#: lxc/delete.go:121
+#: lxc/delete.go:128
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "Anhalten des Containers fehlgeschlagen!"
@@ -5190,7 +5195,7 @@ msgstr "entfernte Instanz %s existiert bereits"
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:105
+#: lxc/delete.go:112
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 

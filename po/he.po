@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-27 19:58-0400\n"
+"POT-Creation-Date: 2022-04-28 12:00-0400\n"
 "PO-Revision-Date: 2022-03-10 15:11+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hebrew <https://hosted.weblate.org/projects/linux-containers/"
@@ -767,7 +767,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/utils.go:145 lxc/utils.go:165
+#: lxc/utils.go:146 lxc/utils.go:166
 #, c-format
 msgid "Can't read from stdin: %w"
 msgstr ""
@@ -1443,7 +1443,7 @@ msgstr ""
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/utils.go:50 lxc/utils.go:74
+#: lxc/utils.go:51 lxc/utils.go:75
 #, c-format
 msgid "Device already exists: %s"
 msgstr ""
@@ -1832,7 +1832,7 @@ msgstr ""
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:120
+#: lxc/utils.go:121
 #, c-format
 msgid "Failed to create alias %s: %w"
 msgstr ""
@@ -1861,9 +1861,14 @@ msgstr ""
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
 
-#: lxc/utils.go:109
+#: lxc/utils.go:110
 #, c-format
 msgid "Failed to remove alias %s: %w"
+msgstr ""
+
+#: lxc/utils.go:195 lxc/utils.go:201
+#, c-format
+msgid "Failed to validate \"%s:%s\": %w"
 msgstr ""
 
 #: lxc/file.go:768
@@ -2330,7 +2335,7 @@ msgstr ""
 msgid "Invalid instance path: %q"
 msgstr ""
 
-#: lxc/utils.go:159
+#: lxc/utils.go:160
 #, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr ""
@@ -4517,7 +4522,7 @@ msgstr ""
 msgid "Stopping instance failed!"
 msgstr ""
 
-#: lxc/delete.go:121
+#: lxc/delete.go:128
 #, c-format
 msgid "Stopping the instance failed: %s"
 msgstr ""
@@ -4660,7 +4665,7 @@ msgstr ""
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:105
+#: lxc/delete.go:112
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
