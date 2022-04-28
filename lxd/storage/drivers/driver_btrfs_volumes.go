@@ -1341,7 +1341,7 @@ func (d *btrfs) migrateVolumeOptimized(vol Volume, conn io.ReadWriteCloser, volS
 
 			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.name)
 
-			if snapName == volSrcArgs.Snapshots[0] {
+			if len(volSrcArgs.Snapshots) > 0 && snapName == volSrcArgs.Snapshots[0] {
 				lastVolPath = snapshots[i-1].MountPath()
 				break
 			}
