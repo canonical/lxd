@@ -11,7 +11,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unsafe"
 
+	"github.com/pborman/uuid"
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 
@@ -24,6 +26,37 @@ import (
 // Errors
 var errBtrfsNoQuota = fmt.Errorf("Quotas disabled on filesystem")
 var errBtrfsNoQGroup = fmt.Errorf("Unable to find quota group")
+
+// setReceivedUUID sets the "Received UUID" field on a subvolume with the given path using ioctl.
+func setReceivedUUID(path string, UUID string) error {
+	type btrfsIoctlReceivedSubvolArgs struct {
+		uuid [16]byte
+		_    [22]uint64 // padding
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("Failed opening %s: %w", path, err)
+	}
+	defer f.Close()
+
+	args := btrfsIoctlReceivedSubvolArgs{}
+
+	binUUID, err := uuid.Parse(UUID).MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("Failed coverting UUID: %w", err)
+	}
+
+	copy(args.uuid[:], binUUID)
+
+	// 0xC0C09425 = _IOWR(BTRFS_IOCTL_MAGIC, 37, struct btrfs_ioctl_received_subvol_args)
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, f.Fd(), 0xC0C09425, uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return fmt.Errorf("Failed setting received UUID: %w", unix.Errno(errno))
+	}
+
+	return nil
+}
 
 func (d *btrfs) getMountOptions() string {
 	// Allow overriding the default options.
