@@ -2,6 +2,11 @@ test_container_syscall_interception() {
   ensure_import_testimage
   ensure_has_localhost_remote "${LXD_ADDR}"
 
+  if [ "$(lxc query /1.0 | jq -r .environment.lxc_features.seccomp_notify)" != "true" ]; then
+    echo "==> SKIP: Seccomp notify not supported"
+    return
+  fi
+
   (
     cd syscall/sysinfo || return
     # Use -buildvcs=false here to prevent git complaining about untrusted directory when tests are run as root.
