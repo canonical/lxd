@@ -6,15 +6,15 @@ import (
 	"sync"
 )
 
-// Canceler tracks a cancelable operation
-type Canceler struct {
+// HTTPRequestCanceller tracks a cancelable operation
+type HTTPRequestCanceller struct {
 	reqChCancel map[*http.Request]chan struct{}
 	lock        sync.Mutex
 }
 
-// NewCanceler returns a new Canceler struct
-func NewCanceler() *Canceler {
-	c := Canceler{}
+// NewHTTPRequestCanceller returns a new HTTPRequestCanceller struct
+func NewHTTPRequestCanceller() *HTTPRequestCanceller {
+	c := HTTPRequestCanceller{}
 
 	c.lock.Lock()
 	c.reqChCancel = make(map[*http.Request]chan struct{})
@@ -23,8 +23,8 @@ func NewCanceler() *Canceler {
 	return &c
 }
 
-// Cancelable indicates whether there are operations that support cancelation
-func (c *Canceler) Cancelable() bool {
+// Cancelable indicates whether there are operations that support cancellation
+func (c *HTTPRequestCanceller) Cancelable() bool {
 	c.lock.Lock()
 	length := len(c.reqChCancel)
 	c.lock.Unlock()
@@ -33,7 +33,7 @@ func (c *Canceler) Cancelable() bool {
 }
 
 // Cancel will attempt to cancel all ongoing operations
-func (c *Canceler) Cancel() error {
+func (c *HTTPRequestCanceller) Cancel() error {
 	if !c.Cancelable() {
 		return fmt.Errorf("This operation can't be canceled at this time")
 	}
@@ -49,7 +49,7 @@ func (c *Canceler) Cancel() error {
 }
 
 // CancelableDownload performs an http request and allows for it to be canceled at any time
-func CancelableDownload(c *Canceler, client *http.Client, req *http.Request) (*http.Response, chan bool, error) {
+func CancelableDownload(c *HTTPRequestCanceller, client *http.Client, req *http.Request) (*http.Response, chan bool, error) {
 	chDone := make(chan bool)
 	chCancel := make(chan struct{})
 	if c != nil {

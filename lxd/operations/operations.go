@@ -101,7 +101,7 @@ type Operation struct {
 	metadata    map[string]any
 	err         string
 	readonly    bool
-	canceler    *cancel.Canceler
+	canceler    *cancel.HTTPRequestCanceller
 	description string
 	permission  string
 	dbOpType    db.OperationType
@@ -660,7 +660,7 @@ func (op *Operation) Resources() map[string][]string {
 }
 
 // SetCanceler sets a canceler.
-func (op *Operation) SetCanceler(canceler *cancel.Canceler) {
+func (op *Operation) SetCanceler(canceler *cancel.HTTPRequestCanceller) {
 	op.canceler = canceler
 }
 

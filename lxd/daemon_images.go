@@ -284,9 +284,9 @@ func (d *Daemon) ImageDownload(r *http.Request, op *operations.Operation, args *
 		}
 	}
 
-	var canceler *cancel.Canceler
+	var canceler *cancel.HTTPRequestCanceller
 	if op != nil {
-		canceler = cancel.NewCanceler()
+		canceler = cancel.NewHTTPRequestCanceller()
 		op.SetCanceler(canceler)
 	}
 
