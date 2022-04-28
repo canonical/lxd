@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/client"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/i18n"
 	"github.com/lxc/lxd/shared/termios"
@@ -180,4 +181,26 @@ func usage(name string, args ...string) string {
 	}
 
 	return name + " " + args[0]
+}
+
+// instancesExist iterates over a list of instances (or snapshots) and checks that they exist.
+func instancesExist(resources []remoteResource) error {
+	for _, resource := range resources {
+		// Handle snapshots.
+		if shared.IsSnapshot(resource.name) {
+			parent, snap, _ := shared.InstanceGetParentAndSnapshotName(resource.name)
+
+			_, _, err := resource.server.GetInstanceSnapshot(parent, snap)
+			if err != nil {
+				return fmt.Errorf(i18n.G("Failed to validate \"%s:%s\": %w"), resource.remote, resource.name, err)
+			}
+		}
+
+		_, _, err := resource.server.GetInstance(resource.name)
+		if err != nil {
+			return fmt.Errorf(i18n.G("Failed to validate \"%s:%s\": %w"), resource.remote, resource.name, err)
+		}
+	}
+
+	return nil
 }
