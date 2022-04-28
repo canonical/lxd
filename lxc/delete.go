@@ -83,6 +83,13 @@ func (c *cmdDelete) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Check that everything exists.
+	err = instancesExist(resources)
+	if err != nil {
+		return err
+	}
+
+	// Process with deletion.
 	for _, resource := range resources {
 		if c.flagInteractive {
 			err := c.promptDelete(resource.name)
