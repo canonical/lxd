@@ -406,7 +406,7 @@ type BackupFileRequest struct {
 	ProgressHandler func(progress ioprogress.ProgressData)
 
 	// A canceler that can be used to interrupt some part of the image download request
-	Canceler *cancel.Canceler
+	Canceler *cancel.HTTPRequestCanceller
 }
 
 // The BackupFileResponse struct is used as the response for backup downloads.
@@ -448,7 +448,7 @@ type ImageFileRequest struct {
 	ProgressHandler func(progress ioprogress.ProgressData)
 
 	// A canceler that can be used to interrupt some part of the image download request
-	Canceler *cancel.Canceler
+	Canceler *cancel.HTTPRequestCanceller
 
 	// Path retriever for image delta downloads
 	// If set, it must return the path to the image file or an empty string if not available
