@@ -234,22 +234,9 @@ func (d *common) moveGPTAltHeader(devPath string) error {
 }
 
 // runFiller runs the supplied filler, and setting the returned volume size back into filler.
-func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller) error {
+func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller, allowUnsafeResize bool) error {
 	if filler == nil || filler.Fill == nil {
 		return nil
-	}
-
-	allowUnsafeResize := false
-
-	// Allow filler to resize initial image volume as needed. Some storage drivers don't normally allow
-	// image volumes to be resized due to them having read-only snapshots that cannot be resized. However
-	// when creating the initial image volume and filling it before the snapshot is taken resizing can be
-	// allowed and is required in order to support unpacking images larger than the default volume size.
-	// The filler function is still expected to obey any volume size restrictions configured on the pool.
-	// Also needed allow unsafe resize to disable filesystem resize safety checks. This is safe because if for
-	// some reason an error occurs the volume will be discarded rather than leaving a corrupt filesystem.
-	if vol.Type() == VolumeTypeImage {
-		allowUnsafeResize = true
 	}
 
 	vol.driver.Logger().Debug("Running filler function", logger.Ctx{"dev": devPath, "path": vol.MountPath()})
@@ -259,5 +246,6 @@ func (d *common) runFiller(vol Volume, devPath string, filler *VolumeFiller) err
 	}
 
 	filler.Size = volSize
+
 	return nil
 }
