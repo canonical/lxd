@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 19:05-0400\n"
+"POT-Creation-Date: 2022-06-20 18:08-0500\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -1009,7 +1009,7 @@ msgstr ""
 msgid "Can't pull a directory without --recursive"
 msgstr ""
 
-#: lxc/utils.go:145 lxc/utils.go:165
+#: lxc/utils.go:146 lxc/utils.go:166
 #, fuzzy, c-format
 msgid "Can't read from stdin: %w"
 msgstr "Невозможно прочитать из стандартного ввода: %s"
@@ -1709,7 +1709,7 @@ msgstr ""
 msgid "Device %s removed from %s"
 msgstr ""
 
-#: lxc/utils.go:50 lxc/utils.go:74
+#: lxc/utils.go:51 lxc/utils.go:75
 #, c-format
 msgid "Device already exists: %s"
 msgstr ""
@@ -2116,7 +2116,7 @@ msgstr "Копирование образа: %s"
 msgid "Failed to create %q: %w"
 msgstr ""
 
-#: lxc/utils.go:120
+#: lxc/utils.go:121
 #, fuzzy, c-format
 msgid "Failed to create alias %s: %w"
 msgstr "Принять сертификат"
@@ -2145,9 +2145,14 @@ msgstr "Принять сертификат"
 msgid "Failed to refresh target instance '%s': %v"
 msgstr ""
 
-#: lxc/utils.go:109
+#: lxc/utils.go:110
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
+msgstr "Принять сертификат"
+
+#: lxc/utils.go:195 lxc/utils.go:201
+#, fuzzy, c-format
+msgid "Failed to validate \"%s:%s\": %w"
 msgstr "Принять сертификат"
 
 #: lxc/file.go:768
@@ -2622,7 +2627,7 @@ msgstr "Имя контейнера: %s"
 msgid "Invalid instance path: %q"
 msgstr "Имя контейнера: %s"
 
-#: lxc/utils.go:159
+#: lxc/utils.go:160
 #, fuzzy, c-format
 msgid "Invalid key=value configuration: %s"
 msgstr "Имя контейнера: %s"
@@ -4891,7 +4896,7 @@ msgstr ""
 msgid "Stopping instance failed!"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/delete.go:121
+#: lxc/delete.go:128
 #, fuzzy, c-format
 msgid "Stopping the instance failed: %s"
 msgstr "Невозможно добавить имя контейнера в список"
@@ -5035,7 +5040,7 @@ msgstr ""
 msgid "The direction argument must be one of: ingress, egress"
 msgstr ""
 
-#: lxc/delete.go:105
+#: lxc/delete.go:112
 msgid "The instance is currently running, stop it first or pass --force"
 msgstr ""
 
