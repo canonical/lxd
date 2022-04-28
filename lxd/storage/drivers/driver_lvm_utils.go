@@ -770,11 +770,11 @@ func (d *lvm) deactivateVolume(vol Volume) (bool, error) {
 		parent, _, _ := shared.InstanceGetParentAndSnapshotName(vol.Name())
 		volDevPath = d.lvmDevPath(d.config["lvm.vg_name"], vol.volType, vol.contentType, parent)
 
-		// If parent is mounted then skip deactivating non-thinpool snapshot volume as it will fail due
-		// to parent being in use.
-		if vol.IsSnapshot() && vol.contentType == ContentTypeFS {
+		if vol.IsSnapshot() {
 			parentVol := NewVolume(d, d.name, vol.volType, vol.contentType, parent, nil, d.config)
-			if filesystem.IsMountPoint(parentVol.MountPath()) {
+
+			// If parent is in use then skip deactivating non-thinpool snapshot volume as it will fail.
+			if parentVol.MountInUse() || (parentVol.contentType == ContentTypeFS && filesystem.IsMountPoint(parentVol.MountPath())) {
 				return false, nil
 			}
 		}

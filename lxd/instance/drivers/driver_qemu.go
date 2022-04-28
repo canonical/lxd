@@ -444,7 +444,7 @@ func (d *qemu) unmount() error {
 		return err
 	}
 
-	_, err = pool.UnmountInstance(d, nil)
+	err = pool.UnmountInstance(d, nil)
 	if err != nil {
 		return err
 	}
