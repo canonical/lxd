@@ -463,7 +463,7 @@ func ImageUnpack(imageFile string, vol drivers.Volume, destBlockFile string, blo
 			// If the target volume's size is smaller than the image unpack size, then we need to
 			// increase the target volume's size.
 			if volSizeBytes < imgInfo.VirtualSize {
-				l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize})
+				l.Debug("Increasing volume size", logger.Ctx{"imgPath": imgPath, "dstPath": dstPath, "oldSize": volSizeBytes, "newSize": newVolSize, "allowUnsafeResize": allowUnsafeResize})
 				err = vol.SetQuota(newVolSize, allowUnsafeResize, nil)
 				if err != nil {
 					return -1, fmt.Errorf("Error increasing volume size: %w", err)
