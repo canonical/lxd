@@ -73,7 +73,7 @@ type Pool interface {
 	SetInstanceQuota(inst instance.Instance, size string, vmStateSize string, op *operations.Operation) error
 
 	MountInstance(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
-	UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error)
+	UnmountInstance(inst instance.Instance, op *operations.Operation) error
 
 	// Instance snapshots.
 	CreateInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
@@ -81,7 +81,7 @@ type Pool interface {
 	DeleteInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
 	RestoreInstanceSnapshot(inst instance.Instance, src instance.Instance, op *operations.Operation) error
 	MountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (*MountInfo, error)
-	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error)
+	UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) error
 	UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error
 
 	// Images.

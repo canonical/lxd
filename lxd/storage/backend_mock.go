@@ -181,8 +181,8 @@ func (b *mockBackend) MountInstance(inst instance.Instance, op *operations.Opera
 	return &MountInfo{}, nil
 }
 
-func (b *mockBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) (bool, error) {
-	return true, nil
+func (b *mockBackend) UnmountInstance(inst instance.Instance, op *operations.Operation) error {
+	return nil
 }
 
 func (b *mockBackend) CreateInstanceSnapshot(i instance.Instance, src instance.Instance, op *operations.Operation) error {
@@ -205,8 +205,8 @@ func (b *mockBackend) MountInstanceSnapshot(inst instance.Instance, op *operatio
 	return &MountInfo{}, nil
 }
 
-func (b *mockBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) (bool, error) {
-	return true, nil
+func (b *mockBackend) UnmountInstanceSnapshot(inst instance.Instance, op *operations.Operation) error {
+	return nil
 }
 
 func (b *mockBackend) UpdateInstanceSnapshot(inst instance.Instance, newDesc string, newConfig map[string]string, op *operations.Operation) error {
