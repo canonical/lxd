@@ -400,9 +400,12 @@ func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, 
 	tlsConfig.InsecureSkipVerify = true
 
 	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		Dial:            RFC3493Dialer,
-		Proxy:           ProxyFromEnvironment,
+		TLSClientConfig:       tlsConfig,
+		Dial:                  RFC3493Dialer,
+		Proxy:                 ProxyFromEnvironment,
+		ExpectContinueTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 30,
+		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
 	// Connect
