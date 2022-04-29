@@ -517,57 +517,57 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 			return response.BadRequest(fmt.Errorf("Client is already trusted"))
 		}
 
-		if req.Password != "" {
-			// Check if cluster member join token supplied as password.
-			joinToken, err := clusterMemberJoinTokenDecode(req.Password)
+		if req.Password == "" {
+			return response.Forbidden(nil)
+		}
+
+		// Check if cluster member join token supplied as password.
+		joinToken, err := clusterMemberJoinTokenDecode(req.Password)
+		if err == nil {
+			// If so then check there is a matching join operation.
+			joinOp, err := clusterMemberJoinTokenValid(d, r, project.Default, joinToken)
+			if err != nil {
+				return response.InternalError(fmt.Errorf("Failed during search for join token operation: %w", err))
+			}
+
+			if joinOp == nil {
+				return response.Forbidden(fmt.Errorf("No matching cluster join operation found"))
+			}
+		} else {
+			// Check if certificate add token supplied as password.
+			joinToken, err := shared.CertificateTokenDecode(req.Password)
 			if err == nil {
 				// If so then check there is a matching join operation.
-				joinOp, err := clusterMemberJoinTokenValid(d, r, project.Default, joinToken)
+				joinOp, err := certificateTokenValid(d, r, joinToken)
 				if err != nil {
-					return response.InternalError(fmt.Errorf("Failed during search for join token operation: %w", err))
+					return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
 				}
 
 				if joinOp == nil {
-					return response.Forbidden(fmt.Errorf("No matching cluster join operation found"))
+					return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
+				}
+
+				tokenReq, ok := joinOp.Metadata["request"].(api.CertificatesPost)
+				if !ok {
+					return response.InternalError(fmt.Errorf("Bad certificate add operation data"))
+				}
+
+				// Create a new request from the token data as the user isn't allowed to override anything.
+				req = api.CertificatesPost{
+					CertificatePut: api.CertificatePut{
+						Name:       tokenReq.Name,
+						Type:       tokenReq.Type,
+						Restricted: tokenReq.Restricted,
+						Projects:   tokenReq.Projects,
+					},
 				}
 			} else {
-				// Check if certificate add token supplied as password.
-				joinToken, err := shared.CertificateTokenDecode(req.Password)
-				if err == nil {
-					// If so then check there is a matching join operation.
-					joinOp, err := certificateTokenValid(d, r, joinToken)
-					if err != nil {
-						return response.InternalError(fmt.Errorf("Failed during search for certificate add token operation: %w", err))
-					}
-
-					if joinOp == nil {
-						return response.Forbidden(fmt.Errorf("No matching certificate add operation found"))
-					}
-
-					tokenReq, ok := joinOp.Metadata["request"].(api.CertificatesPost)
-					if !ok {
-						return response.InternalError(fmt.Errorf("Bad certificate add operation data"))
-					}
-
-					// Create a new request from the token data as the user isn't allowed to override anything.
-					req = api.CertificatesPost{
-						CertificatePut: api.CertificatePut{
-							Name:       tokenReq.Name,
-							Type:       tokenReq.Type,
-							Restricted: tokenReq.Restricted,
-							Projects:   tokenReq.Projects,
-						},
-					}
-				} else {
-					// Otherwise check if password matches trust password.
-					if util.PasswordCheck(secret, req.Password) != nil {
-						logger.Warn("Bad trust password", logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
-						return response.Forbidden(nil)
-					}
+				// Otherwise check if password matches trust password.
+				if util.PasswordCheck(secret, req.Password) != nil {
+					logger.Warn("Bad trust password", logger.Ctx{"url": r.URL.RequestURI(), "ip": r.RemoteAddr})
+					return response.Forbidden(nil)
 				}
 			}
-		} else {
-			return response.Forbidden(nil)
 		}
 	}
 
