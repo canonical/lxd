@@ -513,12 +513,13 @@ func certificatesPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	// User isn't an admin and is already trusted, can't add more certs.
+	if trusted && req.Certificate == "" {
+		return response.BadRequest(fmt.Errorf("Client is already trusted"))
+	}
+
 	// Handle requests by non-admin users.
 	if !rbac.UserIsAdmin(r) {
-		if trusted {
-			return response.BadRequest(fmt.Errorf("Client is already trusted"))
-		}
-
 		// A password is required for non-admin users.
 		if req.Password == "" {
 			return response.Forbidden(nil)
