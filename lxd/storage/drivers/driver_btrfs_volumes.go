@@ -580,8 +580,9 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 	defer revert.Fail()
 
 	type btrfsCopyOp struct {
-		src  string
-		dest string
+		src          string
+		dest         string
+		receivedUUID string
 	}
 
 	// copyOps represents copy operations which need to take place once *all* subvolumes have been
@@ -612,10 +613,21 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 				return err
 			}
 
+			receivedVol := Volume{
+				pool:            d.name,
+				mountCustomPath: subVolRecvPath,
+			}
+
+			UUID, err := d.getSubVolumeReceivedUUID(receivedVol)
+			if err != nil {
+				return fmt.Errorf("Failed getting UUID: %w", err)
+			}
+
 			// Record the copy operations we need to do after having received all subvolumes.
 			copyOps = append(copyOps, btrfsCopyOp{
-				src:  subVolRecvPath,
-				dest: subVolTargetPath,
+				src:          subVolRecvPath,
+				dest:         subVolTargetPath,
+				receivedUUID: UUID,
 			})
 		}
 
@@ -683,6 +695,17 @@ func (d *btrfs) createVolumeFromMigrationOptimized(vol Volume, conn io.ReadWrite
 		err = os.Rename(op.src, op.dest)
 		if err != nil {
 			return err
+		}
+
+		// This sets the "Received UUID" field on the subvolume.
+		// When making the received subvolume read-write before moving it to its final location,
+		// this information is lost (by design). However, this causes issues when performing
+		// incremental streams (error: "cannot find parent subvolume").
+		// Setting the "Received UUID" field to the value of the received subvolume (before making
+		// it rw) solves this issue.
+		err = setReceivedUUID(op.dest, op.receivedUUID)
+		if err != nil {
+			return fmt.Errorf("Failed setting received UUID: %w", err)
 		}
 	}
 

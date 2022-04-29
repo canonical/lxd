@@ -450,6 +450,17 @@ migration() {
   lxc_remote rm -f l1:c1
   lxc_remote rm -f l2:c1
 
+  # On btrfs, this used to cause a failure because btrfs couldn't find the parent subvolume.
+  lxc_remote init testimage l1:c1
+  lxc_remote copy l1:c1 l2:c1
+  lxc_remote snapshot l1:c1
+  lxc_remote copy l1:c1 l2:c1 --refresh
+  lxc_remote snapshot l1:c1
+  lxc_remote copy l1:c1 l2:c1 --refresh
+
+  lxc_remote rm -f l1:c1
+  lxc_remote rm -f l2:c1
+
   if ! command -v criu >/dev/null 2>&1; then
     echo "==> SKIP: live migration with CRIU (missing binary)"
     return
