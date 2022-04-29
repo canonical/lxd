@@ -1709,6 +1709,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 
 	defer l.Debug("Handling sysinfo syscall")
 
+	// Pre-fill sysinfo struct with metrics from host system.
 	info := unix.Sysinfo_t{}
 	err := unix.Sysinfo(&info)
 	if err != nil {
@@ -1717,6 +1718,8 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 
 		return 0
 	}
+
+	instMetrics := Sysinfo{} // Architecture independent place to hold instance metrics.
 
 	cg, err := cgroup.NewFileReadWriter(int(siov.msg.init_pid), liblxc.HasApiExtension("cgroup2"))
 	if err != nil {
@@ -1735,7 +1738,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	info.Uptime = int64(time.Now().Sub(f.ModTime()).Seconds())
+	instMetrics.Uptime = int64(time.Now().Sub(f.ModTime()).Seconds())
 
 	// Get instance process count.
 	pids, err := cg.GetTotalProcesses()
@@ -1746,7 +1749,7 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	info.Procs = uint16(pids)
+	instMetrics.Procs = uint16(pids)
 
 	// Get instance memory stats.
 	memStats, err := cg.GetMemoryStats()
@@ -1760,9 +1763,9 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 	for k, v := range memStats {
 		switch k {
 		case "shmem":
-			info.Sharedram = v
+			instMetrics.Sharedram = v
 		case "cache":
-			info.Bufferram = v
+			instMetrics.Bufferram = v
 		}
 	}
 
@@ -1784,8 +1787,8 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 		return 0
 	}
 
-	info.Totalram = uint64(memoryLimit)
-	info.Freeram = info.Totalram - uint64(memoryUsage) - info.Bufferram
+	instMetrics.Totalram = uint64(memoryLimit)
+	instMetrics.Freeram = instMetrics.Totalram - uint64(memoryUsage) - instMetrics.Bufferram
 
 	// Get instance swap info.
 	if s.s.OS.CGInfo.Supports(cgroup.MemorySwapUsage, cg) {
@@ -1805,13 +1808,16 @@ func (s *Server) HandleSysinfoSyscall(c Instance, siov *Iovec) int {
 			return 0
 		}
 
-		info.Totalswap = uint64(swapLimit)
-		info.Freeswap = info.Totalswap - uint64(swapUsage)
+		instMetrics.Totalswap = uint64(swapLimit)
+		instMetrics.Freeswap = instMetrics.Totalswap - uint64(swapUsage)
 	}
 
 	// Get writable pointer to buffer of sysinfo syscall result.
 	const sz = int(unsafe.Sizeof(info))
 	var b []byte = (*(*[sz]byte)(unsafe.Pointer(&info)))[:]
+
+	// Write instance metrics to native sysinfo struct.
+	instMetrics.ToNative(&info)
 
 	// Write sysinfo response into buffer.
 	_, err = unix.Pwrite(siov.memFd, b, int64(siov.req.data.args[0]))
