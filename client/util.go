@@ -115,8 +115,11 @@ func unixHTTPClient(client *http.Client, path string) (*http.Client, error) {
 
 	// Define the http transport
 	transport := &http.Transport{
-		Dial:              unixDial,
-		DisableKeepAlives: true,
+		Dial:                  unixDial,
+		DisableKeepAlives:     true,
+		ExpectContinueTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 30,
+		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
 	// Define the http client
