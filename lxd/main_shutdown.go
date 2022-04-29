@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -55,7 +56,16 @@ func (c *cmdShutdown) Run(cmd *cobra.Command, args []string) error {
 	go func() {
 		defer close(chResult)
 
-		// Request shutdown, this shouldn't return until daemon has stopped.
+		httpClient, err := d.GetHTTPClient()
+		if err != nil {
+			chResult <- err
+			return
+		}
+
+		// Request shutdown, this shouldn't return until daemon has stopped so use a large request timeout.
+		httpTransport := httpClient.Transport.(*http.Transport)
+		httpTransport.ResponseHeaderTimeout = 3600 * time.Second
+
 		_, _, err = d.RawQuery("PUT", fmt.Sprintf("/internal/shutdown?%s", v.Encode()), nil, "")
 		if err != nil {
 			chResult <- err
