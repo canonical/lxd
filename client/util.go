@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/lxc/lxd/shared"
 )
@@ -20,10 +21,13 @@ func tlsHTTPClient(client *http.Client, tlsClientCert string, tlsClientKey strin
 
 	// Define the http transport
 	transport := &http.Transport{
-		TLSClientConfig:   tlsConfig,
-		Dial:              shared.RFC3493Dialer,
-		Proxy:             shared.ProxyFromEnvironment,
-		DisableKeepAlives: true,
+		TLSClientConfig:       tlsConfig,
+		Dial:                  shared.RFC3493Dialer,
+		Proxy:                 shared.ProxyFromEnvironment,
+		DisableKeepAlives:     true,
+		ExpectContinueTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 30,
+		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
 	// Allow overriding the proxy
