@@ -2975,7 +2975,7 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 		return nil, fmt.Errorf("Non-root drive config supplied")
 	}
 
-	if mountInfo.DiskPath == "" {
+	if !d.storagePool.Driver().Info().Remote && mountInfo.DiskPath == "" {
 		return nil, fmt.Errorf("No root disk path available from mount")
 	}
 
@@ -2985,6 +2985,24 @@ func (d *qemu) addRootDriveConfig(mountInfo *storagePools.MountInfo, bootIndexes
 		DevPath:    mountInfo.DiskPath,
 		Opts:       rootDriveConf.Opts,
 		TargetPath: rootDriveConf.TargetPath,
+	}
+
+	if d.storagePool.Driver().Info().Remote {
+		vol := d.storagePool.GetVolume(storageDrivers.VolumeTypeVM, storageDrivers.ContentTypeBlock, project.Instance(d.project, d.name), nil)
+
+		config := d.storagePool.ToAPI().Config
+
+		userName := config["ceph.user_name"]
+		if userName == "" {
+			userName = storageDrivers.CephDefaultUser
+		}
+
+		clusterName := config["ceph.cluster_name"]
+		if clusterName == "" {
+			clusterName = storageDrivers.CephDefaultUser
+		}
+
+		driveConf.DevPath = device.DiskGetRBDFormat(clusterName, userName, config["ceph.osd.pool_name"], vol.Name())
 	}
 
 	return d.addDriveConfig(bootIndexes, driveConf)
@@ -3204,7 +3222,17 @@ func (d *qemu) addDriveConfig(bootIndexes map[string]int, driveConf deviceConfig
 		}
 
 		// Driver and pool name arguments can be ignored as CephGetRBDImageName doesn't need them.
-		vol := storageDrivers.NewVolume(nil, "", storageDrivers.VolumeTypeCustom, storageDrivers.ContentTypeBlock, project.StorageVolume(d.project, volName), nil, nil)
+		volumeType := storageDrivers.VolumeTypeCustom
+		volumeName := project.StorageVolume(d.project, volName)
+
+		// Handle different name for instance volumes.
+		if driveConf.TargetPath == "/" {
+			volumeType = storageDrivers.VolumeTypeVM
+			volumeName = project.Instance(d.project, volName)
+		}
+
+		// Get the RBD image name.
+		vol := storageDrivers.NewVolume(nil, "", volumeType, storageDrivers.ContentTypeBlock, volumeName, nil, nil)
 		rbdImageName := storageDrivers.CephGetRBDImageName(vol, "", false)
 
 		// Parse the options (ceph credentials).
