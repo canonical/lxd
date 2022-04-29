@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/lxc/lxd/lxd/db/cluster"
 	"github.com/lxc/lxd/lxd/util"
@@ -92,9 +93,12 @@ func tlsCheckCert(r *http.Request, networkCert *shared.CertInfo, serverCert *sha
 // used.
 func tlsTransport(config *tls.Config) (*http.Transport, func()) {
 	transport := &http.Transport{
-		TLSClientConfig:   config,
-		DisableKeepAlives: true,
-		MaxIdleConns:      0,
+		TLSClientConfig:       config,
+		DisableKeepAlives:     true,
+		MaxIdleConns:          0,
+		ExpectContinueTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 30,
+		TLSHandshakeTimeout:   time.Second * 5,
 	}
 	return transport, transport.CloseIdleConnections
 }
