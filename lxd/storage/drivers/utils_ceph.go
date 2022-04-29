@@ -135,7 +135,7 @@ func CephMonitors(cluster string) ([]string, error) {
 	}
 
 	if len(cephMon) == 0 {
-		return nil, fmt.Errorf("Couldn't find a CPEH mon")
+		return nil, fmt.Errorf("Couldn't find a CEPH mon")
 	}
 
 	return cephMon, nil
