@@ -55,7 +55,7 @@ Once these configuration options are set, LXD starts listening for BGP sessions.
 For bridge networks, you can override the next-hop configuration.
 By default, the next-hop is set to the address used for the BGP session.
 
-To configure a different address, set `bgp.ipv4.nexthop` or `bgp.ipvg.nexthop`.
+To configure a different address, set `bgp.ipv4.nexthop` or `bgp.ipv6.nexthop`.
 
 ### Configure BGP peers for OVN networks
 
