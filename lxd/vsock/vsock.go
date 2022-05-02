@@ -75,7 +75,10 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 
 			return tlsConn, nil
 		},
-		DisableKeepAlives: true,
+		DisableKeepAlives:     true,
+		ExpectContinueTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 30,
+		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
 	// Setup redirect policy.

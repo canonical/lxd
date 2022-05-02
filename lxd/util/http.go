@@ -117,10 +117,13 @@ func HTTPClient(certificate string, proxy proxyFunc) (*http.Client, error) {
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig:   tlsConfig,
-		Dial:              shared.RFC3493Dialer,
-		Proxy:             proxy,
-		DisableKeepAlives: true,
+		TLSClientConfig:       tlsConfig,
+		Dial:                  shared.RFC3493Dialer,
+		Proxy:                 proxy,
+		DisableKeepAlives:     true,
+		ExpectContinueTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 30,
+		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
 	myhttp := http.Client{
