@@ -73,7 +73,7 @@ scrape_configs:
     static_configs:
       - targets: ['127.0.0.1:8443']
     tls_config:
-      ca_file: 'tls/lxd.crt'
+      ca_file: 'tls/server.crt'
       cert_file: 'tls/metrics.crt'
       key_file: 'tls/metrics.key'
 ```
