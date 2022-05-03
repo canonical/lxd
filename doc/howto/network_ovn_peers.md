@@ -6,8 +6,10 @@ discourse: 12165
 # How to create peer routing relationships
 
 Network peers allow the creation of routing relationships between two OVN networks.
-This allows for traffic between those two networks to stay within the OVN subsystem rather than having to transit
-via the uplink network.
+This allows for traffic between those two networks to stay within the OVN subsystem rather than having to transit via the uplink network.
+
+
+## Create a routing relationship between networks
 
 Both networks in the peering are required to complete a setup step to ensure that the peering is mutual.
 
@@ -18,11 +20,9 @@ lxc network peer create <local_network> foo <target_project/target_network> --pr
 lxc network peer create <target_network> foo <local_project/local_network> --project=target_project
 ```
 
-If either the project or network name specified in the peer setup step is incorrect, the user will not get an error
-from the command explaining that the respective project/network does not exist. This is to prevent a user in a
-different project from being able to discover whether a project and network exists.
+If either the project or network name specified in the peer setup step is incorrect, the user will not get an error from the command explaining that the respective project/network does not exist. This is to prevent a user in a different project from being able to discover whether a project and network exists.
 
-## Properties
+### Peer properties
 The following are network peer properties:
 
 Property         | Type       | Required | Description
@@ -34,3 +34,5 @@ ports            | port list  | no       | Network forward port list
 target_project   | string     | yes      | Which project the target network exists in (required at create time).
 target_network   | string     | yes      | Which network to create a peer with (required at create time).
 status           | string     | --       | Status indicates if pending or created (mutual peering exists with the target network).
+
+## Edit a routing relationship
