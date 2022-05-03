@@ -28,8 +28,6 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-	"github.com/lxc/lxd/shared/logging"
-	"github.com/lxc/lxd/shared/netutils"
 	"github.com/lxc/lxd/shared/version"
 	"github.com/lxc/lxd/shared/ws"
 )
@@ -386,7 +384,7 @@ func (s *execWs) Do(op *operations.Operation) error {
 			var readDone, writeDone chan struct{}
 			if s.instance.Type() == instancetype.Container {
 				// For containers, we are running the command via the local LXD managed PTY and so
-				// need special signal handling provided by netutils.WebsocketExecMirror.
+				// need special signal handling provided by ws.Mirror.
 				readDone, writeDone = ws.Mirror(ctxChild, conn, ptys[0])
 			} else {
 				return
