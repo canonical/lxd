@@ -4,14 +4,12 @@ import (
 	"io"
 
 	"github.com/gorilla/websocket"
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/shared/logger"
 )
 
 // Proxy mirrors the traffic between two websockets.
 func Proxy(source *websocket.Conn, target *websocket.Conn) chan struct{} {
-	logger.Debug("Websocket: Started proxy", log.Ctx{"source": source.RemoteAddr().String(), "target": target.RemoteAddr().String()})
+	logger.Debug("Websocket: Started proxy", logger.Ctx{"source": source.RemoteAddr().String(), "target": target.RemoteAddr().String()})
 
 	// Forwarder between two websockets, closes channel upon disconnection.
 	forward := func(in *websocket.Conn, out *websocket.Conn, ch chan struct{}) {
@@ -54,7 +52,7 @@ func Proxy(source *websocket.Conn, target *websocket.Conn) chan struct{} {
 		source.Close()
 		target.Close()
 
-		logger.Debug("Websocket: Stopped proxy", log.Ctx{"source": source.RemoteAddr().String(), "target": target.RemoteAddr().String()})
+		logger.Debug("Websocket: Stopped proxy", logger.Ctx{"source": source.RemoteAddr().String(), "target": target.RemoteAddr().String()})
 		close(ch)
 	}()
 

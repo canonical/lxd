@@ -5,8 +5,6 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	log "gopkg.in/inconshreveable/log15.v2"
-
 	"github.com/lxc/lxd/shared/logger"
 )
 
@@ -31,12 +29,12 @@ func (w *Wrapper) Read(p []byte) (n int, err error) {
 			if err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 					// Websocket was cleanly disconnected.
-					logger.Debug("Websocket: Got disconnected", log.Ctx{"address": w.conn.RemoteAddr().String()})
+					logger.Debug("Websocket: Got disconnected", logger.Ctx{"address": w.conn.RemoteAddr().String()})
 					return 0, io.EOF
 				}
 
 				// Failed to get a reader.
-				logger.Debug("Websocket: Failed to get reader", log.Ctx{"err": err, "address": w.conn.RemoteAddr().String()})
+				logger.Debug("Websocket: Failed to get reader", logger.Ctx{"err": err, "address": w.conn.RemoteAddr().String()})
 				return -1, err
 			}
 
@@ -46,13 +44,13 @@ func (w *Wrapper) Read(p []byte) (n int, err error) {
 
 			if mt == websocket.CloseMessage {
 				// Websocket closed by remote.
-				logger.Debug("Websocket: Got close message", log.Ctx{"address": w.conn.RemoteAddr().String()})
+				logger.Debug("Websocket: Got close message", logger.Ctx{"address": w.conn.RemoteAddr().String()})
 				return 0, io.EOF
 			}
 
 			if mt == websocket.TextMessage {
 				// Barrier message, done with this stream.
-				logger.Debug("Websocket: Got barrier message", log.Ctx{"address": w.conn.RemoteAddr().String()})
+				logger.Debug("Websocket: Got barrier message", logger.Ctx{"address": w.conn.RemoteAddr().String()})
 				return 0, io.EOF
 			}
 		}
@@ -70,7 +68,7 @@ func (w *Wrapper) Read(p []byte) (n int, err error) {
 
 		if err != nil {
 			// Failed to read the message.
-			logger.Debug("Websocket: Failed to read message", log.Ctx{"err": err, "address": w.conn.RemoteAddr().String()})
+			logger.Debug("Websocket: Failed to read message", logger.Ctx{"err": err, "address": w.conn.RemoteAddr().String()})
 			return -1, err
 		}
 
@@ -113,6 +111,6 @@ func (w *Wrapper) Close() error {
 	w.closed = true
 
 	// Send the barrier message (don't actually close the socket so we can use it for another stream).
-	logger.Debug("Websocket: Sending barrier message", log.Ctx{"address": w.conn.RemoteAddr().String()})
+	logger.Debug("Websocket: Sending barrier message", logger.Ctx{"address": w.conn.RemoteAddr().String()})
 	return w.conn.WriteMessage(websocket.TextMessage, []byte{})
 }
