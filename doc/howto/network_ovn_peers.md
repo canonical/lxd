@@ -5,34 +5,61 @@ discourse: 12165
 (network-ovn-peers)=
 # How to create peer routing relationships
 
-Network peers allow the creation of routing relationships between two OVN networks.
-This allows for traffic between those two networks to stay within the OVN subsystem rather than having to transit via the uplink network.
+By default, traffic between two OVN networks goes through the uplink network.
+This path is inefficient, however, because packets must leave the OVN subsystem and transit through the host's networking stack (and, potentially, an external network) and back into the OVN subsystem of the target network.
+Depending on how the host's networking is configured, this might limit the available bandwidth (if the OVN overlay network is on a higher bandwidth network than the host's external network).
 
+Therefore, LXD allows creating peer routing relationships between two OVN networks.
+Using this method, traffic between the two networks can go directly from one OVN network to the other and thus stays withing the OVN subsystem, rather than transiting through the uplink network.
 
 ## Create a routing relationship between networks
 
-Both networks in the peering are required to complete a setup step to ensure that the peering is mutual.
+To add a peer routing relationship between two networks, you must create a network peering for both networks.
+The relationship must be mutual.
+If you set it up on only one network, the routing relationship will be in pending state, but not active.
 
-E.g.
+When creating the peer routing relationship, specify a peering name that identifies the relationship for the respective network.
+The name can be chosen freely, and you can use it later to edit or delete the relationship.
 
+Use the following commands to create a peer routing relationship between networks in the same project:
+
+    lxc network peer create <network1> <peering_name> <network2> [configuration_options]
+    lxc network peer create <network2> <peering_name> <network1> [configuration_options]
+
+You can also create peer routing relationships between OVN networks in different projects:
+
+    lxc network peer create <network1> <peering_name> <project2/network2> [configuration_options] --project=<project1>
+    lxc network peer create <network2> <peering_name> <project1/network1> [configuration_options] --project=<project2>
+
+```{important}
+If the project or the network name is incorrect, the command will not return any error indicating that the respective project/network does not exist, and the routing relationship will remain in pending state.
+This behavior prevents users in a different project from discovering whether a project and network exists.
 ```
-lxc network peer create <local_network> foo <target_project/target_network> --project=local_network
-lxc network peer create <target_network> foo <local_project/local_network> --project=target_project
-```
 
-If either the project or network name specified in the peer setup step is incorrect, the user will not get an error from the command explaining that the respective project/network does not exist. This is to prevent a user in a different project from being able to discover whether a project and network exists.
+### Peering properties
 
-### Peer properties
-The following are network peer properties:
+Peer routing relationships have the following properties:
 
 Property         | Type       | Required | Description
 :--              | :--        | :--      | :--
-name             | string     | yes      | Name of the Network Peer on the local network
-description      | string     | no       | Description of Network Peer
-config           | string set | no       | Config key/value pairs (Only `user.*` custom keys supported)
+name             | string     | yes      | Name of the network peering on the local network
+description      | string     | no       | Description of the network peering
+config           | string set | no       | Configuration options as key/value pairs (only `user.*` custom keys supported)
 ports            | port list  | no       | Network forward port list
-target_project   | string     | yes      | Which project the target network exists in (required at create time).
-target_network   | string     | yes      | Which network to create a peer with (required at create time).
-status           | string     | --       | Status indicates if pending or created (mutual peering exists with the target network).
+target_project   | string     | yes      | Which project the target network exists in (required at create time)
+target_network   | string     | yes      | Which network to create a peering with (required at create time)
+status           | string     | --       | Status indicating if pending or created (mutual peering exists with the target network)
+
+## List routing relationships
+
+To list all network peerings for a network, use the following command:
+
+    lxc network peer list <network>
 
 ## Edit a routing relationship
+
+Use the following command to edit a network peering:
+
+    lxc network peer edit <network> <peering_name>
+
+This command opens the network peering in YAML format for editing.
