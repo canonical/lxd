@@ -26,6 +26,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	cli "github.com/lxc/lxd/shared/cmd"
 	"github.com/lxc/lxd/shared/version"
+	"github.com/lxc/lxd/shared/ws"
 )
 
 func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operation, rootfs string, rsyncArgs string, instanceType api.InstanceType) error {
@@ -105,7 +106,7 @@ func transferRootfs(ctx context.Context, dst lxd.InstanceServer, op lxd.Operatio
 		}
 		defer f.Close()
 
-		conn := &shared.WebsocketIO{Conn: wsFs}
+		conn := ws.NewWrapper(wsFs)
 
 		go func() {
 			<-ctx.Done()
