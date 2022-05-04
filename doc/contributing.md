@@ -13,12 +13,16 @@ To build the dependencies, follow the instructions in {ref}`installing_from_sour
 
 ### Adding Your Fork Remote
 
-After building your dependencies, you can now add your GitHub fork as a remote and switch to it:
-```bash
-git remote add myfork git@github.com:<your_username>/lxd.git
-git remote update
-git checkout myfork/master
-```
+After building your dependencies, you can now add your GitHub fork as a remote:
+
+    git remote add myfork git@github.com:<your_username>/lxd.git
+    git remote update
+
+Then switch to it:
+
+<!-- wokeignore:rule=master -->
+    git checkout myfork/master
+
 
 ### Building LXD
 
