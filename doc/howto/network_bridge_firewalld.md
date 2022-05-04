@@ -88,3 +88,14 @@ For example:
     :start-after: <!-- Include start warning -->
     :end-before: <!-- Include end warning -->
 ```
+
+## Prevent issues with LXD and Docker
+
+Running LXD and Docker on the same host can cause connectivity issues.
+A common reason for these issues is that Docker sets the FORWARD policy to `drop`, which prevents LXD from forwarding traffic and thus causes the instances to lose network connectivity.
+See [Docker on a router](https://docs.docker.com/network/iptables/#docker-on-a-router) for detailed information.
+
+The easiest way to prevent such issues is to uninstall Docker from the system that runs LXD.
+If that is not an option, use the following command to explicitly allow network traffic from your network bridge to your external network interface:
+
+    iptables -I DOCKER-USER -i <network_bridge> -o <external_interface> -j ACCEPT
