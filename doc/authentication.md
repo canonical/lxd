@@ -167,7 +167,7 @@ In the following scenarios, authentication is expected to fail.
 The server certificate might change in the following cases:
 
  * The server was fully reinstalled and therefore got a new certificate.
- * The connection is being intercepted ({abbr}`MITM (Man in the middle)`).
+ * The connection is being intercepted ({abbr}`MITM (Machine in the middle)`).
 
 In such cases, the client will refuse to connect to the server because the certificate fingerprint does not match the fingerprint in the configuration for this remote.
 
