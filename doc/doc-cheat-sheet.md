@@ -255,7 +255,7 @@ When using Markdown syntax, you can leave out the file name when linking within 
 
 Every documentation page must be included as a subpage to another page in the navigation.
 
-This is achieved with the [`toctree`](https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree) directive in the parent page:
+This is achieved with the [`toctree`](https://www.sphinx-doc.org/en/master/usage/restructuredtext/directives.html#directive-toctree) directive in the parent page: <!-- wokeignore:rule=master -->
 
 ````
 ```{toctree}

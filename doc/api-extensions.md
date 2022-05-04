@@ -34,10 +34,10 @@ Containers with the same priority will shutdown in parallel.  It defaults to 0.
 ## container\_syscall\_filtering
 A number of new syscalls related container configuration keys were introduced.
 
- * `security.syscalls.blacklist_default`
- * `security.syscalls.blacklist_compat`
- * `security.syscalls.blacklist`
- * `security.syscalls.whitelist`
+ * `security.syscalls.blacklist_default` <!-- wokeignore:rule=blacklist -->
+ * `security.syscalls.blacklist_compat` <!-- wokeignore:rule=blacklist -->
+ * `security.syscalls.blacklist` <!-- wokeignore:rule=blacklist -->
+ * `security.syscalls.whitelist` <!-- wokeignore:rule=whitelist -->
 
 See [Instance configuration](instances.md) for how to use them.
 
