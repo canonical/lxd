@@ -1,10 +1,11 @@
-name: "Pull request labeler"
+name: Triaging
 on:
 - pull_request_target
 
 jobs:
-  triage:
-    runs-on: ubuntu-latest
+  label:
+    name: PR labels
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/labeler@v3
       with:
