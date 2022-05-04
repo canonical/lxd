@@ -41,31 +41,6 @@ jobs:
           CGO_ENABLED: 0
         run: go test -v ./shared/...
 
-      - name: Create build directory
-        run: |
-          mkdir bin
-
-      - name: Build static lxc
-        env:
-          CGO_ENABLED: 0
-        run: |
-          go build -o bin ./lxc
-
-      - name: Build static lxd-migrate
-        if: runner.os == 'Linux'
-        env:
-          CGO_ENABLED: 0
-        run: |
-          go build -o bin ./lxd-migrate
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v2
-        if: matrix.go == '1.18.x'
-        continue-on-error: true
-        with:
-          name: ${{ runner.os }}
-          path: bin/
-
   woke:
     name: Inclusive naming (documentation)
     runs-on: ubuntu-20.04
