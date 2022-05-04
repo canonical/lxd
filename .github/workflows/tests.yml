@@ -1,9 +1,11 @@
-name: Client build and unit tests
+name: Tests
 on:
   - push
   - pull_request
+
 jobs:
-  test:
+  client:
+    name: Unit tests (client)
     strategy:
       fail-fast: false
       matrix:
@@ -14,6 +16,7 @@ jobs:
           - macos-latest
           - windows-latest
     runs-on: ${{ matrix.os }}
+
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
@@ -62,3 +65,17 @@ jobs:
         with:
           name: ${{ runner.os }}
           path: bin/
+
+  woke:
+    name: Inclusive naming (documentation)
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: woke
+        uses: get-woke/woke-action@v0
+        with:
+          # Cause the check to fail on any broke rules
+          fail-on-error: true
+          woke-args: "doc/*.md doc/**/*.md -c https://github.com/canonical-web-and-design/Inclusive-naming/raw/main/config.yml"
