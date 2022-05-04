@@ -44,7 +44,7 @@ html_last_updated_fmt = ""
 html_favicon = "_static/download/favicon.ico"
 html_static_path = ['_static']
 html_css_files = ['custom.css']
-html_js_files = ['header-nav.js']
+html_js_files = ['header-nav.js','version-switcher.js']
 html_extra_path = ['_extra']
 
 html_theme_options = {
@@ -110,6 +110,15 @@ html_context = {
     "discourse_prefix": "https://discuss.linuxcontainers.org/t/"
 }
 
+html_sidebars = {
+    "**": [
+        "sidebar/variant-selector.html",
+        "sidebar/search.html",
+        "sidebar/scroll-start.html",
+        "sidebar/navigation.html",
+        "sidebar/scroll-end.html",
+    ]
+}
 
 source_suffix = ".md"
 
