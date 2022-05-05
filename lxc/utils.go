@@ -192,13 +192,13 @@ func instancesExist(resources []remoteResource) error {
 
 			_, _, err := resource.server.GetInstanceSnapshot(parent, snap)
 			if err != nil {
-				return fmt.Errorf(i18n.G("Failed to validate \"%s:%s\": %w"), resource.remote, resource.name, err)
+				return fmt.Errorf(i18n.G("Failed checking instance snapshot exists \"%s:%s\": %w"), resource.remote, resource.name, err)
 			}
 		}
 
 		_, _, err := resource.server.GetInstance(resource.name)
 		if err != nil {
-			return fmt.Errorf(i18n.G("Failed to validate \"%s:%s\": %w"), resource.remote, resource.name, err)
+			return fmt.Errorf(i18n.G("Failed checking instance exists \"%s:%s\": %w"), resource.remote, resource.name, err)
 		}
 	}
 
