@@ -194,6 +194,8 @@ func instancesExist(resources []remoteResource) error {
 			if err != nil {
 				return fmt.Errorf(i18n.G("Failed to validate \"%s:%s\": %w"), resource.remote, resource.name, err)
 			}
+
+			return nil
 		}
 
 		_, _, err := resource.server.GetInstance(resource.name)
