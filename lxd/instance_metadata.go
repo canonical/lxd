@@ -77,6 +77,10 @@ func instanceMetadataGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
@@ -178,6 +182,10 @@ func instanceMetadataPatch(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
 	// Handle requests targeted to an instance on a different node.
@@ -289,6 +297,10 @@ func instanceMetadataPut(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
 	// Handle requests targeted to an instance on a different node.
@@ -405,6 +417,10 @@ func instanceMetadataTemplatesGet(d *Daemon, r *http.Request) response.Response 
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node
@@ -546,6 +562,10 @@ func instanceMetadataTemplatesPost(d *Daemon, r *http.Request) response.Response
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
@@ -651,6 +671,10 @@ func instanceMetadataTemplatesDelete(d *Daemon, r *http.Request) response.Respon
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
 	// Handle requests targeted to a container on a different node

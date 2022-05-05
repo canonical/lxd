@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/lxc/lxd/lxd/instance"
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared"
 )
 
 // swagger:operation GET /1.0/instances/{name} instances instance_get
@@ -103,6 +105,10 @@ func instanceGet(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
 	// Parse the recursion field
