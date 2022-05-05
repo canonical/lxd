@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-28 12:00-0400\n"
+"POT-Creation-Date: 2022-05-05 16:58+0200\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -2115,6 +2115,16 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
+#: lxc/utils.go:203
+#, fuzzy, c-format
+msgid "Failed checking instance exists \"%s:%s\": %w"
+msgstr "kann nicht zum selben Container Namen kopieren"
+
+#: lxc/utils.go:195
+#, fuzzy, c-format
+msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
+msgstr "kann nicht zum selben Container Namen kopieren"
+
 #: lxc/file.go:1226
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2202,11 +2212,6 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 #: lxc/utils.go:110
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
-msgstr "Akzeptiere Zertifikat"
-
-#: lxc/utils.go:195 lxc/utils.go:201
-#, fuzzy, c-format
-msgid "Failed to validate \"%s:%s\": %w"
 msgstr "Akzeptiere Zertifikat"
 
 #: lxc/file.go:768
@@ -7139,6 +7144,10 @@ msgstr ""
 #: lxc/image.go:1099
 msgid "yes"
 msgstr ""
+
+#, fuzzy, c-format
+#~ msgid "Failed to validate \"%s:%s\": %w"
+#~ msgstr "Akzeptiere Zertifikat"
 
 #, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"
