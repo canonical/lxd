@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-04-28 12:00-0400\n"
+"POT-Creation-Date: 2022-05-05 16:58+0200\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Finnish <https://hosted.weblate.org/projects/linux-containers/"
@@ -1777,6 +1777,16 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
+#: lxc/utils.go:203
+#, c-format
+msgid "Failed checking instance exists \"%s:%s\": %w"
+msgstr ""
+
+#: lxc/utils.go:195
+#, c-format
+msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
+msgstr ""
+
 #: lxc/file.go:1226
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -1863,11 +1873,6 @@ msgstr ""
 #: lxc/utils.go:110
 #, c-format
 msgid "Failed to remove alias %s: %w"
-msgstr ""
-
-#: lxc/utils.go:195 lxc/utils.go:201
-#, c-format
-msgid "Failed to validate \"%s:%s\": %w"
 msgstr ""
 
 #: lxc/file.go:768
