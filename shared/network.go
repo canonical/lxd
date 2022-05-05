@@ -382,7 +382,7 @@ func (w *WebsocketIO) Read(p []byte) (n int, err error) {
 
 			mt, w.reader, err = w.Conn.NextReader()
 			if err != nil {
-				return -1, err
+				return 0, err
 			}
 
 			if mt == websocket.CloseMessage {
@@ -403,7 +403,7 @@ func (w *WebsocketIO) Read(p []byte) (n int, err error) {
 		}
 
 		if err != nil {
-			return -1, err
+			return 0, err
 		}
 
 		return n, nil
