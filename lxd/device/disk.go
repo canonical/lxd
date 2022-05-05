@@ -181,7 +181,7 @@ func (d *disk) validateConfig(instConf instance.ConfigReader) error {
 	}
 
 	if d.config["source"] == "" && d.config["path"] != "/" {
-		return fmt.Errorf(`Disk entry is missing the required "source" property`)
+		return fmt.Errorf(`Disk entry is missing the required "source" or "path" property`)
 	}
 
 	if d.config["path"] == "/" && d.config["source"] != "" {
