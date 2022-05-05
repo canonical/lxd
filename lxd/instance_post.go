@@ -83,6 +83,10 @@ func instancePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	targetNode := queryParam(r, "target")
 
 	// Flag indicating whether the node running the container is offline.
