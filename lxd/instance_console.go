@@ -404,6 +404,10 @@ func instanceConsolePost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	post := api.InstanceConsolePost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -540,6 +544,10 @@ func instanceConsoleLogGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	// Forward the request if the container is remote.
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, name, instanceType)
 	if err != nil {
@@ -636,6 +644,10 @@ func instanceConsoleLogDelete(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
 	projectName := projectParam(r)

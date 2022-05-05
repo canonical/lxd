@@ -500,6 +500,10 @@ func instanceExecPost(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	post := api.InstanceExecPost{}
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
