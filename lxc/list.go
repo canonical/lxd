@@ -492,24 +492,7 @@ func (c *cmdList) Run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Check if we have any name based filters.
-	nameFilter := false
-	for _, filter := range filters {
-		// If not key=value syntax, it's a name filter.
-		if !strings.Contains(filter, "=") {
-			nameFilter = true
-			break
-		}
-
-		// If not straightforward key=value, assume name filter.
-		fields := strings.SplitN(filter, "=", 2)
-		if len(fields) != 2 {
-			nameFilter = true
-			break
-		}
-	}
-
-	if !nameFilter && needsData && d.HasExtension("container_full") {
+	if needsData && d.HasExtension("container_full") {
 		// Using the GetInstancesFull shortcut
 		var cts []api.InstanceFull
 		if c.flagAllProjects {
