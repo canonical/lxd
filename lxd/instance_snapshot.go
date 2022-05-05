@@ -133,6 +133,10 @@ func instanceSnapshotsGet(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(cname) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	// Handle requests targeted to a container on a different node
 	resp, err := forwardedResponseIfInstanceIsRemote(d, r, projectName, cname, instanceType)
 	if err != nil {
@@ -232,6 +236,10 @@ func instanceSnapshotsPost(d *Daemon, r *http.Request) response.Response {
 	name, err := url.PathUnescape(mux.Vars(r)["name"])
 	if err != nil {
 		return response.SmartError(err)
+	}
+
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
 	}
 
 	var proj *cluster.Project
