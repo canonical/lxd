@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 18:08-0500\n"
+"POT-Creation-Date: 2022-06-20 18:11-0500\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Wivik <seb+weblate@zedas.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/linux-containers/"
@@ -2149,6 +2149,16 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
+#: lxc/utils.go:203
+#, fuzzy, c-format
+msgid "Failed checking instance exists \"%s:%s\": %w"
+msgstr "Profil à appliquer au nouveau conteneur"
+
+#: lxc/utils.go:195
+#, fuzzy, c-format
+msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
+msgstr "Profil à appliquer au nouveau conteneur"
+
 #: lxc/file.go:1226
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2237,11 +2247,6 @@ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 #: lxc/utils.go:110
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
-msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
-
-#: lxc/utils.go:195 lxc/utils.go:201
-#, fuzzy, c-format
-msgid "Failed to validate \"%s:%s\": %w"
 msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
 #: lxc/file.go:768
@@ -7398,6 +7403,10 @@ msgstr "o"
 #: lxc/image.go:1095
 msgid "yes"
 msgstr "oui"
+
+#, fuzzy, c-format
+#~ msgid "Failed to validate \"%s:%s\": %w"
+#~ msgstr "Échec lors de la génération de 'lxc.%s.1': %v"
 
 #, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"

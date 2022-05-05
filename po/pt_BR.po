@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 18:08-0500\n"
+"POT-Creation-Date: 2022-06-20 18:11-0500\n"
 "PO-Revision-Date: 2022-03-10 15:08+0000\n"
 "Last-Translator: Renato dos Santos <renato.santos@wplex.com.br>\n"
 "Language-Team: Portuguese (Brazil) <https://hosted.weblate.org/projects/"
@@ -2068,6 +2068,16 @@ msgstr ""
 msgid "Failed accepting channel client %q: %v"
 msgstr ""
 
+#: lxc/utils.go:203
+#, fuzzy, c-format
+msgid "Failed checking instance exists \"%s:%s\": %w"
+msgstr "Nome de membro do cluster"
+
+#: lxc/utils.go:195
+#, fuzzy, c-format
+msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
+msgstr "Nome de membro do cluster"
+
 #: lxc/file.go:1226
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2154,11 +2164,6 @@ msgstr ""
 #: lxc/utils.go:110
 #, fuzzy, c-format
 msgid "Failed to remove alias %s: %w"
-msgstr "Aceitar certificado"
-
-#: lxc/utils.go:195 lxc/utils.go:201
-#, fuzzy, c-format
-msgid "Failed to validate \"%s:%s\": %w"
 msgstr "Aceitar certificado"
 
 #: lxc/file.go:768
@@ -6468,6 +6473,10 @@ msgstr ""
 #: lxc/image.go:1095
 msgid "yes"
 msgstr "sim"
+
+#, fuzzy, c-format
+#~ msgid "Failed to validate \"%s:%s\": %w"
+#~ msgstr "Aceitar certificado"
 
 #, fuzzy, c-format
 #~ msgid "Invalid key=value configuration: %w"

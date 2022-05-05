@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 18:08-0500\n"
+"POT-Creation-Date: 2022-06-20 18:11-0500\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -2042,6 +2042,16 @@ msgstr "クライアント %q との SSH ハンドシェイクに失敗しまし
 msgid "Failed accepting channel client %q: %v"
 msgstr "クライアント %q のチャンネルの受け入れに失敗しました: %v"
 
+#: lxc/utils.go:203
+#, fuzzy, c-format
+msgid "Failed checking instance exists \"%s:%s\": %w"
+msgstr "インスタンスの SFTP への接続に失敗しました: %w"
+
+#: lxc/utils.go:195
+#, fuzzy, c-format
+msgid "Failed checking instance snapshot exists \"%s:%s\": %w"
+msgstr "クライアント %q に対する SFTP インスタンスの接続に失敗しました: %v"
+
 #: lxc/file.go:1226
 #, c-format
 msgid "Failed connecting to instance SFTP for client %q: %v"
@@ -2128,11 +2138,6 @@ msgstr "コピー先のインスタンス '%s' のリフレッシュに失敗し
 #: lxc/utils.go:110
 #, c-format
 msgid "Failed to remove alias %s: %w"
-msgstr "エイリアス %s の削除に失敗しました: %w"
-
-#: lxc/utils.go:195 lxc/utils.go:201
-#, fuzzy, c-format
-msgid "Failed to validate \"%s:%s\": %w"
 msgstr "エイリアス %s の削除に失敗しました: %w"
 
 #: lxc/file.go:768
@@ -6712,6 +6717,10 @@ msgstr "y"
 #: lxc/image.go:1095
 msgid "yes"
 msgstr "yes"
+
+#, fuzzy, c-format
+#~ msgid "Failed to validate \"%s:%s\": %w"
+#~ msgstr "エイリアス %s の削除に失敗しました: %w"
 
 #, c-format
 #~ msgid "Invalid key=value configuration: %w"
