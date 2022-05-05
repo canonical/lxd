@@ -32,6 +32,10 @@ func instanceFileHandler(d *Daemon, r *http.Request) response.Response {
 		return response.SmartError(err)
 	}
 
+	if shared.IsSnapshot(name) {
+		return response.BadRequest(fmt.Errorf("Invalid instance name"))
+	}
+
 	// Redirect to correct server if needed.
 	instanceType, err := urlInstanceTypeDetect(r)
 	if err != nil {
