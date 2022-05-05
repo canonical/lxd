@@ -194,6 +194,8 @@ func instancesExist(resources []remoteResource) error {
 			if err != nil {
 				return fmt.Errorf(i18n.G("Failed checking instance snapshot exists \"%s:%s\": %w"), resource.remote, resource.name, err)
 			}
+
+			continue
 		}
 
 		_, _, err := resource.server.GetInstance(resource.name)
