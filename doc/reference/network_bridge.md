@@ -15,7 +15,7 @@ The `bridge` network type allows to create an L2 bridge that connects the instan
 Bridges created by LXD are managed, which means that in addition to creating the bridge interface itself, LXD also sets up a local `dnsmasq` process to provide DHCP, IPv6 route announcements and DNS services to the network.
 By default, it also performs NAT for the bridge.
 
-See {ref}`network-bridge-firewalld` for instructions on how to configure firewalld to work with LXD bridge networks.
+See {ref}`network-bridge-firewall` for instructions on how to configure your firewall to work with LXD bridge networks.
 
 ## IPv6 prefix size
 
@@ -129,5 +129,5 @@ The following features are supported for the `bridge` network type:
 :hidden:
 
 Integrate with systemd-resolved </howto/network_bridge_resolved>
-Configure Firewalld </howto/network_bridge_firewalld>
+Configure your firewall </howto/network_bridge_firewalld>
 ```

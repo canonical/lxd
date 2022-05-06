@@ -1,52 +1,101 @@
-(network-bridge-firewalld)=
-# How to configure Firewalld
+---
+discourse: 10034,9953
+---
 
-## Allow DHCP, DNS with Firewalld
+(network-bridge-firewall)=
+# How to configure your firewall
 
-In order to allow instances to access the DHCP and DNS server that LXD runs on the host when using firewalld
-you need to add the host's bridge interface to the `trusted` zone in firewalld.
+Linux firewalls are based on netfilter.
+LXD uses the same subsystem, which can lead to connectivity issues.
 
-To do this permanently (so that it persists after a reboot) run the following command:
+If you run a firewall on your system, you might need to configure it to allow network traffic between the managed LXD bridge and the host.
+Otherwise, some network functionality (DHCP, DNS and external network access) might not work as expected.
 
+You might also see conflicts between the rules defined by your firewall (or another application) and the firewall rules that LXD adds.
+For example, your firewall might erase LXD rules if it is started after the LXD daemon, which might interrupt network connectivity to the instance.
+
+## xtables vs. nftables
+
+There are different userspace commands to add rules to netfilter: xtables (iptables for IPv4 and ip6tables for IPv6) and nftables.
+
+Xtables provides an ordered list of rules, which might cause issues if multiple systems add and remove entries from the list.
+Nftables adds the ability to separate rules into namespaces, which helps to separate rules from different applications.
+However, if a packet is blocked in one namespace, it is not possible for another namespace to allow it.
+Therefore, rules in one namespace can still affect rules in another namespace, and firewall applications can still impact LXD network functionality.
+
+If your system supports and uses nftables, LXD detects this and switches to nftables mode.
+In this mode, LXD adds its rules into the nftables, using its own nftables namespace.
+
+## Use LXD's firewall
+
+By default, managed LXD bridges add firewall rules to ensure full functionality.
+If you do not run another firewall on your system, you can let LXD manage its firewall rules.
+
+To enable or disable this behavior, use the `ipv4.firewall` or `ipv6.firewall` {ref}`configuration options <network-bridge-options>`.
+
+## Use another firewall
+
+Firewall rules added by other applications might interfere with the firewall rules that LXD adds.
+Therefore, if you use another firewall, you should disable LXD's firewall rules.
+You must also configure your firewall to allow network traffic between the instances and the LXD bridge, so that the LXD instances can access the DHCP and DNS server that LXD runs on the host.
+
+See the following sections for instructions on how to disable LXD's firewall rules and how to properly configure firewalld and UFW, respectively.
+
+### Disable LXD's firewall rules
+
+Run the following commands to prevent LXD from setting firewall rules for a specific network bridge (for example, `lxdbr0`):
+
+    lxc network set <network_bridge> ipv6.firewall false
+    lxc network set <network_bridge> ipv4.firewall false
+
+### Firewalld: Add the bridge to the trusted zone
+
+To allow traffic to and from the LXD bridge in firewalld, add the bridge interface to the `trusted` zone.
+To do this permanently (so that it persists after a reboot), run the following commands:
+
+    sudo firewall-cmd --zone=trusted --change-interface=<network_bridge> --permanent
+    sudo firewall-cmd --reload
+
+For example:
+
+    sudo firewall-cmd --zone=trusted --change-interface=lxdbr0 --permanent
+    sudo firewall-cmd --reload
+
+<!-- Include start warning -->
+```{warning}
+The commands given above show a simple example configuration.
+Depending on your use case, you might need more advanced rules and the example configuration might inadvertently introduce a security risk.
 ```
-firewall-cmd --zone=trusted --change-interface=<LXD network name> --permanent
+<!-- Include end warning -->
+
+### UFW: Add rules for the bridge
+
+If UFW has a rule to drop all unrecognized traffic, it blocks the traffic to and from the LXD bridge.
+In this case, you must add rules to allow traffic to and from the bridge.
+
+To do so, run the following commands:
+
+    sudo ufw allow in on <network_bridge>
+    sudo ufw route allow in on <network_bridge>
+
+For example:
+
+    sudo ufw allow in on lxdbr0
+    sudo ufw route allow in on lxdbr0
+
+% Repeat warning from above
+```{include} network_bridge_firewalld.md
+    :start-after: <!-- Include start warning -->
+    :end-before: <!-- Include end warning -->
 ```
 
-E.g. for a bridged network called `lxdbr0` run the command:
+## Prevent issues with LXD and Docker
 
-```
-firewall-cmd --zone=trusted --change-interface=lxdbr0 --permanent
-```
+Running LXD and Docker on the same host can cause connectivity issues.
+A common reason for these issues is that Docker sets the FORWARD policy to `drop`, which prevents LXD from forwarding traffic and thus causes the instances to lose network connectivity.
+See [Docker on a router](https://docs.docker.com/network/iptables/#docker-on-a-router) for detailed information.
 
-This will then allow LXD's own firewall rules to take effect.
+The easiest way to prevent such issues is to uninstall Docker from the system that runs LXD.
+If that is not an option, use the following command to explicitly allow network traffic from your network bridge to your external network interface:
 
-
-## How to let Firewalld control the LXD's iptables rules
-
-When using firewalld and LXD together, iptables rules can overlaps. For example, firewalld could erase LXD iptables rules if it is started after LXD daemon, then LXD container will not be able to do any oubound internet access.
-One way to fix it is to delegate to firewalld the LXD's iptables rules and to disable the LXD ones.
-
-First step is to [allow DNS and DHCP](#allow-dhcp-dns-with-firewalld).
-
-Then to tell to LXD totally stop to set iptables rules (because firewalld will do it):
-```
-lxc network set lxdbr0 ipv4.nat false
-lxc network set lxdbr0 ipv6.nat false
-lxc network set lxdbr0 ipv6.firewall false
-lxc network set lxdbr0 ipv4.firewall false
-```
-
-Finally, to enable iptables firewalld's rules for LXD usecase (in this example, we suppose the bridge interface is `lxdbr0` and the associated IP range is `10.0.0.0/24`:
-```
-firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -i lxdbr0 -s 10.0.0.0/24 -m comment --comment "generated by firewalld for LXD" -j ACCEPT
-firewall-cmd --permanent --direct --add-rule ipv4 filter OUTPUT 0 -o lxdbr0 -d 10.0.0.0/24 -m comment --comment "generated by firewalld for LXD" -j ACCEPT
-firewall-cmd --permanent --direct --add-rule ipv4 filter FORWARD 0 -i lxdbr0 -s 10.0.0.0/24 -m comment --comment "generated by firewalld for LXD" -j ACCEPT
-firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.0.0.0/24 ! -d 10.0.0.0/24 -m comment --comment "generated by firewalld for LXD" -j MASQUERADE
-firewall-cmd --reload
-```
-To check the rules are taken into account by firewalld:
-```
-firewall-cmd --direct --get-all-rules
-```
-
-Warning: what is exposed above is not a fool-proof approach and may end up inadvertently introducing a security risk.
+    iptables -I DOCKER-USER -i <network_bridge> -o <external_interface> -j ACCEPT
