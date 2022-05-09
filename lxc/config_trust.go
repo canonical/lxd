@@ -84,13 +84,18 @@ type cmdConfigTrustAdd struct {
 func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:] [<cert>]"))
-	cmd.Short = i18n.G("Add new trusted clients")
+	cmd.Short = i18n.G("Add new trusted client")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add new trusted clients
+		`Add new trusted client
 
 The following certificate types are supported:
 - client (default)
 - metrics
+
+If the certificate is omitted, a token will be generated and returned. A client
+providing a valid token will have its client certificate added to the trusted list
+and the consumed token will be invalidated. Similar to certificates, tokens can be
+restricted to one or more projects.
 `))
 
 	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
@@ -504,9 +509,9 @@ func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:] <fingerprint>"))
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Remove trusted clients")
+	cmd.Short = i18n.G("Remove trusted client")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove trusted clients`))
+		`Remove trusted client`))
 
 	cmd.RunE = c.Run
 
