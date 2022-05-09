@@ -84,9 +84,9 @@ type cmdConfigTrustAdd struct {
 func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("add", i18n.G("[<remote>:] [<cert>]"))
-	cmd.Short = i18n.G("Add new trusted clients")
+	cmd.Short = i18n.G("Add new trusted client")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Add new trusted clients
+		`Add new trusted client
 
 The following certificate types are supported:
 - client (default)
@@ -504,9 +504,9 @@ func (c *cmdConfigTrustRemove) Command() *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Use = usage("remove", i18n.G("[<remote>:] <fingerprint>"))
 	cmd.Aliases = []string{"rm"}
-	cmd.Short = i18n.G("Remove trusted clients")
+	cmd.Short = i18n.G("Remove trusted client")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
-		`Remove trusted clients`))
+		`Remove trusted client`))
 
 	cmd.RunE = c.Run
 
