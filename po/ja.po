@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-05-09 17:18-0400\n"
+"POT-Creation-Date: 2022-05-09 17:39-0400\n"
 "PO-Revision-Date: 2022-03-31 14:23+0000\n"
 "Last-Translator: KATOH Yasufumi <karma@jazz.email.ne.jp>\n"
 "Language-Team: Japanese <https://hosted.weblate.org/projects/linux-"
@@ -73,7 +73,7 @@ msgstr ""
 "### config:\n"
 "###   size: \"61203283968\""
 
-#: lxc/config_trust.go:233
+#: lxc/config_trust.go:238
 msgid ""
 "### This is a YAML representation of the certificate.\n"
 "### Any line starting with a '# will be ignored.\n"
@@ -684,22 +684,26 @@ msgstr ""
 "protocol=simplestreams\n"
 
 #: lxc/config_trust.go:87
-msgid "Add new trusted clients"
+#, fuzzy
+msgid "Add new trusted client"
 msgstr "新たに信頼済みのクライアントを追加します"
 
 #: lxc/config_trust.go:88
 msgid ""
-"Add new trusted clients\n"
+"Add new trusted client\n"
 "\n"
 "The following certificate types are supported:\n"
 "- client (default)\n"
 "- metrics\n"
-msgstr ""
-"新たに信頼済みクライアントを追加します。\n"
 "\n"
-"次の証明書タイプをサポートします:\n"
-"- client (デフォルト)\n"
-"- metrics\n"
+"If the certificate is omitted, a token will be generated and returned. A "
+"client\n"
+"providing a valid token will have its client certificate added to the "
+"trusted list\n"
+"and the consumed token will be invalidated. Similar to certificates, tokens "
+"can be\n"
+"restricted to one or more projects.\n"
+msgstr ""
 
 #: lxc/network_forward.go:704 lxc/network_forward.go:705
 msgid "Add ports to a forward"
@@ -745,7 +749,7 @@ msgstr "エイリアスを指定してください"
 msgid "Aliases:"
 msgstr "エイリアス:"
 
-#: lxc/config_trust.go:98
+#: lxc/config_trust.go:103
 msgid "Alternative certificate name"
 msgstr "別の証明署名"
 
@@ -914,7 +918,7 @@ msgstr "送信バイト数"
 msgid "CANCELABLE"
 msgstr "CANCELABLE"
 
-#: lxc/config_trust.go:395
+#: lxc/config_trust.go:400
 msgid "COMMON NAME"
 msgstr "COMMON NAME"
 
@@ -1026,7 +1030,7 @@ msgstr "使用する Candid ドメイン"
 msgid "Cannot set key: %s"
 msgstr "設定キーを設定できません: %s"
 
-#: lxc/config_trust.go:179
+#: lxc/config_trust.go:184
 msgid "Cannot use metrics type certificate when using a token"
 msgstr "トークンを使っている時はメトリクスタイプの証明書を使えません"
 
@@ -1040,7 +1044,7 @@ msgstr "カード %d:"
 msgid "Card: %s (%s)"
 msgstr "カード: %s (%s)"
 
-#: lxc/config_trust.go:601
+#: lxc/config_trust.go:606
 #, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "%s に対する証明書追加トークンが削除されました"
@@ -1061,7 +1065,7 @@ msgstr "証明書のフィンガープリント: %s"
 msgid "Chassis"
 msgstr "Chassis"
 
-#: lxc/config_trust.go:203
+#: lxc/config_trust.go:208
 #, c-format
 msgid "Client %s certificate add token:"
 msgstr "クライアント %s の証明書追加トークン:"
@@ -1176,7 +1180,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr "移動先のインスタンスに適用するキー/値の設定"
 
 #: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:258
-#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:302
+#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:307
 #: lxc/image.go:458 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:501 lxc/project.go:312
@@ -1567,8 +1571,8 @@ msgstr "警告を削除します"
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
-#: lxc/config_trust.go:224 lxc/config_trust.go:336 lxc/config_trust.go:417
-#: lxc/config_trust.go:508 lxc/config_trust.go:551 lxc/config_trust.go:622
+#: lxc/config_trust.go:229 lxc/config_trust.go:341 lxc/config_trust.go:422
+#: lxc/config_trust.go:513 lxc/config_trust.go:556 lxc/config_trust.go:627
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169
 #: lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38
@@ -1779,7 +1783,7 @@ msgstr "ENTRIES"
 msgid "EPHEMERAL"
 msgstr "EPHEMERAL"
 
-#: lxc/config_trust.go:398
+#: lxc/config_trust.go:403
 msgid "EXPIRY DATE"
 msgstr "EXPIRY DATE"
 
@@ -1859,7 +1863,7 @@ msgstr "ストレージプールの設定をYAMLで編集します"
 msgid "Edit storage volume configurations as YAML"
 msgstr "ストレージボリュームの設定をYAMLで編集します"
 
-#: lxc/config_trust.go:223 lxc/config_trust.go:224
+#: lxc/config_trust.go:228 lxc/config_trust.go:229
 msgid "Edit trust configurations as YAML"
 msgstr "信頼済みクライアント設定をYAMLで編集します"
 
@@ -2022,7 +2026,7 @@ msgstr "FAILURE DOMAIN"
 msgid "FILENAME"
 msgstr "FILENAME"
 
-#: lxc/config_trust.go:396 lxc/image.go:1041 lxc/image.go:1042
+#: lxc/config_trust.go:401 lxc/image.go:1041 lxc/image.go:1042
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "FINGERPRINT"
@@ -2061,7 +2065,7 @@ msgstr "クライアント %q に対する SFTP インスタンスの接続に�
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "インスタンスの SFTP への接続に失敗しました: %w"
 
-#: lxc/config_trust.go:199
+#: lxc/config_trust.go:204
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr "証明書追加トークンのトークン変換操作に失敗しました: %w"
@@ -2226,8 +2230,8 @@ msgstr ""
 "本当に強制的に %s を削除してもよろしいですか? (yes/no): "
 
 #: lxc/alias.go:105 lxc/cluster.go:121 lxc/cluster.go:780
-#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:338
-#: lxc/config_trust.go:419 lxc/image.go:1031 lxc/image_alias.go:158
+#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:343
+#: lxc/config_trust.go:424 lxc/image.go:1031 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:888 lxc/network.go:978 lxc/network_acl.go:99
 #: lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89
 #: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:584
@@ -2426,7 +2430,7 @@ msgstr "IPV4"
 msgid "IPV6"
 msgstr "IPV6"
 
-#: lxc/config_trust.go:397
+#: lxc/config_trust.go:402
 msgid "ISSUE DATE"
 msgstr "ISSUE DATE"
 
@@ -2593,7 +2597,7 @@ msgstr "不正な URL スキーム \"%s\" (\"%s\" 内)"
 msgid "Invalid argument %q"
 msgstr "不正な引数 %q"
 
-#: lxc/config_trust.go:377
+#: lxc/config_trust.go:382
 msgid "Invalid certificate"
 msgstr "不正な証明書です"
 
@@ -2775,7 +2779,7 @@ msgstr "DHCP のリースを一覧表示します"
 msgid "List aliases"
 msgstr "エイリアスを一覧表示します"
 
-#: lxc/config_trust.go:416 lxc/config_trust.go:417
+#: lxc/config_trust.go:421 lxc/config_trust.go:422
 msgid "List all active certificate add tokens"
 msgstr "有効な証明書追加トークンをすべて一覧表示します"
 
@@ -3077,7 +3081,7 @@ msgstr ""
 "  MAXWIDTH: カラムの最大幅 (結果がこれより長い場合は切り詰められます)\n"
 "  デフォルトは -1 (制限なし)。0 はカラムのヘッダサイズに制限します。"
 
-#: lxc/config_trust.go:97
+#: lxc/config_trust.go:102
 msgid "List of projects to restrict the certificate to"
 msgstr "証明書の使用を制限するプロジェクトのリスト"
 
@@ -3134,7 +3138,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr "利用可能なリモートサーバを一覧表示します"
 
-#: lxc/config_trust.go:335 lxc/config_trust.go:336
+#: lxc/config_trust.go:340 lxc/config_trust.go:341
 msgid "List trusted clients"
 msgstr "信頼済みクライアントを一覧表示します"
 
@@ -3484,7 +3488,7 @@ msgstr "マイグレーションが失敗しました: %w"
 msgid "Minimum level for log messages"
 msgstr "表示するログメッセージの最小レベル"
 
-#: lxc/config_trust.go:256 lxc/config_trust.go:647
+#: lxc/config_trust.go:261 lxc/config_trust.go:652
 msgid "Missing certificate fingerprint"
 msgstr "証明書のフィンガープリントがありません"
 
@@ -3697,7 +3701,7 @@ msgid "Must supply instance name for: "
 msgstr "インスタンス名を指定する必要があります: "
 
 #: lxc/cluster.go:178 lxc/cluster.go:860 lxc/cluster_group.go:427
-#: lxc/config_trust.go:394 lxc/config_trust.go:489 lxc/list.go:550
+#: lxc/config_trust.go:399 lxc/config_trust.go:494 lxc/list.go:550
 #: lxc/network.go:951 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:674 lxc/storage.go:574
@@ -3872,7 +3876,7 @@ msgstr "イメージに新しいエイリアスを追加します"
 msgid "New key/value to apply to a specific device"
 msgstr "指定するデバイスに適用する新しいキー/値"
 
-#: lxc/config_trust.go:608
+#: lxc/config_trust.go:613
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr "メンバー %s に対する証明書追加トークンがリモートにありません: %s"
@@ -4037,7 +4041,7 @@ msgstr "インスタンスを一時停止します"
 msgid "Perform an incremental copy"
 msgstr "インクリメンタルコピーを実行します"
 
-#: lxc/config_trust.go:144
+#: lxc/config_trust.go:149
 msgid "Please provide client name: "
 msgstr "クライアント名を入力してください: "
 
@@ -4064,7 +4068,7 @@ msgstr "終了するには ctrl+c を押してください"
 
 #: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:259
 #: lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206
-#: lxc/config_trust.go:303 lxc/image.go:459 lxc/network.go:675
+#: lxc/config_trust.go:308 lxc/image.go:459 lxc/network.go:675
 #: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:978
@@ -4371,8 +4375,9 @@ msgstr "クラスタメンバからロールを削除します"
 msgid "Remove rules from an ACL"
 msgstr "ACL からルールを削除します"
 
-#: lxc/config_trust.go:507 lxc/config_trust.go:508
-msgid "Remove trusted clients"
+#: lxc/config_trust.go:512 lxc/config_trust.go:513
+#, fuzzy
+msgid "Remove trusted client"
 msgstr "信頼済みクライアントを削除します"
 
 #: lxc/cluster_group.go:517 lxc/cluster_group.go:518
@@ -4484,7 +4489,7 @@ msgstr "スナップショットからストレージボリュームをリスト
 msgid "Restoring cluster member: %s"
 msgstr "クラスターメンバーをリストアしています: %s"
 
-#: lxc/config_trust.go:96
+#: lxc/config_trust.go:101
 msgid "Restrict the certificate to one or more projects"
 msgstr "証明書の使用を1つ以上のプロジェクトに制限します"
 
@@ -4497,7 +4502,7 @@ msgstr "インスタンスのコンソールログを取得します"
 msgid "Retrieving image: %s"
 msgstr "イメージの取得中: %s"
 
-#: lxc/config_trust.go:550 lxc/config_trust.go:551
+#: lxc/config_trust.go:555 lxc/config_trust.go:556
 msgid "Revoke certificate add token"
 msgstr "証明書追加トークンを失効（Revoke）させます"
 
@@ -4958,7 +4963,7 @@ msgstr "ストレージプールで利用可能なリソースを表示します
 msgid "Show the used and free space in bytes"
 msgstr "使用量と空き容量を byte で表示します"
 
-#: lxc/config_trust.go:621 lxc/config_trust.go:622
+#: lxc/config_trust.go:626 lxc/config_trust.go:627
 msgid "Show trust configurations"
 msgstr "信頼済みクライアントの設定を表示します"
 
@@ -5130,11 +5135,11 @@ msgstr "デフォルトのリモートを切り替えます"
 msgid "TARGET"
 msgstr "TARGET"
 
-#: lxc/cluster.go:861 lxc/config_trust.go:490
+#: lxc/cluster.go:861 lxc/config_trust.go:495
 msgid "TOKEN"
 msgstr "TOKEN"
 
-#: lxc/config_trust.go:393 lxc/image.go:1048 lxc/image_alias.go:236
+#: lxc/config_trust.go:398 lxc/image.go:1048 lxc/image_alias.go:236
 #: lxc/list.go:556 lxc/network.go:952 lxc/network.go:1025 lxc/operation.go:162
 #: lxc/storage_volume.go:1434 lxc/warning.go:214
 msgid "TYPE"
@@ -5386,7 +5391,7 @@ msgstr "更に情報を得るために `lxc info --show-log %s` を実行して�
 msgid "Type"
 msgstr "タイプ"
 
-#: lxc/config_trust.go:99
+#: lxc/config_trust.go:104
 msgid "Type of certificate"
 msgstr "証明書の形式"
 
@@ -5445,7 +5450,7 @@ msgstr "UUID: %v"
 msgid "Unable to create a temporary file: %v"
 msgstr "テンポラリファイルを作成できません: %v"
 
-#: lxc/config_trust.go:115
+#: lxc/config_trust.go:120
 #, c-format
 msgid "Unknown certificate type %q"
 msgstr "未知の証明書タイプ %q"
@@ -5707,7 +5712,7 @@ msgid "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 msgstr "[<remote:>]<pool> <volume> <profile> [<device name>] [<path>]"
 
 #: lxc/cluster.go:116 lxc/cluster.go:777 lxc/cluster_group.go:371
-#: lxc/config_trust.go:333 lxc/config_trust.go:415 lxc/monitor.go:31
+#: lxc/config_trust.go:338 lxc/config_trust.go:420 lxc/monitor.go:31
 #: lxc/network.go:881 lxc/network_acl.go:93 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
 #: lxc/storage.go:520 lxc/version.go:20 lxc/warning.go:69
@@ -5722,11 +5727,11 @@ msgstr "[<remote>:] <backup file> [<instance name>]"
 msgid "[<remote>:] <cert.crt> <cert.key>"
 msgstr "[<remote>:] <cert.crt> <cert.key>"
 
-#: lxc/config_trust.go:505
+#: lxc/config_trust.go:510
 msgid "[<remote>:] <fingerprint>"
 msgstr "[<remote>:] <fingerprint>"
 
-#: lxc/cluster.go:509 lxc/config_trust.go:549
+#: lxc/cluster.go:509 lxc/config_trust.go:554
 msgid "[<remote>:] <name>"
 msgstr "[<remote>:] <name>"
 
@@ -5803,7 +5808,7 @@ msgstr "[<remote>:]<alias> <new-name>"
 msgid "[<remote>:]<cluster member>"
 msgstr "[<remote>:]<cluster member>"
 
-#: lxc/config_trust.go:222 lxc/config_trust.go:620
+#: lxc/config_trust.go:227 lxc/config_trust.go:625
 msgid "[<remote>:]<fingerprint>"
 msgstr "[<remote>:]<fingerprint>"
 
@@ -6718,6 +6723,19 @@ msgstr "y"
 #: lxc/image.go:1099
 msgid "yes"
 msgstr "yes"
+
+#~ msgid ""
+#~ "Add new trusted clients\n"
+#~ "\n"
+#~ "The following certificate types are supported:\n"
+#~ "- client (default)\n"
+#~ "- metrics\n"
+#~ msgstr ""
+#~ "新たに信頼済みクライアントを追加します。\n"
+#~ "\n"
+#~ "次の証明書タイプをサポートします:\n"
+#~ "- client (デフォルト)\n"
+#~ "- metrics\n"
 
 #~ msgid "[<remote>:] <token>"
 #~ msgstr "[<remote>:] <token>"
