@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LXD\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-06-20 18:14-0500\n"
+"POT-Creation-Date: 2022-06-20 18:15-0500\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Krombel <krombel@krombel.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/linux-containers/"
@@ -75,7 +75,7 @@ msgstr ""
 "### config:\n"
 "###   size: \"61203283968\""
 
-#: lxc/config_trust.go:233
+#: lxc/config_trust.go:238
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the certificate.\n"
@@ -718,16 +718,24 @@ msgid ""
 msgstr ""
 
 #: lxc/config_trust.go:87
-msgid "Add new trusted clients"
+msgid "Add new trusted client"
 msgstr ""
 
 #: lxc/config_trust.go:88
 msgid ""
-"Add new trusted clients\n"
+"Add new trusted client\n"
 "\n"
 "The following certificate types are supported:\n"
 "- client (default)\n"
 "- metrics\n"
+"\n"
+"If the certificate is omitted, a token will be generated and returned. A "
+"client\n"
+"providing a valid token will have its client certificate added to the "
+"trusted list\n"
+"and the consumed token will be invalidated. Similar to certificates, tokens "
+"can be\n"
+"restricted to one or more projects.\n"
 msgstr ""
 
 #: lxc/network_forward.go:704 lxc/network_forward.go:705
@@ -778,7 +786,7 @@ msgstr "Aliasname fehlt"
 msgid "Aliases:"
 msgstr "Aliasse:\n"
 
-#: lxc/config_trust.go:98
+#: lxc/config_trust.go:103
 #, fuzzy
 msgid "Alternative certificate name"
 msgstr "Akzeptiere Zertifikat"
@@ -950,7 +958,7 @@ msgstr "Bytes gesendet"
 msgid "CANCELABLE"
 msgstr ""
 
-#: lxc/config_trust.go:395
+#: lxc/config_trust.go:400
 msgid "COMMON NAME"
 msgstr ""
 
@@ -1072,7 +1080,7 @@ msgstr ""
 msgid "Cannot set key: %s"
 msgstr ""
 
-#: lxc/config_trust.go:179
+#: lxc/config_trust.go:184
 msgid "Cannot use metrics type certificate when using a token"
 msgstr ""
 
@@ -1090,7 +1098,7 @@ msgstr ""
 "Optionen:\n"
 "\n"
 
-#: lxc/config_trust.go:601
+#: lxc/config_trust.go:606
 #, fuzzy, c-format
 msgid "Certificate add token for %s deleted"
 msgstr "Profil %s gelöscht\n"
@@ -1110,7 +1118,7 @@ msgstr "Fingerabdruck des Zertifikats: % x\n"
 msgid "Chassis"
 msgstr ""
 
-#: lxc/config_trust.go:203
+#: lxc/config_trust.go:208
 #, fuzzy, c-format
 msgid "Client %s certificate add token:"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -1225,7 +1233,7 @@ msgid "Config key/value to apply to the target instance"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
 #: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:258
-#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:302
+#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:307
 #: lxc/image.go:454 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:501 lxc/project.go:312
@@ -1636,8 +1644,8 @@ msgstr ""
 #: lxc/config_template.go:68 lxc/config_template.go:111
 #: lxc/config_template.go:153 lxc/config_template.go:239
 #: lxc/config_template.go:298 lxc/config_trust.go:35 lxc/config_trust.go:88
-#: lxc/config_trust.go:224 lxc/config_trust.go:336 lxc/config_trust.go:417
-#: lxc/config_trust.go:508 lxc/config_trust.go:551 lxc/config_trust.go:622
+#: lxc/config_trust.go:229 lxc/config_trust.go:341 lxc/config_trust.go:422
+#: lxc/config_trust.go:513 lxc/config_trust.go:556 lxc/config_trust.go:627
 #: lxc/console.go:37 lxc/copy.go:41 lxc/delete.go:31 lxc/exec.go:42
 #: lxc/export.go:32 lxc/file.go:80 lxc/file.go:120 lxc/file.go:169
 #: lxc/file.go:238 lxc/file.go:438 lxc/file.go:929 lxc/image.go:38
@@ -1856,7 +1864,7 @@ msgstr ""
 msgid "EPHEMERAL"
 msgstr ""
 
-#: lxc/config_trust.go:398
+#: lxc/config_trust.go:403
 msgid "EXPIRY DATE"
 msgstr "ABLAUFDATUM"
 
@@ -1944,7 +1952,7 @@ msgstr ""
 msgid "Edit storage volume configurations as YAML"
 msgstr ""
 
-#: lxc/config_trust.go:223 lxc/config_trust.go:224
+#: lxc/config_trust.go:228 lxc/config_trust.go:229
 #, fuzzy
 msgid "Edit trust configurations as YAML"
 msgstr "Alternatives config Verzeichnis."
@@ -2096,7 +2104,7 @@ msgstr ""
 msgid "FILENAME"
 msgstr ""
 
-#: lxc/config_trust.go:396 lxc/image.go:1037 lxc/image.go:1038
+#: lxc/config_trust.go:401 lxc/image.go:1037 lxc/image.go:1038
 #: lxc/image_alias.go:235
 msgid "FINGERPRINT"
 msgstr "FINGERABDRUCK"
@@ -2135,7 +2143,7 @@ msgstr ""
 msgid "Failed connecting to instance SFTP: %w"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config_trust.go:199
+#: lxc/config_trust.go:204
 #, c-format
 msgid "Failed converting token operation to certificate add token: %w"
 msgstr ""
@@ -2286,8 +2294,8 @@ msgid ""
 msgstr ""
 
 #: lxc/alias.go:105 lxc/cluster.go:121 lxc/cluster.go:780
-#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:338
-#: lxc/config_trust.go:419 lxc/image.go:1027 lxc/image_alias.go:158
+#: lxc/cluster_group.go:376 lxc/config_template.go:241 lxc/config_trust.go:343
+#: lxc/config_trust.go:424 lxc/image.go:1027 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:888 lxc/network.go:978 lxc/network_acl.go:99
 #: lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89
 #: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:584
@@ -2499,7 +2507,7 @@ msgstr ""
 msgid "IPV6"
 msgstr ""
 
-#: lxc/config_trust.go:397
+#: lxc/config_trust.go:402
 msgid "ISSUE DATE"
 msgstr ""
 
@@ -2662,7 +2670,7 @@ msgstr ""
 msgid "Invalid argument %q"
 msgstr "Ungültiges Ziel %s"
 
-#: lxc/config_trust.go:377
+#: lxc/config_trust.go:382
 #, fuzzy
 msgid "Invalid certificate"
 msgstr "Akzeptiere Zertifikat"
@@ -2843,7 +2851,7 @@ msgstr ""
 msgid "List aliases"
 msgstr "Aliasse:\n"
 
-#: lxc/config_trust.go:416 lxc/config_trust.go:417
+#: lxc/config_trust.go:421 lxc/config_trust.go:422
 #, fuzzy
 msgid "List all active certificate add tokens"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -3062,7 +3070,7 @@ msgstr ""
 "* \"security.privileged=1\" listet alle privilegierten Container\n"
 "* \"s.privileged=1\" ebenfalls\n"
 
-#: lxc/config_trust.go:97
+#: lxc/config_trust.go:102
 msgid "List of projects to restrict the certificate to"
 msgstr ""
 
@@ -3104,7 +3112,7 @@ msgstr ""
 msgid "List the available remotes"
 msgstr ""
 
-#: lxc/config_trust.go:335 lxc/config_trust.go:336
+#: lxc/config_trust.go:340 lxc/config_trust.go:341
 msgid "List trusted clients"
 msgstr ""
 
@@ -3451,7 +3459,7 @@ msgstr ""
 msgid "Minimum level for log messages"
 msgstr ""
 
-#: lxc/config_trust.go:256 lxc/config_trust.go:647
+#: lxc/config_trust.go:261 lxc/config_trust.go:652
 #, fuzzy
 msgid "Missing certificate fingerprint"
 msgstr "Fingerabdruck des Zertifikats: % x\n"
@@ -3678,7 +3686,7 @@ msgid "Must supply instance name for: "
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
 #: lxc/cluster.go:178 lxc/cluster.go:860 lxc/cluster_group.go:427
-#: lxc/config_trust.go:394 lxc/config_trust.go:489 lxc/list.go:550
+#: lxc/config_trust.go:399 lxc/config_trust.go:494 lxc/list.go:550
 #: lxc/network.go:951 lxc/network_acl.go:148 lxc/network_peer.go:140
 #: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:623
 #: lxc/project.go:468 lxc/remote.go:674 lxc/storage.go:574
@@ -3854,7 +3862,7 @@ msgstr ""
 msgid "New key/value to apply to a specific device"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config_trust.go:608
+#: lxc/config_trust.go:613
 #, c-format
 msgid "No certificate add token for member %s on remote: %s"
 msgstr ""
@@ -4022,7 +4030,7 @@ msgstr "kann nicht zum selben Container Namen kopieren"
 msgid "Perform an incremental copy"
 msgstr ""
 
-#: lxc/config_trust.go:144
+#: lxc/config_trust.go:149
 msgid "Please provide client name: "
 msgstr ""
 
@@ -4050,7 +4058,7 @@ msgstr ""
 
 #: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:259
 #: lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206
-#: lxc/config_trust.go:303 lxc/image.go:455 lxc/network.go:675
+#: lxc/config_trust.go:308 lxc/image.go:455 lxc/network.go:675
 #: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:978
@@ -4369,8 +4377,8 @@ msgstr "der Name des Ursprung Containers muss angegeben werden"
 msgid "Remove rules from an ACL"
 msgstr "kann nicht zum selben Container Namen kopieren"
 
-#: lxc/config_trust.go:507 lxc/config_trust.go:508
-msgid "Remove trusted clients"
+#: lxc/config_trust.go:512 lxc/config_trust.go:513
+msgid "Remove trusted client"
 msgstr ""
 
 #: lxc/cluster_group.go:517 lxc/cluster_group.go:518
@@ -4484,7 +4492,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Restoring cluster member: %s"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
 
-#: lxc/config_trust.go:96
+#: lxc/config_trust.go:101
 msgid "Restrict the certificate to one or more projects"
 msgstr ""
 
@@ -4498,7 +4506,7 @@ msgstr "Herunterfahren des Containers erzwingen."
 msgid "Retrieving image: %s"
 msgstr ""
 
-#: lxc/config_trust.go:550 lxc/config_trust.go:551
+#: lxc/config_trust.go:555 lxc/config_trust.go:556
 #, fuzzy
 msgid "Revoke certificate add token"
 msgstr "der Name des Ursprung Containers muss angegeben werden"
@@ -4941,7 +4949,7 @@ msgstr ""
 msgid "Show the used and free space in bytes"
 msgstr ""
 
-#: lxc/config_trust.go:621 lxc/config_trust.go:622
+#: lxc/config_trust.go:626 lxc/config_trust.go:627
 #, fuzzy
 msgid "Show trust configurations"
 msgstr "Profil %s erstellt\n"
@@ -5123,11 +5131,11 @@ msgstr ""
 msgid "TARGET"
 msgstr ""
 
-#: lxc/cluster.go:861 lxc/config_trust.go:490
+#: lxc/cluster.go:861 lxc/config_trust.go:495
 msgid "TOKEN"
 msgstr ""
 
-#: lxc/config_trust.go:393 lxc/image.go:1044 lxc/image_alias.go:236
+#: lxc/config_trust.go:398 lxc/image.go:1044 lxc/image_alias.go:236
 #: lxc/list.go:556 lxc/network.go:952 lxc/network.go:1025 lxc/operation.go:162
 #: lxc/storage_volume.go:1434 lxc/warning.go:214
 msgid "TYPE"
@@ -5363,7 +5371,7 @@ msgstr ""
 msgid "Type"
 msgstr ""
 
-#: lxc/config_trust.go:99
+#: lxc/config_trust.go:104
 #, fuzzy
 msgid "Type of certificate"
 msgstr "Akzeptiere Zertifikat"
@@ -5421,7 +5429,7 @@ msgstr ""
 msgid "Unable to create a temporary file: %v"
 msgstr ""
 
-#: lxc/config_trust.go:115
+#: lxc/config_trust.go:120
 #, fuzzy, c-format
 msgid "Unknown certificate type %q"
 msgstr "Unbekannter Befehl %s für Abbild"
@@ -5710,7 +5718,7 @@ msgstr ""
 "lxd %s <Name>\n"
 
 #: lxc/cluster.go:116 lxc/cluster.go:777 lxc/cluster_group.go:371
-#: lxc/config_trust.go:333 lxc/config_trust.go:415 lxc/monitor.go:31
+#: lxc/config_trust.go:338 lxc/config_trust.go:420 lxc/monitor.go:31
 #: lxc/network.go:881 lxc/network_acl.go:93 lxc/network_zone.go:83
 #: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
 #: lxc/storage.go:520 lxc/version.go:20 lxc/warning.go:69
@@ -5737,7 +5745,7 @@ msgstr ""
 "\n"
 "lxd %s <Name>\n"
 
-#: lxc/config_trust.go:505
+#: lxc/config_trust.go:510
 #, fuzzy
 msgid "[<remote>:] <fingerprint>"
 msgstr ""
@@ -5746,7 +5754,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/cluster.go:509 lxc/config_trust.go:549
+#: lxc/cluster.go:509 lxc/config_trust.go:554
 #, fuzzy
 msgid "[<remote>:] <name>"
 msgstr ""
@@ -5906,7 +5914,7 @@ msgstr ""
 "Entfernt einen Container (oder Sicherungspunkt) und alle dazugehörigen\n"
 "Daten (Konfiguration, Sicherungspunkte, ...).\n"
 
-#: lxc/config_trust.go:222 lxc/config_trust.go:620
+#: lxc/config_trust.go:227 lxc/config_trust.go:625
 #, fuzzy
 msgid "[<remote>:]<fingerprint>"
 msgstr ""
