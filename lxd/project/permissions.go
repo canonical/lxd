@@ -40,7 +40,7 @@ func AllowInstanceCreation(tx *db.ClusterTx, projectName string, req api.Instanc
 	case api.InstanceTypeVM:
 		instanceType = instancetype.VM
 	default:
-		return fmt.Errorf("Unexpected instance type %q", instanceType)
+		return fmt.Errorf("Unexpected instance type %q", req.Type)
 	}
 
 	if req.Profiles == nil {
