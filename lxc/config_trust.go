@@ -546,7 +546,7 @@ type cmdConfigTrustRevokeToken struct {
 
 func (c *cmdConfigTrustRevokeToken) Command() *cobra.Command {
 	cmd := &cobra.Command{}
-	cmd.Use = usage("revoke-token", i18n.G("[<remote>:] <token>"))
+	cmd.Use = usage("revoke-token", i18n.G("[<remote>:] <name>"))
 	cmd.Short = i18n.G("Revoke certificate add token")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Revoke certificate add token`))
