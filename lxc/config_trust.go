@@ -91,6 +91,11 @@ func (c *cmdConfigTrustAdd) Command() *cobra.Command {
 The following certificate types are supported:
 - client (default)
 - metrics
+
+If the certificate is omitted, a token will be generated and returned. A client
+providing a valid token will have its client certificate added to the trusted list
+and the consumed token will be invalidated. Similar to certificates, tokens can be
+restricted to one or more projects.
 `))
 
 	cmd.Flags().BoolVar(&c.flagRestricted, "restricted", false, i18n.G("Restrict the certificate to one or more projects"))
