@@ -1657,3 +1657,7 @@ This adds 'total' field to the `GET /1.0/storage-pools/{name}/volumes/{type}/{vo
 
 ## instance\_file\_head
 Implements HEAD on `/1.0/instances/NAME/file`.
+
+## resources\_pci\_vpd
+Adds a new VPD struct to the PCI resource entries.
+This struct extracts vendor provided data including the full product name and additional key/value configuration pairs.

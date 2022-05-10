@@ -329,6 +329,7 @@ var APIExtensions = []string{
 	"storage_lvm_thinpool_metadata_size",
 	"storage_volume_state_total",
 	"instance_file_head",
+	"resources_pci_vpd",
 }
 
 // APIExtensionsCount returns the number of available API extensions.
