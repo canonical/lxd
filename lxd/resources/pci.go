@@ -119,7 +119,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 			}
 		}
 
-		//Get IOMMU Group
+		// Get IOMMU Group
 		iommuGroupSymPath := filepath.Join(sysBusPci, device.PCIAddress, "iommu_group")
 		if sysfsExists(iommuGroupSymPath) {
 			iommuGroupPath, err := os.Readlink(iommuGroupSymPath)
