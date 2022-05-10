@@ -136,6 +136,17 @@ func GetPCI() (*api.ResourcesPCI, error) {
 			device.IOMMUGroup = 0
 		}
 
+		// Get VPD info
+		vpdSysPath := filepath.Join(devicePath, "vpd")
+		if sysfsExists(vpdSysPath) {
+			data, err := ioutil.ReadFile(vpdSysPath)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to read %q: %w", vpdSysPath, err)
+			}
+
+			device.VPD = parsePCIVPD(data)
+		}
+
 		pci.Devices = append(pci.Devices, device)
 		pci.Total++
 	}
