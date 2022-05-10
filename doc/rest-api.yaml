@@ -4274,6 +4274,25 @@ definitions:
         example: 102b
         type: string
         x-go-name: VendorID
+      vpd:
+        $ref: '#/definitions/ResourcesPCIVPD'
+    type: object
+    x-go-package: github.com/lxc/lxd/shared/api
+  ResourcesPCIVPD:
+    description: ResourcesPCIVPD represents VPD entries for a device
+    properties:
+      entries:
+        additionalProperties:
+          type: string
+        description: Dict of vendor provided key/value pairs.
+        example: '{"EC": ""A-5545", "MN": "103C", "V0": "5W PCIeGen2"}'
+        type: object
+        x-go-name: Entries
+      product_name:
+        description: Hardware provided product name.
+        example: HP Ethernet 1Gb 4-port 331i Adapter
+        type: string
+        x-go-name: ProductName
     type: object
     x-go-package: github.com/lxc/lxd/shared/api
   ResourcesStorage:
