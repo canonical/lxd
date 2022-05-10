@@ -1716,7 +1716,8 @@ func (d *Daemon) Stop(ctx context.Context, sig os.Signal) error {
 			logger.Debug("Could not close global database cleanly", logger.Ctx{"err": err})
 		}
 	}
-	if d.db != nil {
+
+	if d.db != nil && d.db.Node != nil {
 		trackError(d.db.Node.Close(), "Close local database")
 	}
 
