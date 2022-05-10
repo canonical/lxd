@@ -1,0 +1,14 @@
+[
+    {
+        "version": "latest",
+        "id": "master"
+    },
+    {
+        "version": "5.x",
+        "id": "stable-5.0"
+    },
+    {
+        "version": "4.x",
+        "id": "stable-4.0"
+    }
+]
