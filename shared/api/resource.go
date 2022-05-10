@@ -933,6 +933,27 @@ type ResourcesPCIDevice struct {
 	//
 	// API extension: resources_pci_iommu
 	IOMMUGroup uint64 `json:"iommu_group" yaml:"iommu_group"`
+
+	// Vital Product Data
+	// Example:
+	//
+	// API extension: resources_pci_vpd
+	VPD ResourcesPCIVPD `json:"vpd" yaml:"vpd"`
+}
+
+// ResourcesPCIVPD represents VPD entries for a device
+//
+// swagger:model
+//
+// API extension: resources_pci_vpd
+type ResourcesPCIVPD struct {
+	// Hardware provided product name.
+	// Example: HP Ethernet 1Gb 4-port 331i Adapter
+	ProductName string `json:"product_name,omitempty" yaml:"product_name,omitempty"`
+
+	// Dict of vendor provided key/value pairs.
+	// Example: {"EC": ""A-5545", "MN": "103C", "V0": "5W PCIeGen2"}
+	Entries map[string]string `json:"entries,omitempty" yaml:"entries,omitempty"`
 }
 
 // ResourcesSystem represents the system
