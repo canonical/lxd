@@ -241,10 +241,9 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 	// If the volume is a snapshot then call the snapshot specific mount/unmount functions as
 	// these will mount the snapshot read only.
 	var err error
-	var ourMount bool
 
 	if v.IsSnapshot() {
-		ourMount, err = v.driver.MountVolumeSnapshot(v, op)
+		err = v.driver.MountVolumeSnapshot(v, op)
 	} else {
 		err = v.driver.MountVolume(v, op)
 	}
@@ -256,9 +255,7 @@ func (v Volume) MountTask(task func(mountPath string, op *operations.Operation) 
 
 	// Try and unmount, even on task error.
 	if v.IsSnapshot() {
-		if ourMount {
-			_, err = v.driver.UnmountVolumeSnapshot(v, op)
-		}
+		_, err = v.driver.UnmountVolumeSnapshot(v, op)
 	} else {
 		_, err = v.driver.UnmountVolume(v, false, op)
 	}

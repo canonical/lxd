@@ -1313,7 +1313,7 @@ func (d *ceph) MigrateVolume(vol Volume, conn io.ReadWriteCloser, volSrcArgs *mi
 		cloneVol := NewVolume(d, d.name, vol.volType, vol.contentType, vol.name, nil, nil)
 
 		// Mounting the volume snapshot will create the clone "snapshots_<parent>_<snap>_start_clone".
-		_, err := d.MountVolumeSnapshot(cloneVol, op)
+		err := d.MountVolumeSnapshot(cloneVol, op)
 		if err != nil {
 			return err
 		}
@@ -1505,19 +1505,19 @@ func (d *ceph) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 }
 
 // MountVolumeSnapshot simulates mounting a volume snapshot.
-func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
+func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
 	unlock := snapVol.MountLock()
 	defer unlock()
+
+	revert := revert.New()
+	defer revert.Fail()
 
 	mountPath := snapVol.MountPath()
 
 	if snapVol.contentType == ContentTypeFS && !filesystem.IsMountPoint(mountPath) {
-		revert := revert.New()
-		defer revert.Fail()
-
 		err := snapVol.EnsureMountPath()
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		parentName, snapshotOnlyName, _ := shared.InstanceGetParentAndSnapshotName(snapVol.name)
@@ -1528,7 +1528,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 		// Protect snapshot to prevent data loss.
 		err = d.rbdProtectVolumeSnapshot(parentVol, prefixedSnapOnlyName)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		revert.Add(func() { d.rbdUnprotectVolumeSnapshot(parentVol, prefixedSnapOnlyName) })
@@ -1539,7 +1539,7 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 
 		err = d.rbdCreateClone(parentVol, prefixedSnapOnlyName, cloneVol)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		revert.Add(func() { d.rbdDeleteVolume(cloneVol) })
@@ -1547,14 +1547,10 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 		// Map volume.
 		rbdDevPath, err := d.rbdMapVolume(cloneVol)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		revert.Add(func() { d.rbdUnmapVolume(cloneVol, true) })
-
-		if filesystem.IsMountPoint(mountPath) {
-			return false, nil
-		}
 
 		RBDFilesystem := snapVol.ConfigBlockFilesystem()
 		mountFlags, mountOptions := resolveMountOptions(snapVol.ConfigBlockMountOptions())
@@ -1568,39 +1564,36 @@ func (d *ceph) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bo
 			} else {
 				err = d.generateUUID(RBDFilesystem, rbdDevPath)
 				if err != nil {
-					return false, err
+					return err
 				}
 			}
 		}
 
 		err = TryMount(rbdDevPath, mountPath, RBDFilesystem, mountFlags, mountOptions)
 		if err != nil {
-			return false, err
+			return err
 		}
 		d.logger.Debug("Mounted RBD volume snapshot", logger.Ctx{"dev": rbdDevPath, "path": mountPath, "options": mountOptions})
-
-		revert.Success()
-
-		return true, nil
-	}
-
-	var err error
-	ourMount := false
-	if snapVol.contentType == ContentTypeBlock {
+	} else if snapVol.contentType == ContentTypeBlock {
 		// Activate RBD volume if needed.
-		ourMount, _, err = d.getRBDMappedDevPath(snapVol, true)
+		_, _, err := d.getRBDMappedDevPath(snapVol, true)
 		if err != nil {
-			return false, err
+			return err
+		}
+
+		// For VMs, mount the filesystem volume.
+		if snapVol.IsVMBlock() {
+			fsVol := snapVol.NewVMBlockFilesystemVolume()
+			err = d.MountVolumeSnapshot(fsVol, op)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
-	// For VMs, mount the filesystem volume.
-	if snapVol.IsVMBlock() {
-		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		return d.MountVolumeSnapshot(fsVol, op)
-	}
-
-	return ourMount, nil
+	snapVol.MountRefCountIncrement() // From here on it is up to caller to call UnmountVolumeSnapshot() when done.
+	revert.Success()
+	return nil
 }
 
 // UnmountVolume simulates unmounting a volume snapshot.
@@ -1608,10 +1601,18 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 	unlock := snapVol.MountLock()
 	defer unlock()
 
+	var err error
+	ourUnmount := false
 	mountPath := snapVol.MountPath()
+	refCount := snapVol.MountRefCountDecrement()
 
 	if snapVol.contentType == ContentTypeFS && filesystem.IsMountPoint(mountPath) {
-		err := TryUnmount(mountPath, unix.MNT_DETACH)
+		if refCount > 0 {
+			d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
+			return false, ErrInUse
+		}
+
+		err = TryUnmount(mountPath, unix.MNT_DETACH)
 		if err != nil {
 			return false, err
 		}
@@ -1635,21 +1636,35 @@ func (d *ceph) UnmountVolumeSnapshot(snapVol Volume, op *operations.Operation) (
 		if err != nil {
 			return false, err
 		}
-	}
 
-	if snapVol.contentType == ContentTypeBlock {
-		err := d.rbdUnmapVolume(snapVol, true)
-		if err != nil {
-			return false, err
+		ourUnmount = true
+	} else if snapVol.contentType == ContentTypeBlock {
+		if snapVol.IsVMBlock() {
+			fsVol := snapVol.NewVMBlockFilesystemVolume()
+			ourUnmount, err = d.UnmountVolumeSnapshot(fsVol, op)
+			if err != nil {
+				return false, err
+			}
+		}
+
+		// Check if device is currently mapped (but don't map if not).
+		_, devPath, _ := d.getRBDMappedDevPath(snapVol, false)
+		if devPath != "" && shared.PathExists(devPath) {
+			if refCount > 0 {
+				d.logger.Debug("Skipping unmount as in use", logger.Ctx{"volName": snapVol.name, "refCount": refCount})
+				return false, ErrInUse
+			}
+
+			err := d.rbdUnmapVolume(snapVol, true)
+			if err != nil {
+				return false, err
+			}
+
+			ourUnmount = true
 		}
 	}
 
-	if snapVol.IsVMBlock() {
-		fsVol := snapVol.NewVMBlockFilesystemVolume()
-		return d.UnmountVolumeSnapshot(fsVol, op)
-	}
-
-	return true, nil
+	return ourUnmount, nil
 }
 
 // VolumeSnapshots returns a list of snapshots for the volume (in no particular order).
@@ -1680,12 +1695,12 @@ func (d *ceph) VolumeSnapshots(vol Volume, op *operations.Operation) ([]string, 
 
 // RestoreVolume restores a volume from a snapshot.
 func (d *ceph) RestoreVolume(vol Volume, snapshotName string, op *operations.Operation) error {
-	ourUmount, err := d.UnmountVolume(vol, false, op)
+	ourUnmount, err := d.UnmountVolume(vol, false, op)
 	if err != nil {
 		return err
 	}
 
-	if ourUmount {
+	if ourUnmount {
 		defer d.MountVolume(vol, op)
 	}
 

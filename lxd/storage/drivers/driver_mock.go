@@ -185,8 +185,8 @@ func (d *mock) DeleteVolumeSnapshot(snapVol Volume, op *operations.Operation) er
 }
 
 // MountVolumeSnapshot sets up a read-only mount on top of the snapshot to avoid accidental modifications.
-func (d *mock) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) (bool, error) {
-	return true, nil
+func (d *mock) MountVolumeSnapshot(snapVol Volume, op *operations.Operation) error {
+	return nil
 }
 
 // UnmountVolumeSnapshot removes the read-only mount placed on top of a snapshot.
