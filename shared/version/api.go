@@ -333,6 +333,7 @@ var APIExtensions = []string{
 	"image_copy_profile",
 	"container_syscall_intercept_sysinfo",
 	"clustering_evacuation_mode",
+	"resources_pci_vpd",
 }
 
 // APIExtensionsCount returns the number of available API extensions.

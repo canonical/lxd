@@ -1673,3 +1673,7 @@ Adds the `security.syscalls.intercept.sysinfo` to allow the `sysinfo` syscall to
 This introduces a `mode` field to the evacuation request which allows
 for overriding the evacuation mode traditionally set through
 `cluster.evacuate`.
+
+## resources\_pci\_vpd
+Adds a new VPD struct to the PCI resource entries.
+This struct extracts vendor provided data including the full product name and additional key/value configuration pairs.
