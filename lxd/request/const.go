@@ -1,32 +1,37 @@
 package request
 
-type requestCtxKey string
+// CtxKey is the type used for all fields stored in the request context by LXD.
+type CtxKey string
 
+// Context keys
 const (
 	// CtxAccess is the access field in request context.
-	CtxAccess = "access"
+	CtxAccess CtxKey = "access"
 
-	// CtxConn is the access field in the request context
-	CtxConn requestCtxKey = "conn"
+	// CtxConn is the connection field in the request context.
+	CtxConn CtxKey = "conn"
 
 	// CtxAddress is the address field in request context.
-	CtxAddress = "address"
+	CtxAddress CtxKey = "address"
 
 	// CtxUsername is the username field in request context.
-	CtxUsername = "username"
+	CtxUsername CtxKey = "username"
 
 	// CtxProtocol is the protocol field in request context.
-	CtxProtocol = "protocol"
+	CtxProtocol CtxKey = "protocol"
 
 	// CtxForwardedAddress is the forwarded address field in request context.
-	CtxForwardedAddress = "forwarded_address"
+	CtxForwardedAddress CtxKey = "forwarded_address"
 
 	// CtxForwardedUsername is the forwarded username field in request context.
-	CtxForwardedUsername = "forwarded_username"
+	CtxForwardedUsername CtxKey = "forwarded_username"
 
 	// CtxForwardedProtocol is the forwarded protocol field in request context.
-	CtxForwardedProtocol = "forwarded_protocol"
+	CtxForwardedProtocol CtxKey = "forwarded_protocol"
+)
 
+// Headers
+const (
 	// HeaderForwardedAddress is the forwarded address field in request header.
 	HeaderForwardedAddress = "X-LXD-forwarded-address"
 
