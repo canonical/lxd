@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-05-09 17:39-0400\n"
+"POT-Creation-Date: 2022-05-10 16:11-0400\n"
 "PO-Revision-Date: 2022-03-10 15:11+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hebrew <https://hosted.weblate.org/projects/linux-containers/"
@@ -71,7 +71,6 @@ msgid ""
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A sample configuration looks like:\n"
-"### name: instance1\n"
 "### profiles:\n"
 "### - default\n"
 "### config:\n"
@@ -81,9 +80,7 @@ msgid ""
 "###     path: /extra\n"
 "###     source: /home/user\n"
 "###     type: disk\n"
-"### ephemeral: false\n"
-"###\n"
-"### Note that the name is shown but cannot be changed"
+"### ephemeral: false"
 msgstr ""
 
 #: lxc/image.go:380
@@ -345,7 +342,7 @@ msgstr ""
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
-#: lxc/config.go:413 lxc/config.go:649
+#: lxc/config.go:410 lxc/config.go:646
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
@@ -365,7 +362,7 @@ msgstr ""
 msgid "--refresh can only be used with instances"
 msgstr ""
 
-#: lxc/config.go:152 lxc/config.go:397 lxc/config.go:532 lxc/config.go:675
+#: lxc/config.go:149 lxc/config.go:394 lxc/config.go:529 lxc/config.go:672
 #: lxc/info.go:446
 msgid "--target cannot be used with instances"
 msgstr ""
@@ -435,7 +432,7 @@ msgstr ""
 msgid "Accept certificate"
 msgstr ""
 
-#: lxc/config.go:366
+#: lxc/config.go:363
 msgid "Access the expanded configuration"
 msgstr ""
 
@@ -804,7 +801,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:549
+#: lxc/config.go:546
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -901,8 +898,8 @@ msgstr ""
 msgid "Cluster member %s removed from group %s"
 msgstr ""
 
-#: lxc/cluster.go:710 lxc/config.go:98 lxc/config.go:367 lxc/config.go:470
-#: lxc/config.go:617 lxc/config.go:736 lxc/copy.go:61 lxc/info.go:47
+#: lxc/cluster.go:710 lxc/config.go:98 lxc/config.go:364 lxc/config.go:467
+#: lxc/config.go:614 lxc/config.go:733 lxc/copy.go:61 lxc/info.go:47
 #: lxc/init.go:54 lxc/move.go:66 lxc/network.go:288 lxc/network.go:706
 #: lxc/network.go:764 lxc/network.go:1101 lxc/network.go:1168
 #: lxc/network.go:1230 lxc/network_forward.go:170 lxc/network_forward.go:234
@@ -962,8 +959,8 @@ msgstr ""
 msgid "Config key/value to apply to the target instance"
 msgstr ""
 
-#: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:258
-#: lxc/config.go:331 lxc/config_metadata.go:145 lxc/config_trust.go:307
+#: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:255
+#: lxc/config.go:328 lxc/config_metadata.go:145 lxc/config_trust.go:307
 #: lxc/image.go:458 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
 #: lxc/network_zone.go:1065 lxc/profile.go:501 lxc/project.go:312
@@ -1336,8 +1333,8 @@ msgstr ""
 #: lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261
 #: lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518
 #: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
-#: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:363
-#: lxc/config.go:455 lxc/config.go:613 lxc/config.go:733
+#: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:360
+#: lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
 #: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:196
 #: lxc/config_device.go:274 lxc/config_device.go:345 lxc/config_device.go:438
 #: lxc/config_device.go:535 lxc/config_device.go:542 lxc/config_device.go:651
@@ -2038,7 +2035,7 @@ msgstr ""
 msgid "Get values for device configuration keys"
 msgstr ""
 
-#: lxc/config.go:362 lxc/config.go:363
+#: lxc/config.go:359 lxc/config.go:360
 msgid "Get values for instance or server configuration keys"
 msgstr ""
 
@@ -3607,8 +3604,8 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:259
-#: lxc/config.go:332 lxc/config_metadata.go:146 lxc/config_template.go:206
+#: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:256
+#: lxc/config.go:329 lxc/config_metadata.go:146 lxc/config_template.go:206
 #: lxc/config_trust.go:308 lxc/image.go:459 lxc/network.go:675
 #: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
 #: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502
@@ -4158,11 +4155,11 @@ msgstr ""
 msgid "Set image properties"
 msgstr ""
 
-#: lxc/config.go:454
+#: lxc/config.go:451
 msgid "Set instance or server configuration keys"
 msgstr ""
 
-#: lxc/config.go:455
+#: lxc/config.go:452
 msgid ""
 "Set instance or server configuration keys\n"
 "\n"
@@ -4352,7 +4349,7 @@ msgstr ""
 msgid "Show instance metadata files"
 msgstr ""
 
-#: lxc/config.go:612 lxc/config.go:613
+#: lxc/config.go:609 lxc/config.go:610
 msgid "Show instance or server configurations"
 msgstr ""
 
@@ -4424,7 +4421,7 @@ msgstr ""
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:616
+#: lxc/config.go:613
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -4782,7 +4779,7 @@ msgid ""
 "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
 msgstr ""
 
-#: lxc/config.go:281 lxc/config.go:419 lxc/config.go:569 lxc/config.go:655
+#: lxc/config.go:278 lxc/config.go:416 lxc/config.go:566 lxc/config.go:652
 #: lxc/copy.go:129 lxc/info.go:332 lxc/network.go:793 lxc/storage.go:429
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -4954,7 +4951,7 @@ msgstr ""
 msgid "Unset image properties"
 msgstr ""
 
-#: lxc/config.go:732 lxc/config.go:733
+#: lxc/config.go:729 lxc/config.go:730
 msgid "Unset instance or server configuration keys"
 msgstr ""
 
@@ -5658,7 +5655,7 @@ msgstr ""
 msgid "[<remote>:]<zone> <record> [key=value...]"
 msgstr ""
 
-#: lxc/config.go:90 lxc/config.go:611
+#: lxc/config.go:90 lxc/config.go:608
 msgid "[<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
 
@@ -5666,11 +5663,11 @@ msgstr ""
 msgid "[<remote>:][<instance>]"
 msgstr ""
 
-#: lxc/config.go:361 lxc/config.go:731
+#: lxc/config.go:358 lxc/config.go:728
 msgid "[<remote>:][<instance>] <key>"
 msgstr ""
 
-#: lxc/config.go:453
+#: lxc/config.go:450
 msgid "[<remote>:][<instance>] <key>=<value>..."
 msgstr ""
 
@@ -5761,7 +5758,7 @@ msgid ""
 "    Update the instance configuration from config.yaml."
 msgstr ""
 
-#: lxc/config.go:460
+#: lxc/config.go:457
 msgid ""
 "lxc config set [<remote>:]<instance> limits.cpu=2\n"
 "    Will set a CPU limit of \"2\" for the instance.\n"
