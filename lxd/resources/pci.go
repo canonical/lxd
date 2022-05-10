@@ -119,7 +119,7 @@ func GetPCI() (*api.ResourcesPCI, error) {
 			}
 		}
 
-		//Get IOMMU Group
+		// Get IOMMU Group
 		iommuGroupSymPath := filepath.Join(sysBusPci, device.PCIAddress, "iommu_group")
 		if sysfsExists(iommuGroupSymPath) {
 			iommuGroupPath, err := os.Readlink(iommuGroupSymPath)
@@ -134,6 +134,17 @@ func GetPCI() (*api.ResourcesPCI, error) {
 			}
 		} else {
 			device.IOMMUGroup = 0
+		}
+
+		// Get VPD info
+		vpdSysPath := filepath.Join(devicePath, "vpd")
+		if sysfsExists(vpdSysPath) {
+			data, err := ioutil.ReadFile(vpdSysPath)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to read %q: %w", vpdSysPath, err)
+			}
+
+			device.VPD = parsePCIVPD(data)
 		}
 
 		pci.Devices = append(pci.Devices, device)
