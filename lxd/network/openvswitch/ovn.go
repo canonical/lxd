@@ -228,7 +228,7 @@ func (o *OVN) sbctl(args ...string) (string, error) {
 
 // nbctl executes ovn-nbctl with arguments to connect to wrapper's northbound database.
 func (o *OVN) nbctl(args ...string) (string, error) {
-	return o.xbctl(false, args...)
+	return o.xbctl(false, append([]string{"--wait=sb"}, args...)...)
 }
 
 // xbctl optionally executes either ovn-nbctl or ovn-sbctl with arguments to connect to wrapper's northbound or southbound database.
