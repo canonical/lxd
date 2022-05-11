@@ -1428,7 +1428,7 @@ func (n *ovn) deleteUplinkPortBridge(uplinkNet Network) error {
 		return n.deleteUplinkPortBridgeNative(uplinkNet)
 	}
 
-	return n.deleteUplinkPortBridgeOVS(uplinkNet)
+	return n.deleteUplinkPortBridgeOVS(uplinkNet, uplinkNet.Name())
 }
 
 // deleteUplinkPortBridge deletes uplink OVS bridge, OVN bridge mappings and veth interfaces if not in use.
@@ -1484,7 +1484,7 @@ func (n *ovn) deleteUplinkPortBridgeNative(uplinkNet Network) error {
 }
 
 // deleteUplinkPortBridge deletes OVN bridge mappings if not in use.
-func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network) error {
+func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network, ovsBridge string) error {
 	uplinkUsed, err := n.checkUplinkUse()
 	if err != nil {
 		return err
@@ -1493,7 +1493,7 @@ func (n *ovn) deleteUplinkPortBridgeOVS(uplinkNet Network) error {
 	// Remove uplink OVS bridge mapping if not in use by other OVN networks.
 	if !uplinkUsed {
 		ovs := openvswitch.NewOVS()
-		err = ovs.OVNBridgeMappingDelete(uplinkNet.Name(), uplinkNet.Name())
+		err = ovs.OVNBridgeMappingDelete(ovsBridge, uplinkNet.Name())
 		if err != nil {
 			return err
 		}
@@ -1516,7 +1516,7 @@ func (n *ovn) deleteUplinkPortPhysical(uplinkNet Network) error {
 	ovs := openvswitch.NewOVS()
 	isOVSBridge, _ := ovs.BridgeExists(uplinkHostName)
 	if isOVSBridge {
-		return n.deleteUplinkPortBridgeOVS(uplinkNet)
+		return n.deleteUplinkPortBridgeOVS(uplinkNet, uplinkHostName)
 	}
 
 	// Otherwise if uplink is normal physical interface, attempt cleanup of OVS bridge.
