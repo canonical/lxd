@@ -26,6 +26,13 @@ test_static_analysis() {
       echo "shellcheck not found, shell static analysis disabled"
     fi
 
+    # golangci-lint
+    if command -v golangci-lint >/dev/null 2>&1; then
+      golangci-lint run --disable-all -E deadcode
+    else
+      echo "golangci-lint not found, some go linters will not run"
+    fi
+
     ## Functions starting by empty line
     OUT=$(grep -r --exclude-dir=.git "^$" -B1 . 2>/dev/null | grep "func " | grep -v "}$" | grep -v "./lxd/sqlite/" || true)
     if [ -n "${OUT}" ]; then
