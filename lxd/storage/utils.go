@@ -180,14 +180,19 @@ func VolumeContentTypeNameToContentType(contentTypeName string) (int, error) {
 }
 
 // VolumeDBGet loads a volume from the database.
-func VolumeDBGet(pool *lxdBackend, projectName string, volumeName string, volumeType drivers.VolumeType) (*api.StorageVolume, error) {
+func VolumeDBGet(pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) (*api.StorageVolume, error) {
+	p, ok := pool.(*lxdBackend)
+	if !ok {
+		return nil, fmt.Errorf("Pool is not a lxdBackend")
+	}
+
 	volDBType, err := VolumeTypeToDBType(volumeType)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get volume config.
-	_, vol, err := pool.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
+	_, vol, err := p.state.DB.Cluster.GetLocalStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
 	if err != nil {
 		if response.IsNotFoundError(err) {
 			return vol, fmt.Errorf("Storage volume %q of type %q does not exist on pool %q: %w", fmt.Sprintf("%s_%s", projectName, volumeName), volumeType, pool.Name(), err)
@@ -201,7 +206,12 @@ func VolumeDBGet(pool *lxdBackend, projectName string, volumeName string, volume
 
 // VolumeDBCreate creates a volume in the database.
 // If volumeConfig is supplied, it is modified with any driver level default config options (if not set).
-func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType) error {
+func VolumeDBCreate(pool Pool, projectName string, volumeName string, volumeDescription string, volumeType drivers.VolumeType, snapshot bool, volumeConfig map[string]string, expiryDate time.Time, contentType drivers.ContentType) error {
+	p, ok := pool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Pool is not a lxdBackend")
+	}
+
 	// If the volumeType represents an instance type then check that the volumeConfig doesn't contain any of
 	// the instance disk effective override fields (which should not be stored in the database).
 	if volumeType.IsInstance() {
@@ -250,9 +260,9 @@ func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, vol
 
 	// Create the database entry for the storage volume.
 	if snapshot {
-		_, err = pool.state.DB.Cluster.CreateStorageVolumeSnapshot(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), expiryDate)
+		_, err = p.state.DB.Cluster.CreateStorageVolumeSnapshot(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), expiryDate)
 	} else {
-		_, err = pool.state.DB.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
+		_, err = p.state.DB.Cluster.CreateStoragePoolVolume(projectName, volumeName, volumeDescription, volDBType, pool.ID(), vol.Config(), volDBContentType)
 	}
 	if err != nil {
 		return fmt.Errorf("Error inserting volume %q for project %q in pool %q of type %q into database %q", volumeName, projectName, pool.Name(), volumeType, err)
@@ -262,14 +272,19 @@ func VolumeDBCreate(pool *lxdBackend, projectName string, volumeName string, vol
 }
 
 // VolumeDBDelete deletes a volume from the database.
-func VolumeDBDelete(pool *lxdBackend, projectName string, volumeName string, volumeType drivers.VolumeType) error {
+func VolumeDBDelete(pool Pool, projectName string, volumeName string, volumeType drivers.VolumeType) error {
+	p, ok := pool.(*lxdBackend)
+	if !ok {
+		return fmt.Errorf("Pool is not a lxdBackend")
+	}
+
 	// Convert the volume type to our internal integer representation.
 	volDBType, err := VolumeTypeToDBType(volumeType)
 	if err != nil {
 		return err
 	}
 
-	err = pool.state.DB.Cluster.RemoveStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
+	err = p.state.DB.Cluster.RemoveStoragePoolVolume(projectName, volumeName, volDBType, pool.ID())
 	if err != nil && !response.IsNotFoundError(err) {
 		return fmt.Errorf("Error deleting storage volume from database: %w", err)
 	}
