@@ -281,6 +281,8 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"security.secureboot":    validate.Optional(validate.IsBool),
 
 	"agent.nic_config": validate.Optional(validate.IsBool),
+
+	"volatile.apply_nvram": validate.Optional(validate.IsBool),
 }
 
 // ConfigKeyChecker returns a function that will check whether or not
