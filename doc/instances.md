@@ -123,6 +123,7 @@ The following volatile keys are currently internally used by LXD:
 Key                                         | Type      | Default       | Description
 :--                                         | :---      | :------       | :----------
 volatile.apply\_template                    | string    | -             | The name of a template hook which should be triggered upon next startup
+volatile.apply\_nvram                       | string    | -             | Whether or not to regenerate VM NVRAM on next start
 volatile.base\_image                        | string    | -             | The hash of the image the instance was created from, if any
 volatile.cloud-init.instance-id             | string    | -             | The instance-id (UUID) exposed to cloud-init
 volatile.evacuate.origin                    | string    | -             | The origin (cluster member) of the evacuated instance
