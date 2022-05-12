@@ -4308,8 +4308,7 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		return fmt.Errorf("Failed to get snapshots: %w", err)
 	}
 
-	var sis []*api.InstanceSnapshot
-
+	sis := make([]*api.InstanceSnapshot, 0, len(snapshots))
 	for _, s := range snapshots {
 		si, _, err := s.Render()
 		if err != nil {
