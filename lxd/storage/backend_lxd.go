@@ -4330,11 +4330,32 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		return err
 	}
 
+	dbVolSnaps, err := VolumeDBSnapshotsGet(b, inst.Project(), inst.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	volSnaps := make([]*api.StorageVolumeSnapshot, 0, len(dbVolSnaps))
+	for i := range dbVolSnaps {
+		_, snapName, _ := shared.InstanceGetParentAndSnapshotName(dbVolSnaps[i].Name)
+
+		volSnaps = append(volSnaps, &api.StorageVolumeSnapshot{
+			StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
+				Description: dbVolSnaps[i].Description,
+				ExpiresAt:   &dbVolSnaps[i].ExpiryDate,
+			},
+			Name:        snapName,
+			Config:      dbVolSnaps[i].Config,
+			ContentType: dbVolSnaps[i].ContentType,
+		})
+	}
+
 	data, err := yaml.Marshal(&backup.Config{
-		Container: ci.(*api.Instance),
-		Snapshots: sis,
-		Pool:      &b.db,
-		Volume:    volume,
+		Container:       ci.(*api.Instance),
+		Snapshots:       sis,
+		Pool:            &b.db,
+		Volume:          volume,
+		VolumeSnapshots: volSnaps,
 	})
 	if err != nil {
 		return err
