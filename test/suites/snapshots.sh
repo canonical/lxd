@@ -228,16 +228,12 @@ snap_restore() {
   lxc delete bar
 
   # Test if container's with hyphen's in their names are treated correctly.
-  if [ "$lxd_backend" = "lvm" ]; then
-    lxc launch testimage a-b
-    lxc snapshot a-b base
-    lxc restore a-b base
-
-    lxc snapshot a-b c-d
-    lxc restore a-b c-d
-
-    lxc delete -f a-b
-  fi
+  lxc launch testimage a-b
+  lxc snapshot a-b base
+  lxc restore a-b base
+  lxc snapshot a-b c-d
+  lxc restore a-b c-d
+  lxc delete -f a-b
 }
 
 restore_and_compare_fs() {
