@@ -2638,6 +2638,9 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 	l.Debug("RestoreInstanceSnapshot started")
 	defer l.Debug("RestoreInstanceSnapshot finished")
 
+	revert := revert.New()
+	defer revert.Fail()
+
 	if inst.Type() != src.Type() {
 		return fmt.Errorf("Instance types must match")
 	}
@@ -2678,6 +2681,29 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return fmt.Errorf("Volume name must be a snapshot")
 	}
 
+	srcDBVol, err := VolumeDBGet(b, src.Project(), src.Name(), volType)
+	if err != nil {
+		return err
+	}
+
+	// Restore snapshot volume config if different.
+	changedConfig, _ := b.detectChangedConfig(dbVol.Config, srcDBVol.Config)
+	if len(changedConfig) != 0 || dbVol.Description != srcDBVol.Description {
+		volDBType, err := VolumeTypeToDBType(volType)
+		if err != nil {
+			return err
+		}
+
+		err = b.state.DB.Cluster.UpdateStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID(), srcDBVol.Description, srcDBVol.Config)
+		if err != nil {
+			return err
+		}
+
+		revert.Add(func() {
+			b.state.DB.Cluster.UpdateStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID(), dbVol.Description, dbVol.Config)
+		})
+	}
+
 	err = b.driver.RestoreVolume(*vol, snapshotName, op)
 	if err != nil {
 		snapErr, ok := err.(drivers.ErrDeleteSnapshots)
@@ -2714,6 +2740,7 @@ func (b *lxdBackend) RestoreInstanceSnapshot(inst instance.Instance, src instanc
 		return err
 	}
 
+	revert.Success()
 	return nil
 }
 
