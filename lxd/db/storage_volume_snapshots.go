@@ -104,27 +104,6 @@ func (c *Cluster) UpdateStorageVolumeSnapshot(project, volumeName string, volume
 	return err
 }
 
-// GetStorageVolumeSnapshotsNames gets the snapshot names of a storage volume.
-func (c *Cluster) GetStorageVolumeSnapshotsNames(volumeID int64) ([]string, error) {
-	var snapshotName string
-	query := "SELECT name FROM storage_volumes_snapshots WHERE storage_volume_id=?"
-	inargs := []any{volumeID}
-	outargs := []any{snapshotName}
-
-	result, err := queryScan(c, query, inargs, outargs)
-	if err != nil {
-		return []string{}, err
-	}
-
-	var out []string
-
-	for _, r := range result {
-		out = append(out, r[0].(string))
-	}
-
-	return out, nil
-}
-
 // GetStorageVolumeSnapshotWithID returns the volume snapshot with the given ID.
 func (c *Cluster) GetStorageVolumeSnapshotWithID(snapshotID int) (StorageVolumeArgs, error) {
 	args := StorageVolumeArgs{}
