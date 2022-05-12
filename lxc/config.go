@@ -201,8 +201,11 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			brief := inst.Writable()
-			data, err = yaml.Marshal(&brief)
+			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
+			inst.ExpandedConfig = nil
+			inst.ExpandedDevices = nil
+
+			data, err = yaml.Marshal(&inst)
 			if err != nil {
 				return err
 			}
@@ -214,8 +217,11 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 				return err
 			}
 
-			brief := inst.Writable()
-			data, err = yaml.Marshal(&brief)
+			// Empty expanded config so it isn't shown in edit screen (relies on omitempty tag).
+			inst.ExpandedConfig = nil
+			inst.ExpandedDevices = nil
+
+			data, err = yaml.Marshal(&inst)
 			if err != nil {
 				return err
 			}
@@ -231,7 +237,6 @@ func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
 			// Parse the text received from the editor
 			if isSnapshot {
 				newdata := api.InstanceSnapshotPut{}
-
 				err = yaml.Unmarshal(content, &newdata)
 				if err == nil {
 					var op lxd.Operation
