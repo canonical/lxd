@@ -189,8 +189,8 @@ func GetCPU() (*api.ResourcesCPU, error) {
 	isolated := GetCPUIsolated()
 
 	// Temporary storage
-	cpuSockets := map[uint64]*api.ResourcesCPUSocket{}
-	cpuCores := map[uint64]map[string]*api.ResourcesCPUCore{}
+	cpuSockets := map[int64]*api.ResourcesCPUSocket{}
+	cpuCores := map[int64]map[string]*api.ResourcesCPUCore{}
 
 	// Get the DMI data
 	dmiVendor, dmiModel, _ := getCPUdmi()
@@ -221,12 +221,12 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		}
 
 		// Get topology
-		cpuSocket, err := readUint(filepath.Join(entryPath, "topology", "physical_package_id"))
+		cpuSocket, err := readInt(filepath.Join(entryPath, "topology", "physical_package_id"))
 		if err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "topology", "physical_package_id"), err)
 		}
 
-		cpuCore, err := readUint(filepath.Join(entryPath, "topology", "core_id"))
+		cpuCore, err := readInt(filepath.Join(entryPath, "topology", "core_id"))
 		if err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "topology", "core_id"), err)
 		}
@@ -236,8 +236,16 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			return nil, fmt.Errorf("Failed to read %q: %w", filepath.Join(entryPath, "topology", "die_id"), err)
 		}
 
+		// Handle missing architecture support.
+		if cpuSocket == -1 {
+			cpuSocket = 0
+		}
+
+		if cpuCore == -1 {
+			cpuCore = 0
+		}
+
 		if cpuDie == -1 {
-			// Architectures without support for die_id report -1, make that die 0 instead.
 			cpuDie = 0
 		}
 
@@ -247,7 +255,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			resSocket = &api.ResourcesCPUSocket{}
 
 			// Socket number
-			resSocket.Socket = cpuSocket
+			resSocket.Socket = uint64(cpuSocket)
 
 			// CPU information
 			for cpuInfo.Scan() {
@@ -366,7 +374,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 			resCore = &api.ResourcesCPUCore{}
 
 			// Core number
-			resCore.Core = cpuCore
+			resCore.Core = uint64(cpuCore)
 
 			// Die number
 			resCore.Die = uint64(cpuDie)
@@ -432,7 +440,7 @@ func GetCPU() (*api.ResourcesCPU, error) {
 		// Add the cores
 		coreFrequency := uint64(0)
 		coreFrequencyCount := uint64(0)
-		for _, core := range cpuCores[socket.Socket] {
+		for _, core := range cpuCores[int64(socket.Socket)] {
 			if core.Frequency > 0 {
 				coreFrequency += core.Frequency
 				coreFrequencyCount++
