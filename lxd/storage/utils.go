@@ -293,13 +293,18 @@ func VolumeDBDelete(pool Pool, projectName string, volumeName string, volumeType
 }
 
 // VolumeDBSnapshotsGet loads a list of snapshots volumes from the database.
-func VolumeDBSnapshotsGet(state *state.State, poolID int64, projectName string, volume string, volumeType drivers.VolumeType) ([]db.StorageVolumeArgs, error) {
+func VolumeDBSnapshotsGet(pool Pool, projectName string, volume string, volumeType drivers.VolumeType) ([]db.StorageVolumeArgs, error) {
+	p, ok := pool.(*lxdBackend)
+	if !ok {
+		return nil, fmt.Errorf("Pool is not a lxdBackend")
+	}
+
 	volDBType, err := VolumeTypeToDBType(volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	snapshots, err := state.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volDBType, poolID)
+	snapshots, err := p.state.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volume, volDBType, pool.ID())
 	if err != nil {
 		return nil, err
 	}
