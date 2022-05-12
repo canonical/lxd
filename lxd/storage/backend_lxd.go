@@ -903,15 +903,9 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	contentType := InstanceContentType(inst)
 
 	// Get the source storage pool.
-	tmpPool, err := LoadByInstance(b.state, src)
+	srcPool, err := LoadByInstance(b.state, src)
 	if err != nil {
 		return err
-	}
-
-	// Convert to lxdBackend so we can access driver.
-	srcPool, ok := tmpPool.(*lxdBackend)
-	if !ok {
-		return fmt.Errorf("Pool is not an lxdBackend")
 	}
 
 	// Check source volume exists.
@@ -924,7 +918,7 @@ func (b *lxdBackend) CreateInstanceFromCopy(inst instance.Instance, src instance
 	var srcSnapshotVolRows []db.StorageVolumeArgs
 	var srcSnapshotNames []string
 	if snapshots {
-		srcSnapshotVolRows, err = VolumeDBSnapshotsGet(b.state, srcPool.ID(), src.Project(), src.Name(), volType)
+		srcSnapshotVolRows, err = VolumeDBSnapshotsGet(srcPool, src.Project(), src.Name(), volType)
 		if err != nil {
 			return err
 		}
@@ -1114,23 +1108,15 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	}
 
 	// Setup the source pool backend instance.
-	var srcPool *lxdBackend
+	var srcPool Pool
 	if b.name == srcPoolName {
 		srcPool = b // Source and target are in the same pool so share pool var.
 	} else {
 		// Source is in a different pool to target, so load the pool.
-		tmpPool, err := LoadByName(b.state, srcPoolName)
+		srcPool, err = LoadByName(b.state, srcPoolName)
 		if err != nil {
 			return err
 		}
-
-		// Convert to lxdBackend so we can access driver.
-		tmpBackend, ok := tmpPool.(*lxdBackend)
-		if !ok {
-			return fmt.Errorf("Pool is not an lxdBackend")
-		}
-
-		srcPool = tmpBackend
 	}
 
 	// Check source volume exists and is custom type.
@@ -1183,12 +1169,12 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 	syncSnapshots := []db.StorageVolumeArgs{}
 	if snapshots {
 		// Detect added/deleted snapshots.
-		srcSnapshots, err := VolumeDBSnapshotsGet(srcPool.state, srcPool.ID(), srcProjectName, srcVolName, drivers.VolumeTypeCustom)
+		srcSnapshots, err := VolumeDBSnapshotsGet(srcPool, srcProjectName, srcVolName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
 
-		destSnapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, drivers.VolumeTypeCustom)
+		destSnapshots, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -1260,7 +1246,12 @@ func (b *lxdBackend) RefreshCustomVolume(projectName string, srcProjectName stri
 			srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
 
 			srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
-				volDiskPath, err := srcPool.driver.GetVolumeDiskPath(srcVol)
+				srcPoolBackend, ok := srcPool.(*lxdBackend)
+				if !ok {
+					return fmt.Errorf("Pool is not a lxdBackend")
+				}
+
+				volDiskPath, err := srcPoolBackend.driver.GetVolumeDiskPath(srcVol)
 				if err != nil {
 					return err
 				}
@@ -1405,7 +1396,7 @@ func (b *lxdBackend) RefreshInstance(inst instance.Instance, src instance.Instan
 		// If we are copying snapshots, retrieve a list of all snapshots from source volume.
 		var srcSnapshotVolRows map[string]db.StorageVolumeArgs
 		if len(srcSnapshots) > 0 {
-			allSrcSnapshotVolRows, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), src.Project(), src.Name(), volType)
+			allSrcSnapshotVolRows, err := VolumeDBSnapshotsGet(srcPool, src.Project(), src.Name(), volType)
 			if err != nil {
 				return err
 			}
@@ -3165,23 +3156,15 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	}
 
 	// Setup the source pool backend instance.
-	var srcPool *lxdBackend
+	var srcPool Pool
 	if b.name == srcPoolName {
 		srcPool = b // Source and target are in the same pool so share pool var.
 	} else {
 		// Source is in a different pool to target, so load the pool.
-		tmpPool, err := LoadByName(b.state, srcPoolName)
+		srcPool, err = LoadByName(b.state, srcPoolName)
 		if err != nil {
 			return err
 		}
-
-		// Convert to lxdBackend so we can access driver.
-		tmpBackend, ok := tmpPool.(*lxdBackend)
-		if !ok {
-			return fmt.Errorf("Pool is not an lxdBackend")
-		}
-
-		srcPool = tmpBackend
 	}
 
 	// Check source volume exists and is custom type.
@@ -3231,7 +3214,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	var snapshotNames []string
 	if snapshots {
-		snapshots, err := VolumeDBSnapshotsGet(b.state, srcPool.ID(), srcProjectName, srcVolName, drivers.VolumeTypeCustom)
+		snapshots, err := VolumeDBSnapshotsGet(srcPool, srcProjectName, srcVolName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
@@ -3320,7 +3303,12 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		srcVol := srcPool.GetVolume(drivers.VolumeTypeCustom, contentType, srcVolStorageName, srcVolRow.Config)
 
 		srcVol.MountTask(func(mountPath string, op *operations.Operation) error {
-			volDiskPath, err := srcPool.driver.GetVolumeDiskPath(srcVol)
+			srcPoolBackend, ok := srcPool.(*lxdBackend)
+			if !ok {
+				return fmt.Errorf("Pool is not a lxdBackend")
+			}
+
+			volDiskPath, err := srcPoolBackend.driver.GetVolumeDiskPath(srcVol)
 			if err != nil {
 				return err
 			}
@@ -3532,7 +3520,7 @@ func (b *lxdBackend) RenameCustomVolume(projectName string, volName string, newV
 	}
 
 	// Rename each snapshot to have the new parent volume prefix.
-	snapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, drivers.VolumeTypeCustom)
+	snapshots, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
 	}
@@ -3790,7 +3778,7 @@ func (b *lxdBackend) DeleteCustomVolume(projectName string, volName string, op *
 	}
 
 	// Retrieve a list of snapshots.
-	snapshots, err := VolumeDBSnapshotsGet(b.state, b.ID(), projectName, volName, drivers.VolumeTypeCustom)
+	snapshots, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
 	if err != nil {
 		return err
 	}
