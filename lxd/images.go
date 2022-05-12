@@ -3831,7 +3831,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 		// across the cluster, only leader node can launch the task, no others.
 		localAddress, err := node.ClusterAddress(d.db.Node)
 		if err != nil {
-			logger.Error("Failed to get current node address", logger.Ctx{"err": err})
+			logger.Error("Failed to get current cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
@@ -3841,7 +3841,7 @@ func autoSyncImagesTask(d *Daemon) (task.Func, task.Schedule) {
 				return // No error if not clustered.
 			}
 
-			logger.Error("Failed to get leader node address", logger.Ctx{"err": err})
+			logger.Error("Failed to get leader cluster member address", logger.Ctx{"err": err})
 			return
 		}
 
