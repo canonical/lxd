@@ -506,36 +506,24 @@ func volumeBackupWriteIndex(s *state.State, projectName string, vol *api.Storage
 	}
 
 	if snapshots {
-		volID, err := s.DB.Cluster.GetStoragePoolNodeVolumeID(projectName, vol.Name, db.StoragePoolVolumeTypeCustom, pool.ID())
+		snaps, err := storagePools.VolumeDBSnapshotsGet(pool, projectName, vol.Name, storageDrivers.VolumeTypeCustom)
 		if err != nil {
-			return err
+			return fmt.Errorf("Failed loading custom volume snapshot records: %w", err)
 		}
 
-		snaps, err := s.DB.Cluster.GetStorageVolumeSnapshotsNames(volID)
-		if err != nil {
-			return err
-		}
-
-		for _, snapName := range snaps {
-			snapVolName := storageDrivers.GetSnapshotVolumeName(vol.Name, snapName)
-			snapVolID, snapVol, err := s.DB.Cluster.GetLocalStoragePoolVolume(projectName, snapVolName, db.StoragePoolVolumeTypeCustom, pool.ID())
-			if err != nil {
-				return fmt.Errorf("Failed loading custom volume snapshot %q: %w", snapVolName, err)
-			}
-
+		for i := range snaps {
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snaps[i].Name)
 			indexInfo.Snapshots = append(indexInfo.Snapshots, snapName)
 
-			snapExpiry, err := s.DB.Cluster.GetStorageVolumeSnapshotExpiry(snapVolID)
-			if err != nil {
-				return fmt.Errorf("Failed loading custom volume snapshot expiry for %q: %w", snapVolName, err)
+			snapshot := api.StorageVolumeSnapshot{
+				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
+					Description: snaps[i].Description,
+					ExpiresAt:   &snaps[i].ExpiryDate,
+				},
+				Name:        snapName, // Snapshot only name, not full name.
+				Config:      snaps[i].Config,
+				ContentType: snaps[i].ContentType,
 			}
-
-			snapshot := api.StorageVolumeSnapshot{}
-			snapshot.Config = snapVol.Config
-			snapshot.Description = snapVol.Description
-			snapshot.Name = snapName // Snapshot only name, not full name.
-			snapshot.ExpiresAt = &snapExpiry
-			snapshot.ContentType = snapVol.ContentType
 
 			indexInfo.Config.VolumeSnapshots = append(indexInfo.Config.VolumeSnapshots, &snapshot)
 		}
