@@ -42,7 +42,8 @@ func ValueOf(obj any, field string) any {
 			parent = fieldValue.Interface()
 		}
 
-		if yaml == key {
+		yamlKey, _, _ := strings.Cut(yaml, ",")
+		if yamlKey == key {
 			v := fieldValue.Interface()
 			if len(parts) == 1 {
 				return v
