@@ -237,6 +237,8 @@ func (c *cmdProfileAssign) Run(cmd *cobra.Command, args []string) error {
 type cmdProfileCopy struct {
 	global  *cmdGlobal
 	profile *cmdProfile
+
+	flagTargetProject string
 }
 
 func (c *cmdProfileCopy) Command() *cobra.Command {
@@ -246,6 +248,7 @@ func (c *cmdProfileCopy) Command() *cobra.Command {
 	cmd.Short = i18n.G("Copy profiles")
 	cmd.Long = cli.FormatSection(i18n.G("Description"), i18n.G(
 		`Copy profiles`))
+	cmd.Flags().StringVar(&c.flagTargetProject, "target-project", "", i18n.G("Copy to a project different from the source")+"``")
 
 	cmd.RunE = c.Run
 
@@ -285,6 +288,10 @@ func (c *cmdProfileCopy) Run(cmd *cobra.Command, args []string) error {
 	newProfile := api.ProfilesPost{
 		ProfilePut: profile.Writable(),
 		Name:       dest.name,
+	}
+
+	if c.flagTargetProject != "" {
+		dest.server.UseTarget(c.flagTargetProject)
 	}
 
 	return dest.server.CreateProfile(newProfile)
