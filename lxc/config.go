@@ -107,6 +107,7 @@ func (c *cmdConfigEdit) helpTemplate() string {
 ### Any line starting with a '# will be ignored.
 ###
 ### A sample configuration looks like:
+### name: instance1
 ### profiles:
 ### - default
 ### config:
@@ -116,7 +117,9 @@ func (c *cmdConfigEdit) helpTemplate() string {
 ###     path: /extra
 ###     source: /home/user
 ###     type: disk
-### ephemeral: false`)
+### ephemeral: false
+###
+### Note that the name is shown but cannot be changed`)
 }
 
 func (c *cmdConfigEdit) Run(cmd *cobra.Command, args []string) error {
