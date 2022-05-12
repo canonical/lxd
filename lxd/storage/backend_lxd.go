@@ -4985,7 +4985,7 @@ func (b *lxdBackend) BackupCustomVolume(projectName string, volName string, tarW
 	var snapNames []string
 	if snapshots {
 		// Get snapshots in age order, oldest first, and pass names to storage driver.
-		volSnaps, err := b.state.DB.Cluster.GetLocalStoragePoolVolumeSnapshotsWithType(projectName, volName, db.StoragePoolVolumeTypeCustom, b.id)
+		volSnaps, err := VolumeDBSnapshotsGet(b, projectName, volName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
