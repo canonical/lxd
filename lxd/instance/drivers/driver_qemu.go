@@ -1059,12 +1059,6 @@ func (d *qemu) Start(stateful bool) error {
 		volatileSet["volatile.uuid"] = instUUID
 	}
 
-	// Apply any volatile changes that need to be made.
-	err = d.VolatileSet(volatileSet)
-	if err != nil {
-		return fmt.Errorf("Failed setting volatile keys: %w", err)
-	}
-
 	// Generate the config drive.
 	err = d.generateConfigShare()
 	if err != nil {
@@ -1091,14 +1085,25 @@ func (d *qemu) Start(stateful bool) error {
 		return err
 	}
 
-	// Copy OVMF settings firmware to nvram file.
+	// Copy OVMF settings firmware to nvram file if needed.
 	// This firmware file can be modified by the VM so it must be copied from the defaults.
-	if d.architectureSupportsUEFI() && !shared.PathExists(d.nvramPath()) {
+	if d.architectureSupportsUEFI() && (!shared.PathExists(d.nvramPath()) || shared.IsTrue(d.localConfig["volatile.apply_nvram"])) {
 		err = d.setupNvram()
 		if err != nil {
 			op.Done(err)
 			return err
 		}
+	}
+
+	// Clear volatile.apply_nvram if set.
+	if d.localConfig["volatile.apply_nvram"] != "" {
+		volatileSet["volatile.apply_nvram"] = ""
+	}
+
+	// Apply any volatile changes that need to be made.
+	err = d.VolatileSet(volatileSet)
+	if err != nil {
+		return fmt.Errorf("Failed setting volatile keys: %w", err)
 	}
 
 	devConfs := make([]*deviceConfig.RunConfig, 0, len(d.expandedDevices))
@@ -1580,6 +1585,8 @@ func (d *qemu) architectureSupportsUEFI() bool {
 }
 
 func (d *qemu) setupNvram() error {
+	d.logger.Debug("Generating NVRAM")
+
 	// Mount the instance's config volume.
 	_, err := d.mount()
 	if err != nil {
@@ -1588,7 +1595,7 @@ func (d *qemu) setupNvram() error {
 	defer d.unmount()
 
 	srcOvmfFile := filepath.Join(d.ovmfPath(), "OVMF_VARS.fd")
-	if d.expandedConfig["security.secureboot"] == "" || shared.IsTrue(d.expandedConfig["security.secureboot"]) {
+	if shared.IsTrueOrEmpty(d.expandedConfig["security.secureboot"]) {
 		srcOvmfFile = filepath.Join(d.ovmfPath(), "OVMF_VARS.ms.fd")
 	}
 
@@ -4418,6 +4425,7 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 			"cluster.evacuate",
 			"limits.memory",
 			"security.agent.metrics",
+			"security.secureboot",
 		}
 
 		isLiveUpdatable := func(key string) bool {
@@ -4474,6 +4482,9 @@ func (d *qemu) Update(args db.InstanceArgs, userRequested bool) error {
 						return fmt.Errorf("Failed updating memory limit: %w", err)
 					}
 				}
+			} else if key == "security.secureboot" {
+				// Defer rebuilding nvram until next start.
+				d.localConfig["volatile.apply_nvram"] = "true"
 			}
 		}
 	}
