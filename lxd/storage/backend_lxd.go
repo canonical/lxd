@@ -4324,14 +4324,9 @@ func (b *lxdBackend) UpdateInstanceBackupFile(inst instance.Instance, op *operat
 		return err
 	}
 
-	volDBType, err := VolumeTypeToDBType(volType)
-	if err != nil {
-		return err
-	}
-
 	contentType := InstanceContentType(inst)
 
-	_, volume, err := b.state.DB.Cluster.GetLocalStoragePoolVolume(inst.Project(), inst.Name(), volDBType, b.ID())
+	volume, err := VolumeDBGet(b, inst.Project(), inst.Name(), volType)
 	if err != nil {
 		return err
 	}
