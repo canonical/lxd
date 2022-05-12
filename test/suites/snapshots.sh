@@ -127,10 +127,14 @@ snap_restore() {
   lxc exec bar -- ln -s file_only_in_snap0 /root/statelink
   lxc stop bar --force
 
+  # Get container's pool.
+  pool=$(lxc config profile device get default root pool)
+
+  lxc storage volume set "${pool}" container/bar user.foo=snap0
+
   # Check parent volume.block.filesystem is copied to snapshot and not from pool.
   if [ "$lxd_backend" = "lvm" ] || [ "$lxd_backend" = "ceph" ]; then
     # Change pool volume.block.filesystem setting after creation of instance and before snapshot.
-    pool=$(lxc config profile device get default root pool)
     lxc storage set "${pool}" volume.block.filesystem=xfs
   fi
 
@@ -148,6 +152,7 @@ snap_restore() {
   lxc exec bar -- ln -s file_only_in_snap1 /root/statelink
   lxc exec bar -- mkdir /root/dir_only_in_snap1
   lxc stop bar --force
+  lxc storage volume set "${pool}" container/bar user.foo=snap1
 
   # Delete the state file we created to prevent leaking.
   rm state
@@ -155,6 +160,7 @@ snap_restore() {
   lxc config set bar limits.cpu 1
 
   lxc snapshot bar snap1
+  lxc storage volume set "${pool}" container/bar user.foo=postsnaps
 
   # Check volume.block.filesystem on storage volume in parent and snapshot match.
   if [ "${lxd_backend}" = "lvm" ] || [ "${lxd_backend}" = "ceph" ]; then
@@ -184,6 +190,9 @@ snap_restore() {
       echo "==> config didn't match expected value after restore (${cpus})"
       false
     fi
+
+    # Check storage volume has been restored (user.foo=snap0)
+    lxc storage volume get "${pool}" container/bar user.foo | grep -Fx "snap0"
   fi
 
   ##########################################################
@@ -197,6 +206,9 @@ snap_restore() {
    echo "==> config didn't match expected value after restore (${cpus})"
    false
   fi
+
+  # Check storage volume has been restored (user.foo=snap0)
+  lxc storage volume get "${pool}" container/bar user.foo | grep -Fx "snap1"
 
   ##########################################################
 
