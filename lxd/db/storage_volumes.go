@@ -268,7 +268,10 @@ func (c *Cluster) GetLocalStoragePoolVolumeSnapshotsWithType(projectName string,
 	// during migration to ensure that the storage engines can re-create snapshots using the
 	// correct deltas.
 	query := fmt.Sprintf(`
-SELECT storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date FROM storage_volumes_snapshots
+  SELECT
+    storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_volumes_snapshots.description, storage_volumes_snapshots.expiry_date,
+    storage_volumes.content_type
+  FROM storage_volumes_snapshots
   JOIN storage_volumes ON storage_volumes_snapshots.storage_volume_id = storage_volumes.id
   JOIN projects ON projects.id=storage_volumes.project_id
   JOIN storage_pools ON storage_pools.id=storage_volumes.storage_pool_id
@@ -284,20 +287,27 @@ SELECT storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_vol
 		args = append(args, driver)
 	}
 
+	var err error
 	var snapshots []StorageVolumeArgs
 
-	err := c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
-		err := tx.QueryScan(query, func(scan func(dest ...any) error) error {
+	err = c.Transaction(context.TODO(), func(ctx context.Context, tx *ClusterTx) error {
+		err = tx.QueryScan(query, func(scan func(dest ...any) error) error {
 			var s StorageVolumeArgs
 			var snapName string
 			var expiryDate sql.NullTime
+			var contentType int
 
-			scan(&s.ID, &snapName, &s.Description, &expiryDate)
+			scan(&s.ID, &snapName, &s.Description, &expiryDate, &contentType)
 			s.Name = volumeName + shared.SnapshotDelimiter + snapName
 			s.PoolID = poolID
 			s.ProjectName = projectName
 			s.Snapshot = true
 			s.ExpiryDate = expiryDate.Time // Convert null to zero.
+
+			s.ContentType, err = storagePoolVolumeContentTypeToName(contentType)
+			if err != nil {
+				return err
+			}
 
 			snapshots = append(snapshots, s)
 
@@ -308,8 +318,8 @@ SELECT storage_volumes_snapshots.id, storage_volumes_snapshots.name, storage_vol
 		}
 
 		// Populate config.
-		for _, snapshot := range snapshots {
-			err := storageVolumeSnapshotConfig(tx, snapshot.ID, &snapshot)
+		for i := range snapshots {
+			err := storageVolumeSnapshotConfig(tx, snapshots[i].ID, &snapshots[i])
 			if err != nil {
 				return err
 			}
