@@ -594,10 +594,15 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		d.info.NetworkACLPut = *config
 		d.init(d.state, d.id, d.projectName, d.info)
 
-		revert.Add(func() {
-			d.state.DB.Cluster.UpdateNetworkACL(d.id, &oldConfig)
+		revert.Add(func() error {
+			err := d.state.DB.Cluster.UpdateNetworkACL(d.id, &oldConfig)
+			if err != nil {
+				return err
+			}
+
 			d.info.NetworkACLPut = oldConfig
 			d.init(d.state, d.id, d.projectName, d.info)
+			return nil
 		})
 	}
 
@@ -652,7 +657,7 @@ func (d *common) Update(config *api.NetworkACLPut, clientType request.ClientType
 		if err != nil {
 			return fmt.Errorf("Failed ensuring ACL is configured in OVN: %w", err)
 		}
-		revert.Add(r.Fail)
+		revert.Add(r.FailHook)
 
 		// Run unused port group cleanup in case any formerly referenced ACL in this ACL's rules means that
 		// an ACL port group is now considered unused.

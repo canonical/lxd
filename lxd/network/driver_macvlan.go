@@ -72,7 +72,10 @@ func (n *macvlan) Start() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() { n.setUnavailable() })
+	revert.Add(func() error {
+		n.setUnavailable()
+		return nil
+	})
 
 	if !InterfaceExists(n.config["parent"]) {
 		return fmt.Errorf("Parent interface %q not found", n.config["parent"])
@@ -118,9 +121,9 @@ func (n *macvlan) Update(newNetwork api.NetworkPut, targetNode string, clientTyp
 	defer revert.Fail()
 
 	// Define a function which reverts everything.
-	revert.Add(func() {
+	revert.Add(func() error {
 		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clientType)
+		return n.common.update(oldNetwork, targetNode, clientType)
 	})
 
 	// Apply changes to all nodes and databse.

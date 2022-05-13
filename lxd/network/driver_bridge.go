@@ -561,7 +561,10 @@ func (n *bridge) Start() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() { n.setUnavailable() })
+	revert.Add(func() error {
+		n.setUnavailable()
+		return nil
+	})
 
 	err := n.setup(nil)
 	if err != nil {
@@ -610,7 +613,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { ovs.BridgeDelete(n.name) })
+			revert.Add(func() error { return ovs.BridgeDelete(n.name) })
 		} else {
 
 			bridge := &ip.Bridge{
@@ -620,7 +623,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 			if err != nil {
 				return err
 			}
-			revert.Add(func() { bridge.Delete() })
+			revert.Add(func() error { return bridge.Delete() })
 		}
 	}
 
@@ -682,7 +685,7 @@ func (n *bridge) setup(oldConfig map[string]string) error {
 		}
 		err = dummy.Add()
 		if err == nil {
-			revert.Add(func() { dummy.Delete() })
+			revert.Add(func() error { return dummy.Delete() })
 			err = dummy.SetUp()
 			if err == nil {
 				AttachInterface(n.name, fmt.Sprintf("%s-mtu", n.name))
@@ -1796,12 +1799,15 @@ func (n *bridge) Update(newNetwork api.NetworkPut, targetNode string, clientType
 	// Perform any pre-update cleanup needed if local member network was already created.
 	if len(changedKeys) > 0 {
 		// Define a function which reverts everything.
-		revert.Add(func() {
+		revert.Add(func() error {
 			// Reset changes to all nodes and database.
-			n.common.update(oldNetwork, targetNode, clientType)
+			err := n.common.update(oldNetwork, targetNode, clientType)
+			if err != nil {
+				logger.Warn("Failed updating database nodes during revert", logger.Ctx{"err": err})
+			}
 
 			// Reset any change that was made to local bridge.
-			n.setup(newNetwork.Config)
+			return n.setup(newNetwork.Config)
 		})
 
 		// Bring the bridge down entirely if the driver has changed.
@@ -2578,10 +2584,18 @@ func (n *bridge) ForwardCreate(forward api.NetworkForwardsPost, clientType reque
 		return err
 	}
 
-	revert.Add(func() {
-		n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
-		n.forwardSetupFirewall()
-		n.forwardBGPSetupPrefixes()
+	revert.Add(func() error {
+		err := n.state.DB.Cluster.DeleteNetworkForward(n.ID(), forwardID)
+		if err != nil {
+			logger.Warn("Failed deleting network forward during revert", logger.Ctx{"err": err})
+		}
+
+		err = n.forwardSetupFirewall()
+		if err != nil {
+			logger.Warn("Failed to setup network forward firewall during revert", logger.Ctx{"err": err})
+		}
+
+		return n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardSetupFirewall()
@@ -2720,10 +2734,18 @@ func (n *bridge) ForwardUpdate(listenAddress string, req api.NetworkForwardPut, 
 		return err
 	}
 
-	revert.Add(func() {
-		n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
-		n.forwardSetupFirewall()
-		n.forwardBGPSetupPrefixes()
+	revert.Add(func() error {
+		err := n.state.DB.Cluster.UpdateNetworkForward(n.ID(), curForwardID, &curForward.NetworkForwardPut)
+		if err != nil {
+			logger.Warn("Failed updating network forward during revert", logger.Ctx{"err": err})
+		}
+
+		err = n.forwardSetupFirewall()
+		if err != nil {
+			logger.Warn("Failed to setup network forward firewall during revert", logger.Ctx{"err": err})
+		}
+
+		return n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardSetupFirewall()
@@ -2751,14 +2773,22 @@ func (n *bridge) ForwardDelete(listenAddress string, clientType request.ClientTy
 		return err
 	}
 
-	revert.Add(func() {
+	revert.Add(func() error {
 		newForward := api.NetworkForwardsPost{
 			NetworkForwardPut: forward.NetworkForwardPut,
 			ListenAddress:     forward.ListenAddress,
 		}
-		n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
-		n.forwardSetupFirewall()
-		n.forwardBGPSetupPrefixes()
+		_, err := n.state.DB.Cluster.CreateNetworkForward(n.ID(), memberSpecific, &newForward)
+		if err != nil {
+			logger.Warn("Failed recreating network forward during revert", logger.Ctx{"err": err})
+		}
+
+		err = n.forwardSetupFirewall()
+		if err != nil {
+			logger.Warn("Failed recreating network forward firewall during revert", logger.Ctx{"err": err})
+		}
+
+		return n.forwardBGPSetupPrefixes()
 	})
 
 	err = n.forwardSetupFirewall()

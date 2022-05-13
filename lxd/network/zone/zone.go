@@ -232,10 +232,15 @@ func (d *zone) Update(config *api.NetworkZonePut, clientType request.ClientType)
 		d.info.NetworkZonePut = *config
 		d.init(d.state, d.id, d.projectName, d.info)
 
-		revert.Add(func() {
-			d.state.DB.Cluster.UpdateNetworkZone(d.id, &oldConfig)
+		revert.Add(func() error {
+			err := d.state.DB.Cluster.UpdateNetworkZone(d.id, &oldConfig)
+			if err != nil {
+				return err
+			}
+
 			d.info.NetworkZonePut = oldConfig
 			d.init(d.state, d.id, d.projectName, d.info)
+			return nil
 		})
 
 		// Notify all other nodes to update the network zone if no target specified.

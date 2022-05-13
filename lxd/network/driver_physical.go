@@ -161,7 +161,10 @@ func (n *physical) Start() error {
 	revert := revert.New()
 	defer revert.Fail()
 
-	revert.Add(func() { n.setUnavailable() })
+	revert.Add(func() error {
+		n.setUnavailable()
+		return nil
+	})
 
 	err := n.setup(nil)
 	if err != nil {
@@ -191,7 +194,7 @@ func (n *physical) setup(oldConfig map[string]string) error {
 		return err
 	}
 	if created {
-		revert.Add(func() { InterfaceRemove(hostName) })
+		revert.Add(func() error { return InterfaceRemove(hostName) })
 	}
 
 	// Set the MTU.
@@ -322,9 +325,9 @@ func (n *physical) Update(newNetwork api.NetworkPut, targetNode string, clientTy
 	}
 
 	// Define a function which reverts everything.
-	revert.Add(func() {
+	revert.Add(func() error {
 		// Reset changes to all nodes and database.
-		n.common.update(oldNetwork, targetNode, clientType)
+		return n.common.update(oldNetwork, targetNode, clientType)
 	})
 
 	// Apply changes to all nodes and databse.
