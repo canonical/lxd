@@ -574,10 +574,15 @@ test_backup_volume_export_with_project() {
   echo foo | lxc file push - c1/mnt/test
 
   # Snapshot the custom volume.
-  lxc storage volume snapshot "${custom_vol_pool}" testvol
+  lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap0
+  lxc storage volume snapshot "${custom_vol_pool}" testvol test-snap0
 
   # Change the content (the snapshot will contain the old value).
   echo bar | lxc file push - c1/mnt/test
+
+  lxc storage volume set "${custom_vol_pool}" testvol user.foo=test-snap1
+  lxc storage volume snapshot "${custom_vol_pool}" testvol test-snap1
+  lxc storage volume set "${custom_vol_pool}" testvol user.foo=post-test-snap1
 
   if [ "$lxd_backend" = "btrfs" ] || [ "$lxd_backend" = "zfs" ]; then
     # Create optimized backup without snapshots.
@@ -607,7 +612,7 @@ test_backup_volume_export_with_project() {
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
   [ ! -d "${LXD_DIR}/non-optimized/backup/volume-snapshots" ]
 
-  ! grep -q -- '- snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
+  ! grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml" || false
 
   rm -rf "${LXD_DIR}/non-optimized/"*
   rm "${LXD_DIR}/testvol.tar.gz"
@@ -623,7 +628,7 @@ test_backup_volume_export_with_project() {
 
     [ -f "${LXD_DIR}/optimized/backup/index.yaml" ]
     [ -f "${LXD_DIR}/optimized/backup/volume.bin" ]
-    [ -f "${LXD_DIR}/optimized/backup/volume-snapshots/snap0.bin" ]
+    [ -f "${LXD_DIR}/optimized/backup/volume-snapshots/test-snap0.bin" ]
   fi
 
   # Create non-optimized backup with snapshots.
@@ -638,10 +643,10 @@ test_backup_volume_export_with_project() {
   [ -f "${LXD_DIR}/non-optimized/backup/index.yaml" ]
   [ -d "${LXD_DIR}/non-optimized/backup/volume" ]
   [ "$(cat "${LXD_DIR}/non-optimized/backup/volume/test")" = "bar" ]
-  [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/snap0" ]
-  [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/snap0/test")" = "foo" ]
+  [ -d "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0" ]
+  [  "$(cat "${LXD_DIR}/non-optimized/backup/volume-snapshots/test-snap0/test")" = "foo" ]
 
-  grep -q -- '- snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
+  grep -q -- '- test-snap0' "${LXD_DIR}/non-optimized/backup/index.yaml"
 
   rm -rf "${LXD_DIR}/non-optimized/"*
 
@@ -650,6 +655,12 @@ test_backup_volume_export_with_project() {
   lxc storage volume detach "${custom_vol_pool}" testvol c1
   lxc storage volume delete "${custom_vol_pool}" testvol
   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz"
+  lxc storage volume ls "${custom_vol_pool}"
+  lxc storage volume get "${custom_vol_pool}" testvol user.foo | grep -Fx "post-test-snap1"
+  lxc storage volume show "${custom_vol_pool}" testvol/test-snap0
+  lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo | grep -Fx "test-snap0"
+  lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo | grep -Fx "test-snap1"
+
   lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol.tar.gz" testvol2
   lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
   lxc storage volume attach "${custom_vol_pool}" testvol2 c1 /mnt2
@@ -673,6 +684,11 @@ test_backup_volume_export_with_project() {
     lxc storage volume delete "${custom_vol_pool}" testvol
     lxc storage volume delete "${custom_vol_pool}" testvol2
     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz"
+    lxc storage volume ls "${custom_vol_pool}"
+    lxc storage volume get "${custom_vol_pool}" testvol user.foo | grep -Fx "post-test-snap1"
+    lxc storage volume get "${custom_vol_pool}" testvol/test-snap0 user.foo | grep -Fx "test-snap0"
+    lxc storage volume get "${custom_vol_pool}" testvol/test-snap1 user.foo | grep -Fx "test-snap1"
+
     lxc storage volume import "${custom_vol_pool}" "${LXD_DIR}/testvol-optimized.tar.gz" testvol2
     lxc storage volume attach "${custom_vol_pool}" testvol c1 /mnt
     lxc storage volume attach "${custom_vol_pool}" testvol2 c1 /mnt2
