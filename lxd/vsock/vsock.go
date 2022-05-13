@@ -77,7 +77,7 @@ func HTTPClient(vsockID int, tlsClientCert string, tlsClientKey string, tlsServe
 		},
 		DisableKeepAlives:     true,
 		ExpectContinueTimeout: time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
