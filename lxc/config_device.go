@@ -80,18 +80,18 @@ func (c *cmdConfigDeviceAdd) Command() *cobra.Command {
 	if c.config != nil {
 		cmd.Use = usage("add", i18n.G("[<remote>:]<instance> <device> <type> [key=value...]"))
 		cmd.Example = cli.FormatSection("", i18n.G(
-			`lxc config device add [<remote>:]instance1 <device-name> disk source=/share/c1 path=opt
+			`lxc config device add [<remote>:]instance1 <device-name> disk source=/share/c1 path=/opt
     Will mount the host's /share/c1 onto /opt in the instance.
 
-lxc config device add [<remote>:]instance1 <device-name> disk pool=some-pool source=some-volume path=opt
+lxc config device add [<remote>:]instance1 <device-name> disk pool=some-pool source=some-volume path=/opt
     Will mount the some-volume volume on some-pool onto /opt in the instance.`))
 	} else if c.profile != nil {
 		cmd.Use = usage("add", i18n.G("[<remote>:]<profile> <device> <type> [key=value...]"))
 		cmd.Example = cli.FormatSection("", i18n.G(
-			`lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/c1 path=opt
+			`lxc profile device add [<remote>:]profile1 <device-name> disk source=/share/c1 path=/opt
     Will mount the host's /share/c1 onto /opt in the instance.
 
-lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool source=some-volume path=opt
+lxc profile device add [<remote>:]profile1 <device-name> disk pool=some-pool source=some-volume path=/opt
     Will mount the some-volume volume on some-pool onto /opt in the instance.`))
 	}
 
