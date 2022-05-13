@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -9,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/lxc/lxd/lxd/response"
+	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
 )
@@ -40,23 +43,54 @@ func renderState() *api.InstanceState {
 }
 
 func cpuState() api.InstanceStateCPU {
+	var value []byte
+	var err error
 	cpu := api.InstanceStateCPU{}
 
-	// CPU usage in seconds
-	value, err := ioutil.ReadFile("/sys/fs/cgroup/cpuacct/cpuacct.usage")
-	if err != nil {
-		cpu.Usage = -1
+	if shared.PathExists("/sys/fs/cgroup/cpuacct/cpuacct.usage") {
+		// CPU usage in seconds
+		value, err = ioutil.ReadFile("/sys/fs/cgroup/cpuacct/cpuacct.usage")
+		if err != nil {
+			cpu.Usage = -1
+			return cpu
+		}
+
+		valueInt, err := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
+		if err != nil {
+			cpu.Usage = -1
+			return cpu
+		}
+
+		cpu.Usage = valueInt
+
 		return cpu
+	} else if shared.PathExists("/sys/fs/cgroup/cpu.stat") {
+		stats, err := ioutil.ReadFile("/sys/fs/cgroup/cpu.stat")
+		if err != nil {
+			cpu.Usage = -1
+			return cpu
+		}
+
+		scanner := bufio.NewScanner(bytes.NewReader(stats))
+
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+
+			if fields[0] == "usage_usec" {
+				valueInt, err := strconv.ParseInt(fields[1], 10, 64)
+				if err != nil {
+					cpu.Usage = -1
+					return cpu
+				}
+
+				// usec -> nsec
+				cpu.Usage = valueInt * 1000
+				return cpu
+			}
+		}
 	}
 
-	valueInt, err := strconv.ParseInt(strings.TrimSpace(string(value)), 10, 64)
-	if err != nil {
-		cpu.Usage = -1
-		return cpu
-	}
-
-	cpu.Usage = valueInt
-
+	cpu.Usage = -1
 	return cpu
 }
 
