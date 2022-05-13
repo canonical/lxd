@@ -3197,7 +3197,7 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 	}
 
 	// Check source volume exists and is custom type.
-	_, srcVolRow, err := b.state.DB.Cluster.GetLocalStoragePoolVolume(srcProjectName, srcVolName, db.StoragePoolVolumeTypeCustom, srcPool.ID())
+	srcVolRow, err := VolumeDBGet(srcPool, srcProjectName, srcVolName, drivers.VolumeTypeCustom)
 	if err != nil {
 		if response.IsNotFoundError(err) {
 			return fmt.Errorf("Source volume doesn't exist")
@@ -3242,14 +3242,15 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 
 	// If we are copying snapshots, retrieve a list of snapshots from source volume.
 	var snapshotNames []string
+	var snapshotInfo []db.StorageVolumeArgs
 	if snapshots {
-		snapshots, err := VolumeDBSnapshotsGet(srcPool, srcProjectName, srcVolName, drivers.VolumeTypeCustom)
+		snapshotInfo, err = VolumeDBSnapshotsGet(srcPool, srcProjectName, srcVolName, drivers.VolumeTypeCustom)
 		if err != nil {
 			return err
 		}
 
-		snapshotNames = make([]string, 0, len(snapshots))
-		for _, snapshot := range snapshots {
+		snapshotNames = make([]string, 0, len(snapshotInfo))
+		for _, snapshot := range snapshotInfo {
 			_, snapShotName, _ := shared.InstanceGetParentAndSnapshotName(snapshot.Name)
 			snapshotNames = append(snapshotNames, snapShotName)
 		}
@@ -3280,12 +3281,11 @@ func (b *lxdBackend) CreateCustomVolumeFromCopy(projectName string, srcProjectNa
 		revert.Add(func() { VolumeDBDelete(b, projectName, volName, vol.Type()) })
 
 		// Create database entries for new storage volume snapshots.
-		for _, snapName := range snapshotNames {
+		for i, snapName := range snapshotNames {
 			newSnapshotName := drivers.GetSnapshotVolumeName(volName, snapName)
 
 			// Validate config and create database entry for new storage volume.
-			// Copy volume config from parent.
-			err = VolumeDBCreate(b, projectName, newSnapshotName, desc, vol.Type(), true, vol.Config(), time.Time{}, vol.ContentType(), false)
+			err = VolumeDBCreate(b, projectName, newSnapshotName, snapshotInfo[i].Description, vol.Type(), true, snapshotInfo[i].Config, snapshotInfo[i].ExpiryDate, vol.ContentType(), false)
 			if err != nil {
 				return err
 			}
