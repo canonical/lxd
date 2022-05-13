@@ -232,6 +232,16 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		return fmt.Errorf("Unrecognised instance type for backup type conversion")
 	}
 
+	volType, err := storagePools.InstanceTypeToVolumeType(sourceInst.Type())
+	if err != nil {
+		return err
+	}
+
+	vol, err := storagePools.VolumeDBGet(pool, sourceInst.Project(), sourceInst.Name(), volType)
+	if err != nil {
+		return fmt.Errorf("Failed loading instance volume record: %w", err)
+	}
+
 	indexInfo := backup.Info{
 		Name:             sourceInst.Name(),
 		Pool:             pool.Name(),
@@ -240,6 +250,9 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 		Type:             backupType,
 		OptimizedStorage: &optimized,
 		OptimizedHeader:  &poolDriverOptimizedHeader,
+		Config: &backup.Config{
+			Volume: vol,
+		},
 	}
 
 	if snapshots {
@@ -248,9 +261,42 @@ func backupWriteIndex(sourceInst instance.Instance, pool storagePools.Pool, opti
 			return err
 		}
 
-		for _, snap := range snaps {
-			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(snap.Name())
+		volSnaps, err := storagePools.VolumeDBSnapshotsGet(pool, sourceInst.Project(), sourceInst.Name(), volType)
+		if err != nil {
+			return fmt.Errorf("Failed loading instance volume snapshot records: %w", err)
+		}
+
+		if len(snaps) != len(volSnaps) {
+			return fmt.Errorf("Instance snapshot record count doesn't match instance snapshot volume record count")
+		}
+
+		for i := range volSnaps {
+			foundInstanceSnapshot := false
+			for _, snap := range snaps {
+				if snap.Name() == volSnaps[i].Name {
+					foundInstanceSnapshot = true
+					break
+				}
+			}
+
+			if !foundInstanceSnapshot {
+				return fmt.Errorf("Instance snapshot record missing for %q", volSnaps[i].Name)
+			}
+
+			_, snapName, _ := shared.InstanceGetParentAndSnapshotName(volSnaps[i].Name)
 			indexInfo.Snapshots = append(indexInfo.Snapshots, snapName)
+
+			snapshot := api.StorageVolumeSnapshot{
+				StorageVolumeSnapshotPut: api.StorageVolumeSnapshotPut{
+					Description: volSnaps[i].Description,
+					ExpiresAt:   &volSnaps[i].ExpiryDate,
+				},
+				Name:        snapName, // Snapshot only name, not full name.
+				Config:      volSnaps[i].Config,
+				ContentType: volSnaps[i].ContentType,
+			}
+
+			indexInfo.Config.VolumeSnapshots = append(indexInfo.Config.VolumeSnapshots, &snapshot)
 		}
 	}
 
