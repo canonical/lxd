@@ -142,9 +142,7 @@ func reconfigureNetworkInterfaces() {
 		if err != nil {
 			return err
 		}
-		reverter.Add(func() {
-			link.SetUp()
-		})
+		reverter.Add(link.SetUp)
 
 		// Apply the name from the NIC config if needed.
 		if changeName {
@@ -152,9 +150,14 @@ func reconfigureNetworkInterfaces() {
 			if err != nil {
 				return err
 			}
-			reverter.Add(func() {
-				link.SetName(currentNIC.Name)
+			reverter.Add(func() error {
+				err := link.SetName(currentNIC.Name)
+				if err != nil {
+					return err
+				}
+
 				link.Name = currentNIC.Name
+				return nil
 			})
 
 			link.Name = nic.NICName
@@ -167,10 +170,15 @@ func reconfigureNetworkInterfaces() {
 			if err != nil {
 				return err
 			}
-			reverter.Add(func() {
+			reverter.Add(func() error {
 				currentMTU := fmt.Sprintf("%d", currentNIC.MTU)
-				link.SetMTU(currentMTU)
+				err := link.SetMTU(currentMTU)
+				if err != nil {
+					return err
+				}
+
 				link.MTU = currentMTU
+				return nil
 			})
 
 			link.MTU = newMTU
