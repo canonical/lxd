@@ -27,6 +27,20 @@ const RBDFormatPrefix = "rbd"
 // RBDFormatSeparator is the field separate used in disk paths for RBD devices.
 const RBDFormatSeparator = " "
 
+// DiskGetRBDFormat returns a rbd formatted string with the given values.
+func DiskGetRBDFormat(clusterName string, userName string, poolName string, volumeName string) string {
+	// Configuration values containing :, @, or = can be escaped with a leading \ character.
+	// According to https://docs.ceph.com/docs/hammer/rbd/qemu-rbd/#usage
+	optEscaper := strings.NewReplacer(":", `\:`, "@", `\@`, "=", `\=`)
+	opts := []string{
+		fmt.Sprintf("id=%s", optEscaper.Replace(userName)),
+		fmt.Sprintf("pool=%s", optEscaper.Replace(poolName)),
+		fmt.Sprintf("conf=/etc/ceph/%s.conf", optEscaper.Replace(clusterName)),
+	}
+
+	return fmt.Sprintf("%s%s%s/%s%s%s", RBDFormatPrefix, RBDFormatSeparator, optEscaper.Replace(poolName), optEscaper.Replace(volumeName), RBDFormatSeparator, strings.Join(opts, ":"))
+}
+
 // BlockFsDetect detects the type of block device.
 func BlockFsDetect(dev string) (string, error) {
 	out, err := shared.RunCommand("blkid", "-s", "TYPE", "-o", "value", dev)
