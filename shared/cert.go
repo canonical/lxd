@@ -404,7 +404,7 @@ func GetRemoteCertificate(address string, useragent string) (*x509.Certificate, 
 		Dial:                  RFC3493Dialer,
 		Proxy:                 ProxyFromEnvironment,
 		ExpectContinueTimeout: time.Second * 30,
-		ResponseHeaderTimeout: time.Second * 30,
+		ResponseHeaderTimeout: time.Second * 3600,
 		TLSHandshakeTimeout:   time.Second * 5,
 	}
 
