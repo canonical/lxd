@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: lxd\n"
 "Report-Msgid-Bugs-To: lxc-devel@lists.linuxcontainers.org\n"
-"POT-Creation-Date: 2022-05-13 11:35-0400\n"
+"POT-Creation-Date: 2022-05-13 20:00+0100\n"
 "PO-Revision-Date: 2022-03-10 15:06+0000\n"
 "Last-Translator: Александр Киль <shorrey@gmail.com>\n"
 "Language-Team: Russian <https://hosted.weblate.org/projects/linux-containers/"
@@ -114,6 +114,7 @@ msgid ""
 "### Any line starting with a '# will be ignored.\n"
 "###\n"
 "### A sample configuration looks like:\n"
+"### name: instance1\n"
 "### profiles:\n"
 "### - default\n"
 "### config:\n"
@@ -123,7 +124,9 @@ msgid ""
 "###     path: /extra\n"
 "###     source: /home/user\n"
 "###     type: disk\n"
-"### ephemeral: false"
+"### ephemeral: false\n"
+"###\n"
+"### Note that the name is shown but cannot be changed"
 msgstr ""
 "### Это представление конфигурации в формате YAML. \n"
 "### Любая строка начинающаяся с '#' будет игнорироваться.\n"
@@ -415,7 +418,7 @@ msgstr ""
 "###\n"
 "### Обратите внимание, что только конфигурация может быть изменена."
 
-#: lxc/profile.go:419
+#: lxc/profile.go:426
 #, fuzzy
 msgid ""
 "### This is a YAML representation of the profile.\n"
@@ -560,7 +563,7 @@ msgstr ""
 msgid "--empty cannot be combined with an image name"
 msgstr ""
 
-#: lxc/config.go:410 lxc/config.go:646
+#: lxc/config.go:418 lxc/config.go:654
 msgid "--expanded cannot be used with a server"
 msgstr ""
 
@@ -580,7 +583,7 @@ msgstr ""
 msgid "--refresh can only be used with instances"
 msgstr ""
 
-#: lxc/config.go:149 lxc/config.go:394 lxc/config.go:529 lxc/config.go:672
+#: lxc/config.go:152 lxc/config.go:402 lxc/config.go:537 lxc/config.go:680
 #: lxc/info.go:446
 msgid "--target cannot be used with instances"
 msgstr ""
@@ -664,7 +667,7 @@ msgstr ""
 msgid "Accept certificate"
 msgstr "Принять сертификат"
 
-#: lxc/config.go:363
+#: lxc/config.go:371
 msgid "Access the expanded configuration"
 msgstr ""
 
@@ -1043,7 +1046,7 @@ msgstr ""
 msgid "Can't supply uid/gid/mode in recursive mode"
 msgstr ""
 
-#: lxc/config.go:546
+#: lxc/config.go:554
 #, c-format
 msgid "Can't unset key '%s', it's not currently set"
 msgstr ""
@@ -1141,8 +1144,8 @@ msgstr ""
 msgid "Cluster member %s removed from group %s"
 msgstr ""
 
-#: lxc/cluster.go:710 lxc/config.go:98 lxc/config.go:364 lxc/config.go:467
-#: lxc/config.go:614 lxc/config.go:733 lxc/copy.go:61 lxc/info.go:47
+#: lxc/cluster.go:710 lxc/config.go:98 lxc/config.go:372 lxc/config.go:475
+#: lxc/config.go:622 lxc/config.go:741 lxc/copy.go:61 lxc/info.go:47
 #: lxc/init.go:54 lxc/move.go:66 lxc/network.go:288 lxc/network.go:706
 #: lxc/network.go:764 lxc/network.go:1101 lxc/network.go:1168
 #: lxc/network.go:1230 lxc/network_forward.go:170 lxc/network_forward.go:234
@@ -1202,11 +1205,11 @@ msgstr ""
 msgid "Config key/value to apply to the target instance"
 msgstr ""
 
-#: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:255
-#: lxc/config.go:328 lxc/config_metadata.go:145 lxc/config_trust.go:307
+#: lxc/cluster.go:677 lxc/cluster_group.go:333 lxc/config.go:263
+#: lxc/config.go:336 lxc/config_metadata.go:145 lxc/config_trust.go:307
 #: lxc/image.go:458 lxc/network.go:674 lxc/network_acl.go:582
 #: lxc/network_forward.go:595 lxc/network_peer.go:573 lxc/network_zone.go:512
-#: lxc/network_zone.go:1065 lxc/profile.go:501 lxc/project.go:312
+#: lxc/network_zone.go:1065 lxc/profile.go:508 lxc/project.go:312
 #: lxc/storage.go:307 lxc/storage_volume.go:977 lxc/storage_volume.go:1007
 #, c-format
 msgid "Config parsing error: %s"
@@ -1274,7 +1277,7 @@ msgstr ""
 msgid "Copy profile inherited devices and override configuration keys"
 msgstr ""
 
-#: lxc/profile.go:246 lxc/profile.go:247
+#: lxc/profile.go:248 lxc/profile.go:249
 msgid "Copy profiles"
 msgstr ""
 
@@ -1291,7 +1294,8 @@ msgstr ""
 msgid "Copy the volume without its snapshots"
 msgstr ""
 
-#: lxc/copy.go:62 lxc/image.go:158 lxc/move.go:67 lxc/storage_volume.go:338
+#: lxc/copy.go:62 lxc/image.go:158 lxc/move.go:67 lxc/profile.go:251
+#: lxc/storage_volume.go:338
 msgid "Copy to a project different from the source"
 msgstr ""
 
@@ -1434,7 +1438,7 @@ msgstr "Копирование образа: %s"
 msgid "Create new networks"
 msgstr ""
 
-#: lxc/profile.go:302 lxc/profile.go:303
+#: lxc/profile.go:309 lxc/profile.go:310
 msgid "Create profiles"
 msgstr ""
 
@@ -1480,7 +1484,7 @@ msgstr ""
 #: lxc/image_alias.go:237 lxc/list.go:546 lxc/network.go:956
 #: lxc/network_acl.go:149 lxc/network_forward.go:145 lxc/network_peer.go:141
 #: lxc/network_zone.go:139 lxc/network_zone.go:702 lxc/operation.go:163
-#: lxc/profile.go:624 lxc/project.go:473 lxc/storage.go:581
+#: lxc/profile.go:631 lxc/project.go:473 lxc/storage.go:581
 #: lxc/storage_volume.go:1442
 msgid "DESCRIPTION"
 msgstr ""
@@ -1566,7 +1570,7 @@ msgstr "Копирование образа: %s"
 msgid "Delete networks"
 msgstr ""
 
-#: lxc/profile.go:356 lxc/profile.go:357
+#: lxc/profile.go:363 lxc/profile.go:364
 msgid "Delete profiles"
 msgstr ""
 
@@ -1597,8 +1601,8 @@ msgstr ""
 #: lxc/cluster_group.go:152 lxc/cluster_group.go:209 lxc/cluster_group.go:261
 #: lxc/cluster_group.go:374 lxc/cluster_group.go:445 lxc/cluster_group.go:518
 #: lxc/cluster_group.go:564 lxc/cluster_role.go:22 lxc/cluster_role.go:48
-#: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:360
-#: lxc/config.go:452 lxc/config.go:610 lxc/config.go:730
+#: lxc/cluster_role.go:102 lxc/config.go:30 lxc/config.go:92 lxc/config.go:368
+#: lxc/config.go:460 lxc/config.go:618 lxc/config.go:738
 #: lxc/config_device.go:24 lxc/config_device.go:78 lxc/config_device.go:202
 #: lxc/config_device.go:280 lxc/config_device.go:351 lxc/config_device.go:444
 #: lxc/config_device.go:541 lxc/config_device.go:548 lxc/config_device.go:657
@@ -1645,10 +1649,10 @@ msgstr ""
 #: lxc/network_zone.go:1098 lxc/network_zone.go:1147 lxc/network_zone.go:1162
 #: lxc/network_zone.go:1208 lxc/operation.go:24 lxc/operation.go:56
 #: lxc/operation.go:105 lxc/operation.go:184 lxc/profile.go:29
-#: lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:247 lxc/profile.go:303
-#: lxc/profile.go:357 lxc/profile.go:407 lxc/profile.go:531 lxc/profile.go:580
-#: lxc/profile.go:640 lxc/profile.go:716 lxc/profile.go:766 lxc/profile.go:825
-#: lxc/profile.go:879 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
+#: lxc/profile.go:104 lxc/profile.go:167 lxc/profile.go:249 lxc/profile.go:310
+#: lxc/profile.go:364 lxc/profile.go:414 lxc/profile.go:538 lxc/profile.go:587
+#: lxc/profile.go:647 lxc/profile.go:723 lxc/profile.go:773 lxc/profile.go:832
+#: lxc/profile.go:886 lxc/project.go:30 lxc/project.go:94 lxc/project.go:159
 #: lxc/project.go:222 lxc/project.go:342 lxc/project.go:392 lxc/project.go:491
 #: lxc/project.go:546 lxc/project.go:606 lxc/project.go:635 lxc/project.go:688
 #: lxc/project.go:747 lxc/publish.go:33 lxc/query.go:33 lxc/remote.go:33
@@ -1886,7 +1890,7 @@ msgstr "Копирование образа: %s"
 msgid "Edit network zone record configurations as YAML"
 msgstr "Копирование образа: %s"
 
-#: lxc/profile.go:406 lxc/profile.go:407
+#: lxc/profile.go:413 lxc/profile.go:414
 msgid "Edit profile configurations as YAML"
 msgstr ""
 
@@ -2241,7 +2245,7 @@ msgstr ""
 #: lxc/config_trust.go:424 lxc/image.go:1031 lxc/image_alias.go:158
 #: lxc/list.go:134 lxc/network.go:888 lxc/network.go:978 lxc/network_acl.go:99
 #: lxc/network_forward.go:90 lxc/network_peer.go:86 lxc/network_zone.go:89
-#: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:584
+#: lxc/network_zone.go:653 lxc/operation.go:107 lxc/profile.go:591
 #: lxc/project.go:394 lxc/project.go:749 lxc/remote.go:615 lxc/storage.go:525
 #: lxc/storage_volume.go:1360 lxc/warning.go:94
 msgid "Format (csv|json|table|yaml|compact)"
@@ -2320,7 +2324,7 @@ msgstr "Копирование образа: %s"
 msgid "Get values for device configuration keys"
 msgstr ""
 
-#: lxc/config.go:359 lxc/config.go:360
+#: lxc/config.go:367 lxc/config.go:368
 msgid "Get values for instance or server configuration keys"
 msgstr ""
 
@@ -2352,7 +2356,7 @@ msgstr "Копирование образа: %s"
 msgid "Get values for network zone record configuration keys"
 msgstr "Копирование образа: %s"
 
-#: lxc/profile.go:530 lxc/profile.go:531
+#: lxc/profile.go:537 lxc/profile.go:538
 msgid "Get values for profile configuration keys"
 msgstr ""
 
@@ -2991,7 +2995,7 @@ msgstr ""
 msgid "List of projects to restrict the certificate to"
 msgstr ""
 
-#: lxc/profile.go:579 lxc/profile.go:580
+#: lxc/profile.go:586 lxc/profile.go:587
 msgid "List profiles"
 msgstr ""
 
@@ -3384,7 +3388,7 @@ msgstr "Копирование образа: %s"
 #: lxc/config_template.go:92 lxc/config_template.go:135
 #: lxc/config_template.go:177 lxc/config_template.go:264
 #: lxc/config_template.go:322 lxc/profile.go:128 lxc/profile.go:201
-#: lxc/profile.go:664
+#: lxc/profile.go:671
 #, fuzzy
 msgid "Missing instance name"
 msgstr "Имя контейнера: %s"
@@ -3456,8 +3460,8 @@ msgstr "Имя контейнера: %s"
 msgid "Missing pool name"
 msgstr ""
 
-#: lxc/profile.go:327 lxc/profile.go:381 lxc/profile.go:455 lxc/profile.go:555
-#: lxc/profile.go:740 lxc/profile.go:793 lxc/profile.go:849
+#: lxc/profile.go:334 lxc/profile.go:388 lxc/profile.go:462 lxc/profile.go:562
+#: lxc/profile.go:747 lxc/profile.go:800 lxc/profile.go:856
 msgid "Missing profile name"
 msgstr ""
 
@@ -3467,7 +3471,7 @@ msgstr ""
 msgid "Missing project name"
 msgstr "Имя контейнера: %s"
 
-#: lxc/profile.go:272
+#: lxc/profile.go:275
 msgid "Missing source profile name"
 msgstr ""
 
@@ -3586,7 +3590,7 @@ msgstr ""
 #: lxc/cluster.go:178 lxc/cluster.go:860 lxc/cluster_group.go:427
 #: lxc/config_trust.go:399 lxc/config_trust.go:494 lxc/list.go:554
 #: lxc/network.go:951 lxc/network_acl.go:148 lxc/network_peer.go:140
-#: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:623
+#: lxc/network_zone.go:138 lxc/network_zone.go:701 lxc/profile.go:630
 #: lxc/project.go:468 lxc/remote.go:674 lxc/storage.go:574
 #: lxc/storage_volume.go:1441
 msgid "NAME"
@@ -3951,11 +3955,11 @@ msgstr ""
 msgid "Press ctrl+c to finish"
 msgstr ""
 
-#: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:256
-#: lxc/config.go:329 lxc/config_metadata.go:146 lxc/config_template.go:206
+#: lxc/cluster.go:678 lxc/cluster_group.go:334 lxc/config.go:264
+#: lxc/config.go:337 lxc/config_metadata.go:146 lxc/config_template.go:206
 #: lxc/config_trust.go:308 lxc/image.go:459 lxc/network.go:675
 #: lxc/network_acl.go:583 lxc/network_forward.go:596 lxc/network_peer.go:574
-#: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:502
+#: lxc/network_zone.go:513 lxc/network_zone.go:1066 lxc/profile.go:509
 #: lxc/project.go:313 lxc/storage.go:308 lxc/storage_volume.go:978
 #: lxc/storage_volume.go:1008
 msgid "Press enter to open the editor again or ctrl+c to abort change"
@@ -3997,27 +4001,27 @@ msgstr ""
 msgid "Profile %s added to %s"
 msgstr ""
 
-#: lxc/profile.go:340
+#: lxc/profile.go:347
 #, c-format
 msgid "Profile %s created"
 msgstr ""
 
-#: lxc/profile.go:391
+#: lxc/profile.go:398
 #, c-format
 msgid "Profile %s deleted"
 msgstr ""
 
-#: lxc/profile.go:674
+#: lxc/profile.go:681
 #, c-format
 msgid "Profile %s isn't currently applied to %s"
 msgstr ""
 
-#: lxc/profile.go:699
+#: lxc/profile.go:706
 #, c-format
 msgid "Profile %s removed from %s"
 msgstr ""
 
-#: lxc/profile.go:750
+#: lxc/profile.go:757
 #, c-format
 msgid "Profile %s renamed to %s"
 msgstr ""
@@ -4246,7 +4250,7 @@ msgstr ""
 msgid "Remove ports from a forward"
 msgstr ""
 
-#: lxc/profile.go:639 lxc/profile.go:640
+#: lxc/profile.go:646 lxc/profile.go:647
 msgid "Remove profiles from instances"
 msgstr ""
 
@@ -4293,7 +4297,7 @@ msgstr ""
 msgid "Rename networks"
 msgstr ""
 
-#: lxc/profile.go:715 lxc/profile.go:716
+#: lxc/profile.go:722 lxc/profile.go:723
 msgid "Rename profiles"
 msgstr ""
 
@@ -4518,11 +4522,11 @@ msgstr ""
 msgid "Set image properties"
 msgstr ""
 
-#: lxc/config.go:451
+#: lxc/config.go:459
 msgid "Set instance or server configuration keys"
 msgstr ""
 
-#: lxc/config.go:452
+#: lxc/config.go:460
 msgid ""
 "Set instance or server configuration keys\n"
 "\n"
@@ -4604,11 +4608,11 @@ msgstr ""
 msgid "Set network zone record configuration keys"
 msgstr "Копирование образа: %s"
 
-#: lxc/profile.go:765
+#: lxc/profile.go:772
 msgid "Set profile configuration keys"
 msgstr ""
 
-#: lxc/profile.go:766
+#: lxc/profile.go:773
 msgid ""
 "Set profile configuration keys\n"
 "\n"
@@ -4719,7 +4723,7 @@ msgstr ""
 msgid "Show instance metadata files"
 msgstr "Невозможно добавить имя контейнера в список"
 
-#: lxc/config.go:609 lxc/config.go:610
+#: lxc/config.go:617 lxc/config.go:618
 msgid "Show instance or server configurations"
 msgstr ""
 
@@ -4773,7 +4777,7 @@ msgstr "Копирование образа: %s"
 msgid "Show network zone record configurations"
 msgstr "Копирование образа: %s"
 
-#: lxc/profile.go:824 lxc/profile.go:825
+#: lxc/profile.go:831 lxc/profile.go:832
 msgid "Show profile configurations"
 msgstr ""
 
@@ -4798,7 +4802,7 @@ msgstr "Копирование образа: %s"
 msgid "Show the default remote"
 msgstr ""
 
-#: lxc/config.go:613
+#: lxc/config.go:621
 msgid "Show the expanded configuration"
 msgstr ""
 
@@ -5162,7 +5166,7 @@ msgid ""
 "Or for a virtual machine: lxc launch ubuntu:22.04 --vm"
 msgstr ""
 
-#: lxc/config.go:278 lxc/config.go:416 lxc/config.go:566 lxc/config.go:652
+#: lxc/config.go:286 lxc/config.go:424 lxc/config.go:574 lxc/config.go:660
 #: lxc/copy.go:129 lxc/info.go:332 lxc/network.go:793 lxc/storage.go:429
 msgid "To use --target, the destination remote must be a cluster"
 msgstr ""
@@ -5264,7 +5268,7 @@ msgid "USAGE"
 msgstr ""
 
 #: lxc/network.go:957 lxc/network_acl.go:150 lxc/network_zone.go:140
-#: lxc/profile.go:625 lxc/project.go:474 lxc/storage.go:582
+#: lxc/profile.go:632 lxc/project.go:474 lxc/storage.go:582
 #: lxc/storage_volume.go:1444
 msgid "USED BY"
 msgstr ""
@@ -5336,7 +5340,7 @@ msgstr ""
 msgid "Unset image properties"
 msgstr ""
 
-#: lxc/config.go:729 lxc/config.go:730
+#: lxc/config.go:737 lxc/config.go:738
 msgid "Unset instance or server configuration keys"
 msgstr ""
 
@@ -5378,7 +5382,7 @@ msgstr "Копирование образа: %s"
 msgid "Unset network zone record configuration keys"
 msgstr "Копирование образа: %s"
 
-#: lxc/profile.go:878 lxc/profile.go:879
+#: lxc/profile.go:885 lxc/profile.go:886
 msgid "Unset profile configuration keys"
 msgstr ""
 
@@ -5556,7 +5560,7 @@ msgstr ""
 #: lxc/cluster.go:116 lxc/cluster.go:777 lxc/cluster_group.go:371
 #: lxc/config_trust.go:338 lxc/config_trust.go:420 lxc/monitor.go:31
 #: lxc/network.go:881 lxc/network_acl.go:93 lxc/network_zone.go:83
-#: lxc/operation.go:102 lxc/profile.go:577 lxc/project.go:389
+#: lxc/operation.go:102 lxc/profile.go:584 lxc/project.go:389
 #: lxc/storage.go:520 lxc/version.go:20 lxc/warning.go:69
 #, fuzzy
 msgid "[<remote>:]"
@@ -5864,7 +5868,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:102 lxc/profile.go:638
+#: lxc/profile.go:102 lxc/profile.go:645
 #, fuzzy
 msgid "[<remote>:]<instance> <profile>"
 msgstr ""
@@ -6361,8 +6365,8 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:301
-#: lxc/profile.go:354 lxc/profile.go:405 lxc/profile.go:823
+#: lxc/config_device.go:285 lxc/config_device.go:654 lxc/profile.go:308
+#: lxc/profile.go:361 lxc/profile.go:412 lxc/profile.go:830
 #, fuzzy
 msgid "[<remote>:]<profile>"
 msgstr ""
@@ -6394,7 +6398,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:529 lxc/profile.go:877
+#: lxc/profile.go:536 lxc/profile.go:884
 #, fuzzy
 msgid "[<remote>:]<profile> <key>"
 msgstr ""
@@ -6402,7 +6406,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:764
+#: lxc/profile.go:771
 #, fuzzy
 msgid "[<remote>:]<profile> <key><value>..."
 msgstr ""
@@ -6418,7 +6422,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:713
+#: lxc/profile.go:720
 #, fuzzy
 msgid "[<remote>:]<profile> <new-name>"
 msgstr ""
@@ -6426,7 +6430,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/profile.go:244
+#: lxc/profile.go:246
 #, fuzzy
 msgid "[<remote>:]<profile> [<remote>:]<profile>"
 msgstr ""
@@ -6531,7 +6535,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config.go:90 lxc/config.go:608
+#: lxc/config.go:90 lxc/config.go:616
 #, fuzzy
 msgid "[<remote>:][<instance>[/<snapshot>]]"
 msgstr ""
@@ -6547,7 +6551,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config.go:358 lxc/config.go:728
+#: lxc/config.go:366 lxc/config.go:736
 #, fuzzy
 msgid "[<remote>:][<instance>] <key>"
 msgstr ""
@@ -6555,7 +6559,7 @@ msgstr ""
 "\n"
 "lxc %s [<remote>:]<container> [[<remote>:]<container>...]%s"
 
-#: lxc/config.go:450
+#: lxc/config.go:458
 #, fuzzy
 msgid "[<remote>:][<instance>] <key>=<value>..."
 msgstr ""
@@ -6666,7 +6670,7 @@ msgid ""
 "    Update the instance configuration from config.yaml."
 msgstr ""
 
-#: lxc/config.go:457
+#: lxc/config.go:465
 msgid ""
 "lxc config set [<remote>:]<instance> limits.cpu=2\n"
 "    Will set a CPU limit of \"2\" for the instance.\n"
@@ -6815,7 +6819,7 @@ msgid ""
 "    Will mount the some-volume volume on some-pool onto /opt in the instance."
 msgstr ""
 
-#: lxc/profile.go:409
+#: lxc/profile.go:416
 msgid ""
 "lxc profile edit <profile> < profile.yaml\n"
 "    Update a profile using the content of profile.yaml"
