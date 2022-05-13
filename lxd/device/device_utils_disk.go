@@ -27,6 +27,27 @@ const RBDFormatPrefix = "rbd"
 // RBDFormatSeparator is the field separate used in disk paths for RBD devices.
 const RBDFormatSeparator = " "
 
+// DiskParseRBDFormat parses an rbd formatted string, and returns the pool name, volume name, and list of options.
+func DiskParseRBDFormat(rbd string) (string, string, []string, error) {
+	if !strings.HasPrefix(rbd, fmt.Sprintf("%s%s", RBDFormatPrefix, RBDFormatSeparator)) {
+		return "", "", nil, fmt.Errorf("Invalid rbd format, missing prefix")
+	}
+
+	fields := strings.SplitN(rbd, RBDFormatSeparator, 3)
+	if len(fields) != 3 {
+		return "", "", nil, fmt.Errorf("Invalid rbd format, invalid number of fields")
+	}
+
+	opts := fields[2]
+
+	fields = strings.SplitN(fields[1], "/", 2)
+	if len(fields) != 2 {
+		return "", "", nil, fmt.Errorf("Invalid rbd format, invalid pool or volume")
+	}
+
+	return fields[0], fields[1], strings.Split(opts, ":"), nil
+}
+
 // DiskGetRBDFormat returns a rbd formatted string with the given values.
 func DiskGetRBDFormat(clusterName string, userName string, poolName string, volumeName string) string {
 	// Configuration values containing :, @, or = can be escaped with a leading \ character.
