@@ -101,7 +101,6 @@ func backupCreate(s *state.State, args db.InstanceBackup, sourceInst instance.In
 				return err
 			}
 		}
-
 	}
 
 	// Create the target path if needed.
