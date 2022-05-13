@@ -5045,17 +5045,11 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 	// Get the volume name on storage.
 	volStorageName := project.StorageVolume(srcBackup.Project, srcBackup.Name)
 
-	// Validate config.
 	vol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), volStorageName, srcBackup.Config.Volume.Config)
 
-	// Strip any unsupported config keys (in case the export was made from a different type of storage pool).
-	err = b.driver.ValidateVolume(vol, true)
-	if err != nil {
-		return err
-	}
-
-	// Create database entry for new storage volume using the validated config.
-	err = VolumeDBCreate(b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType())
+	// Validate config and create database entry for new storage volume.
+	// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+	err = VolumeDBCreate(b, srcBackup.Project, srcBackup.Name, srcBackup.Config.Volume.Description, vol.Type(), false, vol.Config(), time.Time{}, vol.ContentType(), true)
 	if err != nil {
 		return err
 	}
@@ -5077,13 +5071,9 @@ func (b *lxdBackend) CreateCustomVolumeFromBackup(srcBackup backup.Info, srcData
 		snapVolStorageName := project.StorageVolume(srcBackup.Project, fullSnapName)
 		snapVol := b.GetVolume(drivers.VolumeTypeCustom, drivers.ContentType(srcBackup.Config.Volume.ContentType), snapVolStorageName, srcBackup.Config.Volume.Config)
 
-		// Strip any unsupported config keys (in case the export was made from a different type of storage pool).
-		err := b.driver.ValidateVolume(snapVol, true)
-		if err != nil {
-			return err
-		}
-
-		err = VolumeDBCreate(b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), *snapshot.ExpiresAt, snapVol.ContentType())
+		// Validate config and create database entry for new storage volume.
+		// Strip unsupported config keys (in case the export was made from a different type of storage pool).
+		err = VolumeDBCreate(b, srcBackup.Project, fullSnapName, snapshot.Description, snapVol.Type(), true, snapVol.Config(), *snapshot.ExpiresAt, snapVol.ContentType(), true)
 		if err != nil {
 			return err
 		}
