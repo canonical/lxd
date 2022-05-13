@@ -29,6 +29,12 @@ const cephBlockVolSuffix = ".block"
 
 const cephVolumeTypeZombieImage = VolumeType("zombie_image")
 
+// CephDefaultCluster represents the default ceph cluster name
+const CephDefaultCluster = "ceph"
+
+// CephDefaultUser represents the default ceph user name
+const CephDefaultUser = "admin"
+
 // cephVolTypePrefixes maps volume type to storage volume name prefix.
 var cephVolTypePrefixes = map[VolumeType]string{
 	VolumeTypeContainer: db.StoragePoolVolumeTypeNameContainer,
