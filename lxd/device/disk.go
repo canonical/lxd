@@ -2068,12 +2068,12 @@ func (d *disk) cephCreds() (string, string) {
 	// Apply the ceph configuration.
 	userName := d.config["ceph.user_name"]
 	if userName == "" {
-		userName = "admin"
+		userName = storageDrivers.CephDefaultUser
 	}
 
 	clusterName := d.config["ceph.cluster_name"]
 	if clusterName == "" {
-		clusterName = "ceph"
+		clusterName = storageDrivers.CephDefaultCluster
 	}
 
 	return clusterName, userName
